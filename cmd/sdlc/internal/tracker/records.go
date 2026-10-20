@@ -141,11 +141,16 @@ type Records struct {
 	// answer carries its reason, never a bare flag.
 	FetchErr error
 	Ref      string
+	snapshot Snapshot
 	list     []IssueRecord
 	byID     map[string]int
 }
 
 func (rs Records) All() []IssueRecord { return append([]IssueRecord(nil), rs.list...) }
+
+// CardSnapshot is the immutable card inventory this view was composed from,
+// including quarantined cards and their paths. It is empty when !Tracker.
+func (rs Records) CardSnapshot() Snapshot { return rs.snapshot }
 
 // get is the raw lookup. It is unexported on purpose (#288): a caller outside
 // this package must go through Require, so an unreadable card can never be
@@ -195,6 +200,13 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 			rs.Tracker = true
 		}
 	}
+	rs.snapshot = snap
+	return rs.WithDetails(ctx, detailsDir)
+}
+
+// WithDetails composes another details directory against this same pinned card
+// generation, preserving its freshness metadata without contacting the remote.
+func (rs Records) WithDetails(ctx context.Context, detailsDir string) (Records, error) {
 	if ctx != nil {
 		if err := ctx.Err(); err != nil {
 			return rs, err
@@ -203,8 +215,8 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 	var cards []Record
 	var unreadable []UnreadableCard
 	if rs.Tracker {
-		rs.Ref = snap.Ref()
-		cards, unreadable = snap.Records(), snap.Unreadable()
+		rs.Ref = rs.snapshot.Ref()
+		cards, unreadable = rs.snapshot.Records(), rs.snapshot.Unreadable()
 	}
 	matches, err := filepath.Glob(filepath.Join(detailsDir, issue.FilenamePattern))
 	if err != nil {
@@ -215,6 +227,7 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 		raw, err := os.ReadFile(p)
 		files = append(files, DetailFile{Path: p, Raw: raw, ReadErr: err})
 	}
+	rs.list, rs.byID = nil, nil
 	return ComposeRecords(rs, cards, unreadable, files), nil
 }
 

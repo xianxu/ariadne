@@ -9,9 +9,51 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
+
+func TestRecordsWithDetailsPreservesCardSnapshot(t *testing.T) {
+	const badPath = "workshop/issue-cards/000007-bad.md"
+	snap, err := parseSnapshot("pinned", []gitx.TreeFile{
+		file(ManifestPath, string(ManifestBytes())), file(testPath, testCard),
+		file(badPath, "---\nid: 000007\nstatus: [broken\n---\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cause := errors.New("offline")
+	rs := Records{Tracker: true, Stale: true, FetchErr: cause, snapshot: snap}
+	first, second := t.TempDir(), t.TempDir()
+	writeDetails(t, first, "000252-test.md", "---\nid: 000252\ndeps: [x#1]\n---\n# First\n")
+	writeDetails(t, second, "000300-test.md", "---\nid: 000300\n---\n# Second\n")
+	rs, err = rs.WithDetails(context.Background(), first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := rs.WithDetails(context.Background(), second)
+	if err != nil || !next.Stale || !errors.Is(next.FetchErr, cause) || next.Ref != "pinned" {
+		t.Fatalf("recomposition lost pinned freshness: %+v %v", next, err)
+	}
+	old, _, _ := rs.Require("000252")
+	cardOnly, _, _ := next.Require("000252")
+	if old.DetailPath == "" || cardOnly.DetailPath != "" || len(next.All()) != 3 {
+		t.Fatal("recomposition mutated the old view or retained old details")
+	}
+	if _, _, err := next.Require("000007"); err == nil {
+		t.Fatal("lost malformed card")
+	}
+	bad := next.CardSnapshot().Unreadable()
+	if len(bad) != 1 || bad[0].Path != badPath {
+		t.Fatalf("lost quarantined path: %+v", bad)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := next.WithDetails(ctx, second); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation: %v", err)
+	}
+}
 
 func writeDetails(t *testing.T, dir, name, body string) {
 	t.Helper()
