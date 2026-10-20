@@ -335,6 +335,13 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
+A train waiter retains its validated landed outcome (#494). If the conductor's
+done-card sweep already archived that car without per-PR trailers, bounded
+destination-path history locates the archive commit. The same transition verifier
+must confirm its exact tracked completion, all artifact moves and unchanged
+current archive before the waiter reports “archived by the train”. The outcome
+alone confirms landing, never archival; ambiguous or changed proof still refuses
+cleanup. Ordinary serial archive provenance remains required.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
 Tracked dirt (including tracker edits), active Git operations, conflicting

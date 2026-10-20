@@ -627,6 +627,13 @@ func landingArchiveComplete(ctx context.Context, root, remoteMainOID, repo strin
 	}
 	return confirmLandingArchive(ctx, root, remoteMainOID, repo, pr, dirs, selected)
 }
+
+// Only missing per-PR provenance permits a train's alternative proof. Preserve
+// the ordinary error text; malformed or ambiguous provenance never falls back.
+type landingArchiveWithoutProvenance struct{ error }
+
+func (e *landingArchiveWithoutProvenance) Unwrap() error { return e.error }
+
 func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landingPR, dirs landingArchiveRoots, selected []landingOwnedIssue) (bool, error) {
 	if !landingOIDValid(tip) {
 		return false, fmt.Errorf("archive proof requires a full main object ID")
@@ -662,12 +669,66 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if len(matching) == 0 {
 		// Validate absence as a genuine not-yet-archived state, not partial success.
 		_, err := planLandingArchive(selected, current, dirs, time.Now().Format("2006-01-02"))
+		if err != nil {
+			return false, &landingArchiveWithoutProvenance{err}
+		}
 		return false, err
 	}
 	if len(matching) != 1 {
 		return false, fmt.Errorf("ambiguous archive provenance for PR #%d", pr.Number)
 	}
-	archiveOID := matching[0]
+	return confirmLandingArchiveCommit(ctx, root, matching[0], dirs, selected, current)
+}
+
+// The conductor's done-card sweep may archive a sibling without per-PR
+// trailers (#494). Its landed outcome only authorizes looking for this proof:
+// the exact archive transition, not the outcome or missing active details,
+// confirms archival. Ordinary serial landings never call this path.
+func confirmTrainLandingArchive(ctx context.Context, root, tip, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error) {
+	if err := validateArchivePR(repo, pr); err != nil {
+		return false, err
+	}
+	dirs, err := resolveArchiveRoots(root, issuesDir, plansDir, historyDir)
+	if err != nil {
+		return false, err
+	}
+	selected, err := selectArchiveLandingIssues(ctx, root, pr, dirs)
+	if err != nil {
+		return false, err
+	}
+	if len(selected) == 0 {
+		return false, fmt.Errorf("train archive has no owned tracked completion")
+	}
+	current, err := archiveSnapshotContext(ctx, root, tip, selected, dirs)
+	if err != nil {
+		return false, err
+	}
+	for _, owned := range selected {
+		if !owned.tracked {
+			return false, fmt.Errorf("train archive requires a tracked completion: %s", owned.path)
+		}
+		dest := archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))
+		out, err := archiveReadContext(ctx, root, "--literal-pathspecs", "log", "--max-count=10001", "--no-renames", "--diff-filter=A", "--format=%H", tip, "--not", pr.BaseOID, "--", dest)
+		if err != nil {
+			return false, err
+		}
+		candidates := strings.Fields(string(out))
+		if len(candidates) != 1 || !landingOIDValid(candidates[0]) {
+			return false, fmt.Errorf("train archive %s requires one archive commit within %d entries; found %d", dest, landingArchiveLimit, len(candidates))
+		}
+		if _, err := archiveReadContext(ctx, root, "merge-base", "--is-ancestor", pr.LandedOID, candidates[0]); err != nil {
+			return false, fmt.Errorf("train archive precedes confirmed integration: %w", err)
+		}
+		if complete, err := confirmLandingArchiveCommit(ctx, root, candidates[0], dirs, []landingOwnedIssue{owned}, current); err != nil || !complete {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// Both provenance paths verify the same exact archive transition and its
+// unchanged current generation, including every plan, asset and side document.
+func confirmLandingArchiveCommit(ctx context.Context, root, archiveOID string, dirs landingArchiveRoots, selected []landingOwnedIssue, current landingArchiveSnapshot) (bool, error) {
 	parents, err := archiveReadContext(ctx, root, "rev-list", "--parents", "-n", "1", archiveOID, "--")
 	if err != nil {
 		return false, err

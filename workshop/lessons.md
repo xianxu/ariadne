@@ -1156,3 +1156,5 @@ The simplest durable authority beats a clever scan of consequences.
   values with context.WithoutCancel, then apply the cleanup timeout. Do not mint
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
+
+- #494: a train outcome that says landed precedes cleanup and cannot establish archive success. Reuse exact archive-transition proof before accepting a sibling's generic sweep archive. For tracked train fixtures, use prepared addressable slots, persist separate card/detail mirrors, and advance the prepared resting baseline past cutover before asserting the post-return sweep. Synthetic car clones exercise boarding but cannot substitute for real durable merge callers.

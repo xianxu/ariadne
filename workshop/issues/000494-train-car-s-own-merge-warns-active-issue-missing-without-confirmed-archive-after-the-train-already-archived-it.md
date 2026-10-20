@@ -50,8 +50,8 @@ ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with 
 
 ## Plan
 
-- [ ] Reproduce the tracked two-car cleanup ordering and confirm archive provenance.
-- [ ] Retain the train outcome and recognize its already archived exact completion without weakening serial archive checks.
+- [x] Reproduce the tracked two-car cleanup ordering and confirm archive provenance.
+- [x] Retain the train outcome and recognize its already archived exact completion without weakening serial archive checks.
 - [ ] Verify focused controls, recorded suite, fresh close review and landing.
 
 ## Log
@@ -59,6 +59,11 @@ ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with 
 ### 2026-10-20
 
 - Investigation: pair landing events record train 176 landing tickets 176/178 (pair#724/#717) with train PR #484. Git history identifies #717 archive commit 7d4e0c3ab as the generic “archive after a merge outside sdlc” sweep, without Landing-PR/Landing-Head trailers. The conductor completes all reachable cards, archives its own PR, then finishLandedLeftovers archives sibling done cards. The waiting merge discards its landed outcome, and confirmLandingArchive requires its own PR trailers; missing active details then fail planLandingArchive. Existing outcome confirms landed only, not archive completion, and precedes cleanup. Preserve this distinction (ARCH-ORDER/SECURE); no production edits yet. A tracked two-real-car fixture is required: legacy train fixtures do not run the done-card sweep.
+
+- The deterministic two-real-merge regression now reproduces the incident: after the conductor completes both cards and its generic sweep archives #2, the blocked waiter returns “active issue missing without confirmed archive: workshop/issues/000002-second.md”. Fixture setup first exposed invalid card/detail separation, a synthetic arbitrary clone unsuitable for a real durable merge, and a pre-cutover resting baseline; corrected all before observing the behavioral red run. With only the production proof correction, that exact regression passes in 19.570s (test body 19.14s), including the train-archive output, unchanged main-slot2 and deleted issue ref.
+- Implementation retains the exact settled outcome and enables fallback only for a failed no-per-PR-provenance case with a named train PR. It discovers one bounded path-history add commit per owned tracked issue, proves integration precedes it, and reuses the complete existing archive-transition/current-generation verifier. Existing or ambiguous per-PR provenance never falls back. No persisted format or archive writer changes; the typed wrapper preserves the ordinary error text and chain. ARCH-DRY/ORDER/SECURE shaped these boundaries. This is a semantic confirmation bug defended by stateful integration and proof controls, not a lexical mistake class suitable for a Go lint rule.
+
+- Direct proof controls pass in 13.835s, covering positive generic archive, unchanged serial rejection, no archive, missing/tampered/malformed destinations, active issue/plan residue, ambiguous add history, malformed introducing transition, different completion token and untracked refusal; each negative pins its expected fault rather than accepting any error. Existing archive controls, all original train mergeCommit variants, no-outcome recovery, tracked archive idempotency and merge/squash/rebase controls also passed in the focused run; its only failure was the new control fixture using a file transport identity as PR.Repo, corrected to test/repo before the clean control pass. The two-real-merge fixture now reuses the existing synchronized watchWriter for concurrent stderr.
 
 ## Revisions
 

@@ -406,6 +406,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
 	}
 	landedByTrain := false
+	var trainOutcome *landingline.Outcome
 	if !resumeOnly(pre) {
 		sched = landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, stderr)
 		if turn, err = enterLandingLine(ctx, r, t, branch, sched, readiness, stderr); err != nil {
@@ -416,6 +417,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			case errors.Is(err, errMergedWhileWaiting):
 				fmt.Fprintln(stderr, "this PR was merged while it waited (a train with no word for it); finishing cleanup")
 			case errors.As(err, &settled) && settled.Outcome.Kind == landingline.OutcomeLanded:
+				trainOutcome = &settled.Outcome
 				fmt.Fprintf(stderr, "landing train %d landed this PR (train PR #%d); finishing cleanup\n", settled.Outcome.Train, settled.Outcome.PR)
 			default:
 				return err
@@ -709,6 +711,13 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return err
 		}
 		complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+		var unproven *landingArchiveWithoutProvenance
+		if trainOutcome != nil && trainOutcome.PR > 0 && errors.As(err, &unproven) {
+			complete, err = confirmTrainLandingArchive(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+			if complete && err == nil {
+				fmt.Fprintf(stderr, "landing train %d: PR #%d's issue archived by the train (train PR #%d); finishing cleanup\n", trainOutcome.Train, pr.Number, trainOutcome.PR)
+			}
+		}
 		if err != nil {
 			return err
 		}
