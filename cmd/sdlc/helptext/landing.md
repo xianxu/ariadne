@@ -65,7 +65,11 @@ FLEET-BLOCKING PRIORITY
   sdlc landing revoke --issue N [--reason WHY] [--repo DIR]
 
   A grant puts issue N's merge ahead of waiting normal ones at the next
-  admission. It waives no gate. Only the operator's shell or a :0 slot (the
+  admission. While any valid grant exists, normal merges wait even before the
+  granted issue queues. Granted issues keep FIFO among themselves; a running
+  landing continues. Status and wait output name each grant, reason, expiry and
+  the revoke command (run it in this repository's checkout). Expiry or
+  revocation releases the hold. It waives no gate. Only the operator's shell or a :0 slot (the
   TL's hub) may grant or revoke; a worker slot, or a :0 checkout entered from
   one ($COUCH_TREE), refuses. A grant lasts at most 24 hours (default 4) and
   ends when the issue lands. The grants log is the only source of priority,

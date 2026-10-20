@@ -251,6 +251,10 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			}
 			return err
 		}
+		if why = GrantHold(h.ticket.Issue, grants); why != "" {
+			head.Close()
+			return nil
+		}
 		candidates := live
 		if admissible != nil {
 			// head.lock is held: the previous head has left, so its train
