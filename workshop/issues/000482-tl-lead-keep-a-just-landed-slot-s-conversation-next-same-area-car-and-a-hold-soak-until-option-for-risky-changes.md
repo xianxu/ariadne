@@ -60,3 +60,11 @@ Two tl-lead rules (text in `tl-lead --help`, DISPATCH or LANDING section):
   - `tl-worker --help` is read anew per item.
   - `couch --relaunch repo:N --confirm` restarts a slot onto a new Pair binary and keeps its conversation.
   So the rule is to skip prepare for a just-landed slot taking a same-area car, and relaunch only for a Pair binary change. No pair issue was filed.
+- **Close round 1 (FIX-THEN-SHIP):**
+  - BR-1 was right. `## Slots` is binary-rendered, so a hand-written hold would be overwritten, and the held slot listed as free.
+    - The hold now lives in the section: `tl-lead status slots FILE --hold repo:N='until X'` / `--release repo:N`. Each render reads the holds back from the section being replaced, at write time inside the compare-and-swap, so a retry re-reads them.
+    - A held slot gets its own line and never appears on the free line.
+    - The help's "free for new work" excludes held slots.
+    - `TestStatusSlotsSoakHold` covers set, carry, release and refusals.
+  - Minor: the atlas pointer has been added.
+  - Side fix: a race in the test fake `fakeSDLC.IssueShow` (an unguarded `calls++` under `boundedEach`) made `TestGatherTrains` flaky. It is now guarded, and `-race` is clean.

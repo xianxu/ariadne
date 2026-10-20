@@ -57,6 +57,8 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"skip prepare for a same-area car", "skip `--prepare`, which starts a fresh conversation"},
 		{"relaunch keeps the conversation", "`couch --relaunch repo:N --confirm` keeps the conversation"},
 		{"soak hold", "\"hold: soak until X\""},
+		{"soak hold is recorded by the binary", "tl-lead status slots FILE --hold repo:N='until the next train lands'"},
+		{"held is not free", "and not held (a soak hold, LANDING)"},
 		{"soak exits", "the\n    next train lands, the next main suite after the change passes, or a stated\n    time"},
 		{"session retro", "After a long session or at the operator's request"},
 		{"retro approval", "agreed retro items"},

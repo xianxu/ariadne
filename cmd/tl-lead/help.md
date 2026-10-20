@@ -394,9 +394,9 @@ WATCHING
     confirm its delivery with `--message-status`, retrying once load drops. A
     sent or "outcome uncertain" message is not evidence the slot resumed.
     Report which slots were stalled.
-  - Free for new work means idle, on its resting branch, clean, and with no
-    claim in progress. Idle is not free: a quiet slot may be waiting on a
-    question.
+  - Free for new work means idle, on its resting branch, clean, with no
+    claim in progress, and not held (a soak hold, LANDING). Idle is not free:
+    a quiet slot may be waiting on a question.
   - Before any remote restart (`--relaunch`, `--reload-context`), read the
     tail. Couch's refusals (busy, dirty, stale binary) are a floor, not the
     judgment.
@@ -421,8 +421,11 @@ LANDING AND SMOKE TESTS
     format, anything hard to roll back. "hold: soak until X" keeps the slot
     that landed it reserved and idle, its conversation intact, until X: the
     next train lands, the next main suite after the change passes, or a stated
-    time. Show it on the slot's line in `## Slots` (`hold: soak until …`) and
-    release it at X. Open an extra slot if the hold would cost throughput.
+    time. Record it in `## Slots`, which every render then carries, and the
+    held slot never shows as free:
+        tl-lead status slots FILE --hold repo:N='until the next train lands'
+        tl-lead status slots FILE --release repo:N     (at X)
+    Open an extra slot if the hold would cost throughput.
   - Workers land their own items on SHIP. For each issue, decide whether it
     needs an operator smoke test, can share one batched smoke test in :0, or
     needs none. When unsure, ask the operator, and record the decision and its
