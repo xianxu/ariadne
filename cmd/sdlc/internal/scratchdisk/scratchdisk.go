@@ -112,7 +112,12 @@ func roots(p Probe, sub, fallback string) (create string, all []string, note str
 // MkdirTemp makes a fresh folder for the sub family, on the disk when Roots
 // picks it and the disk accepts the write, else under fallback: a mounted disk
 // that refuses writes (an agent sandbox denies it) costs the RAM, never the run.
+// An unusable os.TempDir fallback is repaired lazily; custom roots retain their errors.
 func MkdirTemp(sub, fallback, pattern string) (string, error) {
+	return mkdirTemp(sub, fallback, pattern, NormalTempDir)
+}
+
+func mkdirTemp(sub, fallback, pattern string, normal func() (string, error)) (string, error) {
 	create, _, _ := Roots(sub, fallback)
 	if create != fallback {
 		if os.MkdirAll(create, 0o755) == nil {
@@ -121,8 +126,20 @@ func MkdirTemp(sub, fallback, pattern string) (string, error) {
 			}
 		}
 	}
-	if err := os.MkdirAll(fallback, 0o755); err != nil {
+	dir, err := makeTemp(fallback, pattern)
+	if err == nil || fallback != os.TempDir() {
+		return dir, err
+	}
+	root, selectErr := normal()
+	if selectErr != nil {
+		return "", fmt.Errorf("normal temp fallback after %v: %w", err, selectErr)
+	}
+	return makeTemp(root, pattern)
+}
+
+func makeTemp(root, pattern string) (string, error) {
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
-	return os.MkdirTemp(fallback, pattern)
+	return os.MkdirTemp(root, pattern)
 }

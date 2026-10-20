@@ -167,3 +167,13 @@ process output; the existing run lease remains the resource-lifetime owner.
   fresh review, then enter merge on SHIP. No manual main chasing or private binary.
 - [ ] Verify Git merge, card/archive/clean rest and report PR plus Git-derived SHA
   to hub. Only after #477 lands, claim and plan separately authorized #476.
+
+## Revisions
+
+### 2026-10-19 — implementation details after temp fixtures
+
+Normal roots now own run directories too, so their existing stale sweep must
+include the reserved sdlc-run prefix. The intentional Unix default is explained
+in an ordinary comment: the tmp-literal catalog does not flag this selector
+call, so an unused suppression would itself be invalid. No new lint exception
+or change to the selected fallback policy is needed.

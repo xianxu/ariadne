@@ -76,3 +76,18 @@ returns a could-not-run error before status/attempt/flake publication, and
 propagates baseline execution errors through train diagnosis. No persisted
 format change, sandbox setting change, live denial probe or #476 attribution
 change is proposed. Full durable plan is ready for hub approval before code.
+
+### 2026-10-19 — approved design and temp repair checkpoint
+
+Hub approved the design (receipt 155114fd-74e4-40e9-9132-45d4878d20b6).
+change-code succeeded with inferred quick flow; no plan-quality or estimate
+was claimed. The eventual diff remains subject to close's full review.
+
+Observed red: startup failures published ordinary failed-suite evidence,
+ordinary baseline diagnosis called main red, and the child inherited unusable
+temp variables. The temp slice now repairs detached-checkout creation and sets
+both child variables to one owned writable directory, with explicit RAM
+provenance and cleanup. Normal fallback also sweeps abandoned owned run folders.
+Focused scratch/child tests passed (scratchdisk 0.131s; cmd/sdlc 1.918s).
+Environment classification and baseline propagation remain pending; their
+committed regression tests intentionally remain red until that slice is done.

@@ -287,11 +287,14 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	}
 	// The RAM disk (#468): its env comes last so it wins, and the leak report
 	// compares the SSD temp folders across the run.
-	scratchEnv, _, dropScratch := prepareScratch(d.Stderr, check)
-	defer dropScratch()
-	cmd.Env = append(cmd.Env, scratchEnv...)
+	scratch, err := prepareScratch(d.Stderr, check)
+	if err != nil {
+		return run, err
+	}
+	defer scratch.Cleanup()
+	cmd.Env = append(cmd.Env, scratch.Env...)
 	var ssdBefore map[string]bool
-	if scratchEnv != nil {
+	if scratch.OnScratch {
 		ssdBefore = listTemp(ssdTempDirs())
 		defer func() {
 			byPkg, unattributed := scratchLeaks(ssdBefore, listTemp(ssdTempDirs()), declaredTests(wt))
