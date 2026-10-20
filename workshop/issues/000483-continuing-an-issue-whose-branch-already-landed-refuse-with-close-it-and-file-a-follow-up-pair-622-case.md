@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bfaa445e", done: "9f81e930"}
 ---
 
 # Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case)
