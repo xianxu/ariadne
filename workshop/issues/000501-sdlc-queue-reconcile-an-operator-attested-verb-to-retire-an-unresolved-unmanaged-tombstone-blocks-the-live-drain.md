@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a313bccd7905add7473cacde69d329052f06fdca' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e6d3495611cd323dfead4f0b489a1b70bb8f24bc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T10:56:04-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.48
+actual_hours: 2.01
 ---
 
 # sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain)
