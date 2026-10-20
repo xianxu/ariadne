@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'af115d122b5619a1a4439ed5949603ebec993ea1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e50ce8360e1b64ddf49a5051c5c3a08666330f28' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T02:02:22-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.32
+actual_hours: 1.19
 ---
 
 # jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review)
