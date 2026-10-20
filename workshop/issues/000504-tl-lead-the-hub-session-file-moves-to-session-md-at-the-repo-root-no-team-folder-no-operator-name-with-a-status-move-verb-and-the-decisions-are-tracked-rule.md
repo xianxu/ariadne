@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
-estimate_hours:
+estimate_hours: 2.142
 collaboration-mode: collaboration
-card_mirror: '3df0eebfb4c70ec89dff964f3e5b685bc77d31cf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1a07649ec4b92327cbc556fe510652cec158cf69' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T09:56:17-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule
@@ -77,3 +78,23 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 ### 2026-10-20 — planning decisions from the TL
 
 - Added the executable plan and explicit defaults/compatibility semantics without changing the existing Spec or Done when. Chose copy-then-switch instead of a recovery journal at the TL's direction. Live migrations remain the last manual acceptance step, owned by the TL and operator.
+
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is marked stale by estimate-source, so these rates remain provisional.
+
+Decomposition: issue/spec checkpoint, shared status-argument defaults, pure relocation planner, filesystem/Couch copy-switch integration, operator docs, and one close review. Thorough approved design applies the v2.1 ×0.2 design discount and +15% buffer. Existing Go/Cobra/SessionSync/sidedoc libraries cover the stack; the planner's base design is halved for reuse before the spec discount. Familiarity is 1.0 (existing Go CLI patterns); v3.1 implementation rates are 40% of v2 ranges. The integration uses the top of the API primitive range for interruption/reconciliation fixtures. No new Lua feature or peer implementation is budgeted. Derived estimate is approximately 2.14 focused ship-hours, including verification and the manual acceptance coordination; elapsed waiting is not focused time.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.1 impl=0.08
+item: smaller-go-module design=0.04 impl=0.16
+item: greenfield-go-module design=0.1 impl=0.28
+item: api-integration design=0.4 impl=0.6
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.16
+design-buffer: 0.15
+total: 2.142
+```
