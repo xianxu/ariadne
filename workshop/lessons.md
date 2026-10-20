@@ -1112,5 +1112,7 @@ The simplest durable authority beats a clever scan of consequences.
   break, collect every claimant (here the package whose dir holds the file, each `testdata/` owner, and each package
   that embeds it, plus every matching group), and fall back to the full run only when there are none. Two shortcuts
   each skipped tests: "nearest ancestor directory" let a root package claim every path, and "first owner wins"
-  missed a second embedder. Prefer the toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and
-  add a table row for a file with two owners.
+  missed a second embedder. A third shortcut, ignoring docs before asking who owns them, skipped a package that
+  embeds a `.md`. Ask "who claims this path?" first, and drop a path only when nothing claims it. Prefer the
+  toolchain's exact facts (`go list` EmbedFiles) to a directory heuristic, and add a table row for a file with two
+  owners.
