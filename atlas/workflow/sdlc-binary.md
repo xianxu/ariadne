@@ -305,6 +305,23 @@ PR to exact head/base identity, submits an expected-head server merge, and check
 MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
+Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
+Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Every novel commit and merge-parent difference is classified, including rename
+sources; code added then reverted, mixed changes and unreadable history remain
+ordinary. The existing integration state machine charges only ordinary moves to
+its three-attempt budget, including interrupted replay and reset.
+
+After exact-head gates, `ghreadiness.go` reads GitHub's effective merge status and
+live `baseRef.target.oid` (the listing's `baseRefOid` can be historical). Fresh
+CLEAN evidence bound to this PR/head/branches and re-fetched main permits landing
+unchanged despite issue-only movement. Destination instance, duplicate-ID and
+publish gates are rechecked. Strict, unknown, unavailable or stale-base evidence
+uses ordinary integration and exact-head CI without charging an issue-only move.
+No workflows or statuses are rewritten. Existing docs-only suite reuse is broader
+than this conservative direct-merge policy. Recovery and uncertain merge outcomes
+retain the existing branch-preserving rules.
+
 PR candidate selection (`selectLandingCandidate`, #418) retains OPEN PRs even
 when their heads are stale, so two OPEN records refuse and name both. Completed
 older heads are history once the branch head is known. The same rule governs
@@ -630,7 +647,8 @@ through the review context; no asynchronous writer survives command completion.
 the final expected-head merge, and archive/cleanup. Publish replay, GitHub PR
 registration and CI polling, and the local suite run happen unlocked. Every
 reacquisition checks the exact branch HEAD and worktree and fetches main: main
-drift restarts integration and gates, while HEAD drift refuses. The legacy
+drift is reclassified for integration or exact-bound issue-only readiness, while
+HEAD drift refuses. The legacy
 dependency-clone path also releases the lock for local checks and refuses drift
 before server merge. `push` retains its whole-transaction lock. Wait messages
 name the live holder; wait or retry rather than deleting its lock. Recovery is
@@ -1970,6 +1988,21 @@ with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against 
 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
+
+Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
+known-flake reruns) write their temp files to the TestScratch RAM disk when it
+is mounted and, on Darwin, formatted as APFS (#468, #474): `runUnderSlot` (`localcheck_run.go`) gives each run
+`TMPDIR`/`GOTMPDIR` in its own folder under `/Volumes/TestScratch/tmp`, removed
+after, and puts the run's checkout under `/Volumes/TestScratch/local-checks`
+(review checkouts under `review-checkouts`; `internal/scratchdisk` holds the
+rule, and a disk that refuses the write falls back), and falls back to the normal temp folder when the disk is absent or under
+2 GiB free (`testscratch.go`). Darwin checks statfs filesystem type even for
+`WF_TEST_SCRATCH` overrides: HFS or an unknown type prints a reason and keeps
+the normal folder; non-Darwin override fixtures retain their existing behavior.
+The check performs no capability writes; cleanup still scans rejected mounted
+roots for earlier disposable folders. It also sweeps stale run and go-build folders,
+and warns about `t.TempDir` folders a scratched run still left on the SSD temp
+folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`

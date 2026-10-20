@@ -176,11 +176,11 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 		if err != nil {
 			return err
 		}
-		included, err := integrationAncestor(r, t.Root, latest, s.head)
+		observation, err := observeIntegrationMain(r, t, s, latest, stderr)
 		if err != nil {
 			return err
 		}
-		s, _, err = transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+		s, _, err = transitionIntegration(s, observation)
 		if err != nil || s.phase != integrationMerge {
 			return err
 		}
@@ -267,11 +267,11 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 			if err != nil {
 				return err
 			}
-			included, err := integrationAncestor(r, t.Root, latest, head)
+			observation, err := observeIntegrationMain(r, t, s, latest, stderr)
 			if err != nil {
 				return err
 			}
-			s, effect, err = transitionIntegration(s, integrationEvent{kind: integrationMainObserved, main: latest, included: included})
+			s, effect, err = transitionIntegration(s, observation)
 			if err != nil {
 				return err
 			}

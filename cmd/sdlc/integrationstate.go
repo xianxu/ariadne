@@ -9,6 +9,7 @@ type integrationState struct {
 	pr                  landingPR
 	attempts            int
 	resume              bool
+	chargeIntegration   bool
 	phase               integrationStep
 }
 
@@ -32,10 +33,12 @@ type integrationEvent struct {
 	main, head string
 	pr         landingPR
 	included   bool
+	issueOnly  bool
+	ready      bool
 }
 
 func newIntegrationState(head string, pr landingPR, resume bool) integrationState {
-	return integrationState{head: head, pr: pr, resume: resume, phase: integrationGates}
+	return integrationState{head: head, pr: pr, resume: resume, phase: integrationGates, chargeIntegration: true}
 }
 
 func transitionIntegration(s integrationState, e integrationEvent) (integrationState, integrationStep, error) {
@@ -45,6 +48,11 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 	switch e.kind {
 	case integrationMainObserved, integrationGatesChecked:
 		if e.kind == integrationMainObserved && s.phase == integrationPush {
+			// Keep the pending merge's target and charge. New issue records
+			// can be considered after its exact head has registered and passed.
+			if !e.included && e.issueOnly {
+				return s, s.phase, nil
+			}
 			s.main = e.main
 			if !e.included {
 				s.phase = integrationRetryReset
@@ -55,15 +63,20 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 			return invalid()
 		}
 		s.main = e.main
-		if e.kind == integrationGatesChecked && e.included {
+		if e.kind == integrationGatesChecked && (e.included || e.issueOnly && e.ready) {
 			s.phase = integrationLand
 			break
 		}
 		if s.resume {
 			s.oldHead = s.pr.HeadOID
+			s.chargeIntegration = !e.issueOnly
 			s.phase = integrationReplay
 		} else if !e.included {
-			if s.attempts >= integrationLimit {
+			if e.kind == integrationMainObserved && s.phase == integrationGates && e.issueOnly {
+				return s, integrationGates, nil
+			}
+			s.chargeIntegration = !e.issueOnly
+			if s.chargeIntegration && s.attempts >= integrationLimit {
 				s.phase = integrationRefuse
 			} else {
 				s.oldHead = s.head
@@ -97,7 +110,9 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 			return invalid()
 		}
 		s.pr = e.pr
-		s.attempts++
+		if s.chargeIntegration {
+			s.attempts++
+		}
 		s.resume = false
 		s.phase = integrationGates
 	case integrationGatesRejected:
@@ -111,7 +126,9 @@ func transitionIntegration(s integrationState, e integrationEvent) (integrationS
 		}
 		s.head = s.oldHead
 		if s.phase == integrationRetryReset {
-			s.attempts++
+			if s.chargeIntegration {
+				s.attempts++
+			}
 			s.resume = false
 			s.phase = integrationGates
 		} else {

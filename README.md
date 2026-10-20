@@ -403,9 +403,17 @@ compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
-running generated helpers. Ariadne source CI provisions its root Brewfile and
-builds the current candidate CLI; consumer CI uses the published gateway through
-bootstrap. Keep consumer packages in the layer's root `Brewfile`. An optional
+running generated helpers. Consumer CI builds its gateway from the exact full
+Ariadne commit in the authored `.sdlc/weave-compiler-ref`, using that source's
+Go toolchain, and puts the private binary first on PATH before bootstrap. The
+pin is not weave-managed: new consumers must explicitly create it from an
+approved supported ref. A missing or malformed pin, fetch/build failure or
+mismatched binary provenance stops CI; there is no floating compiler fallback.
+Ariadne source CI builds the candidate separately and checks its vocabulary
+exports against every supported compiler in `.sdlc/weave-compiler-refs`.
+See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
+for cold-regeneration controls and pin rollout. Keep consumer packages in the
+layer's root `Brewfile`. An optional
 executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
 a missing or non-executable hook is skipped, and a failure stops the job. Checks
 use the materialized local `scripts/run-merge-checks.sh`. It runs on PRs to
@@ -539,7 +547,11 @@ and culprit.
 
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
-(up to three integrations); conflicts abort with the paths to resolve. Legacy
+(up to three code integrations); conflicts abort with the paths to resolve.
+Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
+for the exact PR/head and live base allows the tested head to land unchanged;
+otherwise normal integration and exact-head CI apply. The narrow record policy
+is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`

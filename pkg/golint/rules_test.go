@@ -72,6 +72,11 @@ func TestRules(t *testing.T) {
 		{"tmp-literal", `os.MkdirAll("/tmp/work", 0o755)`, true, true},
 		{"tmp-literal", `f, _ := os.Create("/tmp/x.log")`, false, true},
 		{"tmp-literal", `os.MkdirTemp("", "x-*")`, false, false},
+		// widened to the other SSD temp roots (#468)
+		{"tmp-literal", `os.MkdirAll("/private/tmp/w", 0o755)`, false, true},
+		{"tmp-literal", `p := filepath.Join("/var/folders", "x")`, false, true},
+		{"tmp-literal", `os.Create("/Volumes/AgentScratch/tmp/x")`, false, true},
+		{"tmp-literal", `os.Create("/Volumes/AgentScratchy")`, false, false},
 		{"tmp-literal", `strings.HasPrefix(cwd, "/tmp/")`, false, false},
 		{"tmp-literal", `args := []string{"/tmp/probe"}`, true, false},
 		{"tmp-literal", `os.Getenv("/tmpdir")`, false, false},
