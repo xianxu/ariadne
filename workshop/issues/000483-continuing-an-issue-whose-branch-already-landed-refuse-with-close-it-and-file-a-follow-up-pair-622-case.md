@@ -55,10 +55,10 @@ For pair#622: from `000622-live-acceptance` (PR pair#474, carrying the attestati
 ARCH: MOCK, the landed check reads only the existing `ghClient` and git seams, with fakes in the tests. ORDER, this holds no state between events: each verb re-derives "landed" from PR and git facts at call time. A PR that merges between two verbs is just a later observation. SECURE, a branch name with only the issue prefix is not proof on its own: the unlanded-base check stops another issue's work from riding in. EVOLVE/FUNERAL, N/A: no persisted format and nothing durable. CONSTRAINTS, one `gh pr list` per refusal check, only on the paths that would otherwise refuse or (for close) admit.
 
 Steps:
-- [ ] Pure decision `landedIssue(mergedPR bool, localTip, onMain)` plus the IO wrapper; unit table.
-- [ ] start-plan and change-code refusals with the recovery text. Tests: landed→refuse naming `issue new --deps`; merged PR with unlanded local commits→old path; gh error→old path.
-- [ ] close admission. Tests: landed plus prefixed follow-up branch from main→admitted; prefixed branch carrying another issue's commit→refused; non-prefixed branch→refused with the recovery; not landed→today's refusal unchanged.
-- [ ] atlas: sdlc lifecycle note on closing a landed issue.
+- [x] Pure decision `landedIssue(mergedPR bool, localTip, onMain)` plus the IO wrapper; unit table.
+- [x] start-plan and change-code refusals with the recovery text. Tests: landed→refuse naming `issue new --deps`; merged PR with unlanded local commits→old path; gh error→old path.
+- [x] close admission. Tests: landed plus prefixed follow-up branch from main→admitted; prefixed branch carrying another issue's commit→refused; non-prefixed branch→refused with the recovery; not landed→today's refusal unchanged.
+- [x] atlas: sdlc lifecycle note on closing a landed issue.
 
 ## Log
 
@@ -71,3 +71,10 @@ Steps:
   pair#474), because the canonical branch landed as PR 406. #622 is parked on this issue. Whatever (1)/(2) decides
   must also let such an issue close (e.g. close with evidence on main, or the refusal names `sdlc close --no-pr`-style
   recovery if one exists).
+
+### 2026-10-20
+
+- Hub approved the plan and asked for a test with pair#622's exact shape: `landedS09` squash-merges #9's branch as PR 406, deletes it, and closes from `000009-live-acceptance` holding only an evidence commit (`TestCloseAdmitsFollowUpBranchOfLandedIssue`).
+- Evidence source: `landingGH.LandingPRs` (typed and validated, with each PR's head OID) instead of `PRMergedForBranch`. With a squash merge, a kept local canonical branch never has its commits on main by SHA, so "no unlanded local commits" means at or behind the merged PR's head, or on main. ARCH-MOCK: tests use `landedFakeGH`, keyed by branch and behind the same seam, and the remote URL is GitHub-shaped with a local `insteadOf` rewrite.
+- Placement: start-plan checks only for a started (non-open) card, so a first start-plan makes no gh call. change-code checks on every run, one `gh pr list`, which is acceptable for an infrequent verb. Close checks only on paths that would otherwise refuse.
+- ARCH-DRY: `issueTip` is shared by the close admission and `closeBranchRecoveryNote`. The note now tells a landed follow-up branch apart from a renamed branch at the issue tip, which it previously misdescribed.
