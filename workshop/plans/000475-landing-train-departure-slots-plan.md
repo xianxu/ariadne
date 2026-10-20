@@ -179,3 +179,47 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
   - a granted (and a lone) landing leaves the next departure unchanged.
 - `sdlc landing plan` prints the machine plan with each repo's offset and its cost basis; `--write` keeps unknown members.
 - Without a plan entry a repo behaves exactly as today, except for the clock-reset fix, which applies everywhere.
+
+## Revisions
+
+### 2026-10-20: plan-quality round 1
+
+**PQ-1: the admission seam changes.** `AdmissionRule` becomes `func(events []Event, t Ticket, r *Readiness, granted bool, w Waiters) (bool, string)`.
+- `Waiters{Ready int; OldestSince time.Time}` is computed once per `tryAdmit` pass under `head.lock` (`line.go:262`). It counts only the vouches that are valid now (`r.For(t, now) == ""`, the check boarding uses), and takes the oldest `Since` among them.
+- `trainAdmission` hands `w` to `DepartureDue`.
+- Every rule implementation and test stub is updated in M1. They are found by the compiler, and the enumeration goes in the M1 log.
+
+**PQ-2: the departure time is persisted.**
+- `Event.Departed time.Time` (`json:"departed,omitzero"`) is added on `EventTrain`; `recordTrain` sets it to `c.departed`.
+- `lastDeparture(events)` is the newest conductor train's `Departed`.
+- An older event without the field falls back to its `At` (completion). That is conservative: for the single pre-upgrade record, at most one slot that fell during that train is absorbed.
+- The change is additive (ARCH-EVOLVE): old readers ignore the field, and `NextDue` stays written for them.
+- Test: a round-trip of an event with and without `departed`, plus the fallback case.
+
+**PQ-3: early departures and the plan.**
+- The machine plan schedules **slot** departures only.
+- A full or max-wait departure leaves early by design (bounded waits beat strict spacing), and may overlap another repo's window. Such an overlap is bounded by the machine suite lock (2 slots): a suite that doesn't fit waits in the lock's FIFO, exactly as today. This is a stated rule, not a gap.
+- The Done-when and T8 are narrowed to match: "two repos' **slot-triggered** departures never start within each other's planned window". A separate fixture shows that an early departure is admitted regardless of the other repo's window.
+
+**Minor: a lone landing that left ready cars** keeps its "due at once" signal.
+- An `alone` record carries `NextDue` only when it left ready cars (`NextDue = departed`, never `departed + interval`). The left-ready check reads the newest `NextDue` of any kind.
+- So a lone landing can only ever bring the next train *forward*, never push it back.
+- Test: [train@:00 (next :60), alone@:10 left-ready] is due at :10; [train@:00, alone@:10 grant] is next at :60.
+
+**Minor: D3's first vouch.**
+- `Readiness.Since time.Time` (`json:"since,omitzero"`, additive; `Extra` already preserves unknown members) is set when a car first vouches ready at a head. It is kept across re-vouches at the same head and reset when the head moves or the vouch turns not-ready.
+- Old sidecars without it fall back to `At`.
+- Test: re-vouch keeps `Since`; a head change resets it; decoding an old sidecar works.
+
+**Minor: test prose.** T1 and T6 are compressed to one strategy each:
+- `Slots`: a table at the boundaries, plus the `Prev ≤ t < Next` property;
+- `PackOffsets`: the measured-cost golden plus the overlap property.
+
+**Done when (revised):**
+- Fake-clock fixtures show four things:
+  - two repos' slot-triggered departures never start within each other's planned window;
+  - a full train leaves before its slot;
+  - the oldest-car bound fires;
+  - a granted or lone landing leaves the next departure unchanged, unless it left ready cars, which brings it forward.
+- `sdlc landing plan` prints each repo's offset and cost basis, and `--write` keeps unknown members.
+- Without a plan entry, a repo behaves as today except for the reset fix.
