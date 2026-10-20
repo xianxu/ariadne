@@ -75,12 +75,11 @@ func issueBranchLanded(env *trackerEnv, name string) (landingPR, bool) {
 // landedRecovery is the next action for a landed issue, shared by every verb
 // that meets one.
 func landedRecovery(id, name, remote string, pr landingPR) string {
-	ref := issue.CLIRef(id)
 	return fmt.Sprintf("#%s's branch %s already landed (PR #%d); one issue keeps one branch (#272), so it is not continued.\n"+
 		"      Close #%s with what is verified, from a follow-up branch cut from main:\n"+
 		"        git switch -c %s-<suffix> %s/main && sdlc close --issue %s, then `sdlc pr` and `sdlc merge`\n"+
 		"      File what is left as a follow-up: sdlc issue new '<title>' --deps %s",
-		ref, name, pr.Number, ref, strings.SplitN(name, "-", 2)[0], remote, ref, ref)
+		issue.CLIRef(id), name, pr.Number, issue.CLIRef(id), strings.SplitN(name, "-", 2)[0], remote, issue.CLIRef(id), issue.CLIRef(id))
 }
 
 // refuseLandedIssue refuses to continue an issue whose branch landed.
