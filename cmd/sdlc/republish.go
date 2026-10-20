@@ -310,12 +310,19 @@ var mainPublish = func(env *trackerEnv, msg string, prepare func(*gitx.TrunkView
 // workspace's own and an unclaimed one publish (mayNotEditDetails, #274), with
 // main's movement since the read as the concurrency check.
 func requireOwnedToPublish(env *trackerEnv, card tracker.Record) error {
+	return requireOwnedToEdit(env, card, "republishes its details")
+}
+
+// requireOwnedToEdit is the details-publish ownership rule for any owner-only
+// edit: this workspace's own card, or an unclaimed one. what completes "only
+// its owner …" in the refusal.
+func requireOwnedToEdit(env *trackerEnv, card tracker.Record, what string) error {
 	own, recorded, _, err := ownership(env, card)
 	if err != nil {
 		return err
 	}
 	if mayNotEditDetails(own) {
-		return fmt.Errorf("#%s is owned by %s; only its owner republishes its details", issue.CLIRef(card.ID), describeClaimant(recorded))
+		return fmt.Errorf("#%s is owned by %s; only its owner %s", issue.CLIRef(card.ID), describeClaimant(recorded), what)
 	}
 	return nil
 }

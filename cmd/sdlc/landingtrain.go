@@ -360,7 +360,10 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	}
 	done.Outcome = landingline.SuiteFail
 	if c.baseline == nil {
-		red := c.mainIsRed(rec)
+		red, err := c.mainIsRed(rec)
+		if err != nil {
+			return nil, err
+		}
 		c.baseline = &red
 	}
 	if *c.baseline {
@@ -371,27 +374,30 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 
 // mainIsRed runs main's baseline, unrecorded, and reports whether it fails
 // every test the train failed: then no car introduced the failure.
-func (c *conductor) mainIsRed(failed localRunRecord) bool {
+func (c *conductor) mainIsRed(failed localRunRecord) (bool, error) {
 	mergedLog, err := os.ReadFile(failed.LogPath)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("train baseline comparison could not read suite log: %w", err)
 	}
 	deps := c.local
 	deps.SkipRecord, deps.PR = true, 0
 	baseline, err := runLocalCheck(c.ctx, deps, c.suite, c.base)
-	if err != nil || baseline.passed() {
-		return false
+	if err != nil {
+		return false, fmt.Errorf("train baseline on main could not run: %w", err)
+	}
+	if baseline.passed() {
+		return false, nil
 	}
 	baseLog, err := os.ReadFile(baseline.LogPath)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("train baseline log unreadable: %w", err)
 	}
 	merged, base := failingTests(string(mergedLog)), failingTests(string(baseLog))
 	if len(base) == 0 {
-		return true // main is red and unparsed: no car can be blamed
+		return true, nil // main is red and unparsed: no car can be blamed
 	}
 	introduced, _ := classifyFailures(merged, base)
-	return len(introduced) == 0
+	return len(introduced) == 0, nil
 }
 
 // waitCI waits for the train PR's CI on prefix k, the gate a single landing

@@ -8,13 +8,21 @@ import (
 // failingTests extracts top-level test names from plain go test output and
 // test-shard.py's failure summary. The latter names the package before each
 // test's raw output; plain go test names it in the trailing FAIL line.
-func failingTests(log string) []string {
+// Subtests are represented by their parent; failingSubtests lists them.
+func failingTests(log string) []string { return failingNames(log, false) }
+
+// failingSubtests is the failing subtests the same log names (#466), as
+// "<pkg>.<Test>/<sub>…": the known-flake gate judges a failing test by them.
+func failingSubtests(log string) []string { return failingNames(log, true) }
+
+// failingNames is the one scanner: top-level names, or only subtest names.
+func failingNames(log string, subtests bool) []string {
 	names := make(map[string]struct{})
 	var pending []string
 	var summaryPackage string
 	add := func(pkg, test string) {
-		if test == "" || strings.Contains(test, "/") {
-			return // subtests are represented by their parent
+		if test == "" || strings.Contains(test, "/") != subtests {
+			return
 		}
 		if pkg != "" {
 			test = pkg + "." + test
