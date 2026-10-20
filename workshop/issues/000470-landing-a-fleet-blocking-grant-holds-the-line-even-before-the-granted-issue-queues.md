@@ -41,7 +41,7 @@ keep today's reordering. Expiry or revocation releases the hold. `sdlc landing s
   grant expires with #A never queued → #B admitted.
 - Multiple grants admit granted tickets FIFO while holding normals; cancellation/hand-off retains the hold until revoke/expiry.
 - Hold output/status names issue, reason, expiry and exact revoke command; unbounded grant writes are refused.
-- Existing grant-ordering tests unchanged.
+- Existing grant FIFO, normal FIFO after the last grant ends, and running-head non-preemption guarantees remain covered; fixtures reflect the revised grant-hold policy.
 
 ## Plan
 
@@ -78,6 +78,8 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 
 ## Revisions
 
+- 2026-10-19 (BR-1, close SHIP): the original Done-when promised “Existing grant-ordering tests unchanged.” The absent-grant ordering expectation must change for this feature, and the completed-grant fixture now models production revocation. Replace that literal test-text promise with preservation of FIFO and non-preemption guarantees under the revised hold policy. This records the already-approved behavior without changing scope.
+
 - 2026-10-19: TL approved clarified policy: while any valid grant exists, normals cannot acquire a free head, even when a different granted issue has queued. Granted tickets retain FIFO; active heads continue. Require expiry on grant writes and exact revoke recovery in output.
 
 - Root cause: NextHead selects Order first without considering grants whose tickets are absent; tryAdmit uses that answer after taking head.lock. Existing grants are all fleet-blocking (no other grant class). TL approval received via Couch.
@@ -90,3 +92,5 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 - Recorded suite on 2619d603 ran all shards: all passed except TestEnterLandingLineVouchesWhileWaiting, which caught a changed existing train hold prefix. Preserve that prefix by choosing line/train once when opening the line; strengthened the new waiter-output test to assert both prefixes. This is a reproducible branch regression, not a flake. Full suite must rerun on the fix.
 
 - Final recorded suite passed on 8530569a334f37306ea516c8897769045a3f0fbc: all 12 shards over 1758 cmd/sdlc tests and 72 other packages, zero failures, wall 720.1s. sdlc-local/suite success; log sha256 ecf031f0292e. Focused prefix/readiness/grant status/output checks also passed before the final push. The final code change preserves the existing train prefix; grant/status/revoke behavior is unchanged from the TL's passed live check.
+
+- Close review returned SHIP, with no Critical/Important findings. Advisory BR-1 addressed by aligning the current Done-when wording and preserving the original promise/reason in Revisions. Reviewer independently passed line/race and focused command checks; its broader command group hit the default 10-minute timeout, while the recorded sharded full suite already passed on the final code.
