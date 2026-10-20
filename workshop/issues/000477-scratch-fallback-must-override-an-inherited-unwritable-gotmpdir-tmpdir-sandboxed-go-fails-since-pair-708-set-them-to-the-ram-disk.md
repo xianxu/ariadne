@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "3091c833", done: "37f0e58d"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk)
@@ -66,6 +66,8 @@ Durable plan: [scratch environment plan](../plans/000477-scratch-environment-pla
 
 
 ### 2026-10-19 — diagnosis and proposed boundary
+- 2026-10-19: closed — BR-1 and BR-2 red-green fixtures prove both disposable families sweep every creation root across fallback and recovery, preserving fresh/live and unrelated folders. Rerun recovery command regression also red-green. Focused scratchdisk, Go lint and cmd/sdlc controls passed (12.759s); prior landing/train/evidence controls passed. PR 333 final-code recorded suite queued; landing requires its pass. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 362 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 prepareScratch returns nil env on rejected scratch or failed scratch mkdir, so
 runUnderSlot inherits the bad variables. Detached-worktree creation also uses

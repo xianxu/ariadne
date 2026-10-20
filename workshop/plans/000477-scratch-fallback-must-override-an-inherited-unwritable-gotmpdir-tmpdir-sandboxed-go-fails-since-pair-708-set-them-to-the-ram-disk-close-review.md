@@ -173,3 +173,86 @@ Done-when: current — the acceptance checks still cover writable child temp ove
    Append a `## Revisions` entry defining creation/cleanup parity across **all disposable artifact families**, naming checkout and per-run directories and requiring recovery-transition tests. Extend the existing BR-1 revision beyond checkout-only enumeration.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b85fd7f9-b491-4cf2-a5c2-bf6beb49c7e3","repository":"github.com/xianxu/ariadne","issue_id":"000477","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/fde0deef7f352565","reviewed_head":"28f3780778da5facae19adc6a981912d357b4b45","slot":"ariadne:3","requested_at":"2026-10-20T01:34:09.392619Z"},"phase":"finished","pid":40489,"started_at":"2026-10-20T01:34:09.483718Z","finished_at":"2026-10-20T01:37:10.863456Z","session_id":"01a156f1-cd33-7fa3-84a5-ee47f54c3c65","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T18:43:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 477 — Scratch fallback must override an inherited unwritable GOTMPDIR/TMPDIR (sandboxed go fails since pair#708 set them to the RAM disk) |
+| repo | ariadne |
+| issue file | workshop/issues/000477-scratch-fallback-must-override-an-inherited-unwritable-gotmpdir-tmpdir-sandboxed-go-fails-since-pair-708-set-them-to-the-ram-disk.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4afeb37dae25f204eb6df98b337dcccfdea92baf..d45e5ce7bd1a79fcd6267586d2a00869f42f75f0 |
+| command | sdlc close --issue 477 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T18:43:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The fallback repair, environment-failure classification, and shared cleanup roots satisfy the issue’s contract. BR-2 is addressed with a regression that fails without the fix. No blocking findings remain; one minor resource-lifetime issue is noted below. The recorded full-suite gate remains separate and required.
+
+Done-when: current — both acceptance cases remain applicable; the revisions extend supporting cleanup and evidence handling without changing those outcomes.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Shared root enumeration remains in checkout cleanup; TestSweepStaleLocalWorktreesRepairedRoot passes for broken and recovered TMPDIR.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Both disposable families consume scratchdisk.Roots independently of current placement. TestPrepareScratchRepairedRunRootAfterRecovery passes at HEAD and fails after restoring pre-fix testscratch.go in a disposable copy, which was removed afterward.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: resource-handles-close-on-every-exit
+    title: |
+      Scratch preparation failure leaves the opened run log unclosed
+    detail: |
+      cmd/sdlc/localcheck_run.go:307 returns on prepareScratch failure after os.Create opens logf, bypassing the explicit close later in the function. ARCH-FUNERAL: defer logf.Close immediately after successful creation so this new setup-error path releases the descriptor without waiting for GC or process exit.
+```
+
+1. **Strengths**
+
+   - Both checkout and per-run cleanup derive their root sets from `scratchdisk.Roots`, covering fallback recovery.
+   - Child execution tests prove writable overrides for both inherited temp variables.
+   - Environment failures bypass flake/status publication while preserving earlier genuine failures.
+   - README, help, and atlas describe the new behavior and diagnostic channel.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** The log descriptor cleanup issue above.
+
+5. **Test coverage notes**
+
+   Scratchdisk tests and focused scratch/environment/caller tests passed on Darwin. The BR-2 counterfactual failed as expected. A separate disposable retention check passed. `git diff --check` passed. The complete recorded suite was not run during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared root enumeration and startup classifier.
+   - **ARCH-PURE: pass** — classifier logic is pure; filesystem work stays at IO boundaries.
+   - **ARCH-PURPOSE: pass** — both affected artifact families are covered.
+   - **ARCH-MOCK: pass** — private filesystem fixtures, controlled lookup, and existing stateful status fake exercise the seams.
+   - **ARCH-CONSTRAINTS: pass** — bounded candidates and log reads; linear classifier traversal.
+   - **ARCH-SECURE: pass** — write probes establish access; ambiguous output retains ordinary failure handling.
+   - **ARCH-ORDER: pass** — baseline execution errors propagate without declaring main red or splitting cars.
+   - **ARCH-FUNERAL: flag, Minor** — directory/log retention is covered; the setup-error descriptor needs explicit closure.
+   - **ARCH-EVOLVE: pass** — no persisted attempt-format changes.
+
+7. **Plan revision recommendations:** None required.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4e7af666-9ba0-4857-9bd5-3f534df34edb","repository":"github.com/xianxu/ariadne","issue_id":"000477","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/e6b538ad33c89e5f","reviewed_head":"d45e5ce7bd1a79fcd6267586d2a00869f42f75f0","slot":"ariadne:3","requested_at":"2026-10-20T01:41:14.335959Z"},"phase":"finished","pid":36374,"started_at":"2026-10-20T01:41:14.551819Z","finished_at":"2026-10-20T01:43:19.020166Z","session_id":"01a156f8-4ad5-7b10-9160-08780a2596f9","outcome":"returned"}] -->
