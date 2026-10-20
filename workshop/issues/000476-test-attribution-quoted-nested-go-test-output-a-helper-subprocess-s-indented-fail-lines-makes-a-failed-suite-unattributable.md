@@ -87,12 +87,18 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 - [x] Reproduce the issue fixture red; add plain, sharded and conservative controls.
 - [x] Correct existing failure/fact scanners before whitespace normalization; add
   the narrow lint guard against erasing line provenance in these scanners.
-- [ ] Run focused parser/classifier and local-check regression checks, then the
-  recorded suite, close review and normal landing gates.
+- [x] Run focused parser/classifier and local-check regression checks.
+
+Workflow gates: recorded suite, close review, then normal landing. These remain
+pending independently of the completed implementation checkboxes.
 
 ## Log
 
 ### 2026-10-19
+
+- PR #336 is open; the recorded suite is queued on the pushed code head.
+  Closing review overlaps that queue under the worker rule; any code correction
+  requires a new suite on the corrected head. No passing full-suite claim yet.
 
 - Focused quoted fixture/parser/registered-retry checks passed (1.165s).
   Broader parser/local-check/known-flake/saved-evidence/environment controls passed
@@ -120,6 +126,10 @@ names; indentation checks inspect each line once, with no look-back or rescans.
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
 
 ## Revisions
+
+- 2026-10-19 — Separate the implementation checklist from pending workflow gates
+  (the same #477 lesson): the focused-check row is complete, while the recorded
+  suite, close and landing remain explicitly pending rather than falsely ticked.
 
 - 2026-10-19 21:07 PDT — Make the hot-path cost check executable: the existing
   failure scan takes a line iterator through `failingNameLines`, with production
