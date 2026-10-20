@@ -16,7 +16,7 @@ var Catalog = []Rule{
 	{
 		Name:     "suite-line-provenance",
 		Incident: "ariadne#476",
-		Message:  "suite scanners must preserve indentation: check suiteControlLine on the raw line before Fields, and never trim leading whitespace",
+		Message:  "suite scanners must preserve indentation: check suiteIndentLevel or suiteControlLine on the raw line before Fields, and never trim leading whitespace",
 		Match:    suiteLineProvenance,
 	},
 	{
@@ -110,7 +110,7 @@ func suiteLineProvenance(f *ast.File, _ *CheckContext) []ast.Node {
 				if !ok {
 					return true
 				}
-				if fun, ok := call.Fun.(*ast.Ident); ok && fun.Name == "suiteControlLine" && len(call.Args) == 1 {
+				if fun, ok := call.Fun.(*ast.Ident); ok && (fun.Name == "suiteControlLine" || fun.Name == "suiteIndentLevel") && len(call.Args) == 1 {
 					if arg, ok := call.Args[0].(*ast.Ident); ok && arg.Name == raw.Name {
 						checked = true
 					}

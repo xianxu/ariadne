@@ -2091,7 +2091,9 @@ The shell runner's default CI invocation still executes the selected batch.
 ### The Go lint catalog (#407)
 
 Suite text attribution (#476) preserves indentation before parsing controls:
-`suiteControlLine` admits column-zero outcomes, summaries and JSON events;
+`suiteIndentLevel` classifies the whole leading Unicode-whitespace prefix once,
+accepting only ASCII-space quads; `suiteControlLine` derives column-zero
+admission for outcomes, summaries and JSON events from that same classifier.
 `failingNameLines` also retains real indented descendants through observed
 four-space ancestor levels and complete parent names. Skipped levels and
 same-root quotations cannot invent leaves; slash counts never determine depth.

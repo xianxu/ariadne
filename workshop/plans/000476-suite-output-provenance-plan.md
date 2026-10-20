@@ -165,16 +165,30 @@ two members of a Unicode whitespace class and repeats the same design mistake.
 Changing producers cannot repair historical logs. The single classifier covers
 the complete class at its existing owner.
 
-- [ ] Reproduce mixed-prefix leaf admission red in plain, CRLF and sharded
+- [x] Reproduce mixed-prefix leaf admission red in plain, CRLF and sharded
   contexts, with and without a real child.
-- [ ] Enumerate every rune for which unicode.IsSpace is true: only ASCII space
+- [x] Enumerate every rune for which unicode.IsSpace is true: only ASCII space
   may appear in the prefix. Exercise non-space runes before and after four
   ASCII spaces, including mixed sequences and invalid widths.
-- [ ] Add the real gate refusal when only a mixed-indentation quoted leaf is
+- [x] Add the real gate refusal when only a mixed-indentation quoted leaf is
   registered; preserve the positive warm-reattached retry and the original
   pair#712/#689 excerpt fixture.
-- [ ] Implement the single prefix definition after approval. Extend the
+- [x] Implement the single prefix definition after approval. Extend the
   lexical lint tripwire to recognize the shared level classifier before Fields.
-- [ ] Run existing and expanded parser/gate/lint controls, then a new pushed-head
-  recorded suite and full close review. If yet another mechanism is needed,
-  stop and return to the hub before implementation.
+- [x] Run existing and expanded parser/gate/lint controls.
+
+The new pushed-head recorded suite, full close review and landing are pending
+workflow gates, tracked in the issue Log rather than pre-ticked implementation
+steps. If yet another mechanism is needed, stop and return to the hub before
+implementation.
+
+### 2026-10-19 — Approved re-plan verification
+
+Hub approval: 6844e546-4bc3-4e66-b635-e03181de0edb, canonical receipt verified.
+The Unicode table and real gate tests failed red before the complete-prefix
+correction; expanded attribution/gate/environment/saved-evidence checks passed
+after it (40.830s), as did golint (1.309s) and flakes (0.070s). LF is the log's
+record delimiter, so its invalid in-line prefix is tested directly against the
+classifier; every other non-space whitespace rune is rejected through plain,
+CRLF and sharded parsing. The original excerpt verifies normal LF framing and
+the actual warm-reattached leaf across those modes. No full-suite pass claimed.

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
@@ -123,6 +124,61 @@ func TestKnownFlakeGateCannotRegisterAQuotedLeaf(t *testing.T) {
 	rec, err := runLocalCheck(context.Background(), d, c, sha)
 	if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || len(*asked) != 0 || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
 		t.Fatalf("quoted leaf registration must not explain real outer failure: %+v %v, reran %v", rec, err, *asked)
+	}
+}
+
+func TestSuiteWholeWhitespacePrefix(t *testing.T) {
+	// Enumerate Go's entire whitespace category, rather than a blacklist of
+	// the two characters that exposed BR-1. LF frames records in the parser,
+	// so its invalid single-line prefix is tested directly below.
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if !unicode.IsSpace(r) || r == ' ' {
+			continue
+		}
+		for _, prefix := range []string{string(r) + "    ", "    " + string(r), "  " + string(r) + "  "} {
+			if got := suiteIndentLevel(prefix + "--- FAIL: TestOuter/helper (0.01s)"); got != -1 {
+				t.Errorf("U+%04X prefix %q: level=%d, want invalid", r, prefix, got)
+			}
+			if r == '\n' {
+				continue // LF is a line boundary, not an in-line indentation rune.
+			}
+			for mode := 0; mode < 3; mode++ {
+				log := "--- FAIL: TestOuter (0.01s)\n" + prefix + "--- FAIL: TestOuter/helper (0.01s)\nFAIL example.com/outer 0.2s\n"
+				if mode == 1 {
+					log = strings.ReplaceAll(log, "\n", "\r\n")
+				} else if mode == 2 {
+					log = "--- FAIL example.com/outer TestOuter\n" + log + "--- FAIL example.com/outer\n"
+				}
+				got := parseSuiteLogFacts(log)
+				if !reflect.DeepEqual(got.Failures, []string{"example.com/outer.TestOuter"}) || len(got.Subtests)+len(got.Unattributed) != 0 {
+					t.Errorf("U+%04X prefix %q mode=%d: mixed indentation became a leaf: %+v", r, prefix, mode, got)
+				}
+			}
+		}
+	}
+	for _, tc := range []struct {
+		prefix string
+		level  int
+	}{{"", 0}, {"    ", 1}, {"        ", 2}, {" ", -1}, {"     ", -1}, {"      ", -1}} {
+		if got := suiteIndentLevel(tc.prefix + "--- FAIL: TestOuter/real (0.01s)"); got != tc.level {
+			t.Errorf("ASCII prefix %q: level=%d, want %d", tc.prefix, got, tc.level)
+		}
+	}
+}
+
+func TestKnownFlakeGateMixedWhitespaceQuotation(t *testing.T) {
+	for _, prefix := range []string{"    \t", "    \u00a0", "  \u2003  "} {
+		t.Run(fmt.Sprintf("%x", prefix), func(t *testing.T) {
+			d, sha, gh, _ := localRunRepo(t, "acquired")
+			d.FlakeRegistry = gateRegistry(t, "example.com/outer.TestOuter/helper")
+			asked := scriptRerun(t, "printf -- '--- PASS: TestOuter (0.01s)\\n    --- PASS: TestOuter/helper (0.01s)\\nok example.com/outer 0.1s\\n'")
+			log := "--- FAIL: TestOuter (0.01s)\n" + prefix + "--- FAIL: TestOuter/helper (0.01s)\nFAIL example.com/outer 0.2s\n"
+			c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", log}, TimeoutMinutes: 30}
+			rec, err := runLocalCheck(context.Background(), d, c, sha)
+			if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || len(*asked) != 0 || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+				t.Fatalf("mixed-whitespace leaf explained outer failure: %+v %v, reran %v", rec, err, *asked)
+			}
+		})
 	}
 }
 

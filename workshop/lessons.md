@@ -76,7 +76,11 @@ Detailed incidents remain in their owning issue or review artifact.
 - Suite output contains quoted subprocess output too. Preserve indentation before
   tokenizing control records; indented test evidence needs an observed parent
   at the preceding four-space level and its complete name, not a root-name
-  prefix or depth inferred from slashes. Apply the same boundary to package attribution,
+  prefix or depth inferred from slashes. Validate the whole leading whitespace
+  prefix with the tokeniser's Unicode category, accepting only ASCII spaces;
+  measuring initial spaces alone misses spaces followed by tab or NBSP. Derive
+  column-zero and indented admission from one classifier before tokenisation.
+  Apply the same boundary to package attribution,
   unknown-failure reasons and timing facts, and test the actual registered retry
   rather than just extracted names (#476).
 

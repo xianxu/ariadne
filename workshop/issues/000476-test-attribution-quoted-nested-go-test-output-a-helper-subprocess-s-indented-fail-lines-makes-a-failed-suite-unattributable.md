@@ -88,7 +88,7 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 - [x] Correct existing failure/fact scanners before whitespace normalization; add
   the narrow lint guard against erasing line provenance in these scanners.
 - [x] Run focused parser/classifier and local-check regression checks.
-- [ ] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
+- [x] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
 
 Workflow gates: recorded suite, close review, then normal landing. These remain
 pending independently of the completed implementation checkboxes.
@@ -96,6 +96,14 @@ pending independently of the completed implementation checkboxes.
 ## Log
 
 ### 2026-10-19
+
+- Hub approved the complete-prefix re-plan (6844e546-4bc3-4e66-b635-e03181de0edb,
+  canonical receipt verified). Full Unicode-whitespace and mixed-prefix real
+  gate tests failed red before the correction. The single shared classifier now
+  supplies column-zero admission and the pre-Fields indentation level; existing
+  ancestors stay unchanged. Expanded controls passed (40.830s), golint (1.309s)
+  and flakes (0.070s) passed. BR-1 awaits the next full review; the new recorded
+  suite and landing remain pending.
 
 - Full close round 2 kept BR-1 open: initial ASCII-space measurement plus Fields
   admits mixed space/tab or space/Unicode-whitespace prefixes. Stopped before

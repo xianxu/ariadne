@@ -10,17 +10,26 @@ import (
 // Suite control records start at column zero. Quoted subprocess output is
 // indented by testing and must not become package or outcome evidence (#476).
 func suiteControlLine(line string) bool {
-	return strings.TrimLeftFunc(line, unicode.IsSpace) == line
+	return suiteIndentLevel(line) == 0
 }
 
 // Go's testing indenter adds four spaces per actual level, independently of
 // slashes within a t.Run name. Keep the raw line; this only measures its indent.
 func suiteIndentLevel(line string) int {
-	n := len(line) - len(strings.TrimLeft(line, " "))
-	if n%4 != 0 {
-		return -1
+	spaces := 0
+	for _, r := range line {
+		if !unicode.IsSpace(r) {
+			if spaces%4 == 0 {
+				return spaces / 4
+			}
+			return -1
+		}
+		if r != ' ' {
+			return -1
+		}
+		spaces++
 	}
-	return n / 4
+	return -1
 }
 
 // failingTests extracts top-level test names from plain go test output and
@@ -62,13 +71,16 @@ func failingNameLines(lines iter.Seq[string], subtests bool) []string {
 	}
 
 	for line := range lines {
-		control := suiteControlLine(line)
+		level := suiteIndentLevel(line)
+		if level < 0 {
+			continue
+		}
+		control := level == 0
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
 		if !control {
-			level := suiteIndentLevel(line)
 			if len(fields) < 3 || fields[0] != "---" || fields[1] != "FAIL:" ||
 				level <= 0 || level > len(ancestors) || !strings.HasPrefix(fields[2], ancestors[level-1]+"/") {
 				continue
