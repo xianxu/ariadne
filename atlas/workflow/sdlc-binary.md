@@ -459,6 +459,12 @@ trains on:
 
 `sdlc landing status` shows the train setting and each waiter's vouch.
 
+**Departure slots, N-or-Y, no clock reset (#475).**
+- **Due check:** `DepartureDue(now, schedule, events, Waiters)` (`internal/landingline/train.go`) decides when a train leaves. It leaves early when `train_max_cars` cars are ready, or when the oldest has waited `train_max_wait_minutes`, measured from its first ready vouch (`Readiness.Since`, kept across re-vouches at one head). Otherwise it leaves when the next departure comes.
+- **The next departure** (`NextDue`) is the grid's next slot after the last train when the repository has a machine-plan offset (`Slots`, `internal/landingline/slots.go`: epoch + offset + k·interval, never shifted by an early departure), and the interval after it otherwise.
+- **Lone and granted landings** are not departures: their `alone` record carries no `NextDue`, unless they left cars ready, which can only bring the next train forward.
+- **Admission and status:** each admission pass gets a `Waiters` summary (`ReadyWaiters`). Train events record `departed`. `sdlc landing status` prints the same decision with its reason.
+
 **The conductor** (`landingtrain.go`) is the admitted head when other cars board:
 - **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.
 - **Build:** it builds `landing-train/<id>` in a detached worktree from fetched main, then each car's exact head. The instance and duplicate-ID gates run per prefix, and a conflict holds that car.
