@@ -1,13 +1,13 @@
 ---
 id: 000471
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'af347e54e50e5d70a9590e3a1686455254fef604' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8d261311436ecb8dd5c00795a5c55d39551e0d50' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T13:17:35-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 3.16
 ---
 
 # abandon: --issue N acted on the current (other issue's) branch and deleted it on origin
