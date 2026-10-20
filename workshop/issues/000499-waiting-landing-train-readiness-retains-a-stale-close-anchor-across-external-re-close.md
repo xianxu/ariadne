@@ -79,3 +79,7 @@ The current nested scope fixes cross-pass staleness but does not capture transfe
 - Re-run focused checks, push, requeue recorded full suite, restage if the TL requests native smoke, then repeat close review. Landing still requires suite and review success.
 
 This changes no reopen policy or persisted format. ARCH-DRY: share existing records authority; ARCH-PURPOSE: all production card consumers derive from it. Approval requested through Couch because tl-worker requires design deltas to wait for the hub.
+
+### 2026-10-20T09:24-07:00 — BR-1 correction approved
+
+TL approved retaining the parsed card Snapshot in Records, exposing it read-only, routing changedDetails through the scoped loader, and adding interleaving/probe-count coverage (Couch c0af63c7-4deb-42de-adad-e87c23034ad1, submitted). Proceed with the previously recorded correction; no reopen-policy change.
