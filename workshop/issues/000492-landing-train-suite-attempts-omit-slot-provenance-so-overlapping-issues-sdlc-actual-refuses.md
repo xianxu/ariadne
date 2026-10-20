@@ -83,6 +83,10 @@ Integrated suite attempt bb6860de80efc7becc0c73bfc826850f failed only TestLandin
 
 The automatic main diagnostic on fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e could not run: the queue is paused by couch-drain:69bb7fc3-a125-42c6-9900-5814613b8eba, reason operator shutdown/reboot/RAM-disk no-journal fix. It also reported an interrupted-log rename missing-source error. Main health is unknown; no red-main or branch-defect inference. Merge exited and released its turn; no owned suite/merge remains running. Read-only Couch drain status confirms the pause and reports stuck/cancellation unconfirmed. No drain notice was delivered to this actor, so no receipt-authenticated ack has been sent. Start nothing new while paused. #501 remains next after #492 lands, unclaimed/unimplemented. Prior screen capture remains unavailable; recovery uses this Git/issue evidence.
 
+### 2026-10-20 — post-reboot classification authorized by hub
+
+Hub receipt d3b662f8-d40e-4663-afde-14f222bf3944 is authenticated/submitted to this incarnation: the integrated failure happened during the drain, so classify once on both heads under normal load; if branch passes, take one additional recorded suite under the grant. Ran the full TestLandingTrainLandsEveryCarOnOneSuite selector once per head: branch 2daa1314d2186ab21f71f62cc85c8e1eea9da2d9 PASS (train/null/head, 22.275s package); freshly fetched main fdfc3ca3c297c1c6c2802e03f3ea54b73f4a2b3e PASS (same three controls, 22.053s package). Main used an isolated detached worktree, now removed. No code change, timeout bump or flake-registry expansion. Proceed with the explicitly authorized recorded suite, then central landing and #501.
+
 ## Revisions
 
 ### 2026-10-20 — complete the caller/content boundary
