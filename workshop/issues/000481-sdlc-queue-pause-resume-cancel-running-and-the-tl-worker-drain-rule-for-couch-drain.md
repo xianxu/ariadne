@@ -175,6 +175,10 @@ M2 round 1 returned REWORK for blocking secondary mutexes inside the global gate
 
 Additional pair:5 lost-reply conformance passed 4.863s: successful pause/resume effects survived proxy exit 29, and status reconciled them without removing the second owner. Receipt 77228edf-6f1c-4545-9444-5cc060ab3d8a was authenticated/submitted; primary private fixture ended running/complete/empty.
 
+### 2026-10-20 — legacy pending-admission status correction
+
+Verified the hub's approved boundary in canonical submitted receipt 278d62f1-1ea2-4cb2-bd64-b29f7cb5fa91. Both legacy token/ticket regressions failed before implementation: status had no activity and no incompleteness detail. The status-only probe now reports named pending uncertainty without active entries. Verified new waiting bindings remain complete; recycled identity does not. Unlocked residue/allocation mutex controls and unreadable-directory control pass. Queue legacy and both counted zero-scan admission controls pass under the race detector (1.770s); 8/16 pending fixtures require exactly one index/visit/lookup per waiter. This preserves the frozen schema and adds no admission scan.
+
 ## Revisions
 
 ### 2026-10-20 — M1 review corrections

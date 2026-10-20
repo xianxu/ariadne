@@ -54,16 +54,20 @@ type queueLegacyProcessKey struct {
 type queueLegacyBindingKey struct{ id, kind string }
 type queueLegacyIndex struct {
 	bindings  map[queueLegacyBindingKey]queuegate.Operation
+	pending   map[queueLegacyBindingKey]queuegate.Operation
 	processes map[queueLegacyProcessKey]bool
 }
 
 func queueLegacyIndexKnown(known []queuegate.Operation, cost func(string)) queueLegacyIndex {
-	idx := queueLegacyIndex{bindings: map[queueLegacyBindingKey]queuegate.Operation{}, processes: map[queueLegacyProcessKey]bool{}}
+	idx := queueLegacyIndex{bindings: map[queueLegacyBindingKey]queuegate.Operation{}, pending: map[queueLegacyBindingKey]queuegate.Operation{}, processes: map[queueLegacyProcessKey]bool{}}
 	for _, op := range known {
 		if cost != nil {
 			cost("index")
 		}
 		for _, kind := range op.Kinds {
+			if op.Phase == "waiting" || op.Phase == "running" || op.Phase == "interrupting" {
+				idx.pending[queueLegacyBindingKey{op.ID, kind}] = op
+			}
 			if op.Phase == "running" || op.Phase == "interrupting" {
 				idx.bindings[queueLegacyBindingKey{op.ID, kind}] = op
 			}
@@ -151,6 +155,7 @@ func observeLegacyQueue(ctx context.Context, o queueLegacyOptions, known []queue
 			}
 			probe(path, o.LockBase, "suite")
 		}
+		queueLegacyPending(ctx, o, index, note)
 	}
 	dirs, err := o.CommonDirs(ctx, o.FleetRoot)
 	if err != nil {
@@ -222,6 +227,68 @@ func queueLegacyID(resource, identity string) string {
 	sum := sha256.Sum256([]byte(resource + "\x00" + identity))
 	return "legacy-" + hex.EncodeToString(sum[:16])
 }
+
+// A held old waiter may admit later without consulting pause. It is not active,
+// but prevents a complete snapshot until it drains or proves a new binding.
+// This bounded, read-only probe is called exclusively by status observation.
+func queueLegacyPending(ctx context.Context, o queueLegacyOptions, index queueLegacyIndex, note func(string)) {
+	probe := func(path string) {
+		if ctx.Err() != nil {
+			return
+		}
+		raw, held, err := queueLegacyHeld(path)
+		if err != nil {
+			note(fmt.Sprintf("legacy pending admission inspection unavailable at %s: %v", path, err))
+			return
+		}
+		if !held {
+			return
+		}
+		fields, err := queueLegacyFields(raw)
+		if err == nil {
+			if o.Cost != nil {
+				o.Cost("lookup")
+			}
+			if queueLegacyBindingMatches(fields, "suite", index.pending, o.ProcessStart) {
+				return
+			}
+		}
+		note(fmt.Sprintf("legacy pending admission at %s lacks a verified queue lease; it may admit without consulting pause", path))
+	}
+	probe(o.LockBase + ".queue")
+	dir := o.LockBase + ".tickets"
+	f, err := os.Open(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		note(fmt.Sprintf("legacy pending admission directory unavailable at %s: %v", dir, err))
+		return
+	}
+	defer f.Close()
+	entries, err := f.ReadDir(queuegate.MaxOperations + 1)
+	if err != nil && !errors.Is(err, io.EOF) {
+		note(fmt.Sprintf("legacy pending admission directory unreadable at %s: %v", dir, err))
+		return
+	}
+	if len(entries) > queuegate.MaxOperations {
+		note("legacy pending admission entry bound exceeded at " + dir)
+		return
+	}
+	for _, entry := range entries {
+		if ctx.Err() != nil {
+			return
+		}
+		// alloc is the allocation mutex, not a waiting lifetime resource.
+		if entry.Name() == "alloc" {
+			continue
+		}
+		if o.Cost != nil {
+			o.Cost("pending")
+		}
+		probe(filepath.Join(dir, entry.Name()))
+	}
+}
 func queueLegacyHasKind(op queuegate.Operation, kind string) bool {
 	for _, k := range op.Kinds {
 		if k == kind {
@@ -267,12 +334,16 @@ func queueLegacyHeld(path string) ([]byte, bool, error) {
 }
 
 func queueLegacyBound(fields map[string]json.RawMessage, kind string, index queueLegacyIndex, start func(int) (string, error)) bool {
+	return queueLegacyBindingMatches(fields, kind, index.bindings, start)
+}
+
+func queueLegacyBindingMatches(fields map[string]json.RawMessage, kind string, bindings map[queueLegacyBindingKey]queuegate.Operation, start func(int) (string, error)) bool {
 	var id, root, inc string
 	var pid int
 	if json.Unmarshal(fields["queue_operation_id"], &id) != nil || json.Unmarshal(fields["queue_root"], &root) != nil || json.Unmarshal(fields["queue_pid"], &pid) != nil || json.Unmarshal(fields["queue_pid_started"], &inc) != nil || id == "" || root == "" || pid <= 1 || inc == "" {
 		return false
 	}
-	op, ok := index.bindings[queueLegacyBindingKey{id, kind}]
+	op, ok := bindings[queueLegacyBindingKey{id, kind}]
 	if ok && op.Root == root && op.PID == pid && op.PIDStarted == inc {
 		actual, err := start(pid)
 		return err == nil && actual == inc

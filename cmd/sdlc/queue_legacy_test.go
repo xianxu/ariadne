@@ -42,6 +42,90 @@ func legacyKnown(root string) queuegate.Operation {
 	return queuegate.Operation{SchemaVersion: 1, ID: "known", Workspace: "pair:5", Kinds: []string{"suite", "merge", "landing"}, Phase: "waiting", PID: 123, PIDStarted: "incarnation", Managed: true, StartedAt: time.Now(), Root: root}
 }
 
+func TestQueueLegacyPendingAdmissionIsIncompleteButNotActive(t *testing.T) {
+	for _, resource := range []string{"token", "ticket"} {
+		t.Run(resource, func(t *testing.T) {
+			o := legacyFixtureOptions(t)
+			path := o.LockBase + ".queue"
+			if resource == "ticket" {
+				path = filepath.Join(o.LockBase+".tickets", "000000000001")
+			}
+			raw := `{"repo":"old","worktree":"/fixture/old","pid":123,"started":"fixture"}`
+			legacyHeldFile(t, path, raw)
+			active, details := observeLegacyQueue(context.Background(), o, nil)
+			if len(active) != 0 || len(details) == 0 || !strings.Contains(strings.Join(details, " "), path) {
+				t.Fatalf("legacy pending admission proved complete or active: %+v %v", active, details)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != raw {
+				t.Fatalf("observer mutated waiter: %q %v", data, err)
+			}
+		})
+	}
+}
+
+func TestQueueLegacyPendingNewBindingsStayComplete(t *testing.T) {
+	o := legacyFixtureOptions(t)
+	op := legacyKnown(o.FleetRoot)
+	raw, _ := json.Marshal(map[string]any{"queue_operation_id": op.ID, "queue_pid": op.PID, "queue_pid_started": op.PIDStarted, "queue_root": op.Root})
+	legacyHeldFile(t, filepath.Join(o.LockBase+".tickets", "000000000001"), string(raw))
+	legacyHeldFile(t, o.LockBase+".queue", string(raw))
+	active, details := observeLegacyQueue(context.Background(), o, []queuegate.Operation{op})
+	if len(active) != 0 || len(details) != 0 {
+		t.Fatalf("new waiting binding became unknown: %+v %v", active, details)
+	}
+	o.ProcessStart = func(int) (string, error) { return "recycled", nil }
+	active, details = observeLegacyQueue(context.Background(), o, []queuegate.Operation{op})
+	if len(active) != 0 || len(details) == 0 {
+		t.Fatalf("unproved pending binding became complete: %+v %v", active, details)
+	}
+}
+
+func TestQueueLegacyPendingResidueAndAllocationAreNotWaiters(t *testing.T) {
+	o := legacyFixtureOptions(t)
+	dir := o.LockBase + ".tickets"
+	legacyHeldFile(t, filepath.Join(dir, "alloc"), "allocation")
+	if err := os.WriteFile(filepath.Join(dir, "000000000001"), []byte("old unlocked residue"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	active, details := observeLegacyQueue(context.Background(), o, nil)
+	if len(active) != 0 || len(details) != 0 {
+		t.Fatalf("residue or allocation counted as pending: %+v %v", active, details)
+	}
+}
+
+func TestQueueLegacyPendingDirectoryFailureIsIncomplete(t *testing.T) {
+	o := legacyFixtureOptions(t)
+	if err := os.WriteFile(o.LockBase+".tickets", []byte("not a directory"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	active, details := observeLegacyQueue(context.Background(), o, nil)
+	if len(active) != 0 || len(details) == 0 || !strings.Contains(strings.Join(details, " "), o.LockBase+".tickets") {
+		t.Fatalf("unreadable ticket directory proved complete or active: %+v %v", active, details)
+	}
+}
+
+func TestQueueLegacyPendingBindingsAreIndexedLinearly(t *testing.T) {
+	for _, n := range []int{8, 16} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			o := legacyFixtureOptions(t)
+			known := make([]queuegate.Operation, n)
+			cost := map[string]int{}
+			o.Cost = func(label string) { cost[label]++ }
+			for i := range known {
+				known[i] = legacyKnown(o.FleetRoot)
+				known[i].ID = fmt.Sprintf("pending-%d", i)
+				raw, _ := json.Marshal(map[string]any{"queue_operation_id": known[i].ID, "queue_pid": known[i].PID, "queue_pid_started": known[i].PIDStarted, "queue_root": known[i].Root})
+				legacyHeldFile(t, filepath.Join(o.LockBase+".tickets", fmt.Sprintf("%012d", i+1)), string(raw))
+			}
+			active, details := observeLegacyQueue(context.Background(), o, known)
+			if len(active) != 0 || len(details) != 0 || cost["index"] != n || cost["pending"] != n || cost["lookup"] != n {
+				t.Fatalf("pending observation: %+v %v cost %v", active, details, cost)
+			}
+		})
+	}
+}
+
 func TestQueueLegacyHeldSlotsDeduplicateFullIdentityAndNeverMutate(t *testing.T) {
 	o := legacyFixtureOptions(t)
 	raw := `{"repo":"pair","worktree":"/fixture/pair","pid":123,"started":"2026-10-20T01:00:00","holder":555,"slots":[0,1]}`

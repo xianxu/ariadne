@@ -1988,7 +1988,10 @@ never becomes a complete empty snapshot.
 `cmd/sdlc/internal/queuegate` owns pure owner/operation transitions, strict
 additive JSON codecs and the portable filesystem backend. `queuecmd.go` owns
 CLI framing and authority; `queue_legacy.go` is a bounded, read-only status
-overlay for old machine locks, landing heads and same-user merge processes.
+overlay for old machine locks, pending queue tokens/tickets, landing heads and
+same-user merge processes. Held legacy waiters make completeness false with a
+named detail, while remaining outside active[]. Verified new waiting bindings
+stay excluded and complete.
 Process observations never authorize termination. Status-only legacy scans
 do not run on the admission path; counted tests protect that separation and
 linear registry/binding reads.
