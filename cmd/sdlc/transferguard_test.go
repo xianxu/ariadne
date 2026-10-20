@@ -271,6 +271,22 @@ func TestTransferGuardWithoutTrackerIsNotApplicable(t *testing.T) {
 	}
 }
 
+func TestTransferGuardModeStaysOnPublicationRepository(t *testing.T) {
+	r := handedOff(t)
+	ownSpinOff(t, r, otherSlot)
+	issueBranchEdit(t, r, "foreign-edit")
+	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) {
+		t.Fatalf("fixture must refuse the foreign-owned edit: %v", err)
+	}
+	peer := t.TempDir()
+	git(t, peer, "init", "-q", "-b", "main")
+	writeRepoFile(t, peer, "workshop/issues/000999-peer.md", "---\nid: 000999\nstatus: open\n---\n# Peer\n")
+	t.Setenv("WF_ISSUES_DIR", filepath.Join(peer, "workshop/issues"))
+	if err := guardTransferredDetails(context.Background()); err == nil {
+		t.Fatal("peer details directory bypassed publication repository authority")
+	}
+}
+
 // The publish gate (push, merge) and PR creation run the guard for real.
 func TestPublishGateAndPRRefuseChangedHandedOffDetails(t *testing.T) {
 	r := handedOff(t)

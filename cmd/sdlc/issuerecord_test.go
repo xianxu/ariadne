@@ -110,4 +110,17 @@ func TestRecordsScopeFetchesOncePerCommand(t *testing.T) {
 	if _, err := loadIssueRecords(ctx, dir, tracker.Fresh); err == nil {
 		t.Fatal("a cached stale view satisfied a fresh request")
 	}
+	git(t, r.root, "remote", "set-url", "origin", r.origin)
+	retitleElsewhere(t, r, "000009", "New generation")
+	if _, err := loadIssueRecords(ctx, filepath.Join(r.root, "custom/issues"), tracker.Fresh); err != nil {
+		t.Fatal(err)
+	}
+	upgraded, err := loadIssueRecords(ctx, dir, tracker.PreferFresh)
+	if err != nil || upgraded.Stale {
+		t.Fatalf("old directory retained stale authority after repository refresh: %v stale=%v", err, upgraded.Stale)
+	}
+	rec, _, err := upgraded.Require("000009")
+	if err != nil || rec.Title() != "New generation" {
+		t.Fatalf("directory views mixed generations: %q %v", rec.Title(), err)
+	}
 }
