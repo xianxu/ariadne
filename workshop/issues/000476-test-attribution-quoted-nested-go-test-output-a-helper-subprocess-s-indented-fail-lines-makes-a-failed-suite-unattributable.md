@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c747a2d8", done: "f1c16f93"}
 ---
 
 # Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable
