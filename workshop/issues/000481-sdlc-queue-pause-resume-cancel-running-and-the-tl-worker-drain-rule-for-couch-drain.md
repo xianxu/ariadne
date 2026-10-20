@@ -1,13 +1,21 @@
 ---
 id: 000481
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '695b9162170d7c0612c40b1bd599b52948d802e1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '41f940123d627a4c939c9369e015be79a81c0229' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T01:19:56-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain
@@ -90,11 +98,31 @@ Decoder rejects duplicate keys, malformed required types, unsupported versions, 
 - Tests: pause blocks admission in both the queue and the landing line; resume releases in FIFO order;
   `--cancel-running` records interrupted (not failed) and a same-head rerun is accepted.
 - `tl-worker --help` carries the drain rule.
+- The frozen owner-scoped argv/status schema conforms with pair#722's actual executable adapter and strict decoder using private portable queue/lock/fleet state, never the live machine queue.
+- Status covers suite, merge and landing lifetimes; waiting operations are excluded, and legacy, unreadable or incomplete evidence cannot become authoritative quiescence.
+- A graceful admitted merge encountering a paused new-suite boundary exits interrupted; existing successful exact-head suite evidence remains reusable after matching-owner resume.
 
 ## Plan
 
-- [ ]
+- [ ] M1 — Pure owner/operation transitions, portable gate and lifetime leases, bounded legacy observation and frozen CLI protocol; targeted verification and milestone review.
+- [ ] M2 — Wire every suite/landing/merge admission, retain interruption evidence, ship worker drain rule and observed pair#722 conformance; recorded full suite, review and landing.
+
+Durable plan: [queue drain implementation](../plans/000481-queue-drain-plan.md).
 
 ## Log
 
 ### 2026-10-19
+
+### 2026-10-20 — claim and design
+
+Claimed in ariadne:3 and started from fresh main after #487 landed. Loaded current TL-worker/SDLC contracts. The frozen pair#722 contract is the authority; pair:5 confirmed the argv adapter, strict decoder, 5-second call ceiling and inherited-environment behavior. The portable state override will be supplied for isolated executable conformance.
+
+Existing run interruption currently returns without saving an attempt, so this item must retain a distinct interrupted record without admitting it to failure/main/flake readers. Existing ordinary-worktree and already-merged cleanup paths bypass the landing line; they are included in the shared admission design. Full fleet inventory is unsuitable for 5-second status because it can fetch tracker state; legacy discovery will be bounded and local, reporting unknown when incomplete.
+
+Hub clarified that graceful pause interrupts an admitted merge at a new-suite boundary, and legacy activity remains unknown until old runners finish. ARCH-ORDER/ARCH-DRY shaped one global admission mutex plus lifetime leases; ARCH-PURPOSE requires all merge paths; ARCH-EVOLVE keeps additive fields across rewrites. Durable plan committed before requesting implementation approval.
+
+## Revisions
+
+### 2026-10-20 — make frozen contract and clarified acceptance explicit
+
+The original Spec and Done-when remain above for context. Added explicit frozen-schema conformance, complete lifetime coverage/legacy uncertainty, and graceful merge interruption with successful-head reuse, reflecting the frozen Contract and hub clarifications. No change to pair#722's external protocol. Implementation is full flow with two actual review boundaries: backend/CLI, then admission/interruption/conformance.
