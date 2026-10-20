@@ -127,6 +127,27 @@ pending independently of the completed implementation checkboxes.
 
 ## Revisions
 
+- 2026-10-19 21:14 PDT — BR-1 (suite-evidence-provenance): the prefix-only
+  exception admits quoted helpers sharing the outer root. Reproduced red in
+  plain, CRLF and sharded forms, with and without a real failing child. Cancelled
+  the queued old-head suite before it started; no suite result was recorded.
+  Proposed correction, pending hub approval: retain an ancestor-name stack
+  indexed by observed four-space indentation. A real child must be exactly one
+  indentation level below an admitted parent and descend from that parent's
+  full name; truncate the stack on siblings. Reject skipped levels and leave
+  the stack unchanged on quoted records. Column-zero outcomes and authoritative
+  shard summaries reset the context; summary names remain authoritative even
+  when raw output omits ancestors. No depth inference from slash counts, since
+  one t.Run name may itself contain slashes. This is one structural admission
+  rule for all existing text readers, not a second format or persisted state.
+  Rejecting every indented line is simpler but loses real #466 leaf evidence;
+  name prefix alone is the reproduced defect.
+  Add shared-name quote controls across the three modes, literal-slash children,
+  real sibling/grandchild transitions, and the actual gate refusing a registration
+  that covers only a quoted leaf. Existing three visible outcomes and recoveries
+  remain unchanged. The ancestor operation is an indexed lookup plus slice
+  truncate/append per record (no ancestor rescans); preserve N/2N traversal tests.
+
 - 2026-10-19 — Separate the implementation checklist from pending workflow gates
   (the same #477 lesson): the focused-check row is complete, while the recorded
   suite, close and landing remain explicitly pending rather than falsely ticked.

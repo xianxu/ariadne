@@ -69,6 +69,32 @@ func TestSuiteQuotedControlRecords(t *testing.T) {
 	}
 }
 
+func TestSuiteQuotedOverlappingNames(t *testing.T) {
+	const top = "--- FAIL: TestOuter (0.01s)\n"
+	for _, realChild := range []bool{false, true} {
+		log := top
+		wantSubs := []string(nil)
+		if realChild {
+			log += "    --- FAIL: TestOuter/real (0.01s)\n"
+			wantSubs = []string{"example.com/outer.TestOuter/real"}
+		}
+		log += "        outer_test.go:9: nested command failed:\n" +
+			"            --- FAIL: TestOuter/helper (0.01s)\n" +
+			"                --- FAIL: TestOuter/helper/deep (0.01s)\n" +
+			"            FAIL example.com/helper 0.1s\nFAIL example.com/outer 0.2s\n"
+		for name, text := range map[string]string{
+			"plain":   log,
+			"CRLF":    strings.ReplaceAll(log, "\n", "\r\n"),
+			"sharded": "--- FAIL example.com/outer TestOuter\n" + log + "--- FAIL example.com/outer\n",
+		} {
+			got := parseSuiteLogFacts(text)
+			if !reflect.DeepEqual(got.Failures, []string{"example.com/outer.TestOuter"}) || !reflect.DeepEqual(got.Subtests, wantSubs) || len(got.Unattributed) != 0 {
+				t.Errorf("%s real child=%v: quoted shared-name helper became evidence: %+v", name, realChild, got)
+			}
+		}
+	}
+}
+
 func TestKnownFlakeGateQuotedNestedOutput(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
 	d.FlakeRegistry = gateRegistry(t, nestedOuter+"/warm-reattached")
