@@ -298,6 +298,20 @@ func declaredCheck(ctx context.Context, git func(args ...string) (string, error)
 	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
 		return localCheck{}, err
 	}
+	if name == affectedCheckName {
+		// #473 M2 BR-9: affected is declared in its own file, with the suite's
+		// known-flake policy; resolving it here keeps a saved affected pass
+		// republishable.
+		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		if err != nil {
+			return localCheck{}, err
+		}
+		suite, hasSuite := decl.check(suiteCheckName)
+		if !ok || !hasSuite {
+			return localCheck{}, fmt.Errorf("origin/main declares no %s with a %s to fall back on", affectedConfigPath, suiteCheckName)
+		}
+		return affectedCheckDecl(cfg, suite), nil
+	}
 	for _, c := range decl.Checks {
 		if c.Name == name {
 			return c, nil

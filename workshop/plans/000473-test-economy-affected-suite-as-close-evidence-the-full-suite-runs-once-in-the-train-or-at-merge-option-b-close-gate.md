@@ -393,6 +393,134 @@ rounds:
       isolation: checkout
       reviewed: f4a4a688e1499c1f34e910719f33929d962b619b
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 62303091-c0a4-40ac-99d5-ad201c918fd0
+            repository: github.com/xianxu/ariadne
+            issue_id: "000473"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/89369333f40a517f
+            reviewed_head: d6309691af55cb39765a55623ed01f5ab31212e2
+            slot: ariadne:2
+            requested_at: "2026-10-20T09:22:21.514451Z"
+          phase: finished
+          pid: 82302
+          started_at: "2026-10-20T09:22:21.654275Z"
+          finished_at: "2026-10-20T09:29:43.137115Z"
+          session_id: a890961a-646b-4097-807b-a6708375d274
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d6309691af55cb39765a55623ed01f5ab31212e2
+        tracker_head: 2a41686cbdf2a2a3a81fb907bb66985c222768af
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:26:49-07:00"
+        until: "2026-10-20T02:21:33-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:26:49-07:00"
+              end: "2026-10-20T02:21:33-07:00"
+              began: "2026-10-19T20:26:49-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 8409afa1d5ecb412c9b5c215a85085e56fd7e44ed0a3d1f605e17a4186df7fd6
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 4492293
+              windows:
+                - start: "2026-10-19T20:26:49-07:00"
+                  end: "2026-10-20T02:21:33-07:00"
+        queue_waits:
+            - attempt_id: bcd9b7407517e24367c744af82d5db34
+              slot: ariadne:2
+              record_digest: 38cc6a62061e1a988f1d7f0f855462befe0fbd9fd08ff6e8d5e7da15ab214da4
+              start: "2026-10-20T03:26:49Z"
+              end: "2026-10-20T03:54:30.635003Z"
+              queue_seconds: 1661.635003
+              raw_seconds: 1669.213411
+              exact: true
+            - attempt_id: 1e519eee13691a7f9ae238f3a34af108
+              slot: ariadne:2
+              record_digest: ec17427e86246fbb78fe51b1c02c6c1a3c11100644e7ee265a3bbb81ecc632fc
+              start: "2026-10-20T04:15:40.4019Z"
+              end: "2026-10-20T04:37:58.530161Z"
+              queue_seconds: 1338.128261
+              raw_seconds: 1338.128261
+              exact: true
+            - attempt_id: ec45d2b999a4f613e1087a285f7a4e97
+              slot: ariadne:2
+              record_digest: 44c532f2cb7fa09e8ca756cfd526f624744a71e1024a397fc4dcd2c47bf96ea1
+              start: "2026-10-20T08:21:56.389306Z"
+              end: "2026-10-20T08:36:54.647565Z"
+              queue_seconds: 898.258259
+              raw_seconds: 898.258259
+              exact: true
+        protected:
+            - issue: "479"
+              slot: ariadne:2
+              start: "2026-10-19T21:12:26-07:00"
+              end: "2026-10-20T04:15:25.377Z"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 27.769466666666666
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T01:49:20-07:00"
+              finalized: "2026-10-20T01:57:31-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:03:23-07:00"
+              finalized: "2026-10-20T02:05:59-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T02:08:18-07:00"
+              finalized: "2026-10-20T02:14:02-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-20T02:29:44-07:00"
+      dispatched: "2026-10-20T02:22:21-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - kind: defect
+          id: BR-9
+          severity: Important
+          title: 'local-check republish --name affected always refuses for a saved known-flake pass: declaredCheck cannot resolve the reserved name'
+          detail: 'runLocalCheckRepublish (localcheck_cmd.go:255-258) calls declaredCheck for KnownFlakePassed/Accept attempts, but declaredCheck (localcheck_cmd.go:290-307) only searches local-checks.json plus the default suite, where affected is reserved (localchecks.go:121). M2 newly lets affected runs reach KnownFlakePassed (localcheck_run.go:184), and a failed post then tells the operator to run this exact command (localcheck_run.go:230), so the only recovery is a full rerun. Rule (ARCH-PURPOSE sweep): every consumer that resolves a check name back to a localCheck must resolve affected from affected.json with the suite''s policy. Fix declaredCheck accordingly and add a republish regression test.'
+          family: name-keyed-check-resolution
+          round: 4
+        - kind: defect
+          id: BR-10
+          severity: Important
+          title: Plan D2/Task 8 still claim publishgate.go and merge.md wording changes that the code deliberately did not make
+          detail: '2nd in family plan-tracks-code. The rule: any departure from a plan''s Decisions or Files list ships with a ## Revisions entry in the same commit. The publish gate''s --full-suite instruction stays on suite (the atlas explains why: a conflict resolution changes main''s code), and merge.md is untouched. D1-D6 and Tasks 6-8 swept against the diff show no other departures. Add the Revisions entry and amend D2.'
+          family: plan-tracks-code
+          round: 4
+        - kind: defect
+          id: BR-11
+          severity: Minor
+          title: A malformed affected.json on main makes every car's CI gate error instead of degrading to requiring suite
+          detail: '3rd in family. Rule covering all three: an affected-suite input that cannot be trusted degrades to requiring the full suite, never to a hard stop or an empty selection. carCIGateFacts (landingcar.go:121) returns an error, which wedges the train. Dropping the stand-in with a warning matches the spec''s "affected unavailable; run the suite".'
+          family: unclassified-path-fails-closed
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
 ---
 
 # Gate ledger — ariadne#473 (boundary-review)
@@ -443,6 +571,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-7 — addressed — Embeds is map[string][]string and owners returns the union of own-dir, testdata ancestors and every embedder; reverting to first-match fails TestLoadGoGraphConformance (live go list), TestPlan BR-7 row and TestOwnersAreExactAndAUnion.
 - BR-8 — addressed — Plan Revisions entry dated 2026-10-20 (plan.md:427-436) explicitly replaces "nearest package" (rule 3) and Task 2 PackageOf with Graph.Owners union semantics, matching graph.go:24-50.
 
+## Round 4 — 2026-10-20T02:29:44-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Important] `name-keyed-check-resolution` (kind: defect) local-check republish --name affected always refuses for a saved known-flake pass: declaredCheck cannot resolve the reserved name
+  runLocalCheckRepublish (localcheck_cmd.go:255-258) calls declaredCheck for KnownFlakePassed/Accept attempts, but declaredCheck (localcheck_cmd.go:290-307) only searches local-checks.json plus the default suite, where affected is reserved (localchecks.go:121). M2 newly lets affected runs reach KnownFlakePassed (localcheck_run.go:184), and a failed post then tells the operator to run this exact command (localcheck_run.go:230), so the only recovery is a full rerun. Rule (ARCH-PURPOSE sweep): every consumer that resolves a check name back to a localCheck must resolve affected from affected.json with the suite's policy. Fix declaredCheck accordingly and add a republish regression test.
+- **BR-10** [Important] `plan-tracks-code` (kind: defect) Plan D2/Task 8 still claim publishgate.go and merge.md wording changes that the code deliberately did not make
+  2nd in family plan-tracks-code. The rule: any departure from a plan's Decisions or Files list ships with a ## Revisions entry in the same commit. The publish gate's --full-suite instruction stays on suite (the atlas explains why: a conflict resolution changes main's code), and merge.md is untouched. D1-D6 and Tasks 6-8 swept against the diff show no other departures. Add the Revisions entry and amend D2.
+- **BR-11** [Minor] `unclassified-path-fails-closed` (kind: defect) A malformed affected.json on main makes every car's CI gate error instead of degrading to requiring suite
+  3rd in family. Rule covering all three: an affected-suite input that cannot be trusted degrades to requiring the full suite, never to a hard stop or an empty selection. carCIGateFacts (landingcar.go:121) returns an error, which wedges the train. Dropping the stand-in with a warning matches the spec's "affected unavailable; run the suite".
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-9** [Important] `name-keyed-check-resolution` (kind: defect) local-check republish --name affected always refuses for a saved known-flake pass: declaredCheck cannot resolve the reserved name
+- **BR-10** [Important] `plan-tracks-code` (kind: defect) Plan D2/Task 8 still claim publishgate.go and merge.md wording changes that the code deliberately did not make
+- **BR-11** [Minor] `unclassified-path-fails-closed` (kind: defect) A malformed affected.json on main makes every car's CI gate error instead of degrading to requiring suite

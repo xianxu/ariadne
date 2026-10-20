@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,5 +226,55 @@ func TestSplitAffectedName(t *testing.T) {
 	}
 	if got, aff, err := splitAffectedName(nil, true); err != nil || aff || len(got) != 0 {
 		t.Fatalf("--all alone: %v %v %v", got, aff, err)
+	}
+}
+
+// #473 M2 BR-9: the affected name resolves for a decision that needs origin/
+// main's declaration (republishing a saved known-flake pass): affected.json's
+// command with the suite's policy. Without the file it refuses.
+func TestDeclaredCheckResolvesAffected(t *testing.T) {
+	files := map[string]string{
+		localChecksPath:    `{"version":1,"checks":[{"name":"suite","command":["make","test"],"required":true,"known_flakes":"accept"}]}`,
+		affectedConfigPath: `{"version":1,"command":["make","test-affected"],"weight":2}`,
+	}
+	git := func(args ...string) (string, error) {
+		switch args[0] {
+		case "fetch":
+			return "", nil
+		case "ls-tree":
+			if _, ok := files[args[len(args)-1]]; ok {
+				return args[len(args)-1] + "\n", nil
+			}
+			return "", nil
+		case "show":
+			return files[strings.TrimPrefix(args[1], "origin/main:")], nil
+		}
+		return "", fmt.Errorf("unexpected git %v", args)
+	}
+	c, err := declaredCheck(context.Background(), git, affectedCheckName)
+	if err != nil || c.Name != affectedCheckName || strings.Join(c.Command, " ") != "make test-affected" || c.Weight != 2 || c.KnownFlakes != "accept" {
+		t.Fatalf("%+v %v", c, err)
+	}
+	delete(files, affectedConfigPath)
+	if _, err := declaredCheck(context.Background(), git, affectedCheckName); err == nil || !strings.Contains(err.Error(), affectedConfigPath) {
+		t.Fatalf("no affected.json: %v", err)
+	}
+}
+
+// #473 M2: an affected.json main cannot parse degrades a car to requiring the
+// suite; it never stops the train.
+func TestCarWithBrokenAffectedConfigNeedsSuite(t *testing.T) {
+	root, gh, commit, vouch, _ := carGateFixture(t, false)
+	procedureWrite(t, root, affectedConfigPath, `{"version":1,"command":["make"],"surprise":1}`+"\n")
+	base := commit("go.sum")
+	git(t, root, "update-ref", "refs/remotes/origin/main", base)
+	head := commit("feature.go")
+	postStatus(t, gh, head, affectedCheckName)
+	if err := vouch(head); err == nil || !strings.Contains(err.Error(), "--name "+suiteCheckName) {
+		t.Fatalf("a broken affected.json: %v", err)
+	}
+	postStatus(t, gh, head, suiteCheckName)
+	if err := vouch(head); err != nil {
+		t.Fatalf("suite still vouches: %v", err)
 	}
 }

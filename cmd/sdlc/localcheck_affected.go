@@ -58,12 +58,21 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 // under the fixed env contract (#473), sorted and space-separated, passed as
 // argv through env(1) and never through a shell.
 func affectedLocalCheck(cfg affected.Config, sel affected.Selection, suite localCheck) localCheck {
-	argv := append([]string{"env",
+	c := affectedCheckDecl(cfg, suite)
+	c.Command = append([]string{"env",
 		"SDLC_AFFECTED_GO_PKGS=" + strings.Join(sel.GoPkgs, " "),
 		"SDLC_AFFECTED_GROUPS=" + strings.Join(sel.Groups, " "),
 	}, cfg.Command...)
-	return localCheck{Name: affectedCheckName, Command: argv, TimeoutMinutes: cfg.TimeoutMinutes, Weight: cfg.Weight,
-		KnownFlakes: suite.KnownFlakes, Scope: affectedScope(sel)}
+	c.Scope = affectedScope(sel)
+	return c
+}
+
+// affectedCheckDecl is the affected suite as a declared check, the one place
+// its name resolves to a localCheck: affected.json's command and limits, the
+// suite's known-flake policy (D4).
+func affectedCheckDecl(cfg affected.Config, suite localCheck) localCheck {
+	return localCheck{Name: affectedCheckName, Command: cfg.Command, TimeoutMinutes: cfg.TimeoutMinutes, Weight: cfg.Weight,
+		KnownFlakes: suite.KnownFlakes}
 }
 
 // affectedScope summarizes a selection for the commit status.

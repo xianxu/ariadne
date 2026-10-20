@@ -444,3 +444,15 @@ one.
     still confirms.
   - **Stats:** `aggregateCheckAttempts` gives affected runs their own row (`RepoStats.Check`). `aggregateSuiteAttempts`
     and its weekly consumers are unchanged.
+- **2026-10-20 (M2 Task 8 and review round 4, BR-9 and BR-10).** This amends D2 and Task 8's Files list.
+  - **Unchanged on purpose:** the publish gate's conflict-resolution instruction (`--fixed-then-ship --full-suite`,
+    `publishgate.go:302-308`) stays on the full suite, because a conflict resolution changes main's code as well as
+    the branch's. `helptext/merge.md` also stays as it is, because merge without a train still requires `suite`. The
+    car's acceptance of `affected` is documented in `helptext/landing.md` instead.
+  - **Changed:** close's VERIFIED example, `helptext/local-check.md` (a new section "THE AFFECTED SUITE"),
+    `AGENTS.base.md` §5, and the atlas.
+  - **Name resolution, swept (BR-9):** `declaredCheck` resolves `affected` from `affected.json` with the suite's
+    policy (`affectedCheckDecl`, the one place the name becomes a check), so a saved known-flake affected pass can be
+    republished. The CI gate's runner lookup refuses a name it can't resolve, rather than running a zero check.
+  - **Untrusted input degrades to the suite:** an `affected.json` that main can't parse makes a car require `suite`;
+    it never stops the train.

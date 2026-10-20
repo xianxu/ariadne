@@ -119,9 +119,10 @@ func carCIGateFacts(ctx context.Context, git func(...string) (string, error), ba
 	if err != nil {
 		return nil, err
 	}
-	if _, ok, err := readAffectedConfig(git, base); err != nil {
-		return nil, fmt.Errorf("CI gate: %w", err)
-	} else if ok {
+	// An affected.json that cannot be read or trusted degrades to requiring
+	// the suite, never to a stopped train (#473 M2): the car's refusal names
+	// suite, and the affected run itself reports the file's error.
+	if _, ok, err := readAffectedConfig(git, base); err == nil && ok {
 		facts.standIn = map[string]string{suiteCheckName: affectedCheckName}
 	}
 	return facts, nil
