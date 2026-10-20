@@ -243,7 +243,7 @@ func landingScheduleSource(git func(args ...string) (string, error), remote stri
 	var mu sync.Mutex
 	var cached landingline.Schedule
 	var readAt time.Time
-	warned := false
+	warned, planWarned := false, false
 	return func() landingline.Schedule {
 		mu.Lock()
 		defer mu.Unlock()
@@ -251,13 +251,17 @@ func landingScheduleSource(git func(args ...string) (string, error), remote stri
 		if !readAt.IsZero() && !now.Before(readAt) && now.Sub(readAt) < landingScheduleTTL {
 			return cached
 		}
-		s, err := readLandingSchedule(git, landingMainRef(git, remote))
+		s, _, planErr, err := effectiveSchedule(git, landingMainRef(git, remote))
 		if err != nil {
 			if !warned {
 				warned = true
 				fmt.Fprintf(stderr, "landing train: could not read %s (%v); landing serially\n", landingConfigPath, err)
 			}
 			s = landingline.Schedule{}
+		}
+		if planErr != nil && !planWarned {
+			planWarned = true
+			fmt.Fprintf(stderr, "landing train: machine plan unreadable (%v); departing on the interval\n", planErr)
 		}
 		cached, readAt = s, now
 		return cached

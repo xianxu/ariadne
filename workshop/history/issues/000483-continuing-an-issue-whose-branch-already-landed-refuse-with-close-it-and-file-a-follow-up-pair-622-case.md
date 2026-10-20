@@ -1,0 +1,95 @@
+---
+id: 000483
+status: done
+deps: []
+github_issue:
+created: 2026-10-19
+updated: 2026-10-20
+estimate_hours:
+collaboration-mode: collaboration
+card_mirror: 'a4b24dec8a1e9766339ac2e6e7a786f55b19de76' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T04:06:52-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.85
+---
+
+# Continuing an issue whose branch already landed: refuse with 'close it and file a follow-up' (pair#622 case)
+
+## Problem
+
+pair#622 (10-19): the issue's code landed (PR 406), but its live acceptance stayed open and needed a little more
+work. `sdlc change-code --issue 622` insists on the canonical branch, which already merged; `--name` and `--issue`
+are mutually exclusive; so there is no supported way to continue an issue whose branch has landed. The worker
+improvised a fresh branch outside the gates.
+
+## Spec
+
+Pick one, simplest first, and make the refusal say it:
+1. **Refuse with the recovery:** "#N's branch already landed; close #N with what's verified and file a follow-up
+   issue for the rest (`sdlc issue new … --deps N`)." This keeps one issue, one branch.
+2. Only if (1) proves too rigid in practice: a supported continuation branch (`<canonical>-2`) that the gates treat
+   as the same issue.
+
+## Done when
+
+- `change-code` and `start-plan` on an issue whose canonical branch is merged refuse with that next action
+  (test), and `sdlc issue new --deps` is shown as the path.
+
+## Plan
+
+Design: Spec option (1), plus a matching close admission. No new state; one predicate, two refusals, one relaxed admission.
+
+**Landed** = the issue's canonical branch (`issue.BranchName(card)`) has a MERGED PR (`ghClient.PRMergedForBranch`, the existing seam with fakes), and the local canonical branch is absent or wholly on main. This catches squash merges, which `externalMerges` misses. The second clause keeps a mid-issue landing with new local commits on the old path. A gh query failure reads as "not landed", which keeps today's refusals (the safe direction).
+
+1. **start-plan / change-code refuse a landed issue** with the next action: "#N's branch B already landed. Close #N with what's verified: cut a follow-up branch from main (`git switch -c NNNNNN-<suffix> origin/main`), run `sdlc close --issue N`, then `sdlc pr` and `sdlc merge`. File the rest as a follow-up: `sdlc issue new '<title>' --deps N`." Today start-plan silently re-creates B at main, and change-code points back at start-plan. This keeps one issue, one branch.
+2. **close admits a follow-up branch for a landed issue.** In `requireCloseIssueBranch`, a landed issue also admits a branch whose name has the issue's id prefix (`NNNNNN-…`, the same prefix rule as `fleet.AssociateBranchIssue`). That branch must carry no other issue's unlanded commits (reuse start-plan's unlanded-base check, ARCH-DRY). The evidence commit lands through that branch's own PR, and `settleLandedCompletions` marks the card done as it does today. From rest or main, the refusal names the same recovery as (1).
+
+For pair#622: from `000622-live-acceptance` (PR pair#474, carrying the attestation), `sdlc close --issue 622` then `sdlc merge` closes it with that evidence. Nothing in #622 needs to change.
+
+ARCH: MOCK, the landed check reads only the existing `ghClient` and git seams, with fakes in the tests. ORDER, this holds no state between events: each verb re-derives "landed" from PR and git facts at call time. A PR that merges between two verbs is just a later observation. SECURE, a branch name with only the issue prefix is not proof on its own: the unlanded-base check stops another issue's work from riding in. EVOLVE/FUNERAL, N/A: no persisted format and nothing durable. CONSTRAINTS, one `gh pr list` per refusal check, only on the paths that would otherwise refuse or (for close) admit.
+
+Steps:
+- [x] Pure decision `landedIssue(mergedPR bool, localTip, onMain)` plus the IO wrapper; unit table.
+- [x] start-plan and change-code refusals with the recovery text. Tests: landed→refuse naming `issue new --deps`; merged PR with unlanded local commits→old path; gh error→old path.
+- [x] close admission. Tests: landed plus prefixed follow-up branch from main→admitted; prefixed branch carrying another issue's commit→refused; non-prefixed branch→refused with the recovery; not landed→today's refusal unchanged.
+- [x] atlas: sdlc lifecycle note on closing a landed issue.
+
+## Log
+
+
+
+- 2026-10-20: closed — BR-1 fixed (landed check reads local-else-remote branch via issueTip; TestRemoteCanonicalAheadOfMergedHeadIsNotLanded), minors fixed; recorded suite pass on 69d2987c (exit 0, 9m33s); pair#622 shape test passes (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-20: flow upgraded quick → full — 141 added lines in code files (limit 100); an earlier round of this close already ran the full review
+### 2026-10-19
+
+## Log
+
+- 10-19 23:25 (TL): the gap blocks **close** too, not just change-code: pair#622's `sdlc close` refuses ("run from
+  canonical 000622-…") from the follow-up branch `000622-live-acceptance` that holds the operator's attestation (PR
+  pair#474), because the canonical branch landed as PR 406. #622 is parked on this issue. Whatever (1)/(2) decides
+  must also let such an issue close (e.g. close with evidence on main, or the refusal names `sdlc close --no-pr`-style
+  recovery if one exists).
+
+### 2026-10-20
+
+- Hub approved the plan and asked for a test with pair#622's exact shape: `landedS09` squash-merges #9's branch as PR 406, deletes it, and closes from `000009-live-acceptance` holding only an evidence commit (`TestCloseAdmitsFollowUpBranchOfLandedIssue`).
+- Evidence source: `landingGH.LandingPRs` (typed and validated, with each PR's head OID) instead of `PRMergedForBranch`. With a squash merge, a kept local canonical branch never has its commits on main by SHA, so "no unlanded local commits" means at or behind the merged PR's head, or on main. ARCH-MOCK: tests use `landedFakeGH`, keyed by branch and behind the same seam, and the remote URL is GitHub-shaped with a local `insteadOf` rewrite.
+- Placement: start-plan checks only for a started (non-open) card, so a first start-plan makes no gh call. change-code checks on every run, one `gh pr list`, which is acceptable for an infrequent verb. Close checks only on paths that would otherwise refuse.
+- ARCH-DRY: `issueTip` is shared by the close admission and `closeBranchRecoveryNote`. The note now tells a landed follow-up branch apart from a renamed branch at the issue tip, which it previously misdescribed.
+- First recorded suite on 00dfec80 failed one test, `TestIssueHintsRenderDecimalIDs`. It is the #252 BR-5 guard: an `--issue` hint must render through `issue.CLIRef` within the hint's 4-line window, and the recovery text passed a precomputed `ref`. Fixed by calling `issue.CLIRef(id)` inline. No other test failed.
+- Close review round 1, FIX-THEN-SHIP. All three findings were fixed in-round:
+  - BR-1 (Important, family `landed-evidence-ignores-remote-branch`): `issueBranchLanded` read only the local canonical ref, so a slot without it called the issue landed even when another slot had pushed work past the merge. It now reads the branch through `issueTip` (local, else remote; ARCH-DRY). The class here is every read of the canonical branch's state for "landed", and that is this one site. `TestRemoteCanonicalAheadOfMergedHeadIsNotLanded` covers it.
+  - Minor: the tip is now checked against every merged PR's head, not just the first one returned (`landedPRs`, `TestLaterMergedPRHeadCountsAsLanded`).
+  - Minor: `closeBranchRecoveryNote` now documents its precondition.
+  - Minor: the Revisions entry below.
+
+## Revisions
+
+- 2026-10-20 (close review): Plan step 1's `landedIssue(mergedPR, localTip, onMain)` became `landedPRs(prs)` (pure) plus the `issueBranchLanded` IO wrapper. The evidence source is `landingGH.LandingPRs` with each PR's head commit, not `PRMergedForBranch`. The landed definition now reads: a merged PR and no open PR for the canonical name, and the canonical branch, local or else remote, absent or at or behind a merged PR's head or main.

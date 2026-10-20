@@ -55,6 +55,9 @@ type Event struct {
 	Splits  int       `json:"splits,omitempty"`
 	Culprit int64     `json:"culprit,omitempty"`
 	NextDue time.Time `json:"next_due,omitzero"`
+	// Departed is when a train (or a lone landing) left (#475), additive: the
+	// completion time At is not the departure.
+	Departed time.Time `json:"departed,omitzero"`
 }
 
 // Record appends e, stamping it with the line's clock when e.At is zero.
