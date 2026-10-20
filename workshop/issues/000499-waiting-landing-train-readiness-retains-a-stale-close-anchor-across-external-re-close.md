@@ -1,13 +1,21 @@
 ---
 id: 000499
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '1be4e2fb5d7144bdf40593ff8b0cde92c3522dbc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '073b5afbb03190e30e5f4f73131c7f650e645172' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T08:58:55-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Waiting landing-train readiness retains a stale close anchor across external re-close
@@ -32,8 +40,13 @@ A waiting car readiness pass must evaluate one fresh, coherent tracker generatio
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce stale readiness with one command context, a real tracked close, code/head advance, and an external corrected SHIP close.
+- [ ] Give each carReadiness call a nested records scope (ARCH-DRY), preserving parent context and pass-local coherence.
+- [ ] Verify external status changes at the gate seam, one fetch per pass at N/2N reads, and isolation from the parent scope.
+- [ ] Run focused tests and recorded suite, then close/review and land through SDLC.
 
 ## Log
 
 Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landing status reported no current landing, pid 92126 first in line and old-anchor publish refusal after the recorded suite succeeded. Source locations: cmd/sdlc/landingcar.go carReadiness/vouchWhileWaiting, landinggate.go runLandingPublishGate, issuerecord.go loadIssueRecordsAt/recordsScope.get. No Ariadne implementation changes.
+
+2026-10-20: Claimed and started #499. Root cause confirmed: recordsScope outlives carReadiness polls. Quick-flow plan posted to hub, proceeding unless objected. Reuse withIssueRecordsScope rather than invalidating shared state; no new state or persisted format. Each pass performs one tracker fetch/composition and O(N) card composition, with repeated reads served by that snapshot; count fetches for 8/16 reads. ARCH-PURE: retain production publish gate and real local bare remote in regression.
