@@ -219,9 +219,9 @@ for any review-derived rule (no ceremonial wording tests for prose).
   and strict policy (no shared staging, real PR merge or branch-protection change).
   Read-only live conformance: compare one existing GitHub PR's selected fields
   against the parser; do not mutate that PR or apply any label.
-- [ ] Push/open PR with sdlc pr; run the recorded branch suite through normal sdlc.
+- [x] Push/open PR with sdlc pr; run the recorded branch suite through normal sdlc.
   Close the tested branch through the binary's mandatory fresh review.
-- [ ] On SHIP, enter sdlc merge --yes promptly. Let its landing turn integrate and
+- [x] On SHIP, enter sdlc merge --yes promptly. Let its landing turn integrate and
   test code changes as required; report landed PR and Git-derived merge hash,
   archive/card evidence and both attempts if a registered flake reruns.
 
