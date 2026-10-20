@@ -177,6 +177,91 @@ rounds:
       isolation: checkout
       reviewed: 07e0d9724226706fbe4751c3de68aef6eedbe852
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8ec03518-ff21-46d2-b20b-37dbff662669
+            repository: github.com/xianxu/ariadne
+            issue_id: "000489"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/209a37b03c2b1dc3
+            reviewed_head: 25a66f067ff83d098f417b0aa07a81b72abe0eaf
+            slot: ariadne:2
+            requested_at: "2026-10-20T12:43:03.722098Z"
+          phase: finished
+          pid: 24943
+          started_at: "2026-10-20T12:43:03.81613Z"
+          finished_at: "2026-10-20T12:43:41.042938Z"
+          session_id: 7ab08645-b7d4-41e5-8df3-946a5c19008a
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 25a66f067ff83d098f417b0aa07a81b72abe0eaf
+        tracker_head: 611c2b89de61494e50efddffb7869ec7f615127a
+        branch_point: bf7eaa4d17eaf48b7b36b71982f65bdcf5f9d114
+        since: "2026-10-20T02:02:22-07:00"
+        until: "2026-10-20T05:42:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T02:02:22-07:00"
+              end: "2026-10-20T02:02:31-07:00"
+              began: "2026-10-20T02:02:22-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            - start: "2026-10-20T05:21:51-07:00"
+              end: "2026-10-20T05:42:37-07:00"
+              began: "2026-10-20T05:21:51-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a4e2d4cc2971a78f68b1f7020c89870a76581fab5b4ef75db945557bdc6d2ad7
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 6252623
+              windows:
+                - start: "2026-10-20T02:02:22-07:00"
+                  end: "2026-10-20T02:02:31-07:00"
+                - start: "2026-10-20T05:21:51-07:00"
+                  end: "2026-10-20T05:42:37-07:00"
+        protected:
+            - issue: "473"
+              slot: ariadne:2
+              start: "2026-10-20T02:02:22-07:00"
+              end: "2026-10-20T02:07:22-07:00"
+        cuts:
+            - dispatched: "2026-10-20T05:33:25-07:00"
+              finalized: "2026-10-20T05:39:49-07:00"
+              finalizing: true
+            - dispatched: "2026-10-20T05:41:18-07:00"
+              finalized: "2026-10-20T05:42:06-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-20T05:43:41-07:00"
+      dispatched: "2026-10-20T05:43:03-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: TestJSONRecursiveScannerSeesMethods (rules_test.go:230) goes red when x.Recv == nil is restored at rules.go:489 and when the receiver-selector recursion check at rules.go:477 is removed; the iterative-walk limit is documented at rules.go:455-456.
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 25a66f067ff83d098f417b0aa07a81b72abe0eaf
+      blocked: false
 ---
 
 # Gate ledger — ariadne#489 (boundary-review)
@@ -200,6 +285,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — Disabling jsonstrict.Scan in identity.go turns TestIdentityStrictProtocol red (identity_test.go:40); both an exact and a different-case duplicate are covered.
 - BR-2 — not-addressed — Selector recursion is fixed and tested, since removing rules.go:477 turns TestRules red. Methods are scanned now that the Recv filter is gone (rules.go:489), but putting that filter back keeps pkg/golint green. The harness wraps snippets in a receiver-less func f(), so a method needs a whole-file test case (as in TestRulesFollowImportNames).
 
+## Round 3 — 2026-10-20T05:43:41-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — TestJSONRecursiveScannerSeesMethods (rules_test.go:230) goes red when x.Recv == nil is restored at rules.go:489 and when the receiver-selector recursion check at rules.go:477 is removed; the iterative-walk limit is documented at rules.go:455-456.
+
 ## Open findings
 
-- **BR-2** [Minor] `lint-rule-shape-coverage` (kind: defect) json-recursive-scanner misses method receivers, selector recursion and iterative stack walks
+(none — every finding has been disposed)

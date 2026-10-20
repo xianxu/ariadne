@@ -164,3 +164,60 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"662b2dd4-e2dc-4d3f-9eb3-54cc7fd99bab","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/99a02a4ee0898403","reviewed_head":"07e0d9724226706fbe4751c3de68aef6eedbe852","slot":"ariadne:2","requested_at":"2026-10-20T12:41:18.055295Z"},"phase":"finished","pid":98317,"started_at":"2026-10-20T12:41:18.155523Z","finished_at":"2026-10-20T12:42:05.805988Z","session_id":"86212ef0-bdb5-45dd-b6c1-84d37d023039","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T05:43:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 489 — jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review) |
+| repo | ariadne |
+| issue file | workshop/issues/000489-jsonstrict-route-the-three-older-duplicate-json-key-scanners-through-internal-jsonstrict-arch-dry-from-473-m1-review.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 891e6026035610eb538e0990211ba0ec30206261..25a66f067ff83d098f417b0aa07a81b72abe0eaf |
+| command | sdlc close --issue 489 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-20T05:43:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix window closes BR-2, the last open finding. The only code change is a new test, `TestJSONRecursiveScannerSeesMethods` (`pkg/golint/rules_test.go:230-242`). It builds a whole source file containing a method that calls itself through its receiver. It then checks that the method is flagged in package `p` and not flagged in `jsonstrict`, the one package allowed to own a recursive scanner. I checked that the test actually catches the bug, in a disposable checkout:
+- **Receiver filter put back** (`x.Recv == nil &&` re-added at `rules.go:489`): the new test fails with "package p: findings [] <nil>, want 1". The previous round found that `pkg/golint` stayed green under this same change.
+- **Receiver-call check removed** (`fn.Sel.Name == self` at `rules.go:477`): the new test also fails.
+- **Clean head:** `go test ./pkg/golint/` passes and `go vet` is clean.
+
+The rule still can't see iterative stack walks, and its comment at `rules.go:455-456` says so. The previous round accepted that documented limit. Apart from the generated gate and review records in `workshop/plans/`, the only other change is one Log entry in the issue file. It now credits the selector case to the table row and the method case to the whole-file test, which is accurate. `## Spec`, `## Revisions` and `## Done when` are unchanged, and nothing was added that no finding asked for. There are no conflict resolutions to judge.
+
+1. **Strengths**
+   - The test follows the existing whole-file pattern in `TestRulesFollowImportNames`. It is the fix the previous round asked for.
+   - In one table, it checks both that a method outside `jsonstrict` is flagged and that the same method inside `jsonstrict` is allowed.
+   - The corrected Log line (issue file, Log under 2026-10-20) no longer overstates what is tested.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage notes:** both mutations above now fail. Together with the previous round's selector mutation, every shape the rule claims to recognise has a test that fails without it. That is the rule the `lint-rule-shape-coverage` family asked for.
+6. **Architecture**
+   - **ARCH-DRY:** pass. The test reuses `Check` and `ruleOf`.
+   - **ARCH-PURE:** pass. It runs on in-memory source and does no IO.
+   - **ARCH-PURPOSE:** pass. The class of shapes the finding named is now covered: methods, selector calls, and the documented limit for iterative walks.
+   - **ARCH-EVOLVE:** N/A. No persisted format changes.
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestJSONRecursiveScannerSeesMethods (rules_test.go:230) goes red when x.Recv == nil is restored at rules.go:489 and when the receiver-selector recursion check at rules.go:477 is removed; the iterative-walk limit is documented at rules.go:455-456.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8ec03518-ff21-46d2-b20b-37dbff662669","repository":"github.com/xianxu/ariadne","issue_id":"000489","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/209a37b03c2b1dc3","reviewed_head":"25a66f067ff83d098f417b0aa07a81b72abe0eaf","slot":"ariadne:2","requested_at":"2026-10-20T12:43:03.722098Z"},"phase":"finished","pid":24943,"started_at":"2026-10-20T12:43:03.81613Z","finished_at":"2026-10-20T12:43:41.042938Z","session_id":"7ab08645-b7d4-41e5-8df3-946a5c19008a","outcome":"returned"}] -->
