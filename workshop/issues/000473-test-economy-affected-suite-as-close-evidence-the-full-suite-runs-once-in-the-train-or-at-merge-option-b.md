@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-19
-estimate_hours:
+estimate_hours: 2.37
 collaboration-mode: collaboration
-card_mirror: '103426223b27822379bd81dff3d94b66fdd88f72' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5606ab0eac6044fdca8b860d797a4f226709015e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T20:26:49-07:00
 claimant:
     operator: Xian Xu
@@ -54,6 +54,34 @@ Durable plan: `workshop/plans/000473-test-economy-affected-suite-as-close-eviden
 
 - [ ] M1 — planner and runner (`internal/affected`, `local-check run --name affected`)
 - [ ] M2 — car readiness accepts `affected`; flake/test-stats generalization; wording, atlas
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.5 impl=0.32
+item: smaller-go-module      design=0.2 impl=0.2
+item: smaller-go-module      design=0.1 impl=0.12
+item: smaller-go-module      design=0.1 impl=0.16
+item: atlas-docs             design=0.05 impl=0.08
+item: milestone-review       design=0.0 impl=0.2
+item: milestone-review       design=0.0 impl=0.2
+design-buffer: 0.15
+total: 2.37
+```
+
+Items, in order:
+1. `internal/affected`: config, globs, graph, planner, `go list` seam.
+2. `runAffectedCheck` and the verb dispatch.
+3. The car's stand-in in the CI gate.
+4. Flake and test-stats generalization.
+5. Wording and atlas.
+6–7. Reviews at M1 and M2.
+
+Each `impl` is 40% of the v2 range's upper end.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
