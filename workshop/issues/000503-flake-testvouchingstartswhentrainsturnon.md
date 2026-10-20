@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestVouchingStartsWhenTrainsTurnOn]
+flow: {kind: quick, provenance: inferred, spec: "3da5ff93", done: "f99b6282"}
 ---
 
 # flake: TestVouchingStartsWhenTrainsTurnOn
