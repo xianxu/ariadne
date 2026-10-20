@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "32259c11", done: "6b1c0c23"}
 ---
 
 # Waiting landing-train readiness retains a stale close anchor across external re-close
