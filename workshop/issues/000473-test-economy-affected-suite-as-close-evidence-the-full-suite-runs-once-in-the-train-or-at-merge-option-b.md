@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B')
