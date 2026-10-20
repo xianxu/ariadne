@@ -331,3 +331,82 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ccaf6a69-91b3-4f4e-a649-972298649eab","repository":"github.com/xianxu/ariadne","issue_id":"000466","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d7abc595aeb1da9b","reviewed_head":"ee4d22050707b73f6c81b9a365082237d3ac687e","slot":"ariadne:2","requested_at":"2026-10-19T21:23:12.296918Z"},"phase":"finished","pid":93534,"started_at":"2026-10-19T21:23:12.584286Z","finished_at":"2026-10-19T21:25:39.345602Z","session_id":"87c09e13-6272-4816-9059-f31006c9a08b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T17:53:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 466 — flake registration needs exact subtests and narrowing |
+| repo | ariadne |
+| issue file | workshop/issues/000466-flake-registration-needs-exact-subtests-and-narrowing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4e640fe30cf6b3746378a800fc5eabdc904d28a2..c0bc9b48b215b10f936e147fb142d2421aaeab3b |
+| command | sdlc close --issue 466 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-19T17:53:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Reviewing the conflict resolution in `flake_cmd.go`; I'll build and run the flake tests next.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window contains nothing but the merge-conflict resolution. At base `4e640fe`, `atlas/workflow/sdlc-binary.md` and `cmd/sdlc/flake_cmd.go` still had conflict markers committed in them, and head `c0bc9b4` resolves both. Each resolution keeps the intent of both sides. In `flake_cmd.go`, #458's `flake list -v` flag, fixed-issue filtering and recurrence labelling sit together with #466's `unregister`/`narrow` verbs, the subtest help text and the shared `flakes.Explained` coverage rule. The atlas row keeps #458's fixed-filter sentence and folds #466's subtest bullets into one row-safe paragraph without dropping any content. No conflict markers are left in `atlas/`, `cmd/` or `README.md`. `go build ./...` and `go vet ./cmd/sdlc/` are clean, and the `Flake|flake` tests in `cmd/sdlc` and all of `cmd/sdlc/internal/flakes` pass. Nothing in this window touches the three open Minor findings (BR-4/5/6), so they stay open. None of them blocks.
+
+1. **Strengths**
+   - `cmd/sdlc/flake_cmd.go:626`: the resolved `flake list` sorts `withLogSubtests(...)` attempts, so #458's fixed-issue loop now runs over subtest-aware attempts and the `-v` path sees the same order.
+   - `cmd/sdlc/flake_cmd.go:658`: the unregistered check uses `flakes.Explained` (#466) and then hands uncovered rows to #458's `classifyFixedFlake`. Both behaviours survive, and nothing is hidden when evidence is ambiguous.
+   - The help text (`flake_cmd.go:298-309`) lists all four verbs, including `list [-v]`. The `-v` flag is registered next to the new verbs (`:391-392`).
+   - The atlas row is one table cell again. A multi-line bullet list would have broken the markdown table.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/sdlc/flake_fixed.go:104` (reached from `flake_cmd.go:661`): #458's fixed-issue matcher `fixedIssueCovers` compares a terminal card's `flake_tests` entries to the top-level failure name by exact equality. Since the merge, those entries can be subtest names, so a landed issue that fixed `PKG.TestX/sub` never hides, or labels as "recurred after", a later `PKG.TestX` row. This fails safe: the row stays visible as unregistered.
+
+5. **Test coverage:** existing `cmd/sdlc` flake tests and all `internal/flakes` tests pass at head. No test combines the #458 fixed-issue filter with a subtest-registered terminal card; that is the gap behind the Minor above.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The resolution adds no duplicate logic.
+   - **ARCH-PURE:** pass. `classifyFixedFlake` still takes ancestry through injection.
+   - **ARCH-PURPOSE:** flagged Minor. The fixed-issue matcher is one coverage consumer that does not use the shared `Covers`/`Explained` rule (see the Minor above).
+   - **ARCH-EVOLVE:** pass. No persisted format changes in this window.
+
+7. **Plan revision recommendations:** none from this window. BR-4's plan-text drift is still open from earlier rounds.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      Interdiff is only the conflict resolution; plan text and RerunMissing call are unchanged.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      Unchanged in this window; MaxRerun still counts covering names.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      Unchanged in this window; editFlakeTests still writes an empty flake_tests field.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: coverage-consumers-must-derive
+    title: |
+      Merged fixed-issue filter (fixedIssueCovers) matches top-level names exactly, not via the shared subtest coverage rule
+    detail: |
+      This is the 2nd finding in family coverage-consumers-must-derive. Rule: every consumer that asks "does a card's flake_tests cover this failure" must call flakes.Covers/Explained (leaf or ancestor) rather than string equality; sweep all such matchers, of which flake_fixed.go:104 is the one left after the #458/#466 merge. It fails safe (a subtest-registered fixed issue never hides or labels a row as recurred), so this is Minor.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c835c65b-ba31-4a83-83f3-09912ab40028","repository":"github.com/xianxu/ariadne","issue_id":"000466","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/41feaf1b2beb96bc","reviewed_head":"c0bc9b48b215b10f936e147fb142d2421aaeab3b","slot":"ariadne:2","requested_at":"2026-10-20T00:52:14.681863Z"},"phase":"finished","pid":81535,"started_at":"2026-10-20T00:52:14.783161Z","finished_at":"2026-10-20T00:53:25.25073Z","session_id":"af0abda6-fe5a-43a4-857d-8dc434d645c2","outcome":"returned"}] -->

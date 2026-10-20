@@ -366,6 +366,136 @@ rounds:
       isolation: fenced
       reviewed: ee4d22050707b73f6c81b9a365082237d3ac687e
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: c835c65b-ba31-4a83-83f3-09912ab40028
+            repository: github.com/xianxu/ariadne
+            issue_id: "000466"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/41feaf1b2beb96bc
+            reviewed_head: c0bc9b48b215b10f936e147fb142d2421aaeab3b
+            slot: ariadne:2
+            requested_at: "2026-10-20T00:52:14.681863Z"
+          phase: finished
+          pid: 81535
+          started_at: "2026-10-20T00:52:14.783161Z"
+          finished_at: "2026-10-20T00:53:25.25073Z"
+          session_id: af0abda6-fe5a-43a4-857d-8dc434d645c2
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c0bc9b48b215b10f936e147fb142d2421aaeab3b
+        tracker_head: c104d8072b0ba1e28b7b13a0d360055e190aff18
+        branch_point: dfe6340c899a099185bf11e85f1e77b7940bf2bd
+        since: "2026-10-19T10:37:08-07:00"
+        until: "2026-10-19T14:25:47-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T10:37:08-07:00"
+              end: "2026-10-19T14:25:47-07:00"
+              began: "2026-10-19T10:37:08-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: edb1a6a7-e586-4b70-a8a5-085ea3105e3b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6bebdbe5e64554c781c7bcb75aff3ea39642423410279fc4c3c3a830712663f8
+              started: "2026-10-14T00:19:33.465Z"
+              spawned: false
+              bytes: 346077281
+              windows:
+                - start: "2026-10-19T10:37:08-07:00"
+                  end: "2026-10-19T14:25:47-07:00"
+        queue_waits:
+            - attempt_id: fe5fa2d62500c79bcedef05f0b82516e
+              slot: ariadne:2
+              record_digest: d9143902a070d8f22cd30019237a1b5f75858e7b276da98c3979fcccc93cb169
+              start: "2026-10-19T18:29:25.729801Z"
+              end: "2026-10-19T18:29:43.012858Z"
+              queue_seconds: 17.283057
+              raw_seconds: 17.283057
+              exact: true
+            - attempt_id: bdbbb4f266b2483c65c45a66764397f0
+              slot: ariadne:2
+              record_digest: ec1833675c452f4d3852a101df2f72d00c43b29fd4b51e1867209b71945f57d4
+              start: "2026-10-19T18:50:11.822885Z"
+              end: "2026-10-19T18:56:21.506993Z"
+              queue_seconds: 369.684108
+              raw_seconds: 369.684108
+              exact: true
+            - attempt_id: c8f19cac55e14f9807fd76dbeb5141f9
+              slot: ariadne:2
+              record_digest: 2dfbcaa77aa1fca3c97b1e9cf077dcae97c7b727befac03d730f7869aa1cd751
+              start: "2026-10-19T19:15:04.604133Z"
+              end: "2026-10-19T20:38:19.569376Z"
+              queue_seconds: 4994.965243
+              raw_seconds: 4994.965243
+              exact: true
+        protected:
+            - issue: "469"
+              slot: ariadne:2
+              start: "2026-10-19T18:26:47.378Z"
+              end: "2026-10-19T18:29:25.729801Z"
+            - issue: "469"
+              slot: ariadne:2
+              start: "2026-10-19T18:29:43.012858Z"
+              end: "2026-10-19T11:43:08-07:00"
+            - issue: "469"
+              slot: ariadne:2
+              start: "2026-10-19T11:43:08-07:00"
+              end: "2026-10-19T18:44:40.01Z"
+        cuts:
+            - dispatched: "2026-10-19T13:49:43-07:00"
+              finalized: "2026-10-19T13:54:19-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T14:05:08-07:00"
+              finalized: "2026-10-19T14:19:57-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T14:23:12-07:00"
+              finalized: "2026-10-19T14:25:40-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-19T17:53:25-07:00"
+      dispatched: "2026-10-19T17:52:14-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-4
+          disposition: not-addressed
+          note: Interdiff is only the conflict resolution; plan text and RerunMissing call are unchanged.
+          round: 4
+        - id: BR-5
+          disposition: not-addressed
+          note: Unchanged in this window; MaxRerun still counts covering names.
+          round: 4
+        - id: BR-6
+          disposition: not-addressed
+          note: Unchanged in this window; editFlakeTests still writes an empty flake_tests field.
+          round: 4
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Minor
+          title: Merged fixed-issue filter (fixedIssueCovers) matches top-level names exactly, not via the shared subtest coverage rule
+          detail: 'This is the 2nd finding in family coverage-consumers-must-derive. Rule: every consumer that asks "does a card''s flake_tests cover this failure" must call flakes.Covers/Explained (leaf or ancestor) rather than string equality; sweep all such matchers, of which flake_fixed.go:104 is the one left after the #458/#466 merge. It fails safe (a subtest-registered fixed issue never hides or labels a row as recurred), so this is Minor.'
+          family: coverage-consumers-must-derive
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: c0bc9b48b215b10f936e147fb142d2421aaeab3b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#466 (boundary-review)
@@ -414,8 +544,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-6 — not-addressed — editFlakeTests sets flake_tests to "" via SetField, which appends the key to a card that lacked it.
 - BR-7 — addressed — localcheck_republish.go:190 now reads PKG.TestName[/sub…]; flake help, register Use and flags agree; README and atlas follow the synopsis with explicit subtest text.
 
+## Round 4 — 2026-10-19T17:53:25-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — not-addressed — Interdiff is only the conflict resolution; plan text and RerunMissing call are unchanged.
+- BR-5 — not-addressed — Unchanged in this window; MaxRerun still counts covering names.
+- BR-6 — not-addressed — Unchanged in this window; editFlakeTests still writes an empty flake_tests field.
+
+### Raised
+
+- **BR-8** [Minor] `coverage-consumers-must-derive` (kind: defect) Merged fixed-issue filter (fixedIssueCovers) matches top-level names exactly, not via the shared subtest coverage rule
+  This is the 2nd finding in family coverage-consumers-must-derive. Rule: every consumer that asks "does a card's flake_tests cover this failure" must call flakes.Covers/Explained (leaf or ancestor) rather than string equality; sweep all such matchers, of which flake_fixed.go:104 is the one left after the #458/#466 merge. It fails safe (a subtest-registered fixed issue never hides or labels a row as recurred), so this is Minor.
+
 ## Open findings
 
 - **BR-4** [Minor] `plan-code-drift` (kind: defect) RerunMissing does not also require the top-level test's PASS line, as the plan says
 - **BR-5** [Minor] `subtest-granularity-labels` (kind: defect) MaxRerun counts names, not top-level tests rerun; PersistentMain matches at top-level granularity
 - **BR-6** [Minor] `idempotent-setter-no-write` (kind: defect) unregister on a card without flake_tests writes an empty field instead of no-op
+- **BR-8** [Minor] `coverage-consumers-must-derive` (kind: defect) Merged fixed-issue filter (fixedIssueCovers) matches top-level names exactly, not via the shared subtest coverage rule

@@ -46,6 +46,8 @@ Durable plan: `workshop/plans/000466-flake-subtests-plan.md` (names, leaf covera
 
 
 
+
+- 2026-10-19: closed — Re-close for the unreviewed integration of #458 into cmd/sdlc/flake_cmd.go via merge c0bc9b48 (listView/contains deps, flake list -v alongside #466 unregister/narrow); clean textual merge; full recorded suite green on that head. (fixed-then-ship; full suite: sdlc-local/suite on c0bc9b48b215b10f936e147fb142d2421aaeab3b: exit 0 in 8m10s, 12 shards over 1729 cmd/sdlc tests + 72 packages, 0 failed (log sha256:7a549442af75)); review verdict: SHIP
 - 2026-10-19: closed — Close review fixes: e7ed662d6 (one coverage rule flakes.Explained for gate, success guard and flake list; known_flakes subtest records and the older-reader refusal documented; TestFlakeEditKeepsAConcurrentRegistration on real tracker cards) and ee4d22050 (TestSuitePassGuardReadsSubtestsFromTheLog and TestFlakeListJudgesSubtestsFromTheLog, both red with the withLogSubtests wiring removed, checked; guard hint grammar). Done-when: TestKnownFlakeGateSubtest on a real nested Go package; TestFlakeEditOnTrackerCards; TestFlakeRegisterASubtest. Full suite exit 0 in 10m53s on 3e1c744a before the fixes. Rollout: rebuild :0 before registering subtests.; review verdict: SHIP
 - 2026-10-19: flow upgraded quick → full — 535 added lines in code files (limit 100); an earlier round of this close already ran the full review
 2026-10-19: Found during #458's full-suite triage. `flakes.ValidTest` and `SplitTest` accept only top-level names; `sdlc flake register` only adds. #465 temporarily registers the top-level `scripts/test.TestConstructScripts` while its test-cost fix is in progress.
