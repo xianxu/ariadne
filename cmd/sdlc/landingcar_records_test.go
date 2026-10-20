@@ -166,6 +166,8 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := strings.Fields(r.git("ls-remote", "origin", "refs/heads/issue-tracker"))[0]
+	trace := filepath.Join(t.TempDir(), "production-git.trace")
+	t.Setenv("GIT_TRACE", trace)
 	oldGuard := guardTransferredDetailsFn
 	t.Cleanup(func() { guardTransferredDetailsFn = oldGuard })
 	changed := false
@@ -175,6 +177,9 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 		}
 		if !changed {
 			changed = true
+			// Exclude the independently owned writer's network traffic.
+			t.Setenv("GIT_TRACE", "")
+			defer t.Setenv("GIT_TRACE", trace)
 			// A newer malformed card must become visible next pass, never
 			// halfway through the old pass's production authority checks.
 			return writer.UpdateMany("external malformed edit between checks", func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
@@ -189,13 +194,25 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 	target := landingTarget{Root: r.root, Remote: "origin", Repo: "test/repo"}
 	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{IssuesDir: "workshop/issues", NoCI: true})
 	gates.ci = func(ctx context.Context, _ landingPR) error {
-		for _, dir := range []string{"workshop/issues", "custom/issues"} {
-			rs, err := loadIssueRecords(ctx, dir, tracker.Fresh)
+		for _, reads := range []int{8, 16} {
+			for i := 0; i < reads; i++ {
+				for _, dir := range []string{"workshop/issues", "custom/issues"} {
+					rs, err := loadIssueRecords(ctx, dir, tracker.Fresh)
+					if err != nil {
+						return err
+					}
+					if rs.Ref != before {
+						return fmt.Errorf("mixed tracker generations in %s: before %s, after %s", dir, before, rs.Ref)
+					}
+				}
+			}
+			log, err := os.ReadFile(trace)
 			if err != nil {
 				return err
 			}
-			if rs.Ref != before {
-				return fmt.Errorf("mixed tracker generations in %s: before %s, after %s", dir, before, rs.Ref)
+			probes, fetches := trackerTraceCounts(string(log))
+			if probes != 1 || fetches > 1 {
+				return fmt.Errorf("%d repeated production reads: %d tracker probes, %d fetches; want one probe and at most one fetch", reads, probes, fetches)
 			}
 		}
 		return nil
@@ -209,4 +226,19 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 	if ready.Ready || !strings.Contains(ready.Reason, "publish gate:") {
 		t.Fatalf("next pass accepted malformed external authority: %+v", ready)
 	}
+}
+
+func trackerTraceCounts(trace string) (probes, fetches int) {
+	for _, line := range strings.Split(trace, "\n") {
+		if !strings.Contains(line, "issue-tracker") {
+			continue
+		}
+		if strings.Contains(line, "built-in: git ls-remote ") {
+			probes++
+		}
+		if strings.Contains(line, "built-in: git fetch ") {
+			fetches++
+		}
+	}
+	return
 }
