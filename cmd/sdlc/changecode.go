@@ -347,6 +347,10 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	if !ok {
 		return nil, fmt.Errorf("%s is not an issue filename", issuePath)
 	}
+	// #483: a landed issue branch is not continued, from it or from anywhere.
+	if err := refuseLandedIssue(env, id, name); err != nil {
+		return nil, err
+	}
 	if env.branch != name {
 		return nil, fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, issue.CLIRef(id))
 	}

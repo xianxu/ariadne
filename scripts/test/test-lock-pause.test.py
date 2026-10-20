@@ -293,6 +293,7 @@ class QueuePause(unittest.TestCase):
     def test_contended_allocation_never_pins_global_gate(self):
         with mock.patch.dict(os.environ, self.env, clear=True):
             gate = lock.QueueGate(str(self.queue), str(self.top), os.getpid())
+            predecessor = lock.Tickets(str(self.root / 'contended'), dict(pid=os.getpid(),repo='older',worktree=str(self.top),started='fixture'))
             line = lock.Tickets(str(self.root / 'contended'), dict(pid=os.getpid(),repo='fixture',worktree=str(self.top),started='fixture'))
             original_ticket = line.path
             allocation = os.open(self.root / 'contended.tickets' / 'alloc', os.O_RDWR)
@@ -315,17 +316,111 @@ class QueuePause(unittest.TestCase):
                 self.assertTrue(ready.wait(2), 'priority preview did not finish')
                 self.assertTrue(finished.wait(2), 'allocation wait held the global gate')
                 self.assertFalse(outcomes[0][0])
+                self.assertIsNone(outcomes[0][2], 'unobserved order fabricated first place')
                 self.paused([dict(owner='responsive', reason='contention', cancel_running=False)])
                 self.assertEqual(line.path, original_ticket)
                 self.assertTrue(Path(original_ticket).exists())
+                fcntl.flock(allocation, fcntl.LOCK_UN)
+                self.paused([])
+                observed = line.admission([slot], token, 1, mock.Mock(deadlines=lambda *_: {}), gate)
+                self.assertFalse(observed[0], 'waiter passed its predecessor')
+                self.assertEqual(len(observed[2]), 1, 'actual second place was not restored')
+                predecessor.release()
+                predecessor = None
+                admitted = line.admission([slot], token, 1, mock.Mock(deadlines=lambda *_: {}), gate)
+                self.assertEqual(admitted[0], [0], 'same ticket did not admit in FIFO order')
+                self.assertEqual(line.path, original_ticket)
             finally:
                 fcntl.flock(allocation, fcntl.LOCK_UN)
                 thread.join(3)
                 line.release()
+                if predecessor is not None:
+                    predecessor.release()
                 gate.retire()
                 gate.close()
                 for fd in (allocation, slot, token):
                     os.close(fd)
+
+    def test_pause_and_ticket_revalidation_leave_order_unobserved(self):
+        for reason in ('paused', 'pause-after-preview', 'changed-tickets'):
+            with self.subTest(reason=reason), mock.patch.dict(os.environ, self.env, clear=True):
+                gate = lock.QueueGate(str(self.queue), str(self.top), os.getpid())
+                rec = dict(pid=os.getpid(), repo='fixture', worktree=str(self.top), started='fixture')
+                base = str(self.root / reason)
+                line = lock.Tickets(base, rec)
+                others = []
+                slot = os.open(self.root / (reason + '.slot'), os.O_CREAT | os.O_RDWR, 0o600)
+                token = os.open(self.root / (reason + '.token'), os.O_CREAT | os.O_RDWR, 0o600)
+                def provider(*_):
+                    if reason == 'changed-tickets':
+                        others.append(lock.Tickets(base, rec))
+                    else:
+                        self.paused([dict(owner='fixture', reason='hold', cancel_running=False)])
+                    return {}
+                try:
+                    self.paused([dict(owner='fixture', reason='hold', cancel_running=False)] if reason == 'paused' else [])
+                    evidence = mock.Mock(deadlines=mock.Mock(side_effect=provider))
+                    result = line.admission([slot], token, 1, evidence, gate)
+                    self.assertFalse(result[0])
+                    self.assertIsNone(result[2], 'no validated order must not mean zero predecessors')
+                    if reason == 'paused':
+                        evidence.deadlines.assert_not_called()
+                finally:
+                    for other in others:
+                        other.release()
+                    line.release()
+                    gate.retire()
+                    gate.close()
+                    os.close(slot)
+                    os.close(token)
+
+    def diagnostic_reports(self, observations, step=1):
+        """Drive the actual acquire renderer; observations are its scheduling seam."""
+        class Finished(Exception):
+            pass
+        messages, calls, clock = [], [], [1000]
+        def admission(*_):
+            result = observations[len(calls)]
+            calls.append(result)
+            return [], [], result, False, 0
+        def sleep(_):
+            clock[0] += step
+            if len(calls) == len(observations):
+                raise Finished()
+        env = dict(self.env, WF_TEST_LOCK_TIMEOUT='0')
+        with mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.object(lock, 'priority_subject', return_value=None), \
+             mock.patch.object(lock.Tickets, 'admission', side_effect=admission), \
+             mock.patch.object(lock, 'holder', wraps=lock.holder) as holder, \
+             mock.patch.object(lock, 'log', side_effect=messages.append), \
+             mock.patch.object(lock.time, 'time', side_effect=lambda: clock[0]), \
+             mock.patch.object(lock.time, 'sleep', side_effect=sleep):
+            with self.assertRaises(Finished):
+                lock.acquire(os.getpid())
+            return messages, len(calls), holder.call_count
+
+    def test_unobserved_diagnostics_never_invent_position_or_churn(self):
+        older = dict(pid=123, repo='older', worktree='/fixture/older', started='fixture')
+        for count in (8, 16):
+            for observed in (False, True):
+                with self.subTest(count=count, observed=observed):
+                    sequence = [[older, older] if observed and i % 2 == 0 else None for i in range(count)]
+                    messages, calls, holder_calls = self.diagnostic_reports(sequence)
+                    self.assertEqual(calls, count)
+                    self.assertEqual(len(messages), 1, 'unchanged observations churned the position log')
+                    self.assertEqual(holder_calls, 0, 'unobserved order probed the old head token')
+                    self.assertNotIn('position 1', messages[0])
+                    self.assertIn('position 3 in line' if observed else 'position unknown', messages[0])
+
+    def test_periodic_report_labels_stale_position_and_real_change_updates(self):
+        older = dict(pid=123, repo='older', worktree='/fixture/older', started='fixture')
+        messages, _, _ = self.diagnostic_reports([[older, older], None], step=lock.REPORT_EVERY + 1)
+        self.assertEqual(len(messages), 2)
+        self.assertIn('last observed position 3 in line', messages[-1])
+        messages, _, _ = self.diagnostic_reports([[older, older], None, [older], None])
+        self.assertEqual(len(messages), 2)
+        self.assertIn('position 3 in line', messages[0])
+        self.assertIn('position 2 in line', messages[1])
 
     def test_cancel_waiter_while_allocation_is_held(self):
         directory = self.root / 'capacity.tickets'
