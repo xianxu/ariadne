@@ -49,3 +49,10 @@ While pair's trains are on, **every pair landing is blocked** by this.
 ## Log
 
 ### 2026-10-19
+
+## Log
+
+- 10-19 23:20 (TL, from pair:7): `Makefile.workflow` is a generated, gitignored file in pair (`.gitignore` line 78),
+  not in `git ls-files` or the train tree; slot checkouts have it as a symlink to `../ariadne/Makefile.workflow`.
+  So it's a fresh-checkout preparation gap: the train's disposable checkout was never given the generated workflow
+  provider (local-check checkouts are). Train PR pair#476 closed, head c78110ae; no suite ran.
