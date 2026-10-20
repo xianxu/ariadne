@@ -1,6 +1,6 @@
 ---
 id: 000481
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 3.03
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 46b5c27226615ada30a2c22f1e7284fea2893c23
         evidence_commit: 3f4c99d2d3a81cd62fe0b9e9d6a44815f9706aa4
+        landed_commit: 7836225efe51d963adb901c31181d52d0b76e415
 ---
 
 # sdlc queue pause/resume (+ --cancel-running) and the tl-worker drain rule, for couch --drain
