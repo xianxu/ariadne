@@ -612,13 +612,14 @@ class Tickets:
                 deadlines = evidence.deadlines(records, time.time())
                 return self.elect(records, deadlines, fds, queue, want)
         if gate.paused():
-            return [], scan(fds, 0)[1], [], False, 0
+            return [], scan(fds, 0)[1], None, False, 0
         with self.locked():
             records = self.records()
         # Never call a provider while holding the machine gate. New/vanished
         # tickets invalidate this snapshot and retry without taking any slot.
         deadlines = evidence.deadlines(records, time.time())
-        result = ([], scan(fds, 0)[1], [], False, 0)
+        # None means no validated order, unlike an observed empty ahead list.
+        result = ([], scan(fds, 0)[1], None, False, 0)
         def attempt():
             nonlocal result
             with self.locked(blocking=False) as acquired:
@@ -909,6 +910,7 @@ def acquire(watch, weight=1):
         line = Tickets(paths[0], rec)
         start = last = time.time()
         first, previous = True, None
+        last_order = None
         try:
             while True:
                 require_watch(watch)
@@ -923,21 +925,30 @@ def acquire(watch, weight=1):
                     log(gate.last_pause + '; admitted merge stops before a new suite')
                     return 'paused'
                 held = holders(busy)
-                classification = (f"fleet-blocking issue #{rec['subject']['issue']}, until "
-                                  f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
-                                  if deadline > time.time() else "normal FIFO")
+                if ahead is not None:
+                    classification = (f"fleet-blocking issue #{rec['subject']['issue']}, until "
+                                      f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
+                                      if deadline > time.time() else "normal FIFO")
+                    if head:
+                        position = "position 1 in line: next to run"
+                    else:
+                        nxt = ahead[0] if ahead else holder(queue)
+                        position = f"position {len(ahead) + 1} in line; next in line: {describe(nxt)}"
+                    last_order = classification, position, (classification, len(ahead), head)
+                if last_order is None:
+                    classification, position, order_state = "queue order unavailable", "position unknown", None
+                else:
+                    classification, position, order_state = last_order
+                    if ahead is None:
+                        classification = "last observed " + classification
+                        position = "last observed " + position
                 held += f"\n  {classification}"
                 if gate.last_pause:
                     held += "\n  " + gate.last_pause
-                if head:
-                    held += "\n  position 1 in line: next to run"
-                else:
-                    position = len(ahead) + 1
-                    nxt = ahead[0] if ahead else holder(queue)
-                    held += f"\n  position {position} in line; next in line: {describe(nxt)}"
+                held += "\n  " + position
                 now = time.time()
                 wanted = "one" if want == 1 else str(want)
-                position_state = (classification, len(ahead), head, gate.last_pause)
+                position_state = (order_state, gate.last_pause)
                 if first or position_state != previous or now - last >= REPORT_EVERY:
                     log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
                     first, last, previous = False, now, position_state

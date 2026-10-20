@@ -39,6 +39,7 @@ type localRunDeps struct {
 	// WorkflowAnchor is the checkout Root was made from, when Root is a
 	// disposable tree whose relative Makefile.workflow link does not resolve
 	// where it sits (a landing train's, #486); "" when Root is that checkout.
+	// It also retains the caller's identity when Root is only the content tree.
 	WorkflowAnchor string
 	Git            func(args ...string) (string, error)
 	CleanupGit     func(args ...string) (string, error) // independent bounded recovery IO
@@ -55,6 +56,14 @@ type localRunDeps struct {
 	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
 	minute time.Duration
+}
+
+// callerRoot names the initiating checkout, independently of suite contents.
+func (d localRunDeps) callerRoot() string {
+	if d.WorkflowAnchor != "" {
+		return d.WorkflowAnchor
+	}
+	return d.Root
 }
 
 const (
@@ -175,7 +184,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
 			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
 			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
-		if identity, idErr := workspace.Resolve(execGitRunner{}, d.Root, ""); idErr == nil && identity.Address != nil {
+		if identity, idErr := workspace.Resolve(execGitRunner{}, d.callerRoot(), ""); idErr == nil && identity.Address != nil {
 			attempt.Slot = *identity.Address
 		}
 		if trailer, trailerErr := d.Git("show", "-s", "--format=%(trailers:key=Agent,valueonly)", sha); trailerErr == nil {
@@ -271,7 +280,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	defer stopSignals()
 	ownedCtx, cancelOwned := context.WithCancel(ownedCtx)
 	defer cancelOwned()
-	ownedCtx, q, err := startQueueOperation(ownedCtx, d.Root, sha, []string{"suite"})
+	ownedCtx, q, err := startQueueOperation(ownedCtx, d.callerRoot(), sha, []string{"suite"})
 	if err != nil {
 		return run, err
 	}
@@ -295,7 +304,7 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	// The lease (#400) spans exactly the stretch where SIGTERM is ours, so
 	// `local-check cancel` always lands on the managed interruption path.
 	pidStarted, _ := processStartTime(os.Getpid())
-	lease := runLease{Root: canonicalRoot(d.Root), Check: check, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
+	lease := runLease{Root: canonicalRoot(d.callerRoot()), Check: check, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
 	runsDir := localCheckRunsDir(logDir)
 	sweepStaleRunLeases(runsDir)
 	releaseLease, err := holdRunLease(runsDir, lease)
@@ -482,7 +491,7 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 	}
 	dir := strings.TrimSpace(out)
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(d.Root, dir)
+		dir = filepath.Join(d.callerRoot(), dir)
 	}
 	return filepath.Join(dir, "sdlc", "local-checks"), nil
 }
@@ -528,7 +537,7 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	cmd.Dir = dir
 	// The run's worktree is a temp directory; name the owning checkout in the
 	// slot record so the queue's held-by lines identify the slot (#400).
-	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.Root)
+	cmd.Env = append(os.Environ(), "WF_TEST_LOCK_OWNER="+d.callerRoot())
 	if q := queueRuntimeFrom(ctx); q != nil {
 		cmd.Env = append(cmd.Env, "WF_SDLC_QUEUE_ROOT="+q.store.Root, "WF_SDLC_QUEUE_ID="+q.op.ID)
 		if isQueueAdmitted(ctx) {

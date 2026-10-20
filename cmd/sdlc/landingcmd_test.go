@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -158,6 +160,7 @@ func TestLandingEndsTheIssuesGrant(t *testing.T) {
 // Status names the train setting from main's tree and each waiter's vouch.
 func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	roots, _, _ := landingFixture(t, 1)
+	planPath := isolateMachinePlan(t)
 	repo := roots[0]
 	d := testLandingDeps(nil, nil)
 	d.now = time.Now
@@ -193,11 +196,40 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"trains: every 60m, up to 4 cars; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
+	for _, want := range []string{"trains: every 60m, up to 4 cars; 1 ready; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status lacks %q:\n%s", want, out)
 		}
 	}
+	// #475: after a train, the status names the next departure and why; a
+	// car waiting past the bound brings it forward and says so.
+	at := time.Date(2026, 10, 20, 9, 0, 0, 0, time.Local)
+	if err := line.Record(landingline.Event{Kind: landingline.EventTrain, Train: 3, Seq: 3, Result: "landed", At: at, Departed: at, NextDue: at.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	d.now = func() time.Time { return at.Add(10 * time.Minute) }
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "next train at 2026-10-20 10:00 (interval)") || !strings.Contains(out, "departure grid: no machine plan") {
+		t.Errorf("status lacks the reasoned next departure (%v):\n%s", err, out)
+	}
+	// #475: status reads the same schedule admission does, plan included.
+	procedureWrite(t, filepath.Dir(planPath), filepath.Base(planPath), `{"version":1,"slots":2,"repos":{"`+filepath.Base(repo)+`":{"offset_minutes":15}}}`)
+	out, err = runLanding(t, d, "status", "--repo", repo)
+	if err != nil || !strings.Contains(out, "next train at 2026-10-20 09:15 (slot)") || !strings.Contains(out, "departure grid: machine plan: slot :15") {
+		t.Errorf("status ignores the machine plan (%v):\n%s", err, out)
+	}
+	// The default --repo is ".", from anywhere in the checkout: the plan key
+	// still comes from the checkout's top level, as admission's does.
+	sub := filepath.Join(repo, "deep", "dir")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTo(t, sub)
+	out, err = runLanding(t, d, "status", "--repo", ".")
+	if err != nil || !strings.Contains(out, "departure grid: machine plan: slot :15") {
+		t.Errorf("--repo . from a subdirectory missed the plan (%v):\n%s", err, out)
+	}
+
 }
 
 func TestRecentTrainsReport(t *testing.T) {

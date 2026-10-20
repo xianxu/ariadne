@@ -51,7 +51,7 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"hub contract", "A slot\n    whose checkout has .hub at its root runs this contract"},
 		{"one ownership list", "is the one ownership list"},
 		{"steward", "The steward is the first hub on Couch's command line"},
-		{"steward duties", "the test queue and landing grants, quota\n    tracking, Couch incidents and restarts, and the :0 rebuilds"},
+		{"steward duties", "the test queue and landing grants, quota\n    tracking, Couch incidents and restarts, the :0 rebuilds, and the machine's\n    train departure plan"},
 		{"resume only on request", "never run at startup"},
 		{"keep a landed slot's conversation", "Keep a just-landed slot's conversation"},
 		{"skip prepare for a same-area car", "skip `--prepare`, which starts a fresh conversation"},

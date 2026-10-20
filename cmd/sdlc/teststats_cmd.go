@@ -86,29 +86,54 @@ func parseTestStatsSince(raw string, now time.Time) (time.Time, error) {
 }
 
 func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error {
-	if deps.now == nil || deps.identity == nil || deps.fleetDirs == nil || deps.commonDir == nil {
-		return fmt.Errorf("test-stats: missing command dependency")
-	}
-	since, err := parseTestStatsSince(flags.Since, deps.now().UTC())
+	report, err := buildTestStatsReport(flags, deps)
 	if err != nil {
 		return err
 	}
+	if flags.JSON {
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(report)
+	}
+	return renderTestStatsText(out, report)
+}
+
+// fleetRepoPaths is every fleet repository's primary checkout, by name:
+// fleet discovery plus this workspace's own primary (a numbered slot lives
+// under worktree/, which discovery excludes).
+func fleetRepoPaths(deps testStatsDeps) (map[string]string, error) {
 	id, err := deps.identity()
 	if err != nil {
-		return fmt.Errorf("test-stats: resolve workspace: %w", err)
+		return nil, fmt.Errorf("test-stats: resolve workspace: %w", err)
 	}
 	paths, err := deps.fleetDirs(id.FleetRoot)
 	if err != nil {
-		return fmt.Errorf("test-stats: discover fleet: %w", err)
+		return nil, fmt.Errorf("test-stats: discover fleet: %w", err)
 	}
-	// A numbered slot lives under worktree/, which fleet discovery excludes.
-	// Its Git-verified primary is still one of the repositories to inspect.
 	paths = append(paths, id.PrimaryRoot)
 	byName := map[string]string{}
 	for _, p := range paths {
 		if p != "" {
 			byName[filepath.Base(p)] = p
 		}
+	}
+	return byName, nil
+}
+
+// buildTestStatsReport measures every fleet repository's suite (or the one
+// flags.Repo names) since flags.Since; the landing plan (#475) reads its
+// cost basis from the same report.
+func buildTestStatsReport(flags testStatsFlags, deps testStatsDeps) (testStatsReport, error) {
+	if deps.now == nil || deps.identity == nil || deps.fleetDirs == nil || deps.commonDir == nil {
+		return testStatsReport{}, fmt.Errorf("test-stats: missing command dependency")
+	}
+	since, err := parseTestStatsSince(flags.Since, deps.now().UTC())
+	if err != nil {
+		return testStatsReport{}, err
+	}
+	byName, err := fleetRepoPaths(deps)
+	if err != nil {
+		return testStatsReport{}, err
 	}
 	names := make([]string, 0, len(byName))
 	for name := range byName {
@@ -149,12 +174,7 @@ func runTestStats(out io.Writer, flags testStatsFlags, deps testStatsDeps) error
 		}
 		report.Repos = append(report.Repos, testStatsRows(attempts, since, name)...)
 	}
-	if flags.JSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(report)
-	}
-	return renderTestStatsText(out, report)
+	return report, nil
 }
 
 // testStatsRows are a repo's report rows: its suite, then its affected suite

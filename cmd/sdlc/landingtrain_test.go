@@ -505,7 +505,9 @@ func TestLandingTrainOfOneIsTodaysLanding(t *testing.T) {
 		t.Fatalf("train PRs %v merges %d", s.gh.created, s.gh.merges)
 	}
 	ev := trainEvents(t, s.line, "alone")
-	if len(ev) != 1 || ev[0].NextDue.IsZero() || !strings.Contains(ev[0].Detail, "no other car") {
+	// #475: a lone landing is not a departure: no NextDue (it never pushes
+	// the next train back), but its departure is recorded.
+	if len(ev) != 1 || !ev[0].NextDue.IsZero() || ev[0].Departed.IsZero() || !strings.Contains(ev[0].Detail, "no other car") {
 		t.Fatalf("train events %+v", lineEvents(t, s.line)[landingline.EventTrain])
 	}
 }
@@ -687,6 +689,21 @@ func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	if departed := ev[0].NextDue; departed.After(time.Now()) {
 		t.Fatalf("a split left ready cars behind, yet the next train waits until %v", departed)
 	}
+	common := git(t, s.first, "rev-parse", "--git-common-dir")
+	attempts, warnings, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), 100)
+	if err != nil || len(warnings) != 0 || len(attempts) < 3 {
+		t.Fatalf("split attempts: %+v warnings=%v err=%v", attempts, warnings, err)
+	}
+	baseline := false
+	for _, a := range attempts {
+		if a.Slot != "sample:1" {
+			t.Errorf("split/baseline attempt %s lost conductor slot: %q", a.ID, a.Slot)
+		}
+		baseline = baseline || a.MainBaseline
+	}
+	if !baseline {
+		t.Fatal("split control did not exercise a main baseline")
+	}
 	wantNoTrainBranch(t, s.gh.remote)
 }
 
@@ -749,7 +766,8 @@ func TestLandingTrainRedCIRefusesTheTrain(t *testing.T) {
 func TestLandingTrainGrantDepartsAloneWhenNoTrainIsDue(t *testing.T) {
 	s := newTrainSetup(t, "train")
 	s.blocker.Release() // this test admits by the train rule alone
-	if err := s.line.Record(landingline.Event{Kind: landingline.EventTrain, Train: 1, Seq: 1, Result: "landed", NextDue: time.Now().Add(time.Hour)}); err != nil {
+	due := time.Now().Add(time.Hour).Truncate(time.Second)
+	if err := s.line.Record(landingline.Event{Kind: landingline.EventTrain, Train: 1, Seq: 1, Result: "landed", NextDue: due}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.line.AddGrant(landingline.Grant{Issue: 1, Grantor: landingline.Grantor{Address: "operator shell"}, Reason: "blocks the fleet", Expires: time.Now().Add(time.Hour)}); err != nil {
@@ -769,6 +787,14 @@ func TestLandingTrainGrantDepartsAloneWhenNoTrainIsDue(t *testing.T) {
 	}
 	if cars := lineEvents(t, s.line)[landingline.EventCar]; len(cars) != 0 {
 		t.Fatalf("a grant boarded cars: %+v", cars)
+	}
+	// #475: the grant is not a departure: the next train keeps its time.
+	events, _, err := s.line.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next, ok := landingline.NextDeparture(events); !ok || !next.Equal(due) {
+		t.Fatalf("next departure %v after the grant, want %v unchanged", next, due)
 	}
 }
 

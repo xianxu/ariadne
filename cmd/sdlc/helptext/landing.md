@@ -22,7 +22,7 @@ LANDING TRAINS (#449)
 
   `.sdlc/landing.json` on main turns the line into trains:
 
-    {"train_interval_minutes": 60, "train_max_cars": 8}
+    {"train_interval_minutes": 60, "train_max_cars": 8, "train_max_wait_minutes": 30}
 
   The file is absent by default, and an interval of 0 keeps the serial line
   above. It is under the local-gates guard, so the operator verifies every
@@ -35,9 +35,17 @@ LANDING TRAINS (#449)
     .sdlc/affected.json (#473), a recorded `affected` run stands in for
     `suite` here: the train runs the full suite on its prefix before anything
     lands. A docs-only branch boards on its docs-only `affected` record.
-  - A merge departs only when the train is due and its vouch is current: the
-    first train, or the last train's departure plus the interval, or at once
-    after a train that left ready cars behind.
+  - A merge departs only when the train is due and its vouch is current. The
+    train is due:
+    - on the first train;
+    - at once when train_max_cars cars are ready (#475);
+    - when the oldest ready car has waited train_max_wait_minutes since its
+      first ready vouch (0 or absent: no bound);
+    - at once after a departure that left ready cars behind;
+    - otherwise at the next departure: the repository's next wall-clock slot
+      after the last train (with a machine plan), or one interval after it.
+    An early departure never moves later slots. A lone or fleet-blocking
+    landing is not a departure: it never pushes the next train back.
   - The admitted head conducts. It boards every waiting merge whose vouch
     holds and whose remote tip and open PR are still at the vouched head, up
     to train_max_cars. It builds `landing-train/<id>`: main, then each car's
@@ -58,9 +66,32 @@ LANDING TRAINS (#449)
   - A car that finds its own PR merged with no word from its train finishes
     as a resume.
 
-  `sdlc landing status` shows the train setting, the next departure, each
+  `sdlc landing status` shows the train setting, the next departure and why
+  (slot, interval, max wait, full, cars left ready), each
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
+
+THE MACHINE PLAN (#475)
+
+  Repositories with trains on share one machine's suite slots. The machine
+  plan places each on a wall-clock grid (epoch + offset + k * interval) so
+  heavy train suites don't collide: for example ariadne at :00 on both slots,
+  pair and parley.nvim together at :15. It is one file beside the suite lock,
+  ${XDG_STATE_HOME:-~/.local/state}/ariadne/landing-plan.json (or
+  $WF_TEST_LOCK_FILE's directory), and it belongs to the steward.
+
+    sdlc landing plan            the plan computed from today's costs (a dry run)
+    sdlc landing plan --write    replace the plan file
+
+  Each repository's reservation is its suite's p90 wall time over 7 days
+  (test-stats), rounded up to 5 minutes plus 5, times its declared suite
+  weight (no samples: 15 minutes). The heaviest goes first, at the earliest
+  offset that keeps every minute within the machine's slots ($WF_TEST_SUITES,
+  default 2). --write keeps the file's unknown members and other
+  repositories' entries, and refuses to replace a plan it can't read. Rerun it
+  after a cost changes (a suite's shard count, a repository turning trains on).
+  A repository without an entry departs one interval after its last train; an
+  unreadable plan does too, warned once.
 
 FLEET-BLOCKING PRIORITY
 

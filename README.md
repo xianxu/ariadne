@@ -519,16 +519,39 @@ output name each grant's reason, expiry and revoke command. Expiry or revocation
 releases the hold; a successful landing ends its grant.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
-`train_interval_minutes` and `train_max_cars` (default 8). The default is 0
-when the file is absent, which keeps the serial line. The file is under the
-local-gates guard, so the operator verifies every change to it.
+`train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
+`train_max_wait_minutes` (default 0: no bound). The interval is 0 when the file
+is absent, which keeps the serial line. The file is under the local-gates
+guard, so the operator verifies every change to it.
 
 With trains on:
 - **Vouching:** a waiting merge checks its own review and CI gates on its pushed
   head and vouches it ready.
 - **Departure:** a merge departs only when the train is due and its vouch is
-  current. The train is due on the first train, one interval after the last
-  departure, or at once after a train that left ready cars behind.
+  current. The train is due:
+  - on the first train;
+  - at once when `train_max_cars` cars are ready (#475);
+  - once the oldest ready car has waited `train_max_wait_minutes` since its first ready vouch;
+  - at once after a departure that left ready cars behind;
+  - otherwise at the next departure: the repository's next wall-clock slot after the last train (with a machine plan), or one interval after it.
+
+  An early departure never moves later slots. A lone or fleet-blocking landing is not a departure: it never pushes the next train back.
+
+The machine plan (#475) spaces repositories' train departures across the
+machine's suite slots. It is one file per machine beside the suite lock:
+`${XDG_STATE_HOME:-~/.local/state}/ariadne/landing-plan.json`, or
+`$WF_TEST_LOCK_FILE`'s directory. It belongs to the steward.
+- `sdlc landing plan` prints each train-enabled repository's offset and its
+  cost basis (its suite's 7-day p90 from test-stats, times its declared suite
+  weight).
+- `sdlc landing plan --write` recomputes the plan and writes it. It keeps
+  unknown members and other repositories' entries, and refuses to replace a
+  plan it can't read.
+- Offsets are packed within `$WF_TEST_SUITES` slots (default 2); costs that
+  can't fit are named.
+- A repository without an entry, or any repository while the plan is
+  unreadable, departs one interval after its last train.
+- `sdlc landing status` names the grid in use.
 - **Conducting:** the admitted head conducts. It boards every waiting merge
   whose remote tip and open PR are still at the vouched head. It builds one
   branch from main and each car's head, with the instance and duplicate-ID gates

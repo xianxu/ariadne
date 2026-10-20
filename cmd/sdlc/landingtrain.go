@@ -596,7 +596,7 @@ func (c *conductor) recordTrain(tr landingline.Train, cars []landingline.Car, le
 	}
 	c.log.record(landingline.Event{Kind: landingline.EventTrain, Seq: c.id, Train: c.id, Cars: seqs, PR: c.pr.Number,
 		Result: string(tr.Phase), Splits: tr.Splits, Culprit: tr.Culprit,
-		NextDue: landingline.NextDue(c.departed, c.sched, leftReady > 0 || len(tr.Released) > 0)})
+		NextDue: landingline.NextDue(c.departed, c.sched, leftReady > 0 || len(tr.Released) > 0), Departed: c.departed})
 	fmt.Fprintf(c.stderr, "landing train %d: %s; %d car(s), %d split suite(s)\n", c.id, tr.Phase, len(cars), tr.Splits)
 }
 
@@ -668,7 +668,8 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	tk := turn.handle.Ticket()
 	serial := func(why string, leftReady int) (landingPR, bool, error) {
 		turn.log.record(landingline.Event{Kind: landingline.EventTrain, Seq: tk.Seq, Train: tk.Seq, Cars: []int64{tk.Seq}, Result: "alone",
-			Detail: why, NextDue: landingline.NextDue(now, s, leftReady > 0)})
+			// Not a departure (#475): it never pushes the next train back.
+			Detail: why, NextDue: landingline.AloneNextDue(now, leftReady > 0), Departed: now})
 		return pr, false, nil
 	}
 	gh, ok := lgh.(trainGH)
