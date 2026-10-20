@@ -148,3 +148,65 @@ func TestCarReadinessRecordsGeneration(t *testing.T) {
 		})
 	}
 }
+
+// BR-1: preserve BOTH production publish checks. A raw snapshot read in the
+// transferred-details guard followed by a scoped selection can mix generations.
+func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 498)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "498", "--verified", "coherence regression", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	branch, head := r.git("branch", "--show-current"), r.git("rev-parse", "HEAD")
+	r.git("push", "-q", "origin", branch)
+	external := filepath.Join(t.TempDir(), "external")
+	testfix.Git(t, "", "clone", "-q", r.origin, external)
+	writer, err := gitx.NewTrunkFileContext(context.Background(), external, "origin", "issue-tracker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := strings.Fields(r.git("ls-remote", "origin", "refs/heads/issue-tracker"))[0]
+	oldGuard := guardTransferredDetailsFn
+	t.Cleanup(func() { guardTransferredDetailsFn = oldGuard })
+	changed := false
+	guardTransferredDetailsFn = func(ctx context.Context) error {
+		if err := oldGuard(ctx); err != nil {
+			return err
+		}
+		if !changed {
+			changed = true
+			// A newer malformed card must become visible next pass, never
+			// halfway through the old pass's production authority checks.
+			return writer.UpdateMany("external malformed edit between checks", func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
+				return gitx.TrunkWrite{Write: map[string][]byte{cardPath: []byte("---\nid: 000498\nstatus: [broken\n---\n")}, ExactBytes: true}, nil
+			})
+		}
+		return nil
+	}
+	pr := landingPR{Number: 498, State: "OPEN", Repo: "test/repo", HeadRef: branch,
+		HeadOID: head, BaseRef: "main", BaseOID: r.originMain()}
+	gh := &landingFakeGH{pr: pr}
+	target := landingTarget{Root: r.root, Remote: "origin", Repo: "test/repo"}
+	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{IssuesDir: "workshop/issues", NoCI: true})
+	gates.ci = func(ctx context.Context, _ landingPR) error {
+		for _, dir := range []string{"workshop/issues", "custom/issues"} {
+			rs, err := loadIssueRecords(ctx, dir, tracker.Fresh)
+			if err != nil {
+				return err
+			}
+			if rs.Ref != before {
+				return fmt.Errorf("mixed tracker generations in %s: before %s, after %s", dir, before, rs.Ref)
+			}
+		}
+		return nil
+	}
+	ctx := withIssueRecordsScope(context.Background())
+	ready, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	if !changed || !ready.Ready {
+		t.Fatalf("production checks did not retain their initial generation: %+v (external edit=%v)", ready, changed)
+	}
+	ready, _ = carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	if ready.Ready || !strings.Contains(ready.Reason, "publish gate:") {
+		t.Fatalf("next pass accepted malformed external authority: %+v", ready)
+	}
+}

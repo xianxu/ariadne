@@ -56,6 +56,8 @@ Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landi
 
 2026-10-20: PR #349 opened; recorded suite requested on pushed code HEAD. Staged on ariadne:0 with bin/sdlc vcs.revision=41ce60bfd6be3a2bf8c32c1f76b1b6cca4f280c8 and vcs.modified=false; native smoke decision requested from TL. Close review may overlap queued suite under tl-worker contract; no landing until the final code passes.
 
+2026-10-20: Close round 1 returned REWORK, BR-1 Critical: transferred-details ownership checks read env.repo.Snapshot directly while issue selection uses recordsScope, so one production pass can observe two tracker generations. Original cache-lifetime regression is fixed, but coherence is incomplete. Added TestCarReadinessPublishChecksShareGeneration retaining the real transferred-details guard and publish selection: another checkout publishes malformed authority between them; red on current candidate (29.410s), refusing midway through the pass instead of retaining its initial generation. The next pass must refuse that malformed generation. Also check default/custom detail readers see the same tracker ref. Cancelled the still-queued suite on the old candidate using sdlc local-check cancel; no failed suite or passing suite recorded. Proposed reader-routing correction sent to hub, receipt eed7edf1-38a7-472c-bfd6-d16b3426ae0a; still queued, not submitted as of 09:14 PDT. Do not implement a design delta before hub approval. PR #349 remains in progress and is not landable.
+
 ## Revisions
 
 ### 2026-10-20T09:03-07:00 — separate cache visibility from reopen policy
@@ -65,3 +67,15 @@ TL approved limiting #499 to fresh status visibility. Original acceptance: “A 
 ### 2026-10-20T09:05-07:00 — overlap verification and boundary review
 
 Use the tl-worker-authorized overlap: request the recorded suite on pushed HEAD and run close review while the suite waits. The final recorded pass remains mandatory before landing; any code change after review requires a new suite. This changes verification ordering only.
+
+### 2026-10-20T09:14-07:00 — BR-1 shared production authority (pending TL approval)
+
+The current nested scope fixes cross-pass staleness but does not capture transferred-details' direct Snapshot reader. Preserve original acceptance; extend the implementation plan as follows:
+
+- Retain the parsed tracker Snapshot inside tracker.Records and expose a read-only CardSnapshot accessor, preserving malformed-card paths and errors.
+- Reuse existing recordsScope for the production transferred-details guard (guardTransferredDetails/changedDetails) instead of fetching its own authority. Preserve ownership, malformed-card handling and legacy behavior. Enumerated readiness card consumers: transferred-details guard, completion selection, CI flake registry reads. Main-branch snapshots are a separate authority.
+- Keep one tracker generation per repository even if callers compose different details directories: reuse that cached card snapshot while reloading the requested details (Records.WithDetails); do not add a second independently invalidated snapshot cache. Fresh requests must still reject cached stale authority.
+- Retain the production interleaving regression and test default/custom details-directory views, malformed authority on the next pass, existing transferred-details ownership controls and the counted 8/16-read controls.
+- Re-run focused checks, push, requeue recorded full suite, restage if the TL requests native smoke, then repeat close review. Landing still requires suite and review success.
+
+This changes no reopen policy or persisted format. ARCH-DRY: share existing records authority; ARCH-PURPOSE: all production card consumers derive from it. Approval requested through Couch because tl-worker requires design deltas to wait for the hub.
