@@ -1,6 +1,6 @@
 ---
 id: 000489
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 16e4c38844f7ae13cabde1b5ed91a42ff04e4478
         evidence_commit: 2ce1055c6e43939f7a0c734e0071b8c89cb1d6fe
+        landed_commit: 261d5f7744eb1954773f727b47db0be006a9b725
 ---
 
 # jsonstrict: route the three older duplicate-JSON-key scanners through internal/jsonstrict (ARCH-DRY, from #473 M1 review)
