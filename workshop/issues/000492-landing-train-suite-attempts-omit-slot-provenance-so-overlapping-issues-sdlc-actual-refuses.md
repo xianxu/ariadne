@@ -54,6 +54,7 @@ Actions: run suite, restore evidence. Valid conductor identity produces the exis
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Real two-car conductor writes its slot and caller-root queue/cancellation/holder identity; actual CLI measures the overlapping foreign-slot issue and still refuses missing-slot evidence. Removing the selector fails all four baseline/prefix attempts; restored targeted matrix passes in 295.135s and tracked Go lint passes. Recorded suite on the pushed implementation is queued; its passing record remains required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 ### 2026-10-20 — claim and root-cause plan
 
