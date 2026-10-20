@@ -29,6 +29,7 @@ func TestParseLandingConfig(t *testing.T) {
 		{`{"train_interval_minutes": -1}`, 0, 0, "outside 0..1440"},
 		{`{"train_interval_minutes": 1441}`, 0, 0, "outside 0..1440"},
 		{`{"train_max_cars": 0}`, 0, 0, "outside 1..16"},
+		{`{"train_max_wait_minutes": -1}`, 0, 0, "train_max_wait_minutes -1 is outside 0..1440"},
 		{`{"train_interval_minutes": "60"}`, 0, 0, "not a JSON object"},
 		{`{} {}`, 0, 0, "trailing data"},
 		{`[]`, 0, 0, "not a JSON object"},
@@ -44,6 +45,9 @@ func TestParseLandingConfig(t *testing.T) {
 		if err != nil || s.Interval != c.interval || s.MaxCars != c.cars {
 			t.Errorf("%s: %+v %v", c.body, s, err)
 		}
+	}
+	if s, err := parseLandingConfig([]byte(`{"train_interval_minutes": 60, "train_max_wait_minutes": 25}`)); err != nil || s.MaxWait != 25*time.Minute {
+		t.Errorf("max wait: %+v %v", s, err)
 	}
 }
 
@@ -89,22 +93,27 @@ func TestTrainAdmission(t *testing.T) {
 		events  []landingline.Event
 		r       *landingline.Readiness
 		granted bool
+		w       landingline.Waiters
 		want    bool
 		why     string
 	}{
-		{"a grant departs at once, unvouched", notDue, nil, true, true, ""},
-		{"not due", notDue, ready, false, false, "next train at"},
-		{"due, unvouched", nil, nil, false, false, "not vouched"},
-		{"due, stale", nil, stale, false, false, "stale"},
-		{"due, not ready", nil, notReady, false, false, "CI gate: pending"},
-		{"due, a vouch naming another branch", nil, stranger, false, false, "000999-other"},
-		{"due and ready", nil, ready, false, true, ""},
+		{"a grant departs at once, unvouched", notDue, nil, true, landingline.Waiters{}, true, ""},
+		{"not due", notDue, ready, false, landingline.Waiters{}, false, "next train at"},
+		{"due, unvouched", nil, nil, false, landingline.Waiters{}, false, "not vouched"},
+		{"due, stale", nil, stale, false, landingline.Waiters{}, false, "stale"},
+		{"due, not ready", nil, notReady, false, landingline.Waiters{}, false, "CI gate: pending"},
+		{"due, a vouch naming another branch", nil, stranger, false, landingline.Waiters{}, false, "000999-other"},
+		{"due and ready", nil, ready, false, landingline.Waiters{}, true, ""},
+		// #475: a full train, or a car waiting past the bound, leaves before
+		// its departure time; the car itself still needs its own vouch.
+		{"not due, but full", notDue, ready, false, landingline.Waiters{Ready: 8, OldestSince: now}, true, ""},
+		{"not due, full, unvouched", notDue, nil, false, landingline.Waiters{Ready: 8, OldestSince: now}, false, "not vouched"},
 	}
 	for _, c := range cases {
 		reads := 0
 		admit := trainAdmission(func() landingline.Schedule { reads++; return sched }, func() time.Time { return now })()
-		got, why := admit(c.events, landingline.Ticket{Seq: 1, Branch: "b"}, c.r, c.granted)
-		admit(c.events, landingline.Ticket{Seq: 2, Branch: "b"}, c.r, c.granted)
+		got, why := admit(c.events, landingline.Ticket{Seq: 1, Branch: "b"}, c.r, c.granted, c.w)
+		admit(c.events, landingline.Ticket{Seq: 2, Branch: "b"}, c.r, c.granted, c.w)
 		if reads != 1 {
 			t.Errorf("%s: the setting was read %d times for one attempt", c.name, reads)
 		}
@@ -113,7 +122,7 @@ func TestTrainAdmission(t *testing.T) {
 		}
 	}
 	off := trainAdmission(func() landingline.Schedule { return landingline.Schedule{} }, time.Now)()
-	if ok, _ := off(nil, landingline.Ticket{Seq: 1}, nil, false); !ok {
+	if ok, _ := off(nil, landingline.Ticket{Seq: 1}, nil, false, landingline.Waiters{}); !ok {
 		t.Error("trains off held an unvouched merge")
 	}
 }

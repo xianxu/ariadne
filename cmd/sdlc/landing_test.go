@@ -163,6 +163,7 @@ func (g *landingFakeGH) LandingMerge(_ context.Context, repo string, n int, head
 
 func landingFixture(t *testing.T, slot int) ([]string, string, *landingFakeGH) {
 	t.Helper()
+	isolateMachinePlan(t)
 	roots, remote := procedureFixture(t)
 	// The configured URL is GitHub; Git's local transport rewrite avoids network.
 	git(t, roots[0], "config", "remote.upstream.url", "https://github.com/test/repo.git")
@@ -924,4 +925,15 @@ func TestLandingReturnVerifiesAssetMaterialization(t *testing.T) {
 			}
 		})
 	}
+}
+
+// isolateMachinePlan points the machine plan (#475) at an empty location of
+// the test's own, so no landing test reads the user's real plan.
+func isolateMachinePlan(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "landing-plan.json")
+	prev := machinePlanPathFn
+	machinePlanPathFn = func() string { return path }
+	t.Cleanup(func() { machinePlanPathFn = prev })
+	return path
 }
