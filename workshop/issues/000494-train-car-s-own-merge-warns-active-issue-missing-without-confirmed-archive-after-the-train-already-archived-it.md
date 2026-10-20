@@ -52,7 +52,7 @@ ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with 
 
 - [x] Reproduce the tracked two-car cleanup ordering and confirm archive provenance.
 - [x] Retain the train outcome and recognize its already archived exact completion without weakening serial archive checks.
-- [ ] Verify focused controls, recorded suite, fresh close review and landing.
+- [x] Verify focused controls and the race regression; submit the tested candidate to the required recorded-suite, fresh close-review and landing gates. A recorded suite pass still precedes landing.
 
 ## Log
 
@@ -68,6 +68,8 @@ ARCH-DRY/PURE: extract and reuse the existing archive transition verifier, with 
 - Hub approved the concrete proof design (receipt 6bd5e522-3ca0-4274-8575-a454b85901dc, verified submitted). change-code admitted the quick flow. The existing archive verifier will be reused; a read-only second pass confirmed its generation/asset/side checks and the tracked two-car fixture seams. Regression implementation is isolated to a new test file; production remains unchanged until the observed red run.
 
 - The final two-real-merge regression passes under -race in 12.912s (test 11.47s). Published PR 347 (https://github.com/xianxu/ariadne/pull/347) at code head 68bfefbde7c363252ba67ab2ddcfd05ca1aaa48b; required recorded suite is pending on that pushed head. Hub explicitly requested no stage and accepted the exact-error red/green deterministic fixture as conformance (receipt 067ef80b-b5de-4a01-a492-36a74e8fe7a8 verified submitted); the hub will observe the next natural multi-car Pair train and record its second-car output in test-economy. No live line recreation is needed.
+
+- Required recorded suite is queued as normal weight 2 at position 4, attempt 11cab56f89656e3bab43c5a95e196394. Per tl-worker, overlap the fresh close review with this queued check: no landing until a recorded pass, and any code fix requeues verification. Source changes are complete; suite outcome remains pending.
 
 ## Revisions
 
