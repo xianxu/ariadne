@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-19
 updated: 2026-10-20
-estimate_hours:
+estimate_hours: 2.67
 collaboration-mode: collaboration
-card_mirror: '44ad0f831ec50cab4589f17e2bcd54081dcc999a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b41c86ee837a1928e35246bab104bceb37595ada' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T03:03:17-07:00
 claimant:
     operator: Xian Xu
@@ -54,6 +54,32 @@ Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../p
 
 - [ ] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
 - [ ] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.6 impl=0.06
+item: smaller-go-module    design=0.05 impl=0.1
+item: smaller-go-module    design=0.2 impl=0.3
+item: greenfield-go-module design=0.3 impl=0.35
+item: atlas-docs           design=0.1 impl=0.1
+item: milestone-review     design=0.0 impl=0.16
+item: milestone-review     design=0.0 impl=0.16
+design-buffer: 0.15
+total: 2.67
+```
+
+Items, in order:
+1. the spec and plan, with two plan-quality rounds;
+2. `Slots`;
+3. M1's departure rule: `DepartureDue`, the admission seam (`Waiters`), `Readiness.Since`, `Event.Departed`, and the reset fix;
+4. M2's machine plan (greenfield): `MachinePlan`, `PackOffsets`, the plan file read, and `sdlc landing plan`;
+5. help and atlas;
+6. two milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
