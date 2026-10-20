@@ -176,3 +176,12 @@ Cancelled only the second old-head waiter before tests started; no full suite
 has run or produced an outcome yet. The fixed candidate needs the recorded
 suite and third review. If that review asks for another cleanup mechanism
 change, stop and re-plan with the hub before any further implementation.
+
+### 2026-10-19 — SHIP; recorded suite pending
+
+Third full close review returned SHIP and verified BR-1/BR-2 addressed. The
+codecomplete card is bound to the binary's close evidence. Minor advisory BR-3
+(log descriptor lifetime on scratch setup failure) is filed separately as
+unclaimed ariadne#478, dependent on #477. No post-close code change is included.
+The final-code recorded suite remains queued; no full-suite pass is claimed,
+and merge waits for it rather than starting a duplicate suite.
