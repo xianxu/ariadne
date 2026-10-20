@@ -34,6 +34,12 @@ func TestIdentityStrictProtocol(t *testing.T) {
 	if _, err := CaptureIdentity("claude", []byte(init+strings.Replace(result, testSession, "22222222-2222-4222-8222-222222222222", 1)), nil); err == nil {
 		t.Fatal("conflicting identity admitted")
 	}
+	// #489: a duplicate key, or one spelled with another case, gives one line two readings.
+	for _, dup := range []string{`"session_id":"x","session_id"`, `"session_id":"x","SESSION_ID"`} {
+		if _, err := CaptureIdentity("claude", []byte(strings.Replace(init, `"session_id"`, dup, 1)), nil); err == nil {
+			t.Fatalf("duplicate key admitted: %s", dup)
+		}
+	}
 	if _, err := CaptureIdentity("claude", []byte(`{"type":"assistant","session_id":"`+testSession+`"}`), nil); err == nil {
 		t.Fatal("assistant content impersonated protocol")
 	}

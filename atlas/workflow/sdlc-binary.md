@@ -450,7 +450,15 @@ into trains. Absent, or an interval of 0, keeps the serial line above. With
 trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
-  pushed head. Where main declares `.sdlc/affected.json`, `carCIGateFacts`
+  pushed head. Each `carReadiness` pass gets a nested issue-records scope
+  (#499): it observes external close/status updates on the next pass while
+  sharing one coherent tracker generation across that pass's gates, without
+  invalidating the parent command or another pass. Transferred-details ownership
+  checks and completion selection use the parsed `Records.CardSnapshot`;
+  alternate details directories reuse those cards through `Records.WithDetails`.
+  The publication checkout selects that card authority, even if a configured
+  details directory points into another repository. Where main declares
+  `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
   train sets no stand-in.
@@ -2215,7 +2223,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 that taught it (`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
-landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list
+landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
+JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). `TestAtlasNamesEveryRule` keeps this list
 in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`

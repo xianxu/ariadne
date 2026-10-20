@@ -24,6 +24,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -331,47 +332,8 @@ func strictCorrectionJSON(raw []byte, dst any) error {
 		return errors.New("invalid correction document size")
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
-	var walk func() error
-	walk = func() error {
-		tok, err := dec.Token()
-		if err != nil {
-			return err
-		}
-		delim, ok := tok.(json.Delim)
-		if !ok {
-			return nil
-		}
-		switch delim {
-		case '{':
-			seen := map[string]bool{}
-			for dec.More() {
-				key, err := dec.Token()
-				if err != nil {
-					return err
-				}
-				s, ok := key.(string)
-				if !ok || seen[s] {
-					return errors.New("duplicate correction JSON field")
-				}
-				seen[s] = true
-				if err = walk(); err != nil {
-					return err
-				}
-			}
-		case '[':
-			for dec.More() {
-				if err = walk(); err != nil {
-					return err
-				}
-			}
-		default:
-			return errors.New("invalid correction JSON delimiter")
-		}
-		_, err = dec.Token()
-		return err
-	}
-	if err := walk(); err != nil {
-		return err
+	if err := jsonstrict.Scan(dec, 0); err != nil {
+		return fmt.Errorf("correction JSON: %w", err)
 	}
 	if _, err := dec.Token(); err != io.EOF {
 		return errors.New("trailing correction JSON")

@@ -1,6 +1,7 @@
 package jsonstrict
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -37,4 +38,28 @@ func FuzzFoldKey(f *testing.F) {
 			t.Fatalf("foldKey(%q)==foldKey(%q) is %v, EqualFold %v", a, b, foldKey(a) == foldKey(b), strings.EqualFold(a, b))
 		}
 	})
+}
+
+// #489: Scan bounds nesting when asked (receipts allow 12 levels), reads one
+// value and leaves the rest of the stream to its caller; numbers stay opaque.
+func TestScan(t *testing.T) {
+	// The top-level value is depth 0, as receipts count it: 13 nested arrays
+	// reach depth 12 and pass a bound of 12; 14 do not.
+	deep := strings.Repeat("[", 14) + strings.Repeat("]", 14)
+	if err := Scan(json.NewDecoder(strings.NewReader(deep)), 12); err == nil || !strings.Contains(err.Error(), "exceeds 12") {
+		t.Fatalf("depth 13 under a 12 bound: %v", err)
+	}
+	if err := Scan(json.NewDecoder(strings.NewReader(deep[1:len(deep)-1])), 12); err != nil {
+		t.Fatalf("depth 12: %v", err)
+	}
+	if err := Scan(json.NewDecoder(strings.NewReader(deep)), 0); err != nil {
+		t.Fatalf("unbounded: %v", err)
+	}
+	dec := json.NewDecoder(strings.NewReader(`{"a":1} {"b":2}`))
+	if err := Scan(dec, 0); err != nil || !dec.More() {
+		t.Fatalf("one value, stream left: %v", err)
+	}
+	if err := RejectDuplicateKeys([]byte(`{"n":1e400}`)); err != nil {
+		t.Fatalf("an out-of-range number is opaque: %v", err)
+	}
 }
