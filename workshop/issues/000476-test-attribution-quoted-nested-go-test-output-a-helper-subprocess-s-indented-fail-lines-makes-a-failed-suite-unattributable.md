@@ -88,6 +88,7 @@ names; indentation checks inspect each line once, with no look-back or rescans.
 - [x] Correct existing failure/fact scanners before whitespace normalization; add
   the narrow lint guard against erasing line provenance in these scanners.
 - [x] Run focused parser/classifier and local-check regression checks.
+- [ ] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
 
 Workflow gates: recorded suite, close review, then normal landing. These remain
 pending independently of the completed implementation checkboxes.
@@ -95,6 +96,12 @@ pending independently of the completed implementation checkboxes.
 ## Log
 
 ### 2026-10-19
+
+- Full close round 2 kept BR-1 open: initial ASCII-space measurement plus Fields
+  admits mixed space/tab or space/Unicode-whitespace prefixes. Stopped before
+  the third production delta and appended a complete re-plan to the durable
+  plan. The current-head suite was cancelled while still queued; no full suite
+  has run on this issue. Awaiting hub approval of the single prefix classifier.
 
 - Hub approved the structural correction (09f8538f-08a4-4e8f-aebe-0786f25ec39e,
   canonical receipt verified). BR-1's shared-name matrix, ancestry/slash controls
@@ -133,6 +140,12 @@ pending independently of the completed implementation checkboxes.
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
 
 ## Revisions
+
+- 2026-10-19 — Third-delta stop/re-plan: one classifier must validate the entire
+  leading Unicode-whitespace prefix as ASCII-space quads before Fields, and the
+  column-zero predicate must derive from it. Existing ancestor transitions stay
+  unchanged. The durable plan records alternatives and the complete whitespace
+  regression class. No third production correction has been made.
 
 - 2026-10-19 — Corrected code adds 101 lines outside tests/docs, so the next
   close upgrades from quick to full review. Record the already approved design

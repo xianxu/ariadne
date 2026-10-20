@@ -116,3 +116,65 @@ Workflow evidence stays in the issue Log: push corrected code, run its recorded
 full suite, re-run close to dispose BR-1, then let the normal merge own final
 integration and CI. No passing old-head suite exists: its queued attempt was
 cancelled before admission. A review correction requires fresh verification.
+
+## Revisions
+
+### 2026-10-19 — Third-delta re-plan, awaiting hub approval
+
+Round 2 keeps BR-1 open: measuring initial ASCII spaces and then using Fields
+still admits a tab or Unicode whitespace after those spaces. Stop before a
+third production change; the second queued suite was cancelled before admission.
+
+The root is two different definitions of the same prefix: the indent helper
+stops at the first non-ASCII-space byte, while Fields consumes Unicode
+whitespace. Replace that split definition with one complete-prefix classifier,
+owned by suiteIndentLevel. This supersedes the initial-space measurement above.
+
+Revised rule:
+
+1. Scan leading runes with the same unicode.IsSpace category as Fields.
+2. Any whitespace rune other than ASCII space makes the prefix invalid.
+3. At the first non-whitespace rune, accept only a multiple of four spaces;
+   return the observed level. Empty/all-whitespace lines yield no record.
+4. suiteControlLine derives column-zero admission from that same result.
+   failingNameLines obtains the level once, rejects invalid prefixes before
+   Fields, then uses the already approved ancestor transition unchanged.
+
+```go
+spaces := 0
+for _, r := range line {
+    if !unicode.IsSpace(r) {
+        if spaces%4 == 0 { return spaces / 4 }
+        return -1
+    }
+    if r != ' ' { return -1 }
+    spaces++
+}
+return -1
+```
+
+This is one lexical definition, not a new parser, state machine, log format,
+fallback or post-parse sanitization layer. The stack, explicit shard names,
+facts consumers, visible outcomes and recoveries remain unchanged. One rune
+inspection per consumed prefix rune is O(prefix bytes); existing bounded line
+scans and indexed ancestor operations retain the N/2N visit guard.
+
+The simplest alternative, dropping every indented record, loses the actual
+warm-reattached leaf and #466 behavior. Adding tab/NBSP exceptions treats only
+two members of a Unicode whitespace class and repeats the same design mistake.
+Changing producers cannot repair historical logs. The single classifier covers
+the complete class at its existing owner.
+
+- [ ] Reproduce mixed-prefix leaf admission red in plain, CRLF and sharded
+  contexts, with and without a real child.
+- [ ] Enumerate every rune for which unicode.IsSpace is true: only ASCII space
+  may appear in the prefix. Exercise non-space runes before and after four
+  ASCII spaces, including mixed sequences and invalid widths.
+- [ ] Add the real gate refusal when only a mixed-indentation quoted leaf is
+  registered; preserve the positive warm-reattached retry and the original
+  pair#712/#689 excerpt fixture.
+- [ ] Implement the single prefix definition after approval. Extend the
+  lexical lint tripwire to recognize the shared level classifier before Fields.
+- [ ] Run existing and expanded parser/gate/lint controls, then a new pushed-head
+  recorded suite and full close review. If yet another mechanism is needed,
+  stop and return to the hub before implementation.
