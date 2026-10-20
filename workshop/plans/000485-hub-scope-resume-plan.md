@@ -90,65 +90,78 @@ the next slot until it returns successfully. An error exits the loop even if a r
 operation could continue. No cross-process batch mutex is claimed: Couch still owns
 mutation admission. External/manual operations and runtime moves are not inferred from `.hub`.
 
-## Task 1: shared scope and default displays
+## Tasks 1–3: implementation and test strategy
+
+Each task follows test first → observed failure → implementation → targeted pass → commit.
+All three close atomically with Task 4. The prior enumerated test inventories are replaced
+by this function-level contract (PQ-2); this is a presentation change, not a scope change.
+
+### Task 1: shared scope and displays
 
 **Files:** create `cmd/tl-lead/scope.go`, `scope_test.go`; modify `slots.go`, `status.go`,
 `fleet.go`, `fleet_test.go`, `trains_test.go`, `status_test.go`.
 
-- [ ] Add failing pure scope cases: two hubs, exact override, tie involving self,
-  unclaimed slots, foreign hub :0, absent `.hub`, and malformed `.hub`.
-- [ ] Add command/session-fake cases proving own-only Slots by default and full Slots
-  with `--all`; preserve hold/release semantics, including holds hidden by filtering.
-  If a scoped rewrite would drop an existing held address, refuse before writing and
-  name `status slots FILE --all` (and explicit `--release` when appropriate). No new
-  hidden representation or second hold store is introduced.
-- [ ] Run `go test ./cmd/tl-lead -run 'Test(HubScope|GatherSlots|StatusSlots|FleetResume)' -count=1`;
-  confirm failures identify missing filtering/flags, then implement using `ownerOf`.
-- [ ] Filter before per-issue reads. Add counted N/2N inventory cases proving one
-  issue observation per selected busy slot and zero observations for excluded slots.
-- [ ] Add `--all` to Slots and resume; show excluded foreign rows without consulting their
-  candidates or resuming them. Preserve no-hub status behavior and explicit resume refusal.
-- [ ] Make actors-unavailable a single top-level diagnostic, with rows `?`/`unknown`
-  and no per-row repetition. Failures reading individual claims retain their own reasons.
-- [ ] Rerun targeted checks and commit the coherent scope/display change.
+- [ ] `hubScope` / `ownerOf`: exercise adversarial overlapping claims and missing/unreadable
+  ownership with pure ownership assertions; absent local .hub retains legacy status scope,
+  unreadable ownership never widens authority.
+- [ ] `gatherSlots`: use the two-hub stateful fleet fixture and counted N/2N selected issue
+  reads to prove filtering occurs before IO, with zero excluded-slot issue reads.
+- [ ] `renderedSections` / `applyHolds`: exercise changing scope through the session fake;
+  scoped rewrites that would drop existing holds refuse before writes, directing --all
+  or explicit release; no hidden hold store.
+- [ ] `planResume` / command flags: adversarial ownership resolves to own-only rows or
+  summary counts by default; --all exposes all rows without foreign candidate/resume calls.
+- [ ] `gatherSlots` / `fleetResume`: failed actors seam produces one diagnostic and unknown
+  rows, with no mutation; individual claims errors retain their own reasons.
 
-## Task 2: freshness shares hub scope
+Run `go test ./cmd/tl-lead -run 'Test(HubScope|GatherSlots|StatusSlots|FleetResume)' -count=1`
+red, then green. Implement one shared scope adapter and wire rendering/flags before committing.
 
-**Files:** modify `cmd/tl-lead/freshness.go`, `freshness_test.go`; reuse scope tests.
+### Task 2: freshness shares scope
 
-- [ ] Extend real-Git `TestGitNewestLanding` with two hubs and an unrelated newer merge.
-  Assert only claimed repositories affect freshness; exact-slot claims include their repo.
-  Assert no-hub fallback, broken local `.hub` and claimed repos with missing refs.
-- [ ] Run `go test ./cmd/tl-lead -run 'Test(GitNewestLanding|.*Stale)' -count=1`;
-  prove the unrelated merge fails the old implementation.
-- [ ] Apply shared scope before per-repository Git history reads; preserve existing
-  first-parent merge semantics, brain exclusion and direct-publication exclusion.
-- [ ] Rerun targeted checks and commit.
+**Files:** `cmd/tl-lead/freshness.go`, `freshness_test.go`; reuse `scope.go`.
 
-## Task 3: terminal serial resume and explicit partial completion
+- [ ] `gitNewestLanding`: real-Git multi-hub fixtures with adversarial newer unrelated
+  histories prove only claimed repo merges affect freshness; preserve first-parent,
+  brain and direct-publication exclusions. Scope errors remain unknown, not global fallback.
+- [ ] `staleLines`: stamp/merge comparisons exercise the scoped landing result through
+  the session fake; freshness remains read-only.
 
-**Files:** modify `cmd/tl-lead/fleet.go`, `fleet_test.go`; add a focused resume test file
-if the existing one becomes unwieldy.
+Run `go test ./cmd/tl-lead -run 'Test(GitNewestLanding|.*Stale)' -count=1` red, then green;
+apply shared scope before Git history reads and commit.
 
-- [ ] Extend stateful fakeCouch with pending/completed transitions, call order and
-  completion barriers. Model 10/20/30-second durations with fake time; prove that
-  slot N+1 is not attempted before N completes, rather than merely checking final order.
-- [ ] Add stop cases for first/middle refusal, explicit uncertainty, local timeout,
-  failed actor recheck and a changed actor view. Assert nonzero, exact untouched list,
-  earlier successes retained, no retries and no later resume/candidate mutation.
-- [ ] Add subprocess conformance using a fake executable that blocks until a test-controlled
-  barrier, then succeeds/refuses/emits uncertain diagnostics including a request ID.
-  It exercises the same execResume seam and proves waiting and retained output.
-- [ ] Run `go test ./cmd/tl-lead -run 'Test(FleetResume|ExecResume)' -count=1` and confirm
-  old continue-on-error behavior fails before changing the runner.
-- [ ] Keep CLI-owned polling; wait synchronously, retain stdout/stderr, distinguish
-  timeout/explicit uncertainty from confirmed refusal, and stop after every error.
-  On uncertainty, read actors once and report observation without declaring success.
-  Print exact read-only/manual recovery commands and return nonzero.
-- [ ] Set the documented outer timeout, retaining injectable short test durations;
-  include the default-budget relationship in a regression assertion.
-- [ ] Rerun targeted checks and commit. These are semantic protocol guarantees;
-  integration/state tests enforce them rather than a lexical lint rule that guesses from loop syntax.
+### Task 3: serial resume with terminal evidence
+
+**Files:** `cmd/tl-lead/fleet.go`, `fleet_test.go`, plus a focused receipt test file if needed.
+
+- [ ] `classifyResumeResult`: malformed/truncated/contradictory child responses and exit
+  modes must never prove completion; table/fuzz strategies enforce the confirmation rule below.
+- [ ] `execResume.Resume`: stateful fake executable uses completion barriers to prove
+  synchronous waiting and stdout/stderr retention through the real subprocess seam.
+- [ ] `fleetResume`: stateful fake time models 10–30-second operations; completion barriers
+  reject any next-slot attempt before completion. A first unsuccessful result stops with
+  nonzero status, retained earlier successes, exact untouched list, and no automatic retry.
+  Read-only actor recheck failure/changes cannot promote uncertain receipt evidence.
+- [ ] `newFleetCmd`: assert operator-started/never-at-startup help remains present.
+
+Run `go test ./cmd/tl-lead -run 'Test(FleetResume|ExecResume|ClassifyResume)' -count=1`
+red, then green. Keep Couch as the polling owner, implement conservative classification,
+retain diagnostics, stop on every unsuccessful outcome and commit. These semantic protocol
+properties use state/subprocess tests, not a lexical lint rule guessing from loop syntax.
+
+### Confirming evidence (PQ-1)
+
+`execResume.Resume` requests `couch --resume ADDR --json`; Couch already supports this
+form in `cmd/internal/couchcmd/cli.go:378-413` and emits one terminal OperationReceipt
+from `messages.go`'s `reportSlotOperation`. Pure `classifyResumeResult` consumes the expected
+address, stdout, stderr, whether the process started, normal/signal exit and timeout facts.
+A known process-start failure means not attempted. Otherwise confirm only a complete JSON
+receipt with nonempty ID, Op=resume, matching Target, recognized terminal Status and a
+consistent normal exit: succeeded with zero; refused/failed with nonzero. Everything else
+(including signal death, timeout, absent/unrecognized/truncated output or inconsistent exit)
+is uncertain. Retain both streams, request ID when present, and manual inspection guidance.
+Unknown JSON fields are tolerated because this reader never rewrites Couch's receipt.
+No second receipt poller is introduced. Actor observation is diagnostic only.
 
 ## Task 4: docs, verification and live proof
 
@@ -187,3 +200,5 @@ if the existing one becomes unwieldy.
 ## Revisions
 
 - 2026-10-20 13:44 PDT — TL approved this plan (Couch delivery bac6759f-4e2e-4a0d-a272-4c8409efe48e); the proposed approval label above is historical. All ownership, terminal polling, stop/nonzero and hidden-hold decisions are accepted. Add explicit acceptance: fleet resume remains operator-started and never runs automatically at startup; retain that wording in --help and test it. No further operator review is required for these settled recovery behaviors.
+
+- 2026-10-20 13:47 PDT — plan-quality PQ-1: define pure classifyResumeResult over the existing Couch --json terminal receipt, with absent/mismatched/nonterminal/abnormal evidence uncertain. PQ-2: compress Tasks 1–3 to named functions and adversarial strategies; scope and approved visible recovery states unchanged.
