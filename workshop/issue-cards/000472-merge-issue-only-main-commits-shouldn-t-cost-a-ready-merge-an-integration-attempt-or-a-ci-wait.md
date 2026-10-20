@@ -1,6 +1,6 @@
 ---
 id: 000472
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 2b74d047b6d241597e30adde4819a5a29f50f704
         evidence_commit: 06fadf2e8c5d423531ed94e95e5a6742ed28a79a
+        landed_commit: 15baf3e2d6068c55b8c9c999eb67ea21cd5d7461
 ---
 
 # merge: issue-only main commits shouldn't cost a ready merge an integration attempt or a CI wait
