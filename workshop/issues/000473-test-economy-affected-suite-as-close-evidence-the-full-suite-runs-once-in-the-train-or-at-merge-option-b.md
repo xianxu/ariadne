@@ -146,4 +146,8 @@ Each `impl` is 40% of the v2 range's upper end.
 - Re-close round (FIX-THEN-SHIP, BR-15): duplicate keys now fold the way `encoding/json` matches them, Unicode simple
   folding: `groupſ` is `groups` and the Kelvin sign is `k`. `foldKey` agrees with `strings.EqualFold`; `FuzzFoldKey`
   checked about 1M execs.
+- TL upstream note from pair#725, recorded in the atlas and README (docs only, no contract change). The import and
+  embed graph misses Go tests that scan other packages' source (repolint, artifactpath), and a group's `go` roots
+  select the group without adding Go test packages. A configuring repo covers both: run scanners unconditionally,
+  or use `full` for non-Go inputs that Go tests read. pair does this on its side.
 

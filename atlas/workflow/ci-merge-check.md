@@ -334,6 +334,18 @@ The run then takes one of three paths:
 
 A head with no change against main refuses rather than recording a pass.
 
+**What the graph can't see (from pair#725).** Selection follows imports and embeds, so a repo writing `affected.json`
+must cover two blind spots itself:
+- **Source-scanning tests:** a Go test that reads *another* package's source files (a repo-wide lint such as
+  `repolint` or `artifactpath`) doesn't import what it scans, so changing the scanned code doesn't select it. Run
+  such scanners unconditionally from the affected command (pair uses a fixed preflight), or put their inputs in
+  `full`.
+- **Group roots don't add Go tests:** a group's `go` roots decide whether the *group* runs. They don't add Go packages
+  to `SDLC_AFFECTED_GO_PKGS`. A non-Go input that a Go test reads (outside that package's `testdata/` and embeds)
+  belongs in `full`, or in a group whose target runs that test.
+
+This needed no change to the contract; it is the configuring repo's responsibility.
+
 Where it counts (#473 M2):
 - **Train cars:** a car's CI gate accepts `affected` in place of `suite` (`StandIn`), on the head or on a docs-only
   ancestor. That is how a branch that is docs-only from main boards (pair#723). Merge without a train still requires

@@ -578,7 +578,9 @@ pushed head's run depends on what changed:
 - **Only docs that no package owns or embeds changed:** sdlc records `affected` without running anything.
 - **Nothing changed against main:** the run refuses.
 
-The schema and the classification rules are in [the affected
+Selection follows imports and embeds only. A Go test that scans *other* packages' source, or reads a non-Go file
+outside its own `testdata/` and embeds, is invisible to it, so the repo's affected command or its `full` globs must
+cover such tests (see pair#725). The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and
