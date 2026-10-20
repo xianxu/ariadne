@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -225,4 +227,42 @@ func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {
 		out[i] = flakeAttempt(a)
 	}
 	return out
+}
+
+// withLogSubtests adds each failed attempt's failing subtests, read from its
+// saved log (#466), to the attempts whose coverage a registry will judge. A
+// log that can't be read adds none: the failure is then its own leaf, which
+// a registered subtest never covers (fail closed).
+func withLogSubtests(out []flakes.Attempt, rows []SuiteAttempt, subtestsOf func(SuiteAttempt) ([]string, error)) []flakes.Attempt {
+	if subtestsOf == nil {
+		return out
+	}
+	byID := map[string]SuiteAttempt{}
+	for _, a := range rows {
+		byID[a.ID] = a
+	}
+	for i := range out {
+		if out[i].Passed || len(out[i].Failures) == 0 {
+			continue
+		}
+		if subs, err := subtestsOf(byID[out[i].ID]); err == nil {
+			out[i].Subtests = subs
+		}
+	}
+	return out
+}
+
+// storeSubtests reads a stored attempt's failing subtests from its saved log.
+func storeSubtests(store string) func(SuiteAttempt) ([]string, error) {
+	return func(a SuiteAttempt) ([]string, error) {
+		p := suiteAttemptLogFile(store, a)
+		if p == "" {
+			return nil, fmt.Errorf("attempt %s kept no log", a.ID)
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil, err
+		}
+		return parseSuiteLogFacts(string(data)).Subtests, nil
+	}
 }

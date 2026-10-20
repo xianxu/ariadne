@@ -44,7 +44,10 @@ WHAT A RUN DOES
      command's TMPDIR and GOTMPDIR point at its own folder on the
      TestScratch RAM disk (/Volumes/TestScratch/tmp/<check>-<pid>-…, removed
      after) when the disk is mounted with 2 GiB free; otherwise the normal
-     temp folder, with a note when the disk is full or unreadable
+     temp folder. Both paths are explicitly set even on fallback; unusable
+     inherited TMPDIR/GOTMPDIR values are replaced with a note naming them.
+     Normal fallback is write-probed independently of a rejected TMPDIR,
+     including before the detached checkout is created. A note explains a full or unreadable disk
      (WF_TEST_SCRATCH=<dir> overrides the root, =off disables). Stale run
      folders and go-build folders older than a day are swept first. After a
      run on the RAM disk it warns about t.TempDir folders it left on the SSD
@@ -55,6 +58,19 @@ WHAT A RUN DOES
      duration, log sha256 and host) on the commit. On failure it also posts a
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
+
+ENVIRONMENT FAILURE (#477)
+
+  A completed failed suite whose entire output proves Go could not create
+  its work directory is a could-not-run error naming GOTMPDIR/TMPDIR.
+  Its raw output is retained separately as <sha>/<name>.environment.log
+  (latest per check/head, within the existing newest-20-head retention).
+  It posts no code-failure status/comment and saves no code-suite attempt.
+  Repair temp-directory access and rerun the check or merge on the same head.
+  This cannot erase a previous genuine failed attempt. Mixed, quoted, unknown,
+  truncated or timed-out output stays under the ordinary failure rules.
+  A main baseline that could not run leaves main's health unknown, including
+  on a landing train; it neither declares main red nor blames/splits cars.
 
 SUITE QUEUE PRIORITY (#452)
 

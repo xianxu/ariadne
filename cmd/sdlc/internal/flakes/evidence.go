@@ -8,12 +8,17 @@ import (
 
 // Attempt is the part of a recorded suite attempt the evidence rules read.
 type Attempt struct {
-	ID         string
-	SHA        string
-	Passed     bool
-	Baseline   bool // merge's unrecorded diagnostic run on main
-	Legacy     bool // a historical log without retry history
-	Failures   []string
+	ID       string
+	SHA      string
+	Passed   bool
+	Baseline bool // merge's unrecorded diagnostic run on main
+	Legacy   bool // a historical log without retry history
+	Failures []string
+	// Subtests are the failing subtests the attempt's saved log names (#466);
+	// records keep top-level failures, so the IO layer reads them from the
+	// log. None (an unreadable log) leaves each failure its own leaf, which
+	// only a registered whole test explains: fail closed.
+	Subtests   []string
 	Kind       Kind // the gate's recorded outcome; "" for attempts from before #394
 	FinishedAt time.Time
 }
@@ -69,17 +74,23 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 		if a.SHA != sha || a.Passed || a.Baseline || a.Legacy || a.Kind.Lands() {
 			continue
 		}
-		explained := len(a.Failures) > 0
-		for _, f := range a.Failures {
-			if _, ok := r.Lookup(f); !ok {
-				explained = false
-			}
-		}
-		if neverExplained[a.Kind] || !explained {
+		if neverExplained[a.Kind] || !Explained(a.Failures, a.Subtests, r) {
 			out = append(out, a)
 		}
 	}
 	return out
+}
+
+// Explained reports whether registered names cover every failure, by the
+// gate's own rule (explain: each failing leaf covered by itself or an
+// ancestor). It is the one coverage answer for the gate, the success guard
+// and the flake view (#466); no failures at all is not explained.
+func Explained(failures, subtests []string, r Registry) bool {
+	if len(failures) == 0 {
+		return false
+	}
+	_, unknown := explain(Result{Failures: failures, Subtests: subtests}, r)
+	return len(unknown) == 0
 }
 
 // Sort orders attempts by finish time, then ID, without changing all.

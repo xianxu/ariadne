@@ -73,6 +73,18 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Whenever artifact creation gains a fallback root, enumerate that root in
+  stale cleanup too, including after the original root becomes usable again.
+  Test stale removal and fresh preservation at the repaired location; normal
+  exit cleanup alone does not cover a killed creator. Enumerate sibling
+  artifact families in the same repair round: fixing checkouts alone missed
+  per-run directories under the same former fallback (#477 BR-1, BR-2).
+
+- Temp fallback must replace inherited child TMPDIR and GOTMPDIR and repair
+  checkout creation before child startup. Probe actual write access, not mode
+  bits. Keep startup environment evidence outside code-suite results so a
+  same-head repair can pass without hiding an earlier genuine failure (#477).
+
 - Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
   snapshots HEAD, branch and porcelain status. A concurrent commit or a new
   dirty path invalidates the run even when every assertion passes (#472).
