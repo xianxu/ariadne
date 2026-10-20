@@ -394,6 +394,11 @@ with reviewbox.
 - **Order.** `Order` and `NextHead` put fleet-blocking tickets first, then normal
   ones, FIFO by ticket number within each class. Waiters poll every 2 s. A
   running head is never preempted: priority decides only who is admitted next.
+  `GrantHold` holds normal admissions while any valid grant exists, even before
+  its issue queues or between two granted issues in one checkout (#470).
+  Granted tickets keep FIFO among themselves. Status and waiter output share
+  the hold explanation: issue, reason, expiry and revoke command in this repo.
+  Cancellation does not revoke a grant; expiry/revoke releases its hold.
 - **Grants.** `grants.jsonl` is the only source of priority. `ValidGrants` keeps
   the latest entry per issue when it is unrevoked and unexpired (at most 24 h),
   has a reason, and records a grantor that is the operator's shell or a :0 slot.

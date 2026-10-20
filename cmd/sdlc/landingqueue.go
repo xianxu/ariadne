@@ -56,6 +56,7 @@ func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Wr
 		OnWait: func(pos int, head *landingline.Ticket) {
 			fmt.Fprintf(stderr, "landing line: position %d; landing now: %s (sdlc landing status)\n", pos, describeTicket(head))
 		},
+		OnHeld: func(why string) { fmt.Fprintf(stderr, "landing line: held: %s\n", why) },
 		OnAdmit: func(head landingline.Ticket, displaced []landingline.Ticket) {
 			e := landingline.Event{Kind: landingline.EventAdmit, Seq: head.Seq, Issue: head.Issue, Branch: head.Branch}
 			for _, d := range displaced {
@@ -66,7 +67,6 @@ func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Wr
 	}
 	if sched != nil {
 		o.Admission = trainAdmission(sched, landingNow)
-		o.OnHeld = func(why string) { fmt.Fprintf(stderr, "landing train: held: %s\n", why) }
 	}
 	line, err := landingline.Open(dir, o)
 	log.line = line

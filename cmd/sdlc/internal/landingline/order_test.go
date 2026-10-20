@@ -1,6 +1,7 @@
 package landingline
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -35,7 +36,7 @@ func TestNextHead(t *testing.T) {
 		{"FIFO by Seq, not slice order", []Ticket{a, b, c}, nil, 1, nil, true},
 		{"fleet-blocking overtakes older normal tickets", []Ticket{a, b, c}, map[int]Grant{10: grant(10, t0, 4)}, 3, []int64{1, 2}, true},
 		{"FIFO among fleet-blocking", []Ticket{a, b, c}, map[int]Grant{10: grant(10, t0, 4), 12: grant(12, t0, 4)}, 2, []int64{1}, true},
-		{"a grant for an issue not in line changes nothing", []Ticket{a, c}, map[int]Grant{99: grant(99, t0, 4)}, 2, nil, true},
+		{"a grant for an issue not in line holds normals", []Ticket{a, c}, map[int]Grant{99: grant(99, t0, 4)}, 0, nil, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -126,5 +127,23 @@ func TestAuthorize(t *testing.T) {
 				t.Fatalf("Authorize = %v, want ok=%v", err, tc.ok)
 			}
 		})
+	}
+}
+
+func TestGrantHoldReportsAllRecoveriesInStableOrder(t *testing.T) {
+	grants := map[int]Grant{471: grant(471, t0, 1), 470: grant(470, t0, 2)}
+	for range 10 {
+		why := GrantHold(2, grants)
+		if a, b := strings.Index(why, "grant #470"), strings.Index(why, "grant #471"); a < 0 || b < a {
+			t.Fatalf("unstable hold %q", why)
+		}
+		for _, want := range []string{"sdlc landing revoke --issue 470", "sdlc landing revoke --issue 471", t0.Add(time.Hour).Format(time.RFC3339), t0.Add(2 * time.Hour).Format(time.RFC3339)} {
+			if !strings.Contains(why, want) {
+				t.Fatalf("hold %q missing %q", why, want)
+			}
+		}
+	}
+	if why := GrantHold(470, grants); why != "" {
+		t.Fatalf("granted issue held: %s", why)
 	}
 }

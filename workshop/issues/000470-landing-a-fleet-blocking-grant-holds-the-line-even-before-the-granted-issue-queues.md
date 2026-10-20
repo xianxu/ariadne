@@ -44,8 +44,8 @@ keep today's reordering. Expiry or revocation releases the hold. `sdlc landing s
 
 ## Plan
 
-- [ ] Add deterministic line fixtures for absent grant, granted arrival, hand-off, expiry/revoke, multiple grants, and cancellation/output; prove red.
-- [ ] Reuse the grant authority in pure admission and status/wait reporting; require bounded expiry on grant writes.
+- [x] Add deterministic line fixtures for absent grant, granted arrival, hand-off, expiry/revoke, multiple grants, and cancellation/output; prove red.
+- [x] Reuse the grant authority in pure admission and status/wait reporting; require bounded expiry on grant writes.
 - [ ] Update help/README/atlas, run targeted tests and recorded suite, then close review and report for SHIP.
 
 Actions: enqueue granted issue; revoke grant; wait for expiry; cancel waiter.
@@ -59,7 +59,7 @@ Actions: enqueue granted issue; revoke grant; wait for expiry; cancel waiter.
 | Last grant revoked/expires | Normal FIFO resumes | Wait for admission | None |
 | Malformed/unbounded grant | No authority (existing read policy) | Reissue bounded grant | None |
 
-ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional lease or persisted state. The valid grant itself is the resource whose lifetime holds normal admissions. ARCH-ORDER: admission evaluates current grants under line.lock after acquiring head.lock; running heads are not preempted. Existing landing completion revokes before releasing head. ARCH-SECURE/EVOLVE/FUNERAL: retain existing authority and log formats/retention; reject invalid grant expiry at the writer and reader. ARCH-MOCK: real temp-dir flocks and persisted grant log cover the production seam. ARCH-CONSTRAINTS: each 2s poll adds O(G) grant formatting only when held; no new subprocess/IO per ticket. Existing queue scan/sort costs remain. ARCH-PURPOSE: cover both the absent initial issue and between-granted-issues hand-off; no train redesign (#473/#475) or baseline classification (#477).
+ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional lease or persisted state. The valid grant itself is the resource whose lifetime holds normal admissions. ARCH-ORDER: admission evaluates current grants under line.lock after acquiring head.lock; running heads are not preempted. Existing landing completion revokes before releasing head. ARCH-SECURE/EVOLVE/FUNERAL: retain existing authority and log formats/retention; reject invalid grant expiry at the writer and reader. ARCH-MOCK: real temp-dir flocks and persisted grant log cover the production seam. ARCH-CONSTRAINTS: each 2s poll adds O(G log G) sorted grant formatting only when held; no new subprocess/IO per ticket. Existing queue scan/sort costs remain. ARCH-PURPOSE: cover both the absent initial issue and between-granted-issues hand-off; no train redesign (#473/#475) or baseline classification (#477).
 
 ## Log
 
@@ -77,3 +77,5 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 - 2026-10-19: TL approved clarified policy: while any valid grant exists, normals cannot acquire a free head, even when a different granted issue has queued. Granted tickets retain FIFO; active heads continue. Require expiry on grant writes and exact revoke recovery in output.
 
 - Root cause: NextHead selects Order first without considering grants whose tickets are absent; tryAdmit uses that answer after taking head.lock. Existing grants are all fleet-blocking (no other grant class). TL approval received via Couch.
+
+- Verification: new absent-issue, multi-grant, waiter-output and unbounded-expiry fixtures all failed on the original code; line package passes after the fix, including race detection. CLI status regression failed before the fix; serial/train production waiter-output test passes after it. Broader landing/train checks in progress. No landingtrain.go change.

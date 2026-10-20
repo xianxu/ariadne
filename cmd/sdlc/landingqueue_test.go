@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -299,5 +300,40 @@ func TestLandingLineLogFailuresWarn(t *testing.T) {
 	out := stderr.String()
 	if strings.Count(out, "could not log") != 1 || !strings.Contains(out, "could not read grants to end #5's priority") {
 		t.Fatalf("stderr %q", out)
+	}
+}
+
+func TestLandingGrantHoldOutputSerialAndTrain(t *testing.T) {
+	for _, trains := range []bool{false, true} {
+		t.Run(fmt.Sprint(trains), func(t *testing.T) {
+			var out bytes.Buffer
+			var sched func() landingline.Schedule
+			if trains {
+				sched = func() landingline.Schedule { return landingline.Schedule{Interval: time.Hour, MaxCars: 8} }
+			}
+			line, _, err := openLandingLine(t.TempDir(), sched, &out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expires := time.Now().Add(time.Hour)
+			if err := line.AddGrant(landingline.Grant{Issue: 470, Grantor: landingline.Grantor{Address: "operator shell"}, Reason: "main is red", Expires: expires}); err != nil {
+				t.Fatal(err)
+			}
+			h, err := line.Enqueue(landingline.Ticket{Issue: 2})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer h.Release()
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			if err := line.Wait(ctx, h); err != context.Canceled {
+				t.Fatalf("wait %v", err)
+			}
+			for _, want := range []string{"held", "#470", "main is red", expires.Format(time.RFC3339), "sdlc landing revoke --issue 470"} {
+				if !strings.Contains(out.String(), want) {
+					t.Fatalf("missing %q: %s", want, out.String())
+				}
+			}
+		})
 	}
 }

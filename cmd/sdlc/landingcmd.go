@@ -196,6 +196,9 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		b.WriteString(line + "\n")
 	}
 	fmt.Fprintf(&b, "landing now: %s\n", describeTicket(head))
+	if why := landingline.GrantHold(0, grants); why != "" {
+		fmt.Fprintf(&b, "normal admissions held: %s\n", why)
+	}
 	for i, t := range waiting {
 		class := "normal"
 		if _, ok := grants[t.Issue]; ok {

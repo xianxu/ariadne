@@ -219,3 +219,27 @@ func TestRecentTrainsReport(t *testing.T) {
 		t.Fatal("the limit was not kept")
 	}
 }
+
+func TestLandingStatusShowsGrantHold(t *testing.T) {
+	repo := landingRepo(t)
+	hub := testLandingDeps(nil, nil)
+	if _, err := runLanding(t, hub, "grant", "--repo", repo, "--issue", "470", "--reason", "main is red"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runLanding(t, hub, "status", "--repo", repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"held", "#470", "main is red", hub.now().Add(4 * time.Hour).Format(time.RFC3339), "sdlc landing revoke --issue 470"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("status missing %q: %s", want, out)
+		}
+	}
+	if _, err := runLanding(t, hub, "revoke", "--repo", repo, "--issue", "470"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runLanding(t, hub, "status", "--repo", repo)
+	if err != nil || strings.Contains(out, "held") {
+		t.Fatalf("after revoke %q err %v", out, err)
+	}
+}

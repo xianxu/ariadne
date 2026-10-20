@@ -72,6 +72,9 @@ func (l *Line) AddGrant(g Grant) error {
 	if g.Granted.IsZero() {
 		g.Granted = l.o.Now()
 	}
+	if !g.Revoked && !g.boundedExpiry() {
+		return fmt.Errorf("landing grant: expiry must be after grant time and within %s", MaxGrant)
+	}
 	return appendLog(l, GrantsFile, g, KeepGrants)
 }
 
