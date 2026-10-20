@@ -1,6 +1,6 @@
 ---
 id: 000492
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.38
+tracker:
+    version: 1
+    completion:
+        token: close-06da05df9bbc
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 12aff78f6515173afc4aabd5f28ee7f47b4306e4
+        evidence_commit: fbc4b4cc498d43749bb87e961ebbb1e907ecec18
 ---
 
 # Landing-train suite attempts omit slot provenance, so overlapping issues' sdlc actual refuses
