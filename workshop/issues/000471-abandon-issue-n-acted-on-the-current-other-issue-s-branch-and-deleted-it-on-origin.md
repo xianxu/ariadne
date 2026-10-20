@@ -56,7 +56,7 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - [x] Write and approve the durable plan at `workshop/plans/000471-abandon-issue-n-acted-on-the-current-other-issue-s-branch-and-deleted-it-on-origin-plan.md`, including the `--issue`/HEAD audit.
 - [x] Add red real-Git regressions for wrong-branch abandon, close, milestone-close and attach; preserve open-issue and interrupted-abandon recovery cases.
 - [x] Bind started work to the card-derived issue branch before any effect. For remote deletion, make the remote branch tip equal the archived commit with leased updates, then delete it with a lease.
-- [ ] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
+- [x] Run targeted tests, `make -k build`, and the recorded full suite on the final pushed head.
 - [ ] Complete the close review and landing gates.
 
 ## Log
@@ -73,3 +73,4 @@ Add the same guard to any other verb that takes `--issue N` but acts on HEAD's b
 - Close review round 1 returned REWORK: a post-checkout hook can move the local branch between the early tip check and unconditional `git branch -D`, deleting an unarchived tip; README also omits the new checkout requirements. The revised plan pins local deletion to the recorded tip atomically and adds the reviewer’s race regression before the fix.
 - The post-checkout-hook regression failed against the old deletion (`abandon` returned success despite the moved ref), then passed with `git update-ref -d` conditioned on the recorded archived head. The broader abandon/close/attach group passed (149.390s); README now names the checkout rules. The other durable-landing local branch deletion in `landing.go` already uses expected-tip `update-ref -d`; the legacy non-durable `merge.go` cleanup still uses `branch -D` after a merged PR, a separate merge-cleanup lifecycle outside this named-issue abandon change.
 - A second red real-Git fixture showed that `update-ref -d` alone deletes a branch checked out in another linked worktree. Reusing durable landing's occupancy check before the CAS preserves the old refusal; both the occupied-branch and moved-tip fixtures pass together.
+- The final code head `38abeb176619d0cb5914a2184a1659eb281b9cf2` passed `make -k build`, `make sdlc-build`, the focused real-Git group (213.191s), `git diff --check` and the recorded full suite (`sdlc-local/suite`, 12 shards over 1,726 `cmd/sdlc` tests plus 71 packages, no failures, log SHA-256 prefix `2115980134ac`).

@@ -74,7 +74,7 @@ The audit is about mistaken branch ownership, not every use of `--issue`. Any pa
 
 ### 3. Verify and land
 
-- [ ] Run `make -k build`, `make sdlc-build`, focused `go test`, `git diff --check` and the recorded `sdlc local-check run --name suite` on the pushed head. Run an A-on-B abandon with this branch's binary in a disposable clone and bare origin; prove all local and origin refs stay unchanged.
+- [x] Run `make -k build`, `make sdlc-build`, focused `go test`, `git diff --check` and the recorded `sdlc local-check run --name suite` on the pushed head. Run an A-on-B abandon with this branch's binary in a disposable clone and bare origin; prove all local and origin refs stay unchanged.
 - [ ] Run `sdlc close` and its built-in fresh review, open/update the PR, then `sdlc merge --yes`. Report the verified PR and merge SHA to the hub.
 
 ## Revisions
