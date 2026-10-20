@@ -7,7 +7,7 @@ created: 2026-10-19
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ea3b45b399f34c2a17b02702a120c7a2dbd096d7' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1fd96382b40d7a39749ec9fdfb75ed0eeb0c473f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T01:02:55-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "ab53d85d", done: "72c136f3"}
-actual_hours: 0.33
+actual_hours: 0.76
 ---
 
 # Landing train checkout lacks the workflow provider (Makefile.workflow symlink): pair's first train abandoned; instance gate doesn't name the file
