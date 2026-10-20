@@ -39,7 +39,7 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 
 ## Plan
 
-- [ ] Capture a timed goroutine dump and lock-window timings under bounded load; establish the cause and report it to the hub before choosing the fix.
+- [x] Capture a timed goroutine dump and lock-window timings under bounded load; report the observed window and remaining uncertainty to the hub before choosing the fix.
 - [ ] Implement the supported correction with regression coverage and an appropriate mechanical lint guard; revise acceptance if the approved timeout-budget alternative is selected.
 - [ ] Verify focused/race checks and the recorded suite, close through fresh review, then land and report the outcome.
 
@@ -50,3 +50,8 @@ ARCH-CONSTRAINTS/PURPOSE: cap diagnostic concurrency at four, record load and wi
 ### 2026-10-20
 
 - Claimed after #470 landed; branch starts at main eff65960043040be38d0efb3dfb59c95ea1b8723. The fixed two-minute finished() helper bounds the whole concurrent merge, while each production Git command has its own two-minute ceiling. No suite-load scaling helper was found in the current test fixture or sharding runner. Initial load averages 3.60/22.38/28.70; capture actual windows rather than infer the owner from a lock-wait message.
+
+- Diagnostic: temporary wrapper timestamped every real repository-lock wait/acquisition/release; a one-shot process timer dumped goroutines at 60 seconds. Baseline TestLandingTrainLandsEveryCarOnOneSuite passed all variants in 20.17s (6.70/6.72/6.75s). Its six final cleanup lock holds were 2.092–2.149s, totaling 12.741s. The other locked windows were much shorter.
+- Started four test processes, each running the same parent three times. The existing targeted-test gate admitted three concurrently and queued the fourth; never exceeded four diagnostic processes. All 12 parent invocations / 36 variants passed, parent durations 22.70–35.74s. All four process dumps were captured at 60 seconds. Initial/final host load averages were 5.43/14.68/24.34 and 12.25/14.67/22.68; a mid-run sample was 16.36/15.64/23.39.
+- The dominant window is runDurableMerge's final f.withLock at landing.go:652: integration confirmation, card completion, archive publication/confirmation, checkout/ref cleanup. Across 72 bounded-run cleanup holds it ranged 2.190–4.950s. Three 60s stacks show this window waiting for Git: archiveReadContext → archiveBlobContext → archiveSnapshotContext → confirmLandingArchive → landingArchiveComplete (landing.go:695), or resolveLandingTarget → revalidateLanding → returnLandingToRest (landing.go:704). No cyclic wait or single stuck Git command was observed. The fourth dump and all lock timings are retained locally with the others.
+- Evidence is consistent with CPU/process starvation amplifying a serial Git-heavy cleanup window, but bounded load did not reproduce the original two-minute stall and does not prove its exact cause. Do not claim a deterministic lock bug or a definitive starvation diagnosis. Report this distinction and the #484 envelope alternative to the hub before selecting the correction. Local diagnostic directory: /Volumes/TestScratch/ariadne-480-a4f2_reb (bounded logs, script, instrumentation copy, compiled test); all temporary repository instrumentation was removed and the source diff is clean.
