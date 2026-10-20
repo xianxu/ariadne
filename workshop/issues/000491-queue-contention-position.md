@@ -17,6 +17,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "087c96bb", done: "f328b890"}
 ---
 
 # Suite queue position becomes fictitious on allocation contention
