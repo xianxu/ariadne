@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -110,7 +111,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		if err := probe.Decode(&value); err != nil {
 			return a, err
 		}
-		if err := validateJSONNoDuplicates(value); err != nil {
+		if err := jsonstrict.RejectDuplicateKeys(value); err != nil {
 			return a, err
 		}
 		if key == "units" {
@@ -306,57 +307,6 @@ func validateSuiteFactObjects(data []byte, kind string, known map[string]bool, r
 		}
 	}
 	return nil
-}
-
-// validateJSONNoDuplicates checks arbitrary future metadata too: accepting it
-// must not make two interpretations of a nested key possible.
-func validateJSONNoDuplicates(data []byte) error {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber() // future numeric values are opaque; float64 would reject valid 1e400
-	if err := validateJSONValue(dec); err != nil {
-		return err
-	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return errors.New("trailing JSON value")
-	}
-	return nil
-}
-
-func validateJSONValue(dec *json.Decoder) error {
-	token, err := dec.Token()
-	if err != nil {
-		return err
-	}
-	switch token {
-	case json.Delim('{'):
-		seen := map[string]bool{}
-		for dec.More() {
-			key, err := dec.Token()
-			if err != nil {
-				return err
-			}
-			name, ok := key.(string)
-			if !ok || seen[name] {
-				return errors.New("duplicate JSON key")
-			}
-			seen[name] = true
-			if err := validateJSONValue(dec); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
-		return err
-	case json.Delim('['):
-		for dec.More() {
-			if err := validateJSONValue(dec); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
-		return err
-	default:
-		return nil
-	}
 }
 
 // suiteAttemptLogFile resolves a published attempt's relative log_path, the

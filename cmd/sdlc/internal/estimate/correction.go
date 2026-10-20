@@ -6,6 +6,8 @@ import (
 	"io"
 	"reflect"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // CorrectionRecord permanently binds a repair to exact earlier ledger rows and
@@ -38,9 +40,12 @@ func parseCorrection(payload string) (*CorrectionRecord, error) {
 		return nil, err
 	}
 	// encoding/json accepts duplicate keys; retained evidence must have one meaning.
+	if err := jsonstrict.RejectDuplicateKeys([]byte(payload)); err != nil {
+		return nil, fmt.Errorf("invalid correction: %w", err)
+	}
+	// Exact field names: encoding/json would also accept other spellings.
 	scanner := json.NewDecoder(strings.NewReader(payload))
 	_, _ = scanner.Token()
-	seen := map[string]bool{}
 	for scanner.More() {
 		key, err := scanner.Token()
 		if err != nil {
@@ -52,10 +57,6 @@ func parseCorrection(payload string) (*CorrectionRecord, error) {
 		default:
 			return nil, fmt.Errorf("unknown correction field %q", name)
 		}
-		if seen[name] {
-			return nil, fmt.Errorf("duplicate correction field %q", name)
-		}
-		seen[name] = true
 		var value json.RawMessage
 		if err := scanner.Decode(&value); err != nil {
 			return nil, err

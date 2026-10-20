@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 type Mode string
@@ -29,23 +31,25 @@ func ParsePolicy(raw []byte) (Policy, error) {
 	fail := func() (Policy, error) {
 		return Policy{}, fmt.Errorf("invalid %s: ask the operator to set exactly version 1 and policy allowed or text-only", PolicyPath)
 	}
-	// Decode tokens first to reject duplicate keys, which ordinary Unmarshal accepts.
+	// Ordinary Unmarshal accepts duplicate keys and other spellings of a field:
+	// refuse duplicates at any depth, then require the exact names.
+	if jsonstrict.RejectDuplicateKeys(raw) != nil {
+		return fail()
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	tok, e := d.Token()
 	if e != nil || tok != json.Delim('{') {
 		return fail()
 	}
-	seen := map[string]bool{}
 	for d.More() {
 		tok, e = d.Token()
 		if e != nil {
 			return fail()
 		}
 		key, ok := tok.(string)
-		if !ok || seen[key] || (key != "version" && key != "policy") {
+		if !ok || (key != "version" && key != "policy") {
 			return fail()
 		}
-		seen[key] = true
 		var value json.RawMessage
 		if d.Decode(&value) != nil {
 			return fail()
