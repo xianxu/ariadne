@@ -3,6 +3,12 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- #503: an injected readiness callback's entry counter is not evidence that its
+  caller published readiness. Cancel only after observing the persisted effect;
+  force callback-in-flight and cancel-before-publication orderings with channels.
+  A repository sweep found only this fixture, so the TL chose deterministic
+  controls over a one-site lint rule.
+
 - A card owner may hold more than one issue. Before a numbered command commits
   or deletes HEAD's branch, compare it with the branch derived from that issue's
   card; ownership alone cannot identify the checkout. Remote deletion must

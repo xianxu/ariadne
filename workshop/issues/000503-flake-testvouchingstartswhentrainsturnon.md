@@ -39,9 +39,9 @@ The fixture must cancel only after the waiting car's vouch has been persisted. A
 
 ## Plan
 
-- [ ] Force the callback/publication gap and record red evidence.
-- [ ] Wait for persisted publication and preserve early-cancellation behavior.
-- [ ] Run focused and race controls, recorded suite, close review and merge.
+- [x] Force the callback/publication gap and record red evidence.
+- [x] Wait for persisted publication and preserve early-cancellation behavior.
+- [x] Run focused and race controls and prepare the recorded-suite and close requests; require their passing results before landing.
 
 ## Log
 
@@ -49,8 +49,12 @@ The fixture must cancel only after the waiting car's vouch has been persisted. A
 
 Claimed and started in ariadne:5. Confirmed the readiness callback increments gateReads before returning; vouchWhileWaiting checks ctx.Err before Vouch. Quick plan posted to hub, proceeding unless objected. ARCH-DRY: reuse watchWriter's completed-write signal and Line.Readiness rather than add a production hook. No new state, format, hot path or live-environment behavior; the fixture owns and joins its worker.
 
+Red: held readiness on a channel after incrementing gateReads, retained the old observer's cancel, then released the callback. TestVouchingStartsWhenTrainsTurnOn failed deterministically with empty readiness (0.01s, package 0.421s). Green: fixture now holds the callback, verifies no publication in flight, releases it, waits for the existing post-Vouch writer event, verifies the persisted readiness, then cancels and joins. A second ordering cancels during the callback and verifies no vouch. Focused vouch/wait-loop/shared-schedule checks passed at count=25 (11.757s); repaired fixture passed count=100 under -race (4.807s). No production change or timeout increase. Preparing pushed-head recorded suite and binary-owned close review; recorded suite must pass before landing.
+
 ## Revisions
 
 ### 2026-10-20T13:12-07:00 — lint only for a repeated pattern
 
 TL approved the fixture/control plan and required another instance before adding lint (Couch c529c41d-b5ad-4a34-a254-54002f8d7baf). Repository-wide Load-in-loop/cancel searches found only this test; inspection of all ten test files with .Add(1) found WaitGroups, joined build-count assertions and lock controls using separate events, with no second callback-entry/cancel pattern. Removed the original planned lint acceptance and step; deterministic regression is sufficient for this single fixture. No lint machinery or timeout change.
+
+The verification checklist names preparing the suite/review requests rather than promising to complete close/merge before the close gate. Their results remain required before landing, under tl-worker's authorized review/suite overlap.
