@@ -1,6 +1,6 @@
 ---
 id: 000494
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.41
+tracker:
+    version: 1
+    completion:
+        token: close-f8411da90b82
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 56a0a9c84276d7bb914673cec39fc6983424f55d
+        evidence_commit: 9ba91bf9d2df046d3424ddc4f388990ada9aca03
 ---
 
 # Train car's own merge warns 'active issue missing without confirmed archive' after the train already archived it
