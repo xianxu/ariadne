@@ -51,9 +51,11 @@ complete=false forever, so pair#722's live drain can never reach "drained" and i
 
 Durable design: [queue reconciliation plan](../plans/000501-queue-reconcile-plan.md). Full flow, one atomic close boundary.
 
-- [ ] Pure request, audit receipt and effect/replay model with strict additive codecs.
-- [ ] Gate-serialized durable audit-before-unlink transaction, failure/replay/identity/retention controls.
-- [ ] Steward CLI and real private executable conformance; recorded suite, close and landing.
+- [x] Gate-serialized exact-record repair: operator note, digest, operation/lease/process exclusion, one immutable audit append/fsync before tombstone unlink; no model/bundle/retention machinery.
+- [x] Incident-shape recovery, refusal, real crash/retry, future-field and pause/interruption preservation controls; real kernel lifecycle checks.
+- [x] Steward CLI/help and atlas, tracked Go lint, private real-executable conformance and read-only live observation.
+
+Delivery gates remain the recorded suite, close review and central landing; they are outside this implementation checklist. A passing suite precedes merge.
 
 
 ## Log
@@ -81,3 +83,15 @@ Observed RED through the real Cobra command (unknown --id before implementation)
 The audit's shared duplicate-key checker initially rejected an unknown future JSON number (1e9999) by converting it to float64: new queue-codec and jsonstrict controls both failed, then one UseNumber line fixes that semantic gap without weakening strict known-field/duplicate checks. Queuegate full package PASS6.405s; jsonstrict PASS0.068s; all TestQueue controls PASS23.904s; tracked Go lint catalog PASS0.846s. No live mutation. Private executable conformance is next, before the recorded suite/close/landing.
 
 After the Couch relaunch, sdlc agent-id reports Agent: codex/-/-; copy that available identity rather than invent model/effort metadata for new commits.
+
+### 2026-10-20 — private executable and implementation checkpoint
+
+Built this slot's source527f7aa5d04aadcc3ac6a9e75f27ce1fbdad3ec4; go version -m independently confirms that revision, trimpath=true and modified=false. Private fixture /Volumes/TestScratch/tmp/ariadne-slot3/ariadne-501-conformance.gaD8A0 retains probe.py and transcript.log. Seven real-executable controls PASS: missing note, wrong digest, real held operation lease and actual numbered-worker authority refuse without state/audit changes; operator-context private recovery saves exact base64 original/actor/note/time; replay leaves exactly one unchanged audit line; final private status is running/complete/empty. All queue/lock/discovery overrides are private; only the isolated operator-context subprocess omits COUCH_TREE, and worker refusal is separately checked. No production pause/tombstone was changed. Remove the owned private fixture after landing.
+
+Read-only central live status contains neither the original10-20 unmanaged tombstone nor the pre-reboot pair:3 tombstone. It remains complete=false because of named active work and two unbound legacy pending-admission tickets, unrelated to #501; no absence claim about that work and no attempt to clear it. The hub approved this post-reboot acceptance boundary.
+
+Current implementation checkboxes now reflect the approved simplification. Preserved original proposal checklist (withdrawn by hub9a890439):
+
+> - [ ] Pure request, audit receipt and effect/replay model with strict additive codecs.
+> - [ ] Gate-serialized durable audit-before-unlink transaction, failure/replay/identity/retention controls.
+> - [ ] Steward CLI and real private executable conformance; recorded suite, close and landing.
