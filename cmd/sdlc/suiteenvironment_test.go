@@ -185,6 +185,9 @@ func TestSuiteEnvironmentKnownFlakeRerun(t *testing.T) {
 	if !errors.As(err, &environment) {
 		t.Fatalf("rerun did not report environment failure: %v", err)
 	}
+	if !strings.Contains(err.Error(), "sdlc local-check run --name suite;") || strings.Contains(err.Error(), "--name suite-rerun") {
+		t.Fatalf("rerun recovery names an internal record: %v", err)
+	}
 	rows := gateAttempts(t, d)
 	if len(rows) != 1 || rows[0].Check != suiteCheckName || len(gh.statuses[sha]) != 0 {
 		t.Fatalf("environment became rerun failure/status: %+v %v", rows, gh.statuses[sha])

@@ -19,7 +19,11 @@ func (e *suiteEnvironmentError) Error() string {
 	if e.Cause != nil {
 		detail = "; " + e.Cause.Error()
 	}
-	return fmt.Sprintf("environment failure: Go could not create its work directory (GOTMPDIR/TMPDIR); repair temp-directory access and rerun sdlc local-check run --name %s; log %s%s", e.Check, e.LogPath, detail)
+	check := e.Check
+	if check == suiteRerunCheck {
+		check = suiteCheckName
+	}
+	return fmt.Sprintf("environment failure: Go could not create its work directory (GOTMPDIR/TMPDIR); repair temp-directory access and rerun sdlc local-check run --name %s; log %s%s", check, e.LogPath, detail)
 }
 
 func (e *suiteEnvironmentError) Unwrap() error { return e.Cause }

@@ -257,15 +257,16 @@ func TestPrepareScratchNormalRunCleanup(t *testing.T) {
 	}
 }
 
-func TestSweepStaleLocalWorktreesRepairedRoot(t *testing.T) {
+// darwinNormalFallback owns the Darwin per-user fallback in the fixture.
+func darwinNormalFallback(t *testing.T) (root, normal, blocked string) {
+	t.Helper()
 	if runtime.GOOS != "darwin" {
 		t.Skip("Darwin per-user fallback fixture; Unix candidates covered in scratchdisk")
 	}
-	d, _, _, _ := localRunRepo(t, "skipped")
-	root := t.TempDir()
-	normal := filepath.Join(root, "normal")
+	root = t.TempDir()
+	normal = filepath.Join(root, "normal")
 	bin := filepath.Join(root, "bin")
-	blocked := filepath.Join(root, "blocked")
+	blocked = filepath.Join(root, "blocked")
 	for _, dir := range []string{normal, bin} {
 		if err := os.Mkdir(dir, 0o700); err != nil {
 			t.Fatal(err)
@@ -280,6 +281,12 @@ func TestSweepStaleLocalWorktreesRepairedRoot(t *testing.T) {
 	t.Setenv("SDLC_USER_TEMP_FIXTURE", normal)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("WF_TEST_SCRATCH", "off")
+	return root, normal, blocked
+}
+
+func TestSweepStaleLocalWorktreesRepairedRoot(t *testing.T) {
+	d, _, _, _ := localRunRepo(t, "skipped")
+	root, normal, blocked := darwinNormalFallback(t)
 	stale := filepath.Join(normal, localCheckTmpPrefix+"old")
 	fresh := filepath.Join(normal, localCheckTmpPrefix+"new")
 	if err := os.Mkdir(fresh, 0o700); err != nil {
@@ -300,6 +307,42 @@ func TestSweepStaleLocalWorktreesRepairedRoot(t *testing.T) {
 		}
 		if _, err := os.Stat(fresh); err != nil {
 			t.Fatalf("fresh checkout removed: %v", err)
+		}
+	}
+}
+
+func TestPrepareScratchRepairedRunRootAfterRecovery(t *testing.T) {
+	root, normal, blocked := darwinNormalFallback(t)
+	stale := filepath.Join(normal, "sdlc-run-suite-1-123")
+	live := filepath.Join(normal, fmt.Sprintf("sdlc-run-suite-%d-456", os.Getpid()))
+	other := filepath.Join(normal, "other-tool-1-789")
+	for _, path := range []string{live, other} {
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, inherited := range []string{filepath.Join(blocked, "tmp"), root} {
+		t.Setenv("TMPDIR", inherited)
+		if err := os.Mkdir(stale, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		old := time.Now().Add(-staleTempAge - time.Hour)
+		if err := os.Chtimes(stale, old, old); err != nil {
+			t.Fatal(err)
+		}
+		var note bytes.Buffer
+		p, err := prepareScratch(&note, "suite")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.Cleanup()
+		if _, err := os.Stat(stale); !os.IsNotExist(err) {
+			t.Fatalf("former fallback run survives with TMPDIR=%s: %v", inherited, err)
+		}
+		for _, path := range []string{live, other} {
+			if _, err := os.Stat(path); err != nil {
+				t.Fatalf("fresh/live or unrelated folder removed: %s: %v", path, err)
+			}
 		}
 	}
 }

@@ -2000,7 +2000,7 @@ actual create/remove access, preserves a usable inherited root, then tries
 Darwin's per-user temp and the Unix default independently. Detached-checkout
 creation uses the same repair if its os.TempDir fallback is unusable; explicit
 custom fallback errors remain strict. Root enumeration also covers all repaired
-normal candidates for stale-checkout cleanup, even after the inherited root
+normal candidates for stale-checkout and per-run cleanup, even after the inherited root
 works again. No global process environment is changed.
 
 `runLocalCheck` reads one bounded complete log for startup classification and

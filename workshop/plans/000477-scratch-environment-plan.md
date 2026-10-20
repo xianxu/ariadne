@@ -204,3 +204,22 @@ Regression: a private Darwin per-user root contains old and fresh sdlc-local
 checkouts; cleanup must remove only the old one, both with inherited TMPDIR
 broken and after it becomes healthy. Pure candidate tests cover the Unix
 default and deduplication on every platform.
+
+### 2026-10-19 — BR-2 creation/cleanup rule across both artifact families
+
+BR-1 fixed checkout cleanup, but its sibling per-run directories still used
+current placement as the cleanup root set. Enforce one rule for every disposable
+family changed here: sweep every root creation can select, independently of
+which root is selected now. Local checkouts use Roots(local-checks, os.TempDir);
+per-run directories use Roots(tmp, os.TempDir), both sharing the same normal
+candidate enumeration. Explicit review-cache families remain unchanged because
+creation never gained normal fallback there. No new mechanism or state.
+
+The private Darwin recovery fixture covers old removal, fresh/live preservation
+and unrelated-tool preservation, first during fallback and then after inherited
+TMPDIR recovers. Unix default enumeration is covered by the platform-neutral
+candidate fixture. Also pin recovery text for an environment-failed targeted
+rerun to the declared suite command; suite-rerun is only a record/log name.
+
+If another review proposes a further change to this cleanup mechanism, stop
+and take a complete re-plan to the hub before changing it again.

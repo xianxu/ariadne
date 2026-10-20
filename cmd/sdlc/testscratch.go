@@ -32,7 +32,12 @@ type scratchPreparation struct {
 }
 
 func prepareScratch(stderr io.Writer, check string) (scratchPreparation, error) {
-	sweepStaleTemp(os.TempDir(), true, time.Now(), processAlive)
+	// Creation and stale cleanup share every possible root, independently
+	// of today's placement. Former fallback runs stay there after recovery.
+	_, cleanupRoots, _ := scratchdisk.Roots("tmp", os.TempDir())
+	for _, root := range cleanupRoots {
+		sweepStaleTemp(root, true, time.Now(), processAlive)
+	}
 	makeRun := func(base string, onScratch bool) (scratchPreparation, error) {
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			return scratchPreparation{}, err
@@ -57,7 +62,6 @@ func prepareScratch(stderr io.Writer, check string) (scratchPreparation, error) 
 	}
 	if root != "" {
 		base := filepath.Join(root, "tmp")
-		sweepStaleTemp(base, true, time.Now(), processAlive)
 		if p, err := makeRun(base, true); err == nil {
 			return p, nil
 		}
@@ -67,7 +71,6 @@ func prepareScratch(stderr io.Writer, check string) (scratchPreparation, error) 
 	if err != nil {
 		return scratchPreparation{}, fmt.Errorf("environment failure: cannot prepare TMPDIR/GOTMPDIR: %w", err)
 	}
-	sweepStaleTemp(normal, true, time.Now(), processAlive)
 	p, err := makeRun(normal, false)
 	if err != nil {
 		return scratchPreparation{}, fmt.Errorf("environment failure: cannot prepare TMPDIR/GOTMPDIR in %s: %w", normal, err)

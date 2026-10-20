@@ -152,3 +152,24 @@ checks passed (scratchdisk 0.159s; cmd/sdlc 0.892s). Added the cleanup-parity le
 Cancelled only this checkout's old-head queued suite with local-check cancel;
 it never started tests and recorded no result. The fixed head needs a newly
 recorded suite and a second close review; no timeout was raised.
+
+### 2026-10-19 — close round 2, BR-2 and recovery command fixed
+
+Round 2 verified BR-1 addressed but found the same cleanup family for per-run
+directories after fallback recovery (BR-2). Close remains unfinalized. I missed
+that sibling family in the first repair. The rule is now shared across both
+families: scratchdisk.Roots enumerates every possible placement, and both the
+checkout sweep and prepareScratch consume it independently of today's selection.
+Review-cache creation/cleanup remains a fixed custom family, unchanged.
+
+Both new regressions failed first: a former fallback run directory survived
+after TMPDIR recovered, and targeted-rerun recovery printed the internal
+suite-rerun name instead of the declared suite command. The shared-root sweep
+and recovery-name mapping make them pass. Old removal, live/fresh preservation,
+unrelated-tool preservation and both checkout/temp families are covered.
+Focused checks passed: scratchdisk 0.196s, tracked lint 0.945s, cmd/sdlc 12.759s.
+
+Cancelled only the second old-head waiter before tests started; no full suite
+has run or produced an outcome yet. The fixed candidate needs the recorded
+suite and third review. If that review asks for another cleanup mechanism
+change, stop and re-plan with the hub before any further implementation.
