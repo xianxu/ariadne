@@ -86,11 +86,15 @@ func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 // ancestor). It is the one coverage answer for the gate, the success guard
 // and the flake view (#466); no failures at all is not explained.
 func Explained(failures, subtests []string, r Registry) bool {
-	if len(failures) == 0 {
-		return false
-	}
+	return len(failures) > 0 && len(Uncovered(failures, subtests, r)) == 0
+}
+
+// Uncovered is the failing leaves no registered name covers, by the gate's rule
+// (explain): what a later name, an open flake issue's or a fixed one's, has to
+// account for (#479).
+func Uncovered(failures, subtests []string, r Registry) []string {
 	_, unknown := explain(Result{Failures: failures, Subtests: subtests}, r)
-	return len(unknown) == 0
+	return unknown
 }
 
 // Sort orders attempts by finish time, then ID, without changing all.
