@@ -145,3 +145,69 @@ dispose:
 7. **Plan revision recommendations:** None. Existing revisions cover the production-authority correction and the separate reopen-policy issue.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7908d70b-e7b9-4487-a8a0-4ae3ae82ef2a","repository":"github.com/xianxu/ariadne","issue_id":"000499","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2d5da2fbaecd8d0c","reviewed_head":"2af32ce2021a9388d45e21bde7f3605ed048d590","slot":"ariadne:5","requested_at":"2026-10-20T16:34:31.787767Z"},"phase":"finished","pid":12714,"started_at":"2026-10-20T16:34:31.948835Z","finished_at":"2026-10-20T16:37:48.712515Z","session_id":"01a15a2a-1f2d-77c0-b058-08d326a43b8b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T10:04:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 499 — Waiting landing-train readiness retains a stale close anchor across external re-close |
+| repo | ariadne |
+| issue file | workshop/issues/000499-waiting-landing-train-readiness-retains-a-stale-close-anchor-across-external-re-close.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d7ef508ccbd6ca37e8e0d3711f45906804b84bd1..266a62dd1139bd222ea7594044201286fce91246 |
+| command | sdlc close --issue 499 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T10:04:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves publication-repository authority while retaining pass-local tracker coherence. The new regression passes at HEAD and fails without the correction. No new defects or scope changes found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Scoped production authority remains intact: TestCarReadinessPublishChecksShareGeneration passes at HEAD. The root-binding correction preserves that shared reader while preventing WF_ISSUES_DIR from selecting a peer repository's authority.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/transferguard.go:35–41` explicitly binds the guard to the publication checkout and propagates lookup errors.
+   - `cmd/sdlc/transferguard_test.go:274` exercises the production guard against real repositories, first establishing the foreign-owner refusal.
+   - `atlas/workflow/sdlc-binary.md:458` accurately documents the repository-authority rule.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Five targeted tests passed: root binding, legacy/cutover behavior, fresh-clone ownership, production generation coherence, and one-fetch scope behavior.
+   - Restoring the base version of `transferguard.go` in a disposable tree made the new regression fail with “peer details directory bypassed publication repository authority.”
+   - The disposable tree was removed; the reviewed checkout remains unchanged.
+   - Full suite was not rerun during this narrow review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** reuses existing repository lookup and scoped-reader helpers.
+   - **ARCH-PURE — pass:** the change stays within the existing integration boundary.
+   - **ARCH-PURPOSE — pass:** preserves the guard’s authority independently of the configured details location.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+   - Atlas is updated. No new command, flag, or configuration surface requires a README update.
+
+7. **Plan revision recommendations:** None. Spec, Done-when, and planned behavior remain unchanged.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"229c3b1c-a254-427a-b245-a34d8a3544c4","repository":"github.com/xianxu/ariadne","issue_id":"000499","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/96d8265027933b3a","reviewed_head":"266a62dd1139bd222ea7594044201286fce91246","slot":"ariadne:5","requested_at":"2026-10-20T17:02:55.597056Z"},"phase":"finished","pid":44044,"started_at":"2026-10-20T17:02:55.692262Z","finished_at":"2026-10-20T17:04:05.007868Z","session_id":"01a15a44-1e01-7d41-b35a-294a272a0957","outcome":"returned"}] -->
