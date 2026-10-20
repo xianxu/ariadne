@@ -244,3 +244,16 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
 **Minors:**
 - Every landing test gets an isolated plan path through the shared `landingFixture` (`isolateMachinePlan`).
 - The plan decoder refuses a repeated key at every level.
+
+### 2026-10-20: M2 closed (SHIP). The plan now matches the code
+
+Rule (family "plan claim matches delivery"): every behavioural sentence in Core concepts names its enforcing test or code, or is revised here.
+
+- **MachinePlan offsets:** the decoder refuses an offset outside 0..1439 (`decodeEntry`, `TestMachinePlanCodec`). `Offset(repo, interval)` then takes it modulo the interval, so a plan written for a longer interval still places the repository, and never refuses (`TestMachinePlanCodec`, the 10-minute case). This replaces "outside 0..interval-1 is an error".
+- **Plan read failure:** warned once for the life of a schedule source (one merge process), not once per TTL (`TestScheduleSourceReadsThePlan`). `landing status` names the failure on every run.
+- **Sweep of the other Core-concepts behaviour sentences:**
+  - `Slots` Prev/Next (`TestSlots`).
+  - The `DepartureDue` reasons and precedence (`TestDepartureDueEarlyReasons`, `TestNextDepartureReadsTheDeparture`).
+  - Packing determinism and the overload (`TestPackOffsets`, `TestPackOffsetsNamesAnOverload`).
+  - `Since` across re-vouches (`TestVouchKeepsSince`, `TestStaleSinceFromAnOlderSdlc`).
+  - Every remaining Core-concepts behaviour sentence names its test above or in the earlier Revisions.
