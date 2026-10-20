@@ -40,7 +40,7 @@ When allocation/global admission contention prevents observing FIFO order, repor
 
 - [x] Return an explicit unobserved order from paused, global-gate contention, allocation contention and changed-ticket retries; keep the five-result admission seam and all resource decisions unchanged.
 - [x] Retain only the latest observed diagnostic text/key in acquire. An unobserved retry uses explicitly last-observed text; with no prior observation it says position unknown. Observation freshness alone does not trigger another log line; periodic and pause-change reporting still apply.
-- [ ] RED/GREEN real-flock producer controls, then whole-caller diagnostic checks at 8/16 alternating known/unobserved attempts; retain FIFO, priority and cancellation controls. Recorded suite, small-diff close review and normal central landing.
+- [x] RED/GREEN real-flock producer controls, then whole-caller diagnostic checks at 8/16 alternating known/unobserved attempts; retain FIFO, priority and cancellation controls.
 
 Actions: wait, cancel.
 
@@ -68,3 +68,9 @@ The real held-allocation, pre-paused, pause-after-preview and changed-ticket fix
 This is semantic observation propagation across producer/renderer, not a mechanical Go API class: real-lock and whole-caller behavioral controls enforce it instead of a lexical golint rule. No production queue pause or :0 staging was used. The actual global gate still blocks as designed; unobserved gated retries include a pause arriving after preview, not a new nonblocking global lock.
 
 The broader real-lock shell controls pass in full, including exact observed first/second/third-place strings, weighted admission, stopped/dead waiters and legacy queue heads. An explicit mutation mapping None back to [] failed all five caller assertions (8/16 log churn, spurious head-token reads and false position 1); restoring the fix passed. git diff --check passes.
+
+## Revisions
+
+### 2026-10-20 — separate completed implementation from delivery gates
+
+The final Plan checkbox originally ended "Recorded suite, small-diff close review and normal central landing." Those remain mandatory delivery gates, not completed implementation: the recorded suite on bcd6510d is queued, and the close review may overlap it under tl-worker's explicit rule. A recorded pass on the final code precedes landing. Removed only that suffix from the checkbox so its checked state describes the completed regression controls accurately; no design or acceptance change.
