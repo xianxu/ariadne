@@ -1,6 +1,6 @@
 ---
 id: 000476
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.82
+tracker:
+    version: 1
+    completion:
+        token: close-4a87696b9fc3
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9a2711a7220ccda98c24c67acad41caac4695998
+        evidence_commit: 0393ba6368c7eed2caefc862e802432b7168b820
 ---
 
 # Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable
