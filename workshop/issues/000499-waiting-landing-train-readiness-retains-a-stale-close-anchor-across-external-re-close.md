@@ -1,13 +1,13 @@
 ---
 id: 000499
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '073b5afbb03190e30e5f4f73131c7f650e645172' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9332654b4eb45892d416da7eb68c2d9bdafcb6df' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T08:58:55-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "32259c11", done: "6b1c0c23"}
+actual_hours: 0.58
 ---
 
 # Waiting landing-train readiness retains a stale close anchor across external re-close
