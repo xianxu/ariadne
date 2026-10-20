@@ -71,6 +71,12 @@ Quick flow. Plan posted to the hub, proceeding unless they object.
   observe's was an iterative stack walk, which a syntactic rule without recursion can't tell apart from an ordinary
   token loop; the rule doesn't cover that shape.
 
+- Close review: SHIP with 2 Minors, fixed in the same round:
+  - `TestIdentityStrictProtocol` now rejects a duplicate or case-variant session key. A mutation that drops the scan
+    fails it.
+  - The lint rule also sees methods and calls through a selector (`s.f()`), with a table row and a mutation check.
+    The rule still can't see an iterative stack walk, and its comment says so.
+
 ## Revisions
 
 - 2026-10-20: scope grew from "the three older scanners" to the whole class found by sweep (ARCH-PURPOSE): four more

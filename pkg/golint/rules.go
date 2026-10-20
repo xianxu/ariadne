@@ -452,7 +452,8 @@ func workshopReads(f *ast.File, _ *CheckContext) []ast.Node {
 // keeps a string-keyed set: the shape of every hand-rolled any-depth
 // duplicate-key scanner #489 folded into jsonstrict, which alone may keep it.
 // A schema decoder walking one object's members without recursing, or a
-// recursive value skipper with no key set, is not this shape.
+// recursive value skipper with no key set, is not this shape. An iterative
+// walk over an explicit stack is beyond a syntactic rule; review catches it.
 func recursiveJSONScanners(f *ast.File, _ *CheckContext) []ast.Node {
 	if f.Name.Name == "jsonstrict" {
 		return nil
@@ -473,6 +474,7 @@ func recursiveJSONScanners(f *ast.File, _ *CheckContext) []ast.Node {
 			case *ast.SelectorExpr:
 				tok = tok || fn.Sel.Name == "Token" && len(call.Args) == 0
 				more = more || fn.Sel.Name == "More" && len(call.Args) == 0
+				recurse = recurse || fn.Sel.Name == self // a method calling itself through its receiver
 			case *ast.Ident:
 				recurse = recurse || fn.Name == self
 			}
@@ -484,7 +486,7 @@ func recursiveJSONScanners(f *ast.File, _ *CheckContext) []ast.Node {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
-			if x.Body != nil && x.Recv == nil && walks(x.Body, x.Name.Name) {
+			if x.Body != nil && walks(x.Body, x.Name.Name) {
 				out = append(out, x)
 			}
 		case *ast.AssignStmt:
