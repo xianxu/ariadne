@@ -38,6 +38,11 @@ const (
 	// suiteDefaultTimeout bounds the default suite: ariadne's sharded run is
 	// about 6-13 minutes plus queueing behind the machine lock.
 	suiteDefaultTimeout = 60
+	// affectedCheckName is the affected suite's check (#473), declared by
+	// affectedConfigPath rather than in local-checks.json, so an sdlc built
+	// before it never reads (and refuses) its fields.
+	affectedCheckName  = "affected"
+	affectedConfigPath = ".sdlc/affected.json"
 )
 
 // localCheckDecl is the parsed declaration.
@@ -64,6 +69,9 @@ type localCheck struct {
 	// "accept" records the pass with the issue link, "off" blocks. Only the
 	// suite honours it; the field is the operator's (local-gates).
 	KnownFlakes string `json:"known_flakes,omitempty"`
+	// Scope says what a built check covers, for its status (#473: the
+	// affected selection); never declared.
+	Scope string `json:"-"`
 }
 
 // knownFlakePolicy is the check's parsed policy; parseLocalChecks has
@@ -109,6 +117,9 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 		}
 		if c.Name == suiteRerunCheck {
 			return bad("check name %q is reserved for known-flake reruns (#394)", c.Name)
+		}
+		if c.Name == affectedCheckName {
+			return bad("check name %q is reserved: the affected suite is declared in %s (#473)", c.Name, affectedConfigPath)
 		}
 		names[c.Name] = true
 		if len(c.Command) == 0 {
@@ -262,6 +273,7 @@ type localRunRecord struct {
 	// "" when no gate ran. A known-flake landing passes despite its exit.
 	Outcome     flakes.Kind
 	KnownFlakes []flakes.Entry
+	Scope       string // what the run covered (#473), leading its status
 }
 
 // knownFlakeOutcome is the record's gate decision, for revalidation.
@@ -299,6 +311,9 @@ func (r localRunRecord) statusDescription() string {
 	case "", flakes.Passed:
 	default:
 		s = string(r.Outcome) + " · " + s
+	}
+	if r.Scope != "" {
+		s = r.Scope + " · " + s
 	}
 	if len(s) > 140 {
 		s = s[:140]

@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
@@ -418,6 +419,28 @@ func readLocalChecks(git func(args ...string) (string, error), rev string) (loca
 		return localCheckDecl{}, fmt.Errorf("read %s on %s: %w", localChecksPath, rev, err)
 	}
 	return parseLocalChecks([]byte(data))
+}
+
+// readAffectedConfig reads the affected suite's declaration (#473) from rev's
+// tree. Its absence is the repo's off switch (ok false); a file that does not
+// parse refuses, because a misread selection would skip tests.
+func readAffectedConfig(git func(args ...string) (string, error), rev string) (affected.Config, bool, error) {
+	out, err := git("ls-tree", "--name-only", rev, affectedConfigPath)
+	if err != nil {
+		return affected.Config{}, false, fmt.Errorf("read %s's tree for %s: %w", rev, affectedConfigPath, err)
+	}
+	if strings.TrimSpace(out) == "" {
+		return affected.Config{}, false, nil
+	}
+	data, err := git("show", rev+":"+affectedConfigPath)
+	if err != nil {
+		return affected.Config{}, false, fmt.Errorf("read %s on %s: %w", affectedConfigPath, rev, err)
+	}
+	cfg, err := affected.ParseConfig([]byte(data))
+	if err != nil {
+		return affected.Config{}, false, fmt.Errorf("%s on %s: %w", affectedConfigPath, rev, err)
+	}
+	return cfg, true, nil
 }
 
 // runnerlessChecks asks GitHub, for each cancelled check that has a declared

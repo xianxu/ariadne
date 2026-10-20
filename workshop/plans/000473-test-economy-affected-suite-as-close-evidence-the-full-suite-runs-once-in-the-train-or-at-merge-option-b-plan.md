@@ -192,13 +192,13 @@ one.
 **Files:**
 - Create: `cmd/sdlc/internal/affected/config.go`, `cmd/sdlc/internal/affected/config_test.go`
 
-- [ ] **Step 1: Write the failing tests.** Strategy: a table in which the Core-concepts example parses and each
+- [x] **Step 1: Write the failing tests.** Strategy: a table in which the Core-concepts example parses and each
   validation rule refuses one minimal violation. `FuzzMatch` compares the `**` matcher against a reference (expanding
   `**` to every segment count up to the path's depth, then `path.Match`), seeded with empty segments, leading, trailing
   and doubled `**`, and `path.Match` error forms (`[`, `\\`).
-- [ ] **Step 2: Run it.** `go test ./cmd/sdlc/internal/affected/ -run TestParseConfig`. It fails: the package doesn't
+- [x] **Step 2: Run it.** `go test ./cmd/sdlc/internal/affected/ -run TestParseConfig`. It fails: the package doesn't
   exist yet.
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   ```go
   // Package affected plans the affected suite (#473): which Go packages and declared test groups a change can break.
   // It does no IO; loadGoGraph (golist.go) is its one seam.
@@ -222,22 +222,22 @@ one.
   func ParseConfig(data []byte) (Config, error) // DisallowUnknownFields, single object, the validation above
   ```
   The globs use `Match(pattern, path)` in `glob.go`: `path.Match` per segment, plus `**` for zero or more segments.
-- [ ] **Step 4: Run the tests until they pass.**
-- [ ] **Step 5: Commit.** `git commit -m '#473 M1: affected.Config and globs' -- cmd/sdlc/internal/affected`
+- [x] **Step 4: Run the tests until they pass.**
+- [x] **Step 5: Commit.** `git commit -m '#473 M1: affected.Config and globs' -- cmd/sdlc/internal/affected`
 
 ### Task 2: `affected.Graph` and `affected.Plan`
 
 **Files:**
 - Create: `cmd/sdlc/internal/affected/graph.go`, `plan.go`, and their `_test.go` files
 
-- [ ] **Step 1: Write the failing tests.** Strategy: a literal Graph (leaf ← mid ← top, a test-only dependent of leaf,
+- [x] **Step 1: Write the failing tests.** Strategy: a literal Graph (leaf ← mid ← top, a test-only dependent of leaf,
   an unrelated package), with one table row per classification rule. The row the Done-when names is a leaf change
   selecting leaf plus its dependents only. The PQ-1 row is a group-matching file inside a package directory, which
   selects both. Further rows cover a group pulled in by its `go` root, Full beating everything else in one change set,
   and the unclassified fallback. A property test over random graphs and change sets checks that the selection is
   closed under dependents and never contains a package the change can't reach.
-- [ ] **Step 2: Run them.** They fail.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run them.** They fail.
+- [x] **Step 3: Implement.**
   ```go
   type Graph struct {
       Module string
@@ -262,8 +262,8 @@ one.
   A group's `go` roots resolve through `Dir`: `./top` names the package whose Dir is `top`. A root that names no
   package makes the planner return Full("group cli: ./top is not a package"), because a stale config must not silently
   skip a group.
-- [ ] **Step 4: Run the tests until they pass.**
-- [ ] **Step 5: Commit.** `#473 M1: affected.Plan over a package graph`
+- [x] **Step 4: Run the tests until they pass.**
+- [x] **Step 5: Commit.** `#473 M1: affected.Plan over a package graph`
 
 ### Task 3: `loadGoGraph` (the `go list` seam) and its conformance test
 
@@ -271,12 +271,12 @@ one.
 - Create: `cmd/sdlc/internal/affected/golist.go`, `golist_test.go`, and `testdata/mod/` (go.mod `module example.com/m`;
   `leaf/leaf.go`; `mid/mid.go` importing leaf; `tonly/tonly.go` plus `tonly/tonly_test.go` importing leaf; `other/other.go`)
 
-- [ ] **Step 1: Write the failing test.** `TestLoadGoGraphConformance` runs the real `go list` on `testdata/mod`
+- [x] **Step 1: Write the failing test.** `TestLoadGoGraphConformance` runs the real `go list` on `testdata/mod`
   (it is copied to `t.TempDir()` first, because testdata holds a nested go.mod) and asserts that `Deps["example.com/m/mid"]`
   has `leaf`, `Deps[…/tonly]` has `leaf` (through its test), `Deps[…/other]` is empty, and `Dir` maps each package.
   `TestParseGoList` on canned output pins the folding of test variants into their package.
-- [ ] **Step 2: Run it.** It fails.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run it.** It fails.
+- [x] **Step 3: Implement.**
   ```go
   // goListFormat prints one line per package (test variants included): import path, dir, ForTest, deps.
   const goListFormat = "{{.ImportPath}}\t{{.Dir}}\t{{.ForTest}}\t{{join .Deps \" \"}}"
@@ -288,8 +288,8 @@ one.
   or yields a graph whose Deps all name known packages. It never panics.
   A package's owner is its `ForTest` value, else its ImportPath with a `.test` suffix trimmed. In a Deps entry, ` [x.test]`
   is stripped, and only paths under the module are kept.
-- [ ] **Step 4: Run the tests until they pass.**
-- [ ] **Step 5: Commit.** `#473 M1: go list package graph seam`
+- [x] **Step 4: Run the tests until they pass.**
+- [x] **Step 5: Commit.** `#473 M1: go list package graph seam`
 
 ### Task 4: read `affected.json` from main; reserve the name
 
@@ -298,15 +298,15 @@ one.
   (constants and the reserved name)
 - Test: `cmd/sdlc/localchecks_test.go`
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `readAffectedConfig(git, rev)` returns `(cfg, true, nil)` when the file exists, `(_, false, nil)` when it is
     absent, and a refusal on a bad file. Use the same fake-git shape as the existing `readLocalChecks` tests.
   - `parseLocalChecks` refuses a check named `affected` ("reserved: declared in .sdlc/affected.json").
-- [ ] **Step 2: Run them.** They fail.
-- [ ] **Step 3: Implement.** Add `affectedCheckName = "affected"` and `affectedConfigPath = ".sdlc/affected.json"`, and
+- [x] **Step 2: Run them.** They fail.
+- [x] **Step 3: Implement.** Add `affectedCheckName = "affected"` and `affectedConfigPath = ".sdlc/affected.json"`, and
   extend the reserved-name check at `localchecks.go:110`.
-- [ ] **Step 4: Run them until they pass.**
-- [ ] **Step 5: Commit.** `#473 M1: read .sdlc/affected.json from main`
+- [x] **Step 4: Run them until they pass.**
+- [x] **Step 5: Commit.** `#473 M1: read .sdlc/affected.json from main`
 
 ### Task 5: `runAffectedCheck` and `local-check run --name affected`
 
@@ -314,7 +314,7 @@ one.
 - Create: `cmd/sdlc/localcheck_affected.go`, `cmd/sdlc/localcheck_affected_test.go`
 - Modify: `cmd/sdlc/localcheck_cmd.go:116-173` (`runLocalCheckCmd` dispatches the name `affected`)
 
-- [ ] **Step 1: Write the failing tests.** Strategy: the existing local-check run harness in `localcheck_run_test.go`
+- [x] **Step 1: Write the failing tests.** Strategy: the existing local-check run harness in `localcheck_run_test.go`
   (a real git repo, a fake GitHub that records posted statuses, a fake suite helper), with one test per selection
   outcome (subset, full, empty, no config, graph unavailable). The subset test is the contract fixture:
   - **Contract fixture (the fake consumer the TL asked for):** the fixture repo holds the Task 3 module plus a
@@ -324,8 +324,8 @@ one.
     and that the status `sdlc-local/affected` was posted as success with the description `3 packages, groups lua`.
   For the other outcomes, the assertion is which status got posted (`suite`, `affected` with "nothing affected", none
   plus a refusal) and whether a fixture marker shows a command ran.
-- [ ] **Step 2: Run them.** They fail.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run them.** They fail.
+- [x] **Step 3: Implement.**
   ```go
   // affectedDeps are runAffectedCheck's seams; production wires git, affected.LoadGoGraph and runLocalCheck.
   type affectedDeps struct {
@@ -341,8 +341,8 @@ one.
   ```
   The graph is loaded from a detached worktree of `sha` (`detachedWorktreeWithCleanup`) because `go list` reads that
   tree's files. The worktree is released before the run, which makes its own.
-- [ ] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'LocalCheck'`.
-- [ ] **Step 5: Commit**, then run `sdlc milestone-close --issue 473 --milestone M1`, and tell the TL the contract is
+- [x] **Step 4: Run them until they pass**, along with `go test ./cmd/sdlc/ -run 'LocalCheck'`.
+- [x] **Step 5: Commit**, then run `sdlc milestone-close --issue 473 --milestone M1`, and tell the TL the contract is
   settled.
 
 ## Chunk 2: M2 — gates, flakes, wording

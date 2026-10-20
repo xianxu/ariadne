@@ -89,3 +89,16 @@ Each `impl` is 40% of the v2 range's upper end.
 ### 2026-10-19
 
 - Exploration: close has no mechanical suite gate (free-text `--verified`); the record is enforced by the CI gate at merge and car vouch. Checks run a fixed argv. `go list -test` over pair: 1.5 s.
+- M1 build: Tasks 1–3 (`internal/affected`) by a subagent from the plan. Its interpretations, all kept:
+  - `go` roots are syntax-checked at parse time.
+  - `GOWORK=off` on both `go list` calls.
+  - The module root comes from `go list -m`, which avoids symlink skew.
+  - A Full Reason names the first trigger.
+  - A trailing `**` matches its own directory.
+  
+  Fuzzed for 20 s each. Tasks 4–5 were done in the main session: the `affected` name is reserved in local-checks.json,
+  `readAffectedConfig` sits beside `readLocalChecks`, and `runAffectedCheck` plus the verb dispatch are in. The
+  contract fixture is green (fake consumer `make test-affected` writing both variables), as are full→suite (go.mod,
+  unclassified, graph unloadable) and docs-only. `localRunRecord.Scope` carries the selection into the status
+  description; a republished saved pass doesn't carry it.
+

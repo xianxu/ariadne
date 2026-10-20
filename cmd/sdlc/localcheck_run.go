@@ -69,7 +69,7 @@ var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 // run on main local-only. A failed check is a record, not an error; the error
 // is for a run that could not happen or, when required, could not be recorded.
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
-	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1}
+	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1, Scope: c.Scope}
 	rec.Host = hostName()
 	if d.minute == 0 {
 		d.minute = time.Minute

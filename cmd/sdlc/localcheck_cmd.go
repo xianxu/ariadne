@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
@@ -138,9 +140,26 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if len(decl.Checks) == 0 {
 		return fmt.Errorf("local-check run: origin/main declares no local checks (%s)", localChecksPath)
 	}
-	checks, err := selectLocalChecks(decl, f.Names, f.All)
-	if err != nil {
-		return err
+	// The affected suite (#473) is declared in its own file and runs through
+	// its planner; every other name is a declared check.
+	names := slices.DeleteFunc(slices.Clone(f.Names), func(n string) bool { return n == affectedCheckName })
+	wantAffected := len(names) < len(f.Names)
+	var checks []localCheck
+	if len(names) > 0 || !wantAffected {
+		if checks, err = selectLocalChecks(decl, names, f.All); err != nil {
+			return err
+		}
+	}
+	var affectedCfg affected.Config
+	if wantAffected {
+		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("local-check run: origin/main declares no %s; run --name %s", affectedConfigPath, suiteCheckName)
+		}
+		affectedCfg = cfg
 	}
 	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
 	if err != nil {
@@ -164,6 +183,19 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		}
 		if !rec.passed() {
 			failed = append(failed, c.Name+" (log "+rec.LogPath+")")
+		}
+	}
+	if wantAffected {
+		suite, ok := decl.check(suiteCheckName)
+		if !ok {
+			return fmt.Errorf("local-check run: %s needs a %s check to fall back on for a full selection", affectedCheckName, suiteCheckName)
+		}
+		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "origin/main"), affectedCfg, suite, sha)
+		if err != nil {
+			return err
+		}
+		if !rec.passed() {
+			failed = append(failed, rec.Name+" (log "+rec.LogPath+")")
 		}
 	}
 	if len(failed) > 0 {
