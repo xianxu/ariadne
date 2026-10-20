@@ -58,3 +58,7 @@ From introduce-team's live proof (10-19, two hubs: `couch ops ops-echo`):
   then poll `couch --operation-status` for that request until it settles before the next; (2) on an uncertain
   outcome, check the slot's state and stop the batch, naming the remaining slots and the manual path, instead of
   firing the rest into the same timeout. pair#726 fixes the admission itself; this keeps tl-lead honest either way.
+- 10-20 11:15 (TL): test spec for the serial resume above (operator: their manual pair:0–8 resume, one at a time,
+  tens of seconds each, all succeeded; that's the behavior to match): unit test against a fake Couch whose resume
+  takes 10–30 s, asserting serial order, a wait for each slot to settle, and stop-and-name on the first uncertain or
+  failed outcome.
