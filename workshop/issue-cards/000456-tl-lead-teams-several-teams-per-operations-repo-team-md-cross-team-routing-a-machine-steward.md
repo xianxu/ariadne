@@ -1,6 +1,6 @@
 ---
 id: 000456
-status: codecomplete
+status: done
 created: 2026-10-18
 updated: 2026-10-19
 estimate_hours: 2.54
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 38dfba58988272731fcd1df39593a6cfda0b4311
         evidence_commit: c62a130c38cf73f0820c573bad6373cb3dc5f685
+        landed_commit: 055ed4101ca288a9951c148b17895d497af864ab
 ---
 
 # tl-lead teams: several teams per operations repo, team.md, cross-team routing, a machine steward
