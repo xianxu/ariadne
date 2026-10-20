@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "087e030e", done: "cac5de36"}
 ---
 
 # landing: a fleet-blocking grant holds the line even before the granted issue queues
