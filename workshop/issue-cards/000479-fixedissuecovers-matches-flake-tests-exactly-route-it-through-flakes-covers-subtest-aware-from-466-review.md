@@ -1,6 +1,6 @@
 ---
 id: 000479
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-19
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.08
+tracker:
+    version: 1
+    completion:
+        token: close-015ae1d47d5d
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 04bf0c5e603d97658e0e3827ef8364aa49664498
+        evidence_commit: d59fbc351cabaa0d65f50bca7aa0e17bcb115ef1
 ---
 
 # fixedIssueCovers matches flake_tests exactly; route it through flakes.Covers (subtest-aware, from #466 review)
