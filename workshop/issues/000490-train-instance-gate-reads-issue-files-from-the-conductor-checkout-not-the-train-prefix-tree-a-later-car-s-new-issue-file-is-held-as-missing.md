@@ -58,4 +58,5 @@ at that prefix, not the conductor worktree). Reuse the train's prefix checkout; 
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — The instance gate validates each train prefix in its own tree (c.wt), not the conductor checkout. TestLandingTrainGatesEachPrefixInItsOwnTree: car 2 adds an issue file the conductor lacks and both land; red with the old path, failing with pair exact read-that-file error. TestLandingTrainHoldsAMalformedCarNamingTheFile: control held with file and rule named. Landing-train, instance-gate, validate, merge and push tests pass. --no-plan-check: the open row is the live 2-car pair train after landing.; review verdict: SHIP
 - Picked up from ariadne:4 ahead of #475, at the hub's request. pair:5's trace (from the held #723) matched: the gate's `os.ReadFile` and `vocabulary validate-instance` got paths relative to the conductor's working directory.
