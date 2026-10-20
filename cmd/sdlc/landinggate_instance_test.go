@@ -71,7 +71,7 @@ func TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint(t *testing.T) {
 	stubConformingFrontmatter(t)
 	mainOID, headOID := instanceGateRepo(t, instanceGateGood)
 	var out, errw bytes.Buffer
-	if err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{}); err != nil {
+	if err := runLandingInstanceGate("", mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{}); err != nil {
 		t.Fatalf("landing refused on main's own change: %v\n%s", err, errw.String())
 	}
 	if strings.Contains(out.String()+errw.String(), "000001-old.md") {
@@ -87,7 +87,7 @@ func TestLandingInstanceGate_RefusesBranchsOwnNonconformingIssue(t *testing.T) {
 	stubConformingFrontmatter(t)
 	mainOID, headOID := instanceGateRepo(t, instanceGateNoPlan)
 	var out, errw bytes.Buffer
-	err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
+	err := runLandingInstanceGate("", mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
 	if err == nil {
 		t.Fatal("branch's own nonconforming issue landed")
 	}
@@ -102,7 +102,7 @@ func TestLandingInstanceGate_AcceptsAnOpenSkeleton(t *testing.T) {
 	stubConformingFrontmatter(t)
 	mainOID, headOID := instanceGateRepo(t, instanceGateOpenSkeleton)
 	var out, errw bytes.Buffer
-	if err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{}); err != nil {
+	if err := runLandingInstanceGate("", mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{}); err != nil {
 		t.Fatalf("an open skeleton refused the landing: %v\n%s%s", err, out.String(), errw.String())
 	}
 }
@@ -111,7 +111,7 @@ func TestLandingInstanceGate_FailsClosedWithoutMergeBase(t *testing.T) {
 	stubConformingFrontmatter(t)
 	_, headOID := instanceGateRepo(t, instanceGateGood)
 	var out, errw bytes.Buffer
-	err := runLandingInstanceGate("0000000000000000000000000000000000000000", headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
+	err := runLandingInstanceGate("", "0000000000000000000000000000000000000000", headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
 	if err == nil || !strings.Contains(err.Error(), "merge-base") {
 		t.Fatalf("unresolvable main must fail closed on the merge-base, got %v", err)
 	}
@@ -134,7 +134,7 @@ func TestLandingPassesBranchWindowToInstanceGate(t *testing.T) {
 
 	var gotBase, gotHead string
 	prev := validateChangedInstancesFn
-	validateChangedInstancesFn = func(base, head string, _ []nounGate, _, _ io.Writer) error {
+	validateChangedInstancesFn = func(_, base, head string, _ []nounGate, _, _ io.Writer) error {
 		gotBase, gotHead = base, head
 		return nil
 	}
@@ -162,7 +162,7 @@ func TestLandingInstanceGate_ErrorNamesEachFileOnOneLine(t *testing.T) {
 	t.Cleanup(func() { validateFrontmatterFn = prev })
 	mainOID, headOID := instanceGateRepo(t, instanceGateNoPlan)
 	var out, errw bytes.Buffer
-	err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
+	err := runLandingInstanceGate("", mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
 	if err == nil {
 		t.Fatal("nonconforming issue landed")
 	}

@@ -1,13 +1,23 @@
 ---
 id: 000490
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '21d25956972bf97c14a58ab5b2145c52fa434ec1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9d6dc2aebf58583fab5f71bdc99d85829be4d45a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T03:05:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "38167baf", done: "68cb5e54"}
+actual_hours: 0.09
 ---
 
 # Train instance gate reads issue files from the conductor checkout, not the train-prefix tree: a later car's new issue file is held as missing
@@ -39,8 +49,15 @@ at that prefix, not the conductor worktree). Reuse the train's prefix checkout; 
 
 ## Plan
 
-- [ ]
+- [x] The instance gate takes the tree holding the head (`validateChangedInstances(root, …)`; `runLandingInstanceGate(root, …)`). The train passes its prefix tree `c.wt`, which is checked out at exactly the gated head (the car was just merged there). The single landing, merge and push pass `""`, their own checkout as before. The file list still comes from git; only the file reads and the validator's path move. There is no second resolver: the train's existing checkout is the tree.
+- [x] Class sweep ("a train gate reads the conductor's checkout"): the other per-prefix gate, duplicate IDs, reads git objects by OID (`refIDSpace`), so it is already tree-independent.
+- [x] Tests (the validator stub reads the path it's given, as `vocabulary` does):
+  - `TestLandingTrainGatesEachPrefixInItsOwnTree`: car 2 adds an issue file the conductor lacks; both land. It goes red with the old path, failing with pair's exact "read that file: … no such file".
+  - `TestLandingTrainHoldsAMalformedCarNamingTheFile`: the control; held with the file and rule named.
+- [ ] Live: pair's next train with 2+ cars lands both, recorded in test-economy (after landing and the :0 rebuild).
 
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — The instance gate validates each train prefix in its own tree (c.wt), not the conductor checkout. TestLandingTrainGatesEachPrefixInItsOwnTree: car 2 adds an issue file the conductor lacks and both land; red with the old path, failing with pair exact read-that-file error. TestLandingTrainHoldsAMalformedCarNamingTheFile: control held with file and rule named. Landing-train, instance-gate, validate, merge and push tests pass. --no-plan-check: the open row is the live 2-car pair train after landing.; review verdict: SHIP
+- Picked up from ariadne:4 ahead of #475, at the hub's request. pair:5's trace (from the held #723) matched: the gate's `os.ReadFile` and `vocabulary validate-instance` got paths relative to the conductor's working directory.

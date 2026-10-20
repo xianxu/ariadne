@@ -59,12 +59,13 @@ func landingMergeBase(r gitRunner, mainOID, ref string) (string, error) {
 // merge-base(main, head)..head. It used to diff main's tip against the working
 // tree, so an issue main archived after the branch point read as ADDED by the
 // branch and refused the landing on a file the branch never touched (#322).
-func runLandingInstanceGate(mainOID, headOID string, gates []nounGate, stdout, stderr io.Writer, r gitRunner) error {
+// root is the tree checked out at headOID ("" = the current directory).
+func runLandingInstanceGate(root, mainOID, headOID string, gates []nounGate, stdout, stderr io.Writer, r gitRunner) error {
 	base, err := landingMergeBase(r, mainOID, headOID)
 	if err != nil {
 		return fmt.Errorf("landing instance-conformance gate %w", err)
 	}
-	return validateChangedInstancesFn(base, headOID, gates, stdout, stderr)
+	return validateChangedInstancesFn(root, base, headOID, gates, stdout, stderr)
 }
 
 // Ownership follows close ancestry, not a body diff: an independently published
