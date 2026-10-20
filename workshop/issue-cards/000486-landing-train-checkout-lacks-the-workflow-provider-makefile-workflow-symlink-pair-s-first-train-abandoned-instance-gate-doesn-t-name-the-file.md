@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.33
+actual_hours: 0.76
 tracker:
     version: 1
     completion:
-        token: close-ecb21c168f30
+        token: close-a4e2db1ee11e
         repository: github.com/xianxu/ariadne
-        reviewed_head: dc5a9f192f259a627a04e183e8197fc405a0edbe
-        evidence_commit: 135e51415319a3e3999e08e63cfa7b6ceee98335
+        reviewed_head: 6ead757846233e97e84f2d087439c43e837117d8
+        evidence_commit: 73ff80e84a62f49a977496051eb68ba314aa7c13
 ---
 
 # Landing train checkout lacks the workflow provider (Makefile.workflow symlink): pair's first train abandoned; instance gate doesn't name the file
