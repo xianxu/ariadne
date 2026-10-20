@@ -17,7 +17,7 @@ collaboration-mode: discussion
 | Pure entity | Lives in | Status |
 |---|---|---|
 | Supported shard cap / CPU-count fallback | scripts/test-shard.py | modified |
-| CPU tick deltas and run summaries | local test-stats/evidence/000480/benchmark/measure.py | new, experimental evidence only |
+| CPU tick deltas and run summaries | local test-stats/evidence/000480/benchmark/metrics.py | new, experimental evidence only |
 
 The shard cap bounds the default on larger hosts while respecting smaller CPU counts. Explicit --shards remains available for comparisons. One helper owns the default; tests in scripts/test-shard.test.py exercise it without starting a suite. The CPU-summary functions consume recorded samples, allowing synthetic counter/wrap/empty-data tests without IO.
 
