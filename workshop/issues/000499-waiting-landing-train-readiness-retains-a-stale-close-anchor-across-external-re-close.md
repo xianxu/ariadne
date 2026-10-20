@@ -44,7 +44,7 @@ A waiting car readiness pass must evaluate one fresh, coherent tracker generatio
 - [x] Reproduce stale readiness with one command context, a real tracked close, code/head advance, and an external corrected SHIP close.
 - [x] Give each carReadiness call a nested records scope (ARCH-DRY), preserving parent context and pass-local coherence.
 - [x] Verify external status changes at the gate seam, one fetch per pass at N/2N reads, and isolation from the parent scope.
-- [ ] Run focused tests and recorded suite, then close/review and land through SDLC.
+- [x] Run focused tests, request the recorded suite on the pushed branch, and prepare the SDLC close review; require the recorded suite pass before landing.
 
 ## Log
 
@@ -54,8 +54,14 @@ Filed from pair:7 while landing pair#711, unclaimed. Native evidence: sdlc landi
 
 2026-10-20: Red first: TestCarReadinessObservesExternalReclose failed on the old reviewed anchor after a corrected SHIP close; TestCarReadinessRecordsGeneration failed at both 8/16 reads because external status remained cached (13.424s). Added only a nested records scope to carReadiness. Green: both regressions passed (15.159s), then focused readiness/scope/wait-loop/context guard tests passed (28.896s). Real bare remotes and production close/publish gates cover the original incident; the gate seam checks status visibility, pass coherence, bounded fetch count and parent-scope isolation. No lexical lint added: cache lifetime is a semantic observation-boundary property, defended by the regression rather than function-name matching. No new durable state or background work. Reopen policy probe failed independently with Ready:true after external codecomplete→working; filed unclaimed #502 per TL. Temporary failing probe removed after capture.
 
+2026-10-20: PR #349 opened; recorded suite requested on pushed code HEAD. Staged on ariadne:0 with bin/sdlc vcs.revision=41ce60bfd6be3a2bf8c32c1f76b1b6cca4f280c8 and vcs.modified=false; native smoke decision requested from TL. Close review may overlap queued suite under tl-worker contract; no landing until the final code passes.
+
 ## Revisions
 
 ### 2026-10-20T09:03-07:00 — separate cache visibility from reopen policy
 
 TL approved limiting #499 to fresh status visibility. Original acceptance: “A negative control externally reopens or supersedes a previously ready close and prevents admission on old authority.” Current acceptance checks status visibility at the injected gate seam. Existing selectTrackedLandingIssues skips working cards and validatePublishAnchors accepts no selections, so a reopened issue can currently remain ready even with fresh reads; that policy is a separately filed issue, not a new refusal in this cache fix.
+
+### 2026-10-20T09:05-07:00 — overlap verification and boundary review
+
+Use the tl-worker-authorized overlap: request the recorded suite on pushed HEAD and run close review while the suite waits. The final recorded pass remains mandatory before landing; any code change after review requires a new suite. This changes verification ordering only.
