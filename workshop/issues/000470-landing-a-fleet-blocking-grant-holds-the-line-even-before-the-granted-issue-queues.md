@@ -79,3 +79,6 @@ ARCH-DRY/PURE: one pure grant-hold rule uses existing ValidGrants; no additional
 - Root cause: NextHead selects Order first without considering grants whose tickets are absent; tryAdmit uses that answer after taking head.lock. Existing grants are all fleet-blocking (no other grant class). TL approval received via Couch.
 
 - Verification: new absent-issue, multi-grant, waiter-output and unbounded-expiry fixtures all failed on the original code; line package passes after the fix, including race detection. CLI status regression failed before the fix; serial/train production waiter-output test passes after it. Broader landing/train checks in progress. No landingtrain.go change.
+
+- TL live smoke passed on staged 2619d603 in tools :0: binary revision matched and vcs.modified=false; grant status named hold/expiry/revoke; hours 0 and 30 refused; revoke removed grant/hold. No real waiter available; automated serial/train waiter tests cover its output.
+- Broader targeted command TestLanding|TestLine|TestTrain reached PASS, but the overall run failed its real-repository HEAD guard because implementation commits occurred while it ran. This is not passing verification evidence. Recorded suite remains queued on immutable pushed 2619d603 in a detached checkout; use that result for final verification. No code changes followed the staged smoke.

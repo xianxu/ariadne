@@ -1095,3 +1095,5 @@ The simplest durable authority beats a clever scan of consequences.
   ambiguous for a decision that hides a failure. Use only an exact fully
   qualified name in the terminal card's `flake_tests`; legacy failures stay
   visible until retention expires (ARCH-SECURE).
+
+- #470 verification: cmd/sdlc's source-checkout hermeticity guard pins HEAD for the entire test run. Do not commit while a targeted source-checkout run remains active: even passing tests fail that guard when HEAD moves. The recorded local-check suite uses a detached checkout and can overlap source bookkeeping safely. The existing hermeticity guard already enforces this class; no additional source lint is needed.
