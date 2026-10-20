@@ -57,6 +57,12 @@ func TestRules(t *testing.T) {
 		{"test-batch-shell-runner", `exec.Command("bash", "leaf.test.sh")`, true, false},
 		{"test-batch-shell-runner", `exec.Command("bash", "construct-scripts.test.sh")`, false, false},
 		{"test-batch-shell-runner", "//lint:allow test-batch-shell-runner — intentionally measures the batch entrypoint\nexec.Command(\"bash\", \"construct-scripts.test.sh\")", true, false},
+		// json-recursive-scanner (#489): f is the snippet's function, so f() recurses.
+		{"json-recursive-scanner", "seen := map[string]bool{}\ntok, _ := dec.Token()\n_, _ = tok, seen\nfor dec.More() {\n\tf()\n}", false, true},
+		{"json-recursive-scanner", "var walk func() error\nwalk = func() error {\n\tseen := map[string]bool{}\n\t_ = seen\n\tdec.Token()\n\tfor dec.More() {\n\t\twalk()\n\t}\n\treturn nil\n}", false, true},
+		{"json-recursive-scanner", "dec.Token()\nfor dec.More() {\n\tf()\n}", false, false},         // a recursive skipper keeps no key set
+		{"json-recursive-scanner", "dec.Token()\nfor dec.More() {\n\tdec.Token()\n}", false, false}, // a one-level member walk
+		{"json-recursive-scanner", "for dec.More() {\n\tf()\n}", false, false},                      // no tokens
 		// test-shrunk-deadline (#434)
 		{"test-shrunk-deadline", "fooTimeout = 50 * time.Millisecond", true, true},
 		{"test-shrunk-deadline", "reviewShutdownGrace = time.Millisecond * 50", true, true},

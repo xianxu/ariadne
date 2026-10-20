@@ -29,10 +29,12 @@ func foldKey(s string) string {
 // depth, names a key twice: encoding/json silently keeps the last value. Keys
 // equal under case folding are duplicates too, since encoding/json matches
 // field names case-insensitively ("command" and "COMMAND" fill one field).
-// Only one top-level value is allowed.
+// Only one top-level value is allowed. Numbers stay opaque (UseNumber), so a
+// valid future value such as 1e400 never fails the scan.
 func RejectDuplicateKeys(raw []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
-	if err := scan(dec); err != nil {
+	dec.UseNumber()
+	if err := Scan(dec, 0); err != nil {
 		return err
 	}
 	var extra any
@@ -45,7 +47,18 @@ func RejectDuplicateKeys(raw []byte) error {
 	return nil
 }
 
-func scan(dec *json.Decoder) error {
+// Scan reads exactly one JSON value from dec, refusing a duplicate object key
+// at any depth (RejectDuplicateKeys' rule), and, when maxDepth > 0, nesting
+// deeper than maxDepth. The caller owns dec's settings and what follows the
+// value, for a stream it goes on reading.
+func Scan(dec *json.Decoder, maxDepth int) error {
+	return scan(dec, 0, maxDepth)
+}
+
+func scan(dec *json.Decoder, depth, maxDepth int) error {
+	if maxDepth > 0 && depth > maxDepth {
+		return fmt.Errorf("JSON nesting exceeds %d levels", maxDepth)
+	}
 	token, err := dec.Token()
 	if err != nil {
 		return err
@@ -70,13 +83,13 @@ func scan(dec *json.Decoder) error {
 				return fmt.Errorf("duplicate object key %q (as %q)", key, prior)
 			}
 			seen[foldKey(key)] = key
-			if err := scan(dec); err != nil {
+			if err := scan(dec, depth+1, maxDepth); err != nil {
 				return err
 			}
 		}
 	case '[':
 		for dec.More() {
-			if err := scan(dec); err != nil {
+			if err := scan(dec, depth+1, maxDepth); err != nil {
 				return err
 			}
 		}
