@@ -38,6 +38,9 @@ import (
 // Options are the line's injected clock, sleep and grants; zero values take
 // the production defaults.
 type Options struct {
+	// Gate serializes resource acquisition and head publication with a machine-wide
+	// admission hold. Slow admission inputs are prepared before it is called.
+	Gate   func(resource func() (bool, error)) (bool, error)
 	Now    func() time.Time
 	Sleep  func(context.Context, time.Duration) error
 	Poll   time.Duration
@@ -74,6 +77,11 @@ type Line struct {
 // AdmissionRule decides one ticket's admission from the events log as read
 // under the line mutex.
 type AdmissionRule func(events []Event, t Ticket, r *Readiness, granted bool) (bool, string)
+
+// HeldError is a temporary external admission hold: keep the ticket and poll.
+type HeldError struct{ Reason string }
+
+func (e *HeldError) Error() string { return e.Reason }
 
 // ErrNotWaiting is a vouch from a merge that is no longer waiting (admitted
 // or released): not a failure, the vouching simply ends.
@@ -194,7 +202,7 @@ func (l *Line) Wait(ctx context.Context, h *Handle) error {
 		if pos == 0 {
 			return nil
 		}
-		if pos != last && l.o.OnWait != nil {
+		if pos > 0 && pos != last && l.o.OnWait != nil {
 			l.o.OnWait(pos, head)
 		}
 		if why != lastWhy && why != "" && l.o.OnHeld != nil {
@@ -208,9 +216,10 @@ func (l *Line) Wait(ctx context.Context, h *Handle) error {
 }
 
 // tryAdmit admits h (position 0) or reports its position, the head, and why
-// h is not admitted though first in line.
+// h is not admitted though first in line. Position -1 means an external
+// gate held admission before reading the line; it is not a guessed position.
 func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
-	pos := 0
+	pos := -1
 	var current *Ticket
 	var displaced []Ticket
 	why := ""
@@ -220,87 +229,102 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 	if l.o.Admission != nil {
 		admissible = l.o.Admission()
 	}
-	err := l.withMutex(func() error {
-		live, err := l.scan()
-		if err != nil {
-			return err
-		}
-		if !h.waiting() {
-			return errors.New("landing line: this ticket was released")
-		}
-		grants := l.o.Grants()
-		order := Order(live, grants)
-		pos = 0
-		for i, t := range order {
-			if t.Seq == h.ticket.Seq {
-				pos = i + 1
+	grants := l.o.Grants()
+	resource := func() (bool, error) {
+		acquired, err := l.withMutexMode(true, func() error {
+			live, err := l.scan()
+			if err != nil {
+				return err
 			}
-		}
-		if pos == 0 {
-			return errors.New("landing line: this ticket is no longer in line")
-		}
-		head, err := os.OpenFile(filepath.Join(l.dir, "head.lock"), os.O_RDWR|os.O_CREATE, 0o644)
-		if err != nil {
-			return err
-		}
-		if err := flock.Exclusive(head, true); err != nil {
-			current = heldTicket(head)
-			head.Close()
-			if errors.Is(err, syscall.EWOULDBLOCK) {
+			if !h.waiting() {
+				return errors.New("landing line: this ticket was released")
+			}
+			order := Order(live, grants)
+			pos = 0
+			for i, t := range order {
+				if t.Seq == h.ticket.Seq {
+					pos = i + 1
+				}
+			}
+			if pos == 0 {
+				return errors.New("landing line: this ticket is no longer in line")
+			}
+			head, err := os.OpenFile(filepath.Join(l.dir, "head.lock"), os.O_RDWR|os.O_CREATE, 0o644)
+			if err != nil {
+				return err
+			}
+			if err := flock.Exclusive(head, true); err != nil {
+				current = heldTicket(head)
+				head.Close()
+				if errors.Is(err, syscall.EWOULDBLOCK) {
+					return nil
+				}
+				return err
+			}
+			if why = GrantHold(h.ticket.Issue, grants); why != "" {
+				head.Close()
 				return nil
 			}
-			return err
-		}
-		if why = GrantHold(h.ticket.Issue, grants); why != "" {
-			head.Close()
-			return nil
-		}
-		candidates := live
-		if admissible != nil {
-			// head.lock is held: the previous head has left, so its train
-			// event is in the log this reads.
-			events, _, err := l.Events()
+			candidates := live
+			if admissible != nil {
+				// head.lock is held: the previous head has left, so its train
+				// event is in the log this reads.
+				events, _, err := l.Events()
+				if err != nil {
+					events = nil // unreadable: the first train, never a stall
+				}
+				ready := l.readReady()
+				candidates = nil
+				for _, t := range live {
+					var r *Readiness
+					if v, ok := ready[t.Seq]; ok {
+						r = &v
+					}
+					_, granted := grants[t.Issue]
+					ok, reason := admissible(events, t, r, granted)
+					if ok {
+						candidates = append(candidates, t)
+					} else if t.Seq == h.ticket.Seq {
+						why = reason
+					}
+				}
+			}
+			next, ok := NextHead(candidates, grants)
+			if !ok || next.Seq != h.ticket.Seq {
+				head.Close()
+				return nil
+			}
+			passed := Passed(live, grants, next)
+			data, _ := json.Marshal(h.ticket)
+			if err := head.Truncate(0); err == nil {
+				_, err = head.WriteAt(data, 0)
+			}
 			if err != nil {
-				events = nil // unreadable: the first train, never a stall
+				head.Close()
+				return err
 			}
-			ready := l.readReady()
-			candidates = nil
-			for _, t := range live {
-				var r *Readiness
-				if v, ok := ready[t.Seq]; ok {
-					r = &v
-				}
-				_, granted := grants[t.Issue]
-				ok, reason := admissible(events, t, r, granted)
-				if ok {
-					candidates = append(candidates, t)
-				} else if t.Seq == h.ticket.Seq {
-					why = reason
-				}
-			}
-		}
-		next, ok := NextHead(candidates, grants)
-		if !ok || next.Seq != h.ticket.Seq {
-			head.Close()
+			h.mu.Lock()
+			h.head = head
+			h.dropLocked()
+			h.mu.Unlock()
+			pos, displaced = 0, passed
 			return nil
+		})
+		if !acquired && err == nil {
+			why = "landing line allocation busy"
 		}
-		passed := Passed(live, grants, next)
-		data, _ := json.Marshal(h.ticket)
-		if err := head.Truncate(0); err == nil {
-			_, err = head.WriteAt(data, 0)
-		}
-		if err != nil {
-			head.Close()
-			return err
-		}
-		h.mu.Lock()
-		h.head = head
-		h.dropLocked()
-		h.mu.Unlock()
-		pos, displaced = 0, passed
-		return nil
-	})
-	// After the mutex: the hook may log, which takes the mutex itself (flock is
+		return acquired && err == nil && pos == 0, err
+	}
+	gate := l.o.Gate
+	if gate == nil {
+		gate = func(fn func() (bool, error)) (bool, error) { return fn() }
+	}
+	_, err := gate(resource)
+	var held *HeldError
+	if errors.As(err, &held) {
+		why, err = held.Reason, nil
+	}
+	// After both mutexes: the hook may log, which takes the mutex itself (flock is
 	// per open file, so a nested take in one process would deadlock).
 	if err == nil && pos == 0 && l.o.OnAdmit != nil {
 		l.o.OnAdmit(h.ticket, displaced)
@@ -530,15 +554,25 @@ func (l *Line) nextSeq() (int64, error) {
 }
 
 func (l *Line) withMutex(fn func() error) error {
+	_, err := l.withMutexMode(false, fn)
+	return err
+}
+
+// Admission already owns the machine gate: contention must release that gate
+// and retry, never turn another repository's pause into a local-lock wait.
+func (l *Line) withMutexMode(nonblocking bool, fn func() error) (bool, error) {
 	f, err := os.OpenFile(filepath.Join(l.dir, "line.lock"), os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer f.Close()
-	if err := flock.Exclusive(f, false); err != nil {
-		return err
+	if err := flock.Exclusive(f, nonblocking); err != nil {
+		if nonblocking && errors.Is(err, syscall.EWOULDBLOCK) {
+			return false, nil
+		}
+		return false, err
 	}
-	return fn()
+	return true, fn()
 }
 
 // heldTicket reads a held lock's ticket; a held lock whose contents don't parse

@@ -13,6 +13,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
 
 // The landing line (#393): one durable merge per repository integrates and
@@ -40,7 +41,7 @@ func landingLineDir(r gitRunner, root string) (string, error) {
 // asked on every admission attempt; it caches its read for
 // landingScheduleTTL, so a change on main counts within that while a merge
 // waits. nil, or a schedule with trains off, is the serial line.
-func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Writer) (*landingline.Line, *lineLog, error) {
+func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Writer, gates ...func(func() (bool, error)) (bool, error)) (*landingline.Line, *lineLog, error) {
 	var line *landingline.Line
 	log := &lineLog{stderr: stderr}
 	heldPrefix := "landing line"
@@ -68,6 +69,9 @@ func openLandingLine(dir string, sched func() landingline.Schedule, stderr io.Wr
 			}
 			log.record(e)
 		},
+	}
+	if len(gates) > 0 {
+		o.Gate = gates[0]
 	}
 	if sched != nil {
 		o.Admission = trainAdmission(sched, landingNow)
@@ -125,11 +129,27 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	if err != nil {
 		return nil, err
 	}
-	line, log, err := openLandingLine(dir, sched, stderr)
+	var gate func(func() (bool, error)) (bool, error)
+	q := queueRuntimeFrom(ctx)
+	if q != nil {
+		gate = func(resource func() (bool, error)) (bool, error) {
+			admitted, err := q.admit(ctx, resource)
+			var paused *queuegate.PausedError
+			if errors.As(err, &paused) {
+				return false, &landingline.HeldError{Reason: err.Error()}
+			}
+			return admitted, err
+		}
+	}
+	line, log, err := openLandingLine(dir, sched, stderr, gate)
 	if err != nil {
 		return nil, err
 	}
-	h, err := line.Enqueue(landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()})
+	ticket := landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()}
+	if q != nil {
+		ticket.QueueOperationID, ticket.QueuePID, ticket.QueuePIDStarted, ticket.QueueRoot = q.op.ID, q.op.PID, q.op.PIDStarted, q.op.Root
+	}
+	h, err := line.Enqueue(ticket)
 	if err != nil {
 		return nil, err
 	}

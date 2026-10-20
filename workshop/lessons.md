@@ -1144,3 +1144,15 @@ The simplest durable authority beats a clever scan of consequences.
 - #470: when extending an output callback to another mode, preserve existing mode prefixes and sweep tests by the message/callback as well as filenames. The existing readiness fixture caught the train-prefix change; the grant fixture now asserts both serial and train prefixes. These observable prose contracts are defended by those integration assertions rather than a generic lexical lint rule.
 
 - #470 BR-1: acceptance should preserve behavioral guarantees rather than promise unchanged tests when a feature intentionally changes those tests' expected behavior. Keep the current Done-when synchronized with the approved policy, and preserve the superseded promise in Revisions. This is semantic acceptance wording, defended by the close review rather than lexical lint.
+
+- #480 measurement harness review: process-leader exit does not prove its process group is gone; cancellation must check group survival independently and exercise a TERM-resistant descendant. A pinned HEAD also needs a clean-source check before and after measurement. Local evidence-harness tests enforce these contracts; no production Go lint surface is added for this temporary Python tool.
+- #481 plan review: a PID-lifetime watcher does not own descendant completion. Before making quiescence authoritative, name the component that owns cancellation and cleanup; unmanaged children stay unknown rather than borrowing the managed runner's guarantee. Real owner-death/child-survival barriers defend this semantic lifetime boundary; a lexical source lint cannot prove descendant ownership.
+
+- #481 M1 review: a durable cancellation intent must remain authoritative across every later write, owner death and retirement. Test the gaps between publications and repeated recovery, including diagnostic retention before intent cleanup. Check context inside bounded transaction loops; mutex-acquisition deadlines alone do not bound a command. These semantic crash/deadline properties are guarded by real-store regression tests rather than lexical lint.
+
+- #481 M2 BR-5: a global admission mutex cannot contain a blocking secondary mutex acquisition. Try the local resource without blocking, release the global mutex on contention, and retry with the same ticket. Test a real held allocation lock and prove pause/cancellation finish before releasing it. The callback's dynamic lock context crosses Go/Python abstractions, so the real-lock contention tests enforce this class; a source-name lint would only mirror the present implementation.
+
+- Bounded shutdown cleanup still receives the caller context: preserve its
+  values with context.WithoutCancel, then apply the cleanup timeout. Do not mint
+  context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
+  with targeted runtime checks (#481 final suite).

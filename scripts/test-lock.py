@@ -37,9 +37,11 @@
 
 import argparse
 import contextlib
+import ctypes
 import fcntl
 import json
 import os
+import re
 import select
 import signal
 import selectors
@@ -47,9 +49,432 @@ import tempfile
 import subprocess
 import sys
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 REPORT_EVERY = 30
+
+QUEUE_MAX_JSON = 1 << 20
+QUEUE_MAX_OPERATIONS = 4096
+
+
+def queue_state_root():
+    root = os.environ.get('WF_SDLC_QUEUE_ROOT')
+    if not root and os.environ.get('WF_TEST_LOCK_FILE'):
+        root = os.environ['WF_TEST_LOCK_FILE'] + '.queue-state'
+    if not root:
+        state = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
+        root = os.path.join(state, 'ariadne', 'queue')
+    return os.path.abspath(root)
+
+
+def _queue_pairs(pairs):
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError('duplicate queue JSON member ' + repr(key))
+        out[key] = value
+    return out
+
+
+def _queue_constant(value):
+    raise ValueError('invalid queue JSON constant ' + value)
+
+
+_QUEUE_DECODER = json.JSONDecoder(object_pairs_hook=_queue_pairs, parse_int=str,
+                                 parse_float=str, parse_constant=_queue_constant)
+
+
+def _queue_json(data):
+    if not data or len(data) > QUEUE_MAX_JSON:
+        raise ValueError('queue JSON empty or exceeds 1 MiB')
+    text = data.decode('utf-8')
+    try:
+        parsed = _QUEUE_DECODER.decode(text)
+        def depth(value, level=0):
+            if level > 128:
+                raise ValueError('queue JSON nesting exceeds 128')
+            if isinstance(value, dict):
+                for child in value.values():
+                    depth(child, level + 1)
+            elif isinstance(value, list):
+                for child in value:
+                    depth(child, level + 1)
+        depth(parsed)
+    except (RecursionError, UnicodeError) as error:
+        raise ValueError('malformed queue JSON') from error
+    return text, parsed
+
+
+def _queue_skip_space(text, pos):
+    while text[pos] in ' \t\r\n':
+        pos += 1
+    return pos
+
+
+def queue_strict_object(data):
+    """Strict structural boundary, returning original raw top-level values."""
+    text, parsed = _queue_json(data)
+    if not isinstance(parsed, dict):
+        raise ValueError('queue JSON is not an object')
+    fields = {}
+    pos = text.index('{') + 1
+    while True:
+        pos = _queue_skip_space(text, pos)
+        if text[pos] == '}':
+            break
+        key, pos = _QUEUE_DECODER.raw_decode(text, pos)
+        pos = _queue_skip_space(text, pos)
+        pos += 1  # colon, already structurally checked
+        pos = _queue_skip_space(text, pos)
+        start = pos
+        _, pos = _QUEUE_DECODER.raw_decode(text, pos)
+        fields[key] = text[start:pos].encode('utf-8')
+        pos = _queue_skip_space(text, pos)
+        if text[pos] == ',':
+            pos += 1
+    return fields
+
+
+def queue_encode_object(fields, **changes):
+    raw = dict(fields)
+    for key, value in changes.items():
+        raw[key] = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(',', ':')).encode('utf-8')
+    result = b'{' + b','.join(json.dumps(key).encode() + b':' + value for key, value in sorted(raw.items())) + b'}'
+    if len(result) > QUEUE_MAX_JSON:
+        raise ValueError('queue JSON exceeds 1 MiB')
+    return result
+
+
+def _queue_known(fields, required, optional=()):
+    names = set(required) | set(optional)
+    for name in fields:
+        if name not in names and any(name.casefold() == known.casefold() for known in names):
+            raise ValueError('noncanonical queue member ' + name)
+    result = {}
+    for key, expected in required.items():
+        if key not in fields:
+            raise ValueError('missing queue member ' + key)
+        value = json.loads(fields[key])
+        if type(value) is not expected:
+            raise ValueError('wrong queue member type ' + key)
+        result[key] = value
+    return result
+
+
+def _queue_text(value, limit):
+    return isinstance(value, str) and len(value.encode('utf-8')) <= limit
+
+
+def _queue_read(path):
+    with open(path, 'rb') as stream:
+        raw = stream.read(QUEUE_MAX_JSON + 1)
+    return queue_strict_object(raw)
+
+
+def _queue_control(root):
+    try:
+        fields = _queue_read(os.path.join(root, 'pause.json'))
+    except FileNotFoundError:
+        return []
+    control = _queue_known(fields, dict(schema_version=int, pause_owners=list))
+    if control['schema_version'] != 1 or len(control['pause_owners']) > 128:
+        raise ValueError('unsupported or oversized queue owner set')
+    owners, seen = [], set()
+    for item in control['pause_owners']:
+        if not isinstance(item, dict):
+            raise ValueError('invalid queue owner')
+        # Owners are read only; unknown members stay opaque in the control file.
+        for name, expected in dict(owner=str, reason=str, cancel_running=bool).items():
+            if name not in item or type(item[name]) is not expected:
+                raise ValueError('invalid queue owner member ' + name)
+        if not item['owner'].strip() or not _queue_text(item['owner'], 256) or not _queue_text(item['reason'], 4096) or item['owner'] in seen:
+            raise ValueError('duplicate or oversized queue owner')
+        seen.add(item['owner'])
+        owners.append(item)
+    return owners
+
+
+def _queue_operation(fields):
+    op = _queue_known(fields, dict(schema_version=int, id=str, workspace=str, kinds=list, phase=str,
+                     pid=int, pid_started=str, managed=bool, started_at=str, boot_id=str, root=str, detail=str), ('head',))
+    if op['schema_version'] != 1 or not queue_valid_id(op['id']):
+        raise ValueError('unsupported queue operation identity')
+    if op['phase'] not in ('waiting', 'running', 'interrupting', 'unknown', 'finished', 'interrupted'):
+        raise ValueError('invalid queue operation phase')
+    if not op['kinds'] or len(op['kinds']) > 3 or any(type(kind) is not str or kind not in ('suite', 'merge', 'landing') for kind in op['kinds']) or len(set(op['kinds'])) != len(op['kinds']):
+        raise ValueError('invalid queue operation kinds')
+    for name, limit in dict(workspace=4096, pid_started=256, boot_id=256, root=4096, detail=4096).items():
+        if not _queue_text(op[name], limit):
+            raise ValueError('invalid queue operation text ' + name)
+    if 'head' in fields:
+        head = json.loads(fields['head'])
+        if not _queue_text(head, 256):
+            raise ValueError('invalid queue operation head')
+    if op['pid'] < 0 or (op['managed'] and (op['pid'] <= 1 or not op['pid_started'])):
+        raise ValueError('queue operation lacks process identity')
+    if not re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)', op['started_at']):
+        raise ValueError('invalid operation timestamp')
+    started = datetime.fromisoformat(op['started_at'].replace('Z', '+00:00'))
+    if started == datetime.min.replace(tzinfo=timezone.utc):
+        raise ValueError('zero operation timestamp')
+    return op
+
+
+def queue_valid_id(value):
+    return value not in ('.', '..') and re.fullmatch(r'[A-Za-z0-9_.:-]{1,256}', value) is not None
+
+
+def queue_process_start(pid):
+    """Kernel incarnation, formatted exactly as Go processgroup.StartTime."""
+    if sys.platform == 'darwin':
+        # Darwin SDK sys/proc_info.h struct proc_bsdinfo; libproc supplies
+        # semantic start timeval fields, without ps formatting or padding.
+        class BSDInfo(ctypes.Structure):
+            _fields_ = [('prefix', ctypes.c_uint32 * 12), ('comm', ctypes.c_char * 16),
+                        ('name', ctypes.c_char * 32), ('middle', ctypes.c_uint32 * 6),
+                        ('sec', ctypes.c_uint64), ('usec', ctypes.c_uint64)]
+        info = BSDInfo()
+        library = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+        count = library.proc_pidinfo(pid, 3, 0, ctypes.byref(info), ctypes.sizeof(info))
+        if count != ctypes.sizeof(info) or info.prefix[3] != pid:
+            raise OSError(ctypes.get_errno(), 'kernel process identity unavailable')
+        return f'{info.sec}.{info.usec:06d}'
+    if sys.platform.startswith('linux'):
+        with open(f'/proc/{pid}/stat') as stream:
+            raw = stream.read(8192)
+        fields = raw[raw.rfind(')') + 1:].split()
+        return fields[19]
+    raise OSError('kernel process identity unsupported')
+
+
+def queue_boot_id():
+    if sys.platform == 'darwin':
+        class Timeval(ctypes.Structure):
+            _fields_ = [('sec', ctypes.c_long), ('usec', ctypes.c_int32)]
+        value = Timeval()
+        size = ctypes.c_size_t(ctypes.sizeof(value))
+        library = ctypes.CDLL(None, use_errno=True)
+        if library.sysctlbyname(b'kern.boottime', ctypes.byref(value), ctypes.byref(size), None, 0) != 0:
+            raise OSError(ctypes.get_errno(), 'boot identity unavailable')
+        return f'{value.sec}.{value.usec:06d}'
+    if sys.platform.startswith('linux'):
+        with open('/proc/sys/kernel/random/boot_id') as stream:
+            return stream.read(256).strip()
+    raise OSError('boot identity unsupported')
+
+
+def _queue_atomic(path, raw):
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.queue-', dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+class QueueGate:
+    """Portable admission protocol. It never inspects fleet/process inventories."""
+    def __init__(self, root, top, watch):
+        self.root, self.top, self.watch = root, os.path.realpath(top), watch
+        self.last_pause = ''
+        os.makedirs(root, mode=0o700, exist_ok=True)
+        self.mutex = os.open(os.path.join(root, 'control.lock'), os.O_RDWR | os.O_CREAT, 0o600)
+        self.fd = None
+        self.managed = bool(os.environ.get('WF_SDLC_QUEUE_ID'))
+        self.id = os.environ.get('WF_SDLC_QUEUE_ID') or uuid.uuid4().hex
+        if not queue_valid_id(self.id):
+            raise ValueError('invalid queue operation ID')
+        self.path = os.path.join(root, 'operations', self.id + '.json')
+        if self.managed:
+            with self.locked():
+                self.fd = os.open(self.path, os.O_RDWR)
+                fields, op = self.operation()
+                if not op['managed'] or op['root'] != self.top or op['phase'] != 'waiting' or 'suite' not in op['kinds']:
+                    raise ValueError('managed queue operation binding mismatch')
+            if queue_process_start(op['pid']) != op['pid_started']:
+                raise ValueError('managed queue controller incarnation mismatch')
+        else:
+            started = queue_process_start(watch)
+            try:
+                boot = queue_boot_id()
+            except OSError:
+                boot = ''  # unavailable boot evidence can never retire uncertainty
+            # A filename layout is not Git-verified workspace identity. The
+            # managed controller supplies that proof; raw make stays unknown.
+            raw = dict(schema_version=1, id=self.id, workspace='', kinds=['suite'], phase='waiting',
+                       pid=watch, pid_started=started, managed=False, started_at=datetime.now(timezone.utc).isoformat(),
+                       boot_id=boot, root=self.top, detail='direct full suite in ' + self.top + '; workspace identity unavailable')
+            self.fields = queue_strict_object(json.dumps(raw).encode())
+            with self.locked():
+                for family in ('operations', 'unresolved', 'cancel'):
+                    directory = os.path.join(root, family)
+                    os.makedirs(directory, mode=0o700, exist_ok=True)
+                    if len(os.listdir(directory)) >= QUEUE_MAX_OPERATIONS:
+                        raise ValueError('queue registry capacity reached')
+                fd, temporary = tempfile.mkstemp(prefix='.enroll-', dir=os.path.join(root, 'operations'))
+                self.fd = fd
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    os.write(fd, queue_encode_object(self.fields))
+                    os.fsync(fd)
+                    if any(os.path.lexists(os.path.join(root, family, self.id + '.json')) for family in ('operations', 'unresolved', 'cancel', 'interrupted')):
+                        raise ValueError('queue operation identity already exists')
+                    os.rename(temporary, self.path)
+                except BaseException:
+                    os.close(fd)
+                    self.fd = None
+                    os.unlink(temporary)
+                    raise
+
+    @contextlib.contextmanager
+    def locked(self):
+        end = time.monotonic() + 4
+        while not try_lock(self.mutex):
+            if time.monotonic() >= end:
+                raise ValueError('queue control mutex unavailable')
+            time.sleep(.01)
+        try:
+            yield
+        finally:
+            fcntl.flock(self.mutex, fcntl.LOCK_UN)
+
+    def operation(self):
+        if self.fd is None:
+            raise ValueError('queue lifetime lease is closed')
+        if self.managed and try_lock(self.fd):
+            fcntl.flock(self.fd, fcntl.LOCK_UN)
+            raise ValueError('managed queue lifetime lease is not held')
+        fields = queue_strict_object(os.pread(self.fd, QUEUE_MAX_JSON + 1, 0))
+        op = _queue_operation(fields)
+        if op['id'] != self.id or op['root'] != self.top or op['managed'] != self.managed:
+            raise ValueError('queue lifetime identity changed')
+        return fields, op
+
+    def pause_reason(self):
+        owners = _queue_control(self.root)
+        return 'queue paused: ' + '; '.join(item['owner'] + ': ' + json.dumps(item['reason']) for item in owners) if owners else ''
+
+    def paused(self):
+        with self.locked():
+            self.last_pause = self.pause_reason()
+        return self.last_pause
+
+    def rewrite(self, fields, **changes):
+        raw = queue_encode_object(fields, **changes)
+        _queue_operation(queue_strict_object(raw))
+        os.ftruncate(self.fd, 0)
+        os.pwrite(self.fd, raw, 0)
+        os.fsync(self.fd)
+
+    def try_admit(self, resource):
+        with self.locked():
+            self.last_pause = self.pause_reason()
+            if self.last_pause:
+                return False
+            fields, op = self.operation()
+            if op['phase'] != 'waiting':
+                raise ValueError('only a waiting queue operation admits')
+            if not resource():
+                return False
+            self.rewrite(fields, phase='running')
+            return True
+
+    def binding(self):
+        _, op = self.operation()
+        return dict(queue_operation_id=op['id'], queue_pid=op['pid'], queue_pid_started=op['pid_started'], queue_root=op['root'])
+
+    def intent(self):
+        try:
+            fields = _queue_read(os.path.join(self.root, 'cancel', self.id + '.json'))
+        except FileNotFoundError:
+            return None
+        value = _queue_known(fields, dict(schema_version=int, id=str, reason=str))
+        if value['schema_version'] != 1 or value['id'] != self.id or not _queue_text(value['reason'], 4096):
+            raise ValueError('queue cancellation intent identity mismatch')
+        return value['reason']
+
+    def retire(self, owner_ended=False):
+        with self.locked():
+            fields, op = self.operation()
+            if self.managed:
+                return  # Go owns both its lifetime and interruption evidence.
+            if op['phase'] != 'waiting':
+                detail = 'unmanaged operation ' + self.id + ' in ' + self.top + ': watched owner ended; descendants require operator reconciliation'
+                unknown = queue_encode_object(fields, phase='unknown', detail=detail)
+                destination = os.path.join(self.root, 'unresolved', self.id + '.json')
+                if not os.path.exists(destination):
+                    if len(os.listdir(os.path.join(self.root, 'unresolved'))) >= QUEUE_MAX_OPERATIONS:
+                        raise ValueError('unresolved queue registry full; lifetime retained')
+                    _queue_atomic(destination, unknown)
+                try:
+                    reason = self.intent()
+                except ValueError:
+                    reason = None  # malformed intent remains for operator repair
+                if reason is not None:
+                    envelope = queue_encode_object({}, schema_version=1, id=self.id, outcome='interrupted', reason=reason or 'queue cancellation', recorded_at=datetime.now(timezone.utc).isoformat())
+                    raw = queue_strict_object(envelope)
+                    raw['operation'] = unknown
+                    path = os.path.join(self.root, 'interrupted', self.id + '.json')
+                    if not os.path.exists(path):
+                        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+                        if len(os.listdir(os.path.dirname(path))) >= QUEUE_MAX_OPERATIONS:
+                            raise ValueError('interrupted queue registry full; repair required')
+                        _queue_atomic(path, queue_encode_object(raw))
+                    # The unresolved operation still references this exact intent.
+                    # Resume does not remove it or assert descendant completion.
+            os.unlink(self.path)
+            os.close(self.fd)
+            self.fd = None
+
+    def close(self):
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd = None
+        os.close(self.mutex)
+
+    def after_fork(self):
+        # A flock belongs to the open file description. The watcher must not
+        # share its mutex description with its still-publishing parent.
+        os.close(self.mutex)
+        self.mutex = os.open(os.path.join(self.root, 'control.lock'), os.O_RDWR)
+
+
+def watch_queue_owner(gate, watch):
+    """Only unmanaged owners consume intents; managed Go reaps its own group."""
+    sent = False
+    try:
+        while process_alive(watch):
+            if not gate.managed and not sent:
+                try:
+                    with gate.locked():
+                        fields, op = gate.operation()
+                        reason = gate.intent()
+                    if reason is not None:
+                        if not op['pid_started'] or queue_process_start(watch) != op['pid_started'] or op['pid'] != watch:
+                            raise ValueError('queue cancellation kernel incarnation mismatch')
+                        with gate.locked():
+                            fields, current = gate.operation()
+                            if current['pid_started'] != op['pid_started'] or gate.intent() is None:
+                                raise ValueError('queue cancellation identity changed')
+                            gate.rewrite(fields, phase='interrupting')
+                        os.kill(watch, signal.SIGTERM)  # one fenced make, never its shared group
+                        sent = True
+                except (OSError, ValueError):
+                    # No cancellation authority: keep the lifetime visible.
+                    pass
+            time.sleep(.1)
+        if not gate.managed:
+            gate.retire(owner_ended=True)
+    finally:
+        gate.close()
 
 
 def log(msg):
@@ -130,42 +555,82 @@ class Tickets:
             os.pwrite(self.fd, json.dumps(rec).encode(), 0)
 
     @contextlib.contextmanager
-    def locked(self):
-        fcntl.flock(self.mutex, fcntl.LOCK_EX)
+    def locked(self, blocking=True):
+        if blocking:
+            fcntl.flock(self.mutex, fcntl.LOCK_EX)
+        elif not try_lock(self.mutex):
+            yield False
+            return
         try:
-            yield
+            yield True
         finally:
             fcntl.flock(self.mutex, fcntl.LOCK_UN)
 
-    def admission(self, fds, queue, want, evidence):
-        """Reelect and scan atomically; a waiting head never reserves the token."""
+    def records(self):
+        records = []
+        for number, path in live_tickets(self.dir):
+            try:
+                with open(path, "rb") as stream:
+                    records.append((number, holder(stream.fileno())))
+            except FileNotFoundError:
+                continue
+        return records
+
+    def elect(self, records, deadlines, fds, queue, want):
+        order = effective_order(records, deadlines, time.time())
+        index = next(i for i, (n, _) in enumerate(order) if n == self.number)
+        ahead = [r for _, r in order[:index]]
+        head = index == 0 and try_lock(queue)
+        if head:
+            try:
+                os.ftruncate(queue, 0)
+                os.pwrite(queue, json.dumps(order[0][1]).encode(), 0)
+                taken, busy = scan(fds, want)
+                if taken:
+                    rec = dict(order[0][1], slot=taken[0], slots=taken)
+                    raw = json.dumps(rec).encode()
+                    try:
+                        for slot in taken:
+                            os.ftruncate(fds[slot], 0)
+                            os.pwrite(fds[slot], raw, 0)
+                    except BaseException:
+                        for slot in taken:
+                            fcntl.flock(fds[slot], fcntl.LOCK_UN)
+                        raise
+            finally:
+                fcntl.flock(queue, fcntl.LOCK_UN)
+        else:
+            taken, busy = scan(fds, 0)
+        deadline = deadlines.get(subject_key(order[index][1]), 0)
+        return taken, busy, ahead, head, deadline
+
+    def admission(self, fds, queue, want, evidence, gate=None):
+        """Prepare slow priority evidence outside global gate; revalidate inside."""
+        if gate is None:  # old direct unit callers share the same scheduler
+            with self.locked():
+                records = self.records()
+                deadlines = evidence.deadlines(records, time.time())
+                return self.elect(records, deadlines, fds, queue, want)
+        if gate.paused():
+            return [], scan(fds, 0)[1], [], False, 0
         with self.locked():
-            records = []
-            for number, path in live_tickets(self.dir):
-                try:
-                    with open(path, "rb") as stream:
-                        records.append((number, holder(stream.fileno())))
-                except FileNotFoundError:
-                    # Owners (including older helpers) release outside alloc.
-                    # A snapshot is not a lease on another waiter's pathname.
-                    continue
-            now = time.time()
-            deadlines = evidence.deadlines(records, now)
-            order = effective_order(records, deadlines, time.time())
-            index = next(i for i, (n, _) in enumerate(order) if n == self.number)
-            ahead = [r for _, r in order[:index]]
-            head = index == 0 and try_lock(queue)
-            if head:
-                try:
-                    os.ftruncate(queue, 0)
-                    os.pwrite(queue, json.dumps(order[0][1]).encode(), 0)
-                    taken, busy = scan(fds, want)
-                finally:
-                    fcntl.flock(queue, fcntl.LOCK_UN)
-            else:
-                taken, busy = scan(fds, 0)
-            deadline = deadlines.get(subject_key(order[index][1]), 0)
-            return taken, busy, ahead, head, deadline
+            records = self.records()
+        # Never call a provider while holding the machine gate. New/vanished
+        # tickets invalidate this snapshot and retry without taking any slot.
+        deadlines = evidence.deadlines(records, time.time())
+        result = ([], scan(fds, 0)[1], [], False, 0)
+        def attempt():
+            nonlocal result
+            with self.locked(blocking=False) as acquired:
+                if not acquired:
+                    return False  # Release the global gate before retrying.
+                current = self.records()
+                if current != records:
+                    return False
+                result = self.elect(current, deadlines, fds, queue, want)
+                return bool(result[0])
+        gate.try_admit(attempt)
+        return result
 
     def release(self):
         try:
@@ -417,89 +882,111 @@ def acquire(watch, weight=1):
     fds = [os.open(p, os.O_RDWR | os.O_CREAT, 0o644) for p in paths]
     queue = os.open(paths[0] + ".queue", os.O_RDWR | os.O_CREAT, 0o644)
     want = min(max(1, weight), len(fds))
-    # sdlc local-check runs in a temp worktree and names its checkout here (#400).
     top = os.environ.get("WF_TEST_LOCK_OWNER") or subprocess.run(
         ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.getcwd()
     rec = {"repo": os.path.basename(top), "worktree": top, "pid": watch,
            "started": datetime.now().isoformat(timespec="seconds")}
-    # Makefile.workflow exports the holder's make pid to its children, so a nested
-    # `make test` inside a locked run (or make's own restart) passes through.
     held_by = int(os.environ.get("WF_TEST_LOCK_HELD_BY") or 0)
     limit = float(os.environ.get("WF_TEST_LOCK_TIMEOUT") or 0)
 
     def nested(busy):
-        # A slot this make (or the make it runs under) already holds makes this a
-        # nested run, even with another slot free.
         return any(r and r.get("pid") in (watch, held_by) for r in busy)
 
-    # A nested run passes through without joining the line.
-    if nested(scan(fds, 0)[1]):
-        return "reentrant"
-    provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
-    evidence = GrantEvidence(provider)
-    rec["subject"] = priority_subject(provider, top, evidence)
-    line = Tickets(paths[0], rec)
-    start = last = time.time()
-    first, previous = True, None
+    gate, detached = None, False
     try:
-        while True:
-            require_watch(watch)
-            taken, busy, ahead, head, deadline = line.admission(fds, queue, want, evidence)
-            if nested(busy):
-                for k in taken:
-                    fcntl.flock(fds[k], fcntl.LOCK_UN)
-                return "reentrant"
-            if taken:
-                break
-            held = holders(busy)
-            classification = (f"fleet-blocking issue #{rec['subject']['issue']}, until "
-                              f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
-                              if deadline > time.time() else "normal FIFO")
-            held += f"\n  {classification}"
-            if head:
-                held += "\n  position 1 in line: next to run"
-            else:
-                position = len(ahead) + 1
-                nxt = ahead[0] if ahead else holder(queue)
-                held += f"\n  position {position} in line; next in line: {describe(nxt)}"
-            now = time.time()
-            wanted = "one" if want == 1 else f"{want}"
-            position_state = (classification, len(ahead), head)
-            if first or position_state != previous or now - last >= REPORT_EVERY:
-                log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
-                first, last, previous = False, now, position_state
-            if limit and now - start >= limit:
-                log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{held}")
-                return "timeout"
-            time.sleep(1)
+        if nested(scan(fds, 0)[1]):
+            return "reentrant"
+        gate = QueueGate(queue_state_root(), top, watch)
+        with gate.locked():
+            rec.update(gate.binding())
+        if os.environ.get('WF_SDLC_QUEUE_STOP_IF_PAUSED') == '1' and gate.paused():
+            log(gate.last_pause + '; admitted merge stops before a new suite')
+            return 'paused'
+        provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
+        evidence = GrantEvidence(provider)
+        rec["subject"] = priority_subject(provider, top, evidence)
+        line = Tickets(paths[0], rec)
+        start = last = time.time()
+        first, previous = True, None
+        try:
+            while True:
+                require_watch(watch)
+                taken, busy, ahead, head, deadline = line.admission(fds, queue, want, evidence, gate)
+                if nested(busy):
+                    for slot in taken:
+                        fcntl.flock(fds[slot], fcntl.LOCK_UN)
+                    return "reentrant"
+                if taken:
+                    break
+                if gate.last_pause and os.environ.get('WF_SDLC_QUEUE_STOP_IF_PAUSED') == '1':
+                    log(gate.last_pause + '; admitted merge stops before a new suite')
+                    return 'paused'
+                held = holders(busy)
+                classification = (f"fleet-blocking issue #{rec['subject']['issue']}, until "
+                                  f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
+                                  if deadline > time.time() else "normal FIFO")
+                held += f"\n  {classification}"
+                if gate.last_pause:
+                    held += "\n  " + gate.last_pause
+                if head:
+                    held += "\n  position 1 in line: next to run"
+                else:
+                    position = len(ahead) + 1
+                    nxt = ahead[0] if ahead else holder(queue)
+                    held += f"\n  position {position} in line; next in line: {describe(nxt)}"
+                now = time.time()
+                wanted = "one" if want == 1 else str(want)
+                position_state = (classification, len(ahead), head, gate.last_pause)
+                if first or position_state != previous or now - last >= REPORT_EVERY:
+                    log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
+                    first, last, previous = False, now, position_state
+                if limit and now - start >= limit:
+                    log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{held}")
+                    return "timeout"
+                time.sleep(1)
+        finally:
+            line.release()
+        os.close(queue)
+        queue = None
+        for slot, other in enumerate(fds):
+            if slot not in taken:
+                os.close(other)
+        if not first:
+            log(f"lock acquired after {int(time.time() - start)}s")
+        child = os.fork()
+        if child == 0:
+            for sig in (signal.SIGINT, signal.SIGHUP):
+                signal.signal(sig, signal.SIG_IGN)
+            null = os.open(os.devnull, os.O_RDWR)
+            for std in (0, 1, 2):
+                os.dup2(null, std)
+            os.close(null)
+            try:
+                gate.after_fork()
+                watch_queue_owner(gate, watch)
+            except BaseException:
+                os._exit(1)  # held residue is reconciled conservatively by Go
+            os._exit(0)
+        detached = True
+        rec.update(holder=child, slot=taken[0], slots=taken, started=datetime.now().isoformat(timespec="seconds"))
+        with gate.locked():
+            for slot in taken:
+                os.ftruncate(fds[slot], 0)
+                os.pwrite(fds[slot], json.dumps(rec).encode(), 0)
+        return "acquired"
     finally:
-        line.release()  # taking slots, giving up or nesting all leave the line
-
-    os.close(queue)  # leaving the queue lets the next waiter take its slots
-    held_fds = [fds[k] for k in taken]
-    for k, other in enumerate(fds):
-        if k not in taken:
-            os.close(other)
-
-    if first is False:
-        log(f"lock acquired after {int(time.time() - start)}s")
-    child = os.fork()
-    if child == 0:  # watcher: hold the inherited lock until make exits
-        # Make's process group gets ^C and hangups too; make's exit, not the
-        # signal, is what releases the lock.
-        for sig in (signal.SIGINT, signal.SIGHUP):
-            signal.signal(sig, signal.SIG_IGN)
-        null = os.open(os.devnull, os.O_RDWR)
-        for std in (0, 1, 2):
-            os.dup2(null, std)
-        wait_for_exit(watch)
-        os._exit(0)
-    rec.update(holder=child, slot=taken[0], slots=taken, started=datetime.now().isoformat(timespec="seconds"))
-    for fd in held_fds:
-        os.ftruncate(fd, 0)
-        os.pwrite(fd, json.dumps(rec).encode(), 0)
-    return "acquired"
+        if gate is not None:
+            if not detached and not gate.managed:
+                gate.retire()
+            gate.close()
+        if queue is not None:
+            os.close(queue)
+        for fd in fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 def main():

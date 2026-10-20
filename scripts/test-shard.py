@@ -35,6 +35,13 @@ MAIN_PKG = "github.com/xianxu/ariadne/cmd/sdlc"
 TEST_NAME = re.compile(r"^(Test|Fuzz|Example)\w*$")
 
 
+def default_shards(cpu_count):
+    """Keep suite parallelism bounded while using available CPUs."""
+    if not cpu_count:
+        return 4
+    return max(1, min(8, cpu_count))
+
+
 def git(*args: str) -> str:
     return subprocess.check_output(["git", *args], text=True).strip()
 
@@ -59,7 +66,7 @@ def run_proc(label, cmd, cwd, out_path):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--shards", type=int, default=os.cpu_count() or 4)
+    ap.add_argument("--shards", type=int, default=default_shards(os.cpu_count()))
     ap.add_argument("--timeout", default="30m", help="per-process go test timeout")
     ap.add_argument("--json", help="write the merged test2json stream here")
     args = ap.parse_args()
