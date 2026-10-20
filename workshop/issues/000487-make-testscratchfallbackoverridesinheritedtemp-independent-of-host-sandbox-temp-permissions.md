@@ -1,14 +1,22 @@
 ---
 id: 000487
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours:
 severity: high
 collaboration-mode: collaboration
-card_mirror: 'f449de7aa53a57595be05fa2ac47cd2a4a29cc6c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ab8a15a8fa28bbb088da0c6777aae65f95298861' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T00:23:30-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Make TestScratchFallbackOverridesInheritedTemp independent of host sandbox temp permissions
@@ -32,8 +40,41 @@ Make the inherited-temp fallback regression hermetic: prove replacement of unusa
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce the existing test's mkdir denial using a real macOS sandbox
+  that denies host normal-temp roots while allowing the owned test root.
+- [ ] Add one per-run normal-temp selector dependency to localRunDeps and
+  prepareScratch; nil uses the existing strict scratchdisk.NormalTempDir.
+  Keep candidate policy, filesystem checks, cleanup and child env rules unchanged.
+- [ ] Build the inherited-temp fixture's worktree before invalidating its env,
+  then exercise the real runUnderSlot boundary with an injected writable private
+  fallback. Assert both child paths/writes, replacement notes and cleanup.
+  Keep a runLocalCheck denial control: a failed selector prevents child execution
+  and produces no suite-success evidence. Existing scratchdisk candidate tests
+  retain the all-candidates-denied and actual-probe controls.
+- [ ] Run targeted checks inside and outside the sandbox, then the recorded
+  full suite and close review. Report ready to the hub for its priority grant.
+
+The simpler host-getconf fake is platform-specific and leaves Linux relying on
+/tmp; a global hook would couple concurrent tests. A per-run IO dependency is
+portable and keeps the production selector authoritative (ARCH-PURE, ARCH-DRY).
+No new user-visible state, format, policy, permission or deadline is introduced.
+Only fixed startup IO is added: one existing selector call per fallback; no
+new input scan, worker or durable artifact. Fixture directories die with tests.
+
 
 ## Log
 
 2026-10-19: Filed unclaimed by ariadne:3 while #476 waits behind #467 in the landing line. Checked the current tracker; #481/#482 are unrelated and no active title covers this test. The #467 report is from canonical submitted Couch receipt 914556c3-73fa-4dc0-a9bb-3af82a5a14e0. No process, machine permission, lock or #476 code changes were made.
+
+
+### 2026-10-20 — Start and diagnosis
+
+The #467 main-baseline diagnostic reproduced the same named test and sandbox
+mkdir denial; sdlc classified persistent main failure and refused that landing.
+This is deterministic environment dependence, never a registered flake. #476
+subsequently landed with its unsandboxed integrated full suite passed. The hub
+assigned this follow-up next, requiring a hermetic candidate and sandbox proof.
+The fixture invalidates both inherited temp variables before runLocalCheck, so
+its checkout setup can also need the host fallback. Construct that worktree
+before invalidating env and target runUnderSlot, where the child-env contract
+lives; retain top-level error/status protection in a separate denial control.
