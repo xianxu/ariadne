@@ -1,6 +1,6 @@
 ---
 id: 000499
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 266a62dd1139bd222ea7594044201286fce91246
         evidence_commit: 87a28e178a5a4b49864f8fb7af10773f795676ff
+        landed_commit: 2425f68c3cd2e68dbc0be635b4894018ab7f360c
 ---
 
 # Waiting landing-train readiness retains a stale close anchor across external re-close
