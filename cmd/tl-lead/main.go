@@ -26,6 +26,7 @@ type deps struct {
 	ss     SessionSync
 	sdlc   SDLC
 	actors CouchActors
+	resume CouchResume      // couch --resume-candidates / --resume (fleet resume)
 	now    func() time.Time // nil: the wall clock
 	// landing reads the fleet's newest landing; nil: no landing.
 	landing func(file string) (Landing, error)
@@ -39,7 +40,7 @@ func (d deps) clock() time.Time {
 }
 
 func main() {
-	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, landing: gitNewestLanding}
+	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, resume: execResume{bin: "couch"}, landing: gitNewestLanding}
 	if err := buildRoot(d).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		var ee exitError
@@ -65,6 +66,6 @@ func buildRoot(d deps) *cobra.Command {
 		},
 	}
 	root.CompletionOptions.HiddenDefaultCmd = true
-	root.AddCommand(newStatusCmd(d), newTrainsCmd(d))
+	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d), newFleetCmd(d))
 	return root
 }
