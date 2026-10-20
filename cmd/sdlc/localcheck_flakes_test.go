@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -288,4 +291,180 @@ func TestKnownFlakeGate(t *testing.T) {
 			t.Fatalf("%+v %v", rec, err)
 		}
 	})
+}
+
+// nestedFlakeRepo adds a real Go module to a local-run repo: TestScripts has
+// subtests plain/dev-aliases.test.sh (flaky: fails once per $FLAKE_DIR, then
+// passes) and plain/other.test.sh (fails while $FLAKE_DIR/sibling exists).
+// The suite is plain `go test -v`; the rerun is the real knownFlakeRerunArgv.
+func nestedFlakeRepo(t *testing.T) (localRunDeps, string, *ciFakeGH, *bytes.Buffer, string) {
+	t.Helper()
+	d, _, gh, stderr := localRunRepo(t, "acquired")
+	dir := t.TempDir()
+	t.Setenv("FLAKE_DIR", dir)
+	for rel, body := range map[string]string{
+		"go.mod": "module example.com/flaky\n\ngo 1.22\n",
+		"pkg/nested_test.go": `package pkg
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestScripts(t *testing.T) {
+	t.Run("plain", func(t *testing.T) {
+		t.Run("dev-aliases.test.sh", func(t *testing.T) {
+			mark := filepath.Join(os.Getenv("FLAKE_DIR"), "dev")
+			if _, err := os.Stat(mark); err != nil {
+				os.WriteFile(mark, nil, 0o644)
+				t.Fatal("flaky once")
+			}
+		})
+		t.Run("other.test.sh", func(t *testing.T) {
+			if _, err := os.Stat(filepath.Join(os.Getenv("FLAKE_DIR"), "sibling")); err == nil {
+				t.Fatal("the sibling is broken")
+			}
+		})
+	})
+}
+`,
+	} {
+		p := filepath.Join(d.Root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-q", "-m", "nested tests"}} {
+		if out, err := d.Git(args...); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	out, err := d.Git("rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha := strings.TrimSpace(out)
+	gh.setHead(9, sha)
+	return d, sha, gh, stderr, dir
+}
+
+// #466 done-when: a registered subtest's same-head failure takes the
+// known-flake rerun and lands; the same registration never explains its
+// sibling's failure.
+func TestKnownFlakeGateSubtest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a real Go package")
+	}
+	ctx := context.Background()
+	const top = "example.com/flaky/pkg.TestScripts"
+	suite := localCheck{Name: suiteCheckName, Command: []string{"go", "test", "-count=1", "-v", "./..."}, TimeoutMinutes: 30}
+	t.Run("the registered subtest reruns and lands", func(t *testing.T) {
+		d, sha, gh, stderr, _ := nestedFlakeRepo(t)
+		d.FlakeRegistry = gateRegistry(t, top+"/plain/dev-aliases.test.sh")
+		rec, err := runLocalCheck(ctx, d, suite, sha)
+		if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed {
+			t.Fatalf("%+v %v\n%s", rec, err, stderr)
+		}
+		if gh.statuses[sha]["sdlc-local/suite"] != "success" {
+			t.Fatalf("statuses %v", gh.statuses)
+		}
+		if !strings.Contains(stderr.String(), "-run ^(TestScripts)$") {
+			t.Fatalf("the rerun was not its whole top-level test:\n%s", stderr)
+		}
+	})
+	t.Run("a sibling's failure is unknown and blocks", func(t *testing.T) {
+		d, sha, gh, stderr, dir := nestedFlakeRepo(t)
+		d.FlakeRegistry = gateRegistry(t, top+"/plain/dev-aliases.test.sh")
+		if err := os.WriteFile(filepath.Join(dir, "dev"), nil, 0o644); err != nil { // the registered one passes
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "sibling"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		rec, err := runLocalCheck(ctx, d, suite, sha)
+		if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("%+v %v\n%s", rec, err, stderr)
+		}
+		if !strings.Contains(stderr.String(), "plain/other.test.sh") {
+			t.Fatalf("the refusal does not name the sibling:\n%s", stderr)
+		}
+	})
+}
+
+// The suite log's failing subtests (#466), in each format the parser reads;
+// the records' top-level failures are unchanged.
+func TestFailingSubtestsInEveryLogFormat(t *testing.T) {
+	plain := `=== RUN   TestX
+=== RUN   TestX/plain
+=== RUN   TestX/plain/dev-aliases.test.sh
+    x_test.go:9: flaky
+--- FAIL: TestX (0.01s)
+    --- FAIL: TestX/plain (0.01s)
+        --- FAIL: TestX/plain/dev-aliases.test.sh (0.00s)
+FAIL
+FAIL	example.com/m/pkg	0.02s
+`
+	sharded := "--- FAIL example.com/m/scripts/test TestConstructScripts/plain\n--- FAIL example.com/m/scripts/test TestConstructScripts\n--- FAIL example.com/m/scripts/test\n"
+	jsonLog := `{"Action":"fail","Package":"example.com/m/pkg","Test":"TestX/plain/a.sh"}
+{"Action":"fail","Package":"example.com/m/pkg","Test":"TestX/plain"}
+{"Action":"fail","Package":"example.com/m/pkg","Test":"TestX"}
+{"Action":"fail","Package":"example.com/m/pkg","Elapsed":0.1}
+`
+	for name, c := range map[string]struct {
+		log, top string
+		subs     []string
+	}{
+		"go test -v": {plain, "example.com/m/pkg.TestX", []string{"example.com/m/pkg.TestX/plain", "example.com/m/pkg.TestX/plain/dev-aliases.test.sh"}},
+		"sharded":    {sharded, "example.com/m/scripts/test.TestConstructScripts", []string{"example.com/m/scripts/test.TestConstructScripts/plain"}},
+		"json":       {jsonLog, "example.com/m/pkg.TestX", []string{"example.com/m/pkg.TestX/plain", "example.com/m/pkg.TestX/plain/a.sh"}},
+	} {
+		facts := parseSuiteLogFacts(c.log)
+		if strings.Join(facts.Failures, ",") != c.top || strings.Join(facts.Subtests, ",") != strings.Join(c.subs, ",") {
+			t.Errorf("%s: failures %v subtests %v", name, facts.Failures, facts.Subtests)
+		}
+	}
+	data, err := json.Marshal(parseSuiteLogFacts(plain))
+	if err != nil || strings.Contains(string(data), "dev-aliases") {
+		t.Fatalf("subtests reached the persisted facts: %s %v", data, err)
+	}
+}
+
+// #466 close review, BR-1: the success guard reads a failed attempt's
+// subtests from its saved log. Registering the failing subtest explains the
+// attempt, and its saved pass republishes; registering only a sibling does
+// not. Without the log wiring the subtest never covers, and this goes red.
+func TestSuitePassGuardReadsSubtestsFromTheLog(t *testing.T) {
+	ctx := context.Background()
+	const top = "o/r/pkg.TestX"
+	failing := localCheck{Name: suiteCheckName, TimeoutMinutes: 30, Command: []string{"sh", "-c",
+		"printf -- '--- FAIL: TestX (0.00s)\\n    --- FAIL: TestX/plain (0.00s)\\n        --- FAIL: TestX/plain/dev.sh (0.00s)\\nFAIL\\nFAIL\\to/r/pkg\\t0.01s\\n'; exit 1"}}
+	pass := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo passed"}, TimeoutMinutes: 30}
+	for name, c := range map[string]struct {
+		registered string
+		lands      bool
+	}{
+		"the failing subtest registered": {top + "/plain/dev.sh", true},
+		"only its sibling registered":    {top + "/plain/other.sh", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, sha, gh, _ := localRunRepo(t, "acquired")
+			d.FlakeRegistry = gateRegistry(t, "o/r/pkg.TestUnrelated")
+			if rec, err := runLocalCheck(ctx, d, failing, sha); err != nil || rec.passed() {
+				t.Fatalf("%+v %v", rec, err)
+			}
+			if _, err := runLocalCheck(ctx, d, pass, sha); err == nil {
+				t.Fatal("a pass over an unexplained failure was posted")
+			}
+			d.FlakeRegistry = gateRegistry(t, c.registered)
+			rec, ok, err := republishSavedPass(ctx, d, pass, sha)
+			landed := ok && err == nil && rec.passed() && gh.statuses[sha]["sdlc-local/suite"] == "success"
+			if landed != c.lands {
+				t.Fatalf("republish landed %v, want %v: %+v %v %v %v", landed, c.lands, rec, ok, err, gh.statuses[sha])
+			}
+		})
+	}
 }

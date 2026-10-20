@@ -571,7 +571,26 @@ while an open issue's card lists it in `flake_tests`. `sdlc flake register --tes
 PKG.TestX [--issue N]` writes the field only with same-head fail→pass evidence
 from this machine's test-stats store (or `--evidence TEXT` for a CI run); without
 `--issue` it files an unclaimed flake issue. Closing the issue unregisters its
-tests. `sdlc flake list` is the TL's local daily view: the registry with each
+tests.
+
+A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test.sh`.
+- **What it explains:** only its own failure and its subtests'. A sibling
+  subtest's failure stays unknown and blocks.
+- **Rerun:** its rerun is the whole top-level test, and it must show the
+  subtest's PASS line.
+- **Evidence:** registering a subtest needs the top-level test's same-head
+  fail→pass, and the failed attempt's saved log must name that subtest.
+- **Correcting a registration:**
+  - `sdlc flake narrow --issue N --test OLD --to OLD/sub` replaces a name with one of its own subtests, with no new evidence.
+  - `sdlc flake unregister --issue N --test NAME` removes a name.
+  - Both are for the card's owner, or anyone while the issue is unclaimed.
+- **Rollout:** rebuild :0, and refresh the slots, before registering a subtest
+  name. An older sdlc reads one as malformed and turns the known-flake rule off:
+  every failure blocks. It also refuses a test-stats attempt whose
+  `known_flakes` names a subtest, so its success guard and test-stats fail
+  closed until it is rebuilt.
+
+`sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
 unregistered list when exactly one closed issue claims its fully qualified test
