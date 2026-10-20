@@ -136,18 +136,18 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
 
 ### M1
 
-- [ ] **T1 `Slots`** (`internal/landingline/slots.go`, `slots_test.go`):
+- [x] **T1 `Slots`** (`internal/landingline/slots.go`, `slots_test.go`):
   - a table of interval 60/30, offsets 0/15/45, times around each boundary (exactly on a slot counts as due);
   - property: `Prev(t) ≤ t < Next(t)` and `Next(t) − Prev(t) = interval`, for random t.
-- [ ] **T2 `DepartureDue`**:
+- [x] **T2 `DepartureDue`**:
   - Extend `Schedule` with `MaxWait` and `Offset *time.Duration`; pass the ready waiters (oldest vouch time and count).
   - Test each reason, the precedence (left-ready, then full, then max-wait, then slot), and that the grid is unchanged after an early departure: a train that left at :05 because it was full still has :15 as the next slot.
-- [ ] **T3 the reset fix:** `serial()` records `alone` with no `NextDue`, and `NextDeparture` / `lastTrainDeparture` consider only non-`alone` trains.
+- [x] **T3 the reset fix:** `serial()` records `alone` with no `NextDue`, and `NextDeparture` / `lastTrainDeparture` consider only non-`alone` trains.
   - Unit test: events [train@:00, alone@:10 (grant)] give the next slot :00+interval, not :10+interval.
   - e2e: `TestLandingTrainGrantDepartsAloneWhenNoTrainIsDue` gains an assertion that the next departure is unchanged by the grant.
-- [ ] **T4 config:** `train_max_wait_minutes` (0..24*60) in `landingconfig.go`; `TestParseLandingConfig` gains its cases, including the unknown-key case already there.
-- [ ] **T5 `landing status`:** prints `train due (<reason>)` or `next train at HH:MM (<slot|max-wait>)`; golden test.
-- [ ] **M1 close:** targeted tests, then `sdlc milestone-close --milestone M1`.
+- [x] **T4 config:** `train_max_wait_minutes` (0..24*60) in `landingconfig.go`; `TestParseLandingConfig` gains its cases, including the unknown-key case already there.
+- [x] **T5 `landing status`:** prints `train due (<reason>)` or `next train at HH:MM (<slot|max-wait>)`; golden test.
+- [x] **M1 close:** targeted tests, then `sdlc milestone-close --milestone M1`.
 
 ### M2
 

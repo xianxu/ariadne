@@ -186,11 +186,19 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	case sched.Off():
 		b.WriteString("trains: off (each landing runs its own suite; " + landingConfigPath + " sets an interval)\n")
 	default:
-		next := "the first train departs at the next admission"
-		if at, ok := landingline.NextDeparture(events); ok {
-			next = "next train at " + at.Format(time.RFC3339)
+		// The same decision admission makes (#475), with its reason: the
+		// slot, a full train, or a car waiting past the bound.
+		now := d.now()
+		w := landingline.ReadyWaiters(waiting, ready, now)
+		_, next := landingline.DepartureDue(now, sched, events, w)
+		if _, ok := landingline.NextDeparture(events); !ok {
+			next = "the first train departs at the next admission"
 		}
-		fmt.Fprintf(&b, "trains: every %dm, up to %d cars; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, next)
+		bound := ""
+		if sched.MaxWait > 0 {
+			bound = fmt.Sprintf(", or when a car has waited %dm", int(sched.MaxWait/time.Minute))
+		}
+		fmt.Fprintf(&b, "trains: every %dm, up to %d cars%s; %d ready; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, bound, w.Ready, next)
 	}
 	for _, line := range recentTrains(events, 3) {
 		b.WriteString(line + "\n")

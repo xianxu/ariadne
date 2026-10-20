@@ -73,7 +73,8 @@ type Line struct {
 
 // AdmissionRule decides one ticket's admission from the events log as read
 // under the line mutex.
-type AdmissionRule func(events []Event, t Ticket, r *Readiness, granted bool) (bool, string)
+// w summarizes the ready cars (#475) for the early-departure rules.
+type AdmissionRule func(events []Event, t Ticket, r *Readiness, granted bool, w Waiters) (bool, string)
 
 // ErrNotWaiting is a vouch from a merge that is no longer waiting (admitted
 // or released): not a failure, the vouching simply ends.
@@ -264,6 +265,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 				events = nil // unreadable: the first train, never a stall
 			}
 			ready := l.readReady()
+			w := ReadyWaiters(live, ready, l.o.Now())
 			candidates = nil
 			for _, t := range live {
 				var r *Readiness
@@ -271,7 +273,7 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 					r = &v
 				}
 				_, granted := grants[t.Issue]
-				ok, reason := admissible(events, t, r, granted)
+				ok, reason := admissible(events, t, r, granted, w)
 				if ok {
 					candidates = append(candidates, t)
 				} else if t.Seq == h.ticket.Seq {
@@ -330,7 +332,11 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 		if old, err := os.ReadFile(h.ready); err == nil && len(old) <= maxTicket {
 			if prev, err := DecodeReadiness(old); err == nil && prev.Seq == h.ticket.Seq {
 				r.Extra = mergeExtra(prev.Extra, r.Extra)
+				r.Since = carrySince(&prev, r)
 			}
+		}
+		if r.Since.IsZero() {
+			r.Since = carrySince(nil, r)
 		}
 		return writeAtomic(filepath.Join(l.dir, "ready"), h.ready, r)
 	})

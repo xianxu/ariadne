@@ -21,6 +21,9 @@ const landingConfigPath = ".sdlc/landing.json"
 type landingConfig struct {
 	TrainIntervalMinutes *int `json:"train_interval_minutes"`
 	TrainMaxCars         *int `json:"train_max_cars"`
+	// TrainMaxWaitMinutes bounds a ready car's wait (#475): a train leaves
+	// once the oldest ready car has waited this long. Absent or 0: no bound.
+	TrainMaxWaitMinutes *int `json:"train_max_wait_minutes"`
 }
 
 const (
@@ -54,6 +57,12 @@ func parseLandingConfig(data []byte) (landingline.Schedule, error) {
 			return fail("train_max_cars %d is outside 1..%d", *v, maxTrainCars)
 		}
 		s.MaxCars = *v
+	}
+	if v := c.TrainMaxWaitMinutes; v != nil {
+		if *v < 0 || *v > maxTrainInterval {
+			return fail("train_max_wait_minutes %d is outside 0..%d", *v, maxTrainInterval)
+		}
+		s.MaxWait = time.Duration(*v) * time.Minute
 	}
 	return s, nil
 }

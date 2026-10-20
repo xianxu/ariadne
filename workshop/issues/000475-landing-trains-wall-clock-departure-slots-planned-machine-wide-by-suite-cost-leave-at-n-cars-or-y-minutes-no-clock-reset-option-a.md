@@ -53,7 +53,7 @@ decision (option A, 10-19): ops `teams/devinfra/tl-status-xian-xu.side/2026-10-1
 
 Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../plans/000475-landing-train-departure-slots-plan.md). It has decisions D1–D5, a state table, and ARCH notes.
 
-- [ ] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
+- [x] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
 - [ ] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
 
 ## Estimate
@@ -96,3 +96,12 @@ Items, in order:
   - The suite lock lives in `${XDG_STATE_HOME:-~/.local/state}/ariadne/`.
   - `test-stats` gives p50/p90 wall time per repo but no weight; the weight comes from the local-checks declaration and the make probe.
 - The hub approved the plan; D1–D5 confirmed. It noted that the plan must re-read the weight, since #480 may change ariadne's shard count: `landing plan --write` reads the declared weight live, and the 30 s cache picks up a rewritten file. Only pair has trains on today.
+- **M1 implemented:**
+  - `Slots` (epoch-anchored grid).
+  - `DepartureDue(now, s, events, Waiters)`, with the full and max-wait reasons ahead of the time check; the reported next time is min(slot, oldest + Y).
+  - `NextDue` on the grid when a plan offset is set; `AloneNextDue` gives the reset fix (an `alone` record carries NextDue only when it left cars ready).
+  - `Event.Departed`; `Readiness.Since`, through `carrySince` in `Vouch`.
+  - `ReadyWaiters`, computed once per `tryAdmit` pass.
+  - `train_max_wait_minutes`; `landing status` shows the decision and its reason.
+- **`AdmissionRule` implementations updated** (the compiler's enumeration): `trainAdmission`'s two closures (`landingcar.go`); the stubs in `internal/landingline/train_test.go` (`TestAdmissibleGatesTheHead`, `TestAdmissionSeesTheTrainTheLastHeadRecorded`); and the calls in `TestTrainAdmission`.
+- **Red-checked:** the grant e2e fails with the old `serial()` NextDue. `TestLandingTrainOfOneIsTodaysLanding` now asserts that a lone landing has no NextDue and a Departed time.

@@ -37,7 +37,7 @@ func TestDepartureDue(t *testing.T) {
 		{"a train event without NextDue is not a schedule", hourly(), []Event{{Kind: EventTrain}}, tt0, true},
 	}
 	for _, c := range cases {
-		if got, why := DepartureDue(c.now, c.s, c.events); got != c.want || why == "" {
+		if got, why := DepartureDue(c.now, c.s, c.events, Waiters{}); got != c.want || why == "" {
 			t.Errorf("%s: due %v (%q), want %v", c.name, got, why, c.want)
 		}
 	}
@@ -311,7 +311,7 @@ func TestAdmissibleGatesTheHead(t *testing.T) {
 	attempts := 0
 	o.Admission = func() AdmissionRule {
 		attempts++
-		return func(_ []Event, tk Ticket, r *Readiness, granted bool) (bool, string) {
+		return func(_ []Event, tk Ticket, r *Readiness, granted bool, _ Waiters) (bool, string) {
 			if !due {
 				return false, "next train at 10:00"
 			}
@@ -509,7 +509,7 @@ func TestVouchConcurrentWithAdmission(t *testing.T) {
 func TestAdmissionSeesTheTrainTheLastHeadRecorded(t *testing.T) {
 	o := testOptions(nil)
 	o.Admission = func() AdmissionRule {
-		return func(events []Event, _ Ticket, _ *Readiness, _ bool) (bool, string) {
+		return func(events []Event, _ Ticket, _ *Readiness, _ bool, _ Waiters) (bool, string) {
 			if _, ok := NextDeparture(events); ok {
 				return false, "next train later"
 			}
@@ -527,5 +527,162 @@ func TestAdmissionSeesTheTrainTheLastHeadRecorded(t *testing.T) {
 	a.Release()
 	if _, _, why, err := l.tryAdmit(b); err != nil || why != "next train later" {
 		t.Fatalf("admitted on a stale ledger: why %q err %v", why, err)
+	}
+}
+
+// #475: the departure reasons in precedence: a full train and a car waiting
+// past the bound leave before the departure time; otherwise the time decides,
+// and the reported next time is the earlier of the slot and the wait bound.
+func TestDepartureDueEarlyReasons(t *testing.T) {
+	s := Schedule{Interval: time.Hour, MaxCars: 3, MaxWait: 20 * time.Minute}
+	events := []Event{{Kind: EventTrain, At: tt0, NextDue: tt0.Add(time.Hour)}}
+	now := tt0.Add(10 * time.Minute)
+	for _, c := range []struct {
+		name string
+		w    Waiters
+		at   time.Time
+		due  bool
+		why  string
+	}{
+		{"nobody waiting", Waiters{}, now, false, "next train at 2026-10-19T10:00:00Z"},
+		{"full", Waiters{Ready: 3, OldestSince: now}, now, true, "full: 3 ready"},
+		{"the oldest waited the bound", Waiters{Ready: 1, OldestSince: now.Add(-20 * time.Minute)}, now, true, "waited 20m"},
+		{"waiting, under the bound: the bound is the next time", Waiters{Ready: 1, OldestSince: now}, now, false, "next train at 2026-10-19T09:30:00Z"},
+		{"the slot comes first", Waiters{Ready: 1, OldestSince: tt0.Add(50 * time.Minute)}, tt0.Add(55 * time.Minute), false, "next train at 2026-10-19T10:00:00Z"},
+		{"the departure time", Waiters{}, tt0.Add(time.Hour), true, "train due"},
+	} {
+		if due, why := DepartureDue(c.at, s, events, c.w); due != c.due || !strings.Contains(why, c.why) {
+			t.Errorf("%s: %v %q, want %v %q", c.name, due, why, c.due, c.why)
+		}
+	}
+	// No bound configured: a long wait alone never departs early.
+	s.MaxWait = 0
+	if due, _ := DepartureDue(now, s, events, Waiters{Ready: 1, OldestSince: tt0.Add(-5 * time.Hour)}); due {
+		t.Error("departed early without a wait bound")
+	}
+}
+
+// #475: with a machine plan the next departure is the grid's next slot after
+// the departure, so an early departure leaves the grid where it was (D1).
+func TestNextDueOnTheGrid(t *testing.T) {
+	off := 15 * time.Minute
+	s := Schedule{Interval: time.Hour, MaxCars: 3, Offset: &off}
+	early := tt0.Add(5 * time.Minute) // a full train left at 09:05
+	if got := NextDue(early, s, false); !got.Equal(tt0.Add(15 * time.Minute)) {
+		t.Errorf("after an early departure: %v, want the 09:15 slot", got)
+	}
+	if got := NextDue(tt0.Add(15*time.Minute), s, false); !got.Equal(tt0.Add(75 * time.Minute)) {
+		t.Errorf("after the slot's own departure: %v, want 10:15", got)
+	}
+	if got := NextDue(early, s, true); !got.Equal(early) {
+		t.Errorf("left ready cars: %v, want at once", got)
+	}
+}
+
+// #475: a lone or granted landing never pushes the next train back; one that
+// left ready cars behind brings it forward.
+func TestAloneLandingNeverResetsTheClock(t *testing.T) {
+	train := Event{Kind: EventTrain, At: tt0, NextDue: tt0.Add(time.Hour), Departed: tt0}
+	grant := Event{Kind: EventTrain, Result: "alone", At: tt0.Add(10 * time.Minute), NextDue: AloneNextDue(tt0.Add(10*time.Minute), false)}
+	if next, _ := NextDeparture([]Event{train, grant}); !next.Equal(tt0.Add(time.Hour)) {
+		t.Errorf("a grant moved the next train to %v", next)
+	}
+	leftReady := Event{Kind: EventTrain, Result: "alone", At: tt0.Add(10 * time.Minute), NextDue: AloneNextDue(tt0.Add(10*time.Minute), true)}
+	if due, _ := DepartureDue(tt0.Add(10*time.Minute), hourly(), []Event{train, leftReady}, Waiters{}); !due {
+		t.Error("a lone landing that left ready cars did not bring the train forward")
+	}
+}
+
+// #475: a car's first ready vouch survives re-vouches at the same head and
+// starts over at a new head or after a not-ready vouch; the waiters summary
+// counts only current vouches and takes the oldest first vouch.
+func TestReadinessSinceAndWaiters(t *testing.T) {
+	first := vouch(1, true, tt0)
+	first.Since = carrySince(nil, first)
+	again := vouch(1, true, tt0.Add(2*time.Minute))
+	if s := carrySince(&first, again); !s.Equal(tt0) {
+		t.Errorf("re-vouch: %v", s)
+	}
+	moved := again
+	moved.Head = oid('b')
+	if s := carrySince(&first, moved); !s.Equal(moved.At) {
+		t.Errorf("new head: %v", s)
+	}
+	if s := carrySince(&first, vouch(1, false, tt0.Add(time.Minute))); !s.IsZero() {
+		t.Errorf("not ready: %v", s)
+	}
+	old := vouch(2, true, tt0.Add(time.Minute)) // a sidecar from before Since: reads as At
+	if s := carrySince(&old, vouch(2, true, tt0.Add(3*time.Minute))); !s.Equal(tt0.Add(time.Minute)) {
+		t.Errorf("old sidecar: %v", s)
+	}
+	now := tt0.Add(3 * time.Minute)
+	live := []Ticket{{Seq: 1, Branch: "b"}, {Seq: 2, Branch: "b"}, {Seq: 3, Branch: "b"}}
+	stale := vouch(3, true, tt0.Add(-time.Hour))
+	again.Since = tt0
+	ready := map[int64]Readiness{1: again, 2: vouch(2, true, now), 3: stale}
+	if w := ReadyWaiters(live, ready, now); w.Ready != 2 || !w.OldestSince.Equal(tt0) {
+		t.Errorf("waiters %+v", w)
+	}
+	// Since round-trips through the sidecar codec; an old sidecar decodes.
+	data, _ := json.Marshal(again)
+	if r, err := DecodeReadiness(data); err != nil || !r.Since.Equal(tt0) {
+		t.Errorf("since round trip: %+v %v", r, err)
+	}
+	data, _ = json.Marshal(vouch(4, true, tt0))
+	if r, err := DecodeReadiness(data); err != nil || !r.Since.IsZero() {
+		t.Errorf("old sidecar: %+v %v", r, err)
+	}
+}
+
+// #475: a train event's departure persists, additively; one without it reads.
+func TestEventDepartedRoundTrip(t *testing.T) {
+	for _, e := range []Event{{Kind: EventTrain, At: tt0.Add(time.Minute), Departed: tt0}, {Kind: EventTrain, At: tt0}} {
+		data, err := json.Marshal(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var back Event
+		if err := json.Unmarshal(data, &back); err != nil || !back.Departed.Equal(e.Departed) {
+			t.Errorf("%s: %+v %v", data, back, err)
+		}
+		if e.Departed.IsZero() && strings.Contains(string(data), "departed") {
+			t.Errorf("a zero departure was written: %s", data)
+		}
+	}
+}
+
+// #475: through the line itself, a re-vouch at the same head keeps the first
+// ready time and a new head starts it over, so max-wait counts from the car's
+// first ready vouch, not its latest.
+func TestVouchKeepsSince(t *testing.T) {
+	now := tt0
+	o := testOptions(nil)
+	o.Now = func() time.Time { return now }
+	l := openLine(t, t.TempDir(), o)
+	h := enqueue(t, l, 1)
+	since := func() time.Time {
+		t.Helper()
+		ready, err := l.Readiness()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ready[h.Ticket().Seq].Since
+	}
+	vouchAt := func(head byte) {
+		t.Helper()
+		if err := l.Vouch(h, Readiness{Branch: "b", Head: oid(head), PR: 1, Ready: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	vouchAt('a')
+	now = tt0.Add(4 * time.Minute)
+	vouchAt('a')
+	if s := since(); !s.Equal(tt0) {
+		t.Fatalf("re-vouch moved Since to %v", s)
+	}
+	now = tt0.Add(6 * time.Minute)
+	vouchAt('b')
+	if s := since(); !s.Equal(now) {
+		t.Fatalf("a new head kept Since at %v", s)
 	}
 }
