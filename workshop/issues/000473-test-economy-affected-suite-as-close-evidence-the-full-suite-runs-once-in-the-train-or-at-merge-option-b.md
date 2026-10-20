@@ -1,13 +1,13 @@
 ---
 id: 000473
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 estimate_hours: 2.37
 collaboration-mode: collaboration
-card_mirror: '5606ab0eac6044fdca8b860d797a4f226709015e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '24bd4ee3e5c151a3fe6d2b639fe518151ab92b01' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-19T20:26:49-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.13
 ---
 
 # test-economy: affected-suite as close evidence; the full suite runs once, in the train or at merge (option B')
