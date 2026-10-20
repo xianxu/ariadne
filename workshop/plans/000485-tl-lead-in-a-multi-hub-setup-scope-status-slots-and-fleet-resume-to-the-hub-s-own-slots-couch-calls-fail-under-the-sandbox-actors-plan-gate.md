@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: fe80efa9-6af7-405e-8aa5-d3ac5c3075c8
+        repository: github.com/xianxu/ariadne
+        issue_id: "000485"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: ed75ad3d8999929c9e2107ed9663e4a5b13eeeee
+        slot: ariadne:2
+        requested_at: "2026-10-20T20:49:07.234121Z"
+      phase: finished
+      pid: 43697
+      started_at: "2026-10-20T20:49:07.396892Z"
+      finished_at: "2026-10-20T20:49:35.547015Z"
+      session_id: 01a15b13-34ce-76e0-9c60-7c28afe426bd
+      outcome: returned
 gate: plan-quality
 issue: 485
 id_prefix: PQ
@@ -75,6 +95,32 @@ rounds:
           note: Tasks 1–3 now name functions and adversarial strategies while retaining completion barriers, output retention, hidden-hold protection and selected-read counting.
           round: 2
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: a08f3e1f-d7af-479c-9258-e4e1507b0ee0
+            repository: github.com/xianxu/ariadne
+            issue_id: "000485"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: ed75ad3d8999929c9e2107ed9663e4a5b13eeeee
+            slot: ariadne:2
+            requested_at: "2026-10-20T20:48:34.895063Z"
+          phase: finished
+          pid: 10459
+          started_at: "2026-10-20T20:48:35.043551Z"
+          finished_at: "2026-10-20T20:49:05.252931Z"
+          session_id: 01a15b12-b635-70e3-ba3e-bda0960cd786
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-20T13:49:05-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: 492ac3b1fb36953c1f797bc298d8c09edc4415f39e0a5571360072eb1bfe01ed
 ---
 
@@ -98,6 +144,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Named classifier requires matching terminal receipt and consistent normal exit; unconfirmed outcomes retain diagnostics, permit only observation and stop the batch.
 - PQ-2 — addressed — Tasks 1–3 now name functions and adversarial strategies while retaining completion barriers, output retention, hidden-hold protection and selected-read counting.
+
+## Round 3 — 2026-10-20T13:49:05-07:00 (codex) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
