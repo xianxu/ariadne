@@ -54,7 +54,7 @@ decision (option A, 10-19): ops `teams/devinfra/tl-status-xian-xu.side/2026-10-1
 Durable plan: [workshop/plans/000475-landing-train-departure-slots-plan.md](../plans/000475-landing-train-departure-slots-plan.md). It has decisions D1–D5, a state table, and ARCH notes.
 
 - [x] M1 — departure rule: wall-clock `Slots`, `DepartureDue` with full/max-wait/slot reasons, `train_max_wait_minutes`, and the clock-reset fix (`alone` records carry no NextDue), plus the reason in `landing status`
-- [ ] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
+- [x] M2 — machine plan: `MachinePlan` + `PackOffsets` (p90 × weight, ≤ 2 suite slots), plan file next to the suite lock, offsets wired into admission, `sdlc landing plan [--write]`, help and atlas, live dry run
 
 ## Estimate
 
@@ -113,3 +113,11 @@ Items, in order:
   - `alone` records that didn't leave cars ready, old-format ones included, are never a schedule (`TestNextDepartureReadsTheDeparture`).
   - One `waitDeadline` helper replaces the duplicated condition.
   - `Readiness.SinceHead` makes a `Since` carried by an older sdlc across a head change read as stale (`TestStaleSinceFromAnOlderSdlc`).
+- **M1 closed (SHIP, two rounds).** Its advisory was the second finding in the family "an unknown-field carry keeps stale meaning". Rule: trust a derived field only on a record written by an sdlc that maintains it. `since_head` became `since_stamp` (= the At of the vouch that wrote Since). An older sdlc rewriting the vouch for any reason (a new head, not ready, ready again) changes At, so the stamp no longer matches and the wait counts from the vouch (`TestStaleSinceFromAnOlderSdlc` covers both reset cases).
+- **M2 implemented:**
+  - `MachinePlan` (strict decode; unknown members kept, top-level and per repo); `PackOffsets` (golden: ariadne :00, pair and parley :15; overlap property).
+  - `machinePlanPath` and `readMachinePlan`, applied in `landingScheduleSource` under its 30 s cache: no entry keeps the interval; an unreadable plan is warned once.
+  - `sdlc landing plan [--write]` (`landingplan.go`): costs from `buildTestStatsReport` and `fleetRepoPaths`, both split out of test-stats with no change in behaviour, plus each repo's declared suite weight on main. `--write` keeps unknown members and other repos' entries, and refuses to replace an unreadable plan.
+  - The Done-when fixture `TestPlannedReposNeverDepartInEachOthersWindow`.
+  - Help, atlas, and tl-lead's steward duties.
+  - The landing, train and test-stats tests pass.

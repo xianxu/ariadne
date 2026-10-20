@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -219,11 +220,13 @@ var landingScheduleTTL = 30 * time.Second
 // serial line, warned once: serial spends more suites but never lands
 // anything a train would not. The source is shared by the vouching goroutine
 // and the admission poll, so it is safe for concurrent use.
-func landingScheduleSource(git func(args ...string) (string, error), remote string, stderr io.Writer) func() landingline.Schedule {
+// repo names the repository in the machine plan (#475): its checkout's
+// folder name, as slot worktrees and :0 checkouts both end in it.
+func landingScheduleSource(git func(args ...string) (string, error), remote, repo string, stderr io.Writer) func() landingline.Schedule {
 	var mu sync.Mutex
 	var cached landingline.Schedule
 	var readAt time.Time
-	warned := false
+	warned, planWarned := false, false
 	return func() landingline.Schedule {
 		mu.Lock()
 		defer mu.Unlock()
@@ -238,6 +241,21 @@ func landingScheduleSource(git func(args ...string) (string, error), remote stri
 				fmt.Fprintf(stderr, "landing train: could not read %s (%v); landing serially\n", landingConfigPath, err)
 			}
 			s = landingline.Schedule{}
+		}
+		// The machine plan places the repository on its departure grid
+		// (#475). No plan, or no entry, keeps the interval after the last
+		// train; an unreadable plan does too, warned once.
+		if !s.Off() {
+			p, err := readMachinePlan(machinePlanPath())
+			switch {
+			case err == nil:
+				if off, ok := p.Offset(repo, s.Interval); ok {
+					s.Offset = &off
+				}
+			case !errors.Is(err, fs.ErrNotExist) && !planWarned:
+				planWarned = true
+				fmt.Fprintf(stderr, "landing train: machine plan unreadable (%v); departing on the interval\n", err)
+			}
 		}
 		cached, readAt = s, now
 		return cached

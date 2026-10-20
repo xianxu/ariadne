@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -82,4 +84,33 @@ func readLandingSchedule(git func(args ...string) (string, error), rev string) (
 		return landingline.Schedule{}, fmt.Errorf("read %s on %s: %w", landingConfigPath, rev, err)
 	}
 	return parseLandingConfig([]byte(data))
+}
+
+// machinePlanPath is the machine plan's file (#475): beside the suite lock,
+// which scripts/test-lock.py puts at $WF_TEST_LOCK_FILE, else
+// ${XDG_STATE_HOME:-~/.local/state}/ariadne/test-suite.lock.
+func machinePlanPath() string {
+	if lock := os.Getenv("WF_TEST_LOCK_FILE"); lock != "" {
+		return filepath.Join(filepath.Dir(lock), "landing-plan.json")
+	}
+	state := os.Getenv("XDG_STATE_HOME")
+	if state == "" {
+		home, _ := os.UserHomeDir()
+		state = filepath.Join(home, ".local", "state")
+	}
+	return filepath.Join(state, "ariadne", "landing-plan.json")
+}
+
+// readMachinePlan reads and checks the plan file; a missing file is
+// fs.ErrNotExist (no plan: today's clock), anything else names the file.
+func readMachinePlan(path string) (landingline.MachinePlan, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return landingline.MachinePlan{}, err
+	}
+	p, err := landingline.DecodePlan(data)
+	if err != nil {
+		return landingline.MachinePlan{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return p, nil
 }

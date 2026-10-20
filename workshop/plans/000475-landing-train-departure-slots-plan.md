@@ -151,18 +151,18 @@ The plan file is hand-editable, per-user state. It is parsed into typed values: 
 
 ### M2
 
-- [ ] **T6 `MachinePlan` and `PackOffsets`** (`internal/landingline/plan.go`, `plan_test.go`):
+- [x] **T6 `MachinePlan` and `PackOffsets`** (`internal/landingline/plan.go`, `plan_test.go`):
   - decode/encode round-trip that keeps unknown members, top-level and per repo;
   - invalid offset, version and JSON cases;
   - packing with today's measured costs (ariadne 9.5 min × 2, pair 12.5 × 1, parley 2.7 × 1) gives ariadne :00, pair :15, parley :15;
   - the overlap property for random costs: summed weight ≤ slots at every minute.
-- [ ] **T7 `readMachinePlan`** (`landingconfig.go`): path resolution (XDG, WF_TEST_LOCK_FILE), a 30 s cache that shares `landingScheduleSource`'s pattern, and a fallback with one warning.
-- [ ] **T8 admission:** `trainAdmission` takes the repo's offset from the plan. Fixture: two repos, offsets 0 and 15, interval 60, a fake clock stepping through an hour. Each repo's train becomes due only in its own slot, so their suites never start within each other's p90 window.
-- [ ] **T9 `sdlc landing plan [--write]`:**
+- [x] **T7 `readMachinePlan`** (`landingconfig.go`): path resolution (XDG, WF_TEST_LOCK_FILE), a 30 s cache that shares `landingScheduleSource`'s pattern, and a fallback with one warning.
+- [x] **T8 admission:** `trainAdmission` takes the repo's offset from the plan. Fixture: two repos, offsets 0 and 15, interval 60, a fake clock stepping through an hour. Each repo's train becomes due only in its own slot, so their suites never start within each other's p90 window.
+- [x] **T9 `sdlc landing plan [--write]`:**
   - It reads the train-enabled repos from `sdlc fleet inventory` (each repo's `.sdlc/landing.json` on its main), their test-stats p90, and their declared suite weight.
   - It prints `repo offset interval weight p90 basis`; `--write` replaces the file and keeps unknown members.
   - Golden test over a fixture fleet.
-- [ ] **T10 help and atlas:**
+- [x] **T10 help and atlas:**
   - `helptext/landing.md`: slots, N-or-Y, the plan and its fallback.
   - `atlas/workflow/sdlc-binary.md`: the landing section.
   - tl-lead help: the steward runs `landing plan --write` after cost changes, for example once #480 lands.

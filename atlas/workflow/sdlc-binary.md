@@ -464,6 +464,10 @@ trains on:
 - **The next departure** (`NextDue`) is the grid's next slot after the last train when the repository has a machine-plan offset (`Slots`, `internal/landingline/slots.go`: epoch + offset + k·interval, never shifted by an early departure), and the interval after it otherwise.
 - **Lone and granted landings** are not departures: their `alone` record carries no `NextDue`, unless they left cars ready, which can only bring the next train forward.
 - **Admission and status:** each admission pass gets a `Waiters` summary (`ReadyWaiters`). Train events record `departed`. `sdlc landing status` prints the same decision with its reason.
+- **Machine plan (M2):** one file per machine, `landing-plan.json` beside the suite lock, gives each repository its grid offset.
+  - It is decoded and packed in `internal/landingline/plan.go`. `MachinePlan` keeps unknown members; `PackOffsets` places the heaviest p90 × weight reservation first, within the machine's suite slots.
+  - It is read by `landingScheduleSource`, under the schedule's 30 s cache (`landingconfig.go`, `machinePlanPath` / `readMachinePlan`).
+  - It is written by `sdlc landing plan [--write]` (`landingplan.go`). Its costs come from `buildTestStatsReport` and `fleetRepoPaths` (split out of test-stats) and each repository's declared suite weight on main.
 
 **The conductor** (`landingtrain.go`) is the admitted head when other cars board:
 - **Boarding:** cars are boarded only after their remote tip and open PR are re-read at the vouched head.

@@ -68,6 +68,28 @@ LANDING TRAINS (#449)
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
 
+THE MACHINE PLAN (#475)
+
+  Repositories with trains on share one machine's suite slots. The machine
+  plan places each on a wall-clock grid (epoch + offset + k * interval) so
+  heavy train suites don't collide: for example ariadne at :00 on both slots,
+  pair and parley.nvim together at :15. It is one file beside the suite lock,
+  ${XDG_STATE_HOME:-~/.local/state}/ariadne/landing-plan.json (or
+  $WF_TEST_LOCK_FILE's directory), and it belongs to the steward.
+
+    sdlc landing plan            the plan computed from today's costs (a dry run)
+    sdlc landing plan --write    replace the plan file
+
+  Each repository's reservation is its suite's p90 wall time over 7 days
+  (test-stats), rounded up to 5 minutes plus 5, times its declared suite
+  weight (no samples: 15 minutes). The heaviest goes first, at the earliest
+  offset that keeps every minute within the machine's slots ($WF_TEST_SUITES,
+  default 2). --write keeps the file's unknown members and other
+  repositories' entries, and refuses to replace a plan it can't read. Rerun it
+  after a cost changes (a suite's shard count, a repository turning trains on).
+  A repository without an entry departs one interval after its last train; an
+  unreadable plan does too, warned once.
+
 FLEET-BLOCKING PRIORITY
 
   sdlc landing grant --issue N --reason WHY [--hours H] [--repo DIR]

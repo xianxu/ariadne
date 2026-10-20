@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -384,7 +385,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 	}
 	landedByTrain := false
 	if !resumeOnly(pre) {
-		sched = landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, stderr)
+		sched = landingScheduleSource(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, filepath.Base(t.Root), stderr)
 		if turn, err = enterLandingLine(ctx, r, t, branch, sched, readiness, stderr); err != nil {
 			// A train landed this car (#449): its PR is merged by the train,
 			// and this merge finishes as a resume, without a turn.

@@ -103,7 +103,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 	}
 	revoke.Flags().IntVar(&revokeIssue, "issue", 0, "the issue whose priority ends")
 	revoke.Flags().StringVar(&revokeReason, "reason", "revoked", "why it ends")
-	cmd.AddCommand(status, grant, revoke, newSuitePriorityCmd(&repo, d.now))
+	cmd.AddCommand(status, grant, revoke, newLandingPlanCmd(func() planInputs { return fleetPlanInputs(defaultTestStatsDeps()) }), newSuitePriorityCmd(&repo, d.now))
 	return cmd
 }
 

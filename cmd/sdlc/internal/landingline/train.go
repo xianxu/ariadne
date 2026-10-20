@@ -186,10 +186,12 @@ type Readiness struct {
 	// keeps it, a new head or a not-ready vouch starts it over. A sidecar
 	// from before it reads as At.
 	Since time.Time `json:"since,omitzero"`
-	// SinceHead is the head Since was taken at: an older sdlc that re-vouches
-	// a new head carries both forward as unknown members, and the mismatch
-	// marks that Since stale.
-	SinceHead string `json:"since_head,omitempty"`
+	// SinceStamp is the At of the vouch that wrote Since. An older sdlc that
+	// re-vouches for any reason (a new head, not ready, ready again) rewrites
+	// At but carries Since and SinceStamp forward as unknown members, so the
+	// mismatch marks that Since stale: it is trusted only on a vouch written
+	// by an sdlc that maintains it (#475).
+	SinceStamp time.Time `json:"since_stamp,omitzero"`
 	// Extra holds members a later sdlc wrote that this one doesn't know.
 	// They survive a rewrite of the same ticket's vouch (ARCH-EVOLVE).
 	Extra map[string]json.RawMessage `json:"-"`
@@ -199,7 +201,7 @@ type Readiness struct {
 func readinessFields(r *Readiness) map[string]any {
 	return map[string]any{
 		"version": &r.Version, "seq": &r.Seq, "branch": &r.Branch, "head": &r.Head, "pr": &r.PR,
-		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since, "since_head": &r.SinceHead,
+		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since, "since_stamp": &r.SinceStamp,
 	}
 }
 
@@ -271,7 +273,7 @@ func (r Readiness) For(t Ticket, now time.Time) string {
 // firstReady is when r's car first vouched ready at its head: Since, or At
 // for a sidecar written before Since existed.
 func (r Readiness) firstReady() time.Time {
-	if !r.Since.IsZero() && r.SinceHead == r.Head {
+	if !r.Since.IsZero() && r.SinceStamp.Equal(r.At) {
 		return r.Since
 	}
 	return r.At

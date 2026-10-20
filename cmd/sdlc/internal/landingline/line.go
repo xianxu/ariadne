@@ -338,9 +338,9 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 		if r.Since.IsZero() {
 			r.Since = carrySince(nil, r)
 		}
-		r.SinceHead = ""
+		r.SinceStamp = time.Time{}
 		if !r.Since.IsZero() {
-			r.SinceHead = r.Head
+			r.SinceStamp = r.At
 		}
 		return writeAtomic(filepath.Join(l.dir, "ready"), h.ready, r)
 	})

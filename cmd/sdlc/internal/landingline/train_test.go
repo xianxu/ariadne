@@ -618,7 +618,7 @@ func TestReadinessSinceAndWaiters(t *testing.T) {
 	now := tt0.Add(3 * time.Minute)
 	live := []Ticket{{Seq: 1, Branch: "b"}, {Seq: 2, Branch: "b"}, {Seq: 3, Branch: "b"}}
 	stale := vouch(3, true, tt0.Add(-time.Hour))
-	again.Since, again.SinceHead = tt0, again.Head
+	again.Since, again.SinceStamp = tt0, again.At
 	ready := map[int64]Readiness{1: again, 2: vouch(2, true, now), 3: stale}
 	if w := ReadyWaiters(live, ready, now); w.Ready != 2 || !w.OldestSince.Equal(tt0) {
 		t.Errorf("waiters %+v", w)
@@ -711,18 +711,29 @@ func TestNextDepartureReadsTheDeparture(t *testing.T) {
 	}
 }
 
-// #475 round 1: an older sdlc that re-vouches a new head carries since and
-// since_head forward unchanged; the head mismatch marks that Since stale, so
-// the car's wait counts from the new vouch.
+// #475: an older sdlc that re-vouches for any reason carries since and
+// since_stamp forward unchanged but rewrites at, so the stamp no longer
+// matches and that Since is stale: the car's wait counts from the vouch.
+// Covers every reset an older writer can't apply: a new head, and not ready
+// then ready again at the same head.
 func TestStaleSinceFromAnOlderSdlc(t *testing.T) {
-	r := vouch(1, true, tt0.Add(30*time.Minute))
-	r.Head, r.Since, r.SinceHead = oid('b'), tt0, oid('a') // since belongs to the old head
-	if got := r.firstReady(); !got.Equal(r.At) {
-		t.Errorf("stale since read as %v, want the vouch time %v", got, r.At)
+	for name, r := range map[string]Readiness{
+		"new head":          func() Readiness { v := vouch(1, true, tt0.Add(30*time.Minute)); v.Head = oid('b'); return v }(),
+		"ready again, same": vouch(1, true, tt0.Add(30*time.Minute)),
+	} {
+		r.Since, r.SinceStamp = tt0, tt0.Add(5*time.Minute) // stamped by an earlier vouch
+		if got := r.firstReady(); !got.Equal(r.At) {
+			t.Errorf("%s: stale since read as %v, want the vouch time %v", name, got, r.At)
+		}
+		again := vouch(1, true, tt0.Add(31*time.Minute))
+		again.Head = r.Head
+		if got := carrySince(&r, again); !got.Equal(r.At) {
+			t.Errorf("%s: carried a stale since: %v", name, got)
+		}
 	}
-	again := vouch(1, true, tt0.Add(31*time.Minute))
-	again.Head = oid('b') // a re-vouch at the same (new) head
-	if got := carrySince(&r, again); !got.Equal(r.At) {
-		t.Errorf("carried a stale since: %v", got)
+	fresh := vouch(1, true, tt0.Add(30*time.Minute))
+	fresh.Since, fresh.SinceStamp = tt0, fresh.At // written by a maintaining sdlc
+	if got := fresh.firstReady(); !got.Equal(tt0) {
+		t.Errorf("a maintained since was not trusted: %v", got)
 	}
 }
