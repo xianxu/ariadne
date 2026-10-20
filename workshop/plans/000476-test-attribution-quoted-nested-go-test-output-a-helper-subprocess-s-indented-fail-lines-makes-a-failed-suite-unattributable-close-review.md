@@ -146,3 +146,93 @@ dispose:
    - Add a `## Revisions` entry specifying that the complete indentation prefix must contain exactly four ASCII spaces per level, with regression coverage for mixed whitespace in plain, CRLF, and sharded contexts.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2ec11678-3790-4414-89b9-28217a31547f","repository":"github.com/xianxu/ariadne","issue_id":"000476","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/523c163bd1ab2932","reviewed_head":"36450af3e8a779480309930b7d6bb1516aa93fdf","slot":"ariadne:3","requested_at":"2026-10-20T04:19:26.60432Z"},"phase":"finished","pid":33849,"started_at":"2026-10-20T04:19:26.695946Z","finished_at":"2026-10-20T04:21:41.140325Z","session_id":"01a15789-2073-7982-b1ea-57a1006bd554","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T21:29:44-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 476 — Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable |
+| repo | ariadne |
+| issue file | workshop/issues/000476-test-attribution-quoted-nested-go-test-output-a-helper-subprocess-s-indented-fail-lines-makes-a-failed-suite-unattributable.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0956e5e1c71bd6734f195929fc151e0c752dbc14..33d378ebf5cd67465a256df0972cc5673e02f4b3 |
+| command | sdlc close --issue 476 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T21:29:44-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The whitespace classifier and column-zero control checks improve attribution, and focused tests pass. BR-1 remains reproducible with actual Go test output: parent logging after a failed child leaves stale ancestry that admits a quoted helper failure as a real leaf.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/suitefailures.go:83–88 retains child ancestry across a parent's subsequent log records. Reproduced using actual go test output: TestOuter runs a failing child, then logs "nested helper output:\n--- FAIL: TestOuter/child/helper (0.01s)". Go prints the parent's log at four spaces and its quoted continuation at eight; the pinned scanner returns both TestOuter/child and the invented TestOuter/child/helper. Leaves then replaces the genuine child with that quoted helper for registry classification. The added regressions cover skipped levels and mixed whitespace but omit this valid output ordering. ARCH-PURPOSE, ARCH-SECURE and ARCH-ORDER remain unsatisfied for family suite-evidence-provenance.
+```
+
+Done-when: current — the existing requirement that quoted output remain inert while preserving genuine descendants covers this behavior.
+
+1. **Strengths**
+
+   - One shared classifier validates the complete whitespace prefix before tokenization.
+   - Package outcomes, JSON events and timing records consistently require column-zero provenance.
+   - Integration tests exercise actual local-check classification and retry selection.
+   - README and atlas updates cover the changed attribution contract and lint rule.
+
+2. **Critical findings**
+
+   **BR-1 remains open**, at [suitefailures.go:83](/Volumes/TestScratch/review-checkouts/eb090cf82e2405d6/cmd/sdlc/suitefailures.go:83). The reproduced output contains:
+
+   ```text
+   --- FAIL: TestOuter (0.00s)
+       --- FAIL: TestOuter/child (0.00s)
+           outer_test.go:3: real failure
+       outer_test.go:3: nested helper output:
+           --- FAIL: TestOuter/child/helper (0.01s)
+   ```
+
+   The scanner admits both child names. Registry `Leaves` consequently selects only the invented helper. A helper-only registration can explain the genuine child failure.
+
+   Define structural context transitions for ordinary log records as well as failure records, so returning to parent output invalidates stale descendant context. Sweep parent logging before and after failed children, nested returns and sibling transitions across plain, CRLF, sharded and historical readers. Add a regression asserting that helper-only registration cannot explain this failure.
+
+3. **Important findings**
+
+   None additional.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed focused quotation, ancestry, whitespace, retry, traversal, existing parser and saved-log subtest checks, plus `pkg/golint` and `internal/flakes`. A temporary isolated module generated the failing example with real `go test`; the pinned scanner admitted its quotation. Temporary files were removed; the repository remains unchanged. No full-suite claim.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared scanner and prefix classifier.
+   - **ARCH-PURE: pass** — listed pure entities contain no IO; integration fixtures use existing seams.
+   - **ARCH-PURPOSE: flag** — BR-1 still violates quotation inertness.
+   - **ARCH-MOCK: pass** — no new external dependency; existing integration doubles reused.
+   - **ARCH-CONSTRAINTS: pass** — linear prefix inspection and indexed ancestry operations.
+   - **ARCH-SECURE: flag** — quoted subprocess text still becomes authoritative evidence.
+   - **ARCH-ORDER: flag** — ordinary log records fail to retire stale ancestry.
+   - **ARCH-FUNERAL: pass** — transient state ends with the scan; no new runtime artifact family.
+   - **ARCH-EVOLVE: pass** — persisted formats remain unchanged.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry replacing “rejected records leave the stack unchanged” with a rule distinguishing inert quotations from log records that establish a return to an ancestor’s output. Enumerate the ordering cases above and require parser plus gate regressions before claiming BR-1 resolved.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3ae9ada4-c4de-41b8-807e-2822cc2bd6c6","repository":"github.com/xianxu/ariadne","issue_id":"000476","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/eb090cf82e2405d6","reviewed_head":"33d378ebf5cd67465a256df0972cc5673e02f4b3","slot":"ariadne:3","requested_at":"2026-10-20T04:28:20.845683Z"},"phase":"finished","pid":19799,"started_at":"2026-10-20T04:28:21.139185Z","finished_at":"2026-10-20T04:29:43.447489Z","session_id":"01a15791-48b2-71a0-a475-b62864cf5be6","outcome":"returned"}] -->

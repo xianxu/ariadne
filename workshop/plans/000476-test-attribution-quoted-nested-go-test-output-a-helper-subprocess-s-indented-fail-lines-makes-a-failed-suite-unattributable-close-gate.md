@@ -144,6 +144,80 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 3ae9ada4-c4de-41b8-807e-2822cc2bd6c6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000476"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/eb090cf82e2405d6
+            reviewed_head: 33d378ebf5cd67465a256df0972cc5673e02f4b3
+            slot: ariadne:3
+            requested_at: "2026-10-20T04:28:20.845683Z"
+          phase: finished
+          pid: 19799
+          started_at: "2026-10-20T04:28:21.139185Z"
+          finished_at: "2026-10-20T04:29:43.447489Z"
+          session_id: 01a15791-48b2-71a0-a475-b62864cf5be6
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 33d378ebf5cd67465a256df0972cc5673e02f4b3
+        tracker_head: d911325de8be3db0c2c6c0b3b03cc4c6c2614b50
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:57:12-07:00"
+        until: "2026-10-19T21:27:13-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:57:12-07:00"
+              end: "2026-10-19T21:27:13-07:00"
+              began: "2026-10-19T20:57:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: f04687332b337600538e97b9cf027f2ef5f613164003c86a04caf93716462ed6
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 60988775
+              windows:
+                - start: "2026-10-19T20:57:12-07:00"
+                  end: "2026-10-19T21:27:13-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 9.608666666666666
+        cuts:
+            - dispatched: "2026-10-19T21:10:59-07:00"
+              finalized: "2026-10-19T21:13:01-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T21:19:26-07:00"
+              finalized: "2026-10-19T21:21:42-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-19T21:29:45-07:00"
+      dispatched: "2026-10-19T21:28:20-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: 'cmd/sdlc/suitefailures.go:83–88 retains child ancestry across a parent''s subsequent log records. Reproduced using actual go test output: TestOuter runs a failing child, then logs "nested helper output:\n--- FAIL: TestOuter/child/helper (0.01s)". Go prints the parent''s log at four spaces and its quoted continuation at eight; the pinned scanner returns both TestOuter/child and the invented TestOuter/child/helper. Leaves then replaces the genuine child with that quoted helper for registry classification. The added regressions cover skipped levels and mixed whitespace but omit this valid output ordering. ARCH-PURPOSE, ARCH-SECURE and ARCH-ORDER remain unsatisfied for family suite-evidence-provenance.'
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#476 (boundary-review)
@@ -163,6 +237,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-1 — not-addressed — The original plain/CRLF/sharded regressions and quoted-leaf gate test pass at HEAD and fail with the pre-correction scanner. However, cmd/sdlc/suitefailures.go:19 counts only initial ASCII spaces, while :66 subsequently erases all whitespace with strings.Fields. Compiling the pinned production scanner with "--- FAIL: TestOuter", followed by four spaces plus a tab plus "--- FAIL: TestOuter/helper", and a genuine outer package trailer produces example.com/outer.TestOuter/helper as a failing subtest; four spaces plus U+00A0 does likewise. The plan explicitly says tab indentation cannot change the stack. ARCH-PURPOSE / ARCH-SECURE: the structural provenance rule remains incomplete. This is another instance in family suite-evidence-provenance; fix the rule across the complete leading-whitespace prefix, rather than special-casing either character, and add mixed-indentation regressions across the existing modes.
+
+## Round 3 — 2026-10-19T21:29:45-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — not-addressed — cmd/sdlc/suitefailures.go:83–88 retains child ancestry across a parent's subsequent log records. Reproduced using actual go test output: TestOuter runs a failing child, then logs "nested helper output:\n--- FAIL: TestOuter/child/helper (0.01s)". Go prints the parent's log at four spaces and its quoted continuation at eight; the pinned scanner returns both TestOuter/child and the invented TestOuter/child/helper. Leaves then replaces the genuine child with that quoted helper for registry classification. The added regressions cover skipped levels and mixed whitespace but omit this valid output ordering. ARCH-PURPOSE, ARCH-SECURE and ARCH-ORDER remain unsatisfied for family suite-evidence-provenance.
 
 ## Open findings
 

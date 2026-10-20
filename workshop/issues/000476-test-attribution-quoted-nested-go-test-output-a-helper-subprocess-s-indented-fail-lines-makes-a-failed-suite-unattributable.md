@@ -89,6 +89,7 @@ names; indentation checks inspect each line once, with no look-back or rescans.
   the narrow lint guard against erasing line provenance in these scanners.
 - [x] Run focused parser/classifier and local-check regression checks.
 - [x] Complete the round-2 BR-1 whole-prefix re-plan and its regression matrix.
+- [ ] Complete the round-3 context-lifetime re-plan and actual-Go ordering matrix.
 
 Workflow gates: recorded suite, close review, then normal landing. These remain
 pending independently of the completed implementation checkboxes.
@@ -96,6 +97,12 @@ pending independently of the completed implementation checkboxes.
 ## Log
 
 ### 2026-10-19
+
+- Full close round 3 kept BR-1 Critical: real Go output can return from a failed
+  child to parent logging, then quote a helper at a depth that fits stale child
+  ancestry. The whole-prefix correction passed, but ordinary output never
+  retired ancestry. Stopped again before code, cancelled the still-queued suite,
+  and appended a complete line-event/context-lifetime re-plan for hub review.
 
 - Hub approved the complete-prefix re-plan (6844e546-4bc3-4e66-b635-e03181de0edb,
   canonical receipt verified). Full Unicode-whitespace and mixed-prefix real
@@ -148,6 +155,13 @@ pending independently of the completed implementation checkboxes.
   slots' landings blocked by this today; raise priority if #715's root fix (pair:3) doesn't land first.
 
 ## Revisions
+
+- 2026-10-19 — Context authority must expire on ordinary parent output, not only
+  the next test/package marker. The durable plan now proposes a tagged line
+  classification and complete ancestry transitions, including blank/invalid
+  input and conservative historical replay. Pending hub review; no fourth
+  production delta implemented. All three old-head suites were cancelled
+  before admission and produced no full-suite result.
 
 - 2026-10-19 — Third-delta stop/re-plan: one classifier must validate the entire
   leading Unicode-whitespace prefix as ASCII-space quads before Fields, and the

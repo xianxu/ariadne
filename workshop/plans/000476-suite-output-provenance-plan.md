@@ -192,3 +192,66 @@ record delimiter, so its invalid in-line prefix is tested directly against the
 classifier; every other non-space whitespace rune is rejected through plain,
 CRLF and sharded parsing. The original excerpt verifies normal LF framing and
 the actual warm-reattached leaf across those modes. No full-suite pass claimed.
+
+### 2026-10-19 — Re-plan context lifetime after round 3, pending approval
+
+Round 3 reproduced real Go output in which a parent logs after a failed child.
+The parent's log returns to level one, but the scanner retains the child at
+level one; its quoted continuation at level two then becomes a fake grandchild.
+The prefix grammar is correct; the missing model is ancestry lifetime across
+ordinary output. Stop before another production change. The third queued suite
+was cancelled before admission.
+
+Replace the earlier statement that rejected records leave ancestry unchanged
+with a complete line-event model. The immutable input has one owner (this scan),
+but an ancestor's authority lasts only until the stream returns to its parent's
+output. A lock cannot recover that historical ownership: there is no concurrent
+live resource to hold; the recorded ordering is the evidence (ARCH-ORDER).
+
+One pure line classifier owns framing and prefix provenance. Strip only the
+record's trailing LF/CRLF framing, then classify the complete prefix as:
+invalid; blank at a validated ASCII-space level; or content at that level.
+Use a tagged result, not independent validity/blank flags. All existing
+column-zero checks derive from this same result before tokenization. Preserve
+the approved whole-Unicode-prefix rule and ancestor-name checks.
+
+| Line event | Ancestry effect | Name evidence |
+| --- | --- | --- |
+| Authoritative top-level FAIL | Reset to this root | Keep pending top name |
+| Authoritative shard header | Flush previous block; seed declared context | Keep explicit header name |
+| Admissible indented FAIL at L | Truncate to parent at L-1, then append child | Keep this real descendant |
+| Ordinary output at L>0 | Retire nodes at depth L and deeper: retain at most L ancestor entries | None added |
+| Rejected indented FAIL candidate | Treat as output at its proven level; never attach a child | None added |
+| Blank native output at a proven level | Same context retirement as output | None added |
+| Unrelated column-zero output | Retire transient ancestry | Preserve already collected names |
+| Invalid prefix / unknown owner | Retire transient ancestry conservatively | Preserve already collected names; add no leaf |
+| Package trailer / end of input | Flush pending names; clear context | Existing attribution/unknown rules |
+
+The line classifier is PURE in suitefailures.go. Its tagged prefix result is
+transient and consumed by the existing scanner and suite-facts readers; this
+does not add a log format, persisted field or runtime artifact. The pending
+name/package mechanism, registry and retry policy stay unchanged. The three
+visible outcomes remain exact registered retry, named failure to repair, or
+unattributable failure to inspect/repair/rerun. Conservative retirement can
+withhold a leaf on malformed input, never manufacture one.
+
+The simplest alternative is to drop all raw subtest records, which loses the
+actual warm-reattached leaf. Keeping context through ordinary output is the
+reproduced defect. Requiring JSON producers would avoid text ambiguity but
+cannot repair retained plain historical logs and requires peer changes.
+
+Before implementation, reproduce and retain real Go output plus its small
+source: parent logs before/after a failed child, child returns to grandparent,
+real grandchild and sibling transitions, native blank log continuations, and
+both verbose and buffered output. The committed fixtures must exercise plain,
+CRLF, sharded headers and historical-log consumers. Assert that a registration
+covering only the invented helper cannot explain the actual child; the real
+child registration and original pair#712/#689 warm leaf still work. Preserve
+the complete Unicode table and N/2N line-visit counts. Per-line transitions use
+indexed lookup and slice truncation, with no look-back or ancestor rescan.
+
+- [ ] Obtain hub approval of this complete transition model before production edits.
+- [ ] Capture the real Go ordering matrix; reproduce the stale-context failure red.
+- [ ] Implement one tagged line classifier and route every line event through the model.
+- [ ] Verify parser and actual gate controls, historical-reader replay, Unicode
+  grammar and visit counts. Run a new recorded suite and full close afterward.
