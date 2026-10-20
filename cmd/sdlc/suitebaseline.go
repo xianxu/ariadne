@@ -28,7 +28,7 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 	deps.PR = 0
 	baseline, err := runLocalCheck(ctx, deps, failed.Check, main)
 	if err != nil {
-		return fmt.Errorf("%w\n  baseline on main could not run: %v", gateErr, err)
+		return fmt.Errorf("%w\n  baseline on main could not run: %w", gateErr, err)
 	}
 	baselineLog, err := os.ReadFile(baseline.LogPath)
 	if err != nil {

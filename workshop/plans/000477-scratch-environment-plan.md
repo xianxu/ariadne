@@ -147,21 +147,21 @@ process output; the existing run lease remains the resource-lifetime owner.
 
 ## Tasks (one atomic close boundary)
 
-- [ ] Add failing scratch fixtures for unusable inherited TMPDIR and GOTMPDIR
+- [x] Add failing scratch fixtures for unusable inherited TMPDIR and GOTMPDIR
   with rejected/unwritable scratch, off mode, usable inherited roots, no usable
   candidate, and cleanup. Use a regular-file path or injected permission failure,
   not the live sandbox or chmod assumptions. Run targeted tests and observe red.
-- [ ] Implement normal-root repair and explicit scratch preparation/error/provenance.
+- [x] Implement normal-root repair and explicit scratch preparation/error/provenance.
   Update existing off/HFS expectations while preserving admission rules; prove a
   real child writes successfully under the returned env and checkout fallback.
-- [ ] Add failing pure startup classifier tables and caller/store tests. Include
+- [x] Add failing pure startup classifier tables and caller/store tests. Include
   same-SHA environment error then success, prior genuine failure still blocking,
   no status/flake/baseline call on direct env error, and baseline-only environment
   failure in ordinary and train paths. Observe the expected reds before fixes.
-- [ ] Wire conservative classification and retained diagnostic error; propagate
+- [x] Wire conservative classification and retained diagnostic error; propagate
   train baseline errors. Run relevant scratch, local-check, republish/guard,
   ordinary landing, train and golint tests from a stable checkout.
-- [ ] Update local-check help, README, atlas and a concise lesson about inherited
+- [x] Update local-check help, README, atlas and a concise lesson about inherited
   temp fallback and evidence separation. Commit verified implementation.
 - [ ] Open PR, run recorded suite with normal central sdlc, close via its mandatory
   fresh review, then enter merge on SHIP. No manual main chasing or private binary.
@@ -177,3 +177,13 @@ include the reserved sdlc-run prefix. The intentional Unix default is explained
 in an ordinary comment: the tmp-literal catalog does not flag this selector
 call, so an unused suppression would itself be invalid. No new lint exception
 or change to the selected fallback policy is needed.
+
+### 2026-10-19 — preserve evidence separation on exceptional IO paths
+
+The existing optional-store fallback now writes to a bounded per-check pending
+log until classification, then publishes the ordinary legacy filename. This
+keeps a failed environment-log rename from exposing raw startup output as
+legacy suite evidence. Known-flake reruns use the same classifier and retained
+diagnostic helper; their genuine parent failure remains intact. These implement
+the approved single environment-evidence boundary without a persisted schema
+or additional acceptance state.

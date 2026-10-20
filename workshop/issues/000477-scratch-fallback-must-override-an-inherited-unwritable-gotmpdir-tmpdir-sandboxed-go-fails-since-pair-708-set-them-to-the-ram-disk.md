@@ -50,8 +50,8 @@ inherited) from the slot shell and fails anyway.
 
 ## Plan
 
-- [ ] Repair scratch and normal-temp fallback with explicit child environment and cleanup.
-- [ ] Classify proven startup environment errors without publishing code-failure evidence; cover ordinary and train baselines.
+- [x] Repair scratch and normal-temp fallback with explicit child environment and cleanup.
+- [x] Classify proven startup environment errors without publishing code-failure evidence; cover ordinary and train baselines.
 - [ ] Verify focused and recorded suites, close on SHIP and land.
 
 Durable plan: [scratch environment plan](../plans/000477-scratch-environment-plan.md).
@@ -91,3 +91,26 @@ provenance and cleanup. Normal fallback also sweeps abandoned owned run folders.
 Focused scratch/child tests passed (scratchdisk 0.131s; cmd/sdlc 1.918s).
 Environment classification and baseline propagation remain pending; their
 committed regression tests intentionally remain red until that slice is done.
+
+### 2026-10-19 — implementation and focused verification
+
+The startup classifier passed its direct, multi-process, captured Python/make
+wrapper, mixed-code/test, pass/activity, quoted, malformed/truncated and long-line
+controls. Counted N=8/16 fixtures visit exactly N lines. It runs before flake
+classification/publication and uses the same bounded complete-log read as facts.
+A known-flake-rerun regression first failed because it returned no environment
+error; sharing the classifier/retention path fixed that caller too.
+
+Environment output is retained separately, with no SuiteAttempt schema change,
+status or comment. A legacy fallback uses a non-evidence pending path until
+classification, so even diagnostic-retention failure cannot look like suite.log.
+Retention failures explicitly preserve/name the raw log. Tests prove same-head
+repair passes, an earlier real failure still blocks, direct errors skip baseline
+diagnosis, both baseline paths keep main health unknown, and rerun errors post
+nothing while preserving the genuine parent failure.
+
+Focused verification passed: scratchdisk 0.132s, tracked Go lint catalog 0.676s,
+and cmd/sdlc scratch/environment/local-check/known-flake/saved-result/landing-train
+controls 101.929s. README, local-check help, atlas and lesson updated. Recorded
+full suite and mandatory close review remain pending. No live sandbox changes,
+shared staging, timeout changes or #476 attribution changes.

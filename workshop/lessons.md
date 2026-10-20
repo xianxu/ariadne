@@ -58,6 +58,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- Temp fallback must replace inherited child TMPDIR and GOTMPDIR and repair
+  checkout creation before child startup. Probe actual write access, not mode
+  bits. Keep startup environment evidence outside code-suite results so a
+  same-head repair can pass without hiding an earlier genuine failure (#477).
+
 - Keep the real checkout stable while cmd/sdlc package tests run: its TestMain
   snapshots HEAD, branch and porcelain status. A concurrent commit or a new
   dirty path invalidates the run even when every assertion passes (#472).
