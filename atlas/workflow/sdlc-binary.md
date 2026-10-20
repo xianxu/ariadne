@@ -2095,8 +2095,22 @@ The shell runner's default CI invocation still executes the selected batch.
 
 ### The Go lint catalog (#407)
 
+Suite text attribution (#476) preserves indentation before parsing controls:
+`suiteIndentLevel` classifies the whole leading Unicode-whitespace prefix once,
+accepting only ASCII-space quads; `suiteControlLine` derives column-zero
+admission for outcomes, summaries and JSON events from that same classifier.
+`failingNameLines` admits only column-zero records. Raw indented descendants
+coarsen to a proven ancestor, usually the top-level test; JSON failure events
+and explicit shard headers still prove exact leaves. `SuiteLogFacts.Warnings`
+explains the precision loss and possible subtest-only registration miss.
+`flakes.Covers` remains the matching authority; quotations cannot invent leaves.
+Quoted nested package trailers cannot flush pending outer names.
+The same boundary applies to unattributed failures and timing facts, including
+historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
+2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
+
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+that taught it (`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), and `wire-strict-decode` pair#594). `TestAtlasNamesEveryRule` keeps this list

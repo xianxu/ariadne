@@ -586,6 +586,12 @@ from this machine's test-stats store (or `--evidence TEXT` for a CI run); withou
 tests.
 
 A name may be an exact subtest (#466), such as `PKG.TestX/plain/dev-aliases.test.sh`.
+Suite attribution ignores indented quotations of nested helper commands (#476).
+Raw indented subtest output coarsens to the proven top-level test; JSON events
+and explicit shard headers retain exact leaves. A visible note explains why a
+subtest-only flake registration may miss a coarsened failure. Quoted package
+trailers cannot change its package.
+
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the
