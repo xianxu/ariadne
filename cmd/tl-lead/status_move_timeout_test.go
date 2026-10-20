@@ -20,11 +20,13 @@ func TestMoveCouchHelperProcess(t *testing.T) {
 	}
 	switch mode {
 	case "hang":
+		//lint:allow test-fixed-sleep — this helper simulates an unresponsive external process; the parent deadline, not this delay, synchronizes the test
 		time.Sleep(700 * time.Millisecond)
 	case "rename-hang":
 		if err := os.WriteFile(os.Getenv("TL_LEAD_MOVE_EFFECT"), []byte("renamed"), 0600); err != nil {
 			os.Exit(2)
 		}
+		//lint:allow test-fixed-sleep — this helper simulates an unresponsive external process; the parent deadline, not this delay, synchronizes the test
 		time.Sleep(700 * time.Millisecond)
 	case "pipe-parent":
 		child := exec.Command(os.Args[0], "-test.run=^TestMoveCouchHelperProcess$")

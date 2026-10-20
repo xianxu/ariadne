@@ -117,6 +117,8 @@ Durable plan: [session file move](../plans/000504-session-file-move-plan.md).
 
 - Recovery verification: affected packages passed (tl-lead 17.451s, sidedoc 0.073s, golint 0.578s). Cleanup dry-run regression failed because output still promised copying into the live tree; rendering now lists unchanged-old removals only and allows the new tree to stay open. Its targeted rerun passed. The refreshed full suite, fresh close review and both TL/operator checks are still pending; former green-suite/SHIP evidence does not cover this code.
 
+- Re-close preparation refused at the noon integrate gate before dispatch. Merged origin/main cleanly as required, with no code conflict. Affected integration tests caught the existing fixed-sleep lint in the newly tracked subprocess helpers: their intentional stall is test input for deadline containment, not synchronization; added the catalog-supported scoped annotation with that reason. Catalog rerun passed. No full suite had been queued on the pre-integration head.
+
 ## Landing hold
 
 Pending: green suite and SHIP → final build staged → TL/operator migrate both live hubs → TL evidence appended here → stage cleared → merge. Worker must not merge before the TL returns that evidence.
