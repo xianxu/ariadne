@@ -5,6 +5,14 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 github_issue:
+started: 2026-10-20T03:05:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Train instance gate reads issue files from the conductor checkout, not the train-prefix tree: a later car's new issue file is held as missing
