@@ -46,6 +46,7 @@ The fixture must cancel only after the waiting car's vouch has been persisted. A
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Deterministic red: callback held after its entry counter, old observer cancelled and left empty readiness. Fixture now waits for the existing post-Vouch event and verifies persisted readiness before cancellation; separate in-flight cancellation control preserves no publication. Focused vouch/wait-loop/schedule checks count=25 passed (11.757s); fixture count=100 under -race passed (4.807s). No production or timeout change, so no new atlas surface. No second callback-counter/cancel instance found; TL requested no lint for one fixture. Recorded pushed-head suite requested under authorized overlap; pass required before landing.; review verdict: SHIP
 
 Claimed and started in ariadne:5. Confirmed the readiness callback increments gateReads before returning; vouchWhileWaiting checks ctx.Err before Vouch. Quick plan posted to hub, proceeding unless objected. ARCH-DRY: reuse watchWriter's completed-write signal and Line.Readiness rather than add a production hook. No new state, format, hot path or live-environment behavior; the fixture owns and joins its worker.
 
