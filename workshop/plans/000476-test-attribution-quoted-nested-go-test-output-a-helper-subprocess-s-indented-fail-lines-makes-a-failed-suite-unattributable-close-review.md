@@ -236,3 +236,74 @@ Done-when: current — the existing requirement that quoted output remain inert 
    Add a `## Revisions` entry replacing “rejected records leave the stack unchanged” with a rule distinguishing inert quotations from log records that establish a return to an ancestor’s output. Enumerate the ordering cases above and require parser plus gate regressions before claiming BR-1 resolved.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3ae9ada4-c4de-41b8-807e-2822cc2bd6c6","repository":"github.com/xianxu/ariadne","issue_id":"000476","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/eb090cf82e2405d6","reviewed_head":"33d378ebf5cd67465a256df0972cc5673e02f4b3","slot":"ariadne:3","requested_at":"2026-10-20T04:28:20.845683Z"},"phase":"finished","pid":19799,"started_at":"2026-10-20T04:28:21.139185Z","finished_at":"2026-10-20T04:29:43.447489Z","session_id":"01a15791-48b2-71a0-a475-b62864cf5be6","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-19T21:49:16-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 476 — Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable |
+| repo | ariadne |
+| issue file | workshop/issues/000476-test-attribution-quoted-nested-go-test-output-a-helper-subprocess-s-indented-fail-lines-makes-a-failed-suite-unattributable.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0956e5e1c71bd6734f195929fc151e0c752dbc14..9a2711a7220ccda98c24c67acad41caac4695998 |
+| command | sdlc close --issue 476 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-19T21:49:16-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec: ambiguous raw subtests coarsen to proven ancestors, quoted controls remain inert, and structured leaves retain precision. BR-1 is addressed with meaningful regression coverage. No blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      cmd/sdlc/suitefailures.go:72–76 rejects every indented record before tokenization. TestSuiteQuotedOverlappingNames covers shared-name quotations with and without real children across plain, CRLF and sharded output. It fails when the admission guard is removed in a disposable pinned-head copy. Gate and retained-log tests pass under the revised coarsening contract.
+```
+
+1. **Strengths**
+
+   - One shared prefix classifier protects failure names, outcomes and package attribution.
+   - Actual retry tests verify parent registrations succeed while quoted-leaf registrations cannot explain failures.
+   - Structured names are collected before unidentified-package failures are derived ([teststats_parse.go](cmd/sdlc/teststats_parse.go:167)).
+   - README and atlas document the deliberate precision loss and registration implications.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused scanner, suite facts, retry, saved-pass and environment tests passed: 48.488s.
+   - Unattributed-failure, golint and flakes tests passed.
+   - Removing the admission guard made the overlapping-name regression fail.
+   - Full repository suite was not rerun. `diff --check` reports only intentional indented blank lines in captured Go-output fixtures.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared scanner and prefix grammar.
+   - **ARCH-PURE — pass:** deterministic parsing remains separate from IO; concept-table entities exist at their stated paths.
+   - **ARCH-PURPOSE — pass:** quotations remain inert across current and retained-log readers.
+   - **ARCH-MOCK — pass:** integration checks reuse existing injected seams and stateful GitHub fake.
+   - **ARCH-CONSTRAINTS — pass:** fixed linear scans, existing input bounds and N/2N traversal coverage.
+   - **ARCH-SECURE — pass:** external output retains provenance before tokenization.
+   - **ARCH-ORDER — pass:** unsafe ancestry state is removed; package attribution follows completed name collection.
+   - **ARCH-FUNERAL — pass:** no new durable runtime artifacts.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+
+7. **Plan revision recommendations:** None. The final revision explicitly supersedes the historical ancestry proposals.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"aac2941f-51e7-4af3-a485-9957dcc4296d","repository":"github.com/xianxu/ariadne","issue_id":"000476","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5274f5cd64a1a1b7","reviewed_head":"9a2711a7220ccda98c24c67acad41caac4695998","slot":"ariadne:3","requested_at":"2026-10-20T04:47:50.164186Z"},"phase":"finished","pid":27650,"started_at":"2026-10-20T04:47:50.284985Z","finished_at":"2026-10-20T04:49:15.500211Z","session_id":"01a157a3-1f50-7763-9320-be1e00fe1ac7","outcome":"returned"}] -->

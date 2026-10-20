@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "c747a2d8", done: "f1c16f93"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Test attribution: quoted nested go test output (a helper subprocess's indented FAIL lines) makes a failed suite unattributable
@@ -112,6 +112,8 @@ pending independently of the completed implementation checkboxes.
 ## Log
 
 ### 2026-10-19
+- 2026-10-19: closed — Revised TL-approved goal: raw ambiguous child output coarsens to the proven parent, JSON/shard leaves remain exact, and subtest-only registration misses are visible. Real Go buffered/verbose, incident, retry, saved-pass/replay, Unicode, N/2N, parser and environment controls passed (33.889s); golint and flakes passed. Final pushed-head recorded suite is queued/running; no full-suite pass claimed. README, atlas and lessons reflect the revised contract. Re-review BR-1 against the current approved acceptance in Revisions.; review verdict: SHIP
+- 2026-10-19: flow upgraded quick → full — 111 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Full close round 3 kept BR-1 Critical: real Go output can return from a failed
   child to parent logging, then quote a helper at a depth that fits stale child

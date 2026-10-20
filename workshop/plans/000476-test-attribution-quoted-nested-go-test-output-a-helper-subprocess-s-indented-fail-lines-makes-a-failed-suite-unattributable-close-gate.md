@@ -218,6 +218,84 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: aac2941f-51e7-4af3-a485-9957dcc4296d
+            repository: github.com/xianxu/ariadne
+            issue_id: "000476"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/5274f5cd64a1a1b7
+            reviewed_head: 9a2711a7220ccda98c24c67acad41caac4695998
+            slot: ariadne:3
+            requested_at: "2026-10-20T04:47:50.164186Z"
+          phase: finished
+          pid: 27650
+          started_at: "2026-10-20T04:47:50.284985Z"
+          finished_at: "2026-10-20T04:49:15.500211Z"
+          session_id: 01a157a3-1f50-7763-9320-be1e00fe1ac7
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 9a2711a7220ccda98c24c67acad41caac4695998
+        tracker_head: 6165c4a5e89153efb5403c4923deb686422d7d4b
+        branch_point: 0956e5e1c71bd6734f195929fc151e0c752dbc14
+        since: "2026-10-19T20:57:12-07:00"
+        until: "2026-10-19T21:47:04-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-19T20:57:12-07:00"
+              end: "2026-10-19T21:47:04-07:00"
+              began: "2026-10-19T20:57:12-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 8de4371b9bb72c3177cfbac4a3b4986ad292ae93d8c33194fc1d94a5b57b2d6e
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 62775031
+              windows:
+                - start: "2026-10-19T20:57:12-07:00"
+                  end: "2026-10-19T21:47:04-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 9.608666666666666
+        cuts:
+            - dispatched: "2026-10-19T21:10:59-07:00"
+              finalized: "2026-10-19T21:13:01-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T21:19:26-07:00"
+              finalized: "2026-10-19T21:21:42-07:00"
+              finalizing: false
+            - dispatched: "2026-10-19T21:28:20-07:00"
+              finalized: "2026-10-19T21:29:45-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-19T21:49:16-07:00"
+      dispatched: "2026-10-19T21:47:50-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: cmd/sdlc/suitefailures.go:72–76 rejects every indented record before tokenization. TestSuiteQuotedOverlappingNames covers shared-name quotations with and without real children across plain, CRLF and sharded output. It fails when the admission guard is removed in a disposable pinned-head copy. Gate and retained-log tests pass under the revised coarsening contract.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 9a2711a7220ccda98c24c67acad41caac4695998
+      blocked: false
 ---
 
 # Gate ledger — ariadne#476 (boundary-review)
@@ -244,6 +322,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — not-addressed — cmd/sdlc/suitefailures.go:83–88 retains child ancestry across a parent's subsequent log records. Reproduced using actual go test output: TestOuter runs a failing child, then logs "nested helper output:\n--- FAIL: TestOuter/child/helper (0.01s)". Go prints the parent's log at four spaces and its quoted continuation at eight; the pinned scanner returns both TestOuter/child and the invented TestOuter/child/helper. Leaves then replaces the genuine child with that quoted helper for registry classification. The added regressions cover skipped levels and mixed whitespace but omit this valid output ordering. ARCH-PURPOSE, ARCH-SECURE and ARCH-ORDER remain unsatisfied for family suite-evidence-provenance.
 
+## Round 4 — 2026-10-19T21:49:16-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — cmd/sdlc/suitefailures.go:72–76 rejects every indented record before tokenization. TestSuiteQuotedOverlappingNames covers shared-name quotations with and without real children across plain, CRLF and sharded output. It fails when the admission guard is removed in a disposable pinned-head copy. Gate and retained-log tests pass under the revised coarsening contract.
+
 ## Open findings
 
-- **BR-1** [Critical] `suite-evidence-provenance` (kind: defect) Shared-name helper quotations still become real failing subtests
+(none — every finding has been disposed)
