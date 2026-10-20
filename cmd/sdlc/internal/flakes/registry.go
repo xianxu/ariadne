@@ -6,6 +6,8 @@ package flakes
 
 import (
 	"fmt"
+	"iter"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -103,6 +105,19 @@ func ValidTest(name string) error {
 // parent; a registered top-level test covers all of its subtests.
 func Covers(r, f string) bool { return f == r || strings.HasPrefix(f, r+"/") }
 
+// Nearest is the name among names that covers failing name f most closely:
+// f itself or its nearest ancestor; "" when none does. Two names covering one
+// leaf are both its ancestors, so they differ in length and one is nearest.
+func Nearest(names iter.Seq[string], f string) string {
+	best := ""
+	for name := range names {
+		if Covers(name, f) && len(name) > len(best) {
+			best = name
+		}
+	}
+	return best
+}
+
 // Leaves are a failing top-level test's failing leaf subtests: those listed
 // under it with no failing subtest of their own. With none listed, the test
 // itself is the leaf (it failed on its own, or its log names no subtests).
@@ -181,12 +196,7 @@ func (r Registry) Lookup(test string) (string, bool) {
 // Cover returns the registered name that covers failing name f: f itself or
 // its nearest registered ancestor (#466). A registered sibling never covers.
 func (r Registry) Cover(f string) (Entry, bool) {
-	best := ""
-	for name := range r.owner {
-		if Covers(name, f) && len(name) > len(best) {
-			best = name
-		}
-	}
+	best := Nearest(maps.Keys(r.owner), f)
 	if best == "" {
 		return Entry{}, false
 	}

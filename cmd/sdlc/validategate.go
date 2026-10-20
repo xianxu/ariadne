@@ -129,7 +129,14 @@ func validateChangedInstances(base, head string, gates []nounGate, stdout, stder
 		for _, p := range problems {
 			fmt.Fprintln(stdout, "  - "+p)
 		}
-		return fmt.Errorf("instance-conformance gate: %d nonconforming instance file(s)", len(problems))
+		// The error names each file and the rule it breaks on one line: a
+		// landing train records only the error, so the held car must be
+		// able to read what to fix from it (#486).
+		flat := make([]string, len(problems))
+		for i, p := range problems {
+			flat[i] = strings.Join(strings.Fields(p), " ") // the validator's lines, on one
+		}
+		return fmt.Errorf("instance-conformance gate: %d nonconforming instance file(s): %s", len(problems), strings.Join(flat, "; "))
 	}
 	cok(stderr, fmt.Sprintf("instance-conformance gate: %d changed instance file(s) conform", checked))
 	return nil

@@ -1,0 +1,100 @@
+Host sandbox acceptance evidence for ariadne#487
+UTC: 2026-10-20T07:40:05.504134+00:00
+Host: Darwin arm64
+Source HEAD: 58adf0d713a29f8ac199c3cbdc5d376b1b0138bd
+Toolchain: go version go1.27.1 darwin/arm64
+Profile SHA256: 7e90c1b9647ca554ac0e6a4d5d6e10ec3c9223c70e6e37263b5a696f10dfac04
+Profile contents:
+; Reproduce the agent sandbox's unavailable host-temp roots. Supply TMPDIR and
+; GOTMPDIR on the owned TestScratch fixture root when invoking go test.
+(version 1)
+(allow default)
+(deny file-write*
+    (subpath "/private/var/folders") (subpath "/var/folders")
+    (subpath "/private/tmp") (subpath "/tmp"))
+
+Probe source SHA256: ec95ab60709c359d395af65229103b01bab3d6343289f69ebe039e4c2d6b7403
+Probe contents:
+import errno, os, subprocess, sys, tempfile
+from pathlib import Path
+fixture = Path(sys.argv[1]).resolve()
+probe = tempfile.mkdtemp(prefix="allowed-", dir=fixture)
+os.rmdir(probe)
+print("PASS fixture-root create/remove: " + str(fixture), flush=True)
+user = subprocess.check_output(["getconf", "DARWIN_USER_TEMP_DIR"], text=True).strip()
+for label, root in [("Darwin user temp", user), ("Unix default", "/tmp")]:
+    try:
+        created = tempfile.mkdtemp(prefix="ariadne-487-denied-", dir=root)
+    except OSError as error:
+        if error.errno not in (errno.EPERM, errno.EACCES):
+            raise
+        print(f"PASS {label} write DENIED: {root}; errno={error.errno}", flush=True)
+    else:
+        os.rmdir(created)
+        raise SystemExit(f"FAIL host root was writable: {root}")
+
+COMMAND: sandbox-exec -f /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne/cmd/sdlc/testdata/487-deny-host-temp.sb env TMPDIR=/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN GOTMPDIR=/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN /opt/homebrew/bin/python3 /Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN/probe.py /Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN
+PASS fixture-root create/remove: /Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN
+PASS Darwin user temp write DENIED: /var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/; errno=1
+PASS Unix default write DENIED: /tmp; errno=1
+EXIT: 0
+
+COMMAND: sandbox-exec -f /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne/cmd/sdlc/testdata/487-deny-host-temp.sb env TMPDIR=/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN GOTMPDIR=/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-487-sandbox.bfPrUN go test ./cmd/sdlc ./cmd/sdlc/internal/scratchdisk -run 'Test(ScratchFallback|NormalTemp|MkdirTemp|UserTempDir)' -count=1 -v
+[test-gate] waiting 0s for one of 3 test slots (/Users/xianxu/.local/state/ariadne); held by:
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40559, since 2026-10-20T00:39:08-07:00
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40562, since 2026-10-20T00:39:08-07:00
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40558, since 2026-10-20T00:39:08-07:00
+[test-gate] waiting 30s for one of 3 test slots (/Users/xianxu/.local/state/ariadne); held by:
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40559, since 2026-10-20T00:39:08-07:00
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40562, since 2026-10-20T00:39:08-07:00
+  - test binary in /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne/cmd/sdlc, pid 40558, since 2026-10-20T00:39:08-07:00
+[test-gate] slot acquired after 32s
+=== RUN   TestScratchFallbackOverridesInheritedTemp
+--- PASS: TestScratchFallbackOverridesInheritedTemp (0.21s)
+=== RUN   TestScratchFallbackUnavailableDoesNotRunOrRecord
+--- PASS: TestScratchFallbackUnavailableDoesNotRunOrRecord (0.26s)
+PASS
+ok  	github.com/xianxu/ariadne/cmd/sdlc	32.965s
+=== RUN   TestNormalTempDirPreservesUsableInheritedRoot
+--- PASS: TestNormalTempDirPreservesUsableInheritedRoot (0.00s)
+=== RUN   TestNormalTempSelectionRejectsFileAndUsesPrivateFolder
+--- PASS: TestNormalTempSelectionRejectsFileAndUsesPrivateFolder (0.00s)
+=== RUN   TestNormalTempSelectionCandidates
+=== RUN   TestNormalTempSelectionCandidates/current_succeeds_lazily
+=== RUN   TestNormalTempSelectionCandidates/user_wins
+=== RUN   TestNormalTempSelectionCandidates/Unix_default_after_lookup_error
+=== RUN   TestNormalTempSelectionCandidates/duplicate_candidates_tried_once
+=== RUN   TestNormalTempSelectionCandidates/empty_user_ignored
+--- PASS: TestNormalTempSelectionCandidates (0.00s)
+    --- PASS: TestNormalTempSelectionCandidates/current_succeeds_lazily (0.00s)
+    --- PASS: TestNormalTempSelectionCandidates/user_wins (0.00s)
+    --- PASS: TestNormalTempSelectionCandidates/Unix_default_after_lookup_error (0.00s)
+    --- PASS: TestNormalTempSelectionCandidates/duplicate_candidates_tried_once (0.00s)
+    --- PASS: TestNormalTempSelectionCandidates/empty_user_ignored (0.00s)
+=== RUN   TestMkdirTempRepairsOnlyDefaultFallback
+--- PASS: TestMkdirTempRepairsOnlyDefaultFallback (0.00s)
+=== RUN   TestMkdirTempReportsNormalSelectionFailure
+--- PASS: TestMkdirTempReportsNormalSelectionFailure (0.00s)
+=== RUN   TestUserTempDirPlatformLookup
+--- PASS: TestUserTempDirPlatformLookup (0.10s)
+=== RUN   TestNormalTempDirRelativeInheritedRootSurvivesChildCWD
+--- PASS: TestNormalTempDirRelativeInheritedRootSurvivesChildCWD (0.00s)
+=== RUN   TestNormalTempRelativeCandidateProbeAndDedup
+=== RUN   TestNormalTempRelativeCandidateProbeAndDedup/inherited
+=== RUN   TestNormalTempRelativeCandidateProbeAndDedup/user
+=== RUN   TestNormalTempRelativeCandidateProbeAndDedup/default
+--- PASS: TestNormalTempRelativeCandidateProbeAndDedup (0.00s)
+    --- PASS: TestNormalTempRelativeCandidateProbeAndDedup/inherited (0.00s)
+    --- PASS: TestNormalTempRelativeCandidateProbeAndDedup/user (0.00s)
+    --- PASS: TestNormalTempRelativeCandidateProbeAndDedup/default (0.00s)
+=== RUN   TestNormalTempCleanupCandidates
+=== RUN   TestNormalTempCleanupCandidates/all_candidates
+=== RUN   TestNormalTempCleanupCandidates/deduplicate_aliases
+--- PASS: TestNormalTempCleanupCandidates (0.00s)
+    --- PASS: TestNormalTempCleanupCandidates/all_candidates (0.00s)
+    --- PASS: TestNormalTempCleanupCandidates/deduplicate_aliases (0.00s)
+=== RUN   TestMkdirTempFallsBack
+--- PASS: TestMkdirTempFallsBack (0.00s)
+PASS
+ok  	github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk	0.241s
+EXIT: 0

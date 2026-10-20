@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
@@ -85,24 +86,87 @@ func TestSuiteEnvironmentBaselineIsNotRedMain(t *testing.T) {
 
 func TestScratchFallbackOverridesInheritedTemp(t *testing.T) {
 	d, sha, _, stderr := localRunRepo(t, "skipped")
-	root := t.TempDir()
+	root, normal := t.TempDir(), t.TempDir()
+	// Checkout setup has a usable private root. Invalidate inherited env only
+	// after it exists: this test exercises the child-run fallback boundary.
+	t.Setenv("WF_TEST_SCRATCH", "off")
+	t.Setenv("TMPDIR", root)
+	wt, cleanup, err := detachedWorktree(d.Git, sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	helper, err := prepareSuiteHelper(context.Background(), d.Root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
 	blocked := filepath.Join(root, "not-a-directory")
 	if err := os.WriteFile(blocked, []byte("fixture"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// A regular-file path fails even for a privileged test process: no live
-	// sandbox permission or chmod assumption is involved.
+	calls := 0
+	d.normalTempDir = func() (string, error) { calls++; return normal, nil }
 	t.Setenv("WF_TEST_SCRATCH", blocked)
 	t.Setenv("TMPDIR", filepath.Join(blocked, "temp"))
 	t.Setenv("GOTMPDIR", filepath.Join(blocked, "go"))
-	c := localCheck{Name: "temp-fixture", Command: []string{"sh", "-c", `test -d "$TMPDIR" && test -d "$GOTMPDIR" && printf ok > "$TMPDIR/probe" && printf ok > "$GOTMPDIR/probe"`}, TimeoutMinutes: 1}
-	if rec, err := runLocalCheck(context.Background(), d, c, sha); err != nil || !rec.passed() {
+	argv := []string{"sh", "-c", `test -d "$TMPDIR" && test -d "$GOTMPDIR" && printf ok > "$TMPDIR/probe" && printf ok > "$GOTMPDIR/probe" && printf '%s\n%s\n' "$TMPDIR" "$GOTMPDIR"`}
+	log := filepath.Join(root, "child.log")
+	rec, err := runUnderSlot(context.Background(), d, wt, helper, logDir, "temp-fixture", sha, 1, suitePrioritySubject{}, argv, log, time.Minute)
+	if err != nil || rec.Exit != 0 {
 		t.Fatalf("fallback inherited invalid temp env: %+v %v\n%s", rec, err, stderr)
+	}
+	out, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if calls != 1 || len(paths) != 2 || paths[0] != paths[1] || filepath.Dir(paths[0]) != normal {
+		t.Fatalf("child did not use the private fallback: calls=%d paths=%q", calls, paths)
+	}
+	if _, err := os.Stat(paths[0]); !os.IsNotExist(err) {
+		t.Fatalf("run directory survived cleanup: %v", err)
 	}
 	for _, variable := range []string{"GOTMPDIR", "TMPDIR"} {
 		if !strings.Contains(stderr.String(), variable) {
 			t.Fatalf("replacement note lacks %s:\n%s", variable, stderr)
 		}
+	}
+}
+
+func TestScratchFallbackUnavailableDoesNotRunOrRecord(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	root := t.TempDir()
+	t.Setenv("WF_TEST_SCRATCH", "off")
+	t.Setenv("TMPDIR", root)
+	calls := 0
+	d.normalTempDir = func() (string, error) { calls++; return "", os.ErrPermission }
+	d.FlakeRegistry = func(context.Context) (flakes.Registry, error) {
+		t.Fatal("temp selection failure entered flake classification")
+		return flakes.Registry{}, nil
+	}
+	marker := filepath.Join(root, "must-not-run")
+	c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf ran > "$1"`, "fixture", marker}, TimeoutMinutes: 1}
+	rec, err := runLocalCheck(context.Background(), d, c, sha)
+	if calls != 1 || !errors.Is(err, os.ErrPermission) || !strings.Contains(err.Error(), "environment failure") || rec.Exit != -1 {
+		t.Fatalf("unavailable fallback was not an environment refusal: calls=%d rec=%+v err=%v\n%s", calls, rec, err, stderr)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("child ran after selection failed: %v", err)
+	}
+	if len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {
+		t.Fatalf("environment failure published suite evidence: %v %v", gh.statuses, gh.comments)
+	}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, warnings, err := readSuiteAttempts(suiteStoreRoot(logDir), 100)
+	if err != nil || len(warnings) != 0 || len(rows) != 0 {
+		t.Fatalf("environment failure persisted suite evidence: %+v %v %v", rows, warnings, err)
 	}
 }
 

@@ -150,3 +150,26 @@ func TestLandingPassesBranchWindowToInstanceGate(t *testing.T) {
 			gotBase, gotHead, integratedMain, gh.pr.HeadOID)
 	}
 }
+
+// #486: a landing train records only the gate's error, by its first line, so
+// that line must name each nonconforming file and the rule it breaks, the
+// validator's multi-line output included.
+func TestLandingInstanceGate_ErrorNamesEachFileOnOneLine(t *testing.T) {
+	prev := validateFrontmatterFn
+	validateFrontmatterFn = func(_, _ string) (string, bool, error) {
+		return "status: \"bogus\" is not one of open, working\n  at line 3", false, nil
+	}
+	t.Cleanup(func() { validateFrontmatterFn = prev })
+	mainOID, headOID := instanceGateRepo(t, instanceGateNoPlan)
+	var out, errw bytes.Buffer
+	err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{})
+	if err == nil {
+		t.Fatal("nonconforming issue landed")
+	}
+	line := firstLine(err.Error())
+	for _, want := range []string{"000002-new.md (frontmatter):", `status: "bogus" is not one of open, working at line 3`, "000002-new.md (section):"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("first line lacks %q:\n%s", want, line)
+		}
+	}
+}
