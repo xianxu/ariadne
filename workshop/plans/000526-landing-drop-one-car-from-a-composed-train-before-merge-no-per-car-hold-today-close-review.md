@@ -176,3 +176,85 @@ Both BR-1 mutations failed their expected regressions. The new preservation regr
 Append a `## Revisions` entry naming the cleanup-snapshot preservation correction and its request-driven regression. The Core concepts table matches the implementation; README and atlas updates are present.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"68bcc8aa-4a0c-42c4-9036-5e99a3a5ff23","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/361c208e96fa5db1","reviewed_head":"e48ce11ae824a0ece2a49fa32cf5613040027edf","slot":"ariadne:1","requested_at":"2026-10-21T21:11:25.066043Z"},"phase":"finished","pid":24809,"started_at":"2026-10-21T21:11:25.217993Z","finished_at":"2026-10-21T21:14:15.266406Z","session_id":"01a1604d-faa9-7013-b17f-bf0e4c2cf76a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T14:21:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 526 — landing: drop one car from a composed train before merge (no per-car hold today) |
+| repo | ariadne |
+| issue file | workshop/issues/000526-landing-drop-one-car-from-a-composed-train-before-merge-no-per-car-hold-today.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 510aab6ff3a55bfdf5472e45eedf5512f6d04420..2eb193c29df4550c63266ec065030a071a234d4b |
+| command | sdlc close --issue 526 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T14:21:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range implements the documented drop protocol, survivor re-formation, and merge-start refusal. BR-2 is addressed with regression evidence that fails without the fix. BR-1 remains addressed. No new Critical, Important, or Minor findings.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      traincontrol.go:193 preserves cleanup.publication-only unknown fields. TestTrainDropRequestsPreserveCleanupPublicationUnknownFields passes through RequestTrainDrop, ApplyTrainDrops, and FinishTrainControl; removing the preservation assignment in a temporary Go overlay makes it fail with lost metadata.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Completion and abort routing retain the authoritative riders until the locked commit. Ordering and shell outcome tests pass; removing UpdateTrain's pending-drop guard in a temporary overlay makes all three drop-first completion regressions fail.
+```
+
+1. **Strengths**
+
+   - Drop acceptance and merge admission share the durable lock boundary in `cmd/sdlc/internal/landingline/traincontrol_io.go`.
+   - Real three-car tests verify both dropped-conductor and dropped-middle-car cases: survivors land together, the dropped commit stays absent, and obsolete PR/ref cleanup completes.
+   - Cleanup requires positive external evidence and retains uncertainty after lost replies or missing observations (`cmd/sdlc/landingtrain_drop.go`).
+   - README, help, and atlas cover the command, authority, irreversible merge boundary, and recovery.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Independently passed:
+
+   - Full `landingline` package, including counted-work guard.
+   - Selected command/integration tests covering drop, authorization, completion, abort, cleanup, retry, and real train re-formation.
+   - Focused `landingline` race checks.
+   - Seven Python deadline/process-ownership controls.
+   - `go vet` for both affected Go packages and range whitespace checks.
+
+   Both prior fixes have mutation evidence. The repository-wide recorded suite was not rerun during this review. Temporary overlays were removed; the checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Reuses existing transitions, locks, codec, outcomes, and normal formation.
+   - **ARCH-PURE — pass:** Decisions and transitions remain free of IO; direct pure tests exist.
+   - **ARCH-PURPOSE — pass:** Tests establish actual survivor landing and exclusion of the dropped commit.
+   - **ARCH-MOCK — pass:** Production seams support stateful GH doubles and portable real-Git fixtures.
+   - **ARCH-CONSTRAINTS — pass:** Bounded record, shared polling, short transactions, and counted linear-work checks match the envelope.
+   - **ARCH-SECURE — pass:** Strict decoding, pinned identities, caller authorization, and destination revalidation protect the relevant boundaries.
+   - **ARCH-ORDER — pass:** Locked completion/merge fences and controlled ordering tests enforce drop precedence.
+   - **ARCH-FUNERAL — pass:** Control retention and replacement follow ticket retirement and confirmed cleanup; watcher lifetime is joined.
+   - **ARCH-EVOLVE — pass:** Same-generation rewrites preserve nested unknown fields; BR-2’s regression exercises the corrected path.
+
+   Core-concept table entries match their locations and classifications.
+
+7. **Plan revision recommendations:** None. Existing revisions describe the implemented corrections.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1457ca26-38d1-4d0a-ae81-766a81d34d8e","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/73a7754a859655e6","reviewed_head":"2eb193c29df4550c63266ec065030a071a234d4b","slot":"ariadne:1","requested_at":"2026-10-21T21:18:52.460537Z"},"phase":"finished","pid":33747,"started_at":"2026-10-21T21:18:52.5517Z","finished_at":"2026-10-21T21:21:01.929383Z","session_id":"01a16054-cd8f-7aa3-84cd-286b03b5e797","outcome":"returned"}] -->
