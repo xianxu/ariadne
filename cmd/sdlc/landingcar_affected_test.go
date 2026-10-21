@@ -102,3 +102,50 @@ func TestCarBoardsOnAffectedMergeStillNeedsSuite(t *testing.T) {
 		t.Fatalf("affected on a docs-only ancestor did not carry: %v", err)
 	}
 }
+
+// A full-suite fallback is already a superset of the car's affected requirement.
+// A missing record may mean the fallback is queued, so name both valid records.
+func TestCarFullSuiteFallbackReadiness(t *testing.T) {
+	for _, state := range []string{"missing", "passed", "failed", "before code change"} {
+		t.Run(state, func(t *testing.T) {
+			_, gh, commit, vouch, mergeGate := carGateFixture(t, true)
+			old := commit("first.go")
+			head := commit("second.go")
+			switch state {
+			case "passed":
+				postStatus(t, gh, head, suiteCheckName)
+			case "failed":
+				gh.known[head] = true
+				if err := gh.PostStatus(context.Background(), "test/repo", head, localStatusContext(suiteCheckName), "failure", "failed"); err != nil {
+					t.Fatal(err)
+				}
+			case "before code change":
+				postStatus(t, gh, old, suiteCheckName)
+			}
+			err := vouch(head)
+			if state == "passed" {
+				if err != nil {
+					t.Fatalf("same-head suite did not satisfy car: %v", err)
+				}
+				if err := mergeGate(head); err != nil {
+					t.Fatalf("same-head suite did not satisfy merge: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("%s suite authorized car", state)
+			}
+			if state == "failed" {
+				if !strings.Contains(err.Error(), "failing checks") || strings.Contains(err.Error(), "wait for the full-suite fallback") {
+					t.Fatalf("failed suite should name failure, not waiting: %v", err)
+				}
+				return
+			}
+			for _, want := range []string{"affected or its full-suite fallback", "If affected fell back", "wait for the full-suite fallback", "passing suite on this head", "--name affected"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("%s: diagnostic lacks %q: %v", state, want, err)
+				}
+			}
+		})
+	}
+}

@@ -64,13 +64,7 @@ func waitQueued(t *testing.T, line *landingline.Line, n int) {
 
 func finished(t *testing.T, done <-chan error) error {
 	t.Helper()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(2 * time.Minute):
-		t.Fatal("merge did not finish")
-		return nil
-	}
+	return awaitLandingCompletion(t, done, "merge did not finish")
 }
 
 func lineEvents(t *testing.T, line *landingline.Line) map[string][]landingline.Event {
