@@ -48,7 +48,7 @@ Two defects:
 - The banner distinguishes candidates from final membership (or prints only the final membership).
 - A held car's runner cannot cancel the train's suite (test).
 
-### Proposed correction (awaiting hub)
+### Approved correction
 
 Stop a held conductor before publishing/testing surviving cars. Existing abort cleanup releases those cars to reform under the next head; discard the temporary composition. Continuing would require detached conductor lifetime/output/cancellation ownership, beyond a quick fix. Process the composition Hold results before this guard so every conflict gets its real reason. Distinguish the pre-build candidate banner; report composed membership from Built.Kept before a suite. Give held outcomes their reason and recovery instruction in the owning runner immediately.
 
@@ -76,3 +76,9 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
   held 23:10:36; seq 213 train abandoned 23:39:38, cars [213, 216], PR 506 closed).
 
 - 2026-10-21: Claimed/start-plan from main after #516 landed. Read-only diagnosis: conductTrain checks selfEnd only after effect queue drains; Built emits Hold then Publish/RunSuite, and settle(self) records without printing. Existing checkout-owned suite lease therefore remains cancellable from the excluded conductor’s checkout. Proposal sent to hub before implementation; no code changed yet.
+
+- Hub approved abort-before-Publish and release/reformation (e4cc5d1b-712b-4e96-8d77-6b9e5d5ae408). No stage; next natural pair conflict is hub’s live follow-up. Tests must force a real conflict, survivor reformation and foreign-cancel refusal. #522 reassigned to ariadne:3; after #521 report and await next dispatch.
+
+## Revisions
+
+- 2026-10-21: Hub approved concrete abort/release policy and no-stage conformance; Done-when unchanged.
