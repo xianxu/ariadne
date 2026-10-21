@@ -1,6 +1,6 @@
 ---
 id: 000517
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.43
+tracker:
+    version: 1
+    completion:
+        token: close-d3f4c3926cd9
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0cc02ff1769bf20089b7c3996ba965269c566744
+        evidence_commit: b2c1d93657de0baea92ba9e6403a7e58c8619fd4
 ---
 
 # Prepare generated inputs before affected graph discovery
