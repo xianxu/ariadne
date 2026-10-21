@@ -1260,3 +1260,4 @@ Unknown descendant completion protects every input and output together: checkout
   remove status records on its previous head; a list of current heads is not
   the pre-existing history. The real conflict/reformation test retains those
   records while checking that a held conductor creates no train PR or suite.
+- #511 fixture verification: a late train-arrival regression must first board valid cars. Section presence alone is insufficient: Done-when needs a nonempty bullet and Plan needs a non-placeholder checklist. Otherwise an early held car can turn the scenario into a different prefix before the intended event. The real two-car late-duplicate regression and instance gates enforce this semantic fixture contract; a lexical lint would only mirror the helper.
