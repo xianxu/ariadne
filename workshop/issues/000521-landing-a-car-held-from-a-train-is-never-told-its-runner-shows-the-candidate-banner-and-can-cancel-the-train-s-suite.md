@@ -70,7 +70,7 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 - [x] Get hub approval of abort/release tradeoff; reproduce held-conductor output/suite ownership with controlled real train fixtures.
 - [x] Correct candidate/composed membership output, prompt held outcome and pre-publish self-held guard; verify survivor reformation and cancellation ownership.
-- [ ] Run focused controls and recorded full suite, then prepare close verification.
+- [x] Run focused controls and recorded full suite, then prepare close verification.
 
 ## Log
 
@@ -97,6 +97,8 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 - Adapted the test to the new bulk-cancel signature and added exact run-ID foreign refusal against the same actual reformed suite lease. Runtime policy unchanged. Fresh targeted/full verification and narrow re-close are required; previous branch proof remains historical evidence. Persistent failed log/attempt copies in common test-stats/evidence/000521/integrated-build-failure.{log,json}.
 
 - Integration repair focused verification PASS11.492s: both membership labels at8/16cars, real held-conductor/reformation with bulk and exact run-ID foreign refusal, held-waiter recovery; full pkg/golint PASS0.589s. Package compilation proves the concurrent signature migration is reconciled. Runtime source unchanged by the repair. Fresh recorded suite remains pending before narrow re-close.
+
+- Repaired integrated full suite PASS on4af31908915b4b91967dee94f3f640a355f073a4: all eight shards,1,927 cmd/sdlc tests+75 other packages, zero failures/reruns,628.3s, queued360s. Attempt1c28f0b9981a0091c712c473e5aca80f; sdlc-local/suite success. Persistent raw copy common test-stats/evidence/000521/repaired-integrated-suite.log, SHA25697ef38d6fc47dc7e0a545cbbd981de8993133085302f9b425789d40c5fd23d5c. This verifies the actual main API integration plus stronger exact-ID cancellation control. Only issue bookkeeping since tested head. Narrow --fixed-then-ship close is next; prior compile failure remains retained, not reclassified as a flake.
 
 ## Revisions
 
