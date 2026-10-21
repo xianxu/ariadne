@@ -163,6 +163,7 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 		t.Fatal(err)
 	}
 	runs := localCheckRunsDir(logDir)
+	var runID string
 	outerDeadline, hasDeadline := t.Deadline()
 	now := time.Now()
 	deadline := now.Add(landingCompletionBudget(outerDeadline, hasDeadline, now))
@@ -184,6 +185,7 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 			if lease.Root != canonicalRoot(second) {
 				t.Fatalf("reformed suite belongs to %s, want new conductor %s", lease.Root, second)
 			}
+			runID = strings.TrimSuffix(filepath.Base(files[0]), ".json")
 			t.Logf("live reformed suite belongs to new conductor %s", lease.Root)
 			break
 		}
@@ -193,10 +195,13 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	var cancelled bytes.Buffer
-	if n, err := cancelLocalChecks(runs, canonicalRoot(s.first), "suite", &cancelled, time.Second); err != nil || n != 0 || !strings.Contains(cancelled.String(), "other checkouts left running") {
+	if n, err := cancelLocalChecks(runs, canonicalRoot(s.first), "suite", "", &cancelled, time.Second); err != nil || n != 0 || !strings.Contains(cancelled.String(), "other checkouts left running") {
 		t.Fatalf("held caller cancelled reformed train: %d, %v\n%s", n, err, &cancelled)
 	}
 	t.Logf("foreign cancel from held checkout: %s", strings.TrimSpace(cancelled.String()))
+	if n, err := cancelLocalChecks(runs, canonicalRoot(s.first), "", runID, &cancelled, time.Second); n != 0 || err == nil || !strings.Contains(err.Error(), "belongs to another checkout") {
+		t.Fatalf("held caller cancelled exact reformed run %s: %d, %v", runID, n, err)
+	}
 	select {
 	case err := <-done:
 		// The deferred join still needs this result.

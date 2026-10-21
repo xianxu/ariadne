@@ -70,7 +70,7 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 - [x] Get hub approval of abort/release tradeoff; reproduce held-conductor output/suite ownership with controlled real train fixtures.
 - [x] Correct candidate/composed membership output, prompt held outcome and pre-publish self-held guard; verify survivor reformation and cancellation ownership.
-- [x] Run focused controls and recorded full suite, then prepare close verification.
+- [ ] Run focused controls and recorded full suite, then prepare close verification.
 
 ## Log
 
@@ -93,6 +93,12 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 - Required recorded suite PASS on43072e4e4f92cb5d8880bab3ab39cc6823357614: all eight shards,1,886 cmd/sdlc tests+75 other packages, zero failures/reruns,690.9s; queued1,376s. Attempt38951803c8c970479b302c1f7746a564, sdlc-local/suite success; persistent raw copy common test-stats/evidence/000521/branch-suite.log, SHA256bdac00752ca8aaffdb62b363a6e8c558c03087828b84712f5533f7fe8b1175ea. Since tested implementation only issue bookkeeping changed. Close review next; hub owns project records.
 
+- First landing integration a813bcad5b743e1a3c6eb8bd166de4d26582d325 exposed a concurrent main API migration (#510): cancelLocalChecks now takes an explicit runID operand. Our new test still used its old signature; compilation refused before tests (attempt00c653f64bc7a604ebafcbe0980dd45c, exit2 in0.774s after2,350s queue, log SHA256317a9ba54b5376da3778585805c47b5e68855f685286beec8d7c1b839cad13f1). Automatic main baseline was queued but unnecessary for the compiler-identified branch defect; cancelled only this checkout’s owned baseline through local-check cancel --name suite, runner exited1. No PID kill, retry, or flake registration.
+- Adapted the test to the new bulk-cancel signature and added exact run-ID foreign refusal against the same actual reformed suite lease. Runtime policy unchanged. Fresh targeted/full verification and narrow re-close are required; previous branch proof remains historical evidence. Persistent failed log/attempt copies in common test-stats/evidence/000521/integrated-build-failure.{log,json}.
+
+- Integration repair focused verification PASS11.492s: both membership labels at8/16cars, real held-conductor/reformation with bulk and exact run-ID foreign refusal, held-waiter recovery; full pkg/golint PASS0.589s. Package compilation proves the concurrent signature migration is reconciled. Runtime source unchanged by the repair. Fresh recorded suite remains pending before narrow re-close.
+
 ## Revisions
 
 - 2026-10-21: Hub approved concrete abort/release policy and no-stage conformance; Done-when unchanged.
+- 2026-10-21: Integration repair only: adapt new regression to #510’s added runID argument and cover exact-ID refusal; acceptance and approved runtime policy unchanged.
