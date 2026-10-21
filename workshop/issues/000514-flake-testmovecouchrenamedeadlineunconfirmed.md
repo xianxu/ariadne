@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '16d87ea0a355e3641a417d73eb7cf41c85167fc5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b3e85b7d5665d41674d4b8b2cd6277ad2b35c207' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T18:24:57-07:00
 claimant:
     operator: Xian Xu
@@ -18,7 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchRenameDeadlineUnconfirmed, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchKnownRefusals, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchPermissionFailsClearly]
 flow: {kind: quick, provenance: inferred, spec: "2e844cfb", done: "a0bbe98b"}
-actual_hours: 0.52
+actual_hours: 2.23
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
