@@ -1,6 +1,6 @@
 ---
 id: 000521
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.81
+tracker:
+    version: 1
+    completion:
+        token: close-5cbb902965a1
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 441ac00b8654e9404eaa9914ac2eed1a73edca42
+        evidence_commit: dcd0c1e5892e18d1998d7b1b68da2d4bb9c5930d
 ---
 
 # landing: a car held from a train is never told; its runner shows the candidate banner and can cancel the train's suite
