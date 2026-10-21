@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "8be05a9b", done: "ca43fa8d"}
 ---
 
 # tl-worker: don't checkpoint/restart while your recorded check is queued or running in your terminal
