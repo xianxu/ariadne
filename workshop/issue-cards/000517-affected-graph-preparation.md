@@ -1,8 +1,8 @@
 ---
 id: 000517
-status: codecomplete
+status: done
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 github_issue:
 started: 2026-10-20T23:25:39-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0cc02ff1769bf20089b7c3996ba965269c566744
         evidence_commit: b2c1d93657de0baea92ba9e6403a7e58c8619fd4
+        landed_commit: ef2b0c321fe9f44dc87dfb9ca4377cfefb677edb
 ---
 
 # Prepare generated inputs before affected graph discovery
