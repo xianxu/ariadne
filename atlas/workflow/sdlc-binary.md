@@ -527,9 +527,10 @@ trains on:
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
 - **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
-  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`, `CarsDropped`.
-  - Effects: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
-  - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
+  - Events: `Boarded`, `Built`, `SuiteDone`, `SplitAssessed`, `LandingChecksDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`, `CarsDropped`.
+  - Effects: `Build`, `Publish`, `RunSuite`, `AssessSplit`, `RunLandingChecks`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+  - Phases: forming, integrating, testing, bisecting, attributing, reintegrating, checking, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
+  - Attribution: `AssessSplit` refreshes registration and dependency-aware package impact for the exact adjacent prefix pair; `SplitAssessed` must match it. Only a named unregistered affected failure permits a suite Hold. Otherwise unresolved cars stop with an unattributed/unverified refusal and the exact `sdlc merge --branch BRANCH --yes` retry. Only the already verified prefix proceeds; neither registration nor untouched sources promotes a failed suite to passing evidence. Assessment has a two-minute diagnostic budget and five-second cleanup bound; unavailable evidence stops without blame. A code-main reintegration rebuilds the final head and invalidates lower heads: if that multi-car suite fails, all cars stop as unverified before any split on stale prefixes. Docs-only reuse is unchanged.
 
 With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/history/plans/000449-landing-train-plan.md`.
 
@@ -2252,7 +2253,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
 `session-move-batched-reads` and `session-move-raw-fields` #504,
-`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
+`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
@@ -2661,8 +2662,8 @@ measurements with explicit unavailable-record coverage; flake registration
 cannot use unsupported authority or substitute a legacy log for it.
 
 **Activation barrier:** pre-#524 binaries treat a v3 record as a global invalid
-record. A payload cannot retrofit that old reader. This landing writes no v3
-record or ResumeLink and enables no resume command. After it lands the TL must
+record. A payload cannot retrofit that old reader. The #524 landing wrote no v3
+record or ResumeLink and enabled no resume command. After that landing the TL must
 upgrade every slot's actual sdlc; verify the binary path and build revision
 across slots before #463's separate writer/activation landing. A stale or
 unverified reader keeps activation held. Never hide links from older readers.
@@ -2722,3 +2723,112 @@ proof. One t.Run may introduce a slash-containing suffix, so slash prefixes
 are not inferred ancestry and cannot require invented events. Exact required
 leaf, whole top-level test and package must pass, preserving sibling-failure
 blocking and required-identity terminal conflict refusal.
+
+### Immutable resume proof core (#463 M1)
+
+`localcheck_resume_evidence.go` defines strict v3 resume links and terminal
+interruption receipts, a pure `resolveResumeProof` and the execution/recovery
+transition table. Links fence one saved suite parent to one reserved rerun child;
+they are coordination evidence and never count as suite samples. The common
+`SuiteEvidenceSnapshot` indexes them alongside real attempts and unsupported
+proof. Recognizing a pending link alone supplies no passing authority.
+
+`localcheck_resume_store.go` holds the immutable parent inode lock across
+recovery, verifies exact raw parent bytes and publishes synced proof with an
+exclusive link. `localcheck_resume_retention.go` permanently pins pending and
+interrupted/receipt graphs. Completed-child bundles retain their existing age
+and lock policy: selectable parent unlink and successful directory sync first,
+ordinary logs/inflight next, link removal and sync next, terminal child/log last.
+Crashes in completed-bundle GC retain either the fence or an unselectable parent
+with a terminal witness for the existing evidence-retirement protocol.
+Malformed/unreadable evidence retains data. Shared members/logs stay protected.
+The existing pruner skips all indexed bundle members during individual-file
+cleanup. M3 activates the commands and contextual composite-proof consumers below.
+
+One flock on the existing attempts directory spans the protected-member snapshot
+and both bundle and legacy pruning. Publication acquires parent, then directory;
+pruning acquires directory, then **strictly nonblocking** parent locks, skipping
+busy parents. The inverse order is safe only because pruning never waits on a
+parent. Real subprocess barrier tests deadlock under a deliberate blocking-lock
+mutation, and verify owner-death release and publication versus old snapshots.
+Directory path/inode identity is revalidated; no new lock files or per-parent
+snapshot scans are added.
+
+Publication's `.resume-*` temporary files share that directory mutex for their
+whole lifetime. Deferred removal handles normal exit; the next publication or
+pruning pass streams crash leftovers under the mutex, which proves no active
+publisher can own them. Receipt publication rejects unsupported authority and
+validates its supported link graph explicitly; the passing-reader refusal is
+not an admission rule for publishing interruption evidence.
+
+
+### Saved suite resume and evidence-only reconciliation (#463 M3)
+
+The operator selected option A after M2's lifecycle re-review; M2 was superseded
+without closing. `localcheck_resume_cmd.go` exposes suite-only resume on the
+original pushed SHA and operator/:0 reconciliation. `localcheck_resume.go`
+applies the pure transition model to link publication, one managed exact-package
+batch, child commit and status publication. The parent inode lock spans
+preparation, queue, execution, evidence and status retries. One immutable link
+reserves one child before launch; later resume of pending proof never executes
+or starts cleanup again. Completed proof only revalidates/reposts.
+
+`localcheck_resume_saved.go` resolves every relevant linked parent from one
+indexed snapshot, hashes actual parent/child logs, and shares one current policy
+and registry read per decision. Saved reuse, explicit republish and every status
+retry use this resolver. Composite outcomes overlay only in memory; original
+suite durations, raw records and measurement samples remain unchanged. Pending,
+failed, interrupted or invalid proof blocks suite and affected success on that
+head, including a newer green run; unrelated named checks remain usable.
+
+Protected input preparation is fence → durable existing owner marker (file,
+child directory and inflight parent) → exact child Git lock → managed execution.
+On ordinary managed completion the original owner has one forward cleanup pass:
+confirm group shutdown, remove/confirm/sync scratch, remove/confirm/sync checkout
+while its registration still preserves the reverse pointer, remove/confirm/sync
+registration, then release/sync the marker. Child publication requires the whole
+pass to finish. First-pass inconsistencies, errors or crashes stop immediately,
+retain surviving inputs and persistent Git locks, and report needs-reconcile
+with the exact parent/digest command and retained paths. No missing-state
+success, reconstruction or cleanup retry is available. A completed test failure
+can remain a failed child; cleanup permission never grants test-result authority.
+
+Reconciliation checks the exact raw link digest, operator/:0 authority and
+same-host owner-incarnation absence, with the existing explicit attestation that
+descendants stopped. Descendant discovery is not automatic. It only publishes
+or returns immutable terminal interrupted evidence: no scratch/checkout/Git
+registration/marker deletion, unlock, execution or passing status. First and
+repeated requests have zero destructive effects. Queue tombstones keep their
+independent reconciliation contract. Fix/advance code to run another suite.
+
+Pending/interrupted graphs and all terminal/orphan receipts pin their identified
+records, raw logs and inflight members indefinitely, even when Git locks or
+owner markers are absent or unreadable. Successful completed-child cleanup keeps
+its existing 30-day bundle GC and strict nonblocking parent-lock discipline.
+Uncertain resumes can retain one checkout, scratch, raw output, link and receipt
+per reserved child; retained input bytes follow actual build/output size.
+Existing evidence budgets refuse rather than evict authority; there is no new
+automatic disk reclamation policy. Unused preparation that never launched keeps
+the accepted ordinary temporary-collector boundary.
+
+Private production-main conformance is opt-in:
+`SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run '^(TestResumeCrash|TestLocalCheckResumeConformance)' -count=1 -v`.
+The private Git/tracker/queue/scratch/GH fixture covers actual pre-registration
+failure → exact-package resume/post/guard, unchanged original bytes, repeat
+without execution, every crash window, one-pass cleanup failures, evidence-only
+reconcile and repeated prune preservation, and later actual green refusal. All
+fixtures are private; no installed binary or production proof is repaired.
+
+Resume live-owner cleanup routes scratch removal/sync, checkout removal/sync,
+Git registration removal/sync and owner-marker unlink/sync through
+`resumeCleanupEffect`: it checks the original caller context and current owner
+authority before each effect, and observes cancellation even when that effect
+returns success. The managed runner deliberately cancels its signal context on
+normal completion, so strict scratch retirement uses the original caller context
+plus the already confirmed managed outcome. Any cleanup uncertainty revokes
+retirement; reconciliation still has no destructive effects. The Go lint rule
+`resume-cleanup-effect` rejects direct effects in the live-owner cleanup files
+and strict scratch defer, including effect aliases and multiple effects under
+one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
+the authority behavior. Completed proof GC and unused pre-link preparation keep
+their existing lifecycles.

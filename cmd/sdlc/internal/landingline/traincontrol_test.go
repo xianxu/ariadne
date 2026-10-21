@@ -450,7 +450,7 @@ func TestCarsDroppedAbortsOnlySurvivorsAndRejectsStarted(t *testing.T) {
 func TestCarsDroppedAllPreMergePhasesPreserveSurvivorOrder(t *testing.T) {
 	c := pureTrainControl()
 	c.Members = append(c.Members, TrainMember{Seq: 3, Issue: 3, Branch: "three", Head: strings.Repeat("c", 40), PR: 3, OwnerRoot: "/three"})
-	for _, phase := range []Phase{PhaseIntegrating, PhaseTesting, PhaseBisecting, PhaseChecking, PhaseLanding, PhaseReintegrating} {
+	for _, phase := range []Phase{PhaseIntegrating, PhaseTesting, PhaseBisecting, PhaseAttributing, PhaseChecking, PhaseLanding, PhaseReintegrating} {
 		for mask := 1; mask < 8; mask++ {
 			tr := NewTrain(c.Train)
 			tr.Phase = phase

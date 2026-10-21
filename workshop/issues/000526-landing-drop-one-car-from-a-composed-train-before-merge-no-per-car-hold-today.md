@@ -46,7 +46,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -91,7 +91,11 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 - Final reviewed-code suite on Git-verified2eb193c29df4550c63266ec065030a071a234d4b PASS: all8shards,1961command tests and75other packages, zero failures, wall623.1s. Run lease-2978758371 waited4547s, exited0 and recorded sdlc-local/suite. SSD copy evidence/000526/final-reviewed-suite-green.log, sha256d322bc007f493e5e201d7a7dae39bb593befbd562ea7676cb12abfffd01916c1. Close round3 returned SHIP, disposing both BR-1 and BR-2 with independent mutation verification and no new findings. Close finalized codecomplete; all changes since the reviewed source are documentation/evidence only. Final plan item now completed. Enter the normal merge gate; no stage/private cache exists to clear.
 
+- Landing runner admitted after #463, then refused the newer-main atlas conflict and exited without landing. Followed its named manual integration path. Resolved only atlas event/effect/phase documentation by retaining main’s attribution and landing-check entries plus CarsDropped. Automatic Go integration brought main’s #527 attribution flow. Existing completion-first regression reproduced our strict control decoder rejecting its new attributing phase (integration-attribution-red.log); expanded two-order tests reproduce it directly (integration-attribution-red2.log). Recognize that existing main phase and move the membership-reduction oracle to SplitAssessed, with a separate SuiteDone-to-attributing case so the original precedence contract remains tested. No new protocol or merge boundary. Integrated core/count guard PASS4.207s, race5.854s, lint1.255s, vet exit0; command controls including both real three-car re-formation cases and updated ordering PASS47.355s. Fresh integrated recorded suite and requested narrow re-close pending; final plan item reopened until that pass.
+
 ## Revisions
+
+- 2026-10-21 main-integration correction: accept the landed attribution phase in the strict control codec; retain membership/drop precedence tests at the new SplitAssessed reduction boundary and test entry to attribution separately. Preserve both atlas additions. This is compatibility with main, not new scope.
 
 - 2026-10-21 BR-2: preserve cleanup publication unknown metadata during every same-generation request rewrite, including multiple accepted drops; no schema or behavior change beyond the approved forward-compatible persistence contract.
 

@@ -33,9 +33,11 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
-	GH   ghCaller
-	Repo string // owner/name
-	Root string // the checkout's top level; Makefile.workflow resolves from here
+	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
+	StrictGroupCleanup bool // resume retains its suite capacity but confirms descendant cleanup
+	GH                 ghCaller
+	Repo               string // owner/name
+	Root               string // the checkout's top level; Makefile.workflow resolves from here
 	// WorkflowAnchor is the checkout Root was made from, when Root is a
 	// disposable tree whose relative Makefile.workflow link does not resolve
 	// where it sits (a landing train's, #486); "" when Root is that checkout.
@@ -265,6 +267,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 			}
 			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
+			if c.Name == suiteCheckName && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
+				fmt.Fprintf(d.Stderr, "    after registering every named flake: sdlc local-check resume --name suite --attempt %s --rev %s\n", writer.ID, sha)
+			}
 			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
 				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
 			}
@@ -332,7 +337,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			return suiteSlotRun{Exit: -1}, errors.New("empty managed command")
 		}
 	}
-	if resource == "runner" && d.runnerLifetime == nil {
+	if (resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
 	run = suiteSlotRun{Exit: -1}
@@ -454,6 +459,12 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		return run, err
 	}
 	defer func() {
+		if d.StrictGroupCleanup {
+			// ownedCtx is intentionally canceled by stopSignals on normal completion.
+			// Cleanup still requires the original caller to remain uncancelled.
+			err = finishResumeScratch(ctx, d, run, scratch, err)
+			return
+		}
 		if d.runnerLifetime.mayRetire() {
 			scratch.Cleanup()
 			if resource == "runner" {
@@ -461,9 +472,17 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			}
 		}
 	}()
-	if resource == "runner" {
+	if resource == "runner" || d.StrictGroupCleanup {
 		if err := attachRunnerArtifactOwner(scratch.Dir, wt); err != nil {
 			return run, fmt.Errorf("protect runner scratch: %w", err)
+		}
+		if d.StrictGroupCleanup {
+			if err := syncResumeDirectory(scratch.Dir); err != nil {
+				return run, err
+			}
+			if err := syncResumeDirectory(filepath.Dir(scratch.Dir)); err != nil {
+				return run, err
+			}
 		}
 	}
 	env = append(env, scratch.Env...)
@@ -540,7 +559,7 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 		cmd.Dir, cmd.Env, cmd.WaitDelay = wt, env, 5*time.Second
 		cmd.Stdout, cmd.Stderr = out, out
 		var joinRunner func() error
-		if resource == "runner" {
+		if resource == "runner" || d.StrictGroupCleanup {
 			if d.runnerCleanup != nil {
 				joinRunner = d.runnerCleanup(cmd)
 			} else {

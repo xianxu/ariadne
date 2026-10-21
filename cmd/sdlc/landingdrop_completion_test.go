@@ -15,12 +15,16 @@ import (
 // accepts a drop before its commit. No scheduler timing or production hook
 // determines which side of the fence wins.
 func TestLandingDropPreemptsComputedCompletion(t *testing.T) {
-	for _, kind := range []string{"bisect", "terminal", "phase", "abort"} {
+	for _, kind := range []string{"bisect", "attribution", "terminal", "phase", "abort"} {
 		t.Run(kind, func(t *testing.T) {
 			c, tr, cars := trainCompletionFixture(t)
 			var ev landingline.TrainEvent
 			switch kind {
 			case "bisect":
+				tr.Phase = landingline.PhaseAttributing
+				tr.AssessLo, tr.AssessHi = 1, 2
+				ev = landingline.SplitAssessed{Lo: 1, Hi: 2, Verdict: landingline.SplitAttribution{Kind: landingline.AttributionAttributable, Reason: "affected test"}}
+			case "attribution":
 				tr.Phase, tr.Testing = landingline.PhaseBisecting, 1
 				tr.Results = map[int]bool{2: false, 3: false}
 				ev = landingline.SuiteDone{Prefix: 1, Outcome: landingline.SuitePass}

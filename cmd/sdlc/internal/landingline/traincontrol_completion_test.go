@@ -18,8 +18,12 @@ func TestTrainCompletionAndDropOrdering(t *testing.T) {
 		terminal bool
 	}{
 		{name: "bisect membership reduction", removed: true, prepare: func(tr *Train) TrainEvent {
-			tr.Phase = PhaseBisecting
-			tr.Testing = 1
+			tr.Phase = PhaseAttributing
+			tr.AssessLo, tr.AssessHi = 1, 2
+			return SplitAssessed{Lo: 1, Hi: 2, Verdict: SplitAttribution{Kind: AttributionAttributable, Reason: "affected test"}}
+		}},
+		{name: "enter attribution", prepare: func(tr *Train) TrainEvent {
+			tr.Phase, tr.Testing = PhaseBisecting, 1
 			tr.Results = map[int]bool{2: false}
 			return SuiteDone{Prefix: 1, Outcome: SuitePass}
 		}},

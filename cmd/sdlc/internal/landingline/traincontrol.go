@@ -95,7 +95,7 @@ type DropReceipt struct {
 
 func trainPhaseValid(p Phase) bool {
 	switch p {
-	case PhaseForming, PhaseIntegrating, PhaseTesting, PhaseBisecting, PhaseReintegrating, PhaseChecking, PhaseLanding, PhaseMerging, PhaseLanded, PhaseAbandoned, PhaseRefused, PhaseUnconfirmed:
+	case PhaseForming, PhaseIntegrating, PhaseTesting, PhaseBisecting, PhaseAttributing, PhaseReintegrating, PhaseChecking, PhaseLanding, PhaseMerging, PhaseLanded, PhaseAbandoned, PhaseRefused, PhaseUnconfirmed:
 		return true
 	}
 	return false

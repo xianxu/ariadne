@@ -653,9 +653,27 @@ func (s *trainSetup) declareSuite(t *testing.T, command string) {
 // prefix lands, and the cars behind the culprit ride the next train at once.
 func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	s := newTrainSetup(t, "train")
-	s.declareSuite(t, "test ! -e second.go") // car 2 breaks the suite
-	s.pushCar(t, "000002-second", "second", 2, 2)
-	s.pushCar(t, "000003-third", "third", 3, 3)
+	writeTrainAttributionGraph(t, s.server)
+	procedureWrite(t, s.server, "fixture.go", "package fixture\n")
+	procedureWrite(t, s.server, "fixture_test.go", "package fixture\nimport \"testing\"\nfunc TestBroken(t *testing.T) {}\n")
+	git(t, s.server, "add", ".")
+	git(t, s.server, "commit", "-qm", "valid affected root package")
+	failure := suiteFailing("example.com/train.TestBroken").Command[2]
+	s.declareSuite(t, "if test -e second.go; then "+failure+"; fi; echo suite passed")
+	bootstrapTrainAttributionTracker(t, s, nil)
+	for _, car := range []struct {
+		branch, file string
+		number       int
+	}{
+		{"000002-second", "second", 2}, {"000003-third", "third", 3},
+	} {
+		root := s.pushCar(t, car.branch, car.file, car.number, car.number)
+		procedureWrite(t, root, car.file+".go", "package fixture\n")
+		git(t, root, "add", car.file+".go")
+		git(t, root, "commit", "-q", "--amend", "--no-edit")
+		git(t, root, "push", "-q", "--force", "upstream", car.branch)
+		s.addCar(t, car.branch, car.number)
+	}
 	one := s.merge(s.first)
 	waitQueued(t, s.line, 1)
 	two := s.waitingCar(t, "000002-second", 2, 2)
@@ -666,7 +684,7 @@ func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 		t.Fatalf("the clean prefix's car: %v", err)
 	}
 	held := wantSettled(t, two, landingline.OutcomeHeld)
-	if !strings.Contains(held.Reason, "car 2 (#2)") {
+	if !strings.Contains(held.Reason, "example.com/train.TestBroken") {
 		t.Fatalf("held for %q", held.Reason)
 	}
 	// Car 3 was released, still waiting; this test's line has no train rule,

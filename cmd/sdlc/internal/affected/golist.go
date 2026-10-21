@@ -3,6 +3,7 @@ package affected
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // goListFormat prints one line per package (test variants included): import path, dir, ForTest, deps, and the
@@ -135,11 +139,21 @@ func LoadGoGraph(ctx context.Context, dir string) (Graph, error) {
 
 func goList(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "go", append([]string{"list"}, args...)...)
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
+	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	// A successful parent may also leave descendants holding its output pipes.
+	// WaitDelay bounds the pipes; reclaim their owners before returning.
+	_ = processgroup.Terminate(cmd, true)
+	if ctx.Err() != nil {
+		err = errors.Join(ctx.Err(), err)
+	}
+	if err != nil {
 		return "", fmt.Errorf("go list %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return stdout.String(), nil

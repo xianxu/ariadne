@@ -158,3 +158,5 @@ The merge start fence is admission of the Merge effect after green CI, before it
 - 2026-10-21 BR-2 implementation correction: preserve cleanup.publication unknown metadata when another drop refreshes the snapshot. Request-driven red/green regression also covers ApplyTrainDrops and FinishTrainControl rewrites. No new state or mechanism; final recorded suite and full close review still pending.
 
 - 2026-10-21 final acceptance: SHIP round3, both findings addressed with independent mutations. Recorded suite on final source2eb193c29 passes all8shards/1961command tests/75other packages in623.1s, zero failures. Issue plan complete; normal merge gate is next.
+
+- 2026-10-21 integration correction: main’s #527 attribution flow adds attributing and moves membership reduction to SplitAssessed. Recognize its existing phase in train control and preserve both lock-order oracles at that production boundary, with separate entry-to-attribution coverage. Atlas conflict resolves to the union of documented events/effects/phases. Fresh integrated suite and narrow re-close required before retrying landing.
