@@ -14,6 +14,13 @@ import (
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
 	{
+		Name:     "test-landing-completion-wait",
+		Incident: "ariadne#498, ariadne#500",
+		Message:  "landing fixture completion waits must use the shared remaining testing.T.Deadline budget; remove a competing real-merge context timeout and keep explicit cancellation",
+		TestOnly: true,
+		Match:    landingCompletionWaits,
+	},
+	{
 		Name:     "session-move-batched-reads",
 		Incident: "ariadne#504",
 		Message:  "session move must use RegistrationSnapshot and local lockfiles; per-document LookupRegistration or Status subprocesses made the 196-document live migration take about 20 minutes",
@@ -576,5 +583,54 @@ func recursiveJSONScanners(f *ast.File, _ *CheckContext) []ast.Node {
 		}
 		return true
 	})
+	return out
+}
+
+// Protect this fixture family's completion waits, leaving readiness probes and
+// intentional context-expiration tests alone.
+func landingCompletionWaits(f *ast.File, context *CheckContext) []ast.Node {
+	var out []ast.Node
+	timePkg, ctxPkg := localName(f, "time"), localName(f, "context")
+	filename := path.Base(context.Path)
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		completion := (filename == "landingqueue_test.go" && fn.Name.Name == "finished") ||
+			(filename == "landingtrain_test.go" && fn.Name.Name == "wantSettled") ||
+			(filename == "landingwait_test.go" && fn.Name.Name == "awaitLandingCompletion")
+		realMerge := filename == "landingtrain_archive_test.go" && fn.Name.Name == "TestLandingTrainWaiterAcceptsConductorArchive"
+		if !completion && !realMerge {
+			continue
+		}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			pkg, ok := sel.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			var bound ast.Expr
+			if completion && pkg.Name == timePkg && (sel.Sel.Name == "After" || sel.Sel.Name == "NewTimer") && len(call.Args) == 1 {
+				bound = call.Args[0]
+			}
+			if (completion || realMerge) && pkg.Name == ctxPkg && sel.Sel.Name == "WithTimeout" && len(call.Args) == 2 {
+				bound = call.Args[1]
+			}
+			if bound != nil {
+				if _, fixed := constDuration(timePkg, bound); fixed {
+					out = append(out, call)
+				}
+			}
+			return true
+		})
+	}
 	return out
 }

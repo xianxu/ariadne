@@ -2227,7 +2227,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`session-move-batched-reads` and `session-move-raw-fields` #504,
+that taught it (`test-landing-completion-wait` #498/#500,
+`session-move-batched-reads` and `session-move-raw-fields` #504,
 `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
