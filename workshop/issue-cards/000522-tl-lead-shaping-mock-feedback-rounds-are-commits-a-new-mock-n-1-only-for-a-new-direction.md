@@ -1,6 +1,6 @@
 ---
 id: 000522
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 59fba6e36bf319e710942ec9334a094984ad5be3
         evidence_commit: 3dd64f0d2ccf3338ca588254c28ce68083ef6b87
+        landed_commit: 16a12319841704133a32172bed0529d9b942346f
 ---
 
 # tl-lead shaping: mock feedback rounds are commits; a new mock-N+1 only for a new direction
