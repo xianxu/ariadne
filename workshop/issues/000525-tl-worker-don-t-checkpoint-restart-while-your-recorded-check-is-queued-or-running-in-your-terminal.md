@@ -61,6 +61,7 @@ Actions: wait for the check; checkpoint before queueing or after completion; tel
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Rendered-help phrase guards failed before the help change and now pass on --help and bare invocation; worker/lead/tlrules packages passed (0.128s/18.083s/0.121s), final named phrase/scope guards passed (0.060s/0.067s). Clean own binary 5d7466653883d29eacbc1991b07968845f6d689b carries all 75 rules on both real CLI entry points, proof p525-help-proof.txt outside checkout. Continuation-writer hint and README/atlas pointers inspected. Recorded full suite queued on pushed head; its passing result remains required before landing. No continuation checkpoint/restart while this owned check is queued/running.; review verdict: SHIP
 
 - Claimed and started from fresh main after #511. User dispatch specifies quick-flow help plus phrase guards; issue adds the one-line writer hint and records pair:9/pair#752 losing a queued final suite after continuation restart. #502 is queued after this landing, plan first; not claimed or stacked here.
 - ARCH-DRY/PURPOSE: tl-worker remains the policy owner; the continuation prototype points to it rather than duplicating recovery rules. Reuse rules.tsv and existing rendered-help/scope guards. A broader detached-runner mechanism is expressly separate; no runtime code or stored state changes (ARCH-PURE/EVOLVE), no new lifetime or hot-path cost.
