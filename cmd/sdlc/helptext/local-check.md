@@ -176,9 +176,13 @@ THE AFFECTED SUITE (#473)
   Known flakes (#394). A test is a known flake while an open issue's card
   lists it in flake_tests (`sdlc flake register`). When the suite fails and
   every failure is a named, known-flake test, the run reruns just those tests
-  once on the same head (`go test -run`, weight 1, its own slot and lease, so
-  cancel reaches it), within the check's timeout. A rerun that shows each test
-  passing ("--- PASS"), with its flake issue still open when the result is
+  once on the same head (one `go test -json -run` command per exact package).
+  A registered subtest reruns its whole top-level test, including siblings.
+  The batch shares one weight-1 slot, lease, scratch directory and total timeout
+  bounded by the check's timeout; cancel stops the active group and no later
+  group starts. Each required test/subtest, its ancestors and package must have
+  structured JSON PASS events for that exact package. Text PASS lines and
+  quoted Output cannot supply proof. With its flake issue still open when the result is
   posted, is landing evidence: every test has then passed once on the exact
   head. A saved known-flake pass is reused or republished only while it still
   holds. The status reads "pass · known flake #N

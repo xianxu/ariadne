@@ -88,7 +88,7 @@ This landing creates no cross-event resume state, lock or durable coordination r
 - [x] Implement decodeUnsupportedProof, unsupportedProofBlocks and readSuiteEvidenceBudget using the named adversarial strategies above; retain strict supported-record validation and untouched raw unknown bytes.
 - [x] Route every authority consumer through the scoped view. Test actual/statistics/registration projection against unrelated valid rows, with explicit unsupported coverage and no fake samples. Count scans/record visits at N and2N; reject per-record whole-store rescans.
 - [x] Retain a pre-change decoder/guard control proving a v3 record currently poisons the whole snapshot; test the upgraded compatibility reader against the same store and assert scoped refusal only. Do not label the already-built pre-change binary compatible.
-- [ ] Documented the two-landing rollout barrier in atlas; close M1 using the binary review. No v3 writer is present.
+- [x] Documented the two-landing rollout barrier in atlas; close M1 using the binary review. No v3 writer is present.
 
 ## M2 — Exact-package managed reruns and delivery preparation
 
@@ -128,3 +128,14 @@ Retain the pre-change control as a committed fixture and opt-in scripts/verify-p
 BR-3 adds README discovery for the opt-in compatibility control and fleet rollout barrier. BR-4 defines the private clone lifecycle: the invoker owns it, retains it through inspection, then removes only its printed parent directory. The committed fixture/script and issue Log remain the durable proof; no collector, retention setting or production artifact family is introduced.
 
 The BR-1 class sweep also tests the inverse inconsistent-check case: a link to a supported VM parent must not gain authority over an unrelated suite from its own check field. The fixture reproduced that false refusal, then the shared index was narrowed to the resolved parent's check. Unresolved parents retain their declared scope as uncertainty. Explicit and implicit consumers use the same completed snapshot; the scan remains linear.
+
+
+### 2026-10-21 — M1 finalized; M2 execution contracts
+
+M1 round3 returned SHIP with BR-1 through BR-4 addressed and no new findings;
+the binary finalized and pushed its boundary. M2's real two-package decoy
+fixture failed against the original cross-product runner, then passed with
+per-package argv. Command announcements use quoted argv: a multiline argv
+must remain data rather than injecting synthetic JSON events into the raw log.
+The real argv-injection control failed before that correction. This refines
+the approved structured-proof boundary; no persisted state or policy is added.

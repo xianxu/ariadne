@@ -2655,3 +2655,24 @@ through evidence inspection. Afterwards remove the printed parent directory
 (`ariadne-pre524-reader.*`), including its clone; never sweep the shared scratch
 root. It contains no live lease or production evidence and is not a long-term
 artifact store. The committed fixture/script and issue Log retain the proof.
+
+
+### Exact-package known-flake batches (#524)
+
+`internal/flakes.RerunCommands` groups validated names by package and promotes
+registered subtests to whole top-level tests. Each sorted literal argv runs
+one package with anchored names and `go test -json -count=1`. A name from a
+different package cannot select a same-name decoy. `RerunMissingJSON` requires
+package-bound test, ancestor and package PASS events; Output text, malformed
+or conflicting terminal events cannot authorize success. Existing saved
+supported evidence remains readable.
+
+`knownFlakeStep` runs the batch through `runUnderSlotBatch` and the shared
+`runManagedCommandBatch` execution seam. One queue admission, weight-1 slot,
+run lease, scratch directory, raw log and aggregate targeted timeout span all
+package processes. Each group is stopped before the next starts; failure,
+timeout or cancellation stops the batch. Argv announcements quote embedded
+newlines so command data cannot become log facts. The result is one immutable
+`suite-rerun` attempt linked to the original failed suite/affected attempt,
+never another full-suite sample. Runner-resource checks retain their existing
+single-command cleanup and retention authority.

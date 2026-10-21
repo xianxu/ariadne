@@ -82,7 +82,7 @@ func TestKnownFlakeGateRealGoProvenGranularity(t *testing.T) {
 				}
 			}
 			d.FlakeRegistry = gateRegistry(t, registered...)
-			asked := scriptRerun(t, "printf -- '--- PASS: TestNestedReturnAndSibling (0.01s)\\n--- PASS: TestParentAfter (0.01s)\\n--- PASS: TestParentBefore (0.01s)\\nok example.com/ariadne476output 0.03s\\n'")
+			asked := scriptRerun(t, rerunPassJSON(realGoFixtureTops...))
 			c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", realGoOutput(t, "plain")}, TimeoutMinutes: 30}
 			rec, err := runLocalCheck(context.Background(), d, c, sha)
 			if err != nil || rec.passed() == leafOnly || (gh.statuses[sha]["sdlc-local/suite"] == "success") == leafOnly {

@@ -737,7 +737,10 @@ visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
 are shown as not covered until #451.
 When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
-reruns just those tests once on the same head. Each must show a PASS line, and its
+reruns just those tests once on the same head, grouped into exact-package
+commands under one weight-1 lease and total timeout. Registered subtests run
+their whole top-level test, including siblings. Each required test and package
+must have a matching structured JSON PASS event, and its
 flake issue must still be open when the result is posted; then the status reads
 "pass · known flake #N rerun". Any other failure blocks: an unregistered test, a
 build error or timeout, or a known flake failing again. A full rerun that passes

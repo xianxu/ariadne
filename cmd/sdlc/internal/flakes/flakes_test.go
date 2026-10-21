@@ -153,17 +153,7 @@ func TestEvidence(t *testing.T) {
 	}
 }
 
-func TestRerunCommand(t *testing.T) {
-	got, err := RerunCommand([]string{tA, tC, tB})
-	want := []string{"go", "test", "-count=1", "-v", "-run", "^(TestA|TestC|TestB)$", "github.com/x/r/pkg/a", "github.com/x/r/pkg/b"}
-	if err != nil || !reflect.DeepEqual(got, want) {
-		t.Errorf("%v %v", got, err)
-	}
-	for _, bad := range [][]string{nil, {"TestA"}, {"github.com/x.Test$(rm)"}, {"-exec.TestA"}, {"./x.TestB"}, {"x/.hidden.TestC"}} {
-		if _, err := RerunCommand(bad); err == nil {
-			t.Errorf("%q: no refusal", bad)
-		}
-	}
+func TestRerunPolicy(t *testing.T) {
 	if p, _ := ParsePolicy(""); p != PolicyRerun {
 		t.Errorf("default policy %q", p)
 	}

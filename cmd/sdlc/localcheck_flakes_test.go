@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	gateKnown   = "o/r/pkg.TestFlaky"
-	gateUnknown = "o/r/pkg.TestBroken"
+	gateKnown    = "o/r/pkg.TestFlaky"
+	gateUnknown  = "o/r/pkg.TestBroken"
+	gatePassJSON = `echo '{"Action":"pass","Package":"o/r/pkg","Test":"TestFlaky"}'; echo '{"Action":"pass","Package":"o/r/pkg"}'`
 )
 
 // suiteFailing is a suite command whose log names failures the way
@@ -43,13 +44,42 @@ func gateRegistry(t *testing.T, tests ...string) func(context.Context) (flakes.R
 func scriptRerun(t *testing.T, script string) *[]string {
 	t.Helper()
 	var asked []string
-	prev := knownFlakeRerunArgv
-	t.Cleanup(func() { knownFlakeRerunArgv = prev })
-	knownFlakeRerunArgv = func(tests []string) ([]string, error) {
+	prev := knownFlakeRerunCommands
+	t.Cleanup(func() { knownFlakeRerunCommands = prev })
+	knownFlakeRerunCommands = func(tests []string) ([][]string, error) {
 		asked = append(asked, tests...)
-		return []string{"sh", "-c", script}, nil
+		return [][]string{{"sh", "-c", script}}, nil
 	}
 	return &asked
+}
+
+// rerunPassJSON scripts the structured facts the real go test -json runner
+// supplies. Names here are fixture data, never inferred from output text.
+func rerunPassJSON(tests ...string) string {
+	var args []string
+	packages := map[string]bool{}
+	for _, test := range tests {
+		n, ok := flakes.ParseName(test)
+		if !ok {
+			panic("invalid fixture test: " + test)
+		}
+		run := n.Run()
+		for {
+			data, _ := json.Marshal(map[string]string{"Action": "pass", "Package": n.Pkg, "Test": run})
+			args = append(args, "'"+strings.ReplaceAll(string(data), "'", "'\"'\"'")+"'")
+			at := strings.LastIndexByte(run, '/')
+			if at < 0 {
+				break
+			}
+			run = run[:at]
+		}
+		packages[n.Pkg] = true
+	}
+	for pkg := range packages {
+		data, _ := json.Marshal(map[string]string{"Action": "pass", "Package": pkg})
+		args = append(args, "'"+string(data)+"'")
+	}
+	return "printf '%s\\n' " + strings.Join(args, " ")
 }
 
 func gateAttempts(t *testing.T, d localRunDeps) []SuiteAttempt {
@@ -66,7 +96,7 @@ func TestKnownFlakeGate(t *testing.T) {
 	t.Run("a registered failure reruns and lands with its issue", func(t *testing.T) {
 		d, sha, gh, stderr := localRunRepo(t, "acquired")
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
-		asked := scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'; echo 'ok  o/r/pkg 0.1s'")
+		asked := scriptRerun(t, gatePassJSON)
 		rec, err := runLocalCheck(ctx, d, suiteFailing(gateKnown), sha)
 		if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed {
 			t.Fatalf("%+v %v\n%s", rec, err, stderr)
@@ -154,11 +184,11 @@ func TestKnownFlakeGate(t *testing.T) {
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
 		cctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		prev := knownFlakeRerunArgv
-		t.Cleanup(func() { knownFlakeRerunArgv = prev })
-		knownFlakeRerunArgv = func([]string) ([]string, error) {
+		prev := knownFlakeRerunCommands
+		t.Cleanup(func() { knownFlakeRerunCommands = prev })
+		knownFlakeRerunCommands = func([]string) ([][]string, error) {
 			time.AfterFunc(300*time.Millisecond, cancel)
-			return []string{"sleep", "30"}, nil
+			return [][]string{{"sleep", "30"}}, nil
 		}
 		_, err := runLocalCheck(cctx, d, suiteFailing(gateKnown), sha)
 		if err == nil || !strings.Contains(err.Error(), "known-flake rerun did not complete") || len(gh.statuses[sha]) != 0 {
@@ -172,7 +202,7 @@ func TestKnownFlakeGate(t *testing.T) {
 	t.Run("a suite killed by its timeout never lands (BR-11)", func(t *testing.T) {
 		d, sha, gh, _ := localRunRepo(t, "acquired")
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
-		asked := scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'")
+		asked := scriptRerun(t, gatePassJSON)
 		c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo '--- FAIL o/r/pkg TestFlaky'; echo '--- FAIL o/r/pkg'; sleep 5"}, TimeoutMinutes: 1}
 		rec, err := runLocalCheck(ctx, d, c, sha)
 		if err != nil || rec.passed() || !rec.TimedOut || rec.Outcome != flakes.Unattributable || len(*asked) != 0 || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
@@ -198,11 +228,11 @@ func TestKnownFlakeGate(t *testing.T) {
 			}
 			return open(ctx)
 		}
-		prev := knownFlakeRerunArgv
-		t.Cleanup(func() { knownFlakeRerunArgv = prev })
-		knownFlakeRerunArgv = func([]string) ([]string, error) {
+		prev := knownFlakeRerunCommands
+		t.Cleanup(func() { knownFlakeRerunCommands = prev })
+		knownFlakeRerunCommands = func([]string) ([][]string, error) {
 			closed = true // the issue closes while the rerun runs
-			return []string{"sh", "-c", "echo '--- PASS: TestFlaky (0.00s)'"}, nil
+			return [][]string{{"sh", "-c", gatePassJSON}}, nil
 		}
 		rec, err := runLocalCheck(ctx, d, suiteFailing(gateKnown), sha)
 		if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || gh.statuses[sha]["sdlc-local/suite"] != "failure" || !strings.Contains(stderr.String(), "no longer a known flake") {
@@ -212,7 +242,7 @@ func TestKnownFlakeGate(t *testing.T) {
 	t.Run("a saved known-flake pass is reused only while it holds", func(t *testing.T) {
 		d, sha, gh, _ := localRunRepo(t, "acquired")
 		d.FlakeRegistry = gateRegistry(t, gateKnown)
-		scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'")
+		scriptRerun(t, gatePassJSON)
 		c := suiteFailing(gateKnown)
 		if rec, err := runLocalCheck(ctx, d, c, sha); err != nil || !rec.passed() {
 			t.Fatalf("%+v %v", rec, err)
@@ -245,7 +275,7 @@ func TestKnownFlakeGate(t *testing.T) {
 		prev := knownFlakeRerunTimeout
 		t.Cleanup(func() { knownFlakeRerunTimeout = prev })
 		knownFlakeRerunTimeout = time.Hour
-		scriptRerun(t, "sleep 10; echo '--- PASS: TestFlaky (0.00s)'")
+		scriptRerun(t, "sleep 10; "+gatePassJSON)
 		c := suiteFailing(gateKnown)
 		c.TimeoutMinutes = 1 // one second under the test's minute
 		start := time.Now()
@@ -297,7 +327,7 @@ func TestKnownFlakeGate(t *testing.T) {
 // subtests plain/dev-aliases.test.sh (flaky: fails once per $FLAKE_DIR, then
 // passes) and plain/other.test.sh (fails while $FLAKE_DIR/sibling exists).
 // The suite uses Go JSON for proven subtest events; the rerun is the real
-// knownFlakeRerunArgv. Raw indented subtests coarsen under #476.
+// knownFlakeRerunCommands. Raw indented subtests coarsen under #476.
 func nestedFlakeRepo(t *testing.T) (localRunDeps, string, *ciFakeGH, *bytes.Buffer, string) {
 	t.Helper()
 	d, _, gh, stderr := localRunRepo(t, "acquired")
@@ -373,7 +403,7 @@ func TestKnownFlakeGateSubtest(t *testing.T) {
 		if gh.statuses[sha]["sdlc-local/suite"] != "success" {
 			t.Fatalf("statuses %v", gh.statuses)
 		}
-		if !strings.Contains(stderr.String(), "-run ^(TestScripts)$") {
+		if !strings.Contains(stderr.String(), `"-run" "^(TestScripts)$"`) {
 			t.Fatalf("the rerun was not its whole top-level test:\n%s", stderr)
 		}
 	})

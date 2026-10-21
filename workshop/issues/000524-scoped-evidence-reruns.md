@@ -114,3 +114,29 @@ The BR-1 class sweep added TestScopedLinkedProofUsesParentCheck: a link labelled
 NEXT ACTION: run sdlc milestone-close --issue 524 --milestone M1 against this checkpoint, citing BR-3/BR-4 documentation plus the inverse-parent RED/GREEN controls; M1 still needs its final review disposition. Then implement approved M2 exact-package batches, private executable conformance, recorded central suite and delivery. After landing, verify actual fleet binary paths/revisions before #463 activation. #463 and #520 branches remain held unchanged.
 
 No test, suite, merge or review runner remains. The retained session-context pressure checkpoint requires the canonical continuation writer, but none is exposed by this environment. Per AGENTS14 and construct/datatype/continuation.md no-writer rule, this issue Log/plan is committed and pushed, no continuation is hand-written, and work stops for Pair park/continue recovery. Previous-screen evidence is unavailable; branch/issue/gate records are the durable recovery evidence.
+
+
+### 2026-10-21 — Recovery, M1 SHIP and M2 RED/GREEN
+
+Recovered with sdlc state on the clean owned issue branch. Final M1 round3
+returned SHIP, disposed BR-1/BR-2/BR-3/BR-4, and committed/pushed its boundary.
+The reviewer independently ran scoped consumers, broader proof/statistics/
+actuals/weekly cases, race controls, real old-source compatibility, and parent
+index mutation; it reported no new findings.
+
+M2 TestKnownFlakeExactPackageGate failed against the old runner in2.807s:
+both unrelated same-name decoy sentinels were created. The exact-package
+batch now preserves one managed queue/slot/lease/scratch/deadline while joining
+each group before the next. Pure per-package selection and structured PASS
+functions were delegated as a bounded AGENTS3 task; main retained the shared
+runner and gate integration. Pure GREEN0.060s. The new argv-as-data regression
+also failed against unquoted announcements (0.513s), then passed with quoted
+argv. Existing raw-PASS fixture scripts were updated to explicit structured
+package/test facts, keeping original failure-attribution assertions intact.
+
+Focused normal checks passed20.911s (known-flake gates, real package decoys,
+subtest/sibling rules, managed batch and descendant cleanup); pure flakes
+checks passed0.063s. No full suite or M2 close is claimed yet. Next: private
+executable conformance, broader focused/race + source checks, durable checkpoint
+and recorded central suite, M2 review and final issue close. No v3/link writer
+or resume activation was added. #463/#520 branches remain untouched.
