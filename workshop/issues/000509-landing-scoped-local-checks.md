@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
-estimate_hours:
+estimate_hours: 3.41
 collaboration-mode: collaboration
-card_mirror: '9a61de2e1e4a1633b8957d7ac2c36b63c4535dd6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1c3301ffed1847860b79f84bad78663b4b64eff0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T22:27:36-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Landing scoped local checks
@@ -73,3 +74,31 @@ The original single planning row (“Design the narrow schema and train/single-l
 ### 2026-10-20 22:51 PDT — Operator approval
 
 Authenticated hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0 records operator approval of all seven choices, with external-runner cancellation grace30s instead of15s. Proceed to change-code and M1/M2. Rollout remains capability only; no Pair activation or hosted workflow changes. This supersedes the pending approval state above.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; calibration is flagged stale, so provisional. Existing matcher, Git adapters, process-group shell and attempt store supply the libraries; no novel stack. Thorough approved plan discounts design by0.2 and uses15% buffer; impl uses40% of v2 values, familiarity1.0 from recent queue/train work.
+
+Seven smaller modules (codec, selection, Git inputs, resource runner, proof gate, train wiring, single/CI consumers) each use v2 design0.2 ×0.2 =0.04 and impl0.5 ×0.4 =0.20. Two new pure selection/proof concerns use design0.5 ×0.2 =0.10 and impl0.5 ×0.4 =0.20. Cross-cutting runner/consumer extraction uses0.08/0.16; docs0.02/0.08; three reviews0.02/0.16 each; issue/spec0.10/0.04.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.10 impl=0.04
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: greenfield-go-module design=0.10 impl=0.20
+item: greenfield-go-module design=0.10 impl=0.20
+item: cross-cutting-refactor design=0.08 impl=0.16
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.16
+item: milestone-review design=0.02 impl=0.16
+item: milestone-review design=0.02 impl=0.16
+design-buffer: 0.15
+total: 3.41
+```
