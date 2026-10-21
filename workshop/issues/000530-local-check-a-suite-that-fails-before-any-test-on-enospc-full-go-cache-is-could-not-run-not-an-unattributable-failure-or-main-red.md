@@ -173,6 +173,17 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   in the plan and asked the TL before implementing it. No empty historical log
   will be reclassified by inference.
 
+- TL approved the narrow missing-Go delta (receipt
+  54589b6d-ecf9-455d-87e9-af3ee82a75e7). The first Go command now carries typed
+  missing-executable/interpreter proof only when Process is nil, through normal
+  queue and cleanup completion. Empty raw output is retained; no status or failed
+  attempt is published. Earlier-command, unrelated executable, permission and
+  started/exit-127 controls preserve ordinary failure. Native missing-Go and
+  batch controls were red (0.665s) before implementation. Startup/environment
+  and managed-batch controls now pass (19.611s), including lease/checkout cleanup.
+  No full recorded suite has run yet. Next: exact-attempt audited v3 recovery,
+  consumer sequence controls and actual pinned #524 reader compatibility.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after

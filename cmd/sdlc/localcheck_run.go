@@ -171,6 +171,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
+		var startup *suiteEnvironmentError
+		if errors.As(err, &startup) {
+			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, startup.Diagnosis)
+			publishing = path == rec.LogPath
+			rec.LogPath = path
+			return rec, envErr
+		}
 		var uncertain *runnerCleanupUnconfirmed
 		if errors.As(err, &uncertain) {
 			publishing = true
@@ -522,6 +529,10 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	case errors.As(runErr, &exitErr):
 		run.Exit = exitErr.ExitCode()
 	default:
+		var startup *suiteEnvironmentError
+		if errors.As(runErr, &startup) {
+			return run, startup
+		}
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
 	return run, nil
@@ -530,7 +541,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 // runManagedCommandBatch joins each command's process group before continuing.
 // The caller supplies one context deadline and shared resources for every group.
 func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check string, commands [][]string, env []string, out io.Writer, resource string) (runErr, cleanupErr error) {
-	for _, argv := range commands {
+	for index, argv := range commands {
 		if err := ctx.Err(); err != nil {
 			return err, nil
 		}
@@ -566,6 +577,15 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 			d.runnerLifetime.retirable = true
 		}
 		if runErr != nil {
+			// Process nil proves this command never ran. Only the first Go
+			// command establishes absence of earlier test activity; an empty
+			// historical log alone cannot establish this fact.
+			if index == 0 && isTestCheck(check) && filepath.Base(argv[0]) == "go" && cmd.Process == nil &&
+				(errors.Is(runErr, exec.ErrNotFound) || errors.Is(runErr, os.ErrNotExist)) {
+				return &suiteEnvironmentError{Check: check, Cause: runErr, Diagnosis: suiteStartupDiagnosis{
+					Resource: "Go toolchain", Path: argv[0], Reason: "missing executable or interpreter",
+				}}, nil
+			}
 			return runErr, nil
 		}
 	}

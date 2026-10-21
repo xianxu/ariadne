@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"iter"
 	"os"
 	"path/filepath"
@@ -126,6 +127,56 @@ func TestSuiteInfrastructureMissingGoNeverStarts(t *testing.T) {
 	}
 	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 {
 		t.Fatalf("unstarted tool published code authority: %+v %v", gateAttempts(t, d), gh.statuses)
+	}
+	if log, err := os.ReadFile(rec.LogPath); err != nil || len(log) != 0 {
+		t.Fatalf("raw empty output changed: %q %v", log, err)
+	}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if leases, err := os.ReadDir(localCheckRunsDir(logDir)); err != nil || len(leases) != 0 {
+		t.Fatalf("unstarted Go retained lease: %v %v", leases, err)
+	}
+	if trees, err := d.Git("worktree", "list", "--porcelain"); err != nil || strings.Count(trees, "worktree ") != 1 {
+		t.Fatalf("unstarted Go retained checkout: %s %v", trees, err)
+	}
+}
+
+func TestSuiteInfrastructureMissingGoBatchControls(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "go")
+	interpreter := filepath.Join(t.TempDir(), "go")
+	if err := os.WriteFile(interpreter, []byte("#!/missing-530-interpreter\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	denied := filepath.Join(t.TempDir(), "go")
+	if err := os.WriteFile(denied, []byte("#!/bin/sh\nexit 127\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	exited := filepath.Join(t.TempDir(), "go")
+	if err := os.WriteFile(exited, []byte("#!/bin/sh\nexit 127\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name     string
+		commands [][]string
+		startup  bool
+	}{
+		{"first Go", [][]string{{missing, "test", "./..."}}, true},
+		{"missing interpreter", [][]string{{interpreter}}, true},
+		{"permission denied", [][]string{{denied}}, false},
+		{"started and exited 127", [][]string{{exited}}, false},
+		{"after earlier command", [][]string{{"true"}, {missing, "test", "./..."}}, false},
+		{"unrelated executable", [][]string{{missing + "-other"}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := localRunDeps{Stderr: io.Discard}
+			err, cleanup := runManagedCommandBatch(context.Background(), d, t.TempDir(), suiteCheckName, tc.commands, os.Environ(), io.Discard, "")
+			var infra *suiteEnvironmentError
+			if err == nil || cleanup != nil || errors.As(err, &infra) != tc.startup {
+				t.Fatalf("startup=%v error=%v cleanup=%v", tc.startup, err, cleanup)
+			}
+		})
 	}
 }
 

@@ -86,6 +86,12 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	timeout := min(knownFlakeRerunTimeout, time.Duration(g.check.TimeoutMinutes)*d.minute)
 	run, err := runUnderSlotBatch(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, g.subject, commands, w.LogPath, timeout)
 	if err != nil {
+		var startup *suiteEnvironmentError
+		if errors.As(err, &startup) {
+			path, envErr := retainSuiteEnvironment(g.logDir, g.sha, suiteRerunCheck, w.LogPath, startup.Diagnosis)
+			published = path == w.LogPath
+			return flakes.Outcome{}, envErr
+		}
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
 	logSHA, _, err := hashAndTail(w.LogPath, localCheckTailLines)
