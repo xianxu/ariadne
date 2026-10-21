@@ -2054,7 +2054,9 @@ own cancellation through processgroup cleanup. A direct make watcher alone
 only proves one PID ended, so an unproved descendant boundary stays unknown
 for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline.
+the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+owns safe timing, hub-first context-pressure recovery, and post-restart retained
+check verification; the continuation prototype points workers to that rule.
 
 **Reconcile one unresolved operation (#501).** The operator/:0 runs
 `sdlc queue reconcile --id ID --digest SHA256 --note TEXT` only after verifying
