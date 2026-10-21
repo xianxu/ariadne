@@ -153,6 +153,14 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   test-case inventories with adversarial strategy/mechanical-guard contracts.
   Added those function contracts and compressed the task inventories; no design
   mechanism or scope changed. Re-running plan-quality before implementation.
+- Plan-quality cleared after the function-contract correction. Change-code
+  admitted full-flow implementation after the derived 3.70h estimate. Its INFO
+  advises tight verification allowances: parser/run-path tests belong to the
+  startup module, schema/proof preservation to the decoder module, interruption
+  and pruning to the store, and real old-reader/full-run checks to the compatibility
+  fixture allocation; the one review allowance is not a second review boundary.
+  These allocations do not waive any required verification. Calibration remains
+  provisional; measured actuals will record the real cost.
 
 ## Revisions
 
