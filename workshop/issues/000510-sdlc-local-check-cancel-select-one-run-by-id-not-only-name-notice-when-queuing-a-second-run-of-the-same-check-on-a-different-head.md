@@ -65,6 +65,15 @@ Actions: start a check; cancel one ID; cancel by name/all; retry a completed or 
 - The duplicate notice is advisory, so observing one lease census is sufficient: it does not claim or enforce absence of concurrent duplicates. One scan is O(N) in current lease files, no subprocess per record; preserve the existing cancellation wait budget. Tests use private suite locks and only fixture-owned child processes, never live fleet runs. The mistake is semantic selector authority, defended by runtime/FIFO regressions rather than a lexical lint rule.
 - Quick plan posted to the hub, proceeding unless objected. Existing issue requirements settle the behavior; clarified the absent status premise without adding a status subsystem.
 
+
+### 2026-10-21 — implementation verification
+
+- Real two-run regression failed before implementation: IDs and duplicate notice were absent (1.802s). After exposing the lease IDs/notice, it independently failed at the unknown `--run` flag (1.884s). With exact selection implemented it passed (2.177s): the newer run cancels via managed SIGTERM, while the older lease and FIFO ticket retain their inode, bytes and place; releasing capacity admits the survivor, which still cancels by name.
+- Foreign, unknown, pathlike, wildcard, empty and mixed ID/name selectors refuse without signalling legitimate children. Existing PID-generation, stale-lease, checkout ownership and lease lifetime controls passed with the new tests (248.227s package run). Duplicate notice controls and one-census-read-per-file at N=8/16 passed (2.845s package run). Real signal/helper cleanup controls passed (6.603s). Tracked-file Go catalog passed (0.795s).
+- Shared `openRunLease` owns decode/flock observation; selection retains existing PID-generation checks and managed cancellation. IDs remain existing filename stems. Notices are advisory and preserve both runs. Help, README and atlas now state exact ID, by-name/all and duplicate behavior. Executable/help diff remains within the quick shell (96 added lines).
+- Added opt-in `SDLC_RUNID_CLI` to reuse the private real-queue fixture against the built executable, with local Git/GitHub transport stubs; this does not touch actual fleet checks or :0 tools. Committed-build proof follows, then the recorded suite and close review.
+- Hub changed the queue: #520 is assigned to ariadne:3. After #510 lands, report to ops:0 and wait for the next item; do not claim or plan #520 here.
+
 ## Revisions
 
 - 2026-10-21: corrected the discovery premise: lease IDs currently exist only in filenames, not in a `local-check status` command. Expose them in run/notice output so the requested exact selection is usable; no new status command or automatic replacement.

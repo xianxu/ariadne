@@ -307,10 +307,14 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	lease := runLease{Root: canonicalRoot(d.callerRoot()), Check: check, SHA: sha, PID: os.Getpid(), PIDStarted: pidStarted, Started: time.Now().UTC()}
 	runsDir := localCheckRunsDir(logDir)
 	sweepStaleRunLeases(runsDir)
-	releaseLease, err := holdRunLease(runsDir, lease)
+	runID, releaseLease, err := holdRunLease(runsDir, lease)
 	if err != nil {
 		releaseLease = func() {}
 		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", check, err)
+	}
+	if err == nil {
+		fmt.Fprintf(d.Stderr, "==> local check %s run %s on %s\n", check, runID, abbrevSHA(sha))
+		noticeDuplicateRunLeases(runsDir, runID, lease, d.Stderr, openRunLease)
 	}
 	defer releaseLease()
 	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
