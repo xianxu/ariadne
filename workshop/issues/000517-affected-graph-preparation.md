@@ -72,7 +72,7 @@ Existing stale checkout cleanup covers process death; no new durable state.
 - [x] Red fresh-module missing-embed regression, same-head/once/cleanup assertions.
 - [x] Bounded preparation and config validation; failure, timeout, cancellation,
   omitted declaration and genuinely broken graph controls.
-- [ ] README/atlas contract; recorded suite, close review, merge.
+- [x] README/atlas contract and verification evidence prepared.
 
 ## Log
 
@@ -109,3 +109,14 @@ Existing stale checkout cleanup covers process death; no new durable state.
   Only the deadline control shrinks the timeout unit; healthy/failure controls
   retain ample startup budget. About 81 added production lines, within quick flow.
   Next: pushed-head suite and close review; no live :0 stage held.
+
+- 2026-10-20 23:39 PDT — planning bookkeeping: last checkbox now describes the
+  completed docs/evidence deliverable. The recorded suite, close review and
+  merge remain required workflow gates, tracked by their own results, rather
+  than marking future gate outcomes as already complete.
+
+- 2026-10-20: PR #361 opened; pushed-head suite requested. Close review may
+  overlap it under tl-worker; a final recorded pass remains required for landing.
+  Asked TL for smoke decision; real native graph/argv/Git fixtures cover this
+  provider path, no :0 stage held. Pair adoption remains pair#738 and operator
+  verification of its local-gates declaration.
