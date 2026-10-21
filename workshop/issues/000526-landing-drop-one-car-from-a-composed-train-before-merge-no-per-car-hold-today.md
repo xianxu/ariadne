@@ -73,6 +73,9 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 - The recorded suite's queue wait crossed noon. Close refused before dispatching review because the branch lacks the main code required by .sdlc/freshness.json (main cutoff510aab6ff). Followed the named git merge origin/main path rather than bypassing. The only conflict was adjacent atlas additions: retained both #526 drop documentation and #524 reader-first attempt compatibility. No code conflict or branch implementation change; fresh recorded integrated suite is required before retrying close. Original passing branch suite retained.
 
+- Fresh integrated suite on Git-verified88ad817e553c996e0f856d2ff17c2dc626993bfd failed before tests/setup: open /Volumes/AgentScratch/go-build/...: no space left on device. Run lease-2135974495 waited2054s, then exited2 in0s; recorded unattributable-failure. Original failed log test-stats/failed/96a1c200914cff8507ec4063a674e08f.log, SSD copy evidence/000526/integrated-suite-enospc.log, sha25696f6e398106a18399fa108eddb644f2f477336579e9ecf11e403a6a362b5b59f. No blind retry or test flake registration: no tests ran.
+- Read-only diagnosis: /Volumes/AgentScratch is186Gi used186Gi,100Mi available (100%); configured GOCACHE is /Volumes/AgentScratch/go-build and du reports182G. TestScratch has11Gi available; normal Data volume279Gi available. Shared cache/machine changes require hub coordination per tl-worker; no shared deletion or setting change performed. Waiting for hub to coordinate reclamation or authorize an isolated per-invocation SSD GOCACHE and classification/retry path. PR374 remains open; close review has not started.
+
 ## Revisions
 
 - 2026-10-21: Full-flow plan gate CLEAN after two rounds; PQ-1/PQ-2 addressed. Derive provisional2.79h estimate only after plan acceptance, from the named v3.1 calibration.
