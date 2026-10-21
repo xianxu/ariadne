@@ -72,7 +72,8 @@ type conductor struct {
 	landing    landingCheckOwner
 	carHeads   []string // admitted originals, aligned with kept prefixes
 	suiteReady map[int]bool
-	baseline   *bool // main's baseline verdict, run once on the first failure
+	evidence   map[int]localRunRecord // exact prefix attempts, including diagnostic main at zero
+	baseline   *bool                  // main's baseline verdict, run once on the first failure
 	settled    map[int64]bool
 	selfEnd    landingline.OutcomeKind
 	selfWhy    string
@@ -186,6 +187,12 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 		return nil, c.publish(e.Prefix)
 	case landingline.RunSuite:
 		return c.runSuite(e.Prefix)
+	case landingline.AssessSplit:
+		done := c.assessSplit(e)
+		if c.ctx.Err() != nil {
+			return nil, c.ctx.Err()
+		}
+		return done, nil
 	case landingline.RunLandingChecks:
 		err := c.landing.run(c.ctx, c.git, c.base, c.heads[e.Prefix-1], c.carHeads[:e.Prefix], c.suiteReady[e.Prefix], c.run, func(ctx context.Context, check localCheck, head string) (localRunRecord, error) {
 			return runLocalCheck(ctx, c.local, check, head)
@@ -394,6 +401,10 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("the train suite on %s could not run: %w", shortSHA(head), err)
 	}
+	if c.evidence == nil {
+		c.evidence = map[int]localRunRecord{}
+	}
+	c.evidence[k] = rec
 	done := landingline.SuiteDone{Prefix: k, Outcome: landingline.SuitePass}
 	if rec.passed() {
 		if c.suiteReady == nil {
@@ -429,6 +440,7 @@ func (c *conductor) mainIsRed(failed localRunRecord) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("train baseline on main could not run: %w", err)
 	}
+	c.evidence[0] = baseline
 	if baseline.passed() {
 		return false, nil
 	}
@@ -582,6 +594,8 @@ func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
 	c.heads[k-1], c.base = head, main
 	needSuite := publishGateHasCodeSurface(splitNUL(diff))
 	if needSuite {
+		c.evidence = nil
+		c.baseline = nil
 		c.suiteReady = map[int]bool{}
 	}
 	decl, err := readLocalChecks(c.git, main)
@@ -619,6 +633,8 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 		}
 		if kind == landingline.OutcomeHeld {
 			reportTrainHeld(c.stderr, c.id, car.Issue, car.Branch, why)
+		} else if kind == landingline.OutcomeRefused {
+			reportTrainUnattributed(c.stderr, c.id, car.Issue, car.Branch, why)
 		}
 		return
 	}
@@ -633,6 +649,16 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 func reportTrainHeld(stderr io.Writer, train int64, issue int, branch, reason string) {
 	fmt.Fprintf(stderr, "landing train %d: #%d held: %s\n", train, issue, reason)
 	fmt.Fprintf(stderr, "Recovery: fix the reported problem, integrate main, re-close, then run sdlc merge --branch %s --yes\n", branch)
+}
+
+// reportTrainUnattributed stops explicitly; it never suggests that a car caused
+// the failure or that an immediate automatic retry can create passing evidence.
+func reportTrainUnattributed(stderr io.Writer, train int64, issue int, branch, reason string) {
+	if !strings.HasPrefix(reason, "unattributed:") && !strings.HasPrefix(reason, "unverified:") {
+		return
+	}
+	fmt.Fprintf(stderr, "landing train %d: #%d stopped: %s\n", train, issue, reason)
+	fmt.Fprintf(stderr, "Recovery: inspect the named evidence and obtain valid verification, then run sdlc merge --branch %s --yes\n", branch)
 }
 
 func printTrainMembership(stderr io.Writer, train int64, label string, cars []landingline.Car) {

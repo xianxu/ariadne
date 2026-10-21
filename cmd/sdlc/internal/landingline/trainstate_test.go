@@ -74,10 +74,11 @@ func TestTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(4)}, built(4),
 		SuiteDone{Prefix: 4, Outcome: SuiteFail},
 		SuiteDone{Prefix: 2, Outcome: SuitePass},
-		SuiteDone{Prefix: 3, Outcome: SuiteFail})
+		SuiteDone{Prefix: 3, Outcome: SuiteFail},
+		SplitAssessed{Lo: 2, Hi: 3, Verdict: SplitAttribution{Kind: AttributionAttributable, Reason: "affected test"}})
 	wantEffects(t, effects[3:],
-		RunSuite{Prefix: 2}, RunSuite{Prefix: 3},
-		Hold{Seq: 3, Reason: "the train's suite fails from car 3 (#103) on; the cars before it pass"},
+		RunSuite{Prefix: 2}, RunSuite{Prefix: 3}, AssessSplit{Lo: 2, Hi: 3},
+		Hold{Seq: 3, Reason: "affected test"},
 		Release{Seqs: []int64{4}}, Publish{Prefix: 2}, RunLandingChecks{Prefix: 2})
 	if tr.Phase != PhaseChecking || tr.Land != 2 || tr.Culprit != 3 || tr.Splits != 2 || !slices.Equal(tr.Released, []int64{4}) {
 		t.Fatalf("train %+v", tr)
@@ -88,9 +89,10 @@ func TestTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 
 func TestTrainWhoseFirstCarFailsLandsNothing(t *testing.T) {
 	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2),
-		SuiteDone{Prefix: 2, Outcome: SuiteFail}, SuiteDone{Prefix: 1, Outcome: SuiteFail})
-	wantEffects(t, effects[3:], RunSuite{Prefix: 1},
-		Hold{Seq: 1, Reason: "the train's suite fails from car 1 (#101) on; the cars before it pass"},
+		SuiteDone{Prefix: 2, Outcome: SuiteFail}, SuiteDone{Prefix: 1, Outcome: SuiteFail},
+		SplitAssessed{Lo: 0, Hi: 1, Verdict: SplitAttribution{Kind: AttributionAttributable, Reason: "affected test"}})
+	wantEffects(t, effects[3:], RunSuite{Prefix: 1}, AssessSplit{Lo: 0, Hi: 1},
+		Hold{Seq: 1, Reason: "affected test"},
 		Release{Seqs: []int64{2}}, ClosePR{})
 	if tr.Phase != PhaseAbandoned {
 		t.Fatalf("phase %s", tr.Phase)
@@ -98,7 +100,8 @@ func TestTrainWhoseFirstCarFailsLandsNothing(t *testing.T) {
 }
 
 func TestTrainOfOneFailingIsHeldWithoutASplitSuite(t *testing.T) {
-	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(1)}, built(1), SuiteDone{Prefix: 1, Outcome: SuiteFail})
+	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(1)}, built(1), SuiteDone{Prefix: 1, Outcome: SuiteFail},
+		SplitAssessed{Lo: 0, Hi: 1, Verdict: SplitAttribution{Kind: AttributionAttributable, Reason: "affected test"}})
 	if tr.Phase != PhaseAbandoned || tr.Splits != 0 {
 		t.Fatalf("train %+v", tr)
 	}
@@ -307,6 +310,9 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 		return Built{Kept: kept, Conflicts: conflicts}
 	case tr.Phase == PhaseTesting || tr.Phase == PhaseBisecting:
 		return SuiteDone{Prefix: tr.Testing, Outcome: outcomes[rng.IntN(len(outcomes))]}
+	case tr.Phase == PhaseAttributing:
+		kinds := []AttributionKind{AttributionAttributable, AttributionUnattributed, AttributionUnverified}
+		return SplitAssessed{Lo: tr.AssessLo, Hi: tr.AssessHi, Verdict: SplitAttribution{Kind: kinds[rng.IntN(len(kinds))], Reason: "model evidence"}}
 	case tr.Phase == PhaseChecking:
 		return LandingChecksDone{Prefix: tr.Land, Passed: rng.IntN(4) != 0, Detail: "runner refused"}
 	case tr.Phase == PhaseLanding:
@@ -322,7 +328,8 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 func TestTrainAbortReleasesEveryRidingCar(t *testing.T) {
 	// Mid-bisect: car 3 held, car 4 released already; cars 1 and 2 ride.
 	tr, _ := drive(t, NewTrain(1), Boarded{Cars: cars(4)}, built(4),
-		SuiteDone{Prefix: 4, Outcome: SuiteFail}, SuiteDone{Prefix: 2, Outcome: SuitePass}, SuiteDone{Prefix: 3, Outcome: SuiteFail})
+		SuiteDone{Prefix: 4, Outcome: SuiteFail}, SuiteDone{Prefix: 2, Outcome: SuitePass}, SuiteDone{Prefix: 3, Outcome: SuiteFail},
+		SplitAssessed{Lo: 2, Hi: 3, Verdict: SplitAttribution{Kind: AttributionAttributable, Reason: "affected test"}})
 	tr, effects := drive(t, tr, Aborted{Reason: "push failed"})
 	wantEffects(t, effects, Release{Seqs: []int64{1, 2}}, ClosePR{})
 	if tr.Phase != PhaseAbandoned || !slices.Equal(tr.Released, []int64{4, 1, 2}) {
@@ -392,5 +399,69 @@ func TestTrainLandingCheckCompletionAuthority(t *testing.T) {
 	wantEffects(t, effects, Refuse{Seqs: []int64{1, 2}, Reason: "the train's landing checks failed: vm exit37"}, ClosePR{})
 	if refused.Phase != PhaseRefused || refused.Splits != 0 {
 		t.Fatalf("check failure bisected %+v", refused)
+	}
+}
+
+// #527: adjacency of coarse suite results cannot itself authorize blame.
+func TestTrainSplitRequiresAttributionBeforeHold(t *testing.T) {
+	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2),
+		SuiteDone{Prefix: 2, Outcome: SuiteFail}, SuiteDone{Prefix: 1, Outcome: SuitePass})
+	for _, e := range effects {
+		if h, ok := e.(Hold); ok {
+			t.Fatalf("split held car %d without fresh attribution", h.Seq)
+		}
+	}
+	if string(tr.Phase) != "attributing" {
+		t.Fatalf("phase %s, want attribution boundary", tr.Phase)
+	}
+	if tr.Results[2] {
+		t.Fatal("failed prefix became passing")
+	}
+}
+
+// Unattributed stops are final for the unresolved remainder, without promoting
+// the failed prefix or automatically releasing its cars to another train.
+func TestTrainSplitUnattributedStopsOnlyUnresolvedCars(t *testing.T) {
+	for _, kind := range []AttributionKind{AttributionUnattributed, AttributionUnverified} {
+		for _, lo := range []int{0, 1} {
+			tr, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuiteFail})
+			outcome := SuiteFail
+			if lo == 1 {
+				outcome = SuitePass
+			}
+			tr, _ = drive(t, tr, SuiteDone{Prefix: 1, Outcome: outcome})
+			before := tr
+			for _, invalid := range []SplitAssessed{
+				{Lo: lo, Hi: lo + 2, Verdict: SplitAttribution{Kind: kind, Reason: "reason"}},
+				{Lo: lo, Hi: lo + 1, Verdict: SplitAttribution{Kind: "invalid", Reason: "reason"}},
+				{Lo: lo, Hi: lo + 1, Verdict: SplitAttribution{Kind: kind}},
+			} {
+				got, fx, err := Transition(tr, invalid)
+				if err == nil || fx != nil || !reflect.DeepEqual(got, before) {
+					t.Fatal("invalid assessment changed train")
+				}
+			}
+			ev := SplitAssessed{Lo: lo, Hi: lo + 1, Verdict: SplitAttribution{Kind: kind, Reason: "unattributed: evidence"}}
+			tr, effects := drive(t, tr, ev)
+			if tr.Culprit != 0 || tr.Results[2] || len(tr.Released) != 0 {
+				t.Fatalf("false blame/pass/retry: %+v", tr)
+			}
+			want := []Effect{Refuse{Seqs: carSeqs(cars(2)[lo:]), Reason: ev.Verdict.Reason}}
+			if lo == 0 {
+				want = append(want, ClosePR{})
+			} else {
+				want = append(want, Publish{Prefix: 1}, RunLandingChecks{Prefix: 1})
+			}
+			wantEffects(t, effects, want...)
+			if _, _, err := Transition(tr, ev); err == nil {
+				t.Fatal("duplicate assessment accepted")
+			}
+			if lo == 1 {
+				tr, _ = drive(t, tr, LandingChecksDone{Prefix: 1, Passed: true}, CIDone{Green: true}, Merged{})
+				if tr.Phase != PhaseLanded || tr.Land != 1 {
+					t.Fatalf("verified prefix lost: %+v", tr)
+				}
+			}
+		}
 	}
 }
