@@ -81,6 +81,8 @@ Existing stale checkout cleanup covers process death; no new durable state.
 
 ## Log
 
+
+- 2026-10-20: closed — Round 2: BR-1 real CLI SIGINT/SIGTERM regression red before correction (7.560s, stranded generator/child/checkout), green afterward. Declared preparation now owns signals from graph acquisition through affected completion; retained cancelled context returns interruption before selection/status, preventing live-context fallback. Both real CLI tests assert descendant shutdown, checkout cleanup and no status calls. Existing queued-helper and outside-owned-phase signal controls pass; five race repetitions of preparation controls pass (32.860s), broad affected/CLI/signal controls pass (18.273s), affected package and Go lint catalog pass. BR-2 Done when now explicitly requires pinned-main declaration under candidate edits and origin/main advance; real command fixture retained. README/atlas and lessons updated, diff clean; fresh pushed-head suite requested under authorized overlap, pass required before landing. TL explicitly requires no :0 smoke; pair#738 adoption is the separate live proof and operator-verified local-gates change.; review verdict: SHIP
 - Filed from pair:7 for pair#738 under ops:0 approval. Source: cmd/sdlc/localcheck_affected.go productionAffectedDeps creates its private checkout and immediately calls affected.LoadGoGraph; affected/config.go currently has no preparation field. Pair cold-checkout reproduction log: .git/manual-verification/pair738-cold-graph.log. Unclaimed provider work, not permission to alter another slot or bypass local-gates verification.
 
 - 2026-10-20: read actual issue body after discovering issue show omits section

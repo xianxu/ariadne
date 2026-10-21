@@ -85,3 +85,65 @@ output: ""
 
 truncated: false
 retained-bytes: 0000000206
+
+---
+
+## Re-review — 2026-10-20T23:54:04-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 517 — Prepare generated inputs before affected graph discovery |
+| repo | ariadne |
+| issue file | workshop/issues/000517-affected-graph-preparation.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 993b4be4acf30b88cf3215fb5270dbfc776d4333..0cc02ff1769bf20089b7c3996ba965269c566744 |
+| command | sdlc close --issue 517 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T23:54:04-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range delivers the preparation contract and resolves both prior findings. Real CLI regressions verify signal cancellation, descendant shutdown, checkout cleanup, and no status publication. No new findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      localcheck_affected.go:39-50 owns SIGINT/SIGTERM and checks cancellation before fallback or publication. TestAffectedGraphPreparationCLISignals passes for both signals; reverting the fix makes both fail with surviving generator, child, and checkout. Restored the pinned source and removed reproduction resources.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The issue's Done when at lines 38-40 now requires immutable-main authority despite candidate edits and origin/main movement; Revisions at lines 151-153 connects that requirement to the existing fixture. TestAffectedGraphPreparationFromPinnedMain passes and exercises both conditions.
+```
+
+1. **Strengths**
+   - The native graph fixture verifies preparation runs once on requested-head inputs, rejects caller-generated output, and cleans up.
+   - Main is pinned before declaration reads.
+   - README and atlas document configuration, bounds, fallback, and older-reader compatibility.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** All affected-package tests and focused preparation, affected, configuration, and CLI signal tests passed. The signal regression failed without the fix. Diff check passed; checkout is clean. The full repository suite was not run.
+
+6. **Architecture**
+   - **ARCH-DRY: pass** — reuses process-group, checkout, and fallback mechanisms.
+   - **ARCH-PURE: pass** — validation remains pure; execution stays at the injected IO boundary.
+   - **ARCH-PURPOSE: pass** — preparation precedes native discovery, with conservative failure behavior and verified cancellation.
+   - **ARCH-EVOLVE: pass** — additive optional configuration; strict validation remains intact, with no new rewrite path or version bump.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8e88238e-383d-4817-b0bb-51d65023cf22","repository":"github.com/xianxu/ariadne","issue_id":"000517","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/d8fe3acbd14c04d1","reviewed_head":"0cc02ff1769bf20089b7c3996ba965269c566744","slot":"ariadne:5","requested_at":"2026-10-21T06:52:04.25599Z"},"phase":"finished","pid":57924,"started_at":"2026-10-21T06:52:04.356103Z","finished_at":"2026-10-21T06:54:03.590048Z","session_id":"01a15d3b-3883-72f3-af16-ade042355bd2","outcome":"returned"}] -->
