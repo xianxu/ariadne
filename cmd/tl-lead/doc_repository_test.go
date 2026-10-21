@@ -234,6 +234,13 @@ func TestDocRepositoryProductReceipt(t *testing.T) {
 		})
 	}
 	os.WriteFile(filepath.Join(filepath.Dir(bin), "receipt.json"), []byte(fmt.Sprintf(`{"schema_version":1,"path":%q,"commit":%q}`, target, commit)), 0644)
+	if _, err := (execDocRepository{sdlcBin: bin}).Publish(context.Background(), root, target, payload, ""); err != nil {
+		t.Fatalf("first publication receipt: %v", err)
+	}
+	argv, _ := os.ReadFile(filepath.Join(filepath.Dir(bin), "argv"))
+	if !strings.Contains(string(argv), "\n--expect-absent\n") || strings.Contains(string(argv), "--expected-commit") {
+		t.Fatalf("first publication lacks remote ownership guard: %q", argv)
+	}
 	if _, err := (execDocRepository{sdlcBin: bin}).Publish(context.Background(), root, target, []byte("wrong\n"), ""); err == nil {
 		t.Fatal("accepted mismatching committed blob")
 	}

@@ -37,3 +37,24 @@ func FuzzWorkingdocPointerRoundTrip(f *testing.F) {
 		}
 	})
 }
+
+func FuzzWorkingdocPointerPathRoundTrip(f *testing.F) {
+	for _, target := range []string{"topic.md", "a #b.md", "a: b.md", "!tag.md", "&anchor.md", "日本語.md"} {
+		f.Add(target)
+	}
+	f.Fuzz(func(t *testing.T, target string) {
+		source := "---\r\ntype: workingdoc\r\nfuture: {nested: [one, two]} # retained\r\n---\r\nBody.\r\n"
+		pointer := settlementPointer{target, strings.Repeat("c", 40)}
+		stamped, err := stampWorkingdoc(source, pointer)
+		if err != nil {
+			return // Unsupported paths must fail before effects.
+		}
+		meta, err := parseWorkingdoc(stamped)
+		if err != nil || meta.Pointer == nil || *meta.Pointer != pointer {
+			t.Fatalf("successful stamp did not round-trip: %+v %v", meta, err)
+		}
+		if stamped[:meta.pointerStart]+stamped[meta.pointerEnd:] != source {
+			t.Fatal("stamp changed unowned document bytes")
+		}
+	})
+}

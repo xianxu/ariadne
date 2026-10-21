@@ -102,6 +102,7 @@ for the operator workflow and recovery contract.
 | `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, `workingdoc/`, or `workshop/lessons.md` to main; never an issue-branch commit |
 
 Workingdoc settlement (#507) adds optional trunk-publish guards:
+`--expect-absent` requires an absent or already-identical remote path on every CAS attempt; first settlement supplies it, while ordinary trunk publication keeps its existing defaults.
 `--expected-commit SHA` compares only the selected path with its pinned baseline,
 including on each CAS retry; omission retains the merge-base behavior.
 `--expected-content-sha256 HASH` binds the one bounded captured read to the

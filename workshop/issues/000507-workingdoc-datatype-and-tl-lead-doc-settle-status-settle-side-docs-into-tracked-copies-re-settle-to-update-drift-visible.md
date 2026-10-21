@@ -73,6 +73,9 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Recorded suite PASS on c780bb6e83ae1f48b39dd26f382967daf222b8de: all 8 shards, 1,959 cmd/sdlc tests and 75 other packages, zero failures; wall 857.7s. Recorded as sdlc-local/suite; log SHA256 prefix 20c7a871af69. The retained run survived the Couch restart. Proceeding to close review; the last Plan item deliberately remains unchecked because it includes the hub-owned post-SHIP live check and merge.
 
+- Close round 1 returned REWORK: BR-1 pointer YAML roundtrip, BR-2 first-settlement remote ownership, BR-3 interruption coverage and BR-4 host binary dependency. Verified each and added regressions. BR-1 behavioral RED covered 16 adversarial paths; generation now reparses with the production reader before effects. Path fuzz PASS 30,289 executions. BR-2 reproduced an actual overwrite of an unrelated committed target; TL approved --expect-absent (d89aae91-3650-4e01-aed3-92152cef7c2c), supplied only for first settlement and checked inside every CAS callback. Default trunk behavior remains unchanged. BR-3 added lost-ack/pre-write failure/late-lock/unavailable-readback/source-edit retry coverage and corrected the fake's retained commit identity. BR-4 reproduced failure without host sdlc and now fixtures the authoritative agent-id command; restricted-PATH ops tests PASS 41.161s.
+- Post-fix affected checks PASS: existing/new trunk publication tests 65.113s; full tl-lead 84.140s, datatype 0.442s, golint 1.041s. Added adversarial CAS retry-base case PASS in first-publication family 7.530s and full-coordinator unsafe-pointer no-effects test PASS 0.164s. Code changed after the earlier recorded suite, so a new recorded suite is required before re-close/staging.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items

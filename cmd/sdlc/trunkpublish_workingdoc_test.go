@@ -318,3 +318,70 @@ func TestWorkingdocTrunkPinnedAncestorRecheckedOnRetry(t *testing.T) {
 		t.Fatal("retry wrote beyond rewritten remote")
 	}
 }
+
+func TestWorkingdocTrunkFirstPublicationOwnership(t *testing.T) {
+	for _, mode := range []string{"absent", "identical", "different", "race", "retry-base"} {
+		t.Run(mode, func(t *testing.T) {
+			r, _ := claimSetRepo(t)
+			rel, payload := "workshop/workingdoc/first.md", "approved\n"
+			if mode == "identical" || mode == "different" || mode == "retry-base" {
+				original := payload
+				if mode != "identical" {
+					original = "unrelated committed design\n"
+				}
+				writeRepoFile(t, r.root, rel, original)
+				r.git("add", "--", rel)
+				r.git("commit", "-qm", "existing destination")
+				r.git("push", "-q", "origin", "HEAD:main")
+			}
+			r.git("switch", "-q", "-c", "000009-s09")
+			writeRepoFile(t, r.root, rel, payload)
+			before := r.originMain()
+			if mode == "race" || mode == "retry-base" {
+				peer := t.TempDir()
+				r.git("clone", "-q", r.origin, peer)
+				if mode == "retry-base" {
+					gitInTest(t, peer, "rm", "--", rel)
+					gitInTest(t, peer, "commit", "-qm", "destination removed before snapshot")
+					gitInTest(t, peer, "push", "-q", "origin", "HEAD:main")
+				}
+				racing := "racing owner's content\n"
+				if mode == "retry-base" {
+					racing = "unrelated committed design\n"
+				}
+				writeRepoFile(t, peer, rel, racing)
+				gitInTest(t, peer, "add", "--", rel)
+				gitInTest(t, peer, "commit", "-qm", "racing destination")
+				r.git("config", "core.hooksPath", filepath.Join(r.root, ".git/hooks"))
+				hook := "#!/bin/sh\nif test ! -f .git/first-raced; then\n touch .git/first-raced\n git -C '" + peer + "' push -q origin HEAD:main || exit 1\nfi\n"
+				if err := os.WriteFile(filepath.Join(r.root, ".git/hooks/pre-push"), []byte(hook), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out, diag, err := executeSDLCTestCommand("trunk", "publish", "--path", rel, "--expect-absent", "--json")
+			if mode == "different" || mode == "race" || mode == "retry-base" {
+				if err == nil || !strings.Contains(err.Error(), "first publication conflicts") {
+					t.Fatalf("missing ownership refusal: %v %s %s", err, out, diag)
+				}
+				if mode == "different" && r.originMain() != before {
+					t.Fatal("refusal changed remote")
+				}
+				want := "unrelated committed design"
+				if mode == "race" {
+					want = "racing owner's content"
+				}
+				if got := r.git("show", r.originMain()+":"+rel); got != want {
+					t.Fatalf("overwrote committed owner: %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("safe first publication: %v %s", err, diag)
+			}
+			workingdocReceipt(t, out, rel, r.originMain())
+			if mode == "identical" && r.originMain() != before {
+				t.Fatal("identical retry duplicated commit")
+			}
+		})
+	}
+}

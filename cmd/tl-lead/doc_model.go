@@ -111,10 +111,23 @@ func stampWorkingdoc(text string, p settlementPointer) (string, error) {
 		eol = "\r\n"
 	}
 	line := "settled-into: " + p.Path + " @ " + p.Commit + eol
+	var stamped string
 	if m.Pointer != nil {
-		return text[:m.pointerStart] + line + text[m.pointerEnd:], nil
+		stamped = text[:m.pointerStart] + line + text[m.pointerEnd:]
+	} else {
+		stamped = text[:m.frontEnd] + line + text[m.frontEnd:]
 	}
-	return text[:m.frontEnd] + line + text[m.frontEnd:], nil
+	// Paths valid for Git are not necessarily representable in the managed
+	// plain YAML scalar. Validate the complete result with the same parser
+	// that will consume it before the caller publishes or stamps anything.
+	got, err := parseWorkingdoc(stamped)
+	if err != nil {
+		return "", fmt.Errorf("cannot represent settled-into pointer for %q: %w", p.Path, err)
+	}
+	if got.Pointer == nil || *got.Pointer != p {
+		return "", fmt.Errorf("settled-into pointer for %q did not round-trip", p.Path)
+	}
+	return stamped, nil
 }
 
 type settlementPhase uint8

@@ -48,6 +48,61 @@ func TestSettlementPointerRejectsUntrustedPaths(t *testing.T) {
 	}
 }
 
+func TestWorkingdocStampRefusesUnrepresentablePlainPointers(t *testing.T) {
+	for _, target := range []string{"a #b.md", "a: b.md", "!tag.md", "&anchor.md", "*alias.md", "[flow].md", "{flow}.md", "#comment.md", "? key.md", ": value.md", "'quoted.md", "\"quoted.md", "|block.md", ">block.md", "@reserved.md", "`reserved.md"} {
+		t.Run(target, func(t *testing.T) {
+			if !workingdocPath(target) {
+				t.Fatal("fixture must be an otherwise permitted target path")
+			}
+			for _, existing := range []bool{false, true} {
+				source := "---\ntype: workingdoc\nfuture: [one, two] # retained\n"
+				if existing {
+					source += "settled-into: old.md @ " + strings.Repeat("a", 40) + "\n"
+				}
+				source += "---\nBody.\n"
+				if stamped, err := stampWorkingdoc(source, settlementPointer{target, strings.Repeat("b", 40)}); err == nil {
+					t.Errorf("existing=%v: accepted unreadable pointer: %q", existing, stamped)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkingdocStampPlainPointerRoundTripPreservesBytes(t *testing.T) {
+	for _, target := range []string{"workshop/workingdoc/topic.md", "a#b.md", "a:b.md", "dir/!tag.md", "dir/[flow].md", "日本語 and spaces.md"} {
+		for _, eol := range []string{"\n", "\r\n"} {
+			for _, existing := range []bool{false, true} {
+				source := "---\ntype: workingdoc\nfuture: [one, two] # retained\n"
+				if existing {
+					source += "settled-into: old.md @ " + strings.Repeat("a", 40) + "\n"
+				}
+				source += "---\nBody: literal # punctuation.\n"
+				source = strings.ReplaceAll(source, "\n", eol)
+				pointer := settlementPointer{target, strings.Repeat("c", 64)}
+				stamped, err := stampWorkingdoc(source, pointer)
+				if err != nil {
+					t.Fatalf("%q existing=%v: %v", target, existing, err)
+				}
+				meta, err := parseWorkingdoc(stamped)
+				if err != nil || meta.Pointer == nil || *meta.Pointer != pointer {
+					t.Fatalf("%q roundtrip: %+v %v", target, meta, err)
+				}
+				before, err := parseWorkingdoc(source)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := source
+				if existing {
+					want = source[:before.pointerStart] + source[before.pointerEnd:]
+				}
+				if got := stamped[:meta.pointerStart] + stamped[meta.pointerEnd:]; got != want {
+					t.Fatalf("%q changed unowned bytes: %q != %q", target, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestSettlementCannotStampBeforePublication(t *testing.T) {
 	s := settlementState{Phase: settlementPlanned}
 	if _, err := transitionSettlement(s, settlementStamped); err == nil {

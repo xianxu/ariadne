@@ -29,6 +29,17 @@ func operatingGit(t *testing.T, dir string, args ...string) string {
 func operatingRepo(t *testing.T) operatingFixture {
 	t.Helper()
 	d := t.TempDir()
+	// Agent identity belongs to sdlc in production. Supply that executable
+	// boundary explicitly so these Git fixtures never use a host installation.
+	bin := filepath.Join(d, "bin")
+	if err := os.Mkdir(bin, 0755); err != nil {
+		t.Fatal(err)
+	}
+	identity := "#!/bin/sh\n[ \"$#\" -eq 1 ] && [ \"$1\" = agent-id ] || exit 64\nprintf '%s\\n' 'Agent: test/workingdoc/fixture'\n"
+	if err := os.WriteFile(filepath.Join(bin, "sdlc"), []byte(identity), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	f := operatingFixture{filepath.Join(d, "main"), filepath.Join(d, "origin.git"), "workshop/workingdoc/selected.md"}
 	operatingGit(t, d, "init", "--bare", f.remote)
 	operatingGit(t, d, "init", "-b", "main", f.root)
@@ -76,6 +87,9 @@ func TestOperatingPublishExactPayloadAndRetry(t *testing.T) {
 	commit, err := publishOperatingWorkingdoc(context.Background(), f.root, f.target, payload, "")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if trailer := operatingGit(t, f.root, "show", "-s", "--format=%(trailers:key=Agent,valueonly)", commit); trailer != "test/workingdoc/fixture" {
+		t.Fatalf("publication agent trailer = %q", trailer)
 	}
 	cmd := exec.Command("git", "-C", f.remote, "show", commit+":"+f.target)
 	blob, err := cmd.Output()

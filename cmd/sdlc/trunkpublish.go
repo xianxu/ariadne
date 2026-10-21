@@ -44,6 +44,7 @@ func newTrunkCmd() *cobra.Command {
 	pub.Flags().StringVar(&selected, "path", "", "one repository-relative non-issue workshop Markdown path")
 	pub.Flags().StringVar(&options.ExpectedCommit, "expected-commit", "", "exact ancestor commit supplying the selected path baseline")
 	pub.Flags().StringVar(&options.ExpectedContentSHA256, "expected-content-sha256", "", "SHA-256 of the one captured local payload (64 hex characters)")
+	pub.Flags().BoolVar(&options.ExpectAbsent, "expect-absent", false, "require the remote path to be absent or identical on every publication attempt")
 	pub.Flags().BoolVar(&options.JSON, "json", false, "emit a versioned path/commit receipt after remote readback")
 	cmd.AddCommand(pub)
 	return cmd
@@ -155,6 +156,7 @@ func stagedProse(ctx context.Context, root, p string) (bool, error) {
 }
 
 type trunkPublishOptions struct {
+	ExpectAbsent          bool
 	ExpectedCommit        string
 	ExpectedContentSHA256 string
 	JSON                  bool
@@ -256,7 +258,7 @@ func runTrunkPublishWithOptions(ctx context.Context, stdout, stderr io.Writer, p
 		fmt.Fprintf(stdout, "%s: already clean\n", p)
 		return nil
 	}
-	if headOK && bytes.Equal(local, headBytes) && !options.JSON && options.ExpectedCommit == "" && expectedHash == nil {
+	if headOK && bytes.Equal(local, headBytes) && !options.JSON && options.ExpectedCommit == "" && expectedHash == nil && !options.ExpectAbsent {
 		fmt.Fprintf(stdout, "%s: already clean\n", p)
 		return nil
 	}
@@ -280,7 +282,11 @@ func runTrunkPublishWithOptions(ctx context.Context, stdout, stderr io.Writer, p
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
-		if prosePublishDecision(local, localOK, base, baseOK, current, present) == publishRefuse {
+		if options.ExpectAbsent {
+			if present && !bytes.Equal(current, local) {
+				return gitx.TrunkWrite{}, fmt.Errorf("first publication conflicts with existing %s", p)
+			}
+		} else if prosePublishDecision(local, localOK, base, baseOK, current, present) == publishRefuse {
 			return gitx.TrunkWrite{}, fmt.Errorf("%s changed on main since this branch's base; reconcile it there before retrying", p)
 		}
 		if err := verifyAssetAttributesAt(ctx, root, p, v.Ref()); err != nil {

@@ -380,6 +380,8 @@ func (r execDocRepository) Publish(ctx context.Context, root, target string, pay
 	args := []string{"trunk", "publish", "--path", target, "--json", "--expected-content-sha256", digest}
 	if expected != "" {
 		args = append(args, "--expected-commit", expected)
+	} else {
+		args = append(args, "--expect-absent")
 	}
 	raw, err := docRepositoryOutput(ctx, root, r.binary(), args...)
 	if err != nil {
