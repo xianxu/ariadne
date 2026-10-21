@@ -1225,3 +1225,5 @@ The simplest durable authority beats a clever scan of consequences.
   enforced; behavioral regressions cover semantic suppression, which a lexical
   source rule cannot prove.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
+
+- A subprocess timeout fixture must not spend a fixed launch budget before the effect it asserts. Bound readiness with the enclosing test deadline, observe the helper's effect, then cue cancellation. Keep exact elapsed-bound tests separate. Sweep adjacent refusal/permission/pipe fixtures; a race-instrumented helper can miss both 300ms and 1s launch assumptions. Struct literal timeout fields must pass the same lint guard as assignments (#514).
