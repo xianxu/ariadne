@@ -95,7 +95,7 @@ Files: atlas/workflow/sdlc-binary.md, issue Log.
 - [x] Map the publish-only reopened-card refusal, binding authority and re-close/push recovery in the existing landing-train/publish documentation.
 - [x] Run go test ./cmd/sdlc -run '^(TestCarReadiness|TestLandingPublish|TestRebasedClose|TestOlderCloseToken|TestSquashedClose|TestPublishFlip)' -count=1, plus the exact new test names and relevant tracker unit tests.
 - [x] Preserve one-snapshot-per-pass coverage with TestCarReadinessPublishChecksShareGeneration and the counted 8/16 case. Compare unaffected settlement/archive tests.
-- [ ] Supply the hub an isolated production-gate proof using the real temporary tracker and existing fake GitHub. Ask the hub about any separate live staging; do not touch :0 on inference.
+- [x] Supply the hub an isolated production-gate proof using the real temporary tracker and existing fake GitHub. Ask the hub about any separate live staging; do not touch :0 on inference.
 - [ ] Push the issue branch, run sdlc local-check run --name suite, and keep the session alive while its recorded run is queued/running. Close through sdlc close with measured actuals and verification; its mandatory fresh review is the review boundary.
 - [ ] On SHIP enter sdlc merge --yes promptly, retaining the authoritative integration check. Report the confirmed PR merge and clean resting branch to the hub.
 

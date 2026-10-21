@@ -64,6 +64,8 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 2026-10-21: Broader readiness, landing publish, rebase/squash/current-token, publication completion and archive regression group passed in 223.673s. pkg/golint passed in 0.919s and internal/issue passed in 0.474s. git diff --check clean. Production diff is 91 added lines (including the factored existing ownership predicate); missing/replaced binding policy and persisted formats remain unchanged. Next: committed binary, pushed PR, recorded full suite and mandatory close review.
 
+2026-10-21: Clean own bin/sdlc built from Git-verified 9f2afa63f780c2660367c9f3743ae6ed01ff5fdd; go version -m reports that vcs.revision and vcs.modified=false. PR370 opened. Hub accepted the isolated production-path proof and explicitly waived any separate live check or :0 stage (Couch 6d2201e5-ce53-40ee-8b28-e32b30dcb59b, submitted). Recorded suite and close remain required before landing.
+
 ## Revisions
 
 2026-10-21: Refined the original policy proposal into a reviewable publish-only design. The completion binding survives reopen; its ownership predicate can be reused without changing settlement, archive, tracker schema or issue-free publication. Added explicit multiple-issue, status, generation and recovery controls. Awaiting hub approval of this new refusal.
