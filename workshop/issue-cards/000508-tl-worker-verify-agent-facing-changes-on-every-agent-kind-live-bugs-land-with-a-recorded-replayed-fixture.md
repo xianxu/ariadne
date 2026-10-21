@@ -1,6 +1,6 @@
 ---
 id: 000508
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 42e0402d5f674bcf2b8f9142278dd29bf3e13098
         evidence_commit: 23f3760f1f6e4d22a9e85481f670254aa57ab310
+        landed_commit: bfd851e494d41a31c0150ce973e9ff22904409a4
 ---
 
 # tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture
