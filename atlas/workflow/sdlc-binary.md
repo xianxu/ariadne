@@ -2602,3 +2602,20 @@ refills restart calibration. One reading, stale/incomplete evidence or zero burn
 produces a labelled status and null projection. Plain usage has no cache and
 never interacts with the providers. Re-run opt-in identity conformance when the
 agent CLIs change and before bench runs; see the usage help for coverage bounds.
+
+
+### Landing-check capability (#509)
+
+The opt-in version2 local-check declaration separates `scope: landing` from internal affected-test coverage and `resource: runner` from suite-slot weight. Its schema lives in `localchecks_v2.go`; strict known members coexist with preserved opaque future metadata. Existing v1 declarations retain their behavior. `landingchecks.go` selects enabled checks from per-car path unions and binds in-memory proofs to candidate/policy/car identity; `landingchecks_git.go` reads only regular tracked blobs on the configured base and caches immutable input reads for the landing owner's lifetime.
+
+Runner-resource execution uses the existing exact-head worktree, managed queue/run lease, logs and attempt store, while bypassing suite-helper discovery and allocation. Its entire subprocess group gets one30s graceful cancellation budget, including after the immediate Make leader exits; forced cleanup then joins before checkout retirement. No VM lease is acquired or inspected by SDLC. Automatic train/single-landing enforcement is the next milestone; no consumer is activated by this capability issue.
+
+For unconfirmed runner cleanup, the existing queue operation is left unknown and raw logs and Git-locked worktree inputs remain for operator reconciliation. Stale sweeps resolve each candidate's own Git lock, including scratch directories belonging to another repository. Signal success alone never authorizes retirement; escalation is followed by bounded completion confirmation.
+
+The shared predicate in `localcheck_resource.go` protects all retained artifacts through bounded owner references inside existing scratch/in-flight directories. Both scratch's age/PID sweep and the attempt store's dead-owner/temp collectors consult it; missing/unreadable authority retains evidence. Runner launch requires an attempt writer, while suite-resource legacy fallback remains. Unknown outcomes retain everything until operator reconciliation: prove descendant absence, reconcile the queue, remove named scratch/log directories, then unlock/remove the worktree. Git metadata stays until linked artifacts are reconciled. If unknown endings are frequent, retention policy is an explicit future operator decision.
+
+The Go lint catalog includes `test-sweep-private-root` (#509): test calls to the destructive temp collector require visible testing.TempDir provenance, preserved through safe literal relative joins. Runtime roots, parent traversal, uncertain aliases/reassignments and address escapes refuse the source check. This prevents a fake process-liveness probe from deleting another run's scratch folder.
+
+Landing trains enter `PhaseChecking` after the successful final-prefix suite (also after docs reintegration). `RunLandingChecks` produces typed `LandingChecksDone`; only a current-prefix pass permits `WaitCI`. Check failure refuses that prefix without suite bisection or baseline diagnosis.
+
+`landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.

@@ -39,7 +39,7 @@ func NewLocalCheckCmd() *cobra.Command {
 		},
 	}
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
-	run.Flags().BoolVar(&f.All, "all", false, "run every declared check, in declaration order")
+	run.Flags().BoolVar(&f.All, "all", false, "run every head-scoped check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
 	var cancelName string
 	cancel := &cobra.Command{
@@ -109,7 +109,13 @@ func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCh
 		return nil, errors.New("local-check run: give --name (one or more) or --all")
 	}
 	if all {
-		return decl.Checks, nil
+		var out []localCheck
+		for _, c := range decl.Checks {
+			if c.RunScope != "landing" {
+				out = append(out, c)
+			}
+		}
+		return out, nil
 	}
 	var out []localCheck
 	for _, n := range names {
@@ -184,6 +190,9 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
 	}
 	sha := strings.TrimSpace(out)
+	if err := validateManualLandingTarget(checks, sha, mainHead); err != nil {
+		return err
+	}
 	if tips, _ := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/"); strings.TrimSpace(tips) == "" {
 		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
 	}
