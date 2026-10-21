@@ -99,7 +99,7 @@ This landing creates no cross-event resume state, lock or durable coordination r
 - [x] Implement runUnderSlotBatch/runManagedCommandBatch with the controlled-order strategy above. Fail-fast cannot become a pass when a later required group did not run.
 - [x] Route automatic suite/affected known-flake reruns through it, preserving one immutable linked child and original suite samples. Run focused normal/race regressions for flake gate, republish/saved pass, queue signals and single-command runner cleanup.
 - [x] Private executable proof with fake GH/registry/private Git, queue, scratch and lock paths: unrelated proof survives one synthetic future record, affected proof names newer sdlc; exact-package decoys remain absent and one real linked attempt is saved. No real v3 production record or live queue pause.
-- [ ] Push, record the central full suite on final head and complete delivery preparation. Then M2 close, whole close, PR and normal central merge follow through their gates. Report the landing and fleet rollout instructions; do not activate #463.
+- [x] Push, record the central full suite on final head and complete delivery preparation. Then M2 close, whole close, PR and normal central merge follow through their gates. Report the landing and fleet rollout instructions; do not activate #463.
 
 ## Operating envelope and lifecycle
 
@@ -176,3 +176,13 @@ contract error; helpers now emit only the exact name and known top-level.
 This corrects the approved Go-proof contract without new state or rollout policy.
 The queued suite on superseded code was explicitly cancelled through its owned
 run lease; it provides no acceptance evidence. Requeue on corrected pushed code.
+
+
+### 2026-10-21 — Recorded suite completed
+
+The required central suite passed on pushed corrected code
+2750b1ed88b29c30a74bb781578b2ba59150f7c1: 8 shards over1938 cmd/sdlc tests
+and75 other packages, zero failures,839.6s. Status sdlc-local/suite is recorded;
+subsequent issue/review commits contain no code changes. M1/M2 are finalized
+SHIP; final issue close and authorized landing follow their gates. TL accepted
+private production-CLI conformance and explicitly declined staging into :0.

@@ -228,3 +228,17 @@ Finish suite and final close, then land and report without another approval
 round. TL owns the fleet sdlc rollout after landing; this worker verifies each
 slot's actual binary revision before #463 phase2 can proceed. No activation is
 part of #524 and the parked #463/#520 branches remain untouched.
+
+
+### 2026-10-21 — Central recorded suite PASS
+
+sdlc local-check run --name suite completed exit0 on pushed corrected code
+2750b1ed88b29c30a74bb781578b2ba59150f7c1. All8 shards passed over1938
+cmd/sdlc tests and75 other packages; zero failures,839.6s wall. No flake rerun
+was needed. The run recorded sdlc-local/suite on that code head with raw log
+sha256 prefix595a844548a4 and saved log:
+/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/2750b1ed88b29c30a74bb781578b2ba59150f7c1/suite.log.
+Only workshop evidence changed afterwards. M1/M2 both SHIP; final issue close
+now has completed central verification. TL has already instructed close then
+land and report; fleet rollout remains TL-owned after landing, with actual
+per-slot revision verification before #463 phase2. No live check remains.
