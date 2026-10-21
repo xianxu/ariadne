@@ -69,3 +69,7 @@ Operator tradeoffs are explicit in the plan: v2 unsafe-to-ignore semantics, manu
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries
 
 The original single planning row (“Design the narrow schema and train/single-landing selection together, then obtain full-flow approval”) is superseded by the linked durable proposal and two genuine implementation review boundaries. Scope and Done-when remain unchanged; operator approval is pending.
+
+### 2026-10-20 22:51 PDT — Operator approval
+
+Authenticated hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0 records operator approval of all seven choices, with external-runner cancellation grace30s instead of15s. Proceed to change-code and M1/M2. Rollout remains capability only; no Pair activation or hosted workflow changes. This supersedes the pending approval state above.

@@ -12,7 +12,7 @@ collaboration-mode: discussion
 
 **Tech stack:** Go, existing Git/GitHub adapters, `affected.Match`, `gitx.ChangedPathArgs`, local-check attempts/logs, process groups and queue leases. No scheduler, Tart integration, workflow migration or VM provisioning in this issue.
 
-**Status:** PROPOSED. The operator reviews this gate-model design before code, as dispatched in authenticated Couch receipt d780dadd-9139-42c2-9229-47e3af3053bb. No implementation or estimate yet.
+**Status:** APPROVED by the operator via hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0, with 30-second external-runner graceful cancellation. Original proposal: The operator reviews this gate-model design before code, as dispatched in authenticated Couch receipt d780dadd-9139-42c2-9229-47e3af3053bb. No implementation or estimate yet.
 
 ## Existing seams and alternatives
 
@@ -120,7 +120,7 @@ Extract the managed local-check lifetime from suite allocation. Both resources r
 
 For `resource:runner`, skip `prepareSuiteHelper`, suite priority/provider discovery and `acquireSuiteSlot` entirely. Do not export a fabricated `WF_TEST_LOCK_HELD_BY`; clear inherited suite-held authority before launching this resource. The VM command itself waits for its own resource. Graceful queue pause starts no new check; fast cancellation uses the existing managed operation path and records interruption rather than a failed suite attempt.
 
-Existing suite execution and hard-cancel behavior remain unchanged. For runner resource, `exec.Cmd.Cancel` sends graceful group SIGTERM; use a fixed 15-second `WaitDelay` before escalation, then force and join remaining owned descendants before closing the log/removing the checkout. This permits Pair's shared cleanup budget of up to ten seconds; tests must cover a cleanup acknowledgment arriving after the old five-second ceiling and an unresponsive child requiring escalation. No fire-and-forget cleanup timer or goroutine may survive return.
+Existing suite execution and hard-cancel behavior remain unchanged. For runner resource, `exec.Cmd.Cancel` sends graceful group SIGTERM; use a fixed 30-second `WaitDelay` before escalation, then force and join remaining owned descendants before closing the log/removing the checkout. This permits Pair's shared cleanup budget of up to ten seconds; tests must cover a cleanup acknowledgment arriving after the old five-second ceiling and an unresponsive child requiring escalation. No fire-and-forget cleanup timer or goroutine may survive return.
 
 Pair's confirmed interface (Couch receipt 74652a7c-7ea4-4228-9888-41cf23280c2d): argv `make conformance-vm` in the fresh final-head checkout; target builds its own binary and invokes its VM runner once. Runner budget is20m acquisition-through-execution plus shared cleanup up to10s; the check timeout is30m including build headroom. Preserve guest nonzero (example37), infrastructure125, timeout124 and caller cancellation130 in retained output/record semantics; SDLC cancellation itself remains interrupted. No retry. The runner owns fixed `train` and `adhoc` positions and retains uncertainty if cleanup cannot be proved. SDLC owns no Tart flags, guest credentials, socket paths or VM position files.
 
@@ -186,3 +186,7 @@ Operator approval requested for: version2/explicit scope-resource schema; manual
 ### 2026-10-20 22:45 PDT — Complete the initial proposal before review
 
 Clarified all declaration consumers, main-only explicit burn-in and exclusion from `--all`; required passing suite evidence even under `--no-ci`, including refusal of the existing no-suite success stub. These are proposal details awaiting operator review, not authorization to implement.
+
+### 2026-10-20 22:51 PDT — Operator approval
+
+The operator approved all seven choices through authenticated hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0, changing external-runner graceful cancellation from15s to30s ("be generous"). This supersedes the15s proposal wherever mentioned above. Implement M1 and M2 after change-code. Capability only: nothing activated in Pair and hosted PR conformance untouched.
