@@ -166,6 +166,12 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   old implementation (targeted package 2.878s): the capture persists/posts
   unattributable failure, and its main replay reports main-red. No volume was
   filled; fixture bytes match the retained raw capture.
+- Task 1 replay and existing environment controls pass after the strict grammar
+  extension (5.664s). A native missing-Go fixture then exposed a separate launch
+  boundary: Exit=-1 with an empty log is still recorded as unattributable (red,
+  targeted package 1.513s). Proposed a positive-proof first-Go-start exception
+  in the plan and asked the TL before implementing it. No empty historical log
+  will be reclassified by inference.
 
 ## Revisions
 

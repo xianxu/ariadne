@@ -96,10 +96,12 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun log: %w", err)
 	}
-	if run.Exit > 0 && !run.TimedOut && suiteEnvironmentLog(string(rerunLog)) {
-		path, envErr := retainSuiteEnvironment(g.logDir, g.sha, suiteRerunCheck, w.LogPath)
-		published = path == w.LogPath // preserve the raw log on retention failure
-		return flakes.Outcome{}, envErr
+	if run.Exit > 0 && !run.TimedOut {
+		if diagnosis, startup := diagnoseSuiteStartup(string(rerunLog)); startup {
+			path, envErr := retainSuiteEnvironment(g.logDir, g.sha, suiteRerunCheck, w.LogPath, diagnosis)
+			published = path == w.LogPath // preserve the raw log on retention failure
+			return flakes.Outcome{}, envErr
+		}
 	}
 	facts := parseSuiteLogFacts(string(rerunLog))
 	// The rerun proves only what its log shows passing (#394 M2 review): a

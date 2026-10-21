@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"iter"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,4 +113,69 @@ func TestSuiteInfrastructureBaselineCannotBlameCars(t *testing.T) {
 	if len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {
 		t.Fatalf("baseline infrastructure posted a result: %+v %+v", gh.statuses, gh.comments)
 	}
+}
+
+func TestSuiteInfrastructureMissingGoNeverStarts(t *testing.T) {
+	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	missing := filepath.Join(t.TempDir(), "go")
+	check := localCheck{Name: suiteCheckName, Command: []string{missing, "test", "./..."}, TimeoutMinutes: 1}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	var infra *suiteEnvironmentError
+	if !errors.As(err, &infra) || !strings.Contains(err.Error(), missing) {
+		t.Fatalf("missing Go was not could-not-run: %+v %v\n%s", rec, err, stderr)
+	}
+	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 {
+		t.Fatalf("unstarted tool published code authority: %+v %v", gateAttempts(t, d), gh.statuses)
+	}
+}
+
+func TestSuiteInfrastructureLinearScan(t *testing.T) {
+	capture := recordedCacheFailure(t)
+	for _, n := range []int{8, 16} {
+		visits := 0
+		lines := func(yield func(string) bool) {
+			for range n {
+				for line := range strings.Lines(capture) {
+					visits++
+					if !yield(line) {
+						return
+					}
+				}
+			}
+		}
+		_, ok := diagnoseSuiteStartupLines(iter.Seq[string](lines))
+		if want := n * strings.Count(capture, "\n"); !ok || visits != want {
+			t.Fatalf("N=%d visits=%d want=%d classified=%v", n, visits, want, ok)
+		}
+	}
+}
+
+func FuzzDiagnoseSuiteStartup(f *testing.F) {
+	capture, err := os.ReadFile("testdata/suite-enospc-gocache.log")
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(string(capture))
+	f.Add(workDirFailure + "\n")
+	f.Add("go: cannot find GOROOT directory: /missing/go\n")
+	f.Add("")
+	f.Fuzz(func(t *testing.T, log string) {
+		diagnosis, ok := diagnoseSuiteStartup(log)
+		if !ok {
+			return
+		}
+		if diagnosis.Resource == "" || diagnosis.Path == "" || diagnosis.Reason == "" {
+			t.Fatalf("incomplete diagnosis: %+v", diagnosis)
+		}
+		started := `{"Action":"run","Package":"example/pkg","Test":"TestActuallyStarted"}` + "\n"
+		if _, accepted := diagnoseSuiteStartup(log + started); accepted {
+			t.Fatal("test activity accepted after startup diagnostic")
+		}
+		if _, accepted := diagnoseSuiteStartup(started + log); accepted {
+			t.Fatal("test activity accepted before startup diagnostic")
+		}
+		if _, accepted := diagnoseSuiteStartup(strings.TrimSuffix(log, "\n")); accepted {
+			t.Fatal("truncated diagnostic accepted")
+		}
+	})
 }

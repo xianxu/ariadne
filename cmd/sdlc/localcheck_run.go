@@ -193,11 +193,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Missing/oversized output proves nothing about the environment.
 	facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
 	if log, readErr := readLocalCheckLog(rec.LogPath); readErr == nil {
-		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
-			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath)
-			publishing = path == rec.LogPath // preserve raw inflight log if retention failed
-			rec.LogPath = path
-			return rec, envErr
+		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut {
+			if diagnosis, startup := diagnoseSuiteStartup(string(log)); startup {
+				path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, diagnosis)
+				publishing = path == rec.LogPath // preserve raw inflight log if retention failed
+				rec.LogPath = path
+				return rec, envErr
+			}
 		}
 		facts = parseSuiteLogFacts(string(log))
 		for _, warning := range facts.Warnings {
@@ -831,15 +833,15 @@ func readLocalCheckLog(path string) ([]byte, error) {
 
 // retainSuiteEnvironment moves execution evidence out of the acceptance store.
 // A failed move keeps the owned raw log and names the retention error explicitly.
-func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
+func retainSuiteEnvironment(logDir, sha, check, raw string, diagnosis suiteStartupDiagnosis) (string, error) {
 	path := filepath.Join(logDir, sha, check+".environment.log")
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
 	if err == nil {
 		err = os.Rename(raw, path)
 	}
 	if err != nil {
-		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
+		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Diagnosis: diagnosis, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
-	return path, &suiteEnvironmentError{Check: check, LogPath: path}
+	return path, &suiteEnvironmentError{Check: check, LogPath: path, Diagnosis: diagnosis}
 }

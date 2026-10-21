@@ -292,3 +292,14 @@ part of this design. Any third design delta on the mechanism triggers re-plannin
 - 2026-10-21 — PQ-1: named the risky functions and their adversarial strategies
   and mechanical guards; compressed procedural test-case inventories into
   executable test contracts. Scope, evidence authority and recovery stay intact.
+- 2026-10-21 — Runtime discovery, awaiting TL approval: a direct missing Go
+  executable produces Exit=-1 and an empty log, which the current runner also
+  records as unattributable. Proposed narrow positive-proof exception to the
+  unknown-exit rule: the first command is Go, Cmd.Process is nil, and its typed
+  start error proves the executable/interpreter is missing. Carry a typed startup
+  error through the existing cleanup/queue lifecycle into environment retention;
+  do not synthesize process-output bytes or add passing authority. Reject the
+  exception after any earlier batch command or for an unrelated missing tool.
+  Historical empty logs still refuse correction without positive proof. Native
+  first-command/later-command controls will pin the distinction. This changes
+  runtime failure provenance only, not the v3/audit mechanism.
