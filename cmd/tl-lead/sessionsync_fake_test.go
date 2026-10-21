@@ -56,6 +56,8 @@ type fakeSessionSync struct {
 	file        string // the session file's path; Apply to any other edits it on disk, as couch does
 	seenFiles   []string
 	applies     int
+	identities  map[string]*syncRegistration
+	previous    map[string]string
 }
 
 // newFake is a session-sync file: couch serves only those, which it knows by
@@ -309,15 +311,56 @@ func (f *fakeSessionSync) Registrations() ([]string, error) {
 // (old gone from the registry, new in it) succeeds again.
 func (f *fakeSessionSync) Rename(old, new string) error {
 	if !f.registered[old] {
-		if f.registered[new] {
+		if f.registered[new] && f.previous[new] == old {
 			return nil
 		}
 		return fmt.Errorf("couch --session-sync rename refused (not-registered): %s", old)
+	}
+	if f.registered[new] {
+		return fmt.Errorf("couch rename destination occupied: %s", new)
 	}
 	if _, err := os.Stat(new); err != nil {
 		return fmt.Errorf("couch --session-sync rename: %v", err)
 	}
 	delete(f.registered, old)
 	f.registered[new] = true
+	if f.identities != nil {
+		if r := f.identities[old]; r != nil {
+			next := *r
+			next.File = new
+			f.identities[new] = &next
+			delete(f.identities, old)
+		}
+	}
+	if f.previous == nil {
+		f.previous = map[string]string{}
+	}
+	f.previous[new] = old
 	return nil
+}
+
+func (f *fakeSessionSync) LookupRegistration(file string) (*syncRegistration, error) {
+	if !f.registered[file] {
+		return nil, nil
+	}
+	if f.identities == nil {
+		f.identities = map[string]*syncRegistration{}
+	}
+	if f.identities[file] == nil {
+		f.identities[file] = &syncRegistration{ID: file, File: file, Owner: "ops:0"}
+	}
+	r := *f.identities[file]
+	return &r, nil
+}
+
+func (f *fakeSessionSync) RegistrationSnapshot() (map[string]*syncRegistration, error) {
+	out := map[string]*syncRegistration{}
+	for file := range f.registered {
+		r, err := f.LookupRegistration(file)
+		if err != nil {
+			return nil, err
+		}
+		out[file] = r
+	}
+	return out, nil
 }
