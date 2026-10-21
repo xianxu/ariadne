@@ -93,6 +93,10 @@ The original single planning row (“Design the narrow schema and train/single-l
 
 Authenticated hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0 records operator approval of all seven choices, with external-runner cancellation grace30s instead of15s. Proceed to change-code and M1/M2. Rollout remains capability only; no Pair activation or hosted workflow changes. This supersedes the pending approval state above.
 
+### 2026-10-20 23:36 PDT — Operator approved re-plan
+
+Authenticated receipt df094eb2-20d4-4e7d-a541-b8f3dab0494f approves both retention choices and continuing M1 with shared lock-based protection. Keep all artifacts until operator reconciliation after an unknown ending; refuse a runner launch without its attempt writer. Revisit retention only if unknown endings are common in practice. The approved durable plan Revision is the execution contract.
+
 ## Estimate
 
 Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; calibration is flagged stale, so provisional. Existing matcher, Git adapters, process-group shell and attempt store supply the libraries; no novel stack. Thorough approved plan discounts design by0.2 and uses15% buffer; impl uses40% of v2 values, familiarity1.0 from recent queue/train work.
