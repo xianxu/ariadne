@@ -73,6 +73,8 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 2026-10-21: Close review returned SHIP with no findings; reviewer independently passed new eligibility/readiness tests (50.989s) and compatibility checks (71.494s). Entered merge promptly, but its CI gate queued a second suite lease-1243071410 while original lease-53849329 was still queued. Git diff c0565fcf..badc8d15 confirmed only issue and review records changed. Cancelled only duplicate lease-1243071410 by exact run ID before it acquired suite capacity; its runner returned a confirmed cancellation. Original run remains next in FIFO and is retained. Resume merge after its pass; no code or production policy changed, and no passing retry masks a test failure.
 
+2026-10-21: Original recorded suite lease-53849329 completed on pushed c0565fcf: 1,936 cmd/sdlc tests across 8 shards plus 75 other packages, zero failures, 14m56s, saved log sha256:94c518ea2944. Resumed sdlc merge --yes; waiting behind #523 in the landing line. Final landing still requires the runner's authoritative gates and any needed integration suite.
+
 ## Revisions
 
 2026-10-21: Refined the original policy proposal into a reviewable publish-only design. The completion binding survives reopen; its ownership predicate can be reused without changing settlement, archive, tracker schema or issue-free publication. Added explicit multiple-issue, status, generation and recovery controls. Awaiting hub approval of this new refusal.
