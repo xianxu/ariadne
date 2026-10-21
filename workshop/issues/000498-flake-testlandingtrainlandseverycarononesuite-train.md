@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a4a74cd5a662efdedb9412723c8b9dce42df042c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ad48b6272a3dafc00f528f80511135d5d459e4a0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T14:48:54-07:00
 claimant:
     operator: Xian Xu
@@ -18,7 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests:
 flow: {kind: quick, provenance: inferred, spec: "8876058c", done: "15e3cf4e"}
-actual_hours: 1.42
+actual_hours: 3.53
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
