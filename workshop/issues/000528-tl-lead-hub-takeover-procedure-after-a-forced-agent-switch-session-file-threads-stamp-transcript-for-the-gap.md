@@ -57,6 +57,7 @@ Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY 
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Resolved README/atlas adjacent independent #508 and #528 insertions, preserving both blocks; no code conflicts. Takeover help and guards unchanged from SHIP. Integrated tl-lead package passed16.836s and tl-worker0.127s; diff check passed. Branch suite previously passed1961 SDLC tests plus75 packages, log6f460846a5e0. Fresh integrated recorded suite on dba27e4716583af1100b997249c49723ecaa54be is submitted and pending; its completed pass must precede landing. (fixed-then-ship); review verdict: SHIP
 - 2026-10-21: closed — README BR-1 fixed for both takeover modes; link target and diff checked. Test-first help guard red-before; tl-lead package passed locally (15.838s) and independently in review (20.797s); built CLI both entry points verified, hub accepted no stage. Suite lease-761235529 on pushed 45c68451930d55cd5a2c5f36073920bb4b01f7d2 still pending; no code changes, completed original pass required before landing.; review verdict: SHIP
 
 - Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.

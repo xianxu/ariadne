@@ -120,3 +120,65 @@ dispose:
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"57c0bdc3-ee42-45ce-98a8-b40520a18459","repository":"github.com/xianxu/ariadne","issue_id":"000528","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5d50f5995a2fa41b","reviewed_head":"03346232df01e3eac4fde91d480894f9ec411e6d","slot":"ariadne:2","requested_at":"2026-10-21T19:31:01.368811Z"},"phase":"finished","pid":6114,"started_at":"2026-10-21T19:31:01.473799Z","finished_at":"2026-10-21T19:31:51.179488Z","session_id":"01a15ff2-0feb-79e2-ab3e-9ce0f4e1b678","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T14:41:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 528 — tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap) |
+| repo | ariadne |
+| issue file | workshop/issues/000528-tl-lead-hub-takeover-procedure-after-a-forced-agent-switch-session-file-threads-stamp-transcript-for-the-gap.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 294abab5b4dc271c05c083f11e24a45978965bc3..dba27e4716583af1100b997249c49723ecaa54be |
+| command | sdlc close --issue 528 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T14:41:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both sides of the README and atlas conflicts, retains BR-1’s documentation correction, and introduces no new behavior or scope changes. No blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:286–288 covers same-slot force switches and fresh hub sessions, linking authoritative help and atlas/workflow/tl-skills.md:30–35. Both match cmd/tl-lead/help.md:19–34. This remains a prose-only discovery correction.
+```
+
+1. **Strengths**
+   - README.md:286–293 preserves both takeover discovery and worker-verification guidance.
+   - atlas/workflow/tl-skills.md:30–43 preserves both architectural descriptions and their concrete help/test references.
+   - Issue Spec, Plan, and Done-when remain unchanged.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Focused takeover and worker-verification rendered-help tests passed in both packages.
+   - Pinned-range `git diff --check` passed.
+   - No conflict markers remain in either resolved file.
+   - Full suite not rerun for this documentation-only interdiff.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** documentation points to authoritative help.
+   - **ARCH-PURE — pass:** no logic or IO changes.
+   - **ARCH-PURPOSE — pass:** both takeover modes remain discoverable; both conflict resolutions preserve independent guidance.
+   - **ARCH-EVOLVE — pass:** no persisted-format or reader/writer changes.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"325bfce2-8167-40f1-9572-159c1b6a882e","repository":"github.com/xianxu/ariadne","issue_id":"000528","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/24b2e8107e59a1a8","reviewed_head":"dba27e4716583af1100b997249c49723ecaa54be","slot":"ariadne:2","requested_at":"2026-10-21T21:41:07.605228Z"},"phase":"finished","pid":98592,"started_at":"2026-10-21T21:41:07.700838Z","finished_at":"2026-10-21T21:41:42.242647Z","session_id":"01a16069-2cf7-78f0-897a-7f8ef03bbc4f","outcome":"returned"}] -->
