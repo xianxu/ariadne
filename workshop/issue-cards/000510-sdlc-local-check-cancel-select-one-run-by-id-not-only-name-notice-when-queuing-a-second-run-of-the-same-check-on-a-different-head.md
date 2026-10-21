@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.52
+actual_hours: 0.55
 tracker:
     version: 1
     completion:
-        token: close-db57a2e87db0
+        token: close-69cafd5c6dd4
         repository: github.com/xianxu/ariadne
-        reviewed_head: 8c3b5c407ca83d5ebc2e8538104b06c9aa65b8cf
-        evidence_commit: d93b1229e311b6ccf0e3536b09311fda932db498
+        reviewed_head: dcc50b776875f0dd40a0d2639a5fed3a79063d5b
+        evidence_commit: 7ec9141d37ca0c169f8683c0ce306ce7d4266e58
 ---
 
 # sdlc local-check cancel: select one run by id (not only --name); notice when queuing a second run of the same check on a different head
