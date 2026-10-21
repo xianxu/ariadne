@@ -1,6 +1,6 @@
 ---
 id: 000514
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.52
+tracker:
+    version: 1
+    completion:
+        token: close-7a157648ac8e
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 8d799067dcad5f717b586c067ebf575c778a1bf1
+        evidence_commit: f6a608aaad03cd5d2f45ac4a8be3cd35e480f71d
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
