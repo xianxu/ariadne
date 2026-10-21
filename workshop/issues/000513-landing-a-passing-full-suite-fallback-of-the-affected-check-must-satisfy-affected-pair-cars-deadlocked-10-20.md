@@ -47,6 +47,7 @@ The readiness gate already accepts a passing required suite before considering i
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Confirmed existing required-suite-before-affected-stand-in logic; readiness policy unchanged. Production car controls pin same-head pass, failed suite and code-different head. Red first only on missing/wrong-head wait diagnostics, then focused pure CI/car/fallback execution/broken-config/docs-only controls passed (5.424s). Message names affected OR its full-suite fallback and conditionally explains waiting without inventing queued-run provenance. Original criteria preserved in Revisions under authenticated TL correction; atlas updated; diff check clean. Recorded pushed-head suite requested under authorized overlap; pass remains required before landing.; review verdict: SHIP
 
 Claimed and started after #505 landed. Source confirms carCIGateFacts maps required suite to affected; decideCIGate first checks the suite’s own passing record, so full-suite success already satisfies the car. Existing TestDecideCIGateLocalChecks pins that case. runAffectedCheck intentionally runs/records suite for full selection. Quick message-only plan posted to hub, proceeding unless objected. ARCH-PURPOSE: diagnose the actual missing-evidence wait rather than alter a correct gate; ARCH-DRY: keep the diagnostic in ciVerdict.refusal.
 
