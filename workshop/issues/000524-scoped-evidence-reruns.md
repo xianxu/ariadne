@@ -103,3 +103,13 @@ BR-2 compatibility-control-evidence is retained as cmd/sdlc/testdata/evidence-pr
 Final focused M1 regressions passed9.710s; Go lint catalog0.644s and shell lint0.308s passed. Earlier focused race run passed1.971s before the parent-index correction; the final focused race run follows. Lessons/plan Revisions record both classes; M1 is not finalized yet.
 
 Final focused race verification of the corrected parent index passed1.942s.
+
+### 2026-10-21 — M1 review2 corrections and durable stop
+
+Review2 disposed BR-1/BR-2 with independent mutation and real-old-source measurements. It returned FIX-THEN-SHIP but did not finalize M1 because BR-3 (README discovery) remained open; BR-4 is Minor (private-clone cleanup lifecycle). Both are corrected in README/atlas/plan Revisions. The invoker owns each printed private compatibility clone, retained through inspection and removed afterwards; no shared-root sweep. Our original evidence clone remains at the path above through inspection.
+
+The BR-1 class sweep added TestScopedLinkedProofUsesParentCheck: a link labelled suite but naming a supported VM parent must not block unrelated suite proof. It reproduced the false refusal in1.099s; the completed index now resolves authority solely through a visible supported parent's check, retaining declared scope only for unresolved parents. All scoped reader/decoder/budget/saved-proof/stats/actual/weekly focused tests passed10.218s, final focused race2.122s, Go lint0.649s and shell lint0.313s. git diff --check passed. No M2 execution work or future writer was started.
+
+NEXT ACTION: run sdlc milestone-close --issue 524 --milestone M1 against this checkpoint, citing BR-3/BR-4 documentation plus the inverse-parent RED/GREEN controls; M1 still needs its final review disposition. Then implement approved M2 exact-package batches, private executable conformance, recorded central suite and delivery. After landing, verify actual fleet binary paths/revisions before #463 activation. #463 and #520 branches remain held unchanged.
+
+No test, suite, merge or review runner remains. The retained session-context pressure checkpoint requires the canonical continuation writer, but none is exposed by this environment. Per AGENTS14 and construct/datatype/continuation.md no-writer rule, this issue Log/plan is committed and pushed, no continuation is hand-written, and work stops for Pair park/continue recovery. Previous-screen evidence is unavailable; branch/issue/gate records are the durable recovery evidence.

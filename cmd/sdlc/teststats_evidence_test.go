@@ -311,3 +311,51 @@ func TestReadSuiteEvidenceSingleScan(t *testing.T) {
 		})
 	}
 }
+
+func TestScopedLinkedProofUsesParentCheck(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "skipped")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := suiteStoreRoot(logDir)
+	var parent string
+	for _, check := range []string{"suite", "vm"} {
+		w, err := beginSuiteAttempt(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+		log := []byte("ok example.test/pkg 1s\n")
+		if err := os.WriteFile(w.LogPath, log, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		a := storedAttemptFixture(w.ID)
+		a.Repo, a.SHA, a.Check, a.Exit, a.Failures = d.Repo, sha, check, 0, nil
+		wall := 1.0
+		a.WallSeconds, a.LogSHA256 = &wall, hashBytes(log)
+		if _, err := publishSuiteAttempt(store, w, a); err != nil {
+			t.Fatal(err)
+		}
+		if check == "vm" {
+			parent = w.ID
+		}
+	}
+	raw, err := json.Marshal(map[string]any{"version": 3, "id": "d3", "repo": d.Repo, "sha": sha, "check": "suite", "rerun_of": parent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store, "attempts", "d3.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "host")
+	if err != nil || !newest || !rec.passed() {
+		t.Fatalf("link to VM blocked unrelated suite: newest=%v err=%v", newest, err)
+	}
+	if err := postLocalCheckRecord(context.Background(), d, rec); err != nil || gh.statuses[sha][localStatusContext("suite")] != "success" {
+		t.Fatalf("unrelated suite publication: %v", err)
+	}
+	_, _, err = loadSavedAttempt(store, d.Repo, sha, "vm", "", "host")
+	if err == nil || !strings.Contains(err.Error(), "needs a newer sdlc") {
+		t.Fatalf("VM parent authority lost: %v", err)
+	}
+}

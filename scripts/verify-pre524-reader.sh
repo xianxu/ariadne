@@ -10,5 +10,6 @@ git -C "$scratch/repo" checkout --quiet --detach "$base"
 cp "$repo/cmd/sdlc/testdata/evidence-pre524-control_test.go.txt" "$scratch/repo/cmd/sdlc/compat_pre524_test.go"
 git -C "$scratch/repo" add cmd/sdlc/compat_pre524_test.go
 printf 'Pre-524 reader source: %s\nEvidence checkout: %s\n' "$base" "$scratch/repo"
+printf 'Retained for inspection; invoker removes this private directory afterwards: %s\n' "$scratch"
 cd "${scratch:?}/repo"
 go test ./cmd/sdlc -run '^TestPre524FutureRecordPoisonsUnrelatedProof$' -count=1 -timeout 5m

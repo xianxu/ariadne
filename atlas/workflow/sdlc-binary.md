@@ -2649,3 +2649,9 @@ pre-#524 revision and executes the committed old-reader fixture, asserting the
 old global warning, incomplete saved proof and publication refusal. Its printed
 private path is retained for inspection. The upgraded comparison is
 `go test ./cmd/sdlc -run '^TestScopedSavedProofConsumers$' -count=1`.
+
+The invoker owns that private compatibility-control directory, retained only
+through evidence inspection. Afterwards remove the printed parent directory
+(`ariadne-pre524-reader.*`), including its clone; never sweep the shared scratch
+root. It contains no live lease or production evidence and is not a long-term
+artifact store. The committed fixture/script and issue Log retain the proof.

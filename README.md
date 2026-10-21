@@ -762,6 +762,16 @@ tests, configuration and embedded help invalidate reuse and require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
 
+Reader-first compatibility verification is opt-in:
+`sh scripts/verify-pre524-reader.sh` runs the committed control against pinned
+pre-#524 source in a private clone. It proves the old global refusal; the new
+reader scopes “needs a newer sdlc” to related proof. The invoker owns the printed
+scratch directory: inspect its evidence, then remove that directory. No live
+binary or production store is changed. Before #463 may activate resume links,
+the TL must upgrade every slot's actual sdlc and verify paths/revisions; any
+stale or unverified reader keeps activation held. See the
+[reader-first rollout contract](atlas/workflow/sdlc-binary.md#reader-first-attempt-compatibility-524-prerequisite-for-463).
+
 `sdlc test-stats` reads saved suite attempts across local sibling repositories
 and reports wall and queue percentiles, slow packages or shards, and named
 flakes. Use `--since 7d`, `--repo pair`, or `--json` to narrow or export the

@@ -52,11 +52,24 @@ func (s *SuiteEvidenceSnapshot) addUnsupported(p UnsupportedProof) {
 // A link's parent, rather than the link's own check name, determines its
 // authority. Resolve that edge once per snapshot, including partial reads.
 func (s *SuiteEvidenceSnapshot) indexLinkedParents() {
+	subjects := make(map[string]UnsupportedProof, len(s.bySubject))
+	resolved := make(map[string]bool, len(s.byParent))
 	for _, a := range s.Attempts {
-		if p, ok := s.byParent[proofKey(a.Repo, a.SHA, a.ID)]; ok && unsupportedProofBlocks(p, proofSubject{Repo: a.Repo, SHA: a.SHA, Check: a.Check, ID: a.ID}) {
-			s.bySubject[proofKey(a.Repo, a.SHA, a.Check)] = p
+		parent := proofKey(a.Repo, a.SHA, a.ID)
+		if p, ok := s.byParent[parent]; ok && unsupportedProofBlocks(p, proofSubject{Repo: a.Repo, SHA: a.SHA, Check: a.Check, ID: a.ID}) {
+			subjects[proofKey(a.Repo, a.SHA, a.Check)] = p
+			resolved[parent] = true
 		}
 	}
+	for _, p := range s.Unsupported {
+		// A resolved parent determines the check; the link's own check must not
+		// claim authority over an unrelated entity. Without a visible parent,
+		// retain the declared scope rather than proving that unseen proof absent.
+		if p.RerunOf == "" || !resolved[proofKey(p.Repo, p.SHA, p.RerunOf)] {
+			subjects[proofKey(p.Repo, p.SHA, p.Check)] = p
+		}
+	}
+	s.bySubject = subjects
 }
 
 type needsNewerSDLCError struct{ Proof UnsupportedProof }
