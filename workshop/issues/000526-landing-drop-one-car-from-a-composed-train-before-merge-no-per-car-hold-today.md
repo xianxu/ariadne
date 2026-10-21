@@ -58,3 +58,5 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 ## Revisions
 
 - 2026-10-21: Hub clarified “returns to waiting” means not lost, not automatically ready: a dropped car stays out until explicit owner retry; its runner exits with reason/recovery like #521 (654ff9bf-3a5d-4ddf-ab4c-b831827f1f83). Done-when wording updated accordingly. Hub endorsed persistent generation-pinned acceptance under line.lock and one atomic drop-versus-merge fence; detailed plan awaiting approval.
+
+- 2026-10-21: Operator approved the detailed plan through hub relay2364fcf8-71f4-477d-804e-c5fa4d1a4d45: atomic admission of the Merge effect is the merge-start boundary; deterministic real-Git fixture is the live conformance, with no staged Pair train. Proceed to change-code and its plan-quality gate.

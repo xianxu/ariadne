@@ -114,7 +114,7 @@ Files: cmd/sdlc/helptext/landing.md, README.md, atlas/workflow/sdlc-binary.md (a
 
 - [ ] Document command, authority, irreversible merge boundary, held retry/recovery, new bounded record and rolling-upgrade refusal. Update status output to show accepted exclusions, actual current phase and pending cleanup without changing existing human membership promises.
 - [ ] Count control updates/reads and pure membership walks at8/16cars: one read/atomic rewrite per control event, O(cars+accepted requests) decision, no per-member Git/network under line.lock. Watcher uses existing2s cadence, at most one watcher; no tight polling. Run focused suites/lint then push and record full suite.
-- [ ] Request hub's chosen live conformance: stage --build only with authorization, then an actual Pair three-car train drop before merge (or hub-approved equivalent controlled fixture); owner/:0 and late refusal exercised against the staged binary, same revision recorded. Ariadne trains are off; do not alter landing configuration just to stage. Hub owns live choice and next natural train follow-up.
+- [ ] Run the operator-approved deterministic real-Git fixture as live conformance: actual three-car composition, native suite cancellation/join, survivor recomposition and merge reachability, owner/:0 authorization and controlled late refusal through production seams. No staged Pair train or configuration change (approval2364fcf8-71f4-477d-804e-c5fa4d1a4d45).
 - [ ] Persist raw red/green/controlled-race/full-suite logs outside RAM disk in common test-stats/evidence/000526, update Log and prepare sdlc close --no-project evidence. On SHIP enter sdlc merge --yes and report PR/outcome to hub.
 
 ## Operating envelope and architecture
@@ -131,6 +131,8 @@ ARCH-FUNERAL: one bounded control record per repository, owned by active head; t
 
 ARCH-EVOLVE: new protocol record only; no reinterpretation of old outcomes/tickets. Strict known fields and duplicates, preserved unknown top-level/nested fields, explicit unsupported-version refusal because an old conductor lacks the merge fence. Existing no-control conductors remain operational but cannot claim drop support. No version bump of unrelated formats.
 
-## Open approval point
+## Approval and revisions
 
-The merge start fence is admission of the Merge effect after green CI, before its final fetch/API. Once that operation starts, refusal is conservative even if it later observes main movement; this avoids pretending a request can undo an operation already committed to merge. Hub must approve this precise boundary and the live conformance choice before implementation.
+The merge start fence is admission of the Merge effect after green CI, before its final fetch/API. Once that operation starts, refusal is conservative even if it later observes main movement; this avoids pretending a request can undo an operation already committed to merge. Operator approved this boundary and the deterministic real-Git fixture as live conformance through hub relay2364fcf8-71f4-477d-804e-c5fa4d1a4d45; no staged Pair train.
+
+- 2026-10-21: Replace the open live-check choice with the operator-approved fixture and record merge-start approval. No change to the protocol or scope.
