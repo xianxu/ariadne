@@ -41,9 +41,9 @@ Resume post-train cleanup from confirmed durable landing/archive evidence, inclu
 
 ## Plan
 
-- [ ] Reproduce two-car cleanup after the sibling archives first, without a transient train outcome; cover already-merged retry and publication interleaving.
-- [ ] Route all archive checks through the existing exact tracked-archive proof when per-PR provenance is absent; preserve invalid/ambiguous provenance and mismatched completion refusals.
-- [ ] Run targeted regression/proof controls and the recorded full suite, then close and land.
+- [x] Reproduce two-car cleanup after the sibling archives first, without a transient train outcome; cover already-merged retry and publication interleaving.
+- [x] Route all archive checks through the existing exact tracked-archive proof when per-PR provenance is absent; preserve invalid/ambiguous provenance and mismatched completion refusals.
+- [x] Verify targeted archive regressions/proof controls and read-only conformance against the reported live archives.
 
 Actions: retry `sdlc merge --yes`.
 
@@ -64,3 +64,17 @@ Actions: retry `sdlc merge --yes`.
 - Recovered the dispatched issue after #518 landed. Source tracing found that `landing.go` permits generic tracked-archive proof only after a transient waiter outcome. Conductor cleanup and a fresh already-merged retry cannot enter it. `archiveLandingPR` also rechecks refreshed main without that fallback, exposing the same refusal if a sibling archives between checks.
 - ARCH-DRY / ARCH-ORDER: put proof selection in the shared archive checker, using the same pinned main snapshot and selected completion generation. Reuse the existing exact archive transition verifier; a notification is not durable authority. No new state or recovery operation.
 - Quick plan posted to the hub, proceeding unless objected. This is semantic evidence validation rather than a mechanically lintable API misuse; real-Git ordering and negative-proof regressions are the guard.
+- Reproduced in pair:9 after pair#751 landed as PR505 in train216/PR508: original cleanup and documented branch recovery both refused `active issue missing without confirmed archive`; `sdlc issue show 751 --json` confirms done/landed and the matching history path, while issue reconciliation reports no unfinished operations. Clean landed branch preserved; TL authorized returning to main-slot9 to begin pair#752.
+
+### 2026-10-21 — implementation and verification
+
+- Hub approved the plan and required named regressions for pair#727/pair:7 and pair#733/pair:4. Both deterministic real-Git two-car fixtures failed before the fix with the exact `active issue missing without confirmed archive` refusal. The separate sibling-publication interleaving also failed with that refusal before the fix.
+- Centralized the existing tracked generic-archive verifier inside the shared archive check. Initial cleanup, fresh recovery, publisher retries and final confirmation now use the same selected completion and pinned main tree. Legacy archives still need per-PR provenance. No server merge or completion ownership rewrite is introduced.
+- Focused regressions passed (137.820s). The broader archive/train/proof matrix passed (122.846s), including missing active without archive, another issue's destination, altered/malformed/ambiguous archive history, residual active artifacts, another completion token and legacy untracked refusal. Fresh retries assert unchanged resting branch and completion card, deleted issue branch, and no repeated server merge.
+- One earlier broader run passed all assertions but was rejected by TestMain's worktree guard because a peer appended the #751 Log evidence and this session added the conformance file while it ran. No test failure was classified as a flake. Reran with a stable worktree for the passing result above.
+- Hub explicitly declined :0 staging. Opt-in read-only conformance in an isolated clone accepted pair#727/PR486, pair#733/PR497 and pair#751/PR505 against pinned main `bc79cbaeae75b518dcfa789fc2bd0e40ccf06f97` (72.331s package pass). The verifier identified exactly the expected owned completion for each and preserved clone HEAD/index. Only the disposable clone's fetched refs changed; no live merge, card or archive writes. The hub will watch the next natural pair landing after release for the end-to-end cleanup proof.
+- Recorded full suite and close review follow on the pushed implementation head; their results are recorded separately before landing.
+
+## Revisions
+
+- 2026-10-21: separated implementation acceptance checks from the later SDLC suite/close/landing operations in the checklist, so completion of a gate is not its own unchecked prerequisite. Scope and Done when are unchanged; full-suite and review gates remain required.
