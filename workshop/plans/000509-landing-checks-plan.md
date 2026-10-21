@@ -149,7 +149,7 @@ New proofs/selections are in-memory and replaced when candidate authority change
 
 ## Implementation boundaries and adversarial verification
 
-- [ ] **M1 — Declaration, selection core and resource execution.**
+- [x] **M1 — Declaration, selection core and resource execution.**
   - `parseLocalChecks` and the v2 raw-value codec: fuzz structural/known-member corruption and opaque future metadata; assert strict refusal versus lossless unknown-value round trip, keeping v1 compatibility controls in `localchecks_test.go`.
   - `parseLandingPaths`, `selectLandingChecks`, `landingProofMatches`: pure adversarial policy/path/candidate transformations; assert deterministic selection and proof rejection when any authority input changes. Mutation removes per-car union and must break the later-revert oracle in `landingchecks_test.go`.
   - `readLandingCheckInputs`: real disposable Git histories plus counted Git adapter; verify immutable policy and complete NUL path evidence, and at N/2N reject superlinear reads or per-poll scans.

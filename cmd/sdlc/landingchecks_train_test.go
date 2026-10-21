@@ -51,7 +51,7 @@ func TestLandingCheckProductionTrainAndSingle(t *testing.T) {
 			git(t, s.server, "commit", "-qm", "landing gate")
 			git(t, s.server, "push", "-q", "origin", "main")
 			if multi {
-				s.pushCar(t, "000102-second", "second.go", 102, 2)
+				s.pushCar(t, "000102-second", "second", 102, 2)
 			}
 			result := s.merge(s.first)
 			waitQueued(t, s.line, 1)

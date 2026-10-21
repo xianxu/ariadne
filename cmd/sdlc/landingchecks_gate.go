@@ -48,6 +48,9 @@ func landingDocsEquivalent(git func(...string) (string, error), old, head string
 }
 
 func (o *landingCheckOwner) run(ctx context.Context, git func(...string) (string, error), base, head string, cars []string, suiteReady bool, suiteRun, checkRun localCheckRunner) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	in, err := readLandingCheckInputs(git, base, cars, &o.inputs)
 	if err != nil {
 		return fmt.Errorf("landing check selection: %w", err)
@@ -83,6 +86,9 @@ func (o *landingCheckOwner) run(ctx context.Context, git func(...string) (string
 		return fmt.Errorf("selected landing checks require a real declared/default suite")
 	}
 	if !suiteReady {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if suiteRun == nil {
 			return fmt.Errorf("selected landing checks require a passing suite before launch")
 		}

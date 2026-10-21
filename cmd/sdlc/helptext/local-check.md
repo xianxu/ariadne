@@ -62,7 +62,7 @@ LANDING CHECKS (#509)
   resource:runner skips suite allocation/helper discovery and clears inherited
   WF_TEST_LOCK_HELD_BY; its external executable owns its resource. Managed queue
   admission, exact-head checkout, logs, attempts and cancellation still apply.
-  Cancellation grants the owned process group30s even after its leader exits,
+  Cancellation grants the owned process group 30s even after its leader exits,
   then escalates and verifies completion. An unknown ending retains checkout,
   scratch and raw log under the Git worktree lock; repair requires operator
   proof of descendant absence, queue reconciliation, linked scratch/log removal,

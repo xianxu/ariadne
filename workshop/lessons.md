@@ -1239,3 +1239,7 @@ A tracked empty policy is invalid input, not an absent opt-in declaration. A nil
 ### #509 — Fake cleanup probes require a private destructive root
 
 Never run a fake-liveness collector against the runtime-selected scratch/temp root, even when the fixture's own run is private. Use a root derived directly from t.TempDir and explicit relative children. The Go lint catalog's test-sweep-private-root rule enforces that provenance across aliases, reassignments, branches and address escapes. Collector simulations must be incapable of touching another run's folder.
+
+### #509 — Retention is one artifact-lifetime proof
+
+Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.

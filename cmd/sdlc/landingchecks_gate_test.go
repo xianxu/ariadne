@@ -272,3 +272,17 @@ func TestLandingCheckGateMainMoveCannotWaiveWatchedDocs(t *testing.T) {
 		t.Fatal("issue/docs-only readiness waived watched path")
 	}
 }
+
+func TestLandingCheckGateCanceledOwnerLaunchesNothing(t *testing.T) {
+	d, base, head := landingGateRepo(t)
+	fake := &landingCheckFake{t: t}
+	owner := landingCheckOwner{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := owner.run(ctx, d.Git, base, head, []string{head}, false, fake.run, fake.run); err == nil {
+		t.Fatal("canceled owner passed")
+	}
+	if len(fake.calls) != 0 {
+		t.Fatalf("canceled owner launched %v", fake.calls)
+	}
+}
