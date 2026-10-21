@@ -1,6 +1,6 @@
 ---
 id: 000523
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 90f1be0734c552f5dd6d6fa806d3a516bfeeb8c2
         evidence_commit: 5fd48a62f279eb0f91696ff7555941d739aa883d
+        landed_commit: 2be41ca0ec221ae5bb100e25c06ac3b858ce92ab
 ---
 
 # Native cancellation fixture waits four minutes after successful joins
