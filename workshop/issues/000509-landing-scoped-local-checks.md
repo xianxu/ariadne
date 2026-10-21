@@ -119,6 +119,14 @@ Frozen-source broad CI/train/CLI/legacy/issue-only regressions passed286.594s. N
 
 Private real-executable conformance at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne509-conformance.xkckge used this slot's clean revision9f023487f binary, an isolated Git repository/fake GitHub executable, private queue/scratch/lock roots and external runner-owned flock. The real lock helper held both private suite slots while the real sdlc named runner check completed and posted one exact-head success; inherited WF_TEST_LOCK_HELD_BY was absent inside the runner. Both private suite locks released after the owned watcher ended. Source and raw logs retained there. This precedes the small context-guard correction; refresh the binary for final delivery conformance. No live VM, production queue or :0 staging was touched. M2 ready for fresh review; delivery and recorded full suite remain.
 
+### 2026-10-21 00:38 PDT — M2 SHIP and accepted delivery proof
+
+M2 first review SHIP, zero findings, milestone evidence committed/pushed. Refreshed private binary at clean Git revision d0e43f42fa53f1bf7d94137baf3ba18988103526 (version reports modified=false) passed the native private two-slot-holder resource conformance again. Final probe scripts/logs live at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne509-final-conformance.qPmW6a. Cooperative SIGTERM joined the external runner's cleanup, returned nonzero without posting a code-result status, retained one interrupted record, retired its checkout and released the runner-owned lock; isolated cancel queue status is running/complete/empty.
+
+Harness corrections were private only: the first status decoder mistakenly mixed the expected private-binary stderr warning into stdout; the initial queue also retained the standalone native holder's honest unknown tombstone and discovered live legacy fleet processes. The corrected cancellation probe used a fresh private cancel queue, explicit empty private fleet discovery, and separate stdout/stderr. It passed; original diagnostic residue remains private. No live queue or process was changed.
+
+Authenticated hub receipt e29d3ea3-075f-4463-88e0-718c8a6ab581 accepts private executable proof plus the hub's normal post-land :0 rebuild, with no staging/live VM. Capability only; no consumer declaration or hosted workflow changes. Pair#743 M3 owns the later manual-only declaration and named run on Pair main. Direct landed/schema notice to pair:3 is owed after main contains this change. Proceed to the central recorded full suite, whole close and landing.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries

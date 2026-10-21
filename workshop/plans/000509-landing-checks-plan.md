@@ -155,7 +155,7 @@ New proofs/selections are in-memory and replaced when candidate authority change
   - `readLandingCheckInputs`: real disposable Git histories plus counted Git adapter; verify immutable policy and complete NUL path evidence, and at N/2N reject superlinear reads or per-poll scans.
   - `runLocalCheck` / `runUnderSlot`: real private process/resource helpers with controlled lifetime and exit outcomes; assert runner makes zero suite/helper/provider calls, lease spans cleanup, graceful cancellation gets30s and forced cleanup joins before return. Existing signal/process fixtures remain controls; refactor shared shell in `localcheck_run.go` / `localcheck_resource.go`.
   - Targeted commands: `go test ./cmd/sdlc -run 'Test(ParseLocalChecks|LandingCheck|RunLocalCheck|LocalCheckSignal)' -count=1`; resource race run on its narrow selectors; `go test ./cmd/sdlc/internal/affected -count=1`. Expected GREEN after observed RED. Commit, update atlas, `sdlc milestone-close --issue 509 --milestone M1`.
-- [ ] **M2 — Enforce the shared gate at every landing boundary.**
+- [x] **M2 — Enforce the shared gate at every landing boundary.**
   - `landingline.Transition`: adversarial typed event sequences against every reachable phase; assert only suite outcomes can bisect and only valid current-prefix check completion can authorize CI/merge in `trainstate_test.go`.
   - `runLandingChecks` / `conductor.execute`: reuse stateful GitHub and resource fakes with controlled main/head/path/status movement; assert post-suite resource order, exactly-once owner proof, prefix isolation and refusal before merge. Mutation removes checking phase and must break ordering oracle in `landingchecks_gate_test.go` / `landingtrain_test.go`.
   - `carCIGateFacts`, `prepareCIGateFactsContext`, `runLocalCheckCmd`, `selectLocalChecks`: adversarial scope/default/explicit-name projections; assert head readiness cannot execute landing checks, disabled burn-in stays explicit/main-only, and default injection preserves v2.
@@ -234,3 +234,7 @@ Authenticated hub receipt df094eb2-20d4-4e7d-a541-b8f3dab0494f records approval 
 ### 2026-10-21 00:03 PDT — M1 destructive fixture isolation guard
 
 Authenticated TL c2678fdc-28f8-4cbc-b547-2ef8932ac278 requires closing the fake-liveness/shared-root class after the confirmed pair#743 incident. Chosen boundary: pkg/golint test-sweep-private-root rejects test sweeps lacking visible testing.TempDir provenance, including runtime scratch roots and unsafe aliases. The fixture supplies WF_TEST_SCRATCH plus a private fallback and containment assertion; direct private collector conformance is the only shared-predicate mutation target. Added a lessons.md line. The issue Log records recovered unsafe invocation windows and confirmed impact. This is part of M1; no production resource or rollout change.
+
+### 2026-10-21 00:38 PDT — Accepted delivery boundary
+
+Authenticated hub e29d3ea3-075f-4463-88e0-718c8a6ab581 accepts private executable proof followed by the hub's post-land :0 rebuild: no staging and no live VM in this issue. Pair#743 M3 owns the later manual-only declaration/named main run. No consumer activation or hosted workflow change; notify pair:3 directly after landing. M1 and M2 are SHIP; recorded suite and final close/merge remain.
