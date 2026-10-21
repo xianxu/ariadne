@@ -193,3 +193,57 @@ dispose:
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"97d7a882-902f-443c-9f7e-d3ea91ccc2a8","repository":"github.com/xianxu/ariadne","issue_id":"000485","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b9dedea227c4a119","reviewed_head":"e2d3af977ec4ae3d9e2758dc6f01cb59596a5b65","slot":"ariadne:2","requested_at":"2026-10-20T21:07:29.696605Z"},"phase":"finished","pid":13186,"started_at":"2026-10-20T21:07:29.816371Z","finished_at":"2026-10-20T21:09:24.021323Z","session_id":"01a15b24-06a8-7b01-bfd1-46bf8a7ef92c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-20T18:26:53-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 485 — tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?') |
+| repo | ariadne |
+| issue file | workshop/issues/000485-tl-lead-in-a-multi-hub-setup-scope-status-slots-and-fleet-resume-to-the-hub-s-own-slots-couch-calls-fail-under-the-sandbox-actors.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8dd3ab8687c37a94646dfc13087e4d4bb485e2d9..928bc8cc72440d319fb3271090fca90943f3c03c |
+| command | sdlc close --issue 485 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-20T18:26:53-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned interdiff contains documentation reconciliation and review records only. The atlas conflict resolution preserves both sides’ intent and agrees with the referenced code. No new defects or scope changes were found. Previously disposed findings remain undisturbed.
+
+```findings
+{}
+```
+
+1. **Strengths**
+   - Atlas retains scoped freshness and hidden-hold protection (`atlas/workflow/tl-skills.md:63–64`).
+   - Operator-answer documentation adopts main’s `session.side/` convention, consistent with help and answer validation (`atlas/workflow/tl-skills.md:65`).
+   - Receipt-conformance instructions and root-session migration documentation both survive the resolution.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Targeted hold, freshness, and answer-validation tests passed. `git diff --check` passed; no conflict markers remain in the inspected paths. Checkout remains clean. Full-suite and live conformance tests were not rerun for this documentation-only interdiff.
+
+6. **Architectural notes:**
+   - **ARCH-DRY — Pass:** conflict resolution removes competing documentation.
+   - **ARCH-PURE — Pass:** no executable separation changes.
+   - **ARCH-PURPOSE — Pass:** both issue-specific guidance and main’s session migration intent remain intact.
+   - **ARCH-EVOLVE — Pass:** no persisted-format or reader/writer changes.
+
+7. **Plan revision recommendations:** None; Spec, Done-when criteria, and durable plan are unchanged.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8c03baeb-45b7-4fcf-acf8-ebb4f6509e50","repository":"github.com/xianxu/ariadne","issue_id":"000485","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/114570be163e2e0a","reviewed_head":"928bc8cc72440d319fb3271090fca90943f3c03c","slot":"ariadne:2","requested_at":"2026-10-21T01:25:49.630784Z"},"phase":"finished","pid":80323,"started_at":"2026-10-21T01:25:49.747457Z","finished_at":"2026-10-21T01:26:53.233552Z","session_id":"01a15c10-8967-79e0-bfb8-14926f435dbc","outcome":"returned"}] -->

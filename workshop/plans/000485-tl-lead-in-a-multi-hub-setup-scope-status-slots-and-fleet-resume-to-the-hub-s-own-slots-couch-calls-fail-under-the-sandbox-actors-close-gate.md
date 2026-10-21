@@ -326,6 +326,150 @@ rounds:
       isolation: fenced
       reviewed: e2d3af977ec4ae3d9e2758dc6f01cb59596a5b65
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8c03baeb-45b7-4fcf-acf8-ebb4f6509e50
+            repository: github.com/xianxu/ariadne
+            issue_id: "000485"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/114570be163e2e0a
+            reviewed_head: 928bc8cc72440d319fb3271090fca90943f3c03c
+            slot: ariadne:2
+            requested_at: "2026-10-21T01:25:49.630784Z"
+          phase: finished
+          pid: 80323
+          started_at: "2026-10-21T01:25:49.747457Z"
+          finished_at: "2026-10-21T01:26:53.233552Z"
+          session_id: 01a15c10-8967-79e0-bfb8-14926f435dbc
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 928bc8cc72440d319fb3271090fca90943f3c03c
+        tracker_head: 195b81c46ba251e8257b1f276cc6df936c901577
+        branch_point: 94bf14d9262f4ced7db0ebdb43b44583d7d8e2d5
+        since: "2026-10-20T11:08:14-07:00"
+        until: "2026-10-20T18:24:55-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T11:08:14-07:00"
+              end: "2026-10-20T18:24:55-07:00"
+              began: "2026-10-20T11:08:14-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 0973f648-94f5-4a35-b868-c9b26ef649ac
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 64dfd271f821e69ee64459c888d7f23e61ea1d007f38ada57e52683cb3b63b49
+              started: "2026-10-20T03:20:54.668Z"
+              spawned: false
+              bytes: 7126654
+              windows:
+                - start: "2026-10-20T11:08:14-07:00"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 2d26f3ef5c02acec70d53c7f97ec0096c45622d02c2e9646f0ecb57614555f88
+              started: "2026-10-20T18:21:54.178Z"
+              spawned: false
+              bytes: 7204547
+              windows:
+                - start: "2026-10-20T18:21:54.178Z"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15b0f-1fb0-7c61-8192-ad8d7feab469
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: f6143bd731812dbc31b21a9248391f25910c3ce19d4cced28dd1a07f7cc39b24
+              started: "2026-10-20T20:44:40.563Z"
+              spawned: false
+              bytes: 710729
+              windows:
+                - start: "2026-10-20T20:44:40.563Z"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15b11-3e3c-7b13-9638-200eca31f132
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 3c5b6458933de9d0999aeb456c8a04edc004eb22d5275d8f6d3164ca261d6e71
+              started: "2026-10-20T20:46:59.473Z"
+              spawned: false
+              bytes: 527719
+              windows:
+                - start: "2026-10-20T20:46:59.473Z"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15b12-b635-70e3-ba3e-bda0960cd786
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 603f3e663280b80917eb29a2a8825ea99102d046f4180b5e42f4ef3fbd4fe049
+              started: "2026-10-20T20:48:35.847Z"
+              spawned: false
+              bytes: 473883
+              windows:
+                - start: "2026-10-20T20:48:35.847Z"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15b13-34ce-76e0-9c60-7c28afe426bd
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 35d96d5f6e1b94e4aebaac5eebecb5733f05b9d921992a4b769da44612cbc692
+              started: "2026-10-20T20:49:08.201Z"
+              spawned: false
+              bytes: 410752
+              windows:
+                - start: "2026-10-20T20:49:08.201Z"
+                  end: "2026-10-20T18:24:55-07:00"
+            - harness: codex
+              id: 01a15b14-a455-73d3-b6eb-747fa5c51f2e
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              parent_id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              digest: 5e9dcb922d8ded48c83b6ca3e2bee06930b68cfccbc252a12e44ee9279909c92
+              started: "2026-10-20T20:50:42.072Z"
+              spawned: true
+              bytes: 1237235
+              windows:
+                - start: "2026-10-20T20:50:42.072Z"
+                  end: "2026-10-20T18:24:55-07:00"
+        queue_waits:
+            - attempt_id: 81f3e3a5eb5fca51613b7f244d34f648
+              slot: ariadne:2
+              record_digest: dc35c572ea957b5aa408af5805405251f9de0acc4e40870856e0cff460b04a3d
+              start: "2026-10-20T20:04:33.83285Z"
+              end: "2026-10-20T20:26:00.637372Z"
+              queue_seconds: 1286.804522
+              raw_seconds: 1286.804522
+              exact: true
+        cuts:
+            - dispatched: "2026-10-20T13:59:53-07:00"
+              finalized: "2026-10-20T14:01:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T14:07:29-07:00"
+              finalized: "2026-10-20T14:09:25-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-20T18:26:53-07:00"
+      dispatched: "2026-10-20T18:25:49-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 928bc8cc72440d319fb3271090fca90943f3c03c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#485 (boundary-review)
@@ -354,6 +498,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — resume_result_test.go:93,99,110 contain reasoned synctest lint allowances. Removing them reproduced all three catalog failures; restoring them made the catalog pass.
 - BR-3 — addressed — README.md:286–291 now documents hub-scoped Slots, both --all flags, visibility-only expansion, and serial stop behavior, linking atlas/workflow/tl-skills.md. These descriptions agree with the command wiring and planner.
 - BR-4 — addressed — TestCouchResumeReceiptConformance passed against the installed real Couch binary for queued/running polling and succeeded/refused/failed terminal receipts, including exit mapping and classification. Scratch configuration isolates it from live slots; atlas documents its execution cadence.
+
+## Round 3 — 2026-10-20T18:26:53-07:00 (codex) — passed
 
 ## Open findings
 
