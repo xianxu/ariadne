@@ -1,6 +1,6 @@
 ---
 id: 000509
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours: 3.41
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 93b8fc0a99aa58c69934b0a81b217b190f94c503
         evidence_commit: 56c2aaa4386540d4ee0616e2ca6fb6ac3c126291
+        landed_commit: 9ffe23d08adb36c2a0780cff22a3f6e1b979106d
 ---
 
 # Landing scoped local checks
