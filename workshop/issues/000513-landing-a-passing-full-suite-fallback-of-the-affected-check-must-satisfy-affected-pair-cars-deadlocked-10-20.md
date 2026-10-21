@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "89415b35", done: "260845ad"}
 ---
 
 # landing: a passing full-suite fallback of the affected check must satisfy 'affected' (pair cars deadlocked 10-20)
