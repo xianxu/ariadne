@@ -5,9 +5,9 @@ deps: [ariadne#524]
 github_issue:
 created: 2026-10-19
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 3
 collaboration-mode: collaboration
-card_mirror: '317790ff8bc57d30944392613709328ff76c559a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8d9eff729ef8fcd0c0065dcbdff6706533838a4a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T04:30:26-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # local-check: resume recorded known-flake failures with targeted tests
@@ -64,6 +65,27 @@ or a republished failure as a recorded passing suite.
 - [ ] M2 — Explicit resume/reconcile commands, saved-proof/republish/pass-guard integration, private executable proof and recorded-suite delivery.
 
 Durable proposal: [resume known flakes plan](../plans/000463-resume-known-flakes-plan.md). Await hub approval before change-code or implementation; close/PR/landing remain mandatory after the implementation boundaries.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is marked stale by estimate-source, so this is provisional. Scope includes original issue/spec shaping, phase-2 core/store, CLI/readers, private conformance, delivered docs and three review boundaries. #524's completed implementation is excluded.
+
+The two greenfield concerns use existing standard JSON/hash and native flock/publication primitives; that reuse halves the selected 1h design anchor, then the approved detailed design applies the 0.2 spec discount (0.1h each). Existing CLI, projection and fixture extensions use the smaller-module/refactor anchors with the same discount. Implementation uses the upper bounded v2 module ranges at 40%, with familiarity 1.0 after #524. Three reviews combine 3 × (0.1h design × 0.2 discount, 0.4h impl × 0.4 scale). The current-stack primitives already exist; no novel external API/library discovery is needed. Design subtotal 0.97h × 1.15 plus scaled implementation subtotal 1.88h = 2.9955h, rounded to 3.0h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.5 impl=0.08
+item: greenfield-go-module design=0.1 impl=0.32
+item: greenfield-go-module design=0.1 impl=0.32
+item: smaller-go-module design=0.06 impl=0.2
+item: cross-cutting-refactor design=0.04 impl=0.2
+item: smaller-go-module design=0.06 impl=0.2
+item: atlas-docs design=0.05 impl=0.08
+item: milestone-review design=0.06 impl=0.48
+design-buffer: 0.15
+total: 3.0
+```
 
 ## Log
 
