@@ -83,3 +83,7 @@ Claimed at filing and started independently from fresh main. The approved design
 PQ-1 (function-test-strategy-contract) asks for named risky functions and adversarial strategies rather than case inventories. The plan now names decoder, authority relation, bounded snapshot, saved/post consumers, batch builder, structured PASS collector, managed batch and production flake entrypoint with one strategy/mechanical guard per function. This is test-contract refinement only; no implementation, mechanism delta or scope change.
 
 Filed as the separately landable phase1 prerequisite from the approved ariadne#463 plan. The original #463 branch holds only committed design, with no implementation. #520 remains held for operator approval on its own branch.
+
+### 2026-10-21 — M1 RED and implementation admission
+
+change-code passed after plan-quality disposed PQ-1 and estimate-quality returned INFO. The derived2.82h is provisional; each component includes its adversarial tests, and review/private-conformance allocations include verification execution and gate overhead, with integration/remediation a stated uncertainty rather than excluded unattended work. M1 TestScopedSavedProofConsumers failed as intended through real saved-proof/post guards: a single valid future record made unrelated repo/head/check proofs incomplete and refused status, while related records lacked a scoped upgrade diagnostic. The existing supported-attempt decoder still rejects opaque v3 data. All fixture state is private; no production evidence was written.
