@@ -258,3 +258,65 @@ dispose:
 7. **Plan revision recommendations:** None. Existing revisions describe the implemented corrections.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1457ca26-38d1-4d0a-ae81-766a81d34d8e","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/73a7754a859655e6","reviewed_head":"2eb193c29df4550c63266ec065030a071a234d4b","slot":"ariadne:1","requested_at":"2026-10-21T21:18:52.460537Z"},"phase":"finished","pid":33747,"started_at":"2026-10-21T21:18:52.5517Z","finished_at":"2026-10-21T21:21:01.929383Z","session_id":"01a16054-cd8f-7aa3-84cd-286b03b5e797","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T16:34:15-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 526 — landing: drop one car from a composed train before merge (no per-car hold today) |
+| repo | ariadne |
+| issue file | workshop/issues/000526-landing-drop-one-car-from-a-composed-train-before-merge-no-per-car-hold-today.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f9c0dac6f52b6c7736bcf686777ea01d88c83d22..a887eb11140108b188dd37dd2abaebdb8144a18a |
+| command | sdlc close --issue 526 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T16:34:15-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff fixes compatibility with main’s attribution phase while retaining the approved drop-precedence contract. The atlas conflict resolution preserves both sides’ additions. No scope expansion or new blocking defect found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Both completion/drop lock orders remain covered at SplitAssessed and attribution entry; targeted conductor tests verify dropped and surviving outcome identities.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The request-driven nested-metadata preservation regression remains intact and passes through acceptance, ApplyTrainDrops and FinishTrainControl.
+```
+
+1. **Strengths**
+   - `traincontrol.go:98` accepts the existing attribution phase without weakening other validation.
+   - `traincontrol_completion_test.go:20` retains the membership-reduction oracle and separately tests attribution entry.
+   - `atlas/workflow/sdlc-binary.md:530` preserves attribution, landing-check and drop documentation.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** Full landingline package passed; targeted conductor tests passed; focused race checks passed. Removing the phase fix with a temporary overlay caused three regression cases to fail. Repository remained unchanged. The recorded full suite was not rerun during this review.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** Reuses existing validation and completion paths.
+   - **ARCH-PURE — pass:** Phase validation remains pure; storage tests exercise the integration boundary.
+   - **ARCH-PURPOSE — pass:** Preserves drop precedence at the actual membership-changing event.
+   - **ARCH-EVOLVE — pass:** No format/version change or weakened strictness; nested unknown-field preservation tests pass.
+
+7. **Plan revisions:** None required. The added revision records integration compatibility within approved scope.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3229c300-5da7-4724-9e20-d605409890d8","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/052b471e7ebeda4f","reviewed_head":"a887eb11140108b188dd37dd2abaebdb8144a18a","slot":"ariadne:1","requested_at":"2026-10-21T23:33:10.948882Z"},"phase":"finished","pid":61994,"started_at":"2026-10-21T23:33:11.118153Z","finished_at":"2026-10-21T23:34:15.14084Z","session_id":"01a160cf-c4ef-7322-9dd8-02013617efb4","outcome":"returned"}] -->
