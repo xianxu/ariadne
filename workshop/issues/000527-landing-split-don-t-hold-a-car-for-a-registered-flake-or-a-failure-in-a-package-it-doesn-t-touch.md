@@ -36,13 +36,13 @@ head. A failure in a registered flake, or in a package the suspect car didn't to
 report "unattributed: registered flake / untouched package" and continue (or rerun just that test on the suspect
 prefix).
 
-### Proposed design — awaiting TL approval
+### Proposed design — approved 2026-10-21
 
 Before the pure train machine emits a suite-culprit Hold, request one attribution assessment of the exact adjacent passing/failing prefixes. Retain the failed prefix's SHA and local-run record/log, refresh the flake registry in a new issue-records scope, and reuse exact leaf/parent coverage from internal/flakes. Compare the candidate's actual prefix delta using both endpoints' package ownership/dependency information, including test imports, embeds and testdata. Directory equality alone does not establish an untouched package.
 
 A currently registered failure or a provably untouched package is reported as unattributed and never alone holds that car. Neither fact authorizes landing a failed prefix. Existing policy-valid known-flake outcomes remain the sole failure-to-pass authority. In this proposal, only the already passing prefix lands; unresolved cars receive a final non-blaming refusal with the unattributed reason and retry action, rather than automatic Release/retrain. This explicit stop bounds retries: current Release automatically waits again and could loop forever on an unchanged failure. Unknown evidence also stops without assigning a culprit. A genuine unregistered failure the candidate can affect retains ordinary culprit holding.
 
-The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow design; no implementation until TL approval. The non-blaming stop-versus-auto-retrain behavior is a review point.
+The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow design approved by TL, including the non-blaming stop instead of automatic retrain.
 
 ## Done when
 
@@ -67,6 +67,10 @@ The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow d
 
 2026-10-21 08:45: Authenticated Couch restart notices. Re-read this Log; clean issue branch and pushed plan survived. sdlc queue status reported complete=true with only peer operations; landing status showed #524/ariadne:3, no owned runner. GitHub still confirms #502 PR370 merged at 15:35:16Z; #527 has no PR or recorded check yet. All own earlier checks/runners had completed before the restart; restarted/requeued nothing. Clarified exact new regression command names in the draft plan before sending it for approval.
 
+2026-10-21: TL approved the full design and explicit stop policy (Couch 538eeecd-6365-4b44-8729-b5a2d048e632, submitted). Unresolved cars receive non-blaming unattributed refusal with exact retry, only verified prefix lands, fresh registry/dependency-aware impact and explicit reducer phase; train234 registered broadcast/scribe-only sequence is mandatory. Entering full-flow change-code; no implementation yet.
+
 ## Revisions
 
 2026-10-21: Refined the original behavior into a proposed attribution boundary and explicit safe stop policy. Registration/untouchedness prevent blame but do not waive passing evidence. The plan proposes final unattributed refusal for unresolved cars rather than immediate automatic retrain; TL approval is required before implementation.
+
+2026-10-21: Recorded TL approval of the proposed stop policy; no design delta.

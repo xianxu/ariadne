@@ -125,3 +125,7 @@ Read-only inspection and a bounded independent read agree on the boolean-only at
 ## Approval required
 
 TL to approve the explicit no-auto-retrain policy for unattributed cases and the dependency-aware untouched proof. This new landing-gate state/refusal is outside self-approved quick fixes. No code or gate configuration changes before approval.
+
+## Approval recorded — 2026-10-21
+
+TL approved the review point and the complete plan via submitted Couch 538eeecd-6365-4b44-8729-b5a2d048e632: final non-blaming unattributed refusal with exact retry, verified-prefix-only landing, fresh dependency-aware assessment phase, and train234's registered broadcast/scribe-only regression. The Approval required section above is the proposal's historical request; this record admits the full-flow change-code gate, not gate bypasses.
