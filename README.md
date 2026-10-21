@@ -283,6 +283,10 @@ into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
 binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
 distributed weave gateway as part of `tools`.
 
+After a same-slot force switch or in a fresh hub session, follow TAKEOVER in
+`tl-lead --help`. The [TL tooling map](atlas/workflow/tl-skills.md) points to
+the ordered recovery procedure and its rendered-help guards.
+
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding
