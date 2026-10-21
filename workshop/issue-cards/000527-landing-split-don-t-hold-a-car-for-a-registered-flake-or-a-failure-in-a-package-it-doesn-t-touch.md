@@ -1,6 +1,6 @@
 ---
 id: 000527
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 1.72
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f2ad2f5c25200df5e05e4791b172466bfa7fc1ca
         evidence_commit: c72438294bb3d0eb8b2576e9f9b1358f6906eb43
+        landed_commit: 6b6a9a5c0070b17d24cd22f85e6b48f318e1a8b7
 ---
 
 # landing split: don't hold a car for a registered flake or a failure in a package it doesn't touch
