@@ -212,6 +212,23 @@ func TestLocalCheckLeaseRunChild(t *testing.T) {
 // Two slots' runs coexist in one clone's shared lease directory; cancel from
 // one checkout stops only its own run, and the other keeps running.
 func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
+	started := time.Now()
+	cleanupBudget := testfix.HangCeiling
+	if deadline, ok := t.Deadline(); ok {
+		if remaining := deadline.Sub(started) / 2; remaining < cleanupBudget {
+			cleanupBudget = remaining
+		}
+	}
+	// Register first so this measures the complete fixture, including both
+	// child cleanups after the cancellation assertions have joined them.
+	t.Cleanup(func() {
+		elapsed := time.Since(started)
+		if elapsed > cleanupBudget {
+			t.Errorf("native cancellation fixture including cleanup took %s, exceeds %s budget", elapsed, cleanupBudget)
+		} else {
+			t.Logf("native cancellation fixture including cleanup completed in %s (budget %s)", elapsed, cleanupBudget)
+		}
+	})
 	d, sha, _, _ := localRunRepo(t, "skipped")
 	rootA := d.Root
 	rootB := filepath.Join(t.TempDir(), "slotB")
@@ -240,7 +257,10 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 		if err := c.cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		go func() { c.done <- c.cmd.Wait() }()
+		go func() {
+			c.done <- c.cmd.Wait()
+			close(c.done)
+		}()
 		t.Cleanup(func() {
 			if raw, _ := os.ReadFile(c.pidFile); len(raw) > 0 {
 				if pid, _ := strconv.Atoi(strings.TrimSpace(string(raw))); pid > 0 {

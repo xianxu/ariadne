@@ -41,8 +41,8 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 
 ## Plan
 
-- [ ] Add the end-of-cleanup wall-time guard and observe it reject the unchanged slow fixture.
-- [ ] Close producer-owned completion channels after publishing Wait results; verify native owner/foreign cancellation, failure teardown and adjacent lease controls.
+- [x] Add the end-of-cleanup wall-time guard and observe it reject the unchanged slow fixture.
+- [x] Close producer-owned completion channels after publishing Wait results; verify native owner/foreign cancellation, failure teardown and adjacent lease controls.
 - [ ] Run recorded full suite and prepare close verification.
 
 ## Log
@@ -51,6 +51,8 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 - Targeted current-branch run passed the native control in240.56s (whole held/cancel command256.650s), while no child processes remained during its long final wait. This is deterministic cleanup overhead, not a registered flake or a #521 runtime defect. Native source unchanged by #521. Main verification summary retained at common test-stats/evidence/000521/main-verification-summary.txt; raw pass timing also appears in the worker tool transcript. No nonexistent raw log is cited.
 
 - 2026-10-21: Picked up from fresh main after #521 landed PR #366. Quick plan sent to hub, proceeding unless it objects (679cb81b-dbbf-41e6-bf4d-b709add00734 submitted). No product surface/live stage. Current main still has the unclosed producer. Bounded sweep: newer run-ID helper in localcheck_runid_unix_test.go tracks a finished flag before teardown, so it does not have this double-consumption delay; its other helper closes done. No second affected cancellation fixture identified.
+
+- 2026-10-21 TDD: unchanged producer plus new whole-cleanup guard failed as intended: native fixture 4m0.531748083s versus 2m budget (package 240.943s). After close-after-send, the same fixture and unchanged safety assertions completed in393.971959ms. All seven targeted lease/cancel controls passed (package3.999s): native foreign/own cancellation, classification, held lease, stale sweep, PID reuse, lease lifetime, and queued sibling run-ID cancellation. Persistent raw logs: /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/evidence/000523/native-cancel-red.log and native-cancel-green-controls.log. No timeout changed; git diff --check passed.
 
 ## Revisions
 
