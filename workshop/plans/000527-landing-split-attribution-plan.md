@@ -23,6 +23,7 @@ An assessment belongs to one train and one adjacent lo/hi prefix pair (hi=lo+1);
 
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
+| Exact endpoint package impact (INTEGRATION) | cmd/sdlc/landingattribution_impact.go | new | Git diff, detached endpoint worktrees, graph preparation/listing; existing pure affected ownership/selection |
 | Prefix evidence retention | cmd/sdlc/landingtrain.go | modified | Exact prefix SHA and localRunRecord; diagnostic baseline record when lo=0 |
 | Attribution assessment shell | cmd/sdlc/landingtrain_attribution.go | new | Verified saved log, fresh scoped registry, Git delta and exact-head package graphs |
 | Result delivery | cmd/sdlc/landingtrain.go | modified | Existing Hold/Refuse outcomes and recovery messages |
@@ -86,7 +87,7 @@ Files: cmd/sdlc/internal/landingline/attribution_test.go, trainstate_test.go, cm
 |---|---|
 | ClassifySplit (new pure classifier) | Generate mixed registration/impact/unknown fact sets; property-check that registered/untouched facts alone never authorize Hold or SuitePass and that reasons identify supporting evidence. |
 | Transition | Extend the existing random event-sequence model; assert exact-pair/phase authority, no Hold before assessment, immutable failed-prefix results, terminal idempotence/refusal, and final membership bounded by verified passing evidence. |
-| splitImpact (new pure package-impact proof helper) | Graph/path mutation properties exercise ownership, transitive/test dependency and resource relationships; removing graph/config/path knowledge may never create an untouched proof. Colocate with the shell helper or affected pure package as appropriate; it must require no IO mocks. |
+| splitImpact (new INTEGRATION package-impact proof helper) | Graph/path mutation properties exercise ownership, transitive/test dependency and resource relationships; removing graph/config/path knowledge may never create an untouched proof. Real Git/Go fixtures exercise the IO shell; existing pure affected graph functions own ownership and dependency selection. |
 | readSplitEvidence (new IO verifier) | Corrupted/unavailable/mismatched record/log inputs in temporary stores must return unverified; no partial parse or guessed leaf creates authority. |
 | conductor.assessSplit (new bounded IO effect) | Independent tracker writes at explicit train barriers and controllably stalled Git/graph/registry seams prove fresh decision-scoped authority, deadline expiry, cancellation and bounded cleanup; count graph/diff/registry calls at 8/16 leaves. |
 
@@ -138,3 +139,5 @@ TL approved the review point and the complete plan via submitted Couch 538eeecd-
 2026-10-21: Addressed PQ-1 by replacing the prose test-case inventory/procedural detail with named-function adversarial strategies, preserving the two motivating production regressions and exact verification commands. Addressed PQ-2 with a concrete 2-minute outer assessment context owned by conductor.assessSplit, propagated through all IO and graph preparation/listing, a 5-second cleanup bound, explicit unverified expiry and a controllably stalled dependency test. The bound is an initial diagnostic-budget choice, not an assertion that arbitrary generators finish within it; no approved attribution/landing policy changed.
 
 2026-10-21 implementation refinement: real production testing additionally exposed stale smaller heads after code-main reintegration. Existing PhaseTesting/Reintegrated and Refuse machinery now stops a failed multi-car reintegration before bisection because no valid current-base smaller prefix exists; lower heads/evidence are invalidated. No new state/outcome type or recomposition mechanism. Production RED11.430s proved the unsafe old-prefix landing, GREEN5.34s proves no merge/hold/release, and docs-only control9.35s stays valid. Production motivating regressions were validated GREEN and by controlled restoration of the old adjacency-only decision (RED14.208s); the first behavioral reducer RED preceded implementation. The binary-owned suite/close/merge gates remain outstanding, as does the hub live-gate response; the checked implementation checklist does not claim those gates passed.
+
+2026-10-21 BR-1: Corrected splitImpact classification and the integration concepts inventory to match its Git/worktree/preparation/Go-list IO. The implementation already keeps those effects outside ClassifySplit/Transition; this is a documentation correction with no authority or behavior change.
