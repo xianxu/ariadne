@@ -849,3 +849,29 @@ See `sdlc actual --help` for provenance and recovery.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+`tl-lead status` uses the hub repo's gitignored `session.md` and
+`session.side/`; FILE is optional on all status commands. Existing explicit
+FILE arguments remain valid. Copy decisions from these local conversations
+into the owning tracked issue, project Log or charter when they are made.
+
+To migrate an older hub file, close every affected editor and run
+`tl-lead status move [OLD]` to inspect the dry run, then repeat with `--apply`.
+Omitting OLD requires exactly one `teams/*/tl-status-*.md`. The source must
+already be registered with Couch; the refusal prints the exact registration
+command. Apply copies and rebases documents, updates `.gitignore`, preserves
+Couch identity/unread/owed state, verifies, then cleans up unchanged sources.
+Only plain `parent: ../file.md` values are accepted; other YAML parent forms
+refuse before effects and name the file. Missing ignore rules are appended,
+then real Git ignore checks must pass for every destination before copying.
+A partial run keeps copies for the same command to reconcile. After the root
+registration switch the new tree is live: edits and locks there are allowed.
+Cleanup removes unchanged old sources without comparing or overwriting live
+copies. Keep old leftovers quiet between cleanup retries. Registry observations
+and Git checks are batched; Couch calls are bounded to five seconds, with clear
+unreachable or unconfirmed-outcome errors and no silent retry.
+Reopen `session.md` after success. See `tl-lead --help` for refusals and the
+quiet-window requirement.
+
+Session migration refuses `.gitignore` files anywhere in the old or new side tree before effects. It rechecks effective Git protection before switching registrations and before each source deletion.

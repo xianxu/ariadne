@@ -191,14 +191,57 @@ TALKING TO THE OPERATOR
     the status file and the digest; the pane carries decisions and act-now
     items.
   - Keep a live status file for the operator's right pane:
-    teams/<team>/tl-status-<operator>.md, frontmatter `type: session-sync`,
+    session.md at the hub repo's root, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>` (couch still reads the older `owner:`),
-    `operator: <slug>`, and
+    `operator: <slug>` (default: the slug of git user.name), and
     `collaboration-mode: {chat: ["Operator instructions"]}` (ariadne#412).
     It is state, not a log:
     rewrite it in place, about one screen, gitignored. Update it whenever a
     thread changes state, and every worker report updates it in the same
     turn, before you reply to the operator.
+  - session.md and session.side/ are the ephemeral TL/operator interface.
+    Copy decisions into tracked artifacts when they are made: the issue,
+    project Log or charter that owns the decision. Workers act from tracked
+    issues plus explicit TL/operator instructions; the TL keeps the temporal
+    picture here. Retiring a hub removes these local files after durable
+    decisions have been recorded.
+  - Omit FILE to use session.md at the current hub checkout's root in every
+    status command, including from a subdirectory; explicit FILE still works.
+    Read commands do not create a missing session file.
+  - Move an older hub session in a quiet window with every affected editor
+    closed until the switch:
+        tl-lead status move [OLD]                   (dry run; writes nothing)
+        tl-lead status move [OLD] --apply
+    OLD omitted discovers exactly one teams/*/tl-status-*.md, refusing
+    ambiguity. The source session must be registered first; otherwise it
+    prints the exact command: couch --session-sync register OLD --owner SLOT.
+    The command copies session.md and session.side/, rebases their links and
+    index, adds root .gitignore entries, then switches Couch registrations
+    preserving identities, unread baselines and owed events. Only verified
+    copies and registrations permit old-file cleanup. Every parent must use the
+    plain parent: ../file.md form written by tl-lead; quotes, comments, tags,
+    aliases and block scalars refuse before effects, naming the file. Missing
+    ignore lines are appended, then git check-ignore must confirm every
+    destination before copying; side-tree .gitignore files at any depth refuse
+    before effects. Fresh Git checks also precede switching and each deletion; a negation can refuse with only ignore rules
+    added. Before switching it refuses locks, collisions, symlinks and changed
+    copies. There is no editor lease: keep affected editors closed until the
+    root registration switches. Afterwards the new tree is live: its edits and
+    locks are allowed; cleanup compares only old sources with their snapshot.
+    Keep old leftovers quiet between cleanup retries. A retry verifies the prior
+    root rename with Couch and never overwrites the live destination. Distinct
+    registration conflicts are named, never discarded automatically.
+    Registry observations use batched list snapshots at phase boundaries, and
+    ignore checks are batched. Each migration Couch subprocess has a five-second
+    budget; unreachable Couch refuses before local effects. An uncertain rename
+    preserves old files and requires reconciliation; no silent retry occurs.
+    Before switching, a failure leaves the old session in use; after switching,
+    the new session is in use and cleanup may be incomplete. Preserve both
+    copies and rerun the identical command. For an unconfirmed Couch response,
+    inspect lookup and retry identically; never roll back or forget blindly.
+    Reopen session.md afterwards. Couch owns legacy metadata companions;
+    these stay in the old location. Bare mentions and external backlinks
+    need manual attention. No tracked project files are rewritten.
   - The status file is the source of truth for mutual focus: anything listed
     in it, a project or an issue, is what you and the operator are both
     attending to, so its project file, its issue and the status file stay
@@ -246,9 +289,9 @@ TALKING TO THE OPERATOR
       discussions: index (the operator's review queue), before the link.
     - A later follow-up on a deleted bullet's topic goes to Needs you if it
       needs the operator, else into Threads or a new bullet's answer.
-  - Answer docs live in teams/<team>/tl-status-<operator>.side/, named
+  - Answer docs live in session.side/, named
     YYYY-MM-DD-NN-<slug>.md, with the skill's side-doc frontmatter (type,
-    parent: ../tl-status-<operator>.md, marker, collaboration-mode), and the
+    parent: ../session.md, marker, collaboration-mode), and the
     backlink under the title. Only such a doc shows under the status file in
     parley's attention finder. Write the doc first: `link` refuses any other
     target (ariadne#455). New answer docs carry no process-instruction, since
@@ -268,9 +311,9 @@ TALKING TO THE OPERATOR
     rewritten: fix those by hand, and commit the tracked files it rewrote.
   - The rest of the status file (Needs you, Threads, …) is discussion: an
     instruction there is carried out, and a 🤖 question opens a side doc in
-    the same tl-status-<operator>.side/ folder (NN-<slug>.md), linked in place
+    the same session.side/ folder (NN-<slug>.md), linked in place
     of the marker. List such a side doc in the index yourself:
-        tl-lead status index FILE --add tl-status-<operator>.side/NN-<slug>.md
+        tl-lead status index FILE --add session.side/NN-<slug>.md
     The index is one-way (ariadne#424): the operator removes an entry to mark
     it reviewed (never add it back unless you write something new for them in
     that side doc: then --add it again), and deleting a bullet or a link drops

@@ -315,41 +315,80 @@ func TestVouchingStartsWhenTrainsTurnOn(t *testing.T) {
 	oldEvery := carVouchEvery
 	carVouchEvery = time.Millisecond
 	t.Cleanup(func() { carVouchEvery = oldEvery })
-	dir := t.TempDir()
-	line, _, err := openLandingLine(dir, nil, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := line.Enqueue(landingline.Ticket{Issue: 1, Branch: "b"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer h.Release()
-	var rounds, gateReads atomic.Int64
-	sched := func() landingline.Schedule {
-		if rounds.Add(1) <= 5 {
-			return landingline.Schedule{}
+	for _, cancelBeforePublication := range []bool{false, true} {
+		name := "cancel after publication"
+		if cancelBeforePublication {
+			name = "cancel during callback"
 		}
-		return landingline.Schedule{Interval: time.Hour, MaxCars: 8}
-	}
-	readiness := func(context.Context) (landingline.Readiness, bool) {
-		if rounds.Load() <= 5 {
-			t.Error("gates read while trains were off")
-		}
-		gateReads.Add(1)
-		return landingline.Readiness{Branch: "b", Head: strings.Repeat("a", 40), PR: 1, Ready: true, At: landingNow()}, false
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	done := vouchWhileWaiting(ctx, line, h, sched, readiness, func() { t.Error("reported merged") }, io.Discard)
-	deadline := time.Now().Add(10 * time.Second)
-	for gateReads.Load() == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	cancel()
-	<-done
-	ready, err := line.Readiness()
-	if err != nil || !ready[h.Ticket().Seq].Ready {
-		t.Fatalf("no vouch after trains turned on: %v %v", ready, err)
+		t.Run(name, func(t *testing.T) {
+			line, _, err := openLandingLine(t.TempDir(), nil, io.Discard)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h, err := line.Enqueue(landingline.Ticket{Issue: 1, Branch: "b"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer h.Release()
+			var rounds atomic.Int64
+			sched := func() landingline.Schedule {
+				if rounds.Add(1) <= 5 {
+					return landingline.Schedule{}
+				}
+				return landingline.Schedule{Interval: time.Hour, MaxCars: 8}
+			}
+			callbackEntered, releaseCallback := make(chan struct{}), make(chan struct{})
+			var entered, release sync.Once
+			readiness := func(ctx context.Context) (landingline.Readiness, bool) {
+				if rounds.Load() <= 5 {
+					t.Error("gates read while trains were off")
+				}
+				entered.Do(func() { close(callbackEntered) })
+				select {
+				case <-releaseCallback:
+				case <-ctx.Done():
+				}
+				return landingline.Readiness{Branch: "b", Head: strings.Repeat("a", 40), PR: 1, Ready: true, At: landingNow()}, false
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			stderr := &watchWriter{want: "landing train: ready at", seen: make(chan struct{})}
+			done := vouchWhileWaiting(ctx, line, h, sched, readiness, func() { t.Error("reported merged") }, stderr)
+			defer func() {
+				cancel()
+				release.Do(func() { close(releaseCallback) })
+				<-done
+			}()
+			select {
+			case <-callbackEntered:
+			case <-ctx.Done():
+				t.Fatal("readiness callback never started after trains turned on")
+			}
+			// Callback entry is deliberately separated from publication.
+			ready, err := line.Readiness()
+			if err != nil || len(ready) != 0 {
+				t.Fatalf("published while callback was still blocked: %v %v", ready, err)
+			}
+			if cancelBeforePublication {
+				cancel()
+			} else {
+				release.Do(func() { close(releaseCallback) })
+				select {
+				case <-stderr.seen: // written after Vouch returns; verify its persisted effect
+				case <-ctx.Done():
+					t.Fatalf("no publication after releasing callback: %s", stderr.String())
+				}
+				ready, err = line.Readiness()
+				if err != nil || !ready[h.Ticket().Seq].Ready {
+					t.Fatalf("no vouch after trains turned on: %v %v", ready, err)
+				}
+				cancel()
+			}
+			<-done
+			ready, err = line.Readiness()
+			if err != nil || ready[h.Ticket().Seq].Ready == cancelBeforePublication {
+				t.Fatalf("readiness after cancellation: %v %v (cancel before publication: %v)", ready, err, cancelBeforePublication)
+			}
+		})
 	}
 }
 

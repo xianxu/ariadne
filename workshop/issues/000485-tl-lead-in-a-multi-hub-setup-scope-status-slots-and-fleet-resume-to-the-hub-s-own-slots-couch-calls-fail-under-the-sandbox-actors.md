@@ -177,6 +177,12 @@ bare-call rule.
 - Live read-only baseline: bare tl-lead fleet resume from ops reached Couch successfully in this Codex environment and printed dormant unclaimed repos individually. No --apply, live resume, settings edits or :0 writes were performed.
 - Proposed plan written to workshop/plans/000485-hub-scope-resume-plan.md; implementation has not started. Await owning TL approval of count-only unclaimed ownership, --all visibility without mutation authority, stop/nonzero partial completion, CLI-owned polling and the hold-preservation refusal.
 
+### 2026-10-20 18:24 PDT — landing integration recovery
+
+- Landing admission integrated origin/main after #504 and refused one conflict in atlas/workflow/tl-skills.md, then cleanly aborted. Manual merge resolves only that prose conflict: keep hub-scoped freshness/holds and receipt-conformance guidance, adopt session.side/ from #504, and retain its root-session documentation. Code merges automatically; no code conflict or scope change.
+- The first integrated tl-lead race run with receipt conformance failed only TestMoveCouchRenameDeadlineUnconfirmed from #504: the helper had not published its effect before its 300 ms deadline. On the identical source/index tree, ten targeted race attempts all passed. Registered this established intermittent failure as unclaimed ariadne#514, preserving fail/pass evidence and the startup-timing hypothesis; reported it to the hub. No test was removed or weakened.
+- Staged-file Go lint catalog passed after integration. The complete integrated TL_LEAD_RESUME_CONFORMANCE=1 go test -race ./cmd/tl-lead -count=1 passed (68.312 s); the narrow fixed-then-ship re-close follows. Required recorded full-suite verification on the final landing head still precedes merge; no suite or review gate is waived.
+
 ## Revisions
 
 - 2026-10-20 14:06 PDT — Issue Plan checkboxes now cover implementation and completed live proof. Recorded suite, close and landing are mandatory sequential publication gates, recorded in Log as they happen; they are not claimed complete by the implementation checklist. This removes the prior circular close/land checkbox, preserving its obligation without requiring a plan-check waiver on later closes. BR-1 refinement bounds all execActors reads (including recovery) at 10 seconds plus a one-second pipe-drain cap; recovery result/guidance prints before the optional probe.

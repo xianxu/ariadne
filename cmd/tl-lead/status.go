@@ -177,7 +177,7 @@ refuses (exit 6) instead.`,
 	var drop []string
 
 	submit := &cobra.Command{
-		Use:   "submit FILE",
+		Use:   "submit [FILE]",
 		Short: "Handle a submit: the operator's edits, their markers, .clobbered, the owed events",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -219,7 +219,7 @@ refuses (exit 6) instead.`,
 		},
 	}
 	section := &cobra.Command{
-		Use:   "section FILE HEADING BODYFILE",
+		Use:   "section [FILE] HEADING BODYFILE",
 		Short: "Replace one ## HEADING section's body",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -231,7 +231,7 @@ refuses (exit 6) instead.`,
 		},
 	}
 	thread := &cobra.Command{
-		Use:   "thread FILE TEXTFILE",
+		Use:   "thread [FILE] TEXTFILE",
 		Short: "Put a ### subsection into ## Threads (replace by heading, else before ### Miscellaneous); --drop removes subsections by heading prefix",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -248,7 +248,7 @@ refuses (exit 6) instead.`,
 		},
 	}
 	seen := &cobra.Command{
-		Use:   "seen FILE",
+		Use:   "seen [FILE]",
 		Short: "Mark the whole file seen (read --all) once a submit's markers are resolved",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -260,7 +260,7 @@ refuses (exit 6) instead.`,
 		},
 	}
 	owed := &cobra.Command{
-		Use:   "owed FILE",
+		Use:   "owed [FILE]",
 		Short: "List the owed event IDs (and record them as seen)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -274,7 +274,7 @@ refuses (exit 6) instead.`,
 		},
 	}
 	check := &cobra.Command{
-		Use:   "check FILE",
+		Use:   "check [FILE]",
 		Short: "List the stale sections: unstamped, past their budget, or older than the fleet's newest landing",
 		Long: `Every write stamps its section's first line (_updated YYYY-MM-DD HH:MM_). check
 reads the stamps: Threads and Slots are stale after 2 h or once a fleet repo's
@@ -290,20 +290,25 @@ submit, owed and every write end with the same lines.`,
 		},
 	}
 	clobbered := &cobra.Command{
-		Use:   "clobbered FILE",
+		Use:   "clobbered [FILE]",
 		Short: "Show or (with --done) remove <file>.clobbered",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return handleClobbered(cmd.OutOrStdout(), args[0], done)
 		},
 	}
+	for _, c := range []*cobra.Command{submit, seen, owed, check, clobbered} {
+		withDefaultStatusFile(c, 1)
+	}
+	withDefaultStatusFile(section, 3)
+	withDefaultStatusFile(thread, 2)
 	rendered := renderedSectionCmds(d, &foldOwed)
 	for _, c := range append([]*cobra.Command{section, thread}, rendered...) {
 		c.Flags().BoolVar(&foldOwed, "fold-owed", false, "also fold the owed events an earlier submit/owed listed")
 	}
 	thread.Flags().StringArrayVar(&drop, "drop", nil, "drop subsections whose heading starts with this prefix, e.g. '### Train: old' (repeatable)")
 	clobbered.Flags().BoolVar(&done, "done", false, "the TL has merged it; remove the copy")
-	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d), newIndexCmd(d), newMigrateCmd(d)}, rendered...)...)
+	status.AddCommand(append([]*cobra.Command{submit, section, thread, seen, owed, check, clobbered, newInstructionsCmd(d), newIndexCmd(d), newMigrateCmd(d), newStatusMoveCmd(d)}, rendered...)...)
 	return status
 }
 
@@ -360,7 +365,7 @@ func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
 		var holds, release []string
 		var all bool
 		c := &cobra.Command{
-			Use:   rs.verb + " FILE [--hold repo:N='until X']... [--release repo:N]...",
+			Use:   rs.verb + " [FILE] [--hold repo:N='until X']... [--release repo:N]...",
 			Short: rs.short,
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
@@ -385,7 +390,7 @@ func renderedSectionCmds(d deps, foldOwed *bool) []*cobra.Command {
 		}
 		c.Flags().StringArrayVar(&holds, "hold", nil, "hold a slot to soak a risky change: repo:N='until X' (the next train lands, the next main suite passes, or a time)")
 		c.Flags().StringArrayVar(&release, "release", nil, "release a slot's soak hold")
-		cmds = append(cmds, c)
+		cmds = append(cmds, withDefaultStatusFile(c, 1))
 	}
 	return cmds
 }

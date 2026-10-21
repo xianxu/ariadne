@@ -3,6 +3,12 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- #503: an injected readiness callback's entry counter is not evidence that its
+  caller published readiness. Cancel only after observing the persisted effect;
+  force callback-in-flight and cancel-before-publication orderings with channels.
+  A repository sweep found only this fixture, so the TL chose deterministic
+  controls over a one-site lint rule.
+
 - A card owner may hold more than one issue. Before a numbered command commits
   or deletes HEAD's branch, compare it with the branch derived from that issue's
   card; ownership alone cannot identify the checkout. Remote deletion must
@@ -1157,6 +1163,56 @@ The simplest durable authority beats a clever scan of consequences.
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
 
+- #504: relocating an indexed document needs both old and new coordinates.
+  Rewrite only the validated discussions path scalars; matching every `- doc:`
+  line corrupts unrelated metadata. Byte-preservation and generated-coordinate
+  tests in sidedoc defend this semantic rule; a lexical Go lint cannot prove it.
+- #504: copy-then-switch cleanup must recheck destination bytes and source-tree
+  membership before discarding the original session. Exercise arrivals at effect
+  boundaries with controlled hooks; a successful copy is not authority to delete
+  after later edits. The migration interruption tests own this ordering rule.
+
+- #504: a raw YAML field reader preserves quotes and tags. Never use its raw
+  type string to decide whether session state needs migration; classify through
+  the typed metadata parser. The nested-session regression spans equivalent YAML
+  spellings and asserts registration refusal before copies.
+
+- #504 BR-1/BR-2: an input validator must accept no broader reference syntax
+  than its transformer can preserve. Reject unsupported parents before effects,
+  and test deletion eligibility through the migration. Ignore-pattern presence
+  is not effective Git policy: check each destination with Git before copying.
+  These are semantic publication invariants defended by the parent/ignore
+  migration regressions; raw-field API misuse also has the scoped Go lint rule.
+
+- #504 BR-3/BR-4: protection checks must include policy introduced by the payload,
+  not only the policy before the payload. Enumerate nested policy files and
+  refuse them for this one-time migration; rescan/check effective Git policy at
+  publication and deletion boundaries. A phase tracker is not effect authority:
+  have the pure model grant each next effect from confirmed observations and
+  revoke authority on failure/uncertainty. Real Git and interruption-sequence
+  regressions defend these semantic invariants; lexical lint cannot prove them.
+
+- #504 BR-5: a prefix mapping must include the prefix root itself, and file
+  copying does not recreate empty directory targets. Enumerate root, descendant
+  directory, file and stationary targets across each reference consumer; assert
+  final resolution and existence after source cleanup. Pure mapping and real
+  migration tests defend this semantic reference invariant.
+
+- #504 live acceptance: the confirmed root registration switch transfers content
+  ownership to the live tree. Pre-switch byte equality cannot remain a cleanup
+  condition after the operator resumes editing. Compare old sources only;
+  confirm prior rename on cleanup retry, without overwriting the new tree.
+  Live-edit/lock/interruption fixtures and real scratch Couch retries defend
+  this temporal rule; source lint cannot prove it.
+- #504 live 196-document migration: enumerate external calls across every phase,
+  including safety checks. Per-document registry probes and repeated full-tree
+  Git checks compounded into a twenty-minute operation. Use fixed-count typed
+  list snapshots and batched membership checks, and assert command counts at N
+  and 2N. The scoped session-move-batched-reads Go rule forbids the mechanical
+  lookup/status API regression in the migration owners. Bound each migration
+  subprocess and pipe draining; a rename deadline means outcome unconfirmed,
+  not absence or authority to discard old copies.
+- #494: a train outcome that says landed precedes cleanup and cannot establish archive success. Reuse exact archive-transition proof before accepting a sibling's generic sweep archive. For tracked train fixtures, use prepared addressable slots, persist separate card/detail mirrors, and advance the prepared resting baseline past cutover before asserting the post-return sweep. Synthetic car clones exercise boarding but cannot substitute for real durable merge callers.
 - #499 BR-1: a context-scoped cache is coherent only if every authority reader enters it. Sweep direct Snapshot consumers along the production call chain, including transferred-details checks before selection, and retain a production-path test that changes authority between them. A fake gate can verify cache lifetime while missing the raw-reader bypass. Cache lifetime and consumer provenance are semantic properties; the interleaving regression is the enforcement rather than a function-name lint.
 
 - #499 root binding: when routing a publication guard through a shared reader, preserve the guard's original repository authority explicitly. A configured details directory is a data location, not the publication repository selector. Test a legacy peer directory beside a tracked checkout and ensure it cannot turn an existing ownership refusal into acceptance. This semantic provenance boundary is enforced by the production guard regression rather than lexical lint.
@@ -1166,3 +1222,11 @@ The simplest durable authority beats a clever scan of consequences.
 - #485 test fixture: synctest.Wait orders prior writes before the test's observation; it does not serialize that observation with a later fake-time wakeup that writes the same slice. Protect mutable snapshots with the same mutex as writes. The race detector enforces this semantic concurrency contract; a lexical source rule cannot establish happens-before across the fake clock.
 
 - #485 boundary: optional recovery observations must be bounded and follow the already-known stopped/untouched result. Test a successful initial read then a stalled recovery probe. Stage new files before running the tracked-file lint catalog; untracked tests are outside its scan, and virtual synctest Sleep calls need reasoned test-fixed-sleep annotations. README covers new flags, and external receipt readers need an isolated opt-in conformance check against the real CLI. Existing catalog and timeout/subprocess regressions enforce these classes; no name-based lint rule can prove recovery ordering.
+- #504 BR-6: promoting a transform to return validation errors requires every
+  consumer to preserve that failure contract. A compatibility adapter returning
+  unchanged text on error can falsely authorize deletion. Delete the adapter,
+  require the error-returning API directly, and exercise every consumer through
+  its refusal-before-effects entrypoint. The return signature is compiler
+  enforced; behavioral regressions cover semantic suppression, which a lexical
+  source rule cannot prove.
+- #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.

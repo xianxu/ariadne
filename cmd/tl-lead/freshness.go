@@ -175,9 +175,23 @@ func isDir(p string) bool {
 }
 
 func git(dir string, args ...string) (string, error) {
-	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).Output()
+	out, err := gitWithInput(dir, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("git %s in %s: %v", strings.Join(args, " "), dir, err)
+		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
+}
+
+// Keep byte-delimited Git output intact for callers using --stdin and -z.
+func gitWithInput(dir string, input io.Reader, args ...string) (string, error) {
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Stdin = input
+	out, err := cmd.Output()
+	if err != nil {
+		if exit, ok := err.(*exec.ExitError); ok && len(exit.Stderr) > 0 {
+			return string(out), fmt.Errorf("git %s in %s: %w: %s", strings.Join(args, " "), dir, err, strings.TrimSpace(string(exit.Stderr)))
+		}
+		return string(out), fmt.Errorf("git %s in %s: %w", strings.Join(args, " "), dir, err)
+	}
+	return string(out), nil
 }
