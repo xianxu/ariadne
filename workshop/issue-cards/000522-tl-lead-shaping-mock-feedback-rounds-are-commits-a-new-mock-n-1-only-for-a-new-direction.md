@@ -1,6 +1,6 @@
 ---
 id: 000522
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.26
+tracker:
+    version: 1
+    completion:
+        token: close-b93287ffb2de
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 59fba6e36bf319e710942ec9334a094984ad5be3
+        evidence_commit: 3dd64f0d2ccf3338ca588254c28ce68083ef6b87
 ---
 
 # tl-lead shaping: mock feedback rounds are commits; a new mock-N+1 only for a new direction
