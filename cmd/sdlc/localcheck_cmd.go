@@ -139,13 +139,18 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if out, err := git("fetch", "--quiet", "origin"); err != nil {
 		return fmt.Errorf("local-check run: git fetch origin: %w\n%s", err, out)
 	}
-	decl, err := readLocalChecks(git, "origin/main")
+	mainHead, err := git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return fmt.Errorf("local-check run: pin origin/main: %w", err)
+	}
+	mainHead = strings.TrimSpace(mainHead)
+	decl, err := readLocalChecks(git, mainHead)
 	if err != nil {
 		return err
 	}
 	// #332: the default suite is runnable by name, so `sdlc local-check run
 	// --name suite` is the close suite.
-	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
+	if decl, err = withDefaultSuiteContext(ctx, git, mainHead, decl); err != nil {
 		return err
 	}
 	if len(decl.Checks) == 0 {
@@ -165,7 +170,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	var affectedCfg affected.Config
 	if wantAffected {
-		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		cfg, ok, err := readAffectedConfig(git, mainHead)
 		if err != nil {
 			return err
 		}
@@ -203,7 +208,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		if !ok {
 			return fmt.Errorf("local-check run: %s needs a %s check to fall back on for a full selection", affectedCheckName, suiteCheckName)
 		}
-		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "origin/main"), affectedCfg, suite, sha)
+		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, mainHead, affectedCfg), affectedCfg, suite, sha)
 		if err != nil {
 			return err
 		}

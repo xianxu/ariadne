@@ -79,7 +79,7 @@ var affectedFixtureSuite = localCheck{Name: suiteCheckName, Command: []string{"m
 
 func runAffectedFixture(t *testing.T, d localRunDeps, sha string) localRunRecord {
 	t.Helper()
-	rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main"), affectedFixtureConfig(t), affectedFixtureSuite, sha)
+	rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, d.Stderr)
 	}
@@ -173,7 +173,7 @@ func TestAffectedNoChangeRefuses(t *testing.T) {
 	}
 	sha = strings.TrimSpace(sha)
 	gh.setHead(9, sha)
-	_, err = runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main"), affectedFixtureConfig(t), affectedFixtureSuite, sha)
+	_, err = runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha)
 	if err == nil || !strings.Contains(err.Error(), "no changes") {
 		t.Fatalf("err %v", err)
 	}
