@@ -51,7 +51,9 @@ After registration, one scoped watcher reads requests at the existing landing po
 
 Then feed CarsDropped into Transition: settle all dropped cars held with reason, use shared Aborted cleanup to release only surviving riders and close/delete the old train PR/ref. If the conductor's own car is dropped it exits held. If another car is dropped, after confirmed old-train cleanup the conductor returns a typed re-formation result. Add a nonrecursive wrapper around the existing runDurableMerge attempt: complete that attempt's existing deferred line/queue cleanup, then retry the ordinary attempt from its first observations, obtaining a fresh ticket/queue operation and revalidating normal gates. Other survivors remain queued and may become the new conductor first; the old conductor joins as an ordinary survivor. Only this typed result after an actual accepted drop authorizes an automatic retry; generic errors do not. Caller context bounds the loop; no stale PR/head/turn or admitted context is retained between attempts.
 
-Interrupted effect completions never feed obsolete SuiteDone/CIDone into the old machine. Cleanup failures remain visible as drop accepted / cleanup pending; no old-head merge is allowed. Closing PR/ref must be confirmed before survivor formation can land; unknown close retains the existing orphan recovery machinery. A dropped waiter's process can die: its pinned request remains until ticket retirement; no old drop affects its new explicit retry.
+Interrupted effect completions never feed obsolete SuiteDone/CIDone into the old machine. Cleanup failures remain visible as drop accepted / cleanup pending; no old-head merge is allowed. Closing PR/ref must be confirmed before survivor formation can land. Existing closePR (landingtrain.go:647) and reclaimTrains (:715) warn and continue on failure, and the serial fallback (:819) skips reclamation: they do not implement this barrier. Add failure-aware closeDroppedTrain(ctx, control) and reconcileDroppedTrain(ctx, turn) instead of treating those best-effort routines as proof. Persist a cleanup obligation (train/branch, repository/remote, expected pushed tip, known PR number, publication-started flag) in the same control safety record at acceptance; publication-started/identity updates happen before external publication, under the same drop fence. After cancel/join, closure requires a positive GH CLOSED observation for the known/discovered exact train PR, or local proof publication never started, plus absence of the exact leased remote train ref. A failed/lost close reply is probed; unknown/ambiguous publication or close stays pending, never inferred absent from a lagging listing. If publication started with an unknown PR identity, repeatedly inspect the exact train branch through the bounded existing GH seam; no positive closure means stop with pending status and the exact original conductor merge command, without claiming recovery finished. No automatic bypass or administrative force-ack is added.
+
+Every newly admitted runDurableMerge attempt invokes reconcileDroppedTrain before PR selection or serial/train dispatch, including one-car, trains-off and grant paths. It inherits head.lock, reads the prior generation's pending obligation, performs GH/ref cleanup outside line.lock, then commits confirmed completion under line.lock after rechecking the generation/obligation. Failure stops that attempt and frees the head through existing defer; a later attempt retries reconciliation. Resume-only already-merged cleanup issues no merge and does not bypass this gate for any unmerged PR. Stale record replacement/retirement refuses while cleanup is pending even if all old tickets died. An admission may reserve the head to reconcile, but cannot board/publish/merge a successor until confirmation; accepted dropped waiters are excluded before even that admission. Thus a dead conductor cannot erase either the exclusion or cleanup obligation. A dropped waiter's process can die: its pinned request remains until ticket retirement; no old drop affects its new explicit retry.
 
 | State/event | Next state and effects |
 |---|---|
@@ -79,43 +81,43 @@ Actions: inspect status; drop a composed member; explicitly retry the dropped br
 | No active compatible train/member | Refusal names absence, unsupported or unreadable state and says no drop accepted | Inspect status / coordinate conductor restart on current binary | None from the refusal |
 | Foreign/unknown caller | Ownership refusal names permitted owner or repository :0 | Have that owner/:0 run exact drop command | None |
 
-## Tests and implementation tasks
+## Implementation tasks and test strategy
 
-### 1. Pure transitions and strict control record
+### 1. Pure core and record contract
 
-Files: internal/landingline/trainstate.go, traincontrol.go, trainstate_test.go, traincontrol_test.go, codec.go only if needed for reusable nested preservation.
+Files: internal/landingline/trainstate.go, traincontrol.go and colocated tests; codec.go only for shared nested preservation.
 
-- [ ] Write red sequence tests across composing/testing/bisecting/checking/landing, dropped conductor/non-conductor, multiple requests, no survivors, duplicate/stale/foreign member, terminal/merge-started rejection. Assert original exact heads excluded, survivor order retained, no Merge after accepted drop.
-- [ ] Add strict versioned codec tests: truncated/oversized/duplicate/wrong types/missing fields/unknown versions, unknown top-level and nested members preserved on read-modify-write. Data invariants live in one pure decision, not duplicated in CLI and conductor.
-- [ ] Implement CarsDropped and shared abort/release effects; no separate mini train state machine or new outcome kind required. Run go test ./cmd/sdlc/internal/landingline -count=1; commit passing pure core.
+- [ ] TDD CarsDropped through Transition and named pure decideTrainDrop / decideTrainMerge / validateTrainControl functions. Sequence/property tests generate interrupting drop/completion/merge events; invariant: accepted members never appear in a Merge effect, survivor FIFO/exact heads are preserved, and rejection leaves state unchanged.
+- [ ] TDD DecodeTrainControl / TrainControl.MarshalJSON through malformed-record fuzz seeds and round-trip properties; mechanical guards are strict known fields/duplicates/version/size/identity and unknown top-level/nested preservation.
+- [ ] Implement minimal pure transitions and codec; go test ./cmd/sdlc/internal/landingline -count=1; commit passing core.
 
-### 2. Shared storage, authority and atomic fence
+### 2. Storage, authority and merge fence
 
-Files: internal/landingline/traincontrol_io.go, line.go, new traincontrol_io_test.go; cmd/sdlc/landingdrop.go, landingcmd.go, landingdrop_test.go.
+Files: internal/landingline/traincontrol_io.go, line.go and colocated tests; cmd/sdlc/landingdrop.go, landingcmd.go and landingdrop_test.go.
 
-- [ ] Red real-folder lock tests force both orders of drop vs merge start (channels/barriers, no sleeps). Exactly one wins; accepted drop can never authorize merge. Exercise duplicate request, simultaneous member requests, stale old generation, lost response retry, crash after safety write before held notification, restart/admission reconciliation and malformed record refusal.
-- [ ] Implement register/update/request/start/finish methods under the existing line mutex and live head capability. Prevent replacement/admission from forgetting accepted drops. Preserve unknown record fields through every update; use existing maxTicket/writeAtomic bounds; refuse over capacity rather than growing indefinitely.
-- [ ] Add command tests for own car, same-repo :0, foreign worker, fake --repo authority, worker entered into :0, unknown owner, missing issue, absent/non-composed car and exact state refusals. Identity preparation is outside the mutex; commit pins revalidated inside.
-- [ ] Run targeted landingline + command tests, commit.
+- [ ] TDD Line.BeginTrain / UpdateTrain / RequestTrainDrop / StartTrainMerge / FinishTrainControl using real temporary folders and deterministic two-actor barriers; adversarial crash/retry/generation sequences must preserve a single durable decision and forbid a drop/merge double winner.
+- [ ] TDD Line.reconcileTrainDrops and replacement/admission using fault injection after the safety write; the mechanical guard excludes pinned dropped tickets before candidate selection and preserves pending cleanup across dead heads and retries.
+- [ ] TDD authorizeTrainDrop and runLandingDrop with actual-caller/target repository separation and workspace provenance; caller/target mutations must never widen owner/:0 authority. Missing identity/control refuses without effects.
+- [ ] Implement methods under existing line/head locks, shared atomic codec and strict bound; targeted landingline/command checks; commit.
 
-### 3. Production conductor, cancellation and actual survivor landing
+### 3. Production conductor and survivor landing
 
-Files: landingtrain.go, landing.go for the typed attempt/re-admission wrapper; landingqueue.go only if the existing report plumbing needs reuse; landingdrop_train_test.go plus reusable trainFakeGH fixture barriers.
+Files: landingtrain.go, landing.go, landingdrop_train_test.go and reusable trainFakeGH/ciFakeGH barriers.
 
-- [ ] Red three-real-car test blocks the old train's native suite, drops the middle car through the actual command/service boundary, joins the obsolete effect, closes the old PR, and observes two survivors automatically re-form and merge on a new head. Git ancestry proves dropped commit is absent, both surviving commits present, dropped PR OPEN, survivors MERGED. Assert only new exact-head validation reused/rerun, no old three-car suite accepted.
-- [ ] Repeat dropping conductor; surviving runners re-form without foreign suite ownership. Include two simultaneous dropped members / one survivor and all dropped. Capture exact dropped runner reason and branch recovery promptly.
-- [ ] Force drop on last CI completion vs Merge effect admission in both orders. Pause inside LandingMerge to prove late drop refuses merging; lost merge reply/failed probe refuses merge-unconfirmed, confirmed landed refuses landed. No test depends on scheduler luck.
-- [ ] Interrupt queued/running suite, CI and build through their contexts; prove cancellation joins owned children and keeps unrelated local-check leases alive. Crash after acceptance before notification and retry into a new ticket demonstrate durable exclusion without poisoning the retry.
-- [ ] Wire scoped watcher + control updates + atomic effect-admission fence and shared abort/re-admission flow. Run targeted train/lease/single-car controls; commit. Observe all failures before classifying; do not blind-retry.
+- [ ] TDD conductTrain through a deterministic real-Git three-car scenario and a native blocked old suite: actual command accepts drop, obsolete effect joins, old PR/ref closure is confirmed, survivors automatically re-form a new head and land; Git reachability proves dropped commit absent, survivors present and dropped PR OPEN. This is the operator-approved live conformance, including dropped-conductor behavior.
+- [ ] TDD conductor drop watcher / effect admission with forced completion-vs-drop orderings, native cancellation and foreign live leases; mechanical guard is context cancellation plus lexical join, followed by the atomic merge fence, never timing luck.
+- [ ] TDD closeDroppedTrain / reconcileDroppedTrain against stateful GH lost/failed/lagging observations and restarted real-folder state; enforce no successor publication/merge before positive cleanup proof through both serial and train paths.
+- [ ] TDD runDurableMerge attempt wrapper through the typed re-formation result; observe a fresh queue operation/ticket and re-read heads/gates, with no automatic retry on ordinary errors or dropped self.
+- [ ] Implement scoped watcher, control updates, failure-aware cleanup and retry wrapper; run focused train/lease/serial controls and commit. Retain all failed attempts; classify rather than blind-retry.
 
-### 4. Documentation, conformance and close evidence
+### 4. Documentation and acceptance evidence
 
-Files: cmd/sdlc/helptext/landing.md, README.md, atlas/workflow/sdlc-binary.md (and atlas index only if adding a new page), issue Log.
+Files: cmd/sdlc/helptext/landing.md, README.md, atlas/workflow/sdlc-binary.md, issue Log.
 
-- [ ] Document command, authority, irreversible merge boundary, held retry/recovery, new bounded record and rolling-upgrade refusal. Update status output to show accepted exclusions, actual current phase and pending cleanup without changing existing human membership promises.
-- [ ] Count control updates/reads and pure membership walks at8/16cars: one read/atomic rewrite per control event, O(cars+accepted requests) decision, no per-member Git/network under line.lock. Watcher uses existing2s cadence, at most one watcher; no tight polling. Run focused suites/lint then push and record full suite.
-- [ ] Run the operator-approved deterministic real-Git fixture as live conformance: actual three-car composition, native suite cancellation/join, survivor recomposition and merge reachability, owner/:0 authorization and controlled late refusal through production seams. No staged Pair train or configuration change (approval2364fcf8-71f4-477d-804e-c5fa4d1a4d45).
-- [ ] Persist raw red/green/controlled-race/full-suite logs outside RAM disk in common test-stats/evidence/000526, update Log and prepare sdlc close --no-project evidence. On SHIP enter sdlc merge --yes and report PR/outcome to hub.
+- [ ] Document command/authority, merge boundary, pending-cleanup state/recovery, held explicit retry and unsupported old conductors; status renders actual current state and exclusions.
+- [ ] TDD counted control/membership operations at8/16cars: O(N+D) walk, one short atomic update per event, one scoped watcher and existing2s cadence; reject per-member IO/poll multiplication. Run targeted checks/lint and push.
+- [ ] Run and persist operator-approved deterministic real-Git conformance, raw red/green/race logs and recorded full suite in common test-stats/evidence/000526; no staged Pair train or configuration change.
+- [ ] Update Log/plan ticks and prepare close evidence; sdlc close owns review, hub owns project (--no-project); on SHIP run sdlc merge --yes and report.
 
 ## Operating envelope and architecture
 
@@ -127,7 +129,7 @@ ARCH-SECURE: cross-process control and ticket roots are untrusted typed data wit
 
 ARCH-ORDER: one durable safety decision under the same mutex as merge start; process lifetime is existing head.lock. The event table above defines cancellation, death, concurrent requests, duplicate/retry and uncertain merge outcomes. Watcher/effect extent is lexical and joined. Most likely missed interleaving: suite/CI completion racing an accepted drop; controlled tests run both orders.
 
-ARCH-FUNERAL: one bounded control record per repository, owned by active head; terminal record retained only until dropped outcomes reconciled/tickets retired, then cleared or replaced on next generation. No unbounded tombstones. Audit uses existing EventCar/EventTrain logs and30-day retention. Train PR/ref/worktree retain existing cleanup/reclaim. Temporary watcher/context/children die and join before return.
+ARCH-FUNERAL: one bounded control record per repository, owned by active head; terminal record retained until dropped outcomes reconciled/tickets retired AND pending cleanup positively confirmed, then cleared or replaced on next generation. No unbounded tombstones. Audit uses existing EventCar/EventTrain logs and30-day retention. Train PR/ref/worktree retain existing cleanup/reclaim. Temporary watcher/context/children die and join before return.
 
 ARCH-EVOLVE: new protocol record only; no reinterpretation of old outcomes/tickets. Strict known fields and duplicates, preserved unknown top-level/nested fields, explicit unsupported-version refusal because an old conductor lacks the merge fence. Existing no-control conductors remain operational but cannot claim drop support. No version bump of unrelated formats.
 
@@ -136,3 +138,5 @@ ARCH-EVOLVE: new protocol record only; no reinterpretation of old outcomes/ticke
 The merge start fence is admission of the Merge effect after green CI, before its final fetch/API. Once that operation starts, refusal is conservative even if it later observes main movement; this avoids pretending a request can undo an operation already committed to merge. Operator approved this boundary and the deterministic real-Git fixture as live conformance through hub relay2364fcf8-71f4-477d-804e-c5fa4d1a4d45; no staged Pair train.
 
 - 2026-10-21: Replace the open live-check choice with the operator-approved fixture and record merge-start approval. No change to the protocol or scope.
+
+- 2026-10-21: Plan-quality PQ-1 clarified the already-promised cleanup barrier: current close/reclaim is best-effort, so persist the obligation, confirm through a failure-aware adapter, and gate every successor attempt including serial paths before PR selection. PQ-2 replaces case inventories with named risky functions and adversarial strategies. These refine the approved pending-cleanup behavior; no new operator action or bypass.
