@@ -308,3 +308,17 @@ existing deletion/fsync faults, real-process lock inversion negative control,
 linear N/2N snapshot/index/log reads and exact-package counters. Run targeted
 and race verification, full private CLI acceptance and a fresh recorded suite
 on the eventual pushed final head, then rerun the mandatory M2 gate.
+
+Read-only lifecycle critique clarifies the same proposed invariant: sync the
+marker, child inflight directory **and its inflight parent directory** before
+Git lock/launch (the latter makes the child directory name durable). Existing
+scratch cleanup ignores removal errors; resume must explicitly confirm scratch
+path absence and propagate uncertainty before checkout removal or child commit.
+Confirm both the checkout path and Git worktree registration absent after Git
+removal, rather than treating an exit status alone as retirement proof. Factor
+the exact-binding/removal core behind two distinct authorities: live parent-lock
+owner with confirmed managed-group cleanup, or durable interrupted receipt plus
+the approved absent-owner/operator attestation. The receipt wrapper retains all
+existing authorization checks; normal retirement cannot forge a receipt or call
+its destructive path without its own lifetime precondition. These complete the
+whole-lifecycle proposal; approval remains pending.
