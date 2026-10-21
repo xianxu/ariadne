@@ -313,7 +313,25 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	return runUnderResource(ctx, d, wt, helper, logDir, check, sha, weight, subject, argv, logPath, timeout, "")
 }
 
-func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration, resource string) (run suiteSlotRun, err error) {
+// runUnderSlotBatch owns one queue operation, slot, lease, scratch directory and
+// timeout for the entire nonempty batch. Each process is stopped before the next.
+func runUnderSlotBatch(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, commands [][]string, logPath string, timeout time.Duration) (suiteSlotRun, error) {
+	return runUnderResourceBatch(ctx, d, wt, helper, logDir, check, sha, weight, subject, commands, logPath, timeout, "")
+}
+
+func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration, resource string) (suiteSlotRun, error) {
+	return runUnderResourceBatch(ctx, d, wt, helper, logDir, check, sha, weight, subject, [][]string{argv}, logPath, timeout, resource)
+}
+
+func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, commands [][]string, logPath string, timeout time.Duration, resource string) (run suiteSlotRun, err error) {
+	if len(commands) == 0 || (resource == "runner" && len(commands) != 1) {
+		return suiteSlotRun{Exit: -1}, errors.New("managed command batch must be nonempty; runner requires one command")
+	}
+	for _, argv := range commands {
+		if len(argv) == 0 || argv[0] == "" {
+			return suiteSlotRun{Exit: -1}, errors.New("empty managed command")
+		}
+	}
 	if resource == "runner" && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
@@ -422,25 +440,12 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	defer logf.Close()
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
-	processgroup.Configure(cmd)
-	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
-	cmd.Dir = wt
-	cmd.WaitDelay = 5 * time.Second
-	var joinRunner func() error
+	env := os.Environ()
 	if resource == "runner" {
-		if d.runnerCleanup != nil {
-			joinRunner = d.runnerCleanup(cmd)
-		} else {
-			joinRunner = configureRunnerCleanup(cmd)
-		}
-	}
-	cmd.Env = os.Environ()
-	if resource == "runner" {
-		cmd.Env = withoutSuiteAuthority(cmd.Env)
+		env = withoutSuiteAuthority(env)
 	}
 	if heldBy != "" {
-		cmd.Env = append(cmd.Env, "WF_TEST_LOCK_HELD_BY="+heldBy)
+		env = append(env, "WF_TEST_LOCK_HELD_BY="+heldBy)
 	}
 	// The RAM disk (#468): its env comes last so it wins, and the leak report
 	// compares the SSD temp folders across the run.
@@ -461,7 +466,7 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 			return run, fmt.Errorf("protect runner scratch: %w", err)
 		}
 	}
-	cmd.Env = append(cmd.Env, scratch.Env...)
+	env = append(env, scratch.Env...)
 	var ssdBefore map[string]bool
 	if scratch.OnScratch {
 		ssdBefore = listTemp(ssdTempDirs())
@@ -471,27 +476,14 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)
-	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()
-	if d.runnerLifetime != nil {
-		d.runnerLifetime.retirable = false
-	}
-	runErr := cmd.Run()
-	// WaitDelay bounds inherited-pipe draining after the parent exits;
-	// stop remaining children before closing their log or removing their tree.
-	if joinRunner != nil {
-		if cleanupErr := joinRunner(); cleanupErr != nil {
-			cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
-			fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
-			_ = logf.Close()
-			q.abandon()
-			return run, cleanupErr
-		}
-	} else {
-		_ = processgroup.Terminate(cmd, true)
-	}
-	if d.runnerLifetime != nil {
-		d.runnerLifetime.retirable = true
+	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
+	if cleanupErr != nil {
+		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
+		fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
+		_ = logf.Close()
+		q.abandon()
+		return run, cleanupErr
 	}
 	// The slot covers the run only (#383): start its release before the log,
 	// the GitHub writes and whatever the caller (merge) does next. The watcher
@@ -531,6 +523,51 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
 	return run, nil
+}
+
+// runManagedCommandBatch joins each command's process group before continuing.
+// The caller supplies one context deadline and shared resources for every group.
+func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check string, commands [][]string, env []string, out io.Writer, resource string) (runErr, cleanupErr error) {
+	for _, argv := range commands {
+		if err := ctx.Err(); err != nil {
+			return err, nil
+		}
+		// Announcements are diagnostics, outside the raw process-output proof.
+		fmt.Fprintf(d.Stderr, "==> local check %s command: %q\n", check, argv)
+		cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+		processgroup.Configure(cmd)
+		cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
+		cmd.Dir, cmd.Env, cmd.WaitDelay = wt, env, 5*time.Second
+		cmd.Stdout, cmd.Stderr = out, out
+		var joinRunner func() error
+		if resource == "runner" {
+			if d.runnerCleanup != nil {
+				joinRunner = d.runnerCleanup(cmd)
+			} else {
+				joinRunner = configureRunnerCleanup(cmd)
+			}
+		}
+		if d.runnerLifetime != nil {
+			d.runnerLifetime.retirable = false
+		}
+		runErr = cmd.Run()
+		// WaitDelay bounds inherited pipes. Stop descendants before another package
+		// starts or the outer owner retires the checkout and scratch.
+		if joinRunner != nil {
+			if cleanupErr = joinRunner(); cleanupErr != nil {
+				return runErr, cleanupErr
+			}
+		} else {
+			_ = processgroup.Terminate(cmd, true)
+		}
+		if d.runnerLifetime != nil {
+			d.runnerLifetime.retirable = true
+		}
+		if runErr != nil {
+			return runErr, nil
+		}
+	}
+	return nil, nil
 }
 
 func suiteAgentFields(raw string) (*string, *string, *string) {

@@ -233,6 +233,7 @@ func TestEnterTimesOutAsALockWait(t *testing.T) {
 	dir := t.TempDir()
 	holdSlot(t, dir, 0)
 	var stderr bytes.Buffer
+	//lint:allow test-shrunk-deadline — holdSlot already owns the lock; tests an immediate lock-wait refusal without subprocess startup
 	_, err := enter(config{slots: 1, dir: dir, timeout: time.Nanosecond}, &stderr, func(time.Duration) {})
 	if err == nil || !strings.Contains(err.Error(), "a lock wait, not a test failure") {
 		t.Fatalf("want the timeout refusal, got %v", err)
