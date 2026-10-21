@@ -59,3 +59,7 @@ Authenticated hub receipt 0ca24104-3304-49f0-b657-4dbd49c2731a supplies pair#759
 ### 2026-10-21 — Proposed provenance and confirmation scope
 
 Hub-directed planning adds the broker remote-edited trigger alongside remote submit origin and specifies action-specific confirmation, unknown provenance, no recursive challenge and unchanged existing gates. Done-when expands these acceptance boundaries; no implementation or operator approval is claimed. Pair's tag format is proposed and remains upstream-owned.
+
+### 2026-10-21 02:50 PDT — Exact remote-edited receipt key
+
+Authenticated hub receipt 4a6d4190-d301-4c03-8225-f33183065741 resolves the pending key: `Receipt.Message.RemoteEdited` (JSON `RemoteEdited`), a server-assigned boolean independent of Origin. The plan Revision now specifies `Origin == "remote" OR RemoteEdited == true`; missing or false is not local-provenance proof, and legacy/unavailable evidence stays unknown. This supersedes the earlier unresolved-key note. Plan-only update; continue holding all implementation for operator approval.

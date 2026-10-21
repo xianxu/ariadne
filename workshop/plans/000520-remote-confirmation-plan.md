@@ -87,3 +87,13 @@ ARCH-CONSTRAINTS: human instruction path, one extra operator round-trip per risk
 ## Approval state
 
 Draft for operator review. Upstream tagging is proposed; no claim of live conformance. Implementation and activation have not started.
+
+## Revisions
+
+### 2026-10-21 02:50 PDT — Exact remote-edited receipt key
+
+Authenticated hub receipt 4a6d4190-d301-4c03-8225-f33183065741 names pair#759's key: `Receipt.Message.RemoteEdited`, JSON `RemoteEdited`, a server-assigned boolean independent of `Receipt.Message.Origin`. This supersedes the unresolved-key statements above; the upstream contract remains proposed, not verified live.
+
+The confirmation trigger is `Receipt.Message.Origin == "remote" OR Receipt.Message.RemoteEdited == true`. Missing or false `RemoteEdited` is not proof of local provenance; legacy, unavailable or otherwise unverifiable evidence remains unknown. Preserve the receipt-status, recipient and document checks and hold a risky unknown-provenance request for operator clarification. The rendered-help guard and harmless scenario review must cover each independent trigger, their combination, and the missing/false/legacy uncertainty boundary without treating absence as local authority.
+
+This is a plan-only contract clarification. Operator approval remains pending; no change-code, implementation, test execution or activation is authorized by this message.
