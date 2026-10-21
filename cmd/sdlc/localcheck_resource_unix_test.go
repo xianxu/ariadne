@@ -5,9 +5,11 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,5 +89,64 @@ while True: time.sleep(.01)
 	}
 	if err := testfix.AwaitExit(cmd.Process.Pid, time.Second); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunnerCleanupNilTerminationIsNotCompletion(t *testing.T) {
+	signals := 0
+	err := finishRunnerGroup(time.Now(), 0, func() bool { return false }, func(force bool) error { signals++; return nil })
+	var uncertain *runnerCleanupUnconfirmed
+	if !errors.As(err, &uncertain) || signals != 1 {
+		t.Fatalf("unconfirmed group accepted: %v signals%d", err, signals)
+	}
+}
+
+func TestRunnerCleanupUnconfirmedPreservesRecovery(t *testing.T) {
+	t.Setenv("WF_SDLC_QUEUE_ROOT", t.TempDir())
+	d, sha, _, _ := localRunRepo(t, "unused")
+	d.runnerCleanup = func(cmd *exec.Cmd) func() error {
+		return func() error { return &runnerCleanupUnconfirmed{Detail: "fixture uncertainty"} }
+	}
+	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "vm", Resource: "runner", Command: []string{"sh", "-c", "echo retained"}, TimeoutMinutes: 30}, sha)
+	var uncertain *runnerCleanupUnconfirmed
+	if !errors.As(err, &uncertain) {
+		t.Fatalf("lost uncertainty %v", err)
+	}
+	if _, err := os.Stat(rec.LogPath); err != nil {
+		t.Fatalf("lost recovery log %s: %v", rec.LogPath, err)
+	}
+	trees, err := d.Git("worktree", "list", "--porcelain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retained := false
+	for _, line := range strings.Split(trees, "\n") {
+		if strings.HasPrefix(line, "worktree ") {
+			wt := strings.TrimPrefix(line, "worktree ")
+			if wt != d.Root {
+				retained = true
+				t.Cleanup(func() { _, _ = d.Git("worktree", "unlock", wt); _, _ = d.Git("worktree", "remove", "--force", wt) })
+				old := time.Now().Add(-48 * time.Hour)
+				if err := os.Chtimes(wt, old, old); err != nil {
+					t.Fatal(err)
+				}
+				other, _, _, _ := localRunRepo(t, "unused")
+				sweepStaleLocalWorktrees(other)
+				if _, err := os.Stat(wt); err != nil {
+					t.Fatalf("stale sweep erased uncertain inputs: %v", err)
+				}
+			}
+		}
+	}
+	if !retained {
+		t.Fatal("unconfirmed descendants lost their worktree")
+	}
+	root, err := queueStateRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := (&queuegate.Store{Root: root}).Snapshot(context.Background())
+	if err != nil || snapshot.Complete || len(snapshot.Active) != 1 || snapshot.Active[0].State != "unknown" {
+		t.Fatalf("uncertainty became absence: %+v %v", snapshot, err)
 	}
 }

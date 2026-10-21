@@ -73,3 +73,22 @@ func TestLandingCheckInputsPinnedAndCounted(t *testing.T) {
 		t.Fatal("traversal admitted")
 	}
 }
+
+func TestLandingCheckTrackedBlankPolicyRefuses(t *testing.T) {
+	for _, file := range []string{localChecksPath, "paths.json"} {
+		for _, raw := range []string{"", " \n\t"} {
+			call := func(args ...string) (string, error) {
+				if args[0] == "ls-tree" {
+					return "100644 blob " + strings.Repeat("a", 40) + "\t" + file + "\x00", nil
+				}
+				return raw, nil
+			}
+			if _, err := readLandingBlob(call, "base", file, true); err == nil {
+				t.Errorf("tracked blank %s accepted", file)
+			}
+		}
+	}
+	if _, err := readLandingBlob(func(...string) (string, error) { return "", nil }, "base", localChecksPath, true); err != nil {
+		t.Fatalf("absent declaration: %v", err)
+	}
+}

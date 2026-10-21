@@ -47,15 +47,32 @@ func configureRunnerCleanupWithin(cmd *exec.Cmd, grace time.Duration) func() err
 		default:
 			_ = processgroup.Terminate(cmd, false)
 		}
-		for !gone() && time.Now().Before(deadline) {
-			time.Sleep(20 * time.Millisecond)
-		}
-		if gone() {
-			return nil
-		}
-		if err := processgroup.Terminate(cmd, true); err != nil && !errors.Is(err, os.ErrProcessDone) {
-			return fmt.Errorf("runner group cleanup unconfirmed: %w", err)
+		err := finishRunnerGroup(deadline, time.Second, gone, func(force bool) error { return processgroup.Terminate(cmd, force) })
+		if err != nil {
+			return &runnerCleanupUnconfirmed{Detail: fmt.Sprintf("owned group %d: %v", cmd.Process.Pid, err)}
 		}
 		return nil
 	}
+}
+
+// A nil signal result proves only that signalling succeeded. Confirm group
+// completion separately before releasing managed ownership or deleting inputs.
+func finishRunnerGroup(deadline time.Time, join time.Duration, gone func() bool, terminate func(bool) error) error {
+	for !gone() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if gone() {
+		return nil
+	}
+	if err := terminate(true); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return &runnerCleanupUnconfirmed{Detail: err.Error()}
+	}
+	end := time.Now().Add(join)
+	for !gone() && time.Now().Before(end) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !gone() {
+		return &runnerCleanupUnconfirmed{Detail: "owned process group remains live after escalation; retain logs/worktree and reconcile ownership before retry"}
+	}
+	return nil
 }

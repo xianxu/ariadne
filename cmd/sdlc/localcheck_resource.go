@@ -13,3 +13,8 @@ func withoutSuiteAuthority(env []string) []string {
 	}
 	return out
 }
+
+// runnerCleanupUnconfirmed keeps recovery separate from a completed failure.
+type runnerCleanupUnconfirmed struct{ Detail string }
+
+func (e *runnerCleanupUnconfirmed) Error() string { return "runner cleanup unconfirmed: " + e.Detail }

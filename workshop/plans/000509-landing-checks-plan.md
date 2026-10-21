@@ -197,3 +197,7 @@ The operator approved all seven choices through authenticated hub receipt 15f028
 ### 2026-10-20 22:56 PDT — PQ-1 function-level strategies
 
 Compressed test inventories into one adversarial strategy per risky production function, retaining stateful/resource, counted-growth and mutation controls. No mechanism or approved tradeoff changes.
+
+### 2026-10-20 23:13 PDT — M1 review corrections
+
+BR-1 sweeps present blank/truncated declaration/path blobs while preserving genuine absence and legacy parser compatibility. BR-2 requires a separately confirmed bounded join after force signalling, with deterministic nil-signal/live-group coverage. Unconfirmed cleanup retains raw logs, Git-locked worktree inputs and the existing queue unknown/reconcile boundary; the existing stale sweep respects Git worktree locks. The lock spans runner execution so owner death cannot let stale cleanup erase inputs. No new durable record family or VM ownership. BR-3 moves README description of already-delivered schema/--all behavior into M1; automatic enforcement remains M2.

@@ -1231,3 +1231,7 @@ The simplest durable authority beats a clever scan of consequences.
   enforced; behavioral regressions cover semantic suppression, which a lexical
   source rule cannot prove.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
+
+### #509 M1 — Refusal evidence must distinguish absence from uncertainty
+
+A tracked empty policy is invalid input, not an absent opt-in declaration. A nil kill result proves a signal attempt, not completed descendant cleanup. Test those distinctions directly; retain existing queue unknown evidence and locked checkout inputs until cleanup is confirmed, and ensure stale cleanup honors those locks. Document delivered configuration at its milestone boundary.

@@ -589,12 +589,26 @@ is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-la
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
-runs one on a pushed head under the machine-wide suite lock and records it as
+runs one on a pushed head (under the machine-wide suite lock by default) and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
+and `resource: "runner"` for checks whose runner owns independent capacity.
+A landing entry must explicitly declare `required` and `resource`; runner checks
+cannot declare suite `weight` or CI `substitutes`. The path file is
+`{"version":1,"paths":["glob",...]}` with ordered includes/exclusions. Policies
+are read from the pinned main tree. Existing version1 declarations keep their
+per-head defaults. `local-check run --all` excludes landing checks; name one
+explicitly for manual execution. Runner checks use no suite slot and retain
+30s of graceful process-group cancellation even after the immediate leader exits.
+Unconfirmed cleanup retains the checkout under Git's worktree lock and leaves
+queue activity unknown for reconciliation. Automatic landing enforcement and
+main-only disabled-check burn-in restriction are pending M2 of #509; this
+milestone does not activate a consumer.
+
 `sdlc local-check cancel` stops this checkout's own queued or running checks and
 never another slot's; never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`

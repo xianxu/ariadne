@@ -48,6 +48,9 @@ func readLandingBlob(git func(...string) (string, error), base, file string, opt
 	if err != nil {
 		return "", err
 	}
+	if strings.TrimSpace(raw) == "" {
+		return "", fmt.Errorf("tracked policy %s is blank", file)
+	}
 	if len(raw) > localCheckMaxJSON {
 		return "", fmt.Errorf("policy %s exceeds 1 MiB", file)
 	}

@@ -55,7 +55,8 @@ type localRunDeps struct {
 	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
 	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
-	minute time.Duration
+	minute        time.Duration
+	runnerCleanup func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
 }
 
 // callerRoot names the initiating checkout, independently of suite contents.
@@ -124,7 +125,23 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
-	defer cleanup()
+	cleanupAllowed := true
+	runnerLocked := false
+	defer func() {
+		if cleanupAllowed {
+			if runnerLocked {
+				_, _ = cleanupGit("worktree", "unlock", wt)
+			}
+			cleanup()
+		}
+	}()
+
+	if c.Resource == "runner" {
+		if _, err := d.Git("worktree", "lock", "--reason", "managed runner; retain until cleanup is confirmed", wt); err != nil {
+			return rec, fmt.Errorf("lock runner checkout: %w", err)
+		}
+		runnerLocked = true
+	}
 
 	writer, err := beginSuiteAttempt(storeRoot)
 	publishing := false
@@ -143,6 +160,12 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
+		var uncertain *runnerCleanupUnconfirmed
+		if errors.As(err, &uncertain) {
+			cleanupAllowed = false
+			publishing = true
+			fmt.Fprintf(d.Stderr, "[!] %v; retained checkout %s and log %s\n", err, wt, rec.LogPath)
+		}
 		var interrupted *queueInterruptedError
 		if errors.As(err, &interrupted) {
 			err = retainQueueInterruption(logDir, sha, c.Name, rec.LogPath, interrupted)
@@ -384,7 +407,11 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	cmd.WaitDelay = 5 * time.Second
 	var joinRunner func() error
 	if resource == "runner" {
-		joinRunner = configureRunnerCleanup(cmd)
+		if d.runnerCleanup != nil {
+			joinRunner = d.runnerCleanup(cmd)
+		} else {
+			joinRunner = configureRunnerCleanup(cmd)
+		}
 	}
 	cmd.Env = os.Environ()
 	if resource == "runner" {
@@ -417,7 +444,9 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	// stop remaining children before closing their log or removing their tree.
 	if joinRunner != nil {
 		if cleanupErr := joinRunner(); cleanupErr != nil {
+			fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
 			_ = logf.Close()
+			q.abandon()
 			return run, cleanupErr
 		}
 	} else {
@@ -693,6 +722,9 @@ func sweepStaleLocalWorktrees(d localRunDeps) {
 	for _, root := range roots {
 		matches, _ := filepath.Glob(filepath.Join(root, localCheckTmpPrefix+"*"))
 		for _, m := range matches {
+			if lockedLocalWorktree(m) {
+				continue
+			}
 			if info, err := os.Stat(m); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
 				_ = os.RemoveAll(m)
 			}
@@ -732,4 +764,31 @@ func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
 	return path, &suiteEnvironmentError{Check: check, LogPath: path}
+}
+
+// Stale scratch roots are shared by repositories. Resolve each worktree's own
+// Git metadata rather than consulting only the sweeper repository's inventory.
+func lockedLocalWorktree(root string) bool {
+	f, err := os.Open(filepath.Join(root, ".git"))
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+	raw, err := io.ReadAll(io.LimitReader(f, 4097))
+	if err != nil || len(raw) > 4096 {
+		return true
+	}
+	line := strings.TrimSpace(string(raw))
+	if !strings.HasPrefix(line, "gitdir: ") {
+		return true
+	}
+	dir := strings.TrimPrefix(line, "gitdir: ")
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(root, dir)
+	}
+	_, err = os.Lstat(filepath.Join(dir, "locked"))
+	return !errors.Is(err, os.ErrNotExist)
 }
