@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "dfb66709", done: "f7ef2dfd"}
 ---
 
 # tl-lead shaping: mock feedback rounds are commits; a new mock-N+1 only for a new direction
