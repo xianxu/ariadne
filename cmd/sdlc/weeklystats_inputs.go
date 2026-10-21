@@ -215,7 +215,9 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 		}
 	}
 	rootStats := filepath.Join(common, "sdlc", "test-stats")
-	attempts, warnings, err := readSuiteAttempts(rootStats, testStatsRecordLimit)
+	snapshot, err := readSuiteEvidence(rootStats, testStatsRecordLimit)
+	attempts := snapshot.Attempts
+	warnings := append(snapshot.Warnings, snapshot.coverageNotes("")...)
 	if err != nil {
 		e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+err.Error())
 	} else {
@@ -229,7 +231,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 			e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+warning)
 		}
 	}
-	known := map[string]bool{}
+	known := snapshot.knownSuiteHeads()
 	for i := range e.Attempts {
 		e.Attempts[i].Repo = repo
 		if isSuiteRun(e.Attempts[i]) {

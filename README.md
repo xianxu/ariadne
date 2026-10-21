@@ -732,7 +732,7 @@ trailers cannot change its package.
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the
-  subtest's PASS line.
+  subtest's package-bound JSON PASS event.
 - **Evidence:** registering a subtest needs the top-level test's same-head
   fail→pass, and the failed attempt's saved log must name that subtest.
 - **Correcting a registration:**
@@ -757,7 +757,10 @@ visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
 are shown as not covered until #451.
 When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
-reruns just those tests once on the same head. Each must show a PASS line, and its
+reruns just those tests once on the same head, grouped into exact-package
+commands under one weight-1 lease and total timeout. Registered subtests run
+their whole top-level test, including siblings. Each required test and package
+must have a matching structured JSON PASS event, and its
 flake issue must still be open when the result is posted; then the status reads
 "pass · known flake #N rerun". Any other failure blocks: an unregistered test, a
 build error or timeout, or a known flake failing again. A full rerun that passes
@@ -781,6 +784,23 @@ docs-only changes such as close's bookkeeping or main prose publication. Code,
 tests, configuration and embedded help invalidate reuse and require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
+
+Reader-first compatibility verification is opt-in:
+`sh scripts/verify-pre524-reader.sh` runs the committed control against pinned
+pre-#524 source in a private clone. It proves the old global refusal; the new
+reader scopes “needs a newer sdlc” to related proof. The invoker owns the printed
+scratch directory: inspect its evidence, then remove that directory. No live
+binary or production store is changed. Before #463 may activate resume links,
+the TL must upgrade every slot's actual sdlc and verify paths/revisions; any
+stale or unverified reader keeps activation held. See the
+[reader-first rollout contract](atlas/workflow/sdlc-binary.md#reader-first-attempt-compatibility-524-prerequisite-for-463).
+
+The private phase1 executable conformance is opt-in:
+`SDLC_PRIVATE_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckPhase1Conformance$' -count=1 -v`.
+It runs the production CLI against private Git, tracker, queue, lock and fake
+GitHub state, proving scoped future evidence and exact-package decoy exclusion.
+Its temporary inputs and outputs are removed automatically after inspection
+inside the test; it changes no installed binary or live store.
 
 `sdlc test-stats` reads saved suite attempts across local sibling repositories
 and reports wall and queue percentiles, slow packages or shards, and named

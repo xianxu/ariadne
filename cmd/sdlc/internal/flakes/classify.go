@@ -224,21 +224,6 @@ func Revalidate(o Outcome, r Registry, regErr error, policy Policy) Outcome {
 	return o
 }
 
-// RerunMissing lists the tests a rerun log does not show passing. The rerun
-// runs `go test -v`, so each named test or subtest prints
-// "--- PASS: <Test>[/<sub>…] (…)"; a run that matched no test exits 0 without
-// it, which proves nothing.
-func RerunMissing(log string, tests []string) []string {
-	var missing []string
-	for _, t := range tests {
-		n, ok := ParseName(t)
-		if !ok || !strings.Contains(log, "--- PASS: "+n.Run()+" (") {
-			missing = append(missing, t)
-		}
-	}
-	return missing
-}
-
 // RerunTests are the whole top-level tests a known set reruns (#466): a
 // registered subtest reruns its top-level test, siblings and all, so one go
 // test invocation covers every entry and a sibling that fails there blocks.

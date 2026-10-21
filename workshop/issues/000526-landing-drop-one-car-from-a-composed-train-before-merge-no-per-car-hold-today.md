@@ -45,7 +45,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -70,6 +70,8 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 - final-core-lint.log: landingline PASS4.848s, tracked pkg/golint PASS1.290s; final-core-race.log PASS3.248s; go vet ./cmd/sdlc ./cmd/sdlc/internal/landingline exit0. Seven deterministic Python deadline/process-ownership controls pass0.002s. The count guard inherits t.Deadline and reserves shutdown time; no fixed child completion timeout resets. Cost-budget red/green logs retain the driver correction proof. All source/staging/HEAD remained fixed throughout each main-package test.
 
 - Recorded branch suite on Git-verified957b61af534af2fc2b3fb4ac47a73439f0b41ca5 PASS: all8shards,1940cmd/sdlc tests and75other packages, zero failures, wall793.3s. Machine queue waited1650s before admission; run lease-4251668674 completed exit0 and posted sdlc-local/suite. Original log common Git sdlc/local-checks/957b61af534af2fc2b3fb4ac47a73439f0b41ca5/suite.log; SSD evidence copy test-stats/evidence/000526/branch-suite.log. PR374 is open; server local-gates guard passed and confirms no protected paths touched. Ready for close review; not landed yet. Hub owns project (--no-project); deterministic fixture is the approved live conformance.
+
+- The recorded suite's queue wait crossed noon. Close refused before dispatching review because the branch lacks the main code required by .sdlc/freshness.json (main cutoff510aab6ff). Followed the named git merge origin/main path rather than bypassing. The only conflict was adjacent atlas additions: retained both #526 drop documentation and #524 reader-first attempt compatibility. No code conflict or branch implementation change; fresh recorded integrated suite is required before retrying close. Original passing branch suite retained.
 
 ## Revisions
 

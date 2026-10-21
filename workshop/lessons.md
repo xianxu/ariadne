@@ -1242,6 +1242,7 @@ The simplest durable authority beats a clever scan of consequences.
   source rule cannot prove.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
 
+- A subprocess timeout fixture must not spend a fixed launch budget before the effect it asserts. Bound readiness with the enclosing test deadline, observe the helper's effect, then cue cancellation. Keep exact elapsed-bound tests separate. Sweep adjacent refusal/permission/pipe fixtures; a race-instrumented helper can miss both 300ms and 1s launch assumptions. Struct literal timeout fields must pass the same lint guard as assignments (#514).
 ### #509 M1 — Refusal evidence must distinguish absence from uncertainty
 
 A tracked empty policy is invalid input, not an absent opt-in declaration. A nil kill result proves a signal attempt, not completed descendant cleanup. Test those distinctions directly; retain existing queue unknown evidence and locked checkout inputs until cleanup is confirmed, and ensure stale cleanup honors those locks. Document delivered configuration at its milestone boundary.
@@ -1255,6 +1256,25 @@ Never run a fake-liveness collector against the runtime-selected scratch/temp ro
 Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.
 - #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
 
+- #524 PQ-1: name the risky functions in a design and give each one an adversarial input/ordering strategy plus an independent mechanical guard. Keep individual edge-case inventories in executable tests; a table of data types alone does not define the pure-function test contract. The plan-quality gate enforces this planning rule; a Go source lint cannot validate an unwritten function contract.
+
+- #524 BR-1/BR-2: a relationship is authority even when the linked record's own type/check differs from its parent. Resolve links through the selected parent's identity before implicit reuse or publication; a parser-only test cannot defend that consumer boundary. Preserve old-reader compatibility evidence against actual pinned old code, not a local decoder rejection. Stateful consumer tests and the executable compatibility control guard this semantic class; a lexical lint rule cannot prove relationship authority.
+
+- #524 BR-3/BR-4: an opt-in verification script is still a discoverable operator command; document it in README and name the owner/end of its private scratch evidence. Parent-authority regressions need both directions: no bypass of a linked parent and no authority over a different check from the link's own label. The scoped consumer tests enforce that relation; documentation review owns discovery/lifecycle wording.
+
+- #524 M2: machine-parsed raw logs must contain only process output. Print command
+  announcements separately and quote argv structurally on one line; a multiline argument can otherwise create synthetic
+  PASS/failure events even when its process prints nothing. The real subprocess
+  argv-as-data regression defends this semantic logging/proof boundary; a lexical
+  format-string lint cannot establish the downstream parser's authority.
+
+- #524 BR-5: validate configured selections with registry grammar, but treat
+  emitted Go test names as external event identities. A t.Run label can contain
+  punctuation or slash segments without creating intermediate tests. Base PASS
+  authority on the exact required name, known whole test and package; retain
+  real-Go fixtures because synthetic event builders can encode the same false
+  assumptions as the parser. These semantic protocol contracts need executable
+  conformance rather than a lexical source lint.
 - #521 fixture: when asserting that an action creates no new external records,
   snapshot the fake’s history before the action. Rewriting a branch does not
   remove status records on its previous head; a list of current heads is not
@@ -1262,6 +1282,7 @@ Unknown descendant completion protects every input and output together: checkout
   records while checking that a held conductor creates no train PR or suite.
 - #511 fixture verification: a late train-arrival regression must first board valid cars. Section presence alone is insufficient: Done-when needs a nonempty bullet and Plan needs a non-placeholder checklist. Otherwise an early held car can turn the scenario into a different prefix before the intended event. The real two-car late-duplicate regression and instance gates enforce this semantic fixture contract; a lexical lint would only mirror the helper.
 
+- #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
 - #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.
 
 - #526 handoff: releasing a conductor's lifetime head capability before its fresh retry ticket is synchronously vouched lets a ready survivor depart alone. Retain that capability across old queue retirement, release after the normal enqueue/vouch, and scope fallback release over every early return. The real three-car drop-self/drop-middle regressions and actual-lock retry lifetime tests defend this interleaving; lexical lint cannot establish cross-attempt ownership.

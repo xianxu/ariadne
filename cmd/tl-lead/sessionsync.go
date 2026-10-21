@@ -88,6 +88,8 @@ const (
 type couchSessionSync struct {
 	bin     string
 	timeout time.Duration
+	// Optional caller cancellation; timeout still caps the complete call.
+	ctx context.Context
 }
 
 // boundedMoveSync confines the migration's process budget to its own copy.
@@ -108,11 +110,17 @@ func boundedMoveSync(ss SessionSync) SessionSync {
 func (c couchSessionSync) run(args ...string) ([]byte, error) {
 	argv := append([]string{"--session-sync"}, args...)
 	cmd := exec.Command(c.bin, argv...)
-	var ctx context.Context
+	ctx := c.ctx
+	bounded := c.timeout > 0 || ctx != nil
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), c.timeout)
+		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
+	}
+	if bounded {
 		cmd = exec.CommandContext(ctx, c.bin, argv...)
 		// A descendant may inherit the output pipes even after Couch exits.
 		cmd.WaitDelay = 250 * time.Millisecond
@@ -133,10 +141,13 @@ func (c couchSessionSync) run(args ...string) ([]byte, error) {
 	if msg == "" {
 		msg = strings.TrimSpace(stdout.String())
 	}
-	if c.timeout > 0 {
+	if bounded {
 		detail := fmt.Sprintf("%v: %s", err, msg)
 		if ctx.Err() != nil {
-			detail = fmt.Sprintf("exceeded %s budget: %v", c.timeout, ctx.Err())
+			detail = ctx.Err().Error()
+			if c.timeout > 0 {
+				detail = fmt.Sprintf("exceeded %s budget: %v", c.timeout, ctx.Err())
+			}
 		}
 		outcome := ""
 		if args[0] == "rename" {

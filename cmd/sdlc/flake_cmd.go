@@ -233,7 +233,8 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 			if err != nil {
 				return nil, nil, err
 			}
-			return readSuiteAttempts(store, testStatsRecordLimit)
+			snapshot, err := readSuiteEvidence(store, testStatsRecordLimit)
+			return snapshot.flakeAttempts(), append(snapshot.Warnings, snapshot.coverageNotes("")...), err
 		},
 		logPath: func(a SuiteAttempt) string {
 			if store, err := suiteStoreDir(); err == nil {
