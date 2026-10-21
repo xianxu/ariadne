@@ -41,6 +41,41 @@ rounds:
           family: bounded-attribution-io
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: f85f3e08-1850-4508-b593-59cbb7e058a9
+            repository: github.com/xianxu/ariadne
+            issue_id: "000527"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: fed604f4a8ce90f8e6f7221c405524181375d834
+            slot: ariadne:2
+            requested_at: "2026-10-21T15:51:38.04468Z"
+          phase: finished
+          pid: 13490
+          started_at: "2026-10-21T15:51:38.197567Z"
+          finished_at: "2026-10-21T15:52:10.114152Z"
+          session_id: 01a15f29-3548-7ab3-9e85-948ddb6e051f
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-21T08:52:10-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named-function adversarial strategies replace the inventory, retaining production regressions and verification commands.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: The assessment owns a two-minute overall deadline, five-second cleanup bound, unverified expiry, and stalled-dependency verification.
+          round: 2
+      blocked: false
+content_hash: 8eabef3abacef799cfdcd895ed3ae42f62d0c74b86cc240c980b9cd42fd03d35
 ---
 
 # Gate ledger — ariadne#527 (plan-quality)
@@ -57,7 +92,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Important] `bounded-attribution-io` Specify and enforce the attribution assessment deadline
   The plan at lines 73 and 105 promises bounded assessment but leaves the graph context to be confirmed. Existing graph preparation has its own timeout, while affected.LoadGoGraph subsequently runs go list using only its supplied context (cmd/sdlc/localcheck_affected.go:139–142; cmd/sdlc/internal/affected/golist.go:119–145), so preparation's deadline does not bound the whole assessment. For ARCH-CONSTRAINTS, state a concrete overall budget and its basis, name the context owner covering graph/diff/registry work, and define expiry as an unverified non-blaming stop with bounded cleanup; require a controllably stalled dependency test.
 
+## Round 2 — 2026-10-21T08:52:10-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named-function adversarial strategies replace the inventory, retaining production regressions and verification commands.
+- PQ-2 — addressed — The assessment owns a two-minute overall deadline, five-second cleanup bound, unverified expiry, and stalled-dependency verification.
+
 ## Open findings
 
-- **PQ-1** [Important] `function-level-test-strategy` Replace the test-case inventory with named-function strategies
-- **PQ-2** [Important] `bounded-attribution-io` Specify and enforce the attribution assessment deadline
+(none — every finding has been disposed)
