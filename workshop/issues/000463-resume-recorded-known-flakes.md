@@ -423,3 +423,14 @@ All environment tests passed 4.842s; Go lint 0.654s and shell lint 0.308s.
 Broader Resume race run did not start: Go cache write failed with no space left
 on AgentScratch. This is infrastructure refusal, not a test pass. Recorded suite
 remains on hold pending shared-cache clearing. No new cleanup design or retry.
+
+### 2026-10-21 — Storage restored; BR-4 race verification
+
+TL delivery 80d1167d-f25d-4800-b74c-9cf91d2a6cc4 unblocks verification after
+the machine-wide GOCACHE override was removed. Fresh go env GOCACHE confirms
+/Users/xianxu/Library/Caches/go-build; no private cache override was created.
+The earlier ENOSPC was infrastructure and produced no test evidence or recorded
+suite attempt. Fresh all-Resume race checks passed 15.907s on the pushed BR-4
+correction. Checkpoint this result, then run the recorded suite and the same M3
+review gate. A same-head infrastructure-classification refusal must go to the
+hub verbatim, without workaround.
