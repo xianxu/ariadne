@@ -69,8 +69,8 @@ Actions: run affected; rerun after repairing preparation.
 | caller cancellation | interrupted, no passing affected record | run affected | partial disposable output |
 Existing stale checkout cleanup covers process death; no new durable state.
 
-- [ ] Red fresh-module missing-embed regression, same-head/once/cleanup assertions.
-- [ ] Bounded preparation and config validation; failure, timeout, cancellation,
+- [x] Red fresh-module missing-embed regression, same-head/once/cleanup assertions.
+- [x] Bounded preparation and config validation; failure, timeout, cancellation,
   omitted declaration and genuinely broken graph controls.
 - [ ] README/atlas contract; recorded suite, close review, merge.
 
@@ -90,3 +90,22 @@ Existing stale checkout cleanup covers process death; no new durable state.
   regression edits candidate graph_prepare and proves only pinned main's argv
   runs. Pair#738 adoption remains separate and requires the operator label when
   local-gates-guard covers its affected.json. No readiness policy change.
+
+- 2026-10-20: red first on unknown graph_prepare, then after schema support the
+  real fresh-checkout fixture fell back with native go list's missing
+  assets/data.txt embed error (suite-only success). Added execution afterward.
+  Full command fixture now proves once-only generation, exact head inputs,
+  cleanup, caller poison isolation and candidate declaration rejection, including
+  origin/main advancing to the candidate after its immutable pin is captured.
+  Focused affected/CLI/config controls pass (17.329s for cmd/sdlc). Preparation
+  nonzero, launch failure, deadline and still-invalid graph all preserve suite;
+  cancellation and exited-parent inherited-pipe controls stop descendants and
+  never publish affected success. No new lint: the missing declared graph-input
+  prerequisite is a semantic contract, defended through real production fixtures.
+
+- 2026-10-20: broader affected/CLI/config/CI-readiness controls passed (33.365s);
+  five race-enabled repetitions of the new preparation fixtures passed (25.333s).
+  All affected package tests and the full Go lint catalog passed; diff check clean.
+  Only the deadline control shrinks the timeout unit; healthy/failure controls
+  retain ample startup budget. About 81 added production lines, within quick flow.
+  Next: pushed-head suite and close review; no live :0 stage held.

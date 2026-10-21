@@ -93,7 +93,7 @@ func affectedScope(sel affected.Selection) string {
 // productionAffectedDeps diffs the head against its merge-base with base and
 // loads the package graph from a detached worktree of the head, released
 // before the run makes its own.
-func productionAffectedDeps(d localRunDeps, base string) affectedDeps {
+func productionAffectedDeps(d localRunDeps, base string, cfg affected.Config) affectedDeps {
 	cleanupGit := d.CleanupGit
 	if cleanupGit == nil {
 		cleanupGit = d.Git
@@ -122,6 +122,9 @@ func productionAffectedDeps(d localRunDeps, base string) affectedDeps {
 				return affected.Graph{}, err
 			}
 			defer cleanup()
+			if err := prepareAffectedGraph(ctx, d, wt, cfg.GraphPrepare); err != nil {
+				return affected.Graph{}, err
+			}
 			return affected.LoadGoGraph(ctx, wt)
 		},
 		run: func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
