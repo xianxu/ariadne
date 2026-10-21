@@ -71,6 +71,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Shared-cache hold released by TL (3cbc4b1e-503b-4612-8b03-2cf84b06058d). Verified go env GOCACHE resolves to /Users/xianxu/Library/Caches/go-build. Earlier ENOSPC setup failures were infrastructure failures before compilation, not test evidence; no recorded #507 suite had run. Starting the recorded suite on the pushed implementation with no per-run cache override.
 
+- Recorded suite PASS on c780bb6e83ae1f48b39dd26f382967daf222b8de: all 8 shards, 1,959 cmd/sdlc tests and 75 other packages, zero failures; wall 857.7s. Recorded as sdlc-local/suite; log SHA256 prefix 20c7a871af69. The retained run survived the Couch restart. Proceeding to close review; the last Plan item deliberately remains unchecked because it includes the hub-owned post-SHIP live check and merge.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
