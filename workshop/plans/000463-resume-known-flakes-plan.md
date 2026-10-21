@@ -112,3 +112,17 @@ ARCH-SECURE/PURE/MOCK: raw record and log bytes are untrusted; typed decode and 
 ## Approval state
 
 Draft for the hub. Authenticated receipt 116faa29-e008-4b37-8750-df1f1d747b73 approves retaining #466 whole-parent semantics and removing cross-package over-selection, and asks for this plan. CLI shape, immutable-link crash fence/version boundary and uncertain-resume recovery are proposals awaiting approval. No implementation has started.
+
+## Revisions
+
+### 2026-10-21 04:40 PDT — Approved design, reader-first rollout required
+
+Authenticated approval eb6d1928-c198-41cd-bde5-fe8c292a4601 approves the core design, with scoped compatibility and one named crash-recovery command as conditions. The current pre-change reader cannot satisfy scoped compatibility: an unsupported record becomes a global read warning, and guardSuitePass refuses any passing status before repository/head/check filtering. loadSavedAttempt also marks the entire snapshot incomplete. No v3 payload can retrofit already-built readers, and hiding links would let them ignore unresolved or failed recovery authority.
+
+Authenticated follow-up917bf022-032a-4d84-ac6b-39075bbca2b5 chooses two separate landings, superseding the original M1/M2 publication grouping:
+
+1. A prerequisite issue, based on main, lands reader-only compatibility plus exact-package managed rerun batches. Supported older/v3 envelopes are scoped to the affected attempt/proof with a “needs a newer sdlc” refusal; unrelated checks/records remain usable. Malformed input whose identity cannot be proved remains unknown rather than silently discarded. No link writer or resume activation ships in this landing. The atlas documents the pre-change reader limitation and activation barrier.
+2. The hub rolls **every slot's actual sdlc build** forward. Verify bare sdlc --version or executable build revisions across the fleet; do not assume :0 aliases or sibling ownership without observing actual paths. Old running writers must finish or be upgraded through the hub's rollout. Record the observed revisions, gaps and completion evidence; absence of a response is not upgrade proof.
+3. Only after the first landing and verified rollout does #463 resume from main containing that prerequisite and implement link writing/resume activation in a separate landing. No stacked branch and no reused merged branch name. Its own M1/M2 boundaries become link/proof/reconciliation, then CLI/readers/delivery; exact-package execution is reused from the prerequisite.
+
+The crashed-resume refusal must print one executable recovery command. Existing queue reconcile is sufficient only if it actually reconciles the resume link/proof as well as process ownership; otherwise add a narrow resume-specific reconcile under the parent lock with exact link digest, operator note, proven stopped descendants and retained audit. Do not ship a generic “inspect” instruction or claim queue tombstone removal repairs a resume link. That command's precise shape will be finalized before phase-2 code, not guessed in phase 1.
