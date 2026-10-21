@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'fadcb69b89743263760eacf58f8bfa6152870122' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0d9f2a646880b6e98f3945e55748a64aeb6e7c6b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T01:53:24-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "5290755a", done: "a7c5224f"}
-actual_hours: 0.33
+actual_hours: 3.16
 ---
 
 # tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture
