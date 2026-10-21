@@ -1,6 +1,6 @@
 ---
 id: 000498
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.42
+tracker:
+    version: 1
+    completion:
+        token: close-8c0813e9c8d5
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 78cc0cbd3b00141880769731fb24bd164a1e8fbb
+        evidence_commit: f7466289770253c2230c55170edd77e89087bdf7
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
