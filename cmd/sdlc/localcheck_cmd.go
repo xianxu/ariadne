@@ -39,7 +39,7 @@ func NewLocalCheckCmd() *cobra.Command {
 		},
 	}
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
-	run.Flags().BoolVar(&f.All, "all", false, "run every declared check, in declaration order")
+	run.Flags().BoolVar(&f.All, "all", false, "run every head-scoped check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
 	var cancelName string
 	cancel := &cobra.Command{
@@ -145,13 +145,18 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if out, err := git("fetch", "--quiet", "origin"); err != nil {
 		return fmt.Errorf("local-check run: git fetch origin: %w\n%s", err, out)
 	}
-	decl, err := readLocalChecks(git, "origin/main")
+	main, err := git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return fmt.Errorf("pin local-check main: %w", err)
+	}
+	main = strings.TrimSpace(main)
+	decl, err := readLocalChecks(git, main)
 	if err != nil {
 		return err
 	}
 	// #332: the default suite is runnable by name, so `sdlc local-check run
 	// --name suite` is the close suite.
-	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
+	if decl, err = withDefaultSuiteContext(ctx, git, main, decl); err != nil {
 		return err
 	}
 	if len(decl.Checks) == 0 {
@@ -185,6 +190,9 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
 	}
 	sha := strings.TrimSpace(out)
+	if err := validateManualLandingTarget(checks, sha, main); err != nil {
+		return err
+	}
 	if tips, _ := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/"); strings.TrimSpace(tips) == "" {
 		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
 	}

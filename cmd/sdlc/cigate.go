@@ -120,7 +120,7 @@ func decideCIGate(in ciInputs) ciVerdict {
 		}
 		v.LocalNeeded = append(v.LocalNeeded, name)
 	}
-	for _, c := range in.Local.Checks {
+	for _, c := range headLocalChecks(in.Local).Checks {
 		if !c.Required || recorded[localStatusContext(c.Name)] {
 			continue
 		}
@@ -492,7 +492,7 @@ func unrecordedRequired(decl localCheckDecl, checks []prCheck, standIn map[strin
 		return false
 	}
 	var out []string
-	for _, c := range decl.Checks {
+	for _, c := range headLocalChecks(decl).Checks {
 		if !c.Required || onHead(c.Name) {
 			continue
 		}

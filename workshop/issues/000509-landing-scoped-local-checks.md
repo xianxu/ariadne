@@ -106,6 +106,12 @@ The fixture now sets WF_TEST_SCRATCH=t.TempDir(), supplies a private fallback, a
 
 Safe mutation: replacing only runnerArtifactProtected with false failed TestRunnerCollectorsRespectPrivateAuthority on deletion of its private scratch, then source restored in finally. No runtime-selected collector is reachable from that mutation test. Corrected-source broad runner/signal/scratch/attempt controls passed32.030s; narrow runner race controls passed4.359s; complete golint package passed0.674s. Git diff is clean after mutation restoration. M1 is ready for fresh boundary review; automatic enforcement remains pending M2.
 
+### 2026-10-21 00:20 PDT — M1 SHIP and M2 gate implementation checkpoint
+
+M1 round3 SHIP, zero new findings, all four previous blockers disposed; milestone evidence committed/pushed by sdlc. Began M2 with observed RED: suite jumped directly to landing, the conductor rejected the new RunLandingChecks effect, and pure CI demanded VM on car heads. Added typed current-prefix checking completion, shared owner-bound selection/evidence/attempt gate, head-only CI projection, main-only explicit manual burn-in, conductor and both single shells. Passing owner proof verifies retained log hash; docs reuse also refuses watched paths. Issue-only fast landing applies that same movement proof before bypassing integration. Selected checks require a real suite even with --no-ci; VM failures never enter suite diagnosis/bisection.
+
+Early production train+single controls passed14.095s, shared gate controls0.918s, reintegration/selection controls1.256s, and watched-main movement control2.212s. Added broader production cases (disabled/unrelated/failure/no-ci/trains-disabled/good-prefix), legacy shell and manual CLI controls; final verification pending. Two broader runs completed all test bodies successfully but were invalidated by the hermeticity guard because I edited staged source while they ran (127.476s and208.479s). Do not treat these as passing verification; source will remain frozen for corrected-source checks. The obsolete first private synthetic-waiter fixture was canceled via its exact owned Go/test processes after correcting test admission order; no live queue or peer process was involved. No VM or consumer activation.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries

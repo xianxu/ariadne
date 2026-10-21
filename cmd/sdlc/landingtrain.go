@@ -59,20 +59,23 @@ type conductor struct {
 	id     int64
 	self   int64 // the conductor's own ticket: its car is the first
 
-	departed time.Time
-	wt       string   // the train's detached worktree
-	base     string   // the main the train is built on
-	heads    []string // heads[k-1] is prefix k's commit
-	pushed   string   // what the train branch points at on the remote
-	pr       landingPR
-	opened   bool
-	local    localRunDeps
-	run      localCheckRunner
-	suite    localCheck
-	baseline *bool // main's baseline verdict, run once on the first failure
-	settled  map[int64]bool
-	selfEnd  landingline.OutcomeKind
-	selfWhy  string
+	departed   time.Time
+	wt         string   // the train's detached worktree
+	base       string   // the main the train is built on
+	heads      []string // heads[k-1] is prefix k's commit
+	pushed     string   // what the train branch points at on the remote
+	pr         landingPR
+	opened     bool
+	local      localRunDeps
+	run        localCheckRunner
+	suite      localCheck
+	landing    landingCheckOwner
+	carHeads   []string // admitted originals, aligned with kept prefixes
+	suiteReady map[int]bool
+	baseline   *bool // main's baseline verdict, run once on the first failure
+	settled    map[int64]bool
+	selfEnd    landingline.OutcomeKind
+	selfWhy    string
 }
 
 // trainGit runs git in the repository's checkout.
@@ -174,6 +177,18 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 		return nil, c.publish(e.Prefix)
 	case landingline.RunSuite:
 		return c.runSuite(e.Prefix)
+	case landingline.RunLandingChecks:
+		err := c.landing.run(c.ctx, c.git, c.base, c.heads[e.Prefix-1], c.carHeads[:e.Prefix], c.suiteReady[e.Prefix], c.run, func(ctx context.Context, check localCheck, head string) (localRunRecord, error) {
+			return runLocalCheck(ctx, c.local, check, head)
+		})
+		if c.ctx.Err() != nil {
+			return nil, c.ctx.Err()
+		}
+		done := landingline.LandingChecksDone{Prefix: e.Prefix, Passed: err == nil}
+		if err != nil {
+			done.Detail = err.Error()
+		}
+		return done, nil
 	case landingline.WaitCI:
 		return c.waitCI(e.Prefix), nil
 	case landingline.Merge:
@@ -236,6 +251,13 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 	}
 	c.local.Root = dir
 	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
+	if enabledLandingChecks(decl) {
+		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
+		if err != nil {
+			return nil, err
+		}
+	}
+	c.suiteReady = map[int]bool{}
 	if suite, ok := decl.check(suiteCheckName); ok {
 		c.suite, c.run = suite, newLocalCheckRunner(c.local)
 	} else {
@@ -281,6 +303,7 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		}
 		built.Kept = append(built.Kept, car.Seq)
 		c.heads = append(c.heads, head)
+		c.carHeads = append(c.carHeads, car.Head)
 	}
 	return built, nil
 }
@@ -360,6 +383,10 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	}
 	done := landingline.SuiteDone{Prefix: k, Outcome: landingline.SuitePass}
 	if rec.passed() {
+		if c.suiteReady == nil {
+			c.suiteReady = map[int]bool{}
+		}
+		c.suiteReady[k] = len(c.suite.Command) > 0
 		return done, nil
 	}
 	done.Outcome = landingline.SuiteFail
@@ -510,7 +537,27 @@ func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
 		return nil, err
 	}
 	c.heads[k-1], c.base = head, main
-	return landingline.Reintegrated{NeedSuite: publishGateHasCodeSurface(splitNUL(diff))}, nil
+	needSuite := publishGateHasCodeSurface(splitNUL(diff))
+	if needSuite {
+		c.suiteReady = map[int]bool{}
+	}
+	decl, err := readLocalChecks(c.git, main)
+	if err != nil {
+		return nil, err
+	}
+	if enabledLandingChecks(decl) {
+		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if suite, ok := decl.check(suiteCheckName); ok {
+		c.suite, c.run = suite, newLocalCheckRunner(c.local)
+	} else {
+		c.suite = localCheck{}
+		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
+	}
+	return landingline.Reintegrated{NeedSuite: needSuite}, nil
 }
 
 // settle tells one car what happened, and logs it. The conductor's own car

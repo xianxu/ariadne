@@ -610,9 +610,16 @@ Runner execution refuses if its attempt writer cannot be created. Retention has
 no automatic expiry while ownership is held or unreadable. After proving that
 all owned descendants stopped, reconcile the queue and remove the named scratch
 and log directories, then unlock/remove the retained worktree; preserve Git
-metadata until linked artifacts are reconciled. SDLC never unlocks VM positions. Automatic landing enforcement and
-main-only disabled-check burn-in restriction are pending M2 of #509; this
-milestone does not activate a consumer.
+metadata until linked artifacts are reconciled. SDLC never unlocks VM positions.
+Enabled (`required:true`) landing checks run after the successful final-prefix
+suite, once per landing owner, before train or single-car merge. Selection unions
+each included car's paths, so a later revert cannot hide an earlier trigger.
+Failures block without VM retries, suite bisection or main-baseline diagnosis.
+A bare saved/manual status does not replace the owner-bound gate. Only proven
+unwatched docs equivalence may reuse that owner's original exact-head evidence;
+a watched `.md` change still invalidates it. `--no-ci` still owes the suite and
+selected landing checks. Disabled entries run only by explicit name on pinned
+main for burn-in. This capability activates no consumer or hosted workflow.
 
 `sdlc local-check cancel` stops this checkout's own queued or running checks and
 never another slot's; never stop one by a PID picked from `ps`. When a finished
