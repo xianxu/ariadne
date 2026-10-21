@@ -64,6 +64,17 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+- 2026-10-21: round 3 SHIP disposed BR-1 with no new findings. Re-entered
+  merge; main integrated cleanly and server checks completed. Its required
+  integrated-head suite and diagnostic main both failed before tests in go
+  list because /Volumes/AgentScratch/go-build has no space left. df showed
+  AgentScratch 186Gi used/186Gi total, 101Mi available; TestScratch had 10Gi
+  free and the system volume 279Gi. This is shared cache capacity, not a test
+  flake. Merge exited and its runs ended; no waiver or shared-cache deletion.
+  Reported the concrete blocker to the hub. Resume through sdlc merge --yes
+  after cache capacity/configuration is repaired; the integrated generation
+  still needs its recorded pass despite the prior branch suite pass.
+
 
 - 2026-10-21: closed — BR-1 addressed: README now identifies Pair cmd/internal/testcouch, instructs make test-couch-fleet from the Pair repository, rejects live fleet/private fixtures, and links TL tooling atlas beside the existing TL command overview. Swept newly exposed command references in worker help and atlas; both match the landed Pair harness. Lesson recorded. Conflict union and concrete harness tests already verified by round 2 and the passing 1950-test/75-package suite; this round adds documentation only. Spec and Done when unchanged, diff clean. (fixed-then-ship; full suite: Recorded final code-head suite c7885cd4c826bd6e894ac7732283d51510c6418d: all 8 shards over 1950 SDLC tests and 75 other packages passed, zero failures, 13m2s; sdlc-local/suite log sha256:936c1100b1bd. Since that run only README, lessons, issue and review records changed.) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 - 2026-10-21: round 2 confirmed the row union, red/green section controls and
