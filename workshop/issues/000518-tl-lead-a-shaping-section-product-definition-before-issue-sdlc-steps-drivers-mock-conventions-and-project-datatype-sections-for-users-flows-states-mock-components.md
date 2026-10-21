@@ -1,13 +1,21 @@
 ---
 id: 000518
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b34f3128bbf396137c6c8f3aebf5e4db434b3f0d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'dbe91c1e842f3ce5e9a7668f6f1850c55e5d3a2c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T20:55:45-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: a SHAPING section (product definition before issue SDLC: steps, drivers, mock conventions) and project datatype sections for users, flows, states, mock, components
@@ -34,8 +42,14 @@ run by the TL in the team's operations repo at :0, with artifacts committed stra
 
 ## Plan
 
-- [ ]
+- [ ] Pin the six shaping steps, drivers/reviews, mock conventions and development-only gradient in rendered-help contract tests; verify red before editing help.
+- [ ] Add SHAPING and connect the execution playbook; add optional project body sections; synchronize README and atlas.
+- [ ] Run targeted help/package checks, inspect rendered help, and queue the recorded suite; close and land through SDLC.
 
 ## Log
 
 ### 2026-10-20
+
+- Dispatch authenticated as submitted from ops:0 (delivery 3e7eb79e-7308-49a7-ab4b-9c89946e1db1). Read the operator-settled ops product-shaping/design.md and the issue's six-step Spec. The dispatch authorizes quick-flow execution; no new product design is being proposed.
+- Quick plan posted to the hub, proceeding unless objected to. The canonical TL procedure stays in embedded help (ARCH-DRY); the prototype only describes optional project shape. Optional sections change no required fields, lifecycle or parser behavior (ARCH-EVOLVE). No runtime effects, durable state machine or external dependency is introduced; the server and cast-sketch remain pair-owned work.
+- Selected files: cmd/tl-lead/help.md and shaping_help_test.go, construct/datatype/project.md, README.md and atlas/workflow/tl-skills.md. Keep shipped help additions within the 100-line quick-flow shell. The existing slot worktree is isolated on the fresh issue branch prepared by start-plan, based on main after #485 landed.
