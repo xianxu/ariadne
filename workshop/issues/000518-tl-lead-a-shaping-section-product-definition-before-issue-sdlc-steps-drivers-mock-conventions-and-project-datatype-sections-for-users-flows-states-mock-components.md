@@ -1,13 +1,13 @@
 ---
 id: 000518
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'dbe91c1e842f3ce5e9a7668f6f1850c55e5d3a2c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0bef31ea08dc4d4be70ec080ce616bb3eda17ca8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T20:55:45-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: operator, spec: "b36308fd", done: "e981f94b"}
+actual_hours: 0.10
 ---
 
 # tl-lead: a SHAPING section (product definition before issue SDLC: steps, drivers, mock conventions) and project datatype sections for users, flows, states, mock, components
