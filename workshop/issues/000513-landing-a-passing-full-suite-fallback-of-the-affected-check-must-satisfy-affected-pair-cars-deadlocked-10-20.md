@@ -56,15 +56,15 @@ Claimed and started after #505 landed. Source confirms carCIGateFacts maps requi
 
 TL correction (Couch 7f902972-6ced-43f5-8f92-9b080625666b, previously authenticated) reports pair#732/#706 became ready when the same-head fallback passed. Code inspection agrees: the missing-affected text was shown while the suite was queued/running, not after its pass. Scope shrinks to truthful diagnostics and controls; retain existing gate and record semantics. No fallback-in-progress assertion without provenance; the message must be conditional. Original acceptance/design follows for the record:
 
-## Spec
-
-- When the affected check falls back to the full suite and that suite passes on the same head, record the affected
-  check as satisfied (with "fallback: full suite" in its evidence): the full suite is a superset of any affected set.
-- A failing fallback records affected as failed, as now.
-- `sdlc landing status` names the fallback when it applies.
-
-## Done when
-
-- Tests pin: fallback pass satisfies the affected requirement on that head; fallback fail does not; a suite on a
-  different head does not.
-- pair#732-style car (fresh checkout, fallback) becomes ready without manual recovery.
+> ## Spec
+>
+> - When the affected check falls back to the full suite and that suite passes on the same head, record the affected
+>   check as satisfied (with "fallback: full suite" in its evidence): the full suite is a superset of any affected set.
+> - A failing fallback records affected as failed, as now.
+> - `sdlc landing status` names the fallback when it applies.
+>
+> ## Done when
+>
+> - Tests pin: fallback pass satisfies the affected requirement on that head; fallback fail does not; a suite on a
+>   different head does not.
+> - pair#732-style car (fresh checkout, fallback) becomes ready without manual recovery.
