@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -16,16 +17,23 @@ import (
 // (who is live) and the resume verbs. Resuming a slot makes it live, so a
 // rerun sees it running, as the real Couch would show it.
 type fakeCouch struct {
-	live       map[string]bool
-	actorsErr  error
-	candidates map[string]ResumeCandidates
-	candErr    map[string]error
-	resumeErr  map[string]error
-	resumed    []string
-	candReads  int
+	attemptsMu       sync.Mutex
+	live             map[string]bool
+	actorsErr        error
+	candidates       map[string]ResumeCandidates
+	candErr          map[string]error
+	resumeErr        map[string]error
+	resumed          []string
+	candReads        int
+	attempted        []string
+	actorsReads      int
+	delays           map[string]time.Duration
+	failureAddsActor bool
+	failureActorsErr error
 }
 
 func (f *fakeCouch) Actors() (map[string]Actor, error) {
+	f.actorsReads++
 	if f.actorsErr != nil {
 		return nil, f.actorsErr
 	}
@@ -42,7 +50,15 @@ func (f *fakeCouch) Candidates(addr string) (ResumeCandidates, error) {
 }
 
 func (f *fakeCouch) Resume(addr string) error {
+	f.attemptsMu.Lock()
+	f.attempted = append(f.attempted, addr)
+	f.attemptsMu.Unlock()
+	time.Sleep(f.delays[addr])
 	if err := f.resumeErr[addr]; err != nil {
+		if f.failureAddsActor {
+			f.live[addr] = true
+		}
+		f.actorsErr = f.failureActorsErr
 		return err
 	}
 	if f.live[addr] {
@@ -51,6 +67,12 @@ func (f *fakeCouch) Resume(addr string) error {
 	f.live[addr] = true
 	f.resumed = append(f.resumed, addr)
 	return nil
+}
+
+func (f *fakeCouch) attempts() []string {
+	f.attemptsMu.Lock()
+	defer f.attemptsMu.Unlock()
+	return append([]string(nil), f.attempted...)
 }
 
 // fleetFixture: ops (this hub) claims pair and ariadne; ops-echo claims echo
@@ -103,7 +125,7 @@ func TestFleetResumeDryRun(t *testing.T) {
 		invisibleLayers,
 		"resume    pair:2", "resume    pair:6", "resume    pair:8",
 		"ambiguous pair:3  pair#703; no proven conversation",
-		"ambiguous brain:1  unclaimed",
+		"(1 unclaimed slot(s); --all to list)",
 		"ambiguous tools:1  claimed by ops and ops-echo", // a tie is never this hub's to resume
 		"unknown   pair:5  pair#705; candidates unreadable: couch busy",
 		"unknown   ariadne:1  claims unreadable: claims unknown", // a failed claims read is never idle
@@ -131,15 +153,15 @@ func TestFleetResumeDryRun(t *testing.T) {
 func TestFleetResumeApplyThenRerun(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	var out bytes.Buffer
-	if err := fleetResume(&out, d, cwd, true); err != nil {
-		t.Fatal(err)
+	if err := fleetResume(&out, d, cwd, true); err == nil {
+		t.Fatal("expected the batch to stop at pair:6")
 	}
 	got := out.String()
 	for _, want := range []string{
 		"resuming pair:2, pair:6, pair:8",
 		"resumed   pair:2",
-		"refused   pair:6: refused: wrapper is stale", // a refusal never stops the rest
-		"uncertain pair:8",
+		"refused   pair:6: refused: wrapper is stale",
+		"not attempted: pair:8",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("lacks %q:\n%s", want, got)
@@ -150,8 +172,8 @@ func TestFleetResumeApplyThenRerun(t *testing.T) {
 	}
 	// A rerun re-reads liveness: pair:2 is running now and never resumed twice.
 	out.Reset()
-	if err := fleetResume(&out, d, cwd, true); err != nil {
-		t.Fatal(err)
+	if err := fleetResume(&out, d, cwd, true); err == nil {
+		t.Fatal("expected the batch to stop at pair:6")
 	}
 	if !strings.Contains(out.String(), "running   pair:2") || strings.Join(c.resumed, ",") != "pair:2" {
 		t.Fatalf("rerun resumed again: %v\n%s", c.resumed, out.String())
@@ -167,7 +189,7 @@ func TestFleetResumeActorsUnreadable(t *testing.T) {
 	if err := fleetResume(&out, d, cwd, true); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(out.String(), "resume    ") || len(c.resumed) != 0 || !strings.Contains(out.String(), "unknown   pair:2  couch --actors unreadable") {
+	if strings.Contains(out.String(), "resume    ") || len(c.resumed) != 0 || !strings.Contains(out.String(), "unknown   pair:2") || strings.Count(out.String(), "socket denied") != 1 {
 		t.Fatalf("resumed on an unknown read:\n%s", out.String())
 	}
 }
@@ -277,7 +299,7 @@ func TestExecResumeBoundsAndCauses(t *testing.T) {
 		t.Errorf("missing couch: %v", err)
 	}
 	refuse := filepath.Join(t.TempDir(), "couch")
-	if err := os.WriteFile(refuse, []byte("#!/bin/sh\necho 'slot busy' >&2\nexit 3\n"), 0o755); err != nil {
+	if err := os.WriteFile(refuse, []byte("#!/bin/sh\necho '{\"ID\":\"refusal\",\"Op\":\"resume\",\"Target\":\"pair:3\",\"Status\":\"refused\"}'\necho 'slot busy' >&2\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := (execResume{bin: refuse}).Resume("pair:3"); err == nil || !strings.Contains(err.Error(), "refused") || !strings.Contains(err.Error(), "slot busy") {
