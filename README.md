@@ -629,8 +629,12 @@ a watched `.md` change still invalidates it. `--no-ci` still owes the suite and
 selected landing checks. Disabled entries run only by explicit name on pinned
 main for burn-in. This capability activates no consumer or hosted workflow.
 
-`sdlc local-check cancel` stops this checkout's own queued or running checks and
-never another slot's; never stop one by a PID picked from `ps`. When a finished
+`sdlc local-check cancel --run ID` stops exactly one owned queued or running
+check, using the lease ID printed when it starts. `--name N` cancels every owned
+run of that check; omitting both cancels every owned check. These selectors never
+cross checkouts. A same-check run on a different head prints an exact cancel
+command for the existing run; both keep their FIFO places until explicitly
+cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
