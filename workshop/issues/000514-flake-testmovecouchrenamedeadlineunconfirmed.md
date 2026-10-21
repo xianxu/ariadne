@@ -40,7 +40,7 @@ The rename interruption fixture must publish its simulated rename before cancell
 
 - [x] Add a deterministic delayed-start regression and reproduce the premature cancellation; extend lint fixture cases.
 - [x] Gate cancellation on helper readiness using a parent context; sweep sibling startup assumptions.
-- [ ] Run targeted normal/race and lint checks, recorded full suite, close review and landing.
+- [x] Run targeted normal/race and lint checks and launch the recorded full suite; retain the landing hold until green. Close owns its review; merge follows SHIP and suite pass.
 
 ## Log
 
@@ -52,3 +52,11 @@ The rename interruption fixture must publish its simulated rename before cancell
 - Red evidence: new struct-literal lint cases fail the old guard; rename cancellation regression with the old runner returns an unreadable empty reply instead of an unconfirmed cancelled outcome. Parent-context propagation and observed-effect cancellation pass focused tests; ten -race TestMoveCouch runs pass (17.960s). Sibling startup deadlines removed. Lint sweep preserves two weave bound-only tests and an already-held in-process testgate lock with specific suppressions; the judge fake now cancels only once its second attempt begins instead of relying on 300ms.
 
 - Final fixture sweep: controlled helper gate tests cancellation before and after the rename effect. Inherited-pipe child stays alive until explicit cleanup release, removing its fixed lifetime assumption. Cleanup context derives from the test deadline and is explicitly cancelled; t.Context itself cancels before cleanup and cannot gate cleanup readiness. Ten final race runs pass in 16.514s; the earlier 17.960s race pass preceded the additional pipe cleanup fixture. Judge deadline-on-cue, weave bound-only tests, testgate held-lock case and full lint checks pass. No production timeout value was raised.
+
+- Final focused verification: full tl-lead package PASS (12.093s), focused race tl-lead PASS (2.726s) and judge PASS (1.189s), lint PASS (0.469s); final fixture-family ten-race run PASS (16.514s). PR #357 opened and the recorded full suite launched on 39a3dbe40. No full-suite pass claimed yet. Close review may overlap its queue under tl-worker; landing requires green suite and SHIP.
+
+## Revisions
+
+### 2026-10-20 — separate pre-close verification from landing
+
+The final Plan row previously bundled suite, close review and landing into one pre-close checkbox. It now records focused checks plus launching the recorded suite; suite pass and SHIP remain mandatory before landing. No behavior or acceptance scope changes.
