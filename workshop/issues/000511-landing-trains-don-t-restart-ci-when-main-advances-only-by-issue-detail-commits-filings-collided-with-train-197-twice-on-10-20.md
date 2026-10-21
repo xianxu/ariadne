@@ -1,24 +1,42 @@
 ---
 id: 000511
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '9d9c2e525e0a83ff07bfe9203151fedcb7e140c2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a02f52432fa1f7ccf5a24f88f838a036a1379427' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T03:30:03-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "96c486c8", done: "bc4ffd7d"}
+actual_hours: 0.44
 ---
 
 # landing trains: don't restart CI when main advances only by issue-detail commits (filings collided with train 197 twice on 10-20)
 
 ## Problem
 
+Issue filings/publishes advanced main twice under train 197 on 10-20. Trains already retain suite results across docs-only reintegration, but publish a new train head and restart CI for each move.
+
+
 `sdlc issue new` and `sdlc issue publish` commit issue details straight to main. On 10-20, two such commits (pair#745
 and #746 filings) landed while pair train 197 waited on CI; each time the conductor re-integrated main and restarted
 CI, delaying a train that had already passed its full suite. Filing and landing collide.
 
 ## Spec
+
+Keep the exact train head whose suite, selected landing checks and CI passed when main advances only through issue-record Markdown. Reuse the single-car fast-path proof: per-commit movement classification (including merge parents and rename sources), same-PR/head/base CLEAN readiness, and landingCheckOwner.allowsMainMove. Recheck the train's instance/duplicate gates against the final fetched destination under the merge transaction, then send the existing expected-head merge. The server includes current main; never copy CI statuses to another commit.
+
+Admit workshop/issue-cards/ Markdown alongside existing issue/plan/history Markdown. workshop/issue-tracker.json remains configuration and cannot qualify. A separate issue-tracker ref advance alone does not move main. Missing/stale readiness, malformed or unavailable movement, code/configuration, watched paths or invalid landing proof retain normal reintegration. Identity mismatch refuses, as on the single-car path. No train state/schema, retry budget or persisted artifact is added.
+
 
 Options (choose in the plan):
 1. **Trains ignore detail-only commits:** when main advances only by commits that touch `workshop/issues/` (tracker
@@ -31,13 +49,55 @@ issues/ paths").
 
 ## Done when
 
+- A real two-car train keeps its tested/published head, suite and CI evidence across issue-detail and card Markdown main advances; final main retains both new records and both cars.
+- Configuration/code, watched landing paths, stale/unavailable/non-CLEAN readiness and code-add/revert cannot take the fast path; late duplicate IDs refuse before merge.
+- Existing suite reuse and normal reintegration behavior remain covered; targeted controls, recorded full suite and boundary review pass before landing.
+
+
 - A train whose main advanced only by issue-detail commits lands without restarting CI or the suite; any other
   commit still forces re-integration. Tests pin both.
 
 ## Plan
 
+- [x] Add failing real-Git/stateful-GitHub train regressions at the CI/readiness boundary, asserting unchanged head and one publication/CI cycle/suite; cover refused or fallback observations and late collisions.
+- [x] Reuse strict movement/readiness/landing proof in the train merge transaction; include card Markdown in the shared record classifier, and preserve normal reintegration on unavailable proof.
+- [x] Verify targeted train, classifier and landing-check controls; update README/atlas and record isolated proof.
+
+Actions: continue the current train; retry a refused landing with the named correction.
+
+| Internal observation | Visible state | Recovery action | Possible loss |
+| --- | --- | --- | --- |
+| Exact checked head + record-only main + fresh CLEAN + valid landing proof | Train lands unchanged; new main records remain | Continue train | None |
+| Missing/stale/non-CLEAN readiness, failed proof, code/config/watched movement | Existing reintegration and required checks | Continue train | New CI wait; suite rerun only under existing rules |
+| Changed PR identity or duplicate ID | Refusal before merge | Retry after correcting identity/collision | None; cars retain branches |
+| Merge acknowledgement uncertain | Existing probe/recovery path | Continue existing recovery | Outcome remains unconfirmed until observed |
+
+
 - [ ]
 
 ## Log
 
+### 2026-10-21
+- 2026-10-21: closed — Broader real-Git/stateful-GitHub train, main-movement and landing-check controls passed (306.095s), proof p511-targeted.txt outside checkout; exact train head/CI/publication/suite retained for details/cards/both. Config/code/watched issue, unknown/stale/unavailable/identity, add-revert and readiness races preserved fallback; late duplicate refused before merge. Go catalog passed (0.901s); clean binary built at 71d9a6ae50fe907a400ad899372ed073f02613be. Recorded full suite queued on PR367; final-head pass and hub live-proof acceptance required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+
+- Claimed on dispatch and started from fresh main after #510. Investigation: conductor.reintegrate already retains a docs-only suite, but the reducer republishes a new head and waits for fresh CI. The regression must assert head/publication/CI identity, not only suite count.
+- ARCH-DRY: reuse mainMovementIssueOnly, readinessAllowsUnintegrated and landingCheckOwner.allowsMainMove; generic workshop docs classification alone is too broad (it permits tracker JSON). Alternative status copying would sever exact-head CI authority; broader docs exemptions would exceed the request. Keep the checked head instead.
+- ARCH-ORDER/SECURE: observe readiness outside the transaction, compare its exact base with the final fetched main under the existing lock, and retain expected-head merge/probe. The lock does not freeze external publishers, so stale observations fall back; the server's CLEAN state and merge enforce current compatibility. No assertion of absence depends on a process scan.
+- ARCH-PURE/MOCK: reuse pure path/readiness decisions with real Git histories and the existing stateful GitHub fake. Growth is one movement-history scan O(P) in changed path entries plus existing policy/car reads per observed main move; no per-record subprocess. Existing N=8/16 counted movement regression pins one history call. No durable record/format or background lifetime is added (ARCH-FUNERAL/EVOLVE). Existing bounded train retry/capacity remains (ARCH-CONSTRAINTS).
+- Hub approved the shape and clarified card Markdown only, excluding workshop/issue-tracker.json (authenticated delivery 84b54387-9799-412f-a02e-133b1cbdfb2f). Expected implementation fits quick shell; if it exceeds 100 added executable/help lines, stop and plan full flow. Read-only delegated exploration confirmed the same reuse boundaries; no peer edits/tests.
+
 ### 2026-10-20
+
+- RED: real two-car cases for details, cards and both each showed two train pushes and two exact CI heads; the card classifier rejected Markdown (15.558s package run). After minimal shared-helper reuse, those cases plus code/configuration/unknown/stale/unavailable/identity controls passed in a 48.660s run. The late-duplicate fixture exposed invalid synthetic car sections before boarding, so it is being repaired to reach the intended post-CI boundary; no production bypass is added.
+
+- The conductor retains the existing car-vouch publication contract. It reuses its own instance/duplicate prefix gates against the latest destination rather than calling the single-car publication gate on a synthetic train PR: that gate requires the current checkout to equal its selected car head. No new train publication bypass or status-writing path is introduced.
+
+- Final broader targeted run passed (306.095s): new two-car exact-head/CI retention, code/configuration/unknown/stale/unavailable/identity, watched issue check rerun, code add/revert, late-main/late-code snapshots, late duplicate refusal, tracker JSON exclusion, existing train split/probe/orphan/environment, single-car and main-movement controls. Output: /Users/xianxu/workspace/worktree/ariadne-slot2/p511-targeted.txt. The standalone late-duplicate rerun passed (4.134s) after correcting fixture Plan/Done-when bullets; the earlier 152.381s run is retained as failed fixture evidence, not a passing result. Tracked-file Go catalog passed (0.901s); diff check clean. Production diff adds 41 lines, within quick shell.
+- Runtime work per main observation remains one movement-history query and O(P) path classification, plus existing prefix instance/ID validation and policy/car reads (growth in changed prefix instances, repository issue IDs, selected checks and admitted cars). No subprocess is launched per issue record; N=8/16 counted history controls passed. The added conjunction is a fixed number of existing proofs, not a rescan per path.
+
+- Own clean bin/sdlc built successfully with vcs.revision=71d9a6ae50fe907a400ad899372ed073f02613be, vcs.modified=false. Hub accepted the isolated production-path proof and explicitly declined staging (:0 is the hub tool slot), authenticated delivery b8363bc3-d2bd-43d3-b9ef-0455671b04bf. Hub will observe the next natural Pair train while issue filings advance main.
+- Close returned SHIP/high, no findings. Reviewer independently passed new train/history controls (72.467s) and existing single-car/readiness/watched-doc/docs-reintegration controls (11.164s). Recorded full suite remains queued; no passing full-suite result is claimed. Entering the landing runner, whose exact-head evidence gate must pass before merge.
+
+## Revisions
+
+- 2026-10-21: kept implementation acceptance checkboxes separate from the recorded suite/close/landing workflow gates, so close is not its own unchecked prerequisite. The full suite and review remain mandatory before landing.

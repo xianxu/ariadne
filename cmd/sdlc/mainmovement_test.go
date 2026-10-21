@@ -14,7 +14,8 @@ func TestIssueRecordPaths(t *testing.T) {
 		path string
 		want bool
 	}{
-		{"workshop/issues/000001-a.md", true}, {"workshop/plans/000001-a-plan.md", true},
+		{"workshop/issues/000001-a.md", true}, {"workshop/issue-cards/000001-a.md", true},
+		{"workshop/issue-cards/a.json", false}, {"workshop/issue-tracker.json", false}, {"workshop/plans/000001-a-plan.md", true},
 		{"workshop/history/issues/000001-a.md", true}, {"workshop/history/000001-a.md", true},
 		{"workshop/issues/000001-a.side/note with\nnewline.md", true},
 		{"ops/team.md", false}, {"workshop/projects/a.md", false}, {"workshop/lessons.md", false},
