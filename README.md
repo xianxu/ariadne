@@ -609,6 +609,15 @@ private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
 `WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
 [queue backend and rollout](atlas/workflow/sdlc-binary.md#machine-wide-queue-drain-481).
 
+For a retained unknown operation, the operator/:0 may run
+`sdlc queue reconcile --id ID --digest SHA256 --note TEXT` after verifying that
+no descendants remain. The digest names the exact raw `unresolved/ID.json`
+bytes. A live/unknown original owner or lease, changed bytes or unreadable
+evidence refuses. The command appends original bytes (base64), digest, actor,
+note and time to permanent `reconcile.jsonl` and fsyncs it before removing only
+that tombstone. If interrupted after the audit append, rerun the same ID/digest
+to finish without another audit entry. It never resumes holds or restarts work.
+
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.

@@ -2044,6 +2044,20 @@ for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
 the checkpoint discipline.
 
+**Reconcile one unresolved operation (#501).** The operator/:0 runs
+`sdlc queue reconcile --id ID --digest SHA256 --note TEXT` only after verifying
+that the operation has no descendants. `queue_reconcile.go` uses the existing
+kernel incarnation probe; `internal/queuegate/reconcile.go` checks exact raw
+bytes and operation/lease exclusion under `control.lock`. It appends one
+base64-original/digest/actor/note/time record to permanent `reconcile.jsonl`,
+fsyncs it, then unlinks only that unknown tombstone. A crash before unlink
+leaves a logged attempt; retry by ID/digest finishes without rewriting or
+adding audit evidence. Missing/corrupt/changed evidence refuses, and a dead
+owner alone never proves descendant absence. Pause owners and interruption
+evidence stay intact. There is no log retention/expiry; streaming audit reads
+belong only to this rare manual repair and never to admission. Use private
+`WF_SDLC_QUEUE_ROOT` fixtures for conformance, never fabricated live residue.
+
 `queue_runtime.go` enrolls each merge before waiting; `Line.tryAdmit` wraps the
 actual line transaction with its global gate. Ordinary-worktree merges and
 already-merged/train cleanup use the same lifetime through their bypass
