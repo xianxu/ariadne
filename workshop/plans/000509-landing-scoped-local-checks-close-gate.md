@@ -390,6 +390,125 @@ rounds:
       isolation: fenced
       reviewed: ab2d11d407ed60c61f3da6151e089eac6769e74e
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: bc4018b8-9d7b-4aba-8662-bca4e0b3ace1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000509"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/c7887a4890892179
+            reviewed_head: d0e43f42fa53f1bf7d94137baf3ba18988103526
+            slot: ariadne:3
+            requested_at: "2026-10-21T07:33:59.650878Z"
+          phase: finished
+          pid: 45293
+          started_at: "2026-10-21T07:33:59.792457Z"
+          finished_at: "2026-10-21T07:36:46.261966Z"
+          session_id: 01a15d61-9ad2-7211-a09a-a65de485dbd0
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d0e43f42fa53f1bf7d94137baf3ba18988103526
+        tracker_head: c8ae6b532f3d53efd95e60d9f31c311d7b22603a
+        branch_point: 6573f0810474e4de9a82fc0a4b7a4c7670c78996
+        since: "2026-10-20T22:27:36-07:00"
+        until: "2026-10-21T00:33:36-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T22:27:36-07:00"
+              end: "2026-10-21T00:33:36-07:00"
+              began: "2026-10-20T22:27:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 8775b2584c489db83af3499a18a25ae6212194ac39df35dc3c8ab319dfaacf00
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 103147625
+              windows:
+                - start: "2026-10-20T22:27:36-07:00"
+                  end: "2026-10-21T00:33:36-07:00"
+            - harness: codex
+              id: 01a15d03-86e1-7a71-a2ce-ef4bafdda938
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: d25ada22ff39f9340ef29f894ce65f4ab1fd8f7c0e1eed657d80eb8f1b0a07c8
+              started: "2026-10-21T05:51:15.011Z"
+              spawned: false
+              bytes: 633746
+              windows:
+                - start: "2026-10-21T05:51:15.011Z"
+                  end: "2026-10-21T00:33:36-07:00"
+            - harness: codex
+              id: 01a15d05-4be6-7122-9be6-0cc770381dfe
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 706f06321cf7f4cc2cc648d7f65df581da4cb247366968984dee192fc420a6e2
+              started: "2026-10-21T05:53:10.993Z"
+              spawned: false
+              bytes: 543474
+              windows:
+                - start: "2026-10-21T05:53:10.993Z"
+                  end: "2026-10-21T00:33:36-07:00"
+            - harness: codex
+              id: 01a15d06-5a0b-7be3-a48a-c58866001c81
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fc671f1f1dbf5643b1b8b18d712eb3b2b0770526c88216a8b8abd0e849ae5d8c
+              started: "2026-10-21T05:54:20.122Z"
+              spawned: false
+              bytes: 451768
+              windows:
+                - start: "2026-10-21T05:54:20.122Z"
+                  end: "2026-10-21T00:33:36-07:00"
+            - harness: codex
+              id: 01a15d06-d164-7dd0-9b43-b0e9ee056cd1
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 98c45492655fb9461c4189c7583be5d48e47334ad2f33b2480a4f47a2d9be9f5
+              started: "2026-10-21T05:54:50.689Z"
+              spawned: false
+              bytes: 460459
+              windows:
+                - start: "2026-10-21T05:54:50.689Z"
+                  end: "2026-10-21T00:33:36-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T23:05:58-07:00"
+              finalized: "2026-10-20T23:09:30-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T23:16:51-07:00"
+              finalized: "2026-10-20T23:20:17-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-21T00:03:53-07:00"
+              finalized: "2026-10-21T00:07:55-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-21T00:36:46-07:00"
+      dispatched: "2026-10-21T00:33:59-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: d0e43f42fa53f1bf7d94137baf3ba18988103526
+      blocked: false
 ---
 
 # Gate ledger — ariadne#509 (boundary-review)
@@ -429,6 +548,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — finishRunnerGroup separately confirms completion after signalling; nil-signal/live-group, retained-recovery and process cleanup controls passed.
 - BR-3 — addressed — README.md:598 documents version2 fields, explicit naming, --all exclusion and runner resources, while identifying pending M2 restrictions; selectLocalChecks and runner execution support the documented M1 behavior.
 - BR-4 — addressed — Immediate cleanup requires confirmed completion; checkout, scratch, inflight logs and temporary attempts share Git-lock protection, while queue activity remains unknown. Removing the scratch retirement guard failed TestRunnerArtifactsRetainScratchAndLogUntilReconciled; disabling collector protection failed TestRunnerCollectorsRespectPrivateAuthority. Restored-source race controls passed.
+
+## Round 4 — 2026-10-21T00:36:46-07:00 (codex) — passed
 
 ## Open findings
 
