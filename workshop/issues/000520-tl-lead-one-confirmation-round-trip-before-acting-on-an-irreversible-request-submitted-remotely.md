@@ -49,6 +49,7 @@ team) gets **one confirmation round-trip** to the operator (on the phone) before
 ### 2026-10-20
 
 ### 2026-10-21 — Planning, no implementation
+- 2026-10-21: abandoned (wontfix): Operator decided to drop this work: 'let’s just not do this' (relayed by TL ops:0 on 2026-10-21).
 
 Claimed and started from fresh main after #509 landed; no retained runner remains. Read remote-session's tracked design/project in ops without editing the TL-owned project. The current issue Spec already includes outside-normal-flow requests, not just irreversible ones. Proposed a single embedded-help rule plus scoped phrase guards, using the existing session-file answer conversation; no new executor, RPC, approval store or receipt parser. Alternatives and visible states are in the linked plan. ARCH-DRY keeps one authority in help; ARCH-SECURE trusts broker provenance, not typed tags; ARCH-ORDER keeps the challenge before any irreversible effect.
 
