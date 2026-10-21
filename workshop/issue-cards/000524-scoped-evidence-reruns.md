@@ -1,6 +1,6 @@
 ---
 id: 000524
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.82
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 30b4964360436b238aadaed6ce5a7f261622952e
         evidence_commit: aa9e33e0c1b9afefc480805d2524c30dd929a598
+        landed_commit: 0c1fecc1b93d8f07bfcd138bf88a9bfd69b716fe
 ---
 
 # Scoped future evidence and exact-package flake reruns
