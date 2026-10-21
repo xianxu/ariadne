@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "2f75c9c9", done: "fe0d87c7"}
 ---
 
 # tl-lead: designs of fleet-wide, failure-sensitive workflows (drain, recovery, lifecycle, queue, scheduling) go to the operator for review before code
