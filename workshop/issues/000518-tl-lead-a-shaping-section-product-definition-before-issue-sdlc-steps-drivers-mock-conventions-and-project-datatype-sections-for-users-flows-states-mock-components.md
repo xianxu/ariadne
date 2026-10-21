@@ -50,6 +50,7 @@ run by the TL in the team's operations repo at :0, with artifacts committed stra
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Complete tl-lead package passes (21.024s); staged-file Go lint catalog passes (0.845s); diff check clean. New rendered-help tests first failed on missing SHAPING and pass at --help and no-args entry points; mutations swapping the Flows driver and permitting mock-backed production screens both fail. Compiled bin/tl-lead help inspected. Scratch project with Users, Flows, States, Mock and Components passes sdlc project validate. README/atlas updated. Recorded suite queued on pushed implementation head; required final-head pass remains before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Dispatch authenticated as submitted from ops:0 (delivery 3e7eb79e-7308-49a7-ab4b-9c89946e1db1). Read the operator-settled ops product-shaping/design.md and the issue's six-step Spec. The dispatch authorizes quick-flow execution; no new product design is being proposed.
 - Quick plan posted to the hub, proceeding unless objected to. The canonical TL procedure stays in embedded help (ARCH-DRY); the prototype only describes optional project shape. Optional sections change no required fields, lifecycle or parser behavior (ARCH-EVOLVE). No runtime effects, durable state machine or external dependency is introduced; the server and cast-sketch remain pair-owned work.
