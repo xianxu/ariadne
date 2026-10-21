@@ -1,6 +1,6 @@
 ---
 id: 000502
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.38
+tracker:
+    version: 1
+    completion:
+        token: close-8ecb192cf900
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 082414664f1091e790a874ffdac3d2f39dd84e6c
+        evidence_commit: 0e98ebb2460b0042eb03aab142425080ff7bdaed
 ---
 
 # Reopened issue can silently remove a waiting car publish obligation
