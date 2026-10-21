@@ -69,8 +69,12 @@ The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow d
 
 2026-10-21: TL approved the full design and explicit stop policy (Couch 538eeecd-6365-4b44-8729-b5a2d048e632, submitted). Unresolved cars receive non-blaming unattributed refusal with exact retry, only verified prefix lands, fresh registry/dependency-aware impact and explicit reducer phase; train234 registered broadcast/scribe-only sequence is mandatory. Entering full-flow change-code; no implementation yet.
 
+2026-10-21: Plan-quality round1 raised PQ-1 (named-function test strategies rather than prose case inventory) and PQ-2 (whole-assessment IO deadline). Revised the plan across both classes: ClassifySplit/Transition/splitImpact/readSplitEvidence/conductor.assessSplit strategies, and one 2-minute outer assessment context with 5-second bounded cleanup, unverified expiry and stalled-dependency proof. This refines the approved bounded effect without changing stop/landing authority. Re-running plan-quality before code.
+
 ## Revisions
 
 2026-10-21: Refined the original behavior into a proposed attribution boundary and explicit safe stop policy. Registration/untouchedness prevent blame but do not waive passing evidence. The plan proposes final unattributed refusal for unresolved cars rather than immediate automatic retrain; TL approval is required before implementation.
 
 2026-10-21: Recorded TL approval of the proposed stop policy; no design delta.
+
+2026-10-21: Plan-quality refinements name testable functions and enforce the previously promised bounded attribution IO; no change to the approved refusal or verified-prefix-only policy.
