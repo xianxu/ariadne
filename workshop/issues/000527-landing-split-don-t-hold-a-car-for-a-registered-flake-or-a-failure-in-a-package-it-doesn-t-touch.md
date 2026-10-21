@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # landing split: don't hold a car for a registered flake or a failure in a package it doesn't touch

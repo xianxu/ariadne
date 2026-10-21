@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: c7c652dc-ea9e-4948-bc70-320617dcad0f
+        repository: github.com/xianxu/ariadne
+        issue_id: "000527"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: f7bcace6dfe2f83ba65dd08acdb1bf71f291c703
+        slot: ariadne:2
+        requested_at: "2026-10-21T15:54:44.981333Z"
+      phase: finished
+      pid: 68604
+      started_at: "2026-10-21T15:54:45.161883Z"
+      finished_at: "2026-10-21T15:55:18.925152Z"
+      session_id: 01a15f2c-0ffd-7563-a127-47bdc3d57c47
+      outcome: returned
 gate: plan-quality
 issue: 527
 id_prefix: PQ
@@ -75,7 +95,41 @@ rounds:
           note: The assessment owns a two-minute overall deadline, five-second cleanup bound, unverified expiry, and stalled-dependency verification.
           round: 2
       blocked: false
-content_hash: 8eabef3abacef799cfdcd895ed3ae42f62d0c74b86cc240c980b9cd42fd03d35
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 50309619-c105-48c8-8c03-d3f5d03b54ab
+            repository: github.com/xianxu/ariadne
+            issue_id: "000527"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: f7bcace6dfe2f83ba65dd08acdb1bf71f291c703
+            slot: ariadne:2
+            requested_at: "2026-10-21T15:54:00.455996Z"
+          phase: finished
+          pid: 54684
+          started_at: "2026-10-21T15:54:00.556348Z"
+          finished_at: "2026-10-21T15:54:42.718242Z"
+          session_id: 01a15f2b-60ed-7373-aebc-33c90efb1538
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-21T08:54:43-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named risky functions now have adversarial-input strategies and mechanical guards.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: The assessment has an explicit outer deadline, bounded cleanup, and stalled-dependency verification.
+          round: 3
+      blocked: false
+content_hash: d86381131b7e590f355c391f33b1cd8513c4d43255314a138e6c6b744256f09f
 ---
 
 # Gate ledger — ariadne#527 (plan-quality)
@@ -98,6 +152,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Named-function adversarial strategies replace the inventory, retaining production regressions and verification commands.
 - PQ-2 — addressed — The assessment owns a two-minute overall deadline, five-second cleanup bound, unverified expiry, and stalled-dependency verification.
+
+## Round 3 — 2026-10-21T08:54:43-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named risky functions now have adversarial-input strategies and mechanical guards.
+- PQ-2 — addressed — The assessment has an explicit outer deadline, bounded cleanup, and stalled-dependency verification.
 
 ## Open findings
 
