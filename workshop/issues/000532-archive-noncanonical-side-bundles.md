@@ -1,13 +1,13 @@
 ---
 id: 000532
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'eec450bea3f5a87732c8265a62097a127b4868bd' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '86007046f4e98555b1bde5d5ed8239a068290e3c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T16:36:06-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "8de6ade2", done: "234df8ba"}
+actual_hours: 0.25
 ---
 
 # Archive preflight misses noncanonical side bundles
