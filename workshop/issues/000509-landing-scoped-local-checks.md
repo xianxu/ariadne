@@ -79,6 +79,10 @@ M1 additional evidence: fuzz round-trip passed32,233 executions/3s after the emp
 
 BR-1: observed tracked-blank regression for both declaration and path blobs, then rejected present blank policy while preserving true absence. BR-2: nil force signal with still-live group refuses; separately bounded join must confirm completion. Unknown cleanup leaves the existing queue record, raw log and Git-locked checkout; lock spans runner lifetime, and every stale candidate's own metadata is checked across repositories. The cross-repo stale-sweep control reproduced deletion before its fix. BR-3: README now documents delivered M1 fields/selection/resource behavior, explicitly leaving automatic gates pending M2. Added the prevention rule to lessons and appended plan Revisions. Targeted correction controls passed8.900s, broad controls32.410s and narrow race2.100s before strengthening the cross-repository sweep test; rechecking that final change. Pair:3's authenticated c35246b6-e0e0-41a6-b9be-37b05a1d1494 requests landed/schema notification; activation stays held, report owed on landing.
 
+### 2026-10-20 23:21 PDT — Stopped for cleanup re-plan
+
+M1 review round2 disposed BR-1/2/3 but raised Critical BR-4: unconditional scratch cleanup and later owner-PID/age collectors can delete inputs still used by unknown descendants. This is the third cleanup design delta; stopped before source changes. The durable plan now enumerates checkout, scratch, raw log and leases under one lifetime rule, recommending references to the existing Git worktree lock and one shared protection predicate, including log collectors. Runner launch without an attempt writer would refuse, preserving suite legacy fallback. Simplest instance fix and bundle/supervisor alternatives are explained. Approval requested from hub; M1 remains open and M2 is not started. No background work remains.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries
