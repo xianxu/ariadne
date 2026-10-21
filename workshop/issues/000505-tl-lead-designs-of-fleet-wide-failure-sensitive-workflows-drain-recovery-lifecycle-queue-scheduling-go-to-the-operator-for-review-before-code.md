@@ -1,13 +1,21 @@
 ---
 id: 000505
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '484d72be83ed0880b5afd8d8187f620e41747b7c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a33ae2634183930e0f548914a3f00863d25bf225' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T17:05:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: designs of fleet-wide, failure-sensitive workflows (drain, recovery, lifecycle, queue, scheduling) go to the operator for review before code
@@ -41,8 +49,11 @@ Add a rule to `tl-lead --help` (the TL's design-approval section):
 
 ## Plan
 
-- [ ]
+- [ ] Pin the operator-review rule and remove the contradictory taste/smoke-only summary.
+- [ ] Verify rendered help, update the atlas map, and prepare recorded-suite/close requests; require passing results before landing.
 
 ## Log
 
 ### 2026-10-20
+
+Claimed and started in ariadne:5 after #503 landed. Implementing the operator-reviewed Spec from dispatch. ARCH-DRY: keep the rule in the lead’s embedded help, beside existing design approval; tests inspect the rendered help and the atlas points there. Quick plan posted to hub, proceeding unless objected. No runtime state, formats, or new workflow mechanism.
