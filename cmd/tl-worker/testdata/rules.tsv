@@ -67,3 +67,6 @@ drain-idle	own	end the turn and stay idle
 drain-no-report	own	Do not send a separate drained report
 drain-suites	own	full suites through `sdlc local-check run --name suite`
 drain-targeted	own	targeted tests through `go test -run`
+verify-every-agent	own	every agent kind in its tests and in any live check
+live-bug-replay	own	replayed in the normal suite
+live-disposable-couch	own	shared disposable-Couch harness (pair#744)

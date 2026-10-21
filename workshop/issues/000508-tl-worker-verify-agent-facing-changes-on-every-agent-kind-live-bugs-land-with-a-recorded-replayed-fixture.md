@@ -58,8 +58,8 @@ formats, growing artifact family or hot-path work; static help dies with its
 command invocation. No state table or new process fixture is needed for a
 rule-only change. The future bug fixes own their recorded captures.
 
-- [ ] Red rendered-section regression and worker rule-table rows.
-- [ ] Three rules in worker help; atlas map and focused verification.
+- [x] Red rendered-section regression and worker rule-table rows.
+- [x] Three rules in worker help; atlas map and focused verification.
 
 ## Log
 
@@ -69,3 +69,18 @@ rule-only change. The future bug fixes own their recorded captures.
   design. Current TESTS and LIVE CHECKS do not state the three conformance
   requirements. Small plan posted to hub, proceeding unless objected. No change
   to the agent inventory, Couch harness implementation or live fleet.
+
+- 2026-10-21: red first on all missing rule-table rows and TESTS clauses at
+  both entry points (0.177s). After help update, all tl-worker tests pass
+  (0.132s), tl-lead tests pass (17.095s), and tlrules tests pass (0.124s).
+  Lead ownership guard remains green. Atlas map updated; diff check clean.
+  This is a rendered instruction contract, not a runtime fixture implementation;
+  no new mechanical API misuse class or Go lint rule is introduced.
+
+## Revisions
+
+- 2026-10-21 01:55 PDT — TL clarified harness provenance: while pair#744 is
+  unlanded, use the exact shared disposable-Couch harness (pair#744) wording
+  and avoid private Couch fixtures. Its tracker was working/not-landed when
+  checked. Name cmd/internal/testcouch and make test-couch-fleet after adoption
+  lands; no unlanded command is advertised by this patch.

@@ -37,6 +37,14 @@ PERMISSIONS
   and a review that changes code requeues the suite on the final head.
 
 TESTS
+  Verify an agent-facing change against
+  every agent kind in its tests and in any live check:
+  Claude and Codex; Qoder when it has credits.
+  A bug found live lands with a recorded fixture of the real capture
+  (terminal bytes, agent screen, tool reply), replayed in the normal suite.
+  Live tests use the shared disposable-Couch harness (pair#744),
+  never the live fleet. Reuse that harness rather than building private Couch fixtures.
+
   Run the required recorded pre-close suite on the pushed issue branch. Once
   it passes, close that tested branch without chasing newer main with manual
   integrations and repeated pre-close suites. Branch code fixes still need

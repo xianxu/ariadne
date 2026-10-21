@@ -129,3 +129,30 @@ func TestWorkerHelpKeepsIntegrationInLandingTurn(t *testing.T) {
 		t.Error("worker help must order branch suite, close, then admitted merge")
 	}
 }
+
+func TestWorkerHelpPinsConformanceInVerificationSection(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {}} {
+		help := strings.Join(strings.Fields(helpOutput(t, args...)), " ")
+		_, section, ok := strings.Cut(help, "TESTS ")
+		if !ok {
+			t.Fatal("missing TESTS section")
+		}
+		section, _, ok = strings.Cut(section, " EVIDENCE")
+		if !ok {
+			t.Fatal("missing end of TESTS section")
+		}
+		for _, want := range []string{
+			"every agent kind in its tests and in any live check",
+			"Claude and Codex; Qoder when it has credits",
+			"A bug found live lands with a recorded fixture of the real capture",
+			"terminal bytes, agent screen, tool reply",
+			"replayed in the normal suite",
+			"Live tests use the shared disposable-Couch harness (pair#744)",
+			"never the live fleet",
+		} {
+			if !strings.Contains(section, want) {
+				t.Errorf("tl-worker %v TESTS omits %q", args, want)
+			}
+		}
+	}
+}
