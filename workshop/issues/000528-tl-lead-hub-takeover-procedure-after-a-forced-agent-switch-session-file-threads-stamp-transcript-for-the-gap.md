@@ -1,13 +1,21 @@
 ---
 id: 000528
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'c3a9a1c4ab2c14579572c6dd9879cab4231031da' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a86e7fb068e7767662b233feb00a174cce5096ee' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T12:23:55-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap)
@@ -38,8 +46,14 @@ The same procedure applies whether the new agent is in the same slot (force swit
 
 ## Plan
 
-- [ ]
+- [ ] Add rendered-help guards for both entry points, with each recovery step checked in order and its instructions confined to that step; observe the missing-section failure.
+- [ ] Add TAKEOVER before ROLES: read the contract, session and Threads stamp, transcript only for a material gap, re-establish live work and refresh Threads, then give a one-line notice including possible loss. Preserve operator-started fleet recovery.
+- [ ] Verify the focused tests and own built CLI help, run the recorded suite, close and land.
+
+Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY keeps the procedure in the existing embedded help, with its status writer owning the fresh stamp. No new state or hot path.
 
 ## Log
 
 ### 2026-10-21
+
+- Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.
