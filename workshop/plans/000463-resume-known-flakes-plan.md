@@ -582,3 +582,13 @@ cancellation during successful remove/sync operations. Preserve the finding and
 follow the existing lifecycle escalation condition before another cleanup patch.
 M3 remains unclosed. No change to the operator's evidence-only reconciliation
 or permanently pinned interrupted graph policy is proposed by this checkpoint.
+
+### 2026-10-21 — BR-4 bounded correction authorized
+
+TL delivery 9ecef01b-5114-48d2-8cf6-14dbfb7c60a6 classifies BR-4 as
+a bounded implementation correction under accepted option A, not a new design
+delta. Thread context into owner release and check uncancelled authority before
+every cleanup effect. Add one real-private-IO boundary walk: each successful
+effect cancels, then no further mutation may occur. Any actual design gap from
+review still goes to the operator. Hold recorded suites until shared AgentScratch
+Go cache is cleared; no canceled runner was restarted.

@@ -400,3 +400,26 @@ still-queued lease-830246584 on the candidate head through local-check cancel;
 it never acquired suite capacity and completed with context-canceled refusal.
 No full-suite pass, M3 close, issue close, PR, stage or landing is claimed.
 Checkpoint/push review evidence and this Log; await the TL/operator's decision.
+
+### 2026-10-21 — BR-4 bounded correction authorized
+
+TL delivery 9ecef01b-5114-48d2-8cf6-14dbfb7c60a6 classifies BR-4 as
+a bounded implementation correction under accepted option A, not a new design
+delta. Thread context into owner release and check uncancelled authority before
+every cleanup effect. Add one real-private-IO boundary walk: each successful
+effect cancels, then no further mutation may occur. Any actual design gap from
+review still goes to the operator. Hold recorded suites until shared AgentScratch
+Go cache is cleared; no canceled runner was restarted.
+
+BR-4 verification: new TestResumeEnvironmentStopsAfterCancellationAtEveryEffect
+first failed 1.368s, observing forbidden effects after cancellation at scratch
+remove, checkout remove, Git registration removal, registration sync, and marker
+remove; final sync also incorrectly returned success after cancellation. Threaded
+ctx into owner release, checked ctx inside original-owner authorization, and
+reauthorized immediately before all eight cleanup effects. The real private-Git
+boundary walk snapshots surviving inputs after each successful canceling effect
+and requires context.Canceled, exact effect count, and unchanged survivors.
+All environment tests passed 4.842s; Go lint 0.654s and shell lint 0.308s.
+Broader Resume race run did not start: Go cache write failed with no space left
+on AgentScratch. This is infrastructure refusal, not a test pass. Recorded suite
+remains on hold pending shared-cache clearing. No new cleanup design or retry.

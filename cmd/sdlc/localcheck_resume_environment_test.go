@@ -495,3 +495,65 @@ func TestResumeEnvironmentStopsAtFirstCleanupFailure(t *testing.T) {
 		t.Run(fmt.Sprint(at), func(t *testing.T) { run(t, at) })
 	}
 }
+
+func TestResumeEnvironmentStopsAfterCancellationAtEveryEffect(t *testing.T) {
+	run := func(t *testing.T, cancelAt int) int {
+		f, lock := resumeCompletedEnvironmentPrivate(t)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		effects := 0
+		var retained map[string]string
+		completed := func() {
+			effects++
+			if effects == cancelAt {
+				cancel()
+				retained = resumeEnvironmentSnapshot(t, f.wt, f.gitdir, f.inflight, f.scratch)
+			}
+		}
+		wrap := func(base func(string) error) func(string) error {
+			return func(path string) error {
+				if ctx.Err() != nil {
+					t.Errorf("effect after cancellation: %s", path)
+				}
+				if err := base(path); err != nil {
+					return err
+				}
+				completed()
+				return nil
+			}
+		}
+		ops := resumeEnvironmentIO{removeAll: wrap(os.RemoveAll), remove: wrap(os.Remove), sync: wrap(syncResumeDirectory)}
+		f.d.CleanupGit = func(args ...string) (string, error) {
+			mutation := len(args) > 1 && args[0] == "worktree" && args[1] == "remove"
+			if mutation && ctx.Err() != nil {
+				t.Error("Git removal after cancellation")
+			}
+			out, err := f.d.Git(args...)
+			if mutation && err == nil {
+				completed()
+			}
+			return out, err
+		}
+		err := retireCompletedResumeEnvironmentWithIO(ctx, f.d, f.store, f.link, lock, []string{f.scratchRoot}, ops)
+		if cancelAt == 0 {
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if !errors.Is(err, context.Canceled) || effects != cancelAt {
+				t.Fatalf("cancel at %d: effects=%d err=%v", cancelAt, effects, err)
+			}
+			if after := resumeEnvironmentSnapshot(t, f.wt, f.gitdir, f.inflight, f.scratch); !reflect.DeepEqual(retained, after) {
+				t.Fatal("surviving inputs changed after cancellation")
+			}
+		}
+		return effects
+	}
+	count := run(t, 0)
+	if count != 8 {
+		t.Fatalf("expected eight cleanup effects, got %d", count)
+	}
+	for at := 1; at <= count; at++ {
+		t.Run(fmt.Sprint(at), func(t *testing.T) { run(t, at) })
+	}
+}

@@ -287,6 +287,8 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 		}
 		return nil
 	}
+	// Cancellation revokes authority even when the preceding effect succeeded.
+	// Reauthorize before every removal and directory sync; never retry this pass.
 	// Collect all candidates before mutation. Revalidate reverse pointers, exact
 	// child reason and original-owner authority before each irreversible removal.
 	for _, path := range scratch {
@@ -321,11 +323,17 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 		if err != nil || dir != binding.gitdir {
 			return errors.New("resume environment scratch binding changed")
 		}
+		if err := authorize(); err != nil {
+			return err
+		}
 		if err := ops.removeAll(path); err != nil {
 			return err
 		}
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {
 			return errors.New("resume scratch cleanup did not confirm absence")
+		}
+		if err := authorize(); err != nil {
+			return err
 		}
 		if err := ops.sync(filepath.Dir(path)); err != nil {
 			return err
@@ -349,11 +357,17 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	}
 	// This invocation advances using its original validated binding. A partial
 	// state from any previous invocation is never reconstructed or repaired.
+	if err := authorize(); err != nil {
+		return err
+	}
 	if err := ops.removeAll(binding.wt); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(binding.wt); !os.IsNotExist(err) {
 		return errors.New("resume checkout removal unconfirmed")
+	}
+	if err := authorize(); err != nil {
+		return err
 	}
 	if err := ops.sync(filepath.Dir(binding.wt)); err != nil {
 		return err
@@ -370,6 +384,9 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	if err := confirmOwner(); err != nil {
 		return err
 	}
+	if err := authorize(); err != nil {
+		return err
+	}
 	if out, err := resumeEnvironmentGit(d, "worktree", "remove", "--force", "--force", binding.wt); err != nil {
 		return fmt.Errorf("resume environment worktree removal unconfirmed: %w: %s", err, strings.TrimSpace(out))
 	}
@@ -384,10 +401,13 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	} else if err != nil {
 		return err
 	}
+	if err := authorize(); err != nil {
+		return err
+	}
 	if err := ops.sync(parent); err != nil {
 		return err
 	}
-	return releaseResumeEnvironmentOwner(inflight, owner, ops, authorize)
+	return releaseResumeEnvironmentOwner(ctx, inflight, owner, ops, authorize)
 }
 
 // The checkout was removed earlier in this pass. Check the captured registration
@@ -412,7 +432,7 @@ func confirmResumeRegistration(b resumeEnvironmentBinding) error {
 	return nil
 }
 
-func releaseResumeEnvironmentOwner(inflight, owner string, ops resumeEnvironmentIO, authorize func() error) error {
+func releaseResumeEnvironmentOwner(ctx context.Context, inflight, owner string, ops resumeEnvironmentIO, authorize func() error) error {
 	if err := authorize(); err != nil {
 		return err
 	}
@@ -424,10 +444,19 @@ func releaseResumeEnvironmentOwner(inflight, owner string, ops resumeEnvironment
 	if string(raw) != owner {
 		return errors.New("resume environment owner changed before release")
 	}
+	if err := authorize(); err != nil {
+		return err
+	}
 	if err := ops.remove(marker); err != nil {
 		return err
 	}
-	return ops.sync(inflight)
+	if err := authorize(); err != nil {
+		return err
+	}
+	if err := ops.sync(inflight); err != nil {
+		return err
+	}
+	return ctx.Err()
 }
 
 func retireCompletedResumeEnvironment(ctx context.Context, d localRunDeps, store string, l ResumeLink, lock *resumeParentLock) error {
@@ -440,6 +469,9 @@ func retireCompletedResumeEnvironmentWithRoots(ctx context.Context, d localRunDe
 func retireCompletedResumeEnvironmentWithIO(ctx context.Context, d localRunDeps, store string, l ResumeLink, lock *resumeParentLock, roots []string, ops resumeEnvironmentIO) error {
 	var linkDigest string
 	authorize := func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if lock == nil || d.runnerLifetime == nil || !d.runnerLifetime.mayRetire() {
 			return errors.New("resume managed process cleanup is not confirmed")
 		}
