@@ -204,3 +204,27 @@ normal0.131s, Go lint1.115s and shell lint0.244s passed. The selected flat leaf
 has no fabricated intermediate event, and package decoys still stay absent.
 This checkpoint precedes a fresh recorded suite and M2 re-review on corrected
 code; no completed central suite or final close is claimed.
+
+
+### 2026-10-21 — M2 SHIP; suite retained; TL landing instruction
+
+M2 round2 returned SHIP, disposed BR-5 and raised no findings. The reviewer
+independently mutation-checked the real-Go regressions against the old collector
+and verified normal/race, private CLI, affected, environment/queue/runner and
+scoped proof controls. The binary committed/pushed the finalized M2 boundary.
+Supplemental reviewer selections timed out in unchanged
+TestLocalCheckCancelOnlyOwnRun cleanup; this is the already tracked #523
+four-minute consumed-channel wait, not a new flake or a passing result. The
+central suite is allowed to complete with its full timeout and no early exit.
+
+The corrected-head recorded suite remains queued under lease-2337678335 on
+2750b1ed88b29c30a74bb781578b2ba59150f7c1, currently next behind Pair. Its result
+is pending. No code changed after that head; subsequent commits are workshop
+review/coordination evidence only.
+
+TL receipt5d7c2e86-3b3c-4da7-8c60-b5138ab9e002 confirms: no stage into :0;
+private production-CLI conformance satisfies this reader/batch live acceptance.
+Finish suite and final close, then land and report without another approval
+round. TL owns the fleet sdlc rollout after landing; this worker verifies each
+slot's actual binary revision before #463 phase2 can proceed. No activation is
+part of #524 and the parked #463/#520 branches remain untouched.
