@@ -1,13 +1,13 @@
 ---
 id: 000514
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'e1a6e40ff4e3f47d0de9c6ef98fdac7d36c2efc5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '16d87ea0a355e3641a417d73eb7cf41c85167fc5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T18:24:57-07:00
 claimant:
     operator: Xian Xu
@@ -16,8 +16,9 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchRenameDeadlineUnconfirmed]
+flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchRenameDeadlineUnconfirmed, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchKnownRefusals, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchPermissionFailsClearly]
 flow: {kind: quick, provenance: inferred, spec: "2e844cfb", done: "a0bbe98b"}
+actual_hours: 0.52
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
