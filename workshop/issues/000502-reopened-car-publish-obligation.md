@@ -58,6 +58,8 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 2026-10-21: Claimed and started from main after #525/PR368 landed. Read-only tracing confirms statusDecision preserves completion metadata while ownedCompletions filters status before branch ownership. A bounded fresh-context read agrees: reuse binding/repository/current-token ancestry, keep publish eligibility separate from settlement, and check all carried issues before review-anchor ranking (ARCH-DRY, ARCH-ORDER). Existing TestCarReadinessObservesExternalReclose, TestOlderCloseTokenNeverClaimsANewerClose, TestRebasedCloseIsStillOwnedAndGated and TestSquashedCloseRefusesLoudly passed together, 42.504s. No implementation or new regression written yet; reported #499 red evidence remains in Problem. A draft durable plan is ready for hub review. Current Couch has no --description option; no slot label was changed through that rejected command.
 
+2026-10-21: Hub approved the plan (Couch dead3f53-cbb8-4293-9b51-b71b122a51b0, submitted): shared publish-only guard, every carried issue, exact re-close command, unchanged ownedCompletions eligibility; missing/replaced bindings stay outside scope. change-code admitted the quick flow. Implementing with regression-first verification.
+
 ## Revisions
 
 2026-10-21: Refined the original policy proposal into a reviewable publish-only design. The completion binding survives reopen; its ownership predicate can be reused without changing settlement, archive, tracker schema or issue-free publication. Added explicit multiple-issue, status, generation and recovery controls. Awaiting hub approval of this new refusal.
