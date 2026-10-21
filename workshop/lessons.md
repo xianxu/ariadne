@@ -1255,4 +1255,9 @@ Never run a fake-liveness collector against the runtime-selected scratch/temp ro
 Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.
 - #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
 
+- #521 fixture: when asserting that an action creates no new external records,
+  snapshot the fake’s history before the action. Rewriting a branch does not
+  remove status records on its previous head; a list of current heads is not
+  the pre-existing history. The real conflict/reformation test retains those
+  records while checking that a held conductor creates no train PR or suite.
 - #511 fixture verification: a late train-arrival regression must first board valid cars. Section presence alone is insufficient: Done-when needs a nonempty bullet and Plan needs a non-placeholder checklist. Otherwise an early held car can turn the scenario into a different prefix before the intended event. The real two-car late-duplicate regression and instance gates enforce this semantic fixture contract; a lexical lint would only mirror the helper.

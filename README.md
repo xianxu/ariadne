@@ -573,9 +573,14 @@ machine's suite slots. It is one file per machine beside the suite lock:
   per car. It runs one suite and CI on its train PR, merges that PR once, and
   GitHub marks each car's PR merged. Each car's own `sdlc merge` then finishes
   its cleanup.
-- **Holds:** a car that conflicts with the train is held. An unexplained suite
-  failure is bisected: the culprit is held, the clean prefix lands, and the cars
-  behind it ride the next train at once.
+- **Membership and holds:** the first banner names candidates; the composed
+  membership is printed before suites. A held car prints its reason and the
+  branch-specific recovery command, then exits. Fix the problem, integrate main,
+  and re-close before retrying. If the conductor’s own car is held during
+  composition, it stops before publishing and releases survivors to reform under
+  the next conductor. Its checkout cannot cancel that other checkout’s suite.
+  An unexplained suite failure is bisected: the culprit is held, the clean prefix
+  lands, and the cars behind it ride the next train at once.
 - **Refusals:** a known flake gets its #394 rerun and never splits. Main failing
   the same way refuses the train, and so does red CI on the train PR.
 - **Riding alone:** a fleet-blocking grant departs at once and lands alone,
