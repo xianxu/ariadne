@@ -570,6 +570,9 @@ func pruneSuiteAttemptsWithHook(root string, now time.Time, afterSnapshot func()
 		return err
 	}
 	defer directory.Close()
+	if err := pruneResumeStaging(directory); err != nil {
+		return err
+	}
 	protected, err := pruneResumeBundles(root, now)
 	if err != nil {
 		return err

@@ -2745,3 +2745,10 @@ parent. Real subprocess barrier tests deadlock under a deliberate blocking-lock
 mutation, and verify owner-death release and publication versus old snapshots.
 Directory path/inode identity is revalidated; no new lock files or per-parent
 snapshot scans are added.
+
+Publication's `.resume-*` temporary files share that directory mutex for their
+whole lifetime. Deferred removal handles normal exit; the next publication or
+pruning pass streams crash leftovers under the mutex, which proves no active
+publisher can own them. Receipt publication rejects unsupported authority and
+validates its supported link graph explicitly; the passing-reader refusal is
+not an admission rule for publishing interruption evidence.

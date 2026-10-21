@@ -4,6 +4,8 @@
 
 - #463 lifetime review: a protected-member snapshot cannot authorize later deletion while a publisher can introduce new links. Serialize one snapshot and all pruning with publication on the existing directory inode. When publication takes parent→directory, pruning may take directory→parent only with a strict try-and-skip; a real subprocess negative control must fail if it becomes blocking. This is a cross-function lifetime invariant, defended by those interleavings rather than source-name lint.
 
+- #463 M1 BR-1/BR-2: exercise every publication variant through its real seam, not just its decoder. A passing-reader guard may reject the state required to publish recovery evidence. Every temporary-file prefix also needs a crash collector; a shared publication/GC mutex can prove a staging file unowned without guessing PID or age. Receipt reachability and killed-publisher regressions enforce these semantic contracts.
+
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 

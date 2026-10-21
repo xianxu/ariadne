@@ -270,3 +270,58 @@ func TestResumeStorePublicationWaitsForDirectory(t *testing.T) {
 		t.Fatalf("publication escaped canceled mutex wait: %v", err)
 	}
 }
+
+func TestResumeStorePublishesTerminalReceipt(t *testing.T) {
+	root, l, _ := retentionFixture(t, false)
+	parent, err := lockResumeParent(context.Background(), root, l.RerunOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+	linkRaw, err := os.ReadFile(filepath.Join(root, "attempts", l.ID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: "dd", Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: l.RerunOf, LinkID: l.ID, LinkSHA256: resumeRecordDigest(linkRaw), ChildID: l.ChildID, Actor: "operator", Note: "verified descendants stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(time.Second)}
+	raw, _ := json.Marshal(r)
+	raw = append(raw[:len(raw)-1], []byte(`,"future":{"opaque":1e9999}}`)...)
+	if err := publishResumeEvidence(root, parent, raw); err != nil {
+		t.Fatalf("valid receipt rejected: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "attempts", "dd.json"))
+	if err != nil || string(got) != string(raw) {
+		t.Fatalf("receipt bytes changed: %v", err)
+	}
+	if err := publishResumeEvidence(root, parent, raw); err == nil {
+		t.Fatal("duplicate receipt replaced")
+	}
+	after, err := os.ReadFile(parent.path)
+	if err != nil || string(after) != string(parent.Raw) {
+		t.Fatal("receipt rewrote parent")
+	}
+}
+
+func TestResumeStoreStagingLifetime(t *testing.T) {
+	root := t.TempDir()
+	directory, err := lockResumeDirectory(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(root, "attempts", ".resume-crash")
+	if err := os.WriteFile(p, []byte("uncommitted raw proof"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(p); err != nil {
+		t.Fatal("pruner touched an active publisher staging file")
+	}
+	directory.Close()
+	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Fatalf("abandoned staging retained: %v", err)
+	}
+}

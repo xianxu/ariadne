@@ -35,6 +35,26 @@ func TestResumeStoreProcessHelper(t *testing.T) {
 		}
 	}
 	switch mode {
+	case "staging":
+		lock, err := lockResumeDirectory(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer lock.Close()
+		tmp, err := os.CreateTemp(filepath.Join(root, "attempts"), ".resume-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tmp.Name())
+		if _, err := tmp.WriteString("uncommitted proof"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tmp.Sync(); err != nil {
+			t.Fatal(err)
+		}
+		tmp.Close()
+		fmt.Println("staged")
+		wait()
 	case "directory":
 		lock, err := lockResumeDirectory(context.Background(), root)
 		if err != nil {
@@ -82,6 +102,40 @@ func TestResumeStoreProcessHelper(t *testing.T) {
 		fmt.Println("pruned")
 	default:
 		t.Fatalf("unknown helper mode %q", mode)
+	}
+}
+
+func TestResumeStoreProcessStagingCrashCleanup(t *testing.T) {
+	root := t.TempDir()
+	publisher := startResumeStoreProcess(t, root, "staging", time.Now().UTC())
+	publisher.await(t, "staged")
+	entries, err := os.ReadDir(filepath.Join(root, "attempts"))
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("staged files: %v %v", entries, err)
+	}
+	path := filepath.Join(root, "attempts", entries[0].Name())
+	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("active stage removed")
+	}
+	if err := processgroup.Terminate(publisher.cmd, true); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-publisher.done:
+	case <-time.After(testfix.HangCeiling):
+		t.Fatal("crashed publisher did not exit")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("crash fixture did not leave staging residue")
+	}
+	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("crashed stage retained: %v", err)
 	}
 }
 

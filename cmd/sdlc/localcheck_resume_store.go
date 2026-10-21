@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -197,12 +198,18 @@ func (l *resumeParentLock) verify() error {
 // Publish only while holding the matching parent's live lock. Hard-linking the
 // synced temporary file is an exclusive commit marker, unlike replacing rename.
 func publishResumeEvidence(root string, lock *resumeParentLock, raw []byte) error {
+	if filepath.Dir(lock.path) != filepath.Join(root, "attempts") {
+		return errors.New("resume lock is for another store")
+	}
 	directory, err := lockResumeDirectory(lock.ctx, root)
 	if err != nil {
 		return err
 	}
 	defer directory.Close()
 	if err := lock.verify(); err != nil {
+		return err
+	}
+	if err := pruneResumeStaging(directory); err != nil {
 		return err
 	}
 	if len(raw) > suiteAttemptMaxJSON {
@@ -236,7 +243,10 @@ func publishResumeEvidence(root string, lock *resumeParentLock, raw []byte) erro
 	if err != nil || len(s.Warnings) > 0 {
 		return fmt.Errorf("resume publication needs a complete evidence snapshot: %v; %v", err, s.Warnings)
 	}
-	if err := s.proofError(proofSubject{Repo: repo, SHA: sha, Check: suiteCheckName, ID: parent}); err != nil {
+	// Supported links are the input to receipt publication, not a refusal.
+	// Unknown versions still fence the parent; the supported graph is checked
+	// explicitly below before any publication effect.
+	if err := s.unsupportedProofError(proofSubject{Repo: repo, SHA: sha, Check: suiteCheckName, ID: parent}); err != nil {
 		return err
 	}
 	if len(s.Attempts)+len(s.Resumes)+len(s.Reconciliations)+len(s.Unsupported) > testStatsRecordLimit-3 {
@@ -254,6 +264,9 @@ func publishResumeEvidence(root string, lock *resumeParentLock, raw []byte) erro
 			}
 			bound = l
 		}
+	}
+	if bound != nil && (bound.ParentRecordSHA256 != resumeRecordDigest(lock.Raw) || bound.ParentLogSHA256 != lock.Attempt.LogSHA256) {
+		return errors.New("existing resume link does not bind locked parent bytes")
 	}
 	if link != nil {
 		if bound != nil {
@@ -312,4 +325,30 @@ func syncResumeDirectory(path string) error {
 		return err
 	}
 	return errors.Join(f.Sync(), f.Close())
+}
+
+// A publisher holds the directory mutex for the entire temporary-file lifetime.
+// Thus a pruner owning that mutex can remove crash residue without a PID guess
+// or an age heuristic. Stream directory entries so residue cannot grow memory.
+func pruneResumeStaging(directory *resumeDirectoryLock) error {
+	for {
+		entries, err := directory.f.ReadDir(128)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		for _, e := range entries {
+			if !strings.HasPrefix(e.Name(), ".resume-") || !e.Type().IsRegular() {
+				continue
+			}
+			if err := directory.verify(); err != nil {
+				return err
+			}
+			if err := os.Remove(filepath.Join(directory.path, e.Name())); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+		if err == io.EOF {
+			return directory.f.Sync()
+		}
+	}
 }
