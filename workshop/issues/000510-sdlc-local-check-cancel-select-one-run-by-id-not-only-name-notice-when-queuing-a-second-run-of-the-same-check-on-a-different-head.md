@@ -78,6 +78,9 @@ Actions: start a check; cancel one ID; cancel by name/all; retry a completed or 
 
 - Committed-build proof: own bin/sdlc reports vcs.revision=18e7cda53cfbfcee5bfe99fd75005b94873d113d, vcs.modified=false. SDLC_RUNID_CLI against this executable passed the complete two-real-run FIFO/cancellation/refusal regression (5.960s package run), with private capacity and local transport fixtures. Output: /Users/xianxu/workspace/worktree/ariadne-slot2/p510-live-proof.txt. No fleet jobs or :0 tools were touched. Implementation acceptance is complete; recorded full suite and close review remain required before landing.
 
+- Hub accepted the isolated real-CLI proof as sufficient (authenticated delivery e0f42988-6984-4ebc-99f5-d43218e1cbbd); no separate live check or :0 staging. First close returned SHIP/high, no findings. Reviewer independently passed the new controls and observed a 120s timeout in unchanged TestLocalCheckCancelOnlyOwnRun cleanup (already-consumed result channel); the implementation matrix passed with a larger budget, and the full suite will retain the normal budget.
+- Landing integrated current main but found README/help conflicts with #509 scoped checks. Preserved main's scoped-check material and this issue's exact-ID cancellation documentation; executable files merged automatically. Cancelled only this checkout's single obsolete queued suite (still waiting, no acceptance result), then queued integrated-head verification before the required narrow re-close.
+
 ## Revisions
 
 - 2026-10-21: corrected the discovery premise: lease IDs currently exist only in filenames, not in a `local-check status` command. Expose them in run/notice output so the requested exact selection is usable; no new status command or automatic replacement.
