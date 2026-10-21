@@ -193,3 +193,89 @@ findings:
    Add a `## Revisions` entry defining compatibility-control scratch retention, cleanup ownership and removal. Correct the lifecycle paragraph’s “no new artifact family” claim to account for those private clones.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"38541188-1e97-43fd-bbe1-2a6102f6957c","repository":"github.com/xianxu/ariadne","issue_id":"000524","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/d83c023049a68299","reviewed_head":"744236f93156b5662e61fffdd8bfbad206e33b96","slot":"ariadne:3","requested_at":"2026-10-21T12:15:58.292339Z"},"phase":"finished","pid":76466,"started_at":"2026-10-21T12:15:58.40264Z","finished_at":"2026-10-21T12:18:18.619684Z","session_id":"01a15e63-c2c9-7fb3-80c2-4b3934137f9c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T07:27:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 524 — Scoped future evidence and exact-package flake reruns |
+| repo | ariadne |
+| issue file | workshop/issues/000524-scoped-evidence-reruns.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 63ebb3385af267d64084921c6e8d1150a188c734..f6dc3de33057609c69f6e85f4d71d6df9a8731ee |
+| command | sdlc milestone-close --issue 524 --milestone M1 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T07:27:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M1 satisfies the scoped-reader boundary. Related unsupported evidence refuses authority, unrelated supported proof remains usable, and the old-reader limitation is reproducible. The README and cleanup documentation resolve the remaining prior findings. No new findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Production-consumer regressions pass. Removing parent-index resolution in a disposable pinned-head clone makes both cross-check publication and inverse-parent scope regressions fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The committed compatibility fixture passes against pinned pre-change source, demonstrating global warnings, incomplete saved proof and publication refusal. Upgraded consumer tests pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:765 documents the verification command and reader-first rollout barrier, matching scripts/verify-pre524-reader.sh:5-15 and atlas/workflow/sdlc-binary.md:2637-2651.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      scripts/verify-pre524-reader.sh:13 names invoker cleanup; atlas/workflow/sdlc-binary.md:2653 defines retention through inspection and exact-directory removal. Plan lines 108 and 128 acknowledge the private clone lifecycle.
+```
+
+1. **Strengths**
+
+   - Strict envelope validation separates unsupported identity from accepted attempt facts; opaque bytes remain unchanged.
+   - Parent indexing preserves linked authority in both directions: it prevents unauthorized success and avoids blocking unrelated checks.
+   - Production consumers use the typed snapshot; legacy tuple readers exist only in tests.
+   - README and atlas document the verification command, cleanup ownership and fleet upgrade barrier.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused reader and consumer checks passed: **6.321s**.
+   - Broader saved-proof, statistics, actuals and weekly checks passed: **8.740s**.
+   - Focused race checks passed: **2.796s**.
+   - Real pre-change compatibility control passed: **0.959s**.
+   - Parent-index mutation produced the expected regression failures.
+   - Shell syntax and range whitespace checks passed. The reviewed checkout remains clean; the disposable clone was removed.
+   - Full-suite delivery verification remains scheduled for M2.
+
+6. **Architectural notes for upcoming work**
+
+   - **ARCH-DRY — pass:** consumers share indexed authority projections.
+   - **ARCH-PURE — pass:** decoding and projections remain separate from bounded filesystem IO; M1 concept classifications match the code.
+   - **ARCH-PURPOSE — pass:** M1 covers the production reader consumers; exact-package execution remains explicitly assigned to M2.
+   - **ARCH-MOCK — pass:** consumer tests use existing injected fixtures; compatibility testing uses private pinned source.
+   - **ARCH-CONSTRAINTS — pass:** read limits remain enforced; N/2N tests verify single scans.
+   - **ARCH-SECURE — pass:** malformed, ambiguous and truncated evidence stays visibly incomplete.
+   - **ARCH-ORDER — pass:** M1 adds no state held between external events; snapshot construction completes before authority decisions.
+   - **ARCH-FUNERAL — pass:** snapshot values are temporary, production retention is unchanged, and private-clone removal has an owner.
+   - **ARCH-EVOLVE — pass:** unsupported records remain opaque and unchanged; supported-format validation stays strict.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"69a1d4f2-1d06-4fcf-ac74-4aa6a93712d0","repository":"github.com/xianxu/ariadne","issue_id":"000524","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/8079621f91e40a08","reviewed_head":"f6dc3de33057609c69f6e85f4d71d6df9a8731ee","slot":"ariadne:3","requested_at":"2026-10-21T14:25:14.110269Z"},"phase":"finished","pid":83934,"started_at":"2026-10-21T14:25:14.233495Z","finished_at":"2026-10-21T14:27:35.027303Z","session_id":"01a15eda-1b45-79d1-9459-eb9a5806361a","outcome":"returned"}] -->

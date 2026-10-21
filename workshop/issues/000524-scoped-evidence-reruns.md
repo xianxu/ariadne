@@ -69,12 +69,13 @@ total: 2.82
 
 ## Plan
 
-- [ ] M1 — Typed scoped unsupported-evidence reader and all proof-consumer projections, old-reader controls, atlas rollout boundary.
+- [x] M1 — Typed scoped unsupported-evidence reader and all proof-consumer projections, old-reader controls, atlas rollout boundary.
 - [ ] M2 — Exact-package managed rerun batch, automatic integration, process/adversarial tests and final delivery preparation.
 
 ## Log
 
 ### 2026-10-21 — Approved reader-first prerequisite
+- 2026-10-21: closed M1 — Scoped reader focused regressions passed 10.218s, race 2.122s, Go lint 0.649s, shell lint 0.313s and diff check; real pre-change control retained; BR-3 README discovery and BR-4 private-clone lifecycle documented; inverse-parent RED/GREEN proves parent check authority.; review verdict: SHIP
 
 Claimed at filing and started independently from fresh main. The approved design is recorded in [the durable plan](../plans/000524-scoped-evidence-reruns-plan.md): one typed scoped read view plus exact-package managed batches. Hub receipt917bf022-032a-4d84-ac6b-39075bbca2b5 owns the split and fleet rollout barrier. Phase1 does not create links or enable resume; #463 and #520 branches are preserved. Package-bound JSON PASS events prevent a same-name or quoted output from satisfying another package's test. Unscopable malformed data remains unknown; valid future identities are localized so unrelated records/checks stay usable.
 
