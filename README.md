@@ -283,6 +283,11 @@ into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
 binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
 distributed weave gateway as part of `tools`.
 
+Worker live verification uses Pair's shared disposable-Couch harness,
+`cmd/internal/testcouch`; run `make test-couch-fleet` from the Pair repository.
+Reuse it for isolated live tests instead of the live fleet or private fixtures.
+See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
+
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding

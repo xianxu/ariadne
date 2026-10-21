@@ -1,13 +1,23 @@
 ---
 id: 000508
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b4362861439cee38147be832e6865ed66426ee56' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0d9f2a646880b6e98f3945e55748a64aeb6e7c6b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T01:53:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5290755a", done: "a7c5224f"}
+actual_hours: 3.16
 ---
 
 # tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture
@@ -34,8 +44,95 @@ Add to `tl-worker --help` (verification section):
 
 ## Plan
 
-- [ ]
+Quick flow, operator-reviewed Spec unchanged. Put all three rules at the start
+of worker TESTS: every agent kind in tests/live checks (Claude, Codex, Qoder
+when credited), real live capture replayed in the normal suite with the fix,
+and live tests isolated through the shared disposable-Couch harness. Extend the
+existing worker rule table and rendered section tests at --help/no-args. The
+lead continues citing worker ownership, rather than duplicating these rules.
+
+ARCH-DRY/PURE: existing embedded help, composition and rule-table tests remain
+the only mechanisms; no new IO. ARCH-PURPOSE: all three approved rules and
+all named capture forms stay explicit. Other architecture lenses introduce
+nothing here: no runtime state, external calls, credentials, new persisted
+formats, growing artifact family or hot-path work; static help dies with its
+command invocation. No state table or new process fixture is needed for a
+rule-only change. The future bug fixes own their recorded captures.
+
+- [x] Red rendered-section regression and worker rule-table rows.
+- [x] Three rules in worker help; atlas map and focused verification.
 
 ## Log
 
+- 2026-10-21: round 3 SHIP disposed BR-1 with no new findings. Re-entered
+  merge; main integrated cleanly and server checks completed. Its required
+  integrated-head suite and diagnostic main both failed before tests in go
+  list because /Volumes/AgentScratch/go-build has no space left. df showed
+  AgentScratch 186Gi used/186Gi total, 101Mi available; TestScratch had 10Gi
+  free and the system volume 279Gi. This is shared cache capacity, not a test
+  flake. Merge exited and its runs ended; no waiver or shared-cache deletion.
+  Reported the concrete blocker to the hub. Resume through sdlc merge --yes
+  after cache capacity/configuration is repaired; the integrated generation
+  still needs its recorded pass despite the prior branch suite pass.
+
+
+- 2026-10-21: closed — BR-1 addressed: README now identifies Pair cmd/internal/testcouch, instructs make test-couch-fleet from the Pair repository, rejects live fleet/private fixtures, and links TL tooling atlas beside the existing TL command overview. Swept newly exposed command references in worker help and atlas; both match the landed Pair harness. Lesson recorded. Conflict union and concrete harness tests already verified by round 2 and the passing 1950-test/75-package suite; this round adds documentation only. Spec and Done when unchanged, diff clean. (fixed-then-ship; full suite: Recorded final code-head suite c7885cd4c826bd6e894ac7732283d51510c6418d: all 8 shards over 1950 SDLC tests and 75 other packages passed, zero failures, 13m2s; sdlc-local/suite log sha256:936c1100b1bd. Since that run only README, lessons, issue and review records changed.) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-21: round 2 confirmed the row union, red/green section controls and
+  harness refinement, but raised BR-1 (Important): the newly named usable Pair
+  test command needs README discovery guidance. Added a concise Pair-scoped
+  reference beside TL tooling, linking the existing atlas, and recorded the
+  lesson. This correction changes only documentation and review bookkeeping;
+  the passing final code-head suite remains the 1,950-test/75-package record
+  (13m2s, zero failures). A narrow re-close will dispose BR-1.
+
+- 2026-10-21: authenticated TL follow-up supplied the concrete parenthetical
+  wording after pair#744 landed. Removed the issue-number placeholder from the
+  help and its rule assertion, retaining the explicit Pair repository context.
+  Cancelled only queued run lease-3220115629 before changing its head. Both
+  rendered entry points fail the updated rule/section tests before the text
+  change (0.116s), then all worker, lead and shared-rule controls pass (0.119s,
+  14.773s, 0.053s). No cancelled run supplies passing evidence.
+
+- 2026-10-21: pair#744 changed to done/landed while the integrated suite was
+  being admitted. Following the TL's existing conditional instruction, cancelled
+  only run lease-4082040804 through sdlc (no result recorded), then named Pair's
+  landed cmd/internal/testcouch and make test-couch-fleet in the worker help and
+  atlas. The two new rendered-section assertions fail before the wording change
+  (0.124s); all worker, lead and shared rule controls pass afterward (0.132s,
+  28.373s, 0.118s). The first suite's pass remains historical evidence; a fresh
+  suite on this updated head still precedes the narrow re-close and landing.
+
+- 2026-10-21: the first recorded branch suite passed all 1,888 SDLC tests and
+  75 other packages with zero failures. Landing then found an append conflict
+  in the worker rule table with main's checkpoint/restart rules (#525).
+  Resolved by retaining both complete row sets; the rendered help and atlas
+  merged without conflicts. All worker, lead and shared rule controls pass
+  after resolution (0.134s, 15.364s, 0.127s). A fresh recorded suite and narrow
+  re-close will verify the integrated generation before another landing entry.
+
+- 2026-10-21: closed — Red first: both rendered entry points lacked all three TESTS rules (0.177s). Worker help now requires every agent kind in tests and live checks (Claude/Codex, Qoder when credited), a recorded real live capture replayed with its fix in the normal suite, and reuse of the shared disposable-Couch harness instead of live fleet/private Couch fixtures. All worker tests pass (latest 0.127s), all lead tests pass (17.095s), shared tlrules tests pass (0.124s); rule-table ownership guard remains green. Atlas updated, diff clean. Pair#744 freshly verified codecomplete/not-landed; exact TL-approved placeholder retained. Restart audit found no own queue/landing/run lease; PR 372, pushed head and local HEAD agree. First recorded suite requested under authorized review overlap; final pass remains required for landing. This changes help instructions only and drives no live fleet or harness process. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 ### 2026-10-20
+
+- 2026-10-21: claimed after #517 landed; existing Spec is the operator-reviewed
+  design. Current TESTS and LIVE CHECKS do not state the three conformance
+  requirements. Small plan posted to hub, proceeding unless objected. No change
+  to the agent inventory, Couch harness implementation or live fleet.
+
+- 2026-10-21: red first on all missing rule-table rows and TESTS clauses at
+  both entry points (0.177s). After help update, all tl-worker tests pass
+  (0.132s), tl-lead tests pass (17.095s), and tlrules tests pass (0.124s).
+  Lead ownership guard remains green. Atlas map updated; diff check clean.
+  This is a rendered instruction contract, not a runtime fixture implementation;
+  no new mechanical API misuse class or Go lint rule is introduced.
+
+## Revisions
+
+- 2026-10-21 11:44 PDT — pair#744 is now landed. Executed the TL-approved
+  refinement already recorded below: identify its shared harness by the landed
+  package and make target. The three-rule Spec and Done when remain unchanged.
+
+- 2026-10-21 01:55 PDT — TL clarified harness provenance: while pair#744 is
+  unlanded, use the exact shared disposable-Couch harness (pair#744) wording
+  and avoid private Couch fixtures. Its tracker was working/not-landed when
+  checked. Name cmd/internal/testcouch and make test-couch-fleet after adoption
+  lands; no unlanded command is advertised by this patch.
