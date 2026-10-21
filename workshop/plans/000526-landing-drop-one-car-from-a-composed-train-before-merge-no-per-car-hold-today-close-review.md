@@ -83,3 +83,96 @@ findings:
    Add a `## Revisions` entry requiring every pre-merge completion commit to serialize against accepted drops, including membership reductions and terminal refusals. Require deterministic tests for both lock orderings and preservation of the pre-completion train when drop wins.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"82b3bd5e-cfe2-4e36-9dcd-4aa6bb778cff","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/7df8449c136c8f51","reviewed_head":"8fb25eb263f95e8c8169e4db3bc2560f4be1c1f3","slot":"ariadne:1","requested_at":"2026-10-21T20:54:36.203878Z"},"phase":"finished","pid":28366,"started_at":"2026-10-21T20:54:36.304738Z","finished_at":"2026-10-21T20:56:57.182586Z","session_id":"01a1603e-952a-7120-aafc-4ee8b5a583f5","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T14:14:16-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 526 — landing: drop one car from a composed train before merge (no per-car hold today) |
+| repo | ariadne |
+| issue file | workshop/issues/000526-landing-drop-one-car-from-a-composed-train-before-merge-no-per-car-hold-today.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 510aab6ff3a55bfdf5472e45eedf5512f6d04420..e48ce11ae824a0ece2a49fa32cf5613040027edf |
+| command | sdlc close --issue 526 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T14:14:16-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+BR-1 is addressed: completion updates now atomically defer to accepted drops, and mutation checks confirm the regression tests exercise both the storage fence and conductor routing. The real three-car scenarios and cleanup controls pass. One Important compatibility defect remains: accepting another drop can erase unknown nested fields from the durable cleanup record.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      UpdateTrain now checks pending drops under line.lock, and commitTrainCompletion routes pending results through ApplyTrainDrops using the original train. TestTrainCompletionAndDropOrdering and TestLandingDropPreemptsComputedCompletion pass at head. Removing the storage guard fails all three drop-first completion cases; removing the conductor routing fails bisect, terminal, phase and abort cases.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: preserve-unknown-fields-on-rewrite
+    title: |
+      Drop acceptance erases unknown cleanup publication fields
+    detail: |
+      cmd/sdlc/internal/landingline/traincontrol.go:190 replaces Cleanup.Publication with Publication, discarding unknown fields stored only in the cleanup snapshot. A temporary overlay regression accepted one drop, persisted future_cleanup_proof under cleanup.publication, then accepted another member's drop; ReadTrainControl returned an empty Extra map. ARCH-EVOLVE requires nested unknown fields to survive every rewrite. Retain the existing pending cleanup snapshot, or preserve its unknown fields when refreshing known values, and add a regression through RequestTrainDrop with metadata unique to cleanup.publication.
+```
+
+**1. Strengths**
+
+- Completion decisions commit before in-memory replacement or effects; deferred abort uses the same fence ([landingtrain_completion.go](/Volumes/TestScratch/review-checkouts/361c208e96fa5db1/cmd/sdlc/landingtrain_completion.go:8)).
+- Cleanup requires positive PR closure and leased-ref absence; tests cover lost replies, stale observations, and retargeted remotes.
+- Real three-runner tests verify survivor reachability, dropped-commit exclusion, and obsolete-train cleanup.
+- README, help, and atlas document authority, merge-start refusal, and recovery.
+
+**2. Critical findings**
+
+None. BR-1 is addressed.
+
+**3. Important findings**
+
+The nested-field loss above is reproducible. Existing codec tests exercise decode/encode round trips but miss the request-driven rewrite that loses metadata.
+
+**4. Minor findings**
+
+None.
+
+**5. Test coverage notes**
+
+Passed:
+
+- Full `landingline` package tests.
+- `TestLanding(Drop|Abort)` command tests, including real train recomposition.
+- Targeted race tests for concurrent requests and completion ordering.
+- Seven Python deadline/process-ownership tests.
+- Diff whitespace checks.
+
+Both BR-1 mutations failed their expected regressions. The new preservation regression fails on pinned head. Temporary overlays were removed; the checkout remains clean. I did not independently rerun the repository-wide suite.
+
+**6. Architectural notes**
+
+- **ARCH-DRY — pass:** existing locks, codecs, abort transitions, and admission paths are reused.
+- **ARCH-PURE — pass:** listed pure entities remain deterministic and have direct tests; integration entities use portable fixtures and injected boundaries.
+- **ARCH-PURPOSE — pass:** both conductor-drop and middle-car-drop scenarios land the survivors while excluding the dropped head.
+- **ARCH-MOCK — pass:** stateful GH doubles and real Git/native-process fixtures exercise the production seams under the approved conformance approach.
+- **ARCH-CONSTRAINTS — pass:** bounded record, scoped watcher, short transactions, and counted-work guard are present.
+- **ARCH-SECURE — pass:** strict decoding, pinned identities, separate caller authorization, and destination revalidation are implemented.
+- **ARCH-ORDER — pass:** completion/drop ordering is enforced under the lock; cancellation joins obsolete work before cleanup.
+- **ARCH-FUNERAL — pass:** one bounded control record, ticket-based exclusion retirement, and confirmed external cleanup define artifact lifetimes.
+- **ARCH-EVOLVE — flag:** the cleanup-snapshot replacement violates nested unknown-field preservation.
+
+**7. Plan revision recommendations**
+
+Append a `## Revisions` entry naming the cleanup-snapshot preservation correction and its request-driven regression. The Core concepts table matches the implementation; README and atlas updates are present.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"68bcc8aa-4a0c-42c4-9036-5e99a3a5ff23","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/361c208e96fa5db1","reviewed_head":"e48ce11ae824a0ece2a49fa32cf5613040027edf","slot":"ariadne:1","requested_at":"2026-10-21T21:11:25.066043Z"},"phase":"finished","pid":24809,"started_at":"2026-10-21T21:11:25.217993Z","finished_at":"2026-10-21T21:14:15.266406Z","session_id":"01a1604d-faa9-7013-b17f-bf0e4c2cf76a","outcome":"returned"}] -->

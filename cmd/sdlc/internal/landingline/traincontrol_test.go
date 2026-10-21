@@ -532,6 +532,48 @@ func TestTrainPublicationFencePinsCleanupAndRefusesNextExternalEffect(t *testing
 	}
 }
 
+func TestTrainDropRequestsPreserveCleanupPublicationUnknownFields(t *testing.T) {
+	l, h, _, c := controlFixture(t)
+	if _, err := l.RequestTrainDrop(c.Train, c.Members[1], "repair waiter"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := l.ReadTrainControl()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]json.RawMessage{"future_cleanup_proof": json.RawMessage(`{"confirmed":"future"}`)}
+	got.Cleanup.Publication.Extra = want
+	if err := l.withMutex(func() error { return l.writeTrainControlLocked(*got) }); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := l.RequestTrainDrop(c.Train, c.Members[0], "repair conductor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(receipt.Control.Cleanup.Publication.Extra, want) {
+		t.Fatalf("second acceptance lost cleanup publication metadata: %+v", receipt.Control.Cleanup.Publication.Extra)
+	}
+	tr := NewTrain(c.Train)
+	tr.Phase = c.Phase
+	for _, m := range c.Members {
+		tr.Cars = append(tr.Cars, m.Car())
+	}
+	_, _, sealed, err := l.ApplyTrainDrops(h, tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.FinishTrainControl(h, c.Train, sealed.Cleanup); err != nil {
+		t.Fatal(err)
+	}
+	got, err = l.ReadTrainControl()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Cleanup.Pending || !reflect.DeepEqual(got.Cleanup.Publication.Extra, want) {
+		t.Fatalf("sealing/finishing lost cleanup publication metadata: %+v", got.Cleanup)
+	}
+}
+
 func TestTrainControlCodecPreservesNestedUnknownAndRejectsMalformed(t *testing.T) {
 	_, _, _, c := controlFixture(t)
 	c.Extra = map[string]json.RawMessage{"future": json.RawMessage(`{"keep":1}`)}
