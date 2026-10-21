@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "54c1cfe0", done: "d9749df0"}
 ---
 
 # Prepare generated inputs before affected graph discovery
