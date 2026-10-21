@@ -69,7 +69,7 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 - [x] Get hub approval of abort/release tradeoff; reproduce held-conductor output/suite ownership with controlled real train fixtures.
 - [x] Correct candidate/composed membership output, prompt held outcome and pre-publish self-held guard; verify survivor reformation and cancellation ownership.
-- [ ] Run focused controls and recorded full suite, then prepare close verification.
+- [x] Run focused controls and recorded full suite, then prepare close verification.
 
 ## Log
 
@@ -87,6 +87,8 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 - Main independently reran held-conductor/reformation/actual-foreign-cancel, held-waiter recovery and the native checkout-ownership cancellation control: PASS256.650s. Native control itself PASS240.56s, with its existing cleanup consuming each child completion channel twice and waiting HangCeiling twice after successful assertions; this independent test-cost discovery is being filed separately, not changed here. Full pkg/golint PASS0.914s; staged diff whitespace clean.
 
 - PR #366 published at implementation43072e4e4f92cb5d8880bab3ab39cc6823357614. Required suite queued through local-check, attempt38951803c8c970479b302c1f7746a564, detached worktree sdlc-local-1891726477; pending, no pass claimed. Initial position5 for both slots. The completed native cancellation control exposed independent deterministic four-minute cleanup overhead, filed unclaimed as #523; hub assigned it here after this issue lands (913a7bee-50ed-42b3-8312-88723af72658). #522 stays assigned elsewhere. Finish #521’s suite, close and landing first; no stacked #523 implementation.
+
+- Required recorded suite PASS on43072e4e4f92cb5d8880bab3ab39cc6823357614: all eight shards,1,886 cmd/sdlc tests+75 other packages, zero failures/reruns,690.9s; queued1,376s. Attempt38951803c8c970479b302c1f7746a564, sdlc-local/suite success; persistent raw copy common test-stats/evidence/000521/branch-suite.log, SHA256bdac00752ca8aaffdb62b363a6e8c558c03087828b84712f5533f7fe8b1175ea. Since tested implementation only issue bookkeeping changed. Close review next; hub owns project records.
 
 ## Revisions
 
