@@ -2,7 +2,7 @@
 id: 000514
 status: codecomplete
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 github_issue:
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchRenameDeadlineUnconfirmed, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchKnownRefusals, github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchPermissionFailsClearly]
@@ -14,14 +14,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.23
+actual_hours: 2.27
 tracker:
     version: 1
     completion:
-        token: close-c8ad20975263
+        token: close-aa327dab6873
         repository: github.com/xianxu/ariadne
-        reviewed_head: 211ff2523eaf7e831ba5524b0099c0e866538dd7
-        evidence_commit: 2c120d84e632f1736cf07bc50ad361544431f491
+        reviewed_head: ed14a3fc97dc91e10b245f00516fce367dbc308a
+        evidence_commit: ff28d6a6125253b3c7a54bb479f80e4cf2d871da
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
