@@ -274,7 +274,7 @@ atlas/workflow/ci-merge-check.md, workshop issue/lessons.
 - [x] Evaluate the Go lint rule obligation: this is semantic evidence grammar
   and authority, defended by replay/transition/consumer tests; add a lint only
   if investigation reveals an enumerable mechanical misuse class.
-- [ ] Ask the hub for the live-smoke decision with the concrete reviewed result;
+- [x] Ask the hub for the live-smoke decision with the concrete reviewed result;
   never fill a volume or modify the live fleet. Prefer a bounded real CLI replay
   against a private local evidence store.
 - [ ] Push, run sdlc local-check run --name suite, wait for final pass, then close

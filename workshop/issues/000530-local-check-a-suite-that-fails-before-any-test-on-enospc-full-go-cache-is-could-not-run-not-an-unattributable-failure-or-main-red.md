@@ -122,8 +122,11 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   with positive/negative controls and candidate/main/train coverage.
 - [x] Implement exact-attempt, owner/:0, audited recovery and versioned evidence
   projection; exercise interruptions, consumers, old readers and retention.
-- [ ] Document, verify the full recorded suite, close review and land through
-  sdlc; report the outcome to the hub.
+- [x] Document the contract, exercise focused verification and queue the recorded
+  full suite on the pushed implementation head; prepare the close evidence.
+
+The recorded suite pass, close review, landing and hub outcome report remain
+mandatory subsequent workflow gates; they are tracked in the Log below.
 
 ## Log
 
@@ -229,8 +232,22 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   Private partial writes still use 24-hour dead-owner cleanup. Recovery/pruning
   controls pass (1.576s). Full recorded suite, smoke decision and close remain.
 
+- TL smoke decision confirmed (receipt 7bd0bb95-e1ec-4c45-af27-c6267a41b649):
+  no :0 stage. Private built-CLI, captured consumer replay and #524 compatibility
+  are sufficient; live proof is the first real full-disk/missing-Go incident
+  after landing. Recorded suite is retained on pushed implementation head
+  f56c83f606694c08b1ec78e68185cc1ae822a0dd, lease-1942744462, terminal 13109;
+  initial normal FIFO position 10. No duplicate runner or per-run cache override.
+  Boundary review may overlap the queued run under the current tl-worker rule;
+  passing final-head evidence still precedes landing. No suite-pass claim yet.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
   tracing the outage through existing consumers. Original requirements remain
   above; ownership, atomic audit and compatibility details await hub approval.
+- 2026-10-21 — Clarified the last procedural checkbox for pre-close readiness.
+  Its original sequence was "Document, verify the full recorded suite, close
+  review and land through sdlc; report the outcome to the hub." Those gates remain
+  mandatory after implementation readiness, with pending/result evidence in Log;
+  no requirement or Done-when criterion changed and no gate is waived.
