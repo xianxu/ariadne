@@ -27,6 +27,13 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **The lead prose** is the TL's current procedure: the order of play, stewardship and the operator's two design rules, the status file, grooming trains, dispatch, watching, landing and the `sdlc stage` smoke loop, attention and load, and fleet traps. It holds rules only. Incident history stays in ops learnings, and a new kink lands as a rule change here (`cmd/tl-lead/main_test.go` refuses kink numbers, dated stories, bare `#N` refs and "until X lands" interims). It cites `tl-worker --help` for the worker's rules: `pkg/tlrules` parses the shared rule table, and the lead's test refuses any worker-owned phrase.
 
+**Operator design review (ariadne#505).** STEWARDSHIP in `cmd/tl-lead/help.md`
+routes failure-sensitive workflow designs to the operator before code. It names
+the recognition shapes and examples, the options/state/recovery/failure contents
+of the side doc, and the boundary where ordinary TL approval still applies.
+Rendered-help tests pin that boundary and reject the former taste/smoke-only
+project summary.
+
 **Couch lifecycle notices (ariadne#433).** Couch's system notices for slot start, park, relaunch, recovery, needs-relaunch, and restart summary update the TL's `## Slots` view without a reply. The restart summary replaces routine per-slot polling after a Couch restart; the TL peeks only uncertain or stalled slots. A peer message cannot become a system notice by claiming to be one. The authoritative procedure is `cmd/tl-lead/help.md` under WATCHING.
 
 **Planning rules.** Both help surfaces carry the third-design-delta re-plan

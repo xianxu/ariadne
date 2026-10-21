@@ -50,11 +50,13 @@ Add a rule to `tl-lead --help` (the TL's design-approval section):
 
 ## Plan
 
-- [ ] Pin the operator-review rule and remove the contradictory taste/smoke-only summary.
-- [ ] Verify rendered help, update the atlas map, and prepare recorded-suite/close requests; require passing results before landing.
+- [x] Pin the operator-review rule and remove the contradictory taste/smoke-only summary.
+- [x] Verify rendered help, update the atlas map, and prepare recorded-suite/close requests; require passing results before landing.
 
 ## Log
 
 ### 2026-10-20
 
 Claimed and started in ariadne:5 after #503 landed. Implementing the operator-reviewed Spec from dispatch. ARCH-DRY: keep the rule in the lead’s embedded help, beside existing design approval; tests inspect the rendered help and the atlas points there. Quick plan posted to hub, proceeding unless objected. No runtime state, formats, or new workflow mechanism.
+
+Red: rendered-help regression failed on every missing operator-review clause and on the taste/smoke-only playbook sentence (package 0.202s). Added the rule beside design approval, updated the summary, and mapped it in atlas/workflow/tl-skills.md. Green: full targeted tl-lead, tl-worker and pkg/tlrules package tests passed (7.809s / 0.202s / 0.197s); git diff --check clean. Preparing pushed-head recorded suite and binary-owned close review; both must pass before landing.
