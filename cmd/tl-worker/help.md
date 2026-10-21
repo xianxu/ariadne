@@ -42,7 +42,8 @@ TESTS
   Claude and Codex; Qoder when it has credits.
   A bug found live lands with a recorded fixture of the real capture
   (terminal bytes, agent screen, tool reply), replayed in the normal suite.
-  Live tests use the shared disposable-Couch harness (pair#744),
+  Live tests use the shared disposable-Couch harness (pair#744):
+  cmd/internal/testcouch and `make test-couch-fleet` in Pair,
   never the live fleet. Reuse that harness rather than building private Couch fixtures.
 
   Run the required recorded pre-close suite on the pushed issue branch. Once

@@ -148,6 +148,8 @@ func TestWorkerHelpPinsConformanceInVerificationSection(t *testing.T) {
 			"terminal bytes, agent screen, tool reply",
 			"replayed in the normal suite",
 			"Live tests use the shared disposable-Couch harness (pair#744)",
+			"cmd/internal/testcouch",
+			"make test-couch-fleet",
 			"never the live fleet",
 		} {
 			if !strings.Contains(section, want) {

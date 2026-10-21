@@ -64,6 +64,15 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+- 2026-10-21: pair#744 changed to done/landed while the integrated suite was
+  being admitted. Following the TL's existing conditional instruction, cancelled
+  only run lease-4082040804 through sdlc (no result recorded), then named Pair's
+  landed cmd/internal/testcouch and make test-couch-fleet in the worker help and
+  atlas. The two new rendered-section assertions fail before the wording change
+  (0.124s); all worker, lead and shared rule controls pass afterward (0.132s,
+  28.373s, 0.118s). The first suite's pass remains historical evidence; a fresh
+  suite on this updated head still precedes the narrow re-close and landing.
+
 - 2026-10-21: the first recorded branch suite passed all 1,888 SDLC tests and
   75 other packages with zero failures. Landing then found an append conflict
   in the worker rule table with main's checkpoint/restart rules (#525).
@@ -88,6 +97,10 @@ rule-only change. The future bug fixes own their recorded captures.
   no new mechanical API misuse class or Go lint rule is introduced.
 
 ## Revisions
+
+- 2026-10-21 11:44 PDT — pair#744 is now landed. Executed the TL-approved
+  refinement already recorded below: identify its shared harness by the landed
+  package and make target. The three-rule Spec and Done when remain unchanged.
 
 - 2026-10-21 01:55 PDT — TL clarified harness provenance: while pair#744 is
   unlanded, use the exact shared disposable-Couch harness (pair#744) wording
