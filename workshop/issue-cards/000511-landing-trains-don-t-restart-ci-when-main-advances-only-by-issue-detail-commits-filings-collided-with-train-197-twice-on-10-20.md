@@ -1,6 +1,6 @@
 ---
 id: 000511
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 71d9a6ae50fe907a400ad899372ed073f02613be
         evidence_commit: 979dce878905f174c47a5aaaf45feaa34fa4fed2
+        landed_commit: a65cf775a888471838d855282063264ae37f2fbd
 ---
 
 # landing trains: don't restart CI when main advances only by issue-detail commits (filings collided with train 197 twice on 10-20)
