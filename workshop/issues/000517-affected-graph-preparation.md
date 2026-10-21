@@ -1,13 +1,21 @@
 ---
 id: 000517
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '8699886f4a2a520bb9bd17a8247becef136a07c9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1fd7c7d910470bc51c0304a0e00a06ff83331f7c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-20T23:25:39-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Prepare generated inputs before affected graph discovery
