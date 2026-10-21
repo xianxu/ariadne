@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 2.93
 collaboration-mode: collaboration
-card_mirror: '9a1ff9f50c63a2689a0dad7de3de665069b68ad8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1f0996ffe9557ddcb66c7ab6a25a412c97e62743' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T12:19:30-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "b287a525", done: "f73e0fa9"}
+flow: {kind: full, provenance: operator}
 ---
 
 # workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible
@@ -65,3 +65,25 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 ### 2026-10-21 — publication ownership and unresolved review items
 
 The initial Spec's shorthand "review markers stripped" does not authorize deleting an unanswered operator item or accepting a pending proposal. Only already-accepted clean text can settle; remaining commentary, proposals and malformed markers refuse. Product copies publish through the trunk path; ops copies commit/push directly on primary main under its operating charter. The original working page remains live and receives its confirmed path/commit pointer through Couch Apply. Re-settling updates the same tracked path and Git retains its history. Done-when includes fixtures for these decisions, interrupted publication/stamping and content-based drift; a hub-owned live check precedes landing.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is tagged stale by estimate-source, so these numbers are provisional.
+
+Primitive decomposition: issue/spec shaping (design 1.0 x0.2, implementation 0.2 x0.4); one typed prototype (1.0 x0.2, 0.35 x0.4); one greenfield pure document model/marker concern (1.0 x0.2, 0.6 x0.4); existing publisher extension and status surface as two smaller modules (each 0.2 x0.2, 0.4 x0.4); one stateful publication/Couch integration (2.0 x0.2, 1.25 x0.4); atlas/help (0.1 x0.2, 0.15 x0.4); one boundary review (0, 0.4 x0.4); external conformance discovery (0, 0.4 x0.4). The thorough approved plan supplies the x0.2 design discount; familiar Go/Cobra/Git/Couch seams use familiarity1.0. Existing yaml.v3, sidedoc and trunk transaction helpers cover the library-availability check; the custom marker scanner has no existing Go implementation, and is not credited with a nonexistent parser shortcut. No new stack or vendor propagation. Design subtotal1.10, plus15% buffer1.265; implementation subtotal1.66; total2.925 rounded2.93 hours.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.20 impl=0.08
+item: typed-data-prototype design=0.20 impl=0.14
+item: greenfield-go-module design=0.20 impl=0.24
+item: smaller-go-module design=0.04 impl=0.16
+item: api-integration design=0.40 impl=0.50
+item: smaller-go-module design=0.04 impl=0.16
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.00 impl=0.16
+item: real-api-discovery design=0.00 impl=0.16
+design-buffer: 0.15
+total: 2.93
+```
