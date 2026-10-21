@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '167689d3a8bb3cbc4ec40a4ccfc2ff10a0f2abbe' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '29a19563db5288ebc1111bb41080c6b2e5c97587' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T23:05:19-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainWaiterAcceptsConductorArchive]
+flake_tests: 
 flow: {kind: quick, provenance: inferred, spec: "c4a4d6b6", done: "89531da5"}
 ---
 
@@ -42,7 +42,7 @@ Board against a clock sample consistent with the readiness snapshot, after the c
 
 - [x] After #498 lands, claim/start from main and review the smallest snapshot/clock ordering correction.
 - [x] Promote the controlled-clock refresh reproduction with stale/future controls, resample after readiness reads immediately before Board, and verify real archive/multicar controls.
-- [ ] Run the recorded suite, remove the associated flake registration after proof, and close with the binary-owned fresh review.
+- [x] Run the recorded suite, remove the associated flake registration after proof, and prepare verification for the binary-owned fresh close review.
 
 ## Log
 
@@ -57,6 +57,9 @@ Board against a clock sample consistent with the readiness snapshot, after the c
 - Permanent regression forces the callback interleaving and tests refreshed, newly expired (1ns beyond MaxReadinessAge at the post-gate clock) and genuinely future (1ns ahead) vouches. Old code failed all three in3.770s: refreshed was excluded, newly expired was incorrectly boarded, and departure retained the early timestamp. The correction is one injected clock resample after the snapshot; no guard or existing fixture changed.
 - Targeted green controls passed in62.757s (new regression, train admission, archive acceptance, conductor provenance, train/null/head three-car cases, alone and lagging listing). Pure landingline freshness/Board/departure/admission controls passed0.138s. Persistent raw evidence: common test-stats/evidence/000516/{readiness-red.log,readiness-green-controls.log,landingline-controls.log}. Main independently reran the regression8.905s and full pkg/golint0.824s, both PASS; staged diff whitespace clean. Full recorded suite remains pending; registry remains active until that proof.
 
+- Required recorded full suite PASS on d0bec63dda4a693b922b3a1d885b8af8ee31b2fd: all eight shards, 1,882 cmd/sdlc tests and 75 other packages; zero failures or reruns, wall741.5s, queued635s. Attempt6bf6afc82f72189babf8583e39c055e0; sdlc-local/suite success. Persistent copy common test-stats/evidence/000516/branch-suite.log, SHA2568d2260b15b575f5b446ae01ca1cacdb130e28ae1e1b2e78325482426ebe8fe36. Explicitly removed archive fixture registration via sdlc flake unregister after this proof. Server CI is green; only issue bookkeeping changes since the tested code. Close review is next; no review verdict claimed yet. No atlas surface change: this restores the existing snapshot freshness semantics. Hub owns project records.
+
 ## Revisions
 
 - 2026-10-20: After #498 landed, refine pickup checklist into implementation and verified close steps; acceptance and scope unchanged.
+- 2026-10-20: Clarify final Plan item as preparing verification for the close gate; close itself remains the gate, not an already-completed implementation task.
