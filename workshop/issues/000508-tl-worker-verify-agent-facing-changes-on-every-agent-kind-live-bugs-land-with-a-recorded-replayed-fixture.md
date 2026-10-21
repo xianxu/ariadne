@@ -63,6 +63,8 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+
+- 2026-10-21: closed — Red first: both rendered entry points lacked all three TESTS rules (0.177s). Worker help now requires every agent kind in tests and live checks (Claude/Codex, Qoder when credited), a recorded real live capture replayed with its fix in the normal suite, and reuse of the shared disposable-Couch harness instead of live fleet/private Couch fixtures. All worker tests pass (latest 0.127s), all lead tests pass (17.095s), shared tlrules tests pass (0.124s); rule-table ownership guard remains green. Atlas updated, diff clean. Pair#744 freshly verified codecomplete/not-landed; exact TL-approved placeholder retained. Restart audit found no own queue/landing/run lease; PR 372, pushed head and local HEAD agree. First recorded suite requested under authorized review overlap; final pass remains required for landing. This changes help instructions only and drives no live fleet or harness process. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 ### 2026-10-20
 
 - 2026-10-21: claimed after #517 landed; existing Spec is the operator-reviewed
