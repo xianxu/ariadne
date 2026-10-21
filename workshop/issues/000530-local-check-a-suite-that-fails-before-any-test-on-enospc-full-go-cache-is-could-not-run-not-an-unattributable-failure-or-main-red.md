@@ -265,6 +265,21 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   close round 2 are still required for these code changes; smoke decision remains
   no :0 stage. The earlier run is not final passing evidence.
 
+- Close round 2: SHIP, zero new findings, BR-1 and BR-2 disposed, zero open
+  blocking findings. Card is codecomplete, bound to evidence commit
+  e75169873c630fd95313fe81565e488e3d836e1d; mirrored close head was
+  c1ae80512572291e5f660dce237a3cb1694f5c68. PR is
+  https://github.com/xianxu/ariadne/pull/379 and its server local-gates guard passed.
+- Retained final branch suite: implementation head
+  99c89cf3f2181f380fafd754afd28eb65e10674d, lease-1870387321, terminal 71348,
+  attempt 596fc2146a83d0444c641809908f9f7c. Its inflight log is under the common
+  Git directory's sdlc/test-stats/inflight/596fc2146a83d0444c641809908f9f7c/run.log.
+  It remains normal FIFO (last observed position 5), not passing evidence yet.
+  The difference from implementation head to close head contains only issue and
+  review records. Preserve this run; wait for its pass before starting merge so
+  pending close-only equivalence cannot create a duplicate suite (#502 lesson).
+  No stage, private cache or completed private CLI/compatibility scratch remains.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
