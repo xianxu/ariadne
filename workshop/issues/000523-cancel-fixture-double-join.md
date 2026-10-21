@@ -1,13 +1,13 @@
 ---
 id: 000523
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ab75d9b8dcd0f0ff81ca9b5a9d9ea5325d8ec1be' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '62d241b34d713fb89c4273cd294550803d74835e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T06:19:03-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "5e2de842", done: "9b4ae3c5"}
+actual_hours: 0.34
 ---
 
 # Native cancellation fixture waits four minutes after successful joins
