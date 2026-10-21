@@ -47,7 +47,7 @@ Fold #500's malformed-car fixture into this shared fix. Add a narrow pkg/golint 
 ## Plan
 
 - [x] Test and implement the shared derived budget and timeout diagnostics; sweep completion consumers and add the narrow lint guard.
-- [ ] Run deadline/diagnostic regressions, actual train cases and the recorded full suite; close with the binary-owned fresh review.
+- [x] Run deadline/diagnostic regressions, actual train cases and the recorded full suite; close with the binary-owned fresh review.
 - [ ] Remove both flake registrations after proof, fold #500, land and report to the hub.
 
 ## Log
@@ -77,6 +77,8 @@ Fold #500's malformed-car fixture into this shared fix. Add a narrow pkg/golint 
 - New archive failure is a separate production readiness-clock ordering bug, filed as #516 with hub approval (4299f256-1c1f-4790-b39b-9b6d25545b20). Deterministic production-path callback refreshes a waiting vouch at t0+1ms during the conductor's own readiness check: early captured now yields alone/no-other-ready (1.24s); a TEMP detached-checkout resample after readiness read yields a landed real two-car train (3.37s). No correction or fixture masking is on #498. Evidence lives in common test-stats/evidence/000498/readiness-diagnosis (red.log, green.log, clock-resample.patch, readiness_diagnosis_test.go).
 - The original archive fixture then passed unchanged on exact failed baseline 94bf14d9262f4ced7db0ebdb43b44583d7d8e2d5: 18.11s (package18.597s), Git HEAD before/after identical, detached checkout clean. baseline-original.log and baseline-result.json are in the same persistent evidence directory. Registered only that fixture on #516 with the observed exact-head fail-to-pass evidence. #498/#500 completion flakes remain retired. #516 is unclaimed until this issue lands, then assigned here by hub direction; no stacked implementation. #516's details already hold the clock reproduction and persistent evidence pointers; append this registry observation to its Log on pickup.
 - Fresh resolved-integration suite queued on 73f469513b02c34d39cadf9dd613734b89ba2c51, attempt a1a8983f0805bb5c183a550dedd34044. Subsequent changes are only this bookkeeping. A passing integrated suite and narrow --fixed-then-ship conflict review remain required before retrying landing.
+
+- Fresh integrated suite PASS on 73f469513b02c34d39cadf9dd613734b89ba2c51: all eight shards, 1,877 cmd/sdlc tests and 75 other packages, zero failures or reruns, wall764.2s. Attempt a1a8983f0805bb5c183a550dedd34044; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/73f469513b02c34d39cadf9dd613734b89ba2c51/suite.log, SHA256 prefix1afa234db846; sdlc-local/suite success. Waited1,749s for both machine slots. Raw copy retained as common test-stats/evidence/000498/integrated-suite.log; original branch proof and baseline failure are also copied into this evidence area. The only pending checklist action is landing/report; removal and fold are already complete. Narrow conflict re-close follows this exact-code proof.
 
 ## Revisions
 
