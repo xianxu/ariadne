@@ -47,6 +47,8 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 
 ## Log
 
+
+- 2026-10-21: closed — Real native cancellation fixture RED 240.53s above 2m whole-cleanup bound, GREEN 393.97ms with identical safety assertions; all seven targeted lease/cancel controls and pkg/golint passed. Recorded suite e3515f11 passed eight shards,1931 SDLC tests and75 packages,zero failures,707.5s; persistent evidence/000523/branch-suite.log. Test-only channel completion fix has no new architectural surface; hub owns project updates.; review verdict: SHIP
 - Discovered during independent #521 cancellation validation. Current cmd/sdlc/localcheck_lease_test.go TestLocalCheckCancelOnlyOwnRun start helper sends one result into buffered c.done but never closes it. The main assertion consumes a.done and b.done; each registered cleanup then selects c.done again versus time.After(testfix.HangCeiling). Both results have already been consumed, so each cleanup waits two minutes.
 - Targeted current-branch run passed the native control in240.56s (whole held/cancel command256.650s), while no child processes remained during its long final wait. This is deterministic cleanup overhead, not a registered flake or a #521 runtime defect. Native source unchanged by #521. Main verification summary retained at common test-stats/evidence/000521/main-verification-summary.txt; raw pass timing also appears in the worker tool transcript. No nonexistent raw log is cited.
 
