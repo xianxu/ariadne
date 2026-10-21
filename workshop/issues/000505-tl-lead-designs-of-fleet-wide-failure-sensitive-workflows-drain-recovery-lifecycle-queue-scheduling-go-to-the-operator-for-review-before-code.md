@@ -1,13 +1,13 @@
 ---
 id: 000505
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a33ae2634183930e0f548914a3f00863d25bf225' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a997ba8e8a18ff5ee3744280d671181f0e6eb3eb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T17:05:04-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "2f75c9c9", done: "fe0d87c7"}
+actual_hours: 0.03
 ---
 
 # tl-lead: designs of fleet-wide, failure-sensitive workflows (drain, recovery, lifecycle, queue, scheduling) go to the operator for review before code
