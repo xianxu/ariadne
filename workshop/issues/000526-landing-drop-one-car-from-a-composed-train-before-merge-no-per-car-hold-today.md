@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 2.79
 collaboration-mode: collaboration
-card_mirror: 'b30650d5cbad1c1caf75c854d548315c4a0f97ca' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c15f690588c13a400c4c972c09b0aa22ad988697' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T08:01:01-07:00
 claimant:
     operator: Xian Xu
@@ -58,8 +58,29 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 ## Revisions
 
+- 2026-10-21: Full-flow plan gate CLEAN after two rounds; PQ-1/PQ-2 addressed. Derive provisional2.79h estimate only after plan acceptance, from the named v3.1 calibration.
+
 - 2026-10-21: Hub clarified “returns to waiting” means not lost, not automatically ready: a dropped car stays out until explicit owner retry; its runner exits with reason/recovery like #521 (654ff9bf-3a5d-4ddf-ab4c-b831827f1f83). Done-when wording updated accordingly. Hub endorsed persistent generation-pinned acceptance under line.lock and one atomic drop-versus-merge fence; detailed plan awaiting approval.
 
 - 2026-10-21: Operator approved the detailed plan through hub relay2364fcf8-71f4-477d-804e-c5fa4d1a4d45: atomic admission of the Merge effect is the merge-start boundary; deterministic real-Git fixture is the live conformance, with no staged Pair train. Proceed to change-code and its plan-quality gate.
 
 - 2026-10-21: First full-flow plan gate found PQ-1 (existing close/reclaim is best-effort, insufficient for promised cleanup barrier) and PQ-2 (compress test inventory into named risky functions/strategies). Plan now names durable cleanup obligation, positive closure proof, successor guard covering serial/train attempts and retirement ordering; test strategies compressed. No implementation yet.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; calibration source is marked stale, so provisional. Familiar landing/lease code, familiarity1.0. Thorough design uses15% design buffer. Existing flock, JSON codec, workspace and GH/process seams short-circuit library work; pure control design1.0h is halved for reuse and discounted0.2 to0.10h. Other implementation entries are40% of v2.1 primitive hours, applied once. Issue-spec retains0.60h design (this session's shaping); remaining well-specified primitive design uses0.2 discount. Eight rows map to shaping, pure control, storage, CLI authority, cleanup confirmation, conductor/retry refactor, docs and the one close review respectively.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.60 impl=0.08
+item: greenfield-go-module design=0.10 impl=0.24
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.04 impl=0.16
+item: api-integration design=0.20 impl=0.40
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.00 impl=0.16
+design-buffer: 0.15
+total: 2.79
+```

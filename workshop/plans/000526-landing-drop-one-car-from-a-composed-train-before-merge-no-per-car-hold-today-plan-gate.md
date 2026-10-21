@@ -41,6 +41,41 @@ rounds:
           family: function-level-test-strategy
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 24e2fffb-b244-47f6-bc9f-b69363e4fb21
+            repository: github.com/xianxu/ariadne
+            issue_id: "000526"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            reviewed_head: d47c5197c9e2c895a325f772242ff6cf92e2f5df
+            slot: ariadne:1
+            requested_at: "2026-10-21T17:35:34.496536Z"
+          phase: finished
+          pid: 22467
+          started_at: "2026-10-21T17:35:34.589561Z"
+          finished_at: "2026-10-21T17:36:02.781869Z"
+          session_id: 01a15f88-5db9-7a80-aa27-fa67fe645fe8
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-21T10:36:03-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Durable cleanup identity, positive confirmation evidence, successor admission enforcement and retirement ordering now cover serial and train paths after conductor death.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Test inventories are replaced by named risky functions with adversarial strategies and mechanical guards, retaining integration acceptance invariants.
+          round: 2
+      blocked: false
+content_hash: d9ea20ea8f8bf0b38f38e3027f0bc84cb68b16999e1bf339eb260087ce8a81fa
 ---
 
 # Gate ledger — ariadne#526 (plan-quality)
@@ -57,7 +92,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Important] `function-level-test-strategy` Compress test inventories into named risky functions and strategies.
   Plan lines 88–108 enumerate test cases, contrary to this gate's test-plan contract, while new pure decision and codec functions lack names. Name the functions to unit-test and give each risky function one strategy line identifying its adversarial input or event-sequence class and mechanical guard; retain integration acceptance invariants without the case inventories.
 
+## Round 2 — 2026-10-21T10:36:03-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Durable cleanup identity, positive confirmation evidence, successor admission enforcement and retirement ordering now cover serial and train paths after conductor death.
+- PQ-2 — addressed — Test inventories are replaced by named risky functions with adversarial strategies and mechanical guards, retaining integration acceptance invariants.
+
 ## Open findings
 
-- **PQ-1** [Important] `cleanup-confirmation-before-successor` Specify a durable cleanup barrier across survivor admission paths.
-- **PQ-2** [Important] `function-level-test-strategy` Compress test inventories into named risky functions and strategies.
+(none — every finding has been disposed)
