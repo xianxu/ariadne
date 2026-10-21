@@ -56,6 +56,7 @@ Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY 
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — README BR-1 fixed for both takeover modes; link target and diff checked. Test-first help guard red-before; tl-lead package passed locally (15.838s) and independently in review (20.797s); built CLI both entry points verified, hub accepted no stage. Suite lease-761235529 on pushed 45c68451930d55cd5a2c5f36073920bb4b01f7d2 still pending; no code changes, completed original pass required before landing.; review verdict: SHIP
 
 - Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.
 - Test-first: TestLeadHelpTakeoverSequence failed with TAKEOVER missing before implementation. Added five ordered steps, checking both --help and bare entry points, step-local phrases, switch/session scope, gap-only transcript read, ephemeral loss and stamp-writing ownership. Full cmd/tl-lead package passed (15.838s). Atlas maps the delivered help and guard.
