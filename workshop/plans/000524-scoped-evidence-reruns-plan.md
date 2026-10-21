@@ -34,6 +34,21 @@ collaboration-mode: discussion
 
 No external dependency is added. Tests reuse stateful fake GitHub/registry and real private filesystem/Git/native lock/process fixtures. No production evidence or machine setting is touched.
 
+## Risky functions and adversarial strategies
+
+| Function | File / colocated test | Strategy and mechanical guard |
+| --- | --- | --- |
+| decodeUnsupportedProof(data, filename) | teststats_evidence.go / TestDecodeUnsupportedProof | Perturb each identity boundary in a valid opaque newer record; strict duplicate/type/name validation must return either a validated identity or unscopable error, never accepted attempt facts. Raw input remains byte-identical. |
+| unsupportedProofBlocks(proof, subject) | teststats_evidence.go / TestUnsupportedProofBlocks | Generate subject/proof identity pairs varying one authority dimension and parent relation; an independent expected-relation table guards locality and forbids proof fallback. |
+| readSuiteEvidenceBudget(root, limits) | teststats_store.go / TestReadSuiteEvidenceBudget | Interleave supported, opaque and unreadable files under explicit read budgets; counted IO/visits at N and2N proves one scan and supported measurements survive only when their authority scope is complete. |
+| loadSavedAttempt and guardSuitePass | localcheck_republish.go / TestScopedSavedProofConsumers | Stateful store/registry/GH fixtures drive unsupported evidence through actual post/reuse paths; count status effects and assert scoped newer-reader errors preserve bytes and never authorize related uncertainty. |
+| RerunCommands(tests) | internal/flakes/rerun.go / TestRerunCommandsExactPackages | Generate named tests over overlapping packages; independently reconstruct package/name selections from emitted literal argv, require exact set equality after top-level promotion, and count groups rather than timing. |
+| RerunMissingJSON(log, tests) | internal/flakes/rerun.go / TestRerunMissingJSON | Mutate structured event provenance and event completeness around valid pass events; require matching package/test authority, treating quoted Output or non-events as data and missing proof as inconclusive. |
+| runUnderSlotBatch and runManagedCommandBatch | localcheck_run.go / TestManagedRerunBatch | Order real subprocess publication points with pipes/markers, then cancel or fail before the next launch; independent child/lease counters prove one admission, bounded aggregate lifetime, joined descendants and zero launches after cancellation. |
+| knownFlakeStep | localcheck_flakes.go / TestKnownFlakeExactPackageGate | Real two-package decoy fixture behind stateful registry/GH proves the production path runs only selected packages, saves one child and never counts it as another suite. |
+
+Pure decoder/relation/batch/PASS tests use supplied values only. IO/process tests exercise the same production entrypoints with private real resources or the existing stateful fake. The table defines the function-level strategy; executable tests own individual case inventories.
+
 ## Scoped compatibility rule
 
 The parser recognizes supported v1/v2 attempts unchanged. For a valid future/v3 identity envelope, store it as UnsupportedProof rather than a global warning. Selecting that attempt or a linked parent returns a typed error with “needs a newer sdlc”, record ID and path. Do not silently fall back to an older passing proof of the same subject.
@@ -70,7 +85,7 @@ This landing creates no cross-event resume state, lock or durable coordination r
 **Files:** new teststats_evidence.go/test; teststats_store.go/test; localcheck_republish.go/test; teststats_cmd.go/test and existing flake/actual readers as the caller audit requires; atlas/workflow/sdlc-binary.md.
 
 - [ ] Write RED mixed-store tests through actual consumers: one valid future/v3 envelope, a supported parent and unrelated supported records. Explicit unsupported selection refuses newer-reader; unrelated repo/head/named-check reuse and republish succeed. Same-head unknown test evidence cannot silently authorize suite/affected success.
-- [ ] Add pure envelope decoding/relativity and one bounded snapshot/index; retain strict supported-record validation. Duplicate/case-aliased/null/wrong-type identity, missing ID, foreign filename, invalid parent and truncated/budgeted reads never become ordinary proof. Unknown fields remain in untouched raw bytes.
+- [ ] Implement decodeUnsupportedProof, unsupportedProofBlocks and readSuiteEvidenceBudget using the named adversarial strategies above; retain strict supported-record validation and untouched raw unknown bytes.
 - [ ] Route every authority consumer through the scoped view. Test actual/statistics/registration projection against unrelated valid rows, with explicit unsupported coverage and no fake samples. Count scans/record visits at N and2N; reject per-record whole-store rescans.
 - [ ] Retain a pre-change decoder/guard control proving a v3 record currently poisons the whole snapshot; test the upgraded compatibility reader against the same store and assert scoped refusal only. Do not label the already-built pre-change binary compatible.
 - [ ] Document the two-landing rollout barrier in atlas and close M1 using the binary review. No v3 writer is present.
@@ -80,8 +95,8 @@ This landing creates no cross-event resume state, lock or durable coordination r
 **Files:** internal/flakes/rerun.go and flakes_test.go; localcheck_flakes.go/tests; localcheck_run.go plus process/signal tests; localcheck_affected_flakes_test.go; helptext/local-check.md, README.md and atlas/workflow/sdlc-binary.md.
 
 - [ ] RED real two-package fixture: A fails TestA, B fails TestB; A.TestB and B.TestA write decoy sentinels if invoked. Existing cross-product execution must fail this control. Keep real parent/subtest/sibling coverage and named-test absence controls.
-- [ ] Implement deterministic package batches and package-bound structured PASS collection. Test escaped names, duplicates, same names in multiple packages, missing/wrong-package PASS, quoted JSON in Output and malformed events. Preserve the existing five-flake limit and revalidation policy.
-- [ ] Add the thin sequential batch seam under existing managed ownership. Real subprocess tests cancel while queued, during one group and between groups; assert no later launch, all owned children joined, one slot acquisition and one aggregate timeout. Fail-fast cannot become a pass when a later required group did not run.
+- [ ] Implement RerunCommands and RerunMissingJSON with the pure function strategies above; preserve the existing five-flake limit and revalidation policy.
+- [ ] Implement runUnderSlotBatch/runManagedCommandBatch with the controlled-order strategy above. Fail-fast cannot become a pass when a later required group did not run.
 - [ ] Route automatic suite/affected known-flake reruns through it, preserving one immutable linked child and original suite samples. Run focused normal/race regressions for flake gate, republish/saved pass, queue signals and single-command runner cleanup.
 - [ ] Private executable proof with fake GH/registry/private Git, queue, scratch and lock paths: unrelated proof survives one synthetic future record, affected proof names newer sdlc; exact-package decoys remain absent and one real linked attempt is saved. No real v3 production record or live queue pause.
 - [ ] Push, record the central full suite on final head and complete delivery preparation. Then M2 close, whole close, PR and normal central merge follow through their gates. Report the landing and fleet rollout instructions; do not activate #463.
@@ -95,3 +110,9 @@ No new files/rows/process families beyond existing attempts/logs/managed executi
 ## Rollout and approval
 
 Hub receipt917bf022-032a-4d84-ac6b-39075bbca2b5 approves reader-first plus exact-package batches as a separate landing. This issue is that phase1. After landing, the hub upgrades every slot's actual sdlc and this worker records observed paths/revisions; any stale, unknown or still-running old writer keeps #463 link activation held. The pre-change whole-store limitation cannot be fixed by a payload. Never hide links from older readers. Phase2's resume-specific recovery command remains #463 work.
+
+## Revisions
+
+### 2026-10-21 — PQ-1 function-level test contracts
+
+Plan review requested named risky functions and compact adversarial strategies instead of prose case inventories. Added one table covering the pure decoder/relation/batch/PASS functions, bounded reader, actual proof consumers, managed execution and flake integration; milestone steps now reference it. No design, scope, state or rollout policy changed.

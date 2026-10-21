@@ -51,4 +51,8 @@ No ResumeLink writer or resume activation. Atlas must name the old-reader limita
 
 Claimed at filing and started independently from fresh main. The approved design is recorded in [the durable plan](../plans/000524-scoped-evidence-reruns-plan.md): one typed scoped read view plus exact-package managed batches. Hub receipt917bf022-032a-4d84-ac6b-39075bbca2b5 owns the split and fleet rollout barrier. Phase1 does not create links or enable resume; #463 and #520 branches are preserved. Package-bound JSON PASS events prevent a same-name or quoted output from satisfying another package's test. Unscopable malformed data remains unknown; valid future identities are localized so unrelated records/checks stay usable.
 
+### 2026-10-21 — Plan-quality round1
+
+PQ-1 (function-test-strategy-contract) asks for named risky functions and adversarial strategies rather than case inventories. The plan now names decoder, authority relation, bounded snapshot, saved/post consumers, batch builder, structured PASS collector, managed batch and production flake entrypoint with one strategy/mechanical guard per function. This is test-contract refinement only; no implementation, mechanism delta or scope change.
+
 Filed as the separately landable phase1 prerequisite from the approved ariadne#463 plan. The original #463 branch holds only committed design, with no implementation. #520 remains held for operator approval on its own branch.
