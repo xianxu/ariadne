@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5e2de842", done: "9b4ae3c5"}
 ---
 
 # Native cancellation fixture waits four minutes after successful joins
