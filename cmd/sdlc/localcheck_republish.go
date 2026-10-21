@@ -65,9 +65,13 @@ func hostName() string {
 // whether no later attempt of it exists (one that failed to verify, say) and the
 // store was read whole, which merge requires before a saved pass stands in.
 func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRunRecord, newest bool, err error) {
-	attempts, warnings, err := readSuiteAttempts(storeRoot, testStatsRecordLimit)
+	snapshot, err := readSuiteEvidence(storeRoot, testStatsRecordLimit)
+	attempts, warnings := snapshot.Attempts, snapshot.Warnings
 	if err != nil {
 		return localRunRecord{}, false, err
+	}
+	if unavailable := snapshot.proofError(proofSubject{Repo: repo, SHA: sha, Check: check, ID: id}); unavailable != nil {
+		return localRunRecord{}, false, fmt.Errorf("%w: %w", errSavedAttemptRefused, unavailable)
 	}
 	// An incomplete read (a limit hit, an unreadable record) leaves the newest
 	// attempt unknown, not absent: nothing then counts as newest.
@@ -143,9 +147,13 @@ func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) erro
 	if err != nil {
 		return refuse("its earlier attempts cannot be read: %v", err)
 	}
-	attempts, warnings, err := readSuiteAttempts(suiteStoreRoot(logDir), testStatsRecordLimit)
+	snapshot, err := readSuiteEvidence(suiteStoreRoot(logDir), testStatsRecordLimit)
+	attempts, warnings := snapshot.Attempts, snapshot.Warnings
 	if err != nil || len(warnings) > 0 {
 		return refuse("its earlier attempts cannot all be read (%v; %s); inspect or remove the named records", err, strings.Join(warnings, "; "))
+	}
+	if unavailable := snapshot.proofError(proofSubject{Repo: d.Repo, SHA: sha, Check: check}); unavailable != nil {
+		return refuse("%v", unavailable)
 	}
 	var ev []SuiteAttempt
 	failed := false
@@ -236,6 +244,10 @@ func republishSavedPass(ctx context.Context, d localRunDeps, c localCheck, sha s
 	}
 	host := hostName()
 	rec, newest, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, check, "", host)
+	var unavailable *needsNewerSDLCError
+	if errors.As(err, &unavailable) {
+		return rec, true, err // Never replace unsupported authority with a blind rerun.
+	}
 	switch {
 	case errors.Is(err, errSavedAttemptRefused):
 		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing a saved attempt: %v\n", check, err)

@@ -1,0 +1,60 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// Run against the pinned pre-#524 source, never as an emulated old reader.
+func TestPre524FutureRecordPoisonsUnrelatedProof(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "skipped")
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := suiteStoreRoot(logDir)
+	w, err := beginSuiteAttempt(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := []byte("ok example.test/pkg 1.0s\n")
+	if err := os.WriteFile(w.LogPath, log, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := storedAttemptFixture(w.ID)
+	a.Repo, a.SHA, a.Exit, a.Failures = d.Repo, sha, 0, nil
+	wall := 1.0
+	a.WallSeconds, a.LogSHA256 = &wall, hashBytes(log)
+	if _, err := publishSuiteAttempt(store, w, a); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(map[string]any{"version": 3, "id": "d3", "repo": "another/repository", "sha": sha, "check": "suite", "future": map[string]any{"opaque": true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(store, "attempts", "d3.json")
+	if err := os.WriteFile(p, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rows, warnings, err := readSuiteAttempts(store, 100)
+	if err != nil || len(rows) != 1 || len(warnings) != 1 || !strings.Contains(warnings[0], "invalid attempt record") {
+		t.Fatalf("old global warning: rows=%d warnings=%v err=%v", len(rows), warnings, err)
+	}
+	rec, newest, err := loadSavedAttempt(store, d.Repo, sha, "suite", "", "host")
+	if err != nil || newest || !rec.passed() {
+		t.Fatalf("old saved-proof incompleteness: newest=%v rec=%+v err=%v", newest, rec, err)
+	}
+	if err := guardSuitePass(context.Background(), d, "suite", sha); err == nil || !strings.Contains(err.Error(), "invalid attempt record") {
+		t.Fatalf("old guard did not refuse unrelated proof: %v", err)
+	}
+	if err := postLocalCheckRecord(context.Background(), d, rec); err == nil || gh.statuses[sha][localStatusContext("suite")] == "success" {
+		t.Fatalf("old post did not refuse: %v", err)
+	}
+	if got, err := os.ReadFile(p); err != nil || string(got) != string(raw) {
+		t.Fatalf("old reader changed future bytes: %v", err)
+	}
+}

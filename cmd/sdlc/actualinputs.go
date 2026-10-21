@@ -351,7 +351,8 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if !filepath.IsAbs(common) {
 		common = filepath.Join(repoTop, common)
 	}
-	attempts, attemptWarnings, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), testStatsRecordLimit)
+	evidence, err := readSuiteEvidence(filepath.Join(common, "sdlc", "test-stats"), testStatsRecordLimit)
+	attempts, attemptWarnings := evidence.Attempts, evidence.Warnings
 	if err != nil {
 		return err
 	}
@@ -372,6 +373,10 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if purpose == actualCorrectionCandidate && len(waits) == 0 {
 		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")
 	}
+	// Opaque future records are not queue samples. Preserve supported owned
+	// measurements and name the unavailable coverage instead of poisoning
+	// every issue that reads this shared store.
+	out.Warnings = append(out.Warnings, evidence.coverageNotes(strings.TrimPrefix(repository, "github.com/"))...)
 	out.Warnings = append(out.Warnings, attemptWarnings...)
 	out.Warnings = append(out.Warnings, notes...)
 	if len(waits) > 0 {

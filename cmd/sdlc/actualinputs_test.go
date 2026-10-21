@@ -675,3 +675,30 @@ func TestOwnedActualResolverRecloseRetiresPriorCorrection(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnedActualUnsupportedRecordKeepsSupportedMeasurements(t *testing.T) {
+	r, _, _ := ownedCompletedFixture(t, false)
+	before, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(r.root, common)
+	}
+	dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	raw := strings.Replace(string(futureProofFixture("d3")), "x/ariadne", "xianxu/ariadne", 1)
+	if err := os.WriteFile(filepath.Join(dir, "d3.json"), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	after, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Snapshot.CodeHead != before.Snapshot.CodeHead || len(after.Snapshot.Sources) != len(before.Snapshot.Sources) || len(after.Snapshot.QueueWaits) != len(before.Snapshot.QueueWaits) || strings.Contains(strings.Join(after.Warnings, " "), "needs a newer sdlc") {
+		t.Fatalf("unsupported record discarded measurements or hid coverage: %+v", after)
+	}
+}
