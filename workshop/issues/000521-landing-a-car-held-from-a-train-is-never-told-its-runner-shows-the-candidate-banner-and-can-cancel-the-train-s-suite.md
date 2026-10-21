@@ -73,6 +73,8 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 ## Log
 
+
+- 2026-10-21: closed — Real Git conflicts hold first/third, release second/fourth, stop held conductor before Publish or sibling suite; survivors reform under actual new-conductor lease, foreign cancel stops0 and suite survives to merge both; held branches stayOPEN. Owning/waiting held recovery and candidate/composed/retained output controls PASS; native owner-cancel control PASS240.56s (separate523 cleanup cost). Focused train/archive/clock/split/environment/malformed controls141.821s, pure state.156s, lint.914s PASS. Recorded suite43072e4e4f92cb5d8880bab3ab39cc6823357614 all8 shards1886+75packages, no failures/reruns,690.9s, attempt38951803c8c970479b302c1f7746a564 logbdac00752ca8. README/atlas updated. TL approved abort/reform and no-stage conformance. --no-project: hub owns project.; review verdict: SHIP
 - 10-20 23:50 (TL ops:0): filed from pair:6's report; the evidence is pair `.git/sdlc/landing/events.jsonl` (seq 213 car
   held 23:10:36; seq 213 train abandoned 23:39:38, cars [213, 216], PR 506 closed).
 
