@@ -45,7 +45,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -68,6 +68,8 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 - Final targeted verification: final-shell-green.log PASS71.797s, including drop-self/drop-middle conformance (43.47s), native old-suite cancellation, merge API boundary, serial crash recovery, retry lifetime paths, ordinary-branch refusal before GH effects, and completed receipt rendering. The latter two controls reproduced failures first (final-controls-red.log and completed-receipt-red.log); the local-file independent-clone receipt fixture supplies its common repository identity through the existing seam.
 - final-core-lint.log: landingline PASS4.848s, tracked pkg/golint PASS1.290s; final-core-race.log PASS3.248s; go vet ./cmd/sdlc ./cmd/sdlc/internal/landingline exit0. Seven deterministic Python deadline/process-ownership controls pass0.002s. The count guard inherits t.Deadline and reserves shutdown time; no fixed child completion timeout resets. Cost-budget red/green logs retain the driver correction proof. All source/staging/HEAD remained fixed throughout each main-package test.
+
+- Recorded branch suite on Git-verified957b61af534af2fc2b3fb4ac47a73439f0b41ca5 PASS: all8shards,1940cmd/sdlc tests and75other packages, zero failures, wall793.3s. Machine queue waited1650s before admission; run lease-4251668674 completed exit0 and posted sdlc-local/suite. Original log common Git sdlc/local-checks/957b61af534af2fc2b3fb4ac47a73439f0b41ca5/suite.log; SSD evidence copy test-stats/evidence/000526/branch-suite.log. PR374 is open; server local-gates guard passed and confirms no protected paths touched. Ready for close review; not landed yet. Hub owns project (--no-project); deterministic fixture is the approved live conformance.
 
 ## Revisions
 

@@ -116,8 +116,8 @@ Files: cmd/sdlc/helptext/landing.md, README.md, atlas/workflow/sdlc-binary.md, i
 
 - [x] Document command/authority, merge boundary, pending-cleanup state/recovery, held explicit retry and unsupported old conductors; status renders actual current state and exclusions.
 - [x] TDD counted control/membership operations at8/16cars: O(N+D) walk, one short atomic update per event, one scoped watcher and existing2s cadence; reject per-member IO/poll multiplication. Run targeted checks/lint and push.
-- [ ] Run and persist operator-approved deterministic real-Git conformance, raw red/green/race logs and recorded full suite in common test-stats/evidence/000526; no staged Pair train or configuration change.
-- [ ] Update Log/plan ticks and prepare close evidence; sdlc close owns review, hub owns project (--no-project); on SHIP run sdlc merge --yes and report.
+- [x] Run and persist operator-approved deterministic real-Git conformance, raw red/green/race logs and recorded full suite in common test-stats/evidence/000526; no staged Pair train or configuration change.
+- [x] Update Log/plan ticks and prepare close evidence; sdlc close owns review, hub owns project (--no-project); on SHIP run sdlc merge --yes and report.
 
 ## Operating envelope and architecture
 
@@ -148,3 +148,5 @@ The merge start fence is admission of the Merge effect after green CI, before it
 - 2026-10-21 verification: both real three-car drop variants land two survivors in one replacement train. Broad targeted train/drop/grant/cancellation controls pass487.849s; raw red/green cleanup, destination and handoff evidence is recorded in the issue Log and SSD test-stats/evidence/000526. Final recorded suite and boundary review remain pending.
 
 - 2026-10-21 final controls: reject ordinary branches before any cleanup GitHub effect and render repeated receipts from actual pending/completed state. Both reproduced red before correction. Final shell controls71.797s, core/lint/race/vet and deterministic deadline controls pass; recorded full suite remains pending.
+
+- 2026-10-21 acceptance: recorded branch suite on957b61af passed all8shards/1940command tests/75other packages in793.3s with zero failures; persisted branch-suite.log. Implementation and acceptance preparation complete; boundary review and merge remain the next gated actions, with project bookkeeping owned by hub.
