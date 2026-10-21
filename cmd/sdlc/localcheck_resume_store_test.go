@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -206,5 +207,66 @@ func TestResumeStorePrunePinsPending(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, "attempts", id+".json")); err != nil {
 			t.Fatalf("pending member %s pruned: %v", id, err)
 		}
+	}
+}
+
+func TestResumeStoreDirectoryLock(t *testing.T) {
+	root := t.TempDir()
+	resumeStoreParent(t, root, "aa")
+	first, err := lockResumeDirectory(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tryLockResumeDirectory(root); !errors.Is(err, syscall.EWOULDBLOCK) {
+		t.Fatalf("directory mutex did not serialize: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := lockResumeDirectory(ctx, root); !errors.Is(err, context.Canceled) {
+		t.Fatalf("directory wait not cancellable: %v", err)
+	}
+	path := filepath.Join(root, "attempts")
+	if err := os.Rename(path, path+".old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.verify(); err == nil {
+		t.Fatal("directory inode replacement accepted")
+	}
+	first.Close()
+	second, err := tryLockResumeDirectory(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.Close()
+}
+
+func TestResumeStorePublicationWaitsForDirectory(t *testing.T) {
+	root := t.TempDir()
+	resumeStoreParent(t, root, "aa")
+	directory, err := lockResumeDirectory(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer directory.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	parent, err := lockResumeParent(ctx, root, "aa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+	in := resumeCoreFixture(t)
+	in.Parent = parent.Attempt
+	in.ParentRecordSHA256 = resumeRecordDigest(parent.Raw)
+	in.ParentLogSHA256 = parent.Attempt.LogSHA256
+	raw, _ := json.Marshal(resumeCoreLink(in))
+	if err := publishResumeEvidence(root, parent, raw); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("publication bypassed snapshot mutex: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attempts", "bb.json")); !os.IsNotExist(err) {
+		t.Fatalf("publication escaped canceled mutex wait: %v", err)
 	}
 }

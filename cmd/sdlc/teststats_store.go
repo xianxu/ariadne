@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -557,9 +558,24 @@ func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func
 }
 
 func pruneSuiteAttempts(root string, now time.Time) error {
+	return pruneSuiteAttemptsWithHook(root, now, nil)
+}
+
+func pruneSuiteAttemptsWithHook(root string, now time.Time, afterSnapshot func()) error {
+	directory, err := tryLockResumeDirectory(root)
+	if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
 	protected, err := pruneResumeBundles(root, now)
 	if err != nil {
 		return err
+	}
+	if afterSnapshot != nil {
+		afterSnapshot()
 	}
 	entries, err := os.ReadDir(filepath.Join(root, "attempts"))
 	if err != nil && !os.IsNotExist(err) {
@@ -596,8 +612,38 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		if !suiteHex.MatchString(id) {
 			continue
 		}
+		// Publisher order is parent → directory. This inverse acquisition
+		// MUST remain a try: waiting here would deadlock a publisher that owns
+		// the parent and is waiting for our directory snapshot mutex.
+		parent, err := regularResumeFile(filepath.Join(root, "attempts", e.Name()))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		err = flock.Exclusive(parent, true)
+		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
+			parent.Close()
+			continue
+		}
+		if err != nil {
+			parent.Close()
+			return err
+		}
+		if err = directory.verify(); err != nil {
+			parent.Close()
+			return err
+		}
+		current, statErr := os.Lstat(filepath.Join(root, "attempts", e.Name()))
+		opened, openErr := parent.Stat()
+		if statErr != nil || openErr != nil || !os.SameFile(current, opened) {
+			parent.Close()
+			return errors.New("legacy prune parent identity changed")
+		}
 		_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
 		_ = os.Remove(filepath.Join(root, "failed", id+".log"))
+		parent.Close()
 	}
 	// An active writer owns its in-flight directory even if its clock or run
 	// duration exceeds the stale threshold. Uncertain liveness retains it.

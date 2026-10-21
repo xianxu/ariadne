@@ -2,6 +2,8 @@
 
 - #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
 
+- #463 lifetime review: a protected-member snapshot cannot authorize later deletion while a publisher can introduce new links. Serialize one snapshot and all pruning with publication on the existing directory inode. When publication takes parent→directory, pruning may take directory→parent only with a strict try-and-skip; a real subprocess negative control must fail if it becomes blocking. This is a cross-function lifetime invariant, defended by those interleavings rather than source-name lint.
+
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 

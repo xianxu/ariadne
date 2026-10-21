@@ -213,6 +213,9 @@ func (s SuiteEvidenceSnapshot) knownSuiteHeads() map[string]bool {
 	for _, l := range s.Resumes {
 		out[l.SHA] = true
 	}
+	for _, r := range s.Reconciliations {
+		out[r.SHA] = true
+	}
 	for _, a := range s.Attempts {
 		if isSuiteRun(a) {
 			out[a.SHA] = true

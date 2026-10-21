@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -155,14 +155,12 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 		if now.Sub(latest) <= suiteAttemptKeep {
 			continue
 		}
-		// A first immediate flock attempt succeeds for idle parents. A bounded
-		// context prevents retention waiting behind an entire active suite.
+		// Directory → parent is safe ONLY as a strict try. A publisher may
+		// already own parent while waiting for our directory mutation mutex.
 		var lock *resumeParentLock
 		if hasParent {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
-			lock, err = lockResumeParent(ctx, root, parent)
-			cancel()
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			lock, err = tryLockResumeParent(root, parent)
+			if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
 				continue
 			}
 			if err != nil {

@@ -2736,3 +2736,12 @@ Malformed/unreadable evidence retains data. Shared members/logs stay protected.
 The existing pruner skips all indexed bundle members during individual-file
 cleanup. This core milestone adds no user command or automatic link writer;
 CLI activation and all-reader composite proof are the following milestone.
+
+One flock on the existing attempts directory spans the protected-member snapshot
+and both bundle and legacy pruning. Publication acquires parent, then directory;
+pruning acquires directory, then **strictly nonblocking** parent locks, skipping
+busy parents. The inverse order is safe only because pruning never waits on a
+parent. Real subprocess barrier tests deadlock under a deliberate blocking-lock
+mutation, and verify owner-death release and publication versus old snapshots.
+Directory path/inode identity is revalidated; no new lock files or per-parent
+snapshot scans are added.
