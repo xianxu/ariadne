@@ -360,3 +360,22 @@ Checkpoint/push final code, queue the fresh recorded suite and close M3 through
 its own boundary. The original M2 remains superseded, not closed; the whole-
 issue gate must dispose of BR-3 as superseded by operator option A, decision
 390faec8-dc49-498e-9ad5-2c1a718c2c37, with ledger history preserved. No stage.
+
+### 2026-10-21 — Required noon freshness integration before M3 review
+
+M3 milestone-close refused at the integrate gate before any review dispatch:
+main code landed by noon was absent. Followed its exact git-merge remedy rather
+than bypassing it. Canceled only still-queued lease-956462783 on the previous
+head through local-check cancel; it never acquired suite capacity. Integrated
+origin/main without conflicts (including landed #514/#527 and the named noon
+changes), preserving both atlas/lessons edits, and stamped the merge trailers.
+This is the gate-required freshness integration, not repeated manual chasing
+of newer main. Reverify relevant targets/lint, push the integrated code, queue
+one fresh recorded suite and rerun the same M3 gate. No full suite pass or M3
+review verdict is claimed yet.
+
+Required integration verification: all Resume race tests passed 17.464s on the
+integrated tree; Go lint 1.244s, shell lint 0.377s and diff check clean. The
+private M3 acceptance evidence remains 91.155s from the unchanged feature code;
+the fresh recorded suite will validate the full integrated tree. Checkpoint,
+push and requeue once before rerunning the M3 boundary.
