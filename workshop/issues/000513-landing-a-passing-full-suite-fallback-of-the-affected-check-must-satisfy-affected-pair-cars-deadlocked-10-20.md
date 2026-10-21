@@ -1,13 +1,13 @@
 ---
 id: 000513
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f211b8fb282547add4a3cfa348845220918c850e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '04e31cba8564573ba3bbcb1a3feefd1d683af827' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T20:07:43-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "db4bd15b", done: "260845ad"}
+actual_hours: 0.07
 ---
 
 # landing: a passing full-suite fallback of the affected check must satisfy 'affected' (pair cars deadlocked 10-20)
