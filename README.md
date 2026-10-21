@@ -513,6 +513,12 @@ or an explicit resting-branch refresh, follow
 These ordinary Git procedures preserve the chosen baseline and sibling dependencies;
 prepare the issue branch before SDLC planning checkpoints.
 
+Side documents for `plan.md` belong in `plan.side/`. Close and landing preflight
+refuse `plan.md.side/` before publication: rename it to `plan.side/`, retain its
+contents and update links, then retry. Existing parent-only archives require an
+explicit owner-coordinated Git repair; a manual repair does not rewrite the old
+archive's proof. See [SDLC archive behavior](atlas/workflow/sdlc-binary.md).
+
 After review, `sdlc pr` and `sdlc merge --yes` land :0 and :N through the resting
 branch's configured remote/main. They archive the PR's completed records remotely,
 return to unchanged `main` or `main-slotN`, and remove only the completed local

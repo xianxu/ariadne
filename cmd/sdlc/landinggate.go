@@ -72,7 +72,7 @@ func runLandingInstanceGate(root, mainOID, headOID string, gates []nounGate, std
 
 // Ownership follows close ancestry, not a body diff: an independently published
 // issue copy on main must not erase the original branch's review obligations.
-func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, stderr io.Writer) error {
+func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir, plansDir string, stderr io.Writer) error {
 	if !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) {
 		return fmt.Errorf("landing publish gate requires pinned PR head and base")
 	}
@@ -112,6 +112,24 @@ func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, 
 	}
 	selected, err := selectLandingIssues(ctx, root, pr, rel)
 	if err != nil {
+		return err
+	}
+	planRel, err := gitx.InsideRoot(root, resolvePlansDir(plansDir))
+	if err != nil {
+		return err
+	}
+	tree, err := archiveTreeContext(ctx, root, pr.HeadOID, landingArchiveRoots{issues: rel, plans: planRel})
+	if err != nil {
+		return err
+	}
+	var paths, issues []string
+	for name := range tree {
+		paths = append(paths, name)
+	}
+	for _, item := range selected {
+		issues = append(issues, item.path)
+	}
+	if err := validateArchiveSideNames(paths, issues, rel, planRel); err != nil {
 		return err
 	}
 	entries := make([]publishIssue, 0, len(selected))

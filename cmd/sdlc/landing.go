@@ -535,7 +535,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				} else {
 					fmt.Fprintf(stderr, "Integrating issue records from %s/main; code integration budget unchanged\n", t.Remote)
 				}
-				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.withLock, f.NoJudge, f.IssuesDir, stderr)
+				state, err = integrateLandingMain(ctx, r, gh, t, branch, state, f.withLock, f.NoJudge, f.IssuesDir, f.PlansDir, stderr)
 				if err != nil {
 					return err
 				}
@@ -588,7 +588,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				}
 			}
 			if !f.NoJudge {
-				if err = runLandingPublishGate(ctx, pr, f.IssuesDir, stderr); err != nil {
+				if err = runLandingPublishGate(ctx, pr, f.IssuesDir, f.PlansDir, stderr); err != nil {
 					return err
 				}
 			}
@@ -657,7 +657,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 						if !f.NoJudge {
 							fresh := pr
 							fresh.BaseOID = latest
-							if err = runLandingPublishGate(ctx, fresh, f.IssuesDir, stderr); err != nil {
+							if err = runLandingPublishGate(ctx, fresh, f.IssuesDir, f.PlansDir, stderr); err != nil {
 								return err
 							}
 						}

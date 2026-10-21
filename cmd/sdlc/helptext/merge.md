@@ -54,6 +54,10 @@ DURABLE WORKSPACES (:0 AND :N)
   3. Archive this PR's completed issue/plan/review records, indexed issue
      assets and each document's side folder (`<name>.side/`, #424) on remote
      main in one conditional commit. Relative links stay unchanged. Retry verifies the exact bundle and archive provenance.
+     Noncanonical `<document>.md.side/` names refuse in close/preflight and
+     archive planning: rename to `<document>.side/`, preserve contents and update
+     links, then retry. Old parent-only archives need explicit owner-coordinated
+     Git repair; historical archive proof remains strict.
      Other checkouts are not used to pull, archive or publish.
   4. Recheck identity, refs, upstream and occupancy; switch safely to unchanged
      rest, then compare-and-delete only the integrated local issue ref and
