@@ -662,7 +662,9 @@ to finish without another audit entry. It never resumes holds or restarts work.
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.
-`tl-worker --help` describes the durable checkpoint and drain acknowledgment.
+`tl-worker --help` describes the durable checkpoint and drain acknowledgment,
+continuation/restart timing around owned recorded checks, and verification of
+retained checks after a restart.
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 For generated Go graph inputs, that file can include

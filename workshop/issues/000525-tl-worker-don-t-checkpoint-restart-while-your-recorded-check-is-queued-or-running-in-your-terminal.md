@@ -44,8 +44,8 @@ Optional follow-up (separate): run recorded checks detached from the agent's ter
 
 ## Plan
 
-- [ ] Add rendered-help phrase guards for safe checkpoint timing, owned queued/running checks, hub-first unavoidable restarts, and post-restart verification; observe failure before changing help.
-- [ ] Add the short TESTS rule, a one-line continuation-writer pointer, and README/atlas pointers; verify rendered help and scope guards.
+- [x] Add rendered-help phrase guards for safe checkpoint timing, owned queued/running checks, hub-first unavoidable restarts, and post-restart verification; observe failure before changing help.
+- [x] Add the short TESTS rule, a one-line continuation-writer pointer, and README/atlas pointers; verify rendered help and scope guards.
 
 The existing issue Spec settles behavior. The restriction is continuation checkpoint/restart, not ordinary issue/code commits. The hub decides whether to wait or cancel/requeue when context pressure cannot wait; no new check daemon or status verb is added.
 
@@ -65,3 +65,5 @@ Actions: wait for the check; checkpoint before queueing or after completion; tel
 - Claimed and started from fresh main after #511. User dispatch specifies quick-flow help plus phrase guards; issue adds the one-line writer hint and records pair:9/pair#752 losing a queued final suite after continuation restart. #502 is queued after this landing, plan first; not claimed or stacked here.
 - ARCH-DRY/PURPOSE: tl-worker remains the policy owner; the continuation prototype points to it rather than duplicating recovery rules. Reuse rules.tsv and existing rendered-help/scope guards. A broader detached-runner mechanism is expressly separate; no runtime code or stored state changes (ARCH-PURE/EVOLVE), no new lifetime or hot-path cost.
 - Quick plan posted to ops:0, proceeding unless objected. The continuation file is a prototype being changed as engineering work, not a continuation instance; its writer/approval/no-writer instance workflow is not invoked by this one-line prototype edit.
+
+- RED: existing rendered-help guards failed for every new clause on both --help and bare invocation (0.131s). After adding the six-line TESTS rule, worker tests passed (0.128s), lead non-restatement/scope guards passed (18.083s), and shared rule-parser tests passed (0.121s). The one-line continuation writer hint points back to the policy owner; README and atlas map the rule. Compiled-help proof and recorded full suite follow.
