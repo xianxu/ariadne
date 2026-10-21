@@ -7,7 +7,7 @@ created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.02
 collaboration-mode: collaboration
-card_mirror: '484faf3fbf0c86f923d14d12db7e6bac4fb43176' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '71a8eda0837d1d3d57d4147defb74db494a43203' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T11:08:14-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 2.69
+actual_hours: 5.44
 ---
 
 # tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?')
