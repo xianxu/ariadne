@@ -227,3 +227,84 @@ Approved by authenticated TL f21f7022-6260-451b-86ae-a0a56158abac. The inverse o
 BR-1: the publication seam must reject unsupported proof, then validate the supported parent/link/receipt graph explicitly. The general passing-reader refusal cannot be used before publishing a receipt, because its existing link is required input to that operation. Successful receipt publication through the real seam joins decoder-only tests, with duplicate/unknown-byte preservation controls.
 
 BR-2: a publisher creates `.resume-*` temporary files while holding the existing directory mutex; normal completion removes them. Process death releases that mutex and leaves uncommitted residue. The next publication or production pruning pass, under that same mutex, streams/removes leftover regular files in this reserved staging namespace and syncs the directory. No age/PID inference, new artifact family, lock order or bundle-retirement design is added. A killed-publisher subprocess proves that active staging survives competing pruning, then crash residue is reclaimed. Existing JSON byte/record capacity remains authoritative for committed records; per-publication staging cleanup prevents repeated pre-commit crashes accumulating outside those bounds.
+
+### 2026-10-21 — Whole retirement re-plan after M2 BR-3 (approval pending)
+
+M2 review reproduced a class failure: cleanup authority must outlive every
+protected artifact, but `publishSuiteAttempt` removes the inflight owner marker
+before deferred worktree cleanup. A crash during status publication strands the
+locked checkout; repeat resume only reposts and reconciliation refuses a
+committed child. This is the third retirement design change, so stop
+implementation and re-plan retirement as a whole rather than patching only the
+reported window. Existing parent-first/witness-last evidence retirement and
+parent→directory / directory→strict-TRY-parent locking remain unchanged.
+
+| Integration entity | Lives in | Status | Wraps |
+| --- | --- | --- | --- |
+| Protected resume environment | localcheck_resume_environment.go, localcheck_resume.go | modified | Existing inflight owner marker, Git lock/registration, managed group cleanup, scratch and child publication |
+| Bundle retirement eligibility | localcheck_resume_retention.go | modified | Existing protected-artifact predicate plus terminal bundle proof and directory/parent locks |
+
+**Single lifecycle invariant:** a protected checkout/scratch always has a
+durable, discoverable owner binding until its retirement is confirmed. A
+committed child implies its execution inputs already retired; test outcome
+proof and cleanup uncertainty never substitute for one another.
+
+Proposed order: hold the immutable parent inode for all actions; reserve child
+and create an initially unlocked detached checkout; publish/sync the immutable
+link before any protection or execution; write/sync the existing owner marker
+and its inflight directory before taking the exact child Git worktree lock;
+then launch through the existing managed suite batch. On ordinary completion,
+strong process-group cleanup and scratch retirement must be confirmed first.
+Validate the same reverse pointers/child reason/SHA and retire the checkout
+with confirmed Git registration/path absence **before** publishing the child.
+Only then may existing child publication remove the inflight marker. A lost or
+failed cleanup response leaves the link pending, raw log and marker retained;
+no child completion or passing status is published. Recovery remains the exact
+operator/:0 reconciliation with owner absence and descendant-stop attestation,
+which durably publishes terminal interruption before attempting cleanup.
+
+| Lifecycle / crash window | Visible state | Recovery | Possible loss |
+| --- | --- | --- | --- |
+| Before durable link | no resume executed; unlocked temporary checkout/inflight only | existing dead-owner/age collectors | unused preparation only |
+| Link before marker | pending, no launch; checkout unlocked | operator reconcile; ordinary age collector may retire unlocked checkout | no test execution |
+| Durable marker before Git lock | pending, no launch; discoverable unlocked inputs | operator reconcile; no lock to strand | unused preparation |
+| Git lock through execution or uncertain group cleanup | pending/unknown with owner binding and protected inputs | wait/cancel, then exact attested reconcile | uncommitted targeted completion |
+| Group/scratch confirmed; checkout retirement or reply uncertain | pending; owner binding retained until absence confirmed | exact attested reconcile, retry converges if Git already removed | actual completion may remain uncommitted |
+| Checkout retired, before child commit | pending, no protected inputs | exact reconcile; raw partial/complete log retained | uncommitted targeted PASS |
+| Child committed, including status-post crash | terminal child; no locked inputs | resume/republish validates and reposts; no execution | status reply only |
+| Terminal receipt before/after cleanup, including lost reply | interrupted; binding retained until inputs gone | repeat same reconcile | no original suite history or receipt loss |
+
+Bundle pruning holds the existing attempts-directory mutex across one snapshot
+and all cleanup, takes only nonblocking parent locks and keeps the approved
+parent-first durable deletion / terminal-witness-last order. Before retiring
+any bundle or orphan terminal receipt, it must retain the entire bundle when
+an existing inflight owner marker still protects a Git-locked checkout or its
+authority is unreadable. A terminal receipt proves interruption, not cleanup;
+age alone cannot authorize deleting that marker. Once exact cleanup confirms
+absence, normal terminal retention applies. This uses no new artifact family,
+lock files, marker schema, observer-based descendant discovery or retry grant.
+
+**Simplest alternatives assessed:** deferred cleanup alone demonstrably loses
+on process death. Keeping the checkout unlocked throughout permits stale
+collection while unknown descendants still consume it. Keeping markers after
+child commit can work, but adds a completed-child cleanup recovery path and
+changes the generic publisher; retiring confirmed inputs before committing the
+child avoids that extra state. PID absence cannot replace explicit descendant
+attestation in an uncertain execution. The conservative loss of uncommitted
+PASS on cleanup uncertainty already matches the approved recovery contract.
+
+**Function-level test strategy:** extend production-CLI conformance with real
+process barriers at pre-link preparation, durable link/before lock, running,
+checkout removal/before child commit, committed child/status post, and terminal
+receipt cleanup. Kill only fixture owners and explicitly stop fixture
+subprocess groups before attestation. Independently assert no duplicate launch,
+unchanged parent bytes, owner-marker discoverability whenever Git is locked,
+and no protected checkout after a committed child. Private Git environment
+integration tests inject marker/directory sync failure and lost remove replies;
+retry confirms absence without widening authority. Production-pruner tests age
+terminal receipt/child bundles with protected and unreadable owner markers:
+assert byte-for-byte preservation until cleanup, then bounded retirement. Keep
+existing deletion/fsync faults, real-process lock inversion negative control,
+linear N/2N snapshot/index/log reads and exact-package counters. Run targeted
+and race verification, full private CLI acceptance and a fresh recorded suite
+on the eventual pushed final head, then rerun the mandatory M2 gate.

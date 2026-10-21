@@ -202,3 +202,21 @@ no retirement mechanism. Docs and help cover the exact commands, terminal
 recovery, explicit descendant attestation, unknown queue independence and
 unchanged original measurement samples. Checkpoint/push before the recorded
 suite; M2 remains pending the mandatory review and recorded pass.
+
+### 2026-10-21 — M2 REWORK BR-3; stop for whole retirement re-plan
+
+Mandatory review found BR-3 Important (durable-staging-cleanup): completed-child
+publication removes its inflight owner binding before deferred Git checkout
+retirement. A real CLI kill during status posting reproduced a permanently
+locked checkout after repeated resume and an aged sweep. Verified the source
+ordering; no dispute. The finding generalizes to pre-link, pending, committed
+and reconciled protected-input lifetimes, not just one post call.
+
+Stopped the obsolete recorded suite through `sdlc local-check cancel --run
+lease-3748438976`; it was still queued, never acquired capacity, and completed
+with context-canceled refusal. The third-change rule requires a whole-retirement
+re-plan: appended the complete lifecycle, invariant, alternatives and named crash
+strategies to the durable plan. Proposed fence-before-protection, durable marker
+before lock, confirmed environment retirement before child commit, and bundle
+GC preserving protected/unreadable cleanup authority. No implementation of this
+revision before hub approval. M2 and issue remain open; no PR or stage.
