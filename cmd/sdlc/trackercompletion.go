@@ -54,32 +54,15 @@ func ownedCompletions(env *trackerEnv, rs tracker.Records, head, base string, wi
 		if err != nil {
 			return nil, fmt.Errorf("card #%s: %w", rec.ID, err)
 		}
-		if !ok || b.Repository != env.target.Repository {
+		if !ok {
 			continue
 		}
-		inHead, err := evidenceInHead(env, b.EvidenceCommit, head)
+		carried, err := completionCarried(env, b, rec.Card.Path, head, base)
 		if err != nil {
 			return nil, err
 		}
-		if inHead && base != "" {
-			if onBase, err := env.gitTest("merge-base", "--is-ancestor", b.EvidenceCommit, base); err != nil {
-				return nil, err
-			} else if onBase {
-				continue
-			}
-		}
-		if !inHead {
-			// #304 D8: a rebase or a merge rewrites the evidence commit but never its
-			// message, so the close is still this head's when a commit in range carries
-			// the card's CURRENT binding token. A reopen-and-close mints a new token, so
-			// an older close's commits never claim a newer one (#283/#301).
-			carried, err := closeTokenCarried(env, b.Token, rec.Card.Path, head, base)
-			if err != nil {
-				return nil, err
-			}
-			if !carried {
-				continue
-			}
+		if !carried {
+			continue
 		}
 		owned = append(owned, ownedCompletion{ID: rec.ID, Card: *rec.Card, Binding: b, DetailPath: rec.DetailPath})
 	}
@@ -271,4 +254,73 @@ func branchOwnedCompletions(ctx context.Context, issuesDir string) ([]ownedCompl
 	}
 	owned, err := ownedCompletions(env, rs, "HEAD", view.Ref(), false)
 	return owned, env, err
+}
+
+// completionCarried identifies ownership independently of status. Publication
+// must not forget a carried close merely because its card was reopened (#502).
+func completionCarried(env *trackerEnv, b issue.Completion, cardPath, head, base string) (bool, error) {
+	if b.Repository != env.target.Repository {
+		return false, nil
+	}
+	inHead, err := evidenceInHead(env, b.EvidenceCommit, head)
+	if err != nil {
+		return false, err
+	}
+	if inHead && base != "" {
+		if onBase, err := env.gitTest("merge-base", "--is-ancestor", b.EvidenceCommit, base); err != nil {
+			return false, err
+		} else if onBase {
+			return false, nil
+		}
+	}
+	if !inHead {
+		// #304 D8: a rebase or a merge rewrites the evidence commit but never its
+		// message, so the close is still this head's when a commit in range carries
+		// the card's CURRENT binding token. A reopen-and-close mints a new token, so
+		// an older close's commits never claim a newer one (#283/#301).
+		carried, err := closeTokenCarried(env, b.Token, cardPath, head, base)
+		if err != nil {
+			return false, err
+		}
+		if !carried {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// publishCompletionStatus is eligibility, not ownership or a lifecycle write.
+func publishCompletionStatus(id, status string) error {
+	if status == "codecomplete" || status == "done" {
+		return nil
+	}
+	return fmt.Errorf("#%s is %s (reopened after its close); run `sdlc close --issue %s --verified '<evidence>'`, then push and retry publication", issue.CLIRef(id), status, issue.CLIRef(id))
+}
+
+// refuseReopenedCompletions checks every carried obligation before a covering
+// review is selected. Completion, settlement and archive keep their selectors.
+func refuseReopenedCompletions(env *trackerEnv, rs tracker.Records, head, base string) error {
+	for _, rec := range rs.All() {
+		if rec.CardErr != nil && !rec.Duplicate {
+			return fmt.Errorf("card #%s: %w", rec.ID, rec.CardErr)
+		}
+		if rec.Duplicate || rec.Card == nil || publishCompletionStatus(rec.ID, rec.Status()) == nil {
+			continue
+		}
+		b, ok, err := issue.CardCompletion(rec.Card.Raw)
+		if err != nil {
+			return fmt.Errorf("card #%s: %w", rec.ID, err)
+		}
+		if !ok {
+			continue
+		}
+		carried, err := completionCarried(env, b, rec.Card.Path, head, base)
+		if err != nil {
+			return err
+		}
+		if carried {
+			return publishCompletionStatus(rec.ID, rec.Status())
+		}
+	}
+	return env.ctx.Err()
 }

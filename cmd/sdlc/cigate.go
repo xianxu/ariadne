@@ -120,7 +120,7 @@ func decideCIGate(in ciInputs) ciVerdict {
 		}
 		v.LocalNeeded = append(v.LocalNeeded, name)
 	}
-	for _, c := range in.Local.Checks {
+	for _, c := range headLocalChecks(in.Local).Checks {
 		if !c.Required || recorded[localStatusContext(c.Name)] {
 			continue
 		}
@@ -197,7 +197,13 @@ func (v ciVerdict) refusal(pr int) error {
 	case ciHeadLag:
 		fmt.Fprintf(&b, "CI gate: PR #%d's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", pr)
 	case ciLocalNeeded:
-		fmt.Fprintf(&b, "CI gate: PR #%d needs recorded local checks on its head: %s", pr, strings.Join(v.LocalNeeded, ", "))
+		needed := append([]string(nil), v.LocalNeeded...)
+		for i, name := range needed {
+			if name == affectedCheckName {
+				needed[i] += " or its full-suite fallback"
+			}
+		}
+		fmt.Fprintf(&b, "CI gate: PR #%d needs recorded local checks on its head: %s", pr, strings.Join(needed, ", "))
 	default:
 		return nil
 	}
@@ -211,6 +217,9 @@ func (v ciVerdict) refusal(pr int) error {
 	case ciLocalNeeded:
 		for _, n := range v.LocalNeeded {
 			fmt.Fprintf(&b, "\n  → sdlc local-check run --name %s", n)
+			if n == affectedCheckName {
+				b.WriteString("\n  If affected fell back, wait for the full-suite fallback; a passing suite on this head satisfies affected.")
+			}
 		}
 		b.WriteString("\n  then re-run `sdlc merge` (" + localChecksPath + " on main declares them).")
 	case ciRed:
@@ -492,7 +501,7 @@ func unrecordedRequired(decl localCheckDecl, checks []prCheck, standIn map[strin
 		return false
 	}
 	var out []string
-	for _, c := range decl.Checks {
+	for _, c := range headLocalChecks(decl).Checks {
 		if !c.Required || onHead(c.Name) {
 			continue
 		}

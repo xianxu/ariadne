@@ -183,3 +183,31 @@ func FuzzMatch(f *testing.F) {
 		}
 	})
 }
+
+func TestGraphPreparationConfig(t *testing.T) {
+	for _, decl := range []string{`{"command":["make","generate"]}`, `{"command":["make","generate"],"timeout_minutes":30}`} {
+		want := 2
+		if strings.Contains(decl, "timeout_minutes") {
+			want = 30
+		}
+		if cfg, err := ParseConfig([]byte(`{"version":1,"command":["true"],"graph_prepare":` + decl + `}`)); err != nil {
+			t.Errorf("valid preparation %s: %v", decl, err)
+		} else if cfg.GraphPrepare == nil || cfg.GraphPrepare.TimeoutMinutes != want {
+			t.Errorf("preparation bounds/default: %+v", cfg.GraphPrepare)
+		}
+	}
+	for _, decl := range []string{`[]`, `"make"`, `{}`, `{"command":null}`, `{"command":[]}`, `{"command":[""]}`, `{"command":"make"}`, `{"command":["true"],"timeout_minutes":-1}`, `{"command":["true"],"timeout_minutes":31}`, `{"command":["true"],"timeout_minutes":1.5}`, `{"command":["true"],"unknown":1}`, `{"command":["true"],"command":["false"]}`} {
+		if _, err := ParseConfig([]byte(`{"version":1,"command":["true"],"graph_prepare":` + decl + `}`)); err == nil {
+			t.Errorf("accepted preparation %s", decl)
+		}
+	}
+}
+
+func TestGraphPreparationOmittedOrNull(t *testing.T) {
+	for _, raw := range []string{`{"version":1,"command":["true"]}`, `{"version":1,"command":["true"],"graph_prepare":null}`} {
+		cfg, err := ParseConfig([]byte(raw))
+		if err != nil || cfg.GraphPrepare != nil {
+			t.Fatalf("optional preparation: %+v %v", cfg, err)
+		}
+	}
+}

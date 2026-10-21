@@ -124,7 +124,7 @@ func newQueueCmd(d queueCommandDeps) *cobra.Command {
 		return runQueueStatus(cmd.Context(), cmd.OutOrStdout(), d, asJSON)
 	}}
 	status.Flags().BoolVar(&asJSON, "json", false, "print only the frozen schema_version 1 JSON snapshot")
-	cmd.AddCommand(pause, resume, status)
+	cmd.AddCommand(pause, resume, status, newQueueReconcileCmd(d))
 	return cmd
 }
 

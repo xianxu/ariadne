@@ -3,6 +3,7 @@ Machine-wide admission for full test suites and repository landing lines.
   sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]
   sdlc queue resume --owner TOKEN
   sdlc queue status [--json]
+  sdlc queue reconcile --id ID --digest SHA256 --note TEXT
 
 Pause/resume are operator or :0 actions, using the same authority rule as
 landing grants. --owner is required. Owners compose: admission remains paused
@@ -17,6 +18,23 @@ exact-head suite evidence remains reusable. --cancel-running requests managed
 suite cancellation and records interruption, never a failed test/main/flake.
 Unmanaged direct make work without proven descendant cleanup stays unknown;
 the operator must reconcile it. No shared process group is signalled.
+
+RECONCILE ONE UNRESOLVED OPERATION (#501)
+  The operator or :0 may retire unresolved/ID.json after verifying that no
+  descendants remain. --digest is the lowercase SHA256 of its exact raw bytes;
+  --note records that verification. The command refuses any live/unreadable
+  operation record or lease, a live/unknown original PID incarnation, changed
+  bytes, or malformed evidence. It does not infer descendant absence from ps.
+  It never resumes a pause, restarts work or clears unrelated operations.
+
+  Under control.lock it appends the original bytes (base64), digest, actor,
+  note and time to reconcile.jsonl, fsyncs that log, then unlinks the tombstone.
+  A crash after the append leaves a logged attempt and the tombstone: retry the
+  same id/digest to finish, with no duplicate audit entry. Missing tombstones
+  require a valid matching audit. A corrupt or torn log refuses for inspection;
+  do not delete state to manufacture complete=true. The log is permanent and
+  scanned only by this rare manual command, never by admission or status.
+  Existing interruption evidence and pause owners remain intact.
 
 STATUS CONTRACT
   --json writes only one schema_version:1 object with state, complete,

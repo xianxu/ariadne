@@ -27,6 +27,18 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **The lead prose** is the TL's current procedure: the order of play, stewardship and the operator's two design rules, the status file, grooming trains, dispatch, watching, landing and the `sdlc stage` smoke loop, attention and load, and fleet traps. It holds rules only. Incident history stays in ops learnings, and a new kink lands as a rule change here (`cmd/tl-lead/main_test.go` refuses kink numbers, dated stories, bare `#N` refs and "until X lands" interims). It cites `tl-worker --help` for the worker's rules: `pkg/tlrules` parses the shared rule table, and the lead's test refuses any worker-owned phrase.
 
+**Project shaping (ariadne#518).** SHAPING in `cmd/tl-lead/help.md` precedes
+issue-level execution: six operator-reviewed steps cover users/moments, flows,
+the clickable mock, visual design, components and slices. It assigns the driver
+of each step, versioned mock/sketch conventions, `couch mock serve`, shared
+fixtures and the development-only screen-by-screen gradient with a production
+mock refusal. The optional project summaries are defined by
+[`construct/datatype/project.md`](../../construct/datatype/project.md#optional-shaping-sections);
+the TL keeps detailed design and mock artifacts in the project folder.
+`cmd/tl-lead/shaping_help_test.go` checks the rendered procedure at both entry
+points, including step-local ownership, order, the feedback-round/alternative
+version distinction, and shipping boundary.
+
 **Operator design review (ariadne#505).** STEWARDSHIP in `cmd/tl-lead/help.md`
 routes failure-sensitive workflow designs to the operator before code. It names
 the recognition shapes and examples, the options/state/recovery/failure contents

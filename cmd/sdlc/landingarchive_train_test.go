@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"io"
 	"path"
 	"strings"
@@ -45,7 +44,7 @@ func TestTrainLandingArchiveProofControls(t *testing.T) {
 		t.Helper()
 		head, index := r.git("rev-parse", "HEAD"), r.git("ls-files", "--stage")
 		remoteMain := r.originMain()
-		done, err := confirmTrainLandingArchive(ctx, r.root, tip, pr.Repo, pr,
+		done, err := landingArchiveComplete(ctx, r.root, tip, pr.Repo, pr,
 			"workshop/issues", "workshop/plans", "workshop/history")
 		if wantError == "" && (err != nil || !done) {
 			t.Fatalf("valid generic archive refused: complete=%v err=%v", done, err)
@@ -57,21 +56,26 @@ func TestTrainLandingArchiveProofControls(t *testing.T) {
 			t.Fatal("read-only archive proof changed HEAD, index, or remote main")
 		}
 	}
-	t.Run("generic archive requires train proof", func(t *testing.T) {
-		done, err := laProof(r.root, archived, pr)
-		var missing *landingArchiveWithoutProvenance
-		if done || !errors.As(err, &missing) {
-			t.Fatalf("ordinary proof must reject generic archive with missing provenance: %v %v", done, err)
+	t.Run("generic archive needs no transient outcome", func(t *testing.T) { proof(t, archived, "") })
+	t.Run("no archive", func(t *testing.T) {
+		if done, err := landingArchiveComplete(ctx, r.root, pr.LandedOID, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history"); err != nil || done {
+			t.Fatalf("unarchived: %v %v", done, err)
 		}
-		proof(t, archived, "")
 	})
-	t.Run("no archive", func(t *testing.T) { proof(t, pr.LandedOID, "requires one archive commit") })
-	for _, kind := range []string{"missing destination", "tampered destination", "malformed destination", "active issue", "active sidecar", "ambiguous add history"} {
+	t.Run("missing active without archive", func(t *testing.T) {
+		r.git("checkout", "-q", "--detach", pr.LandedOID)
+		r.git("rm", "-q", detailPath)
+		candidate := laCommit(t, r.root, "unproven missing active details")
+		proof(t, candidate, "requires one archive commit")
+	})
+	for _, kind := range []string{"missing destination", "other issue destination", "tampered destination", "malformed destination", "active issue", "active sidecar", "ambiguous add history"} {
 		t.Run(kind, func(t *testing.T) {
 			r.git("checkout", "-q", "--detach", archived)
 			switch kind {
 			case "missing destination":
 				r.git("rm", "-q", destination)
+			case "other issue destination":
+				r.git("mv", destination, path.Join("workshop/history/issues", "000495-other.md"))
 			case "tampered destination":
 				laWrite(t, r.root, destination, body+"\nChanged archived details.\n")
 			case "malformed destination":
@@ -152,8 +156,55 @@ func TestTrainLandingArchiveProofRejectsUntrackedIssue(t *testing.T) {
 	if done, err := laProof(root, tip, pr); err != nil || !done {
 		t.Fatalf("fixture ordinary archive proof: %v %v", done, err)
 	}
-	if done, err := confirmTrainLandingArchive(context.Background(), root, tip, pr.Repo, pr,
-		"workshop/issues", "workshop/plans", "workshop/history"); err == nil || done {
-		t.Fatalf("train proof accepted untracked issue: %v %v", done, err)
+	peer := laPeer(t, origin)
+	laGit(t, peer, "commit", "--amend", "-qm", "generic archive without tracked completion")
+	laGit(t, peer, "push", "--force", "-q", "origin", "main")
+	laGit(t, root, "fetch", "-q", "origin", "main")
+	tip = laGit(t, origin, "rev-parse", "main")
+	if done, err := laProof(root, tip, pr); err == nil || done {
+		t.Fatalf("generic proof accepted untracked issue: %v %v", done, err)
+	}
+}
+
+// #512: another car can publish its generic sweep after the caller's first
+// archive observation but before the publisher refreshes main. Its callback
+// must recognize that exact archive rather than plan a second move.
+func TestLandingArchiveSiblingPublishesBetweenChecks(t *testing.T) {
+	r, cardPath, _ := closedAndLanded(t, 512)
+	ctx := withIssueRecordsScope(context.Background())
+	env, err := openTrackerAt(ctx, r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr := landingPR{
+		Number: 512, State: "MERGED", Repo: "test/repo", HeadRef: "000512-e2e",
+		HeadOID: r.git("rev-parse", "HEAD^2"), BaseRef: "main", BaseOID: r.git("rev-parse", "HEAD^1"),
+		MergeOID: r.git("rev-parse", "HEAD"), LandedOID: r.git("rev-parse", "HEAD"),
+	}
+	if err := completeLandingPR(ctx, r.root, "workshop/issues", pr); err != nil {
+		t.Fatal(err)
+	}
+	if done, err := landingArchiveComplete(ctx, r.root, pr.LandedOID, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history"); err != nil || done {
+		t.Fatalf("initial observation: %v %v", done, err)
+	}
+	card := r.card(cardPath)
+	var archiveTip string
+	original := newLandingArchivePublisher
+	t.Cleanup(func() { newLandingArchivePublisher = original })
+	newLandingArchivePublisher = func(ctx context.Context, root, remote string) (trunkPublisher, error) {
+		if err := finishLandedLeftovers(env, io.Discard, archiveDirs{Issues: "workshop/issues", Plans: "workshop/plans", History: "workshop/history"}); err != nil {
+			return nil, err
+		}
+		archiveTip = r.originMain()
+		return original(ctx, root, remote)
+	}
+	if err := archiveLandingPR(ctx, r.root, env.target.Remote, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history"); err != nil {
+		t.Fatalf("sibling won archive race: %v", err)
+	}
+	if r.originMain() != archiveTip || r.card(cardPath) != card {
+		t.Fatal("recovery duplicated archive or rewrote completion")
+	}
+	if done, err := landingArchiveComplete(ctx, r.root, archiveTip, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history"); err != nil || !done {
+		t.Fatalf("final observation: %v %v", done, err)
 	}
 }

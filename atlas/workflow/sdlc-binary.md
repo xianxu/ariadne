@@ -57,7 +57,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `landing`         | (new #393)                  | The repository's landing line: `status` (the landing now, waiters in admission order, live grants, delay p50/p90); `grant` / `revoke` fleet-blocking priority, refused from a worker slot. `merge` waits in this line ([landing line](#landing-line-393)) |
 | `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
-| `local-check cancel` | (new #400)                  | Stop only this checkout's queued or running local checks: each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
+| `local-check cancel` | (new #400)                  | Select one owned run with `--run ID` (printed at run start), all owned runs of `--name N`, or all this checkout's checks; ID/name are exclusive and foreign/invalid/inactive IDs refuse. Same-check/different-head overlap prints a notice and exact existing-run cancellation command, preserving both FIFO places until explicit cancellation. Each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
 | `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's card `flake_tests`, landing merge and Git ancestry (never issue Markdown); since #479 each row is an uncovered failing leaf (`flakes.Uncovered`), matched to a terminal issue by the same `Covers` rule, nearest name first (`fixedCandidates`); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's exact PASS line required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
@@ -306,7 +306,8 @@ MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
 Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
-Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Markdown under `workshop/issues/`, `workshop/issue-cards/`, `workshop/plans/` and
+`workshop/history/`. Tracker configuration (`workshop/issue-tracker.json`) does not qualify.
 Every novel commit and merge-parent difference is classified, including rename
 sources; code added then reverted, mixed changes and unreadable history remain
 ordinary. The existing integration state machine charges only ordinary moves to
@@ -335,13 +336,14 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
-A train waiter retains its validated landed outcome (#494). If the conductor's
-done-card sweep already archived that car without per-PR trailers, bounded
-destination-path history locates the archive commit. The same transition verifier
-must confirm its exact tracked completion, all artifact moves and unchanged
-current archive before the waiter reports “archived by the train”. The outcome
-alone confirms landing, never archival; ambiguous or changed proof still refuses
-cleanup. Ordinary serial archive provenance remains required.
+A done-card sweep can archive a car without per-PR trailers (#494, #512).
+Every archive check, including fresh already-merged recovery and the publisher's
+refreshed main view, can locate that archive through bounded destination-path
+history. The shared transition verifier must confirm its exact tracked completion,
+all artifact moves and unchanged current archive. This proof uses the same pinned
+main snapshot and selected completion as the ordinary check; it needs no transient
+train notification. Missing, ambiguous, changed or mismatched proof still refuses
+cleanup. Legacy untracked issues continue to require per-PR archive provenance.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
 Tracked dirt (including tracker edits), active Git operations, conflicting
@@ -460,7 +462,16 @@ trains on:
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
   (#499): it observes external close/status updates on the next pass while
   sharing one coherent tracker generation across that pass's gates, without
-  invalidating the parent command or another pass. Transferred-details ownership
+  invalidating the parent command or another pass. A carried completion binding
+  remains a publish obligation after its card is reopened (#502). The shared
+  publish-only guard (`refuseReopenedCompletions`, `trackercompletion.go`) checks
+  every carried binding before review-anchor selection, in ordinary publish and
+  immutable landing. It refuses with the issue, current status and exact
+  `sdlc close --issue N --verified '<evidence>'` action, followed by push/retry.
+  Binding repository/evidence/current-token ownership survives rebase and an
+  independently published details copy; unrelated working cards and branches
+  carrying no close stay valid. Completion, settlement and archive retain their
+  existing status eligibility. Transferred-details ownership
   checks and completion selection use the parsed `Records.CardSnapshot`;
   alternate details directories reuse those cards through `Records.WithDetails`.
   The publication checkout selects that card authority, even if a configured
@@ -468,9 +479,19 @@ trains on:
   `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
-  train sets no stand-in.
+  train sets no stand-in. A passing full-suite record already satisfies the
+  car directly; the affected stand-in is an alternative. The missing-record
+  message names affected or its full-suite fallback and explains conditionally
+  to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
+- Candidate and composed membership have distinct banners (#521); the terminal
+  summary counts retained cars. Held outcomes print their reason and exact branch
+  recovery in the owning runner (`reportTrainHeld`). If the conductor’s own car
+  is held, the Publish boundary stops it after all composition holds are delivered;
+  existing Aborted cleanup releases survivors to reform. No sibling suite runs
+  under the excluded checkout’s lifetime lease. A reformed suite belongs to its
+  new conductor’s checkout, so foreign local-check cancellation leaves it alive.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness
   codec, boarding), `trainstate.go` (the running train's state machine) and
   `bisect.go` (splitting a failing train).
@@ -496,7 +517,7 @@ trains on:
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
 - **Locking:** ref writes take the repo transaction lock.
-- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Main moves (#511):** issue-record-only movement uses the shared strict history classifier and fresh same-PR/head/base CLEAN readiness. The train retains its exact checked head and CI only while policy/car/log-bound landing-check proof remains valid and the final destination passes instance/duplicate-ID gates under the merge transaction. Other movement or unavailable/stale readiness reintegrates main; generic docs-only reintegration can retain the suite but still needs CI on the new head. No statuses are copied.
 - **Lost reply:** a merge whose reply was lost is read back from GitHub.
 - **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
 - **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
@@ -2042,7 +2063,23 @@ own cancellation through processgroup cleanup. A direct make watcher alone
 only proves one PID ended, so an unproved descendant boundary stays unknown
 for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline.
+the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+owns safe timing, hub-first context-pressure recovery, and post-restart retained
+check verification; the continuation prototype points workers to that rule.
+
+**Reconcile one unresolved operation (#501).** The operator/:0 runs
+`sdlc queue reconcile --id ID --digest SHA256 --note TEXT` only after verifying
+that the operation has no descendants. `queue_reconcile.go` uses the existing
+kernel incarnation probe; `internal/queuegate/reconcile.go` checks exact raw
+bytes and operation/lease exclusion under `control.lock`. It appends one
+base64-original/digest/actor/note/time record to permanent `reconcile.jsonl`,
+fsyncs it, then unlinks only that unknown tombstone. A crash before unlink
+leaves a logged attempt; retry by ID/digest finishes without rewriting or
+adding audit evidence. Missing/corrupt/changed evidence refuses, and a dead
+owner alone never proves descendant absence. Pause owners and interruption
+evidence stay intact. There is no log retention/expiry; streaming audit reads
+belong only to this rare manual repair and never to admission. Use private
+`WF_SDLC_QUEUE_ROOT` fixtures for conformance, never fabricated live residue.
 
 `queue_runtime.go` enrolls each merge before waiting; `Line.tryAdmit` wraps the
 actual line transaction with its global gate. Ordinary-worktree merges and
@@ -2213,7 +2250,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`session-move-batched-reads` and `session-move-raw-fields` #504,
+that taught it (`test-landing-completion-wait` #498/#500,
+`session-move-batched-reads` and `session-move-raw-fields` #504,
 `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
@@ -2583,3 +2621,20 @@ refills restart calibration. One reading, stale/incomplete evidence or zero burn
 produces a labelled status and null projection. Plain usage has no cache and
 never interacts with the providers. Re-run opt-in identity conformance when the
 agent CLIs change and before bench runs; see the usage help for coverage bounds.
+
+
+### Landing-check capability (#509)
+
+The opt-in version2 local-check declaration separates `scope: landing` from internal affected-test coverage and `resource: runner` from suite-slot weight. Its schema lives in `localchecks_v2.go`; strict known members coexist with preserved opaque future metadata. Existing v1 declarations retain their behavior. `landingchecks.go` selects enabled checks from per-car path unions and binds in-memory proofs to candidate/policy/car identity; `landingchecks_git.go` reads only regular tracked blobs on the configured base and caches immutable input reads for the landing owner's lifetime.
+
+Runner-resource execution uses the existing exact-head worktree, managed queue/run lease, logs and attempt store, while bypassing suite-helper discovery and allocation. Its entire subprocess group gets one30s graceful cancellation budget, including after the immediate Make leader exits; forced cleanup then joins before checkout retirement. No VM lease is acquired or inspected by SDLC. Automatic train/single-landing enforcement is the next milestone; no consumer is activated by this capability issue.
+
+For unconfirmed runner cleanup, the existing queue operation is left unknown and raw logs and Git-locked worktree inputs remain for operator reconciliation. Stale sweeps resolve each candidate's own Git lock, including scratch directories belonging to another repository. Signal success alone never authorizes retirement; escalation is followed by bounded completion confirmation.
+
+The shared predicate in `localcheck_resource.go` protects all retained artifacts through bounded owner references inside existing scratch/in-flight directories. Both scratch's age/PID sweep and the attempt store's dead-owner/temp collectors consult it; missing/unreadable authority retains evidence. Runner launch requires an attempt writer, while suite-resource legacy fallback remains. Unknown outcomes retain everything until operator reconciliation: prove descendant absence, reconcile the queue, remove named scratch/log directories, then unlock/remove the worktree. Git metadata stays until linked artifacts are reconciled. If unknown endings are frequent, retention policy is an explicit future operator decision.
+
+The Go lint catalog includes `test-sweep-private-root` (#509): test calls to the destructive temp collector require visible testing.TempDir provenance, preserved through safe literal relative joins. Runtime roots, parent traversal, uncertain aliases/reassignments and address escapes refuse the source check. This prevents a fake process-liveness probe from deleting another run's scratch folder.
+
+Landing trains enter `PhaseChecking` after the successful final-prefix suite (also after docs reintegration). `RunLandingChecks` produces typed `LandingChecksDone`; only a current-prefix pass permits `WaitCI`. Check failure refuses that prefix without suite bisection or baseline diagnosis.
+
+`landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.

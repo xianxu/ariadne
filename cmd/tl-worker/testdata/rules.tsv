@@ -67,3 +67,13 @@ drain-idle	own	end the turn and stay idle
 drain-no-report	own	Do not send a separate drained report
 drain-suites	own	full suites through `sdlc local-check run --name suite`
 drain-targeted	own	targeted tests through `go test -run`
+check-checkpoint-timing	own	Checkpoint before queuing a long recorded check, or after it finishes.
+check-restart-prohibit	own	Do not checkpoint a continuation or restart
+check-restart-own	own	while your own recorded check is
+check-restart-active	own	queued or running in your terminal
+check-restart-loss	own	lose the check and FIFO place
+check-restart-hub	own	If a restart cannot wait, tell the hub first
+check-restart-decision	own	let it decide whether to wait or
+check-restart-verify	own	After any restart, verify retained checks
+check-restart-head	own	on the exact head before assuming it survived
+check-restart-cancel	own	cancel and requeue.

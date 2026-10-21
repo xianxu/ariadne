@@ -3,6 +3,16 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- #517 BR-1: exec.CommandContext plus a separate process group does not own
+  CLI signals. When a new phase precedes an existing signal owner, trace the
+  actual root command context, retain cancellation through fallback, and test
+  real SIGINT/SIGTERM with child shutdown and resource cleanup. Context-only
+  injection cannot prove OS-signal ownership. The CLI regressions enforce this
+  temporal property; a lexical CommandContext rule cannot establish it.
+- #517 BR-2: when review/dispatch adds a behavioral acceptance requirement,
+  append it to Done when as well as Revisions and tests. Tests alone do not
+  make an omitted acceptance clause part of the recorded contract.
+
 - #503: an injected readiness callback's entry counter is not evidence that its
   caller published readiness. Cancel only after observing the persisted effect;
   force callback-in-flight and cancel-before-publication orderings with channels.
@@ -878,7 +888,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Keep separately bounded metadata outside a byte-measured diagnostic envelope.
   Adding a sidecar block after that envelope changes the reported retained bytes
   even when the diagnostic renderer is untouched (#365).
-- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
+- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1; #501 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
 
 - A successful process-group signal is not a fork barrier. Forceful teardown
@@ -1163,6 +1173,7 @@ The simplest durable authority beats a clever scan of consequences.
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
 
+- #501 BR-2/BR-3: apply an approved acceptance change to active Done-when and preserve the old criterion in Revisions. Do not check off IO failure coverage from a crash after a successful fsync: exercise write/sync errors before and after their effects, including retry after the unlink already happened.
 - #504: relocating an indexed document needs both old and new coordinates.
   Rewrite only the validated discussions path scalars; matching every `- doc:`
   line corrupts unrelated metadata. Byte-preservation and generated-coordinate
@@ -1232,3 +1243,25 @@ The simplest durable authority beats a clever scan of consequences.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
 
 - A subprocess timeout fixture must not spend a fixed launch budget before the effect it asserts. Bound readiness with the enclosing test deadline, observe the helper's effect, then cue cancellation. Keep exact elapsed-bound tests separate. Sweep adjacent refusal/permission/pipe fixtures; a race-instrumented helper can miss both 300ms and 1s launch assumptions. Struct literal timeout fields must pass the same lint guard as assignments (#514).
+### #509 M1 — Refusal evidence must distinguish absence from uncertainty
+
+A tracked empty policy is invalid input, not an absent opt-in declaration. A nil kill result proves a signal attempt, not completed descendant cleanup. Test those distinctions directly; retain existing queue unknown evidence and locked checkout inputs until cleanup is confirmed, and ensure stale cleanup honors those locks. Document delivered configuration at its milestone boundary.
+
+### #509 — Fake cleanup probes require a private destructive root
+
+Never run a fake-liveness collector against the runtime-selected scratch/temp root, even when the fixture's own run is private. Use a root derived directly from t.TempDir and explicit relative children. The Go lint catalog's test-sweep-private-root rule enforces that provenance across aliases, reassignments, branches and address escapes. Collector simulations must be incapable of touching another run's folder.
+
+### #509 — Retention is one artifact-lifetime proof
+
+Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.
+- #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
+
+- #521 fixture: when asserting that an action creates no new external records,
+  snapshot the fake’s history before the action. Rewriting a branch does not
+  remove status records on its previous head; a list of current heads is not
+  the pre-existing history. The real conflict/reformation test retains those
+  records while checking that a held conductor creates no train PR or suite.
+- #511 fixture verification: a late train-arrival regression must first board valid cars. Section presence alone is insufficient: Done-when needs a nonempty bullet and Plan needs a non-placeholder checklist. Otherwise an early held car can turn the scenario into a different prefix before the intended event. The real two-car late-duplicate regression and instance gates enforce this semantic fixture contract; a lexical lint would only mirror the helper.
+
+- #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
+- #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.
