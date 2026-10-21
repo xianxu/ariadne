@@ -1,8 +1,8 @@
 ---
 id: 000516
-status: codecomplete
+status: done
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 github_issue:
 flake_tests: 
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 028aa04a505f6a054055a63d1b9ecb11f8a11cac
         evidence_commit: fa9a703b1dde4ef212f4b9a4a0fe514e8cdee854
+        landed_commit: d4f3f381907907eb6771352f3bcf291100a4d73e
 ---
 
 # Train boarding rejects readiness refreshed during conductor checks
