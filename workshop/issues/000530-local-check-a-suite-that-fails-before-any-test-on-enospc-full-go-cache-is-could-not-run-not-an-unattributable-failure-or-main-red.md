@@ -241,6 +241,28 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   Boundary review may overlap the queued run under the current tl-worker rule;
   passing final-head evidence still precedes landing. No suite-pass claim yet.
 
+- Close round 1 returned REWORK: BR-1 Critical is the plan's wrong location for
+  validateReclassificationProof; BR-2 Important is live recovery advice omitting
+  the executed revision. Corrected the entity/task paths and cross-checked the
+  class. New caller-HEAD-advanced regressions were red (2.431s), then pass across
+  direct suite/affected, both parent-check reruns, baseline and unstarted Go.
+  Retention and typed launch errors carry the executed head; rerun advice names
+  the originating suite/affected check, never an internal record name.
+- The first recorded suite finished before the cancellation request, so the
+  exact-run cancel safely refused as unavailable; no runner remained or was
+  duplicated. It ran all eight shards over 1,982 SDLC tests and 75 other packages
+  in 758.5s after 3,909s FIFO wait. The sole named failure was the new command's
+  missing recovery catalog entry, TestRecoveryContractsAreProven (plus its package
+  failure aggregate). This is a branch defect, not infrastructure or a flake;
+  no resume, blind retry or evidence reclassification was used. Added the actual
+  convergent-retry contract and proof bindings, plus README discovery of the
+  pinned-reader script and its invoker-owned scratch lifecycle.
+- Startup/environment and recovery-catalog regression now passes (9.529s).
+  Review lessons record exact-subject propagation, plan-location cross-checks and
+  the existing mutating-verb catalog tripwire. Fresh recorded suite and full
+  close round 2 are still required for these code changes; smoke decision remains
+  no :0 stage. The earlier run is not final passing evidence.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after

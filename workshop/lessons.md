@@ -1292,5 +1292,14 @@ Unknown descendant completion protects every input and output together: checkout
 - #530 PQ-1 reinforces #524 PQ-1: a pure-entity table naming concepts/files is
   insufficient. Name actual risky functions, each adversarial strategy and its
   independent mechanical guard; keep input-case inventories in executable tests.
+- #530 BR-1/BR-2: before close, cross-check every plan entity's actual definition
+  location, not only its concept name. Recovery advice must carry the executed
+  check and revision through retention and wrappers; test a caller whose HEAD has
+  advanced, including affected reruns and diagnostic baselines. The Core concepts
+  review and native subject-regression fixtures defend these semantic contracts.
+- #530 suite: every new mutating CLI verb needs its existing recovery-catalog
+  contract and proof bindings before the expensive suite. Run
+  TestRecoveryContractsAreProven in the targeted iteration; its command-tree
+  derivation is already the mechanical tripwire, so add no duplicate lint rule.
 
 - #527 BR-1: classify a helper by the IO it performs, even when it composes pure algorithms. List Git/worktree/process helpers as INTEGRATION and test them through real isolated resources; reserve PURE for the graph/classifier/reducer core. The plan review enforces this semantic description, which source lint cannot infer from an artifact table.

@@ -89,6 +89,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		var startup *suiteEnvironmentError
 		if errors.As(err, &startup) {
 			path, envErr := retainSuiteEnvironment(g.logDir, g.sha, suiteRerunCheck, w.LogPath, startup.Diagnosis)
+			envErr.Check = g.check.Name
 			published = path == w.LogPath
 			return flakes.Outcome{}, envErr
 		}
@@ -105,6 +106,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	if run.Exit > 0 && !run.TimedOut {
 		if diagnosis, startup := diagnoseSuiteStartup(string(rerunLog)); startup {
 			path, envErr := retainSuiteEnvironment(g.logDir, g.sha, suiteRerunCheck, w.LogPath, diagnosis)
+			envErr.Check = g.check.Name
 			published = path == w.LogPath // preserve the raw log on retention failure
 			return flakes.Outcome{}, envErr
 		}

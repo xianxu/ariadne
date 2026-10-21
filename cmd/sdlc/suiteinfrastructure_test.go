@@ -31,6 +31,16 @@ func infrastructureCheck(t *testing.T, output string) localCheck {
 	return localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `cat "$1"; exit 1`, "fixture", p}, TimeoutMinutes: 1}
 }
 
+func advanceInfrastructureCallerHead(t *testing.T, d localRunDeps, executed string) {
+	t.Helper()
+	if out, err := d.Git("commit", "--allow-empty", "-qm", "advance caller beyond executed head"); err != nil {
+		t.Fatalf("advance caller: %s %v", out, err)
+	}
+	if head, err := d.Git("rev-parse", "HEAD"); err != nil || strings.TrimSpace(head) == executed {
+		t.Fatalf("fixture did not separate executed head: %s %v", head, err)
+	}
+}
+
 func TestSuiteInfrastructureGrammar(t *testing.T) {
 	capture := recordedCacheFailure(t)
 	for _, tc := range []struct {
@@ -75,6 +85,7 @@ func TestSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T) {
 
 func testSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T, name string) {
 	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	advanceInfrastructureCallerHead(t, d, sha)
 	check := infrastructureCheck(t, recordedCacheFailure(t))
 	check.Name = name
 	rec, err := runLocalCheck(context.Background(), d, check, sha)
@@ -84,6 +95,9 @@ func testSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T, name string)
 	}
 	if !strings.Contains(err.Error(), "could-not-run") || !strings.Contains(err.Error(), "/Volumes/AgentScratch/go-build/") {
 		t.Fatalf("resource/path missing from recovery: %v", err)
+	}
+	if !strings.Contains(err.Error(), "--name "+name+" --rev "+sha) {
+		t.Fatalf("live recovery targets caller HEAD instead of executed head: %v", err)
 	}
 	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {
 		t.Fatalf("infrastructure published code authority: attempts=%+v statuses=%v", gateAttempts(t, d), gh.statuses)
@@ -101,19 +115,31 @@ func testSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T, name string)
 }
 
 func TestSuiteInfrastructureRecordedCacheKnownFlakeRerun(t *testing.T) {
+	for _, name := range []string{suiteCheckName, affectedCheckName} {
+		t.Run(name, func(t *testing.T) { testSuiteInfrastructureRecordedCacheKnownFlakeRerun(t, name) })
+	}
+}
+
+func testSuiteInfrastructureRecordedCacheKnownFlakeRerun(t *testing.T, name string) {
 	d, sha, gh, _ := localRunRepo(t, "skipped")
+	advanceInfrastructureCallerHead(t, d, sha)
 	d.FlakeRegistry = gateRegistry(t, gateKnown)
 	argv := infrastructureCheck(t, recordedCacheFailure(t)).Command
 	previous := knownFlakeRerunCommands
 	t.Cleanup(func() { knownFlakeRerunCommands = previous })
 	knownFlakeRerunCommands = func([]string) ([][]string, error) { return [][]string{argv}, nil }
-	_, err := runLocalCheck(context.Background(), d, suiteFailing(gateKnown), sha)
+	check := suiteFailing(gateKnown)
+	check.Name = name
+	_, err := runLocalCheck(context.Background(), d, check, sha)
 	var infra *suiteEnvironmentError
 	if !errors.As(err, &infra) {
 		t.Fatalf("recorded rerun startup failure lost execution provenance: %v", err)
 	}
+	if !strings.Contains(err.Error(), "--name "+name+" --rev "+sha) {
+		t.Fatalf("rerun recovery dropped parent check/executed head: %v", err)
+	}
 	rows := gateAttempts(t, d)
-	if len(rows) != 1 || rows[0].Check != suiteCheckName || len(gh.statuses[sha]) != 0 {
+	if len(rows) != 1 || rows[0].Check != name || len(gh.statuses[sha]) != 0 {
 		t.Fatalf("startup rerun published code authority: %+v %+v", rows, gh.statuses)
 	}
 	if log, err := os.ReadFile(infra.LogPath); err != nil || string(log) != recordedCacheFailure(t) {
@@ -123,6 +149,7 @@ func TestSuiteInfrastructureRecordedCacheKnownFlakeRerun(t *testing.T) {
 
 func TestSuiteInfrastructureBaselineCannotBlameCars(t *testing.T) {
 	d, sha, gh, _ := localRunRepo(t, "skipped")
+	advanceInfrastructureCallerHead(t, d, sha)
 	check := infrastructureCheck(t, recordedCacheFailure(t))
 	log := filepath.Join(t.TempDir(), "candidate.log")
 	if err := os.WriteFile(log, []byte("--- FAIL: TestActual (0.01s)\nFAIL example/pkg 0.01s\n"), 0o600); err != nil {
@@ -133,6 +160,9 @@ func TestSuiteInfrastructureBaselineCannotBlameCars(t *testing.T) {
 	var infra *suiteEnvironmentError
 	if !errors.As(err, &infra) || strings.Contains(err.Error(), "main is red") {
 		t.Fatalf("baseline infrastructure became main-red: %v", err)
+	}
+	if !strings.Contains(err.Error(), "--name suite --rev "+sha) {
+		t.Fatalf("baseline recovery targets caller instead of baseline: %v", err)
 	}
 	c := &conductor{ctx: context.Background(), heads: []string{sha}, base: sha, suite: check, local: d}
 	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return failed, nil }
@@ -146,12 +176,16 @@ func TestSuiteInfrastructureBaselineCannotBlameCars(t *testing.T) {
 
 func TestSuiteInfrastructureMissingGoNeverStarts(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "skipped")
+	advanceInfrastructureCallerHead(t, d, sha)
 	missing := filepath.Join(t.TempDir(), "go")
 	check := localCheck{Name: suiteCheckName, Command: []string{missing, "test", "./..."}, TimeoutMinutes: 1}
 	rec, err := runLocalCheck(context.Background(), d, check, sha)
 	var infra *suiteEnvironmentError
 	if !errors.As(err, &infra) || !strings.Contains(err.Error(), missing) {
 		t.Fatalf("missing Go was not could-not-run: %+v %v\n%s", rec, err, stderr)
+	}
+	if !strings.Contains(err.Error(), "--name suite --rev "+sha) {
+		t.Fatalf("unstarted Go recovery lost executed head: %v", err)
 	}
 	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 {
 		t.Fatalf("unstarted tool published code authority: %+v %v", gateAttempts(t, d), gh.statuses)

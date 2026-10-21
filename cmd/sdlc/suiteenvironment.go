@@ -10,9 +10,9 @@ import (
 // suiteEnvironmentError is execution evidence, never a failed code-suite result.
 // Its separate log cannot enter flake attribution or prevent a same-head repair.
 type suiteEnvironmentError struct {
-	Check, LogPath string
-	Cause          error
-	Diagnosis      suiteStartupDiagnosis
+	Check, Head, LogPath string
+	Cause                error
+	Diagnosis            suiteStartupDiagnosis
 }
 
 // suiteStartupDiagnosis is a confirmed startup failure, never test evidence.
@@ -42,7 +42,11 @@ func (e *suiteEnvironmentError) Error() string {
 	if diagnosis.Reason != "" {
 		where += ": " + diagnosis.Reason
 	}
-	return fmt.Sprintf("environment failure: could-not-run: %s%s; repair the environment and rerun sdlc local-check run --name %s; log %s%s", diagnosis.Resource, where, check, e.LogPath, detail)
+	revision := ""
+	if e.Head != "" {
+		revision = " --rev " + e.Head
+	}
+	return fmt.Sprintf("environment failure: could-not-run: %s%s; repair the environment and rerun sdlc local-check run --name %s%s; log %s%s", diagnosis.Resource, where, check, revision, e.LogPath, detail)
 }
 
 func (e *suiteEnvironmentError) Unwrap() error { return e.Cause }

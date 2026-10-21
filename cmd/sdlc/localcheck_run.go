@@ -531,6 +531,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	default:
 		var startup *suiteEnvironmentError
 		if errors.As(runErr, &startup) {
+			startup.Head = sha
 			return run, startup
 		}
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
@@ -853,15 +854,15 @@ func readLocalCheckLog(path string) ([]byte, error) {
 
 // retainSuiteEnvironment moves execution evidence out of the acceptance store.
 // A failed move keeps the owned raw log and names the retention error explicitly.
-func retainSuiteEnvironment(logDir, sha, check, raw string, diagnosis suiteStartupDiagnosis) (string, error) {
+func retainSuiteEnvironment(logDir, sha, check, raw string, diagnosis suiteStartupDiagnosis) (string, *suiteEnvironmentError) {
 	path := filepath.Join(logDir, sha, check+".environment.log")
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
 	if err == nil {
 		err = os.Rename(raw, path)
 	}
 	if err != nil {
-		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Diagnosis: diagnosis, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
+		return raw, &suiteEnvironmentError{Check: check, Head: sha, LogPath: raw, Diagnosis: diagnosis, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
-	return path, &suiteEnvironmentError{Check: check, LogPath: path, Diagnosis: diagnosis}
+	return path, &suiteEnvironmentError{Check: check, Head: sha, LogPath: path, Diagnosis: diagnosis}
 }

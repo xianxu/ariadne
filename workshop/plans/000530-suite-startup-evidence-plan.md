@@ -49,7 +49,7 @@ arbitrary error-text waiver, flake registration or cache cleanup is introduced.
 | diagnoseSuiteStartup / diagnoseSuiteStartupLines | cmd/sdlc/suiteenvironment.go | new, generalizes existing suiteEnvironmentLines |
 | planSuiteReclassification | cmd/sdlc/suitereclassification.go | new |
 | decodeSuiteAttempt / encodeReclassifiedAttempt | cmd/sdlc/teststats_store.go; teststats_reclassify.go | modified / new |
-| validateReclassificationProof | cmd/sdlc/suitereclassification.go | new |
+| validateReclassificationProof | cmd/sdlc/teststats_reclassify.go | new |
 | flakeAttempt / isFlakeEvidence / flakes.Unexplained | cmd/sdlc/teststats.go; internal/flakes/evidence.go | modified |
 
 Startup diagnosis returns a typed resource/cause/path, rather than only a bool.
@@ -267,7 +267,7 @@ Target: go test ./cmd/sdlc -run 'Test(SuiteReclass|LocalCheckReclass|ScopedSaved
 ### Task 3: Discovery, complete verification and landing
 
 Files: cmd/sdlc/helptext/local-check.md, README.md,
-atlas/workflow/ci-merge-check.md, workshop issue/lessons.
+atlas/workflow/sdlc-binary.md, workshop issue/lessons.
 
 - [x] Document recognition limits, exact command/owner/:0 rules, audit location,
   partial-operation recovery, no GitHub status rewrite and required real rerun.
@@ -306,3 +306,4 @@ part of this design. Any third design delta on the mechanism triggers re-plannin
 
 - 2026-10-21 — TL approved the first-Go missing-executable/interpreter delta; native controls are implemented and passing.
 - 2026-10-21 — Lifecycle verification clarified retention completion: committed audit files, including orphan residue after interrupted pruning, use the existing 30-day audit/attempt grace. Private incomplete files keep the existing 24-hour dead-owner cleanup. The bounded orphan pass extends the existing pruner; no new store, cache, ownership mechanism or authority state was introduced.
+- 2026-10-21 — BR-1: corrected the Core concepts location of validateReclassificationProof to cmd/sdlc/teststats_reclassify.go and the Task 3 atlas path to the actual existing sdlc-binary map; cross-checked the remaining entity/integration locations. BR-2 retains the existing exact-subject contract: live execution errors now carry the executed SHA, and rerun advice preserves the parent suite/affected check, rather than defaulting to caller HEAD or the internal rerun name.

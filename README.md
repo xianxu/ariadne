@@ -658,6 +658,9 @@ repository `:0` can run `sdlc local-check reclassify --attempt ID --reason TEXT`
 This preserves the original record in an audit and records a nonpassing v3
 disposition. It changes no GitHub status and requires a genuine rerun after
 repair; mixed, test-started, truncated or unprovable evidence refuses.
+`sh scripts/verify-524-reader.sh` checks actual correction bytes against the pinned
+historical reader in a private checkout. It prints its retained scratch path;
+the invoker owns removing that directory after inspection.
 
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
