@@ -35,6 +35,37 @@ rounds:
           family: function-test-strategy-contract
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 57336aaa-4c63-4dce-8523-5dcfe18e4c4f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000524"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: 7f7d45c0f32e9750d26a820b89c45a6fea4269dd
+            slot: ariadne:3
+            requested_at: "2026-10-21T11:50:13.104796Z"
+          phase: finished
+          pid: 88873
+          started_at: "2026-10-21T11:50:13.217296Z"
+          finished_at: "2026-10-21T11:50:38.629249Z"
+          session_id: 01a15e4c-2f6f-7b32-8342-ddb6680a0213
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-21T04:50:38-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named risky functions now have compact adversarial strategies and mechanical guards, including controlled-order managed-batch cancellation.
+          round: 2
+      blocked: false
+content_hash: 9c941c59582f19ce4d8f6c95b27ac84f1f50c0ea48e58f0937554fb51cc6cc28
 ---
 
 # Gate ledger — ariadne#524 (plan-quality)
@@ -49,6 +80,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-1** [Important] `function-test-strategy-contract` Name risky test functions and compress prose case inventories
   The plan enumerates parser and PASS-collector cases at workshop/plans/000524-scoped-evidence-reruns-plan.md:73 and :83, but does not name the proposed envelope decoder, relation predicate, batch builder, or structured PASS collector functions. Replace these inventories with one strategy line per named risky function stating the adversarial input class and mechanical guard; include the managed batch execution function's controlled-order cancellation strategy. This completes the ARCH-PURE test contract without duplicating the forthcoming executable tests.
 
+## Round 2 — 2026-10-21T04:50:38-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named risky functions now have compact adversarial strategies and mechanical guards, including controlled-order managed-batch cancellation.
+
 ## Open findings
 
-- **PQ-1** [Important] `function-test-strategy-contract` Name risky test functions and compress prose case inventories
+(none — every finding has been disposed)

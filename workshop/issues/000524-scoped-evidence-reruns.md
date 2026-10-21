@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 2.82
 collaboration-mode: collaboration
-card_mirror: 'ea5c2944a30cb858d60c463cf083c18a4020799f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '20febc2959000ea7c3eeed24e9e4034844429ec9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T04:42:56-07:00
 claimant:
     operator: Xian Xu
@@ -39,6 +39,32 @@ No ResumeLink writer or resume activation. Atlas must name the old-reader limita
 - A two-package same-name-decoy fixture proves no cross-package over-selection; whole-parent subtest behavior stays intact. Exactly one managed lease and aggregate timeout/cancel behavior are verified.
 - No production v3/link writer or resume command is enabled. Atlas records separate landings and fleet binary verification before activation.
 - Targeted tests, private executable proof, central recorded suite, close review and normal landing pass; hub receives rollout instructions.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; the source is flagged stale, so provisional. Standard encoding/json/jsonstrict, existing attempt/Git/GH/queue/process seams and stateful fakes cover library needs; no novel stack or new API discovery.
+
+Six smaller modules cover envelope decoding, bounded snapshot/index, authority-consumer integration, exact-package planning, structured PASS collection and flake-step integration. Each uses v2 design0.2 × thorough-spec0.2 =0.04 and impl0.5 × v3.1 scaling0.4 =0.20. The managed-run refactor uses base design0.4 ×0.2 =0.08 and impl0.5 ×0.4 =0.20; private executable conformance is one smaller module at0.04/0.20. Docs use base0.1/0.2 →0.02/0.08; issue/spec0.5/0.1 →0.10/0.04. Two milestone reviews plus final close use base0.1/0.4 →0.02/0.16 each. Familiarity1.0 from recent queue/process/evidence work. Design0.54 ×1.15 buffer + impl2.20 =2.821, rounded2.82h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.10 impl=0.04
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: cross-cutting-refactor design=0.08 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.16
+item: milestone-review design=0.02 impl=0.16
+item: milestone-review design=0.02 impl=0.16
+design-buffer: 0.15
+total: 2.82
+```
 
 ## Plan
 
