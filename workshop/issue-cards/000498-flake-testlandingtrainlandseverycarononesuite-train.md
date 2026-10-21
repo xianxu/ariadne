@@ -5,7 +5,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 github_issue:
-flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainLandsEveryCarOnOneSuite/train]
+flake_tests: 
 started: 2026-10-20T14:48:54-07:00
 claimant:
     operator: Xian Xu
