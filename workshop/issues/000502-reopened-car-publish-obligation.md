@@ -1,13 +1,13 @@
 ---
 id: 000502
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '4fd7ba1906a3fcaa3baeb7638a93cf0e8b2a664d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9e40dc9a56875ae801cd3b262f9160bffdf9c7b0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T06:49:06-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "7bdb4ff9", done: "665cf118"}
+actual_hours: 0.38
 ---
 
 # Reopened issue can silently remove a waiting car publish obligation
