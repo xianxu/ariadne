@@ -52,6 +52,9 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 ### 2026-10-21
 
+- Plan committed and submitted to hub; receipt2475e436-1c76-4c59-a899-06585679a21b submitted. Hub relayed operator review pending (5eb93475-33d7-49f8-9070-cc4584ea31b5): hold code until explicit answer, recommended merge-start boundary and deterministic real-Git fixture conformance. No change-code, implementation, PR, local-check lease or merge runner was started.
+- After Couch restart, reread Log and verified clean retained issue branch/design. Queue running complete=true, no ariadne:1 operation; repository line is held by #524/ariadne:3 and trains remain off. GitHub PR lookup for this branch returned no PR (service degradation caveat retained). No runner/check to recover and nothing restarted; operator-approval hold continues.
+
 ## Revisions
 
 - 2026-10-21: Hub clarified “returns to waiting” means not lost, not automatically ready: a dropped car stays out until explicit owner retry; its runner exits with reason/recovery like #521 (654ff9bf-3a5d-4ddf-ab4c-b831827f1f83). Done-when wording updated accordingly. Hub endorsed persistent generation-pinned acceptance under line.lock and one atomic drop-versus-merge fence; detailed plan awaiting approval.
