@@ -1,13 +1,13 @@
 ---
 id: 000530
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 3.7
 collaboration-mode: collaboration
-card_mirror: '80de363d4ff73c88f548575d8b7763844ffb34a1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f67cf59356db18144ec1dfeda56f00c7636f43d0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T14:22:07-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.63
 ---
 
 # local-check: a suite that fails before any test on ENOSPC (full Go cache) is could-not-run, not an unattributable failure or main-red
