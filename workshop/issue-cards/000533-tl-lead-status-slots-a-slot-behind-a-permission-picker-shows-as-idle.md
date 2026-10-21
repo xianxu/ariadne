@@ -1,6 +1,6 @@
 ---
 id: 000533
-status: working
+status: blocked
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
