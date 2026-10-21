@@ -44,12 +44,17 @@ var suiteAttemptJSONFields = map[string]bool{
 	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
 	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
+	"reclassification_sha256": true,
 }
 
 // suiteAttemptVersion is the version the writer records. Version 2 (#394)
 // adds the gate's outcome, its known flakes and a rerun's link; a v1 record
 // cannot carry them, so a v1 history stays readable and unambiguous.
 const suiteAttemptVersion = 2
+
+// Ordinary runs remain v2 for older fleet readers. Only an audited nonpassing
+// correction requires v3 semantics and therefore the newer reader.
+const suiteAttemptReadVersion = 3
 
 var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
 
@@ -147,7 +152,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return a, errors.New("trailing JSON")
 	}
-	if a.Version != 1 && a.Version != 2 {
+	if a.Version != 1 && a.Version != 2 && a.Version != 3 {
 		return a, fmt.Errorf("unsupported version %d", a.Version)
 	}
 	if a.Version == 1 {
@@ -157,7 +162,15 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 			}
 		}
 	}
-	if a.Outcome != "" && !suiteOutcomes[flakes.Kind(a.Outcome)] {
+	if a.Version == 3 {
+		if len(a.ReclassificationSHA256) != 64 || !suiteHex.MatchString(a.ReclassificationSHA256) ||
+			a.Outcome != "could-not-run" || !isTestCheck(a.Check) || a.Exit <= 0 || a.TimedOut || len(a.Failures) != 0 || len(a.Units) != 0 {
+			return a, errors.New("invalid nonpassing reclassification envelope")
+		}
+	} else if keys["reclassification_sha256"] {
+		return a, errors.New("reclassification requires version 3")
+	}
+	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && !suiteOutcomes[flakes.Kind(a.Outcome)] {
 		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
 	}
 	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
@@ -528,6 +541,16 @@ func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func
 				}
 				continue
 			}
+			if a.Version == 3 {
+				remaining := maxBytes - bytesRead
+				var proofErr error
+				a.ReclassifiedAt, proofErr = readSuiteReclassificationProof(root, a, b, &remaining, open)
+				bytesRead = maxBytes - remaining
+				if proofErr != nil {
+					snapshot.addUnsupported(UnsupportedProof{Version: a.Version, ID: a.ID, Repo: a.Repo, SHA: a.SHA, Check: a.Check, Path: p, Raw: b, Problem: proofErr.Error()})
+					continue
+				}
+			}
 			snapshot.Attempts = append(snapshot.Attempts, a)
 		}
 		if dirErr == io.EOF {
@@ -569,6 +592,7 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		}
 		_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
 		_ = os.Remove(filepath.Join(root, "failed", id+".log"))
+		_ = os.Remove(filepath.Join(root, "reclassified", id+".json"))
 	}
 	// An active writer owns its in-flight directory even if its clock or run
 	// duration exceeds the stale threshold. Uncertain liveness retains it.

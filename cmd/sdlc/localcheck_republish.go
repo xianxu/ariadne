@@ -27,6 +27,8 @@ func suiteStoreRoot(logDir string) string {
 // check on this exact commit and its log still hashes to the recorded value.
 func savedAttemptRecord(a SuiteAttempt, logSHA string, tail []string, repo, sha, check, host string) (localRunRecord, error) {
 	switch {
+	case a.ReclassificationSHA256 != "":
+		return localRunRecord{}, fmt.Errorf("attempt %s could-not-run; repair the environment and record a genuine rerun", a.ID)
 	case a.Repo != repo:
 		return localRunRecord{}, fmt.Errorf("attempt %s is for %s, not %s", a.ID, a.Repo, repo)
 	case a.SHA != sha:
@@ -79,12 +81,22 @@ func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRu
 	var best *localRunRecord
 	var bestAt, latest time.Time
 	var refusals []string
+	var recovery time.Time
+	for _, a := range attempts {
+		if a.Repo == repo && a.SHA == sha && isTestCheck(check) && a.ReclassificationSHA256 != "" && a.ReclassifiedAt.After(recovery) {
+			recovery = a.ReclassifiedAt
+		}
+	}
 	for _, a := range attempts {
 		if id != "" && a.ID != id || id == "" && (a.SHA != sha || a.Check != check) {
 			continue
 		}
 		if a.FinishedAt.After(latest) {
 			latest = a.FinishedAt
+		}
+		if !recovery.IsZero() && !a.StartedAt.After(recovery) {
+			refusals = append(refusals, "attempt "+a.ID+" predates infrastructure recovery; record a genuine rerun")
+			continue
 		}
 		path := suiteAttemptLogFile(storeRoot, a)
 		if path == "" {

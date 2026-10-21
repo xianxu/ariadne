@@ -15,6 +15,7 @@ type UnsupportedProof struct {
 	Version                             int
 	ID, Repo, SHA, Check, RerunOf, Path string
 	Raw                                 []byte
+	Problem                             string // a supported correction whose proof could not be verified
 }
 
 type proofSubject struct{ Repo, SHA, Check, ID string }
@@ -75,6 +76,9 @@ func (s *SuiteEvidenceSnapshot) indexLinkedParents() {
 type needsNewerSDLCError struct{ Proof UnsupportedProof }
 
 func (e *needsNewerSDLCError) Error() string {
+	if e.Proof.Problem != "" {
+		return fmt.Sprintf("attempt %s (%s on %s, %s): unverified reclassification: %s; inspect %s", e.Proof.ID, e.Proof.Check, abbrevSHA(e.Proof.SHA), e.Proof.Repo, e.Proof.Problem, e.Proof.Path)
+	}
 	return fmt.Sprintf("attempt %s (%s on %s, %s): needs a newer sdlc to read evidence version %d; record %s", e.Proof.ID, e.Proof.Check, abbrevSHA(e.Proof.SHA), e.Proof.Repo, e.Proof.Version, e.Proof.Path)
 }
 
@@ -185,7 +189,7 @@ func decodeUnsupportedProof(data []byte, filename string) (UnsupportedProof, err
 		return p, err
 	}
 	validID := func(id string) bool { return len(id) >= 2 && len(id) <= 64 && suiteHex.MatchString(id) }
-	if wire.Version <= suiteAttemptVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
+	if wire.Version <= suiteAttemptReadVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
 		return p, errors.New("invalid unsupported evidence identity")
 	}
 	if wire.RerunOf != "" && (!validID(wire.RerunOf) || wire.RerunOf == wire.ID) {

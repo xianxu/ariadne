@@ -36,7 +36,7 @@ type Attempt struct {
 // "Later" is that order (finish time, then ID), which test-stats also uses.
 func Confirmed(order []Attempt, i int) (passedID string, ok bool) {
 	failed := order[i]
-	if failed.Passed || failed.Legacy || failed.Baseline {
+	if failed.Passed || failed.Legacy || failed.Baseline || failed.Kind == CouldNotRun {
 		return "", false
 	}
 	for _, b := range order[i+1:] {
@@ -75,7 +75,7 @@ func SameHeadFailPass(all []Attempt, test string) (failedID, passedID string, ok
 func Unexplained(all []Attempt, sha string, r Registry) []Attempt {
 	var out []Attempt
 	for _, a := range Sort(all) {
-		if a.SHA != sha || a.Passed || a.Baseline || a.Legacy || a.Kind.Lands() {
+		if a.SHA != sha || a.Passed || a.Baseline || a.Legacy || a.Kind.Lands() || a.Kind == CouldNotRun {
 			continue
 		}
 		if neverExplained[a.Kind] || !Explained(a.Failures, a.Subtests, r) {

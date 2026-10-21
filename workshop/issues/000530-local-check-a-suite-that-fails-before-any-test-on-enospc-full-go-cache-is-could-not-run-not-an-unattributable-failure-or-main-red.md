@@ -184,6 +184,21 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   No full recorded suite has run yet. Next: exact-attempt audited v3 recovery,
   consumer sequence controls and actual pinned #524 reader compatibility.
 
+- Recovery core checkpoint: exact-attempt eligibility red (0.379s), audited
+  publication red (0.376s), neutral flake-evidence rule red (0.128s), old-pass
+  promotion red (0.381s), and CLI lock metadata red (0.437s) preceded their
+  implementations. The v3 correction preserves original JSON facts/unknown
+  values and immutable raw log, commits an immutable audit first, and validates
+  that proof in the existing scoped snapshot. Ordinary writers remain v2.
+  Verified audit time is projected into that snapshot to reject every saved
+  pass that started before correction; only a genuine later run is reusable.
+  No GitHub effect exists in reclassification. Atomic-publication interruption,
+  audit/log/record mutation and exact 8/16 read-count controls pass (0.726s).
+  Combined decoder/scoped-proof/neutral-rule/lock controls pass (0.867s + 0.059s).
+  Remaining: stronger CLI/native ownership and consumer sequence coverage,
+  pinned real #524-era compatibility, pruning/unknown-audit/schema-fuzz controls,
+  docs, full recorded suite and the one close boundary. No completion claim.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
