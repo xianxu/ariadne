@@ -78,3 +78,5 @@ Actions: retry `sdlc merge --yes`.
 ## Revisions
 
 - 2026-10-21: separated implementation acceptance checks from the later SDLC suite/close/landing operations in the checklist, so completion of a gate is not its own unchecked prerequisite. Scope and Done when are unchanged; full-suite and review gates remain required.
+
+- Committed implementation verified at `68b43a707375f628f037e000cd9078802912f721`; own `bin/sdlc` reports that vcs.revision with vcs.modified=false. A compiled proof harness from the same clean checkout rechecked all three live archives: PASS in 43.70s. Full output retained at `/Users/xianxu/workspace/worktree/ariadne-slot2/p512-live-proof.txt`; isolated fixture at `/Volumes/TestScratch/ariadne-512-live.RZTYSz/fixture.json`. Hub notified. PR362 open; recorded suite queued on that implementation head.
