@@ -5,7 +5,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 github_issue:
-flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainWaiterAcceptsConductorArchive]
+flake_tests: 
 started: 2026-10-20T23:05:19-07:00
 claimant:
     operator: Xian Xu
