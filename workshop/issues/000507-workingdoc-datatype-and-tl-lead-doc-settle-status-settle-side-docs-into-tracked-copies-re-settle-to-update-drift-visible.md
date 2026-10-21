@@ -69,6 +69,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 - Focused verification PASS: complete cmd/tl-lead package 36.649s, cmd/datatype 0.072s, pkg/golint 0.515s; existing/new trunk publication tests 30.401s; ops publication tests 17.024s; repository adapter tests 6.089s. Pointer fuzz passed 63,618 executions; marker fuzz passed 45,182. Stateful real bare-remote fixtures cover immutable payloads, uncertain push/retry, source CAS failures, selected-index races, baseline drift and cancellation. No live hub documents were changed.
 - TL explicitly requested a shared-cache hold (52d78dc9-dfa4-4e39-93c1-ff639b35bcc8). Focused checks are finished; no recorded full suite has been queued, and no GOCACHE override will be used for it. Full-suite verification, close, hub-owned live check and landing remain pending until the operator restores the shared cache and TL releases the hold.
 
+- Shared-cache hold released by TL (3cbc4b1e-503b-4612-8b03-2cf84b06058d). Verified go env GOCACHE resolves to /Users/xianxu/Library/Caches/go-build. Earlier ENOSPC setup failures were infrastructure failures before compilation, not test evidence; no recorded #507 suite had run. Starting the recorded suite on the pushed implementation with no per-run cache override.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
