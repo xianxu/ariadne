@@ -230,16 +230,16 @@ or changing flake/landing admission policy. These lack the requested narrow proo
 Files: suiteenvironment.go, suiteenvironment_test.go, localcheck_run.go,
 localcheck_flakes.go; recorded fixtures under cmd/sdlc/testdata/.
 
-- [ ] Capture today's retained #508 candidate and baseline logs into replay
+- [x] Capture today's retained #508 candidate and baseline logs into replay
   fixtures, preserving diagnostic structure and documenting any path sanitation.
-- [ ] Implement the red diagnosis contract above in colocated tests before code.
-- [ ] Run focused tests and retain red evidence. Extend the typed classifier and
+- [x] Implement the red diagnosis contract above in colocated tests before code.
+- [x] Run focused tests and retain red evidence. Extend the typed classifier and
   existing error/retention path only after the regression fails.
-- [ ] Exercise runLocalCheck on a private repo: no failure status/attempt/flake
+- [x] Exercise runLocalCheck on a private repo: no failure status/attempt/flake
   evidence, raw log retained, same-head genuine repair passes. Keep a prior real
   failure blocking. Cover affected and a known-flake rerun's startup failure.
-- [ ] Verify the baseline/train function contract through the same replay seam.
-- [ ] Count scanner work at 8/16 units. Commit the coherent verified change.
+- [x] Verify the baseline/train function contract through the same replay seam.
+- [x] Count scanner work at 8/16 units. Commit the coherent verified change.
 
 Target: go test ./cmd/sdlc -run 'TestSuite(Environment|Infrastructure)' -count=1
 
@@ -249,17 +249,17 @@ Files: suitereclassification.go and tests, teststats_reclassify.go and tests,
 teststats_store.go, teststats_evidence.go, teststats.go, localcheck_cmd.go,
 localcheck_reclassify.go and tests, localcheck_republish.go.
 
-- [ ] Write the red transition, proof, encoding and consumer contracts above
+- [x] Write the red transition, proof, encoding and consumer contracts above
   using storedAttemptFixture; add actual CLI tests through localRunRepo.
-- [ ] Implement the exact command, audit-first publication and explicit v3
+- [x] Implement the exact command, audit-first publication and explicit v3
   validation/projection. Reuse existing lock/recovery patterns and scope reads.
-- [ ] Exercise the publication/read ordering contract with interruption injection,
+- [x] Exercise the publication/read ordering contract with interruption injection,
   then verify the shared consumer contracts against the independent run ledger.
-- [ ] Test v1/v2 reads, unknown-field preservation and real pinned old-reader
+- [x] Test v1/v2 reads, unknown-field preservation and real pinned old-reader
   behavior using the #524 compatibility fixture approach. In particular, the
   #524-era reader must scope a v3 disposition to its subject and allow unrelated
   proof. The TL confirmed #524 is deployed fleet-wide. Test joint pruning.
-- [ ] Run focused controls, race-check the bounded mutation/read interleavings,
+- [x] Run focused controls, race-check the bounded mutation/read interleavings,
   and commit only with passing evidence.
 
 Target: go test ./cmd/sdlc -run 'Test(SuiteReclass|LocalCheckReclass|ScopedSavedProof|TestRunGuard)' -count=1
@@ -269,9 +269,9 @@ Target: go test ./cmd/sdlc -run 'Test(SuiteReclass|LocalCheckReclass|ScopedSaved
 Files: cmd/sdlc/helptext/local-check.md, README.md,
 atlas/workflow/ci-merge-check.md, workshop issue/lessons.
 
-- [ ] Document recognition limits, exact command/owner/:0 rules, audit location,
+- [x] Document recognition limits, exact command/owner/:0 rules, audit location,
   partial-operation recovery, no GitHub status rewrite and required real rerun.
-- [ ] Evaluate the Go lint rule obligation: this is semantic evidence grammar
+- [x] Evaluate the Go lint rule obligation: this is semantic evidence grammar
   and authority, defended by replay/transition/consumer tests; add a lint only
   if investigation reveals an enumerable mechanical misuse class.
 - [ ] Ask the hub for the live-smoke decision with the concrete reviewed result;
@@ -303,3 +303,6 @@ part of this design. Any third design delta on the mechanism triggers re-plannin
   Historical empty logs still refuse correction without positive proof. Native
   first-command/later-command controls will pin the distinction. This changes
   runtime failure provenance only, not the v3/audit mechanism.
+
+- 2026-10-21 — TL approved the first-Go missing-executable/interpreter delta; native controls are implemented and passing.
+- 2026-10-21 — Lifecycle verification clarified retention completion: committed audit files, including orphan residue after interrupted pruning, use the existing 30-day audit/attempt grace. Private incomplete files keep the existing 24-hour dead-owner cleanup. The bounded orphan pass extends the existing pruner; no new store, cache, ownership mechanism or authority state was introduced.

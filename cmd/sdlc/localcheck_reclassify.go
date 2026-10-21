@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -57,7 +58,16 @@ an upgrade for this attempt; unrelated evidence remains usable on #524 readers.`
 			if err := publishSuiteReclassification(store, id, repo, *identity.Address, reason, time.Now().UTC(), nil); err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "attempt %s: could-not-run; audit %s; repair the environment and record a genuine rerun (no status changed)\n", id, filepath.Join(store, "reclassified", id+".json"))
+			remaining := int64(suiteAttemptMaxJSON)
+			raw, err := boundedSuiteProofFile(filepath.Join(store, "attempts", id+".json"), suiteAttemptMaxJSON, &remaining, os.Open)
+			if err != nil {
+				return fmt.Errorf("correction published; exact rerun advice unavailable, inspect audit %s: %w", id, err)
+			}
+			a, err := decodeSuiteAttempt(raw)
+			if err != nil || a.ID != id || a.Repo != repo {
+				return errors.New("correction published; attempt moved before rerun advice, inspect its audit")
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "attempt %s: could-not-run; audit %s; no status changed\nrepair the environment, then sdlc local-check run --name %s --rev %s\n", id, filepath.Join(store, "reclassified", id+".json"), a.Check, a.SHA)
 			return err
 		}}
 	cmd.Flags().StringVar(&id, "attempt", "", "exact published attempt ID (required)")

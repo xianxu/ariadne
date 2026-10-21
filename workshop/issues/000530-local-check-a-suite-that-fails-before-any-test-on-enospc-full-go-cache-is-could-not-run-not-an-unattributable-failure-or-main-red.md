@@ -118,9 +118,9 @@ total: 3.70
 Full flow, one atomic close boundary, plan approval required before code.
 Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-plan.md).
 
-- [ ] Replay the recorded startup failure; extend the strict live execution path
+- [x] Replay the recorded startup failure; extend the strict live execution path
   with positive/negative controls and candidate/main/train coverage.
-- [ ] Implement exact-attempt, owner/:0, audited recovery and versioned evidence
+- [x] Implement exact-attempt, owner/:0, audited recovery and versioned evidence
   projection; exercise interruptions, consumers, old readers and retention.
 - [ ] Document, verify the full recorded suite, close review and land through
   sdlc; report the outcome to the hub.
@@ -198,6 +198,36 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   Remaining: stronger CLI/native ownership and consumer sequence coverage,
   pinned real #524-era compatibility, pruning/unknown-audit/schema-fuzz controls,
   docs, full recorded suite and the one close boundary. No completion claim.
+
+- Final focused controls pass (11.052s), including recorded cache replay on
+  suite/affected, known-flake rerun, baseline/train, existing code-failure guards,
+  owner/:0 CLI, exact-head recovery advice and saved-proof consumers. Broader
+  local-check/suite regression passed (72.859s); race-checked recovery and
+  pruning passed (3.792s). Internal flakes and Go/shell lint packages pass.
+- The built real CLI passes the private repository fixture (1.490s): correction
+  changes no GitHub status and makes no GitHub call; genuine repaired execution
+  can publish, while a separate code failure still blocks. Later advice control
+  now names the exact recorded check/head. No live fleet/store was modified.
+- Actual encoder bytes passed the pinned landed #524 reader control (0.549s):
+  related implicit/explicit saved proof and post guards refuse with upgrade
+  guidance; unrelated proof posts successfully; opaque v3 bytes remain unchanged.
+  Initial compatibility fixture setup used an unknown fake-GitHub SHA and was
+  corrected to the private repository's real head; this was fixture setup, not
+  product evidence. The earlier pre-524 control remains separate.
+- Startup fuzz passed (4,416 executions); schema/opaque-field encoder fuzz
+  passed (125,968 executions). Iterator and proof-open count guards remain exact
+  at N=8 and 16. No lexical lint was added: startup grammar and recovery authority
+  are semantic/sequence properties, defended by these independent controls.
+- Two extra red invariants were fixed: a conflicting corrected head now makes
+  the read incomplete rather than concealing original authority (red 0.482s);
+  interrupted retry requires the exact retained raw original digest, including
+  whitespace (red 0.449s). No approval mechanism changed.
+- Bounded lifecycle exploration found audit residue after interrupted pruning
+  or publication racing an expired original. Red tests (0.761s) preceded the
+  existing-pruner extension: failed authority unlink retains proof; canonical
+  orphan audits get the existing 30-day committed-audit grace and bounded scan.
+  Private partial writes still use 24-hour dead-owner cleanup. Recovery/pruning
+  controls pass (1.576s). Full recorded suite, smoke decision and close remain.
 
 ## Revisions
 

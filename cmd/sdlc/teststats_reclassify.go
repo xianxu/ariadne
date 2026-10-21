@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
@@ -17,6 +18,8 @@ import (
 
 const suiteReclassificationRevision = 1
 const suiteReclassificationMaxJSON = 2 * suiteAttemptMaxJSON
+
+var errReclassificationSubject = errors.New("corrected subject differs from original audited identity")
 
 type suiteReclassificationAudit struct {
 	Version        int                   `json:"version"`
@@ -97,6 +100,9 @@ func validateReclassificationProof(current, audit, log []byte) error {
 	original, err := decodeSuiteAttempt(proof.Original)
 	if err != nil {
 		return err
+	}
+	if original.ID != a.ID || original.Repo != a.Repo || original.SHA != a.SHA || original.Check != a.Check {
+		return errReclassificationSubject
 	}
 	diagnosis, err := planSuiteReclassification(original, a.Repo, proof.Actor, proof.Reason, log)
 	if err != nil {
@@ -229,6 +235,14 @@ func publishSuiteReclassification(root, id, repo, actor, reason string, at time.
 		if err != nil {
 			return err
 		}
+	} else {
+		var previous suiteReclassificationAudit
+		if err := json.Unmarshal(audit, &previous); err != nil {
+			return err
+		}
+		if previous.OriginalSHA256 != suiteBytesSHA256(raw) || !bytes.Equal(previous.Original, raw) {
+			return errors.New("original raw digest differs from retained audit; inspect before retrying")
+		}
 	}
 	encoded, err := encodeReclassifiedAttempt(raw, suiteBytesSHA256(audit))
 	if err != nil {
@@ -267,6 +281,19 @@ func writeSuiteReclassificationFile(private, path string, b []byte, exclusive bo
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
+	// A new audit directory's own entry must be durable too. Syncing only
+	// the child after linking its file would not persist that parent entry.
+	parent, err := os.Open(filepath.Dir(filepath.Dir(path)))
+	if err != nil {
+		return err
+	}
+	if err := parent.Sync(); err != nil {
+		parent.Close()
+		return err
+	}
+	if err := parent.Close(); err != nil {
+		return err
+	}
 	f, err := os.CreateTemp(private, ".reclass-*")
 	if err != nil {
 		return err
@@ -297,4 +324,48 @@ func writeSuiteReclassificationFile(private, path string, b []byte, exclusive bo
 	}
 	defer dir.Close()
 	return dir.Sync()
+}
+
+// A crash after the first prune unlink, or an audit linked after its expired
+// original was pruned, must not create a permanent side ledger. Completed audit
+// files get the existing 30-day grace; private partial writes retain the existing
+// 24-hour dead-owner lifecycle. Unknown presence never proves an orphan.
+func pruneSuiteReclassificationAudits(root string, now time.Time, remove func(string) error) error {
+	dir, err := os.Open(filepath.Join(root, "reclassified"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	for seen := 0; seen < testStatsRecordLimit; {
+		entries, readErr := dir.ReadDir(min(128, testStatsRecordLimit-seen))
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+		seen += len(entries)
+		for _, entry := range entries {
+			id := strings.TrimSuffix(entry.Name(), ".json")
+			if entry.Name() != id+".json" || len(id) < 2 || len(id) > 64 || !suiteHex.MatchString(id) {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil || !info.Mode().IsRegular() || now.Sub(info.ModTime()) <= suiteAttemptKeep {
+				continue
+			}
+			if _, err := os.Lstat(filepath.Join(root, "attempts", id+".json")); !os.IsNotExist(err) {
+				continue
+			}
+			for _, path := range []string{filepath.Join(root, "failed", id+".log"), filepath.Join(root, "reclassified", entry.Name())} {
+				if err := remove(path); err != nil && !os.IsNotExist(err) {
+					return err
+				}
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+	}
+	return nil
 }

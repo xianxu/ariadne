@@ -651,6 +651,14 @@ cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
+Go startup failures caused by unavailable temp space, a full cache/build output,
+quota exhaustion or a missing toolchain count as could-not-run when complete
+evidence proves no tests started. For an already recorded failure, its owner or
+repository `:0` can run `sdlc local-check reclassify --attempt ID --reason TEXT`.
+This preserves the original record in an audit and records a nonpassing v3
+disposition. It changes no GitHub status and requires a genuine rerun after
+repair; mixed, test-started, truncated or unprovable evidence refuses.
+
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
 resume --owner TOKEN` removes only that hold and never restarts interrupted work.

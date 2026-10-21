@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -93,6 +94,16 @@ func TestSuiteReclassificationPublication(t *testing.T) {
 	after, err := os.ReadFile(filepath.Join(root, "attempts", a.ID+".json"))
 	if err != nil || !bytes.Equal(raw, after) {
 		t.Fatalf("retry rewrote correction: %s %v", after, err)
+	}
+	// The opt-in historical-reader control consumes these actual encoder bytes,
+	// without linking the new decoder into the pinned source checkout.
+	if export := os.Getenv("SDLC_RECLASSIFY_EXPORT"); export != "" {
+		if !filepath.IsAbs(export) {
+			t.Fatal("SDLC_RECLASSIFY_EXPORT must be absolute")
+		}
+		if err := os.WriteFile(export, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -254,6 +265,9 @@ func TestSuiteReclassificationProofMutations(t *testing.T) {
 			if len(snapshot.Attempts) != 0 || len(snapshot.Warnings) == 0 && len(snapshot.Unsupported) == 0 {
 				t.Fatalf("unverified proof became absence/authority: %+v", snapshot)
 			}
+			if kind == "record head" && len(snapshot.Warnings) == 0 {
+				t.Fatal("moved subject concealed the original head's unavailable authority")
+			}
 			if _, _, err := loadSavedAttempt(root, a.Repo, a.SHA, a.Check, "", ""); err == nil {
 				t.Fatal("damaged proof authorized saved result")
 			}
@@ -292,4 +306,224 @@ func TestSuiteReclassificationBoundedReadCounts(t *testing.T) {
 			t.Fatalf("N=%d opens=%d attempts=%d err=%v", n, opens, len(snapshot.Attempts), err)
 		}
 	}
+}
+
+func TestSuiteReclassificationAuditRetryAndRetention(t *testing.T) {
+	root, a, _ := reclassificationFixture(t)
+	at := a.FinishedAt.Add(time.Hour)
+	private := t.TempDir()
+	err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", at, func(path string, b []byte, exclusive bool) error {
+		if !exclusive {
+			return errors.New("interrupted before record")
+		}
+		return writeSuiteReclassificationFile(private, path, b, true)
+	})
+	if err == nil {
+		t.Fatal("injection did not interrupt")
+	}
+	auditPath := filepath.Join(root, "reclassified", a.ID+".json")
+	b, err := os.ReadFile(auditPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(b, &fields); err != nil {
+		t.Fatal(err)
+	}
+	fields["future"] = json.RawMessage(`{"opaque":1e400}`)
+	b, err = json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(auditPath, b, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "retry", at.Add(time.Minute), nil); err != nil {
+		t.Fatal(err)
+	}
+	retained, err := os.ReadFile(auditPath)
+	if err != nil || !bytes.Equal(retained, b) {
+		t.Fatalf("retry rewrote unknown audit facts: %s %v", retained, err)
+	}
+	now := time.Now()
+	old := now.Add(-suiteAttemptKeep - time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "attempts", a.ID+".json"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{auditPath, filepath.Join(root, "attempts", a.ID+".json"), filepath.Join(root, "failed", a.ID+".log")} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expired recovery evidence retained: %s %v", path, err)
+		}
+	}
+}
+
+func TestSuiteReclassificationRetryBindsOriginalRawDigest(t *testing.T) {
+	root, a, raw := reclassificationFixture(t)
+	private := t.TempDir()
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", a.FinishedAt.Add(time.Hour), func(path string, b []byte, exclusive bool) error {
+		if !exclusive {
+			return errors.New("interrupted before record")
+		}
+		return writeSuiteReclassificationFile(private, path, b, true)
+	}); err == nil {
+		t.Fatal("injection did not interrupt")
+	}
+	// Even a whitespace-only rewrite is a different original byte generation.
+	path := filepath.Join(root, "attempts", a.ID+".json")
+	if err := os.WriteFile(path, append(raw, '\n'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "retry", a.FinishedAt.Add(2*time.Hour), nil); err == nil {
+		t.Fatal("interrupted recovery accepted a different raw original digest")
+	}
+	if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, append(raw, '\n')) {
+		t.Fatalf("refused recovery changed original: %s %v", got, err)
+	}
+}
+
+func TestSuiteReclassificationPruneInterruptionReclaimsAudit(t *testing.T) {
+	root, a, _ := reclassificationFixture(t)
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", a.FinishedAt.Add(time.Hour), nil); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	old := now.Add(-suiteAttemptKeep - time.Hour)
+	for _, dir := range []string{"attempts", "reclassified"} {
+		if err := os.Chtimes(filepath.Join(root, dir, a.ID+".json"), old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	attempt := filepath.Join(root, "attempts", a.ID+".json")
+	audit := filepath.Join(root, "reclassified", a.ID+".json")
+	if err := pruneSuiteAttemptsWithRemove(root, now, func(path string) error {
+		if path == attempt {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			return errors.New("pruner interrupted after attempt unlink")
+		}
+		return os.Remove(path)
+	}); err == nil {
+		t.Fatal("pruner did not expose injected interruption")
+	}
+	if _, err := os.Stat(audit); err != nil {
+		t.Fatalf("proof removed before interrupted attempt removal completed: %v", err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(audit); !os.IsNotExist(err) {
+		t.Fatalf("orphan audit survives future pruning forever: %v", err)
+	}
+}
+
+func TestSuiteReclassificationPruneRefusalKeepsProof(t *testing.T) {
+	root, a, _ := reclassificationFixture(t)
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", a.FinishedAt.Add(time.Hour), nil); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	old := now.Add(-suiteAttemptKeep - time.Hour)
+	attempt := filepath.Join(root, "attempts", a.ID+".json")
+	if err := os.Chtimes(attempt, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttemptsWithRemove(root, now, func(path string) error {
+		if path == attempt {
+			return os.ErrPermission
+		}
+		return os.Remove(path)
+	}); !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("prune refusal missing: %v", err)
+	}
+	for _, path := range []string{attempt, filepath.Join(root, "reclassified", a.ID+".json"), filepath.Join(root, "failed", a.ID+".log")} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("proof dependency removed while authority remains: %s %v", path, err)
+		}
+	}
+}
+
+func TestSuiteReclassificationAuditPublishedAfterPrune(t *testing.T) {
+	root, a, _ := reclassificationFixture(t)
+	now := time.Now()
+	old := now.Add(-suiteAttemptKeep - time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "attempts", a.ID+".json"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	private := t.TempDir()
+	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", now, func(path string, b []byte, exclusive bool) error {
+		if !exclusive {
+			t.Fatal("pruned original reached authority publication")
+		}
+		if err := pruneSuiteAttempts(root, now); err != nil {
+			return err
+		}
+		return writeSuiteReclassificationFile(private, path, b, true)
+	}); err == nil {
+		t.Fatal("recovery did not notice pruned original")
+	}
+	audit := filepath.Join(root, "reclassified", a.ID+".json")
+	if _, err := os.Stat(audit); err != nil {
+		t.Fatalf("committed audit lost before its retention window: %v", err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(audit); err != nil {
+		t.Fatalf("fresh orphan audit lost: %v", err)
+	}
+	if err := os.Chtimes(audit, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(audit); !os.IsNotExist(err) {
+		t.Fatalf("expired audit from prune/publication race survives: %v", err)
+	}
+}
+
+func FuzzEncodeReclassifiedAttempt(f *testing.F) {
+	a := storedAttemptFixture("a1")
+	a.Failures, a.Slot, a.LogPath = nil, "ariadne:5", "failed/a1.log"
+	original, err := json.Marshal(a)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(original)
+	f.Fuzz(func(t *testing.T, raw []byte) {
+		encoded, err := encodeReclassifiedAttempt(raw, strings.Repeat("a", 64))
+		if err != nil {
+			return
+		}
+		var before, after map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &before); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(encoded, &after); err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range before {
+			if k == "version" || k == "outcome" {
+				continue
+			}
+			var left, right bytes.Buffer
+			if err := json.Compact(&left, v); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Compact(&right, after[k]); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(left.Bytes(), right.Bytes()) {
+				t.Fatalf("lost original field %q", k)
+			}
+		}
+		decoded, err := decodeSuiteAttempt(encoded)
+		if err != nil || decoded.Exit <= 0 || decoded.TimedOut || decoded.Version != 3 {
+			t.Fatalf("correction grants unexpected authority: %+v %v", decoded, err)
+		}
+	})
 }

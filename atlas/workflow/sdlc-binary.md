@@ -59,6 +59,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
 | `local-check cancel` | (new #400)                  | Select one owned run with `--run ID` (printed at run start), all owned runs of `--name N`, or all this checkout's checks; ID/name are exclusive and foreign/invalid/inactive IDs refuse. Same-check/different-head overlap prints a notice and exact existing-run cancellation command, preserving both FIFO places until explicit cancellation. Each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
+| `local-check reclassify` | (new #530) | Correct one exact startup infrastructure attempt with immutable original-record audit and a nonpassing v3 disposition. Recorded owner or repository :0 only; no status rewrite or saved-pass promotion; repair and genuinely rerun |
 | `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
 | `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's card `flake_tests`, landing merge and Git ancestry (never issue Markdown); since #479 each row is an uncovered failing leaf (`flakes.Uncovered`), matched to a terminal issue by the same `Covers` rule, nearest name first (`fixedCandidates`); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlotBatch` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's package-bound JSON PASS event required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
@@ -2161,16 +2162,35 @@ child writes under a sandbox that denies host normal-temp roots.
 
 `runLocalCheck` reads one bounded complete log for startup classification and
 normal suite facts. `suiteenvironment.go` accepts only direct Go work-directory
-creation errors and the explicit compile-before-report Python/make wrapper.
+creation errors, cache/build-output ENOSPC or quota errors, missing-toolchain
+diagnostics and explicit compile/go-list-before-report Python/make wrappers.
 Mixed, quoted, truncated, timed-out or unknown output retains ordinary rules.
 Recognized startup errors return a typed could-not-run error before flake,
 attempt or status publication; known-flake reruns use the same classifier.
 Raw evidence moves to `<head>/<check>.environment.log`, bounded by existing
 20-head pruning, outside SuiteAttempt and legacy acceptance paths. A retention
-failure names and retains the raw inflight log. No schema changes or rewrites:
-a same-head environment repair can pass, while genuine failed attempts remain.
+failure names and retains the raw inflight log. A first-command Go launch error
+also qualifies when typed missing-executable/interpreter evidence and Process nil
+prove nothing started; queue/process cleanup and the empty raw log remain intact.
+A same-head environment repair can pass, while genuine failed attempts remain.
 Ordinary baseline diagnosis and train `mainIsRed` propagate execution errors;
 main health stays unknown and the train emits no failure/split event for them.
+
+`local-check reclassify --attempt ID --reason TEXT` corrects one historical
+misclassification under the repository transaction lock. `suitereclassification.go`
+owns eligibility; `teststats_reclassify.go` binds complete immutable log identity
+and original JSON bytes to an immutable actor/time/reason/diagnosis audit under
+`test-stats/reclassified/ID.json`, fsynced before atomic replacement of the attempt.
+Ordinary writers remain v2; the correction is a nonpassing v3 disposition.
+`readSuiteEvidence` verifies its audit/log in the existing bounded snapshot before
+projecting neutral authority. Missing/mismatched proof refuses. The head remains
+known to prevent legacy resurrection; neutral runs provide no flake evidence.
+Verified audit time prevents saved passes predating correction from being promoted.
+No remote status changes; a genuine later check owns publication. Audits are pruned
+with their attempt; interrupted private writes use existing inflight-owner cleanup.
+`scripts/verify-524-reader.sh` feeds actual encoder bytes to landed #524 source:
+related proof refuses with upgrade guidance, unrelated proof remains usable.
+The pre-524 control remains separate and demonstrates its broader refusal.
 
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`

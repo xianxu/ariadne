@@ -68,8 +68,15 @@ func TestSuiteInfrastructureGrammar(t *testing.T) {
 }
 
 func TestSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T) {
+	for _, name := range []string{suiteCheckName, affectedCheckName} {
+		t.Run(name, func(t *testing.T) { testSuiteInfrastructureFailureHasNoCodeAuthority(t, name) })
+	}
+}
+
+func testSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T, name string) {
 	d, sha, gh, stderr := localRunRepo(t, "skipped")
 	check := infrastructureCheck(t, recordedCacheFailure(t))
+	check.Name = name
 	rec, err := runLocalCheck(context.Background(), d, check, sha)
 	var infra *suiteEnvironmentError
 	if !errors.As(err, &infra) {
@@ -88,8 +95,29 @@ func TestSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T) {
 		t.Fatal("startup failure entered diagnostic baseline")
 	}
 	check.Command = []string{"true"}
-	if pass, err := runLocalCheck(context.Background(), d, check, sha); err != nil || !pass.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
+	if pass, err := runLocalCheck(context.Background(), d, check, sha); err != nil || !pass.passed() || gh.statuses[sha][localStatusContext(name)] != "success" {
 		t.Fatalf("genuine same-head repair blocked: %+v %v\n%s", pass, err, stderr)
+	}
+}
+
+func TestSuiteInfrastructureRecordedCacheKnownFlakeRerun(t *testing.T) {
+	d, sha, gh, _ := localRunRepo(t, "skipped")
+	d.FlakeRegistry = gateRegistry(t, gateKnown)
+	argv := infrastructureCheck(t, recordedCacheFailure(t)).Command
+	previous := knownFlakeRerunCommands
+	t.Cleanup(func() { knownFlakeRerunCommands = previous })
+	knownFlakeRerunCommands = func([]string) ([][]string, error) { return [][]string{argv}, nil }
+	_, err := runLocalCheck(context.Background(), d, suiteFailing(gateKnown), sha)
+	var infra *suiteEnvironmentError
+	if !errors.As(err, &infra) {
+		t.Fatalf("recorded rerun startup failure lost execution provenance: %v", err)
+	}
+	rows := gateAttempts(t, d)
+	if len(rows) != 1 || rows[0].Check != suiteCheckName || len(gh.statuses[sha]) != 0 {
+		t.Fatalf("startup rerun published code authority: %+v %+v", rows, gh.statuses)
+	}
+	if log, err := os.ReadFile(infra.LogPath); err != nil || string(log) != recordedCacheFailure(t) {
+		t.Fatalf("rerun raw capture changed: %q %v", log, err)
 	}
 }
 

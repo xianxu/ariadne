@@ -547,6 +547,11 @@ func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func
 				a.ReclassifiedAt, proofErr = readSuiteReclassificationProof(root, a, b, &remaining, open)
 				bytesRead = maxBytes - remaining
 				if proofErr != nil {
+					if errors.Is(proofErr, errReclassificationSubject) {
+						// Neither conflicting identity can prove which subject is
+						// absent. Preserve the existing incomplete-read refusal.
+						snapshot.Warnings = append(snapshot.Warnings, p+": "+proofErr.Error())
+					}
 					snapshot.addUnsupported(UnsupportedProof{Version: a.Version, ID: a.ID, Repo: a.Repo, SHA: a.SHA, Check: a.Check, Path: p, Raw: b, Problem: proofErr.Error()})
 					continue
 				}
@@ -561,6 +566,10 @@ func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func
 }
 
 func pruneSuiteAttempts(root string, now time.Time) error {
+	return pruneSuiteAttemptsWithRemove(root, now, os.Remove)
+}
+
+func pruneSuiteAttemptsWithRemove(root string, now time.Time, remove func(string) error) error {
 	entries, err := os.ReadDir(filepath.Join(root, "attempts"))
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -590,9 +599,14 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		if !suiteHex.MatchString(id) {
 			continue
 		}
-		_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
-		_ = os.Remove(filepath.Join(root, "failed", id+".log"))
-		_ = os.Remove(filepath.Join(root, "reclassified", id+".json"))
+		for _, path := range []string{filepath.Join(root, "attempts", e.Name()), filepath.Join(root, "failed", id+".log"), filepath.Join(root, "reclassified", id+".json")} {
+			if err := remove(path); err != nil && !os.IsNotExist(err) {
+				return err // Never remove proof while its authority could remain.
+			}
+		}
+	}
+	if err := pruneSuiteReclassificationAudits(root, now, remove); err != nil {
+		return err
 	}
 	// An active writer owns its in-flight directory even if its clock or run
 	// duration exceeds the stale threshold. Uncertain liveness retains it.

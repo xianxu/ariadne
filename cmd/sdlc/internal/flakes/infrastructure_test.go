@@ -8,6 +8,9 @@ func TestCouldNotRunNeverExplainsCode(t *testing.T) {
 	if neutral.Kind.Lands() {
 		t.Fatal("could-not-run lands")
 	}
+	if Explainable(neutral.Kind) {
+		t.Fatal("neutral execution evidence became a registrable code failure")
+	}
 	if got := Unexplained([]Attempt{neutral}, "head", Registry{}); len(got) != 0 {
 		t.Fatalf("neutral run blocks a real rerun: %+v", got)
 	}
