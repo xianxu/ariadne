@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 3aed53f9-8903-4583-818f-3640e4ffbda9
+        repository: github.com/xianxu/ariadne
+        issue_id: "000530"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        reviewed_head: b3b4bf690ec39a3ba3d2f14f4e3f8475e160a0a0
+        slot: ariadne:5
+        requested_at: "2026-10-21T21:34:00.564721Z"
+      phase: finished
+      pid: 19732
+      started_at: "2026-10-21T21:34:00.701254Z"
+      finished_at: "2026-10-21T21:34:28.416118Z"
+      session_id: 01a16062-a981-70c3-9e8e-eb45dbf8ac5d
+      outcome: returned
 gate: plan-quality
 issue: 530
 id_prefix: PQ
@@ -66,7 +86,37 @@ rounds:
           note: Named risky functions now have adversarial strategies and mechanical guards; Tasks 1–2 delegate individual cases to executable tests.
           round: 2
       blocked: false
-content_hash: 99fc977a3bd2c85cf8e9e894c934a52f7926ea271f955a6db57691ede3ef15d2
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: da836b03-1440-419b-ba96-df368c34c5b1
+            repository: github.com/xianxu/ariadne
+            issue_id: "000530"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: b3b4bf690ec39a3ba3d2f14f4e3f8475e160a0a0
+            slot: ariadne:5
+            requested_at: "2026-10-21T21:33:33.363773Z"
+          phase: finished
+          pid: 92496
+          started_at: "2026-10-21T21:33:33.486831Z"
+          finished_at: "2026-10-21T21:33:58.536589Z"
+          session_id: 01a16062-3f0a-7fb3-ba73-0663ba2ed7ae
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-21T14:33:58-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named risky functions now have adversarial strategies and mechanical guards; procedural test inventories were compressed into strategy contracts.
+          round: 3
+      blocked: false
+content_hash: 37e4028d9c840dd871c0233758933f633e8bf53224183af1968e46b3f3132e9d
 ---
 
 # Gate ledger — ariadne#530 (plan-quality)
@@ -86,6 +136,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-1 — addressed — Named risky functions now have adversarial strategies and mechanical guards; Tasks 1–2 delegate individual cases to executable tests.
+
+## Round 3 — 2026-10-21T14:33:58-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named risky functions now have adversarial strategies and mechanical guards; procedural test inventories were compressed into strategy contracts.
 
 ## Open findings
 
