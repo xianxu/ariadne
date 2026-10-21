@@ -46,7 +46,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -88,6 +88,8 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 - BR-1 final safe source verification: focused completion/abort controls PASS22.720s (BR1-shell-final.log), tracked pkg/golint PASS1.580s, go vet exit0 and staged diff whitespace clean. Earlier broader BR1-shell-green2.log PASS86.475s and full core/race remain valid for this restored source. Fresh recorded suite and the full second close review remain pending; BR-1 is not marked disposed by the implementer.
 
 - Close round2 explicitly disposed BR-1 as addressed after storage/routing mutations and real train controls; ledger correctly refused finalization on BR-2 Important (preserve-unknown-fields-on-rewrite). A real RequestTrainDrop regression reproduced cleanup.publication-only metadata disappearing on the second accepted drop (BR2-red.log). The same-generation rewrite now merges existing cleanup snapshot unknown fields while refreshing known publication values (ARCH-EVOLVE). Swept control rewrites: publication updates already merge Extra, completion/apply/finish mutate retained decoded records; BeginTrain intentionally replaces retired generation-specific nested state only after cleanup. The regression also seals both drops and finishes cleanup, asserting the metadata survives to disk. Full core package including counted growth guard PASS1.689s; fresh recorded suite and third full close review remain pending. Cancelled only our obsolete queued e48 suite by its lease after the code change became required; its terminal confirms context cancellation before any suite execution.
+
+- Final reviewed-code suite on Git-verified2eb193c29df4550c63266ec065030a071a234d4b PASS: all8shards,1961command tests and75other packages, zero failures, wall623.1s. Run lease-2978758371 waited4547s, exited0 and recorded sdlc-local/suite. SSD copy evidence/000526/final-reviewed-suite-green.log, sha256d322bc007f493e5e201d7a7dae39bb593befbd562ea7676cb12abfffd01916c1. Close round3 returned SHIP, disposing both BR-1 and BR-2 with independent mutation verification and no new findings. Close finalized codecomplete; all changes since the reviewed source are documentation/evidence only. Final plan item now completed. Enter the normal merge gate; no stage/private cache exists to clear.
 
 ## Revisions
 
