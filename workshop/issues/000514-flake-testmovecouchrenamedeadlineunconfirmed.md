@@ -45,6 +45,7 @@ The rename interruption fixture must publish its simulated rename before cancell
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Readiness-gated rename cancellation covers both sides of the effect; ten final race fixture runs PASS (16.514s), full tl-lead PASS (12.093s), focused race tl-lead/judge PASS (2.726s/1.189s), full lint PASS (0.469s), other affected package checks pass. Fixed 300ms/1s startup budgets removed; real elapsed-bound test retained. Recorded full suite launched on 39a3dbe40, pending; queued review overlap allowed by tl-worker, landing requires its pass. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed and started on fresh main after #504 landed. The old test starts a 300 ms deadline before helper launch and assumes its WriteFile executes first; helper's subsequent 700 ms sleep adds a second scheduling assumption. Existing test-shrunk-deadline lint only checks assignments to capitalized timeout names and misses lowercase struct fields. Plan posted to TL under quick-flow self-approval.
 
