@@ -306,7 +306,8 @@ MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
 Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
-Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Markdown under `workshop/issues/`, `workshop/issue-cards/`, `workshop/plans/` and
+`workshop/history/`. Tracker configuration (`workshop/issue-tracker.json`) does not qualify.
 Every novel commit and merge-parent difference is classified, including rename
 sources; code added then reverted, mixed changes and unreadable history remain
 ordinary. The existing integration state machine charges only ordinary moves to
@@ -500,7 +501,7 @@ trains on:
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
 - **Locking:** ref writes take the repo transaction lock.
-- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Main moves (#511):** issue-record-only movement uses the shared strict history classifier and fresh same-PR/head/base CLEAN readiness. The train retains its exact checked head and CI only while policy/car/log-bound landing-check proof remains valid and the final destination passes instance/duplicate-ID gates under the merge transaction. Other movement or unavailable/stale readiness reintegrates main; generic docs-only reintegration can retain the suite but still needs CI on the new head. No statuses are copied.
 - **Lost reply:** a merge whose reply was lost is read back from GitHub.
 - **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
 - **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.

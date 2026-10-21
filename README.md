@@ -592,7 +592,10 @@ for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three code integrations); conflicts abort with the paths to resolve.
 Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
 for the exact PR/head and live base allows the tested head to land unchanged;
-otherwise normal integration and exact-head CI apply. The narrow record policy
+landing trains use the same proof to preserve their checked head and CI, with
+selected landing-check evidence still valid and destination gates rechecked.
+Otherwise normal integration and exact-head CI apply. Card Markdown qualifies;
+tracker configuration does not. The narrow record policy
 is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local

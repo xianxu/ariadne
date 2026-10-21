@@ -311,15 +311,19 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 // gatePrefix runs the instance and duplicate-ID gates on one prefix, as a
 // single landing runs them on its integrated head; "" is a pass.
 func (c *conductor) gatePrefix(head string) string {
+	return c.gatePrefixAt(c.base, head)
+}
+
+func (c *conductor) gatePrefixAt(base, head string) string {
 	if c.f.NoValidate {
 		return ""
 	}
 	// Each prefix is gated in the train tree that holds it, never the
 	// conductor's checkout, which lacks later cars' files (#490).
-	if err := runLandingInstanceGate(c.wt, c.base, head, nounGates(c.f.IssuesDir), io.Discard, c.stderr, c.r); err != nil {
+	if err := runLandingInstanceGate(c.wt, base, head, nounGates(c.f.IssuesDir), io.Discard, c.stderr, c.r); err != nil {
 		return "the instance gate refuses the train with it: " + firstLine(err.Error())
 	}
-	if err := runLandingDuplicateGate(c.base, head, c.f.IssuesDir, c.f.HistoryDir, c.r); err != nil {
+	if err := runLandingDuplicateGate(base, head, c.f.IssuesDir, c.f.HistoryDir, c.r); err != nil {
 		return "the duplicate-ID gate refuses the train with it: " + firstLine(err.Error())
 	}
 	return ""
@@ -445,11 +449,20 @@ func (c *conductor) waitCI(k int) landingline.TrainEvent {
 	return landingline.CIDone{Green: true}
 }
 
-// merge lands prefix k: main is fetched first, and a main that moved is
-// reintegrated rather than merged past. The merge is pinned to the head and
+// merge lands prefix k: moved main reintegrates unless the shared issue-record
+// proof permits keeping the exact checked head. The merge is pinned to the head and
 // confirmed on GitHub; an unconfirmed one is probed, never assumed.
 func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
+	// Read outside the transaction; only its exact live base can authorize
+	// retaining this checked head after the final fetch below.
+	readiness, readinessErr := landingReadiness{}, fmt.Errorf("adapter has no readiness evidence")
+	if source, ok := c.gh.(landingReadinessGH); ok {
+		readiness, readinessErr = source.LandingReadiness(c.ctx, c.t.Repo, c.pr.Number)
+	}
+	if err := c.ctx.Err(); err != nil {
+		return nil, err
+	}
 	moved, uncertain, landed := false, false, false
 	// One transaction, as a single landing's: main re-read and the pinned
 	// merge request under the lock, so main can't move between them.
@@ -466,8 +479,29 @@ func (c *conductor) merge(k int) (landingline.TrainEvent, error) {
 				landed = true
 				return nil
 			}
-			moved = true
-			return nil
+			only, proofErr := mainMovementIssueOnly(c.r, c.t.Root, c.base, main)
+			if proofErr != nil {
+				fmt.Fprintf(c.stderr, "issue-record optimization unavailable (%v); reintegrating train normally\n", proofErr)
+			}
+			if only && readinessErr != nil {
+				fmt.Fprintf(c.stderr, "issue-record readiness unavailable (%v); reintegrating train normally\n", readinessErr)
+			}
+			ready := false
+			if only && proofErr == nil && readinessErr == nil {
+				ready, err = readinessAllowsUnintegrated(c.pr, readiness, main)
+				if err != nil {
+					return err
+				}
+				ready = ready && c.landing.allowsMainMove(c.git, c.base, main, c.carHeads[:k])
+			}
+			if !ready {
+				moved = true
+				return nil
+			}
+			if why := c.gatePrefixAt(main, head); why != "" {
+				return errors.New(why)
+			}
+			fmt.Fprintf(c.stderr, "landing train %d: issue records advanced main; retaining checked head %s and CI\n", c.id, shortSHA(head))
 		}
 		if err := c.gh.LandingMerge(c.ctx, c.t.Repo, c.pr.Number, head); err != nil {
 			fmt.Fprintf(c.stderr, "landing train %d: merge outcome uncertain (%v); reading GitHub\n", c.id, err)

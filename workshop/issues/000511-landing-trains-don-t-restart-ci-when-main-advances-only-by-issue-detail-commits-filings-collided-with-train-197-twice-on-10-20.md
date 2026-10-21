@@ -58,9 +58,9 @@ issues/ paths").
 
 ## Plan
 
-- [ ] Add failing real-Git/stateful-GitHub train regressions at the CI/readiness boundary, asserting unchanged head and one publication/CI cycle/suite; cover refused or fallback observations and late collisions.
-- [ ] Reuse strict movement/readiness/landing proof in the train merge transaction; include card Markdown in the shared record classifier, and preserve normal reintegration on unavailable proof.
-- [ ] Verify targeted train, classifier and landing-check controls; update README/atlas and record isolated proof and suite/close evidence through the workflow gates.
+- [x] Add failing real-Git/stateful-GitHub train regressions at the CI/readiness boundary, asserting unchanged head and one publication/CI cycle/suite; cover refused or fallback observations and late collisions.
+- [x] Reuse strict movement/readiness/landing proof in the train merge transaction; include card Markdown in the shared record classifier, and preserve normal reintegration on unavailable proof.
+- [x] Verify targeted train, classifier and landing-check controls; update README/atlas and record isolated proof.
 
 Actions: continue the current train; retry a refused landing with the named correction.
 
@@ -85,3 +85,14 @@ Actions: continue the current train; retry a refused landing with the named corr
 - Hub approved the shape and clarified card Markdown only, excluding workshop/issue-tracker.json (authenticated delivery 84b54387-9799-412f-a02e-133b1cbdfb2f). Expected implementation fits quick shell; if it exceeds 100 added executable/help lines, stop and plan full flow. Read-only delegated exploration confirmed the same reuse boundaries; no peer edits/tests.
 
 ### 2026-10-20
+
+- RED: real two-car cases for details, cards and both each showed two train pushes and two exact CI heads; the card classifier rejected Markdown (15.558s package run). After minimal shared-helper reuse, those cases plus code/configuration/unknown/stale/unavailable/identity controls passed in a 48.660s run. The late-duplicate fixture exposed invalid synthetic car sections before boarding, so it is being repaired to reach the intended post-CI boundary; no production bypass is added.
+
+- The conductor retains the existing car-vouch publication contract. It reuses its own instance/duplicate prefix gates against the latest destination rather than calling the single-car publication gate on a synthetic train PR: that gate requires the current checkout to equal its selected car head. No new train publication bypass or status-writing path is introduced.
+
+- Final broader targeted run passed (306.095s): new two-car exact-head/CI retention, code/configuration/unknown/stale/unavailable/identity, watched issue check rerun, code add/revert, late-main/late-code snapshots, late duplicate refusal, tracker JSON exclusion, existing train split/probe/orphan/environment, single-car and main-movement controls. Output: /Users/xianxu/workspace/worktree/ariadne-slot2/p511-targeted.txt. The standalone late-duplicate rerun passed (4.134s) after correcting fixture Plan/Done-when bullets; the earlier 152.381s run is retained as failed fixture evidence, not a passing result. Tracked-file Go catalog passed (0.901s); diff check clean. Production diff adds 41 lines, within quick shell.
+- Runtime work per main observation remains one movement-history query and O(P) path classification, plus existing prefix instance/ID validation and policy/car reads (growth in changed prefix instances, repository issue IDs, selected checks and admitted cars). No subprocess is launched per issue record; N=8/16 counted history controls passed. The added conjunction is a fixed number of existing proofs, not a rescan per path.
+
+## Revisions
+
+- 2026-10-21: kept implementation acceptance checkboxes separate from the recorded suite/close/landing workflow gates, so close is not its own unchecked prerequisite. The full suite and review remain mandatory before landing.
