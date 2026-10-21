@@ -1,6 +1,6 @@
 ---
 id: 000504
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours: 2.142
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 4935e84497d52ad95e192fdb16f61ee974b38bfc
         evidence_commit: be564e2e52f08d205a36442809e0b0281f82babf
+        landed_commit: 619ddaf81e4dd0d0cc33d885a59ca3ffebd09f3f
 ---
 
 # tl-lead: the hub session file moves to session.md at the repo root (no team folder, no operator name), with a status move verb and the decisions-are-tracked rule
