@@ -60,8 +60,8 @@ or a republished failure as a recorded passing suite.
 
 ## Plan
 
-- [ ] M1 — Exact-package rerun batches, immutable linked-proof model and shared evidence snapshot, with focused adversarial tests and atlas update.
-- [ ] M2 — Explicit resume command, lifetime lock, saved-proof/republish/pass-guard integration, private executable proof and recorded-suite delivery preparation.
+- [ ] M1 — Immutable resume link, pure proof/reconciliation model, parent-lifetime lock and bundle retention; reuse #524's evidence snapshot and exact-package batch.
+- [ ] M2 — Explicit resume/reconcile commands, saved-proof/republish/pass-guard integration, private executable proof and recorded-suite delivery.
 
 Durable proposal: [resume known flakes plan](../plans/000463-resume-known-flakes-plan.md). Await hub approval before change-code or implementation; close/PR/landing remain mandatory after the implementation boundaries.
 
@@ -91,3 +91,15 @@ The plan replaces the empty planning row with two genuine review boundaries. It 
 Hub approval eb6d1928-c198-41cd-bde5-fe8c292a4601 accepted the core plan, conditioned on scoped old-reader behavior and one real recovery command for an uncertain resume. Reported the current old reader's whole-store warning/refusal, which a new record cannot change retroactively. Authenticated917bf022-032a-4d84-ac6b-39075bbca2b5 selects a separate reader/batch prerequisite landing, then the hub upgrades every slot and this worker verifies actual binary revisions, then #463 activates resume in a second landing from main. The durable plan's Revisions records this superseding order. No link writer or resume command may ship before that barrier, and links are never hidden from old readers. Preserve this branch's design while working the prerequisite from main; phase-2 reconciliation must repair the link/proof and name one real command.
 
 The prerequisite is filed/claimed as #524, scoped future evidence and exact-package reruns. #463 depends on that landing plus the hub's verified fleet rollout; its design branch remains preserved while #524 starts independently from main.
+
+### 2026-10-21 10:40 PDT — Phase 2 restored; reconcile proposal before code
+
+Authenticated TL dispatch 367355ec-38a3-427e-87c9-a02c69a27af7 accepts the rollout audit with an explicit exclusion: ariadne-slot1..5/ariadne/bin/sdlc are branch development builds, absent from runtime PATH, and integrate main through their own issue work. Shared bare sdlc is observed at clean c22771a77d40531c2debbf96f09018149e42a6f2; the independent 30-path audit found the other 25 discovered paths at that build and containing #524. TL owns rollout/runtime policy; no peer slots were messaged or modified. The dispatch authorizes #463 phase 2, with any plan delta first. Restored this issue's branch, integrated current origin/main including #524, and reran start-plan. No implementation has started.
+
+The same dispatch relays the operator's decision to drop #520: “let's just not do this.” Ran sdlc abandon --issue 520 --as wontfix with that reason. Its Log and plan are archived, its work retained at refs/ariadne/abandoned/000520, and its parked local/remote branch deleted through that verb. #520 contributes no code to this issue.
+
+Read-only bounded recovery survey confirms queue reconcile checks owner PID incarnation and records an operator attestation of no descendants; it neither tracks spawned PGIDs nor repairs resume proof. The plan revision proposes a narrow resume reconciliation command under the same authority and attestation boundary, which only terminalizes interrupted proof and can never authorize another execution or a pass. Explicitly awaiting the hub's approval of that recovery tradeoff before change-code.
+
+### 2026-10-21 10:40 PDT — Active milestone scope after #524
+
+The two active Plan rows now match the approved reader-first split. The superseded M1 combined exact-package execution with the link model; exact-package execution and scoped unknown-record readers landed in #524, while this issue retains two actual boundaries: link/proof/retention, then CLI/readers/delivery. The durable plan's appended phase-2 revision is the current implementation contract; earlier task lists are preserved as design history. Done when remains unchanged: interrupted or repeated resume cannot become success.

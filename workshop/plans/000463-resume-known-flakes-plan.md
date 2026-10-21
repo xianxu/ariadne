@@ -126,3 +126,76 @@ Authenticated follow-up917bf022-032a-4d84-ac6b-39075bbca2b5 chooses two separate
 3. Only after the first landing and verified rollout does #463 resume from main containing that prerequisite and implement link writing/resume activation in a separate landing. No stacked branch and no reused merged branch name. Its own M1/M2 boundaries become link/proof/reconciliation, then CLI/readers/delivery; exact-package execution is reused from the prerequisite.
 
 The crashed-resume refusal must print one executable recovery command. Existing queue reconcile is sufficient only if it actually reconciles the resume link/proof as well as process ownership; otherwise add a narrow resume-specific reconcile under the parent lock with exact link digest, operator note, proven stopped descendants and retained audit. Do not ship a generic “inspect” instruction or claim queue tombstone removal repairs a resume link. That command's precise shape will be finalized before phase-2 code, not guessed in phase 1.
+
+### 2026-10-21 10:40 PDT — Phase-2 execution and terminal reconciliation proposal
+
+**Reason/delta:** #524 is landed; its managed exact-package batch and scoped unsupported-evidence snapshot replace the corresponding original M1 tasks. Authenticated TL dispatch 367355ec-38a3-427e-87c9-a02c69a27af7 accepts the 25 current runtime-path builds and excludes the five slot-local branch dev binaries by policy, then authorizes phase 2 subject to a plan delta first. Bare sdlc --version observes clean c22771a77d40531c2debbf96f09018149e42a6f2. This appendix supersedes the original task grouping, pending approval state and generic crash-recovery prose. It is a proposal awaiting hub approval; no code is authorized by this appendix itself.
+
+**Simplest alternative checked:** existing queue reconcile alone cannot settle a ResumeLink. Queue Operation/runLease contain the SDLC owner PID, not a durable list of descendant process groups. Automatically claiming descendant absence after owner death would require a new launch-barrier/ownership subsystem to cover process start before PGID publication. That is unnecessary for a conservative terminal repair: reuse queue recovery's explicit operator-attestation boundary, and never let repair grant a pass or another execution. The operator/:0 steward must verify stopped descendants externally and attest it. The program proves owner-incarnation absence, not descendant absence. This limitation requires explicit hub acceptance before code.
+
+#### Current entities and seams
+
+| Pure entity | Lives in | Status |
+| --- | --- | --- |
+| ResumeLink | cmd/sdlc/localcheck_resume_evidence.go | new |
+| ResumeReconciliation | cmd/sdlc/localcheck_resume_evidence.go | new |
+| ResumeProof / ResumeTransition | cmd/sdlc/localcheck_resume_evidence.go | new |
+| SuiteEvidenceSnapshot | cmd/sdlc/teststats_evidence.go | modified |
+
+ResumeLink uses the v3 identity envelope already scoped by #524: id, repo, sha, check=suite and rerun_of=parent ID, with distinct kind, exact parent-record/log digests, reserved child ID, owner PID/start-time/boot/host identity and creation time. Strict typed decoding rejects duplicate/null/invalid known fields and inconsistent identities; unknown fields stay in immutable raw bytes. Each parent has one link, published exclusively under its inode lock before execution; the bounded snapshot indexes parent/link/child once. Only actual SuiteAttempt rows feed measurement consumers.
+
+ResumeReconciliation is a separate immutable v3 variant in that same namespace, scoped through rerun_of to its parent. It binds the exact link ID/digest and child ID, actor, note and time, with terminal interrupted/inconclusive disposition. It claims no test run, exit status, PASS, or duration. Raw parent/link/log bytes are retained. A valid completed child is resolved normally and cannot be replaced by reconciliation. Conflicting receipts or child/receipt combinations refuse. Repair never deletes or rewrites a link and never returns the parent to eligibility.
+
+| Integration | Lives in | Status | Wraps |
+| --- | --- | --- | --- |
+| Parent lock and exclusive proof publication | cmd/sdlc/localcheck_resume_store.go | new | native file lock, typed/raw evidence and atomic publication |
+| Resume/reconcile CLI | cmd/sdlc/localcheck_resume.go, localcheck_cmd.go | new/modified | Git, current declarations/registry, parent lock and managed batch |
+| Shared linked saved proof | localcheck_republish.go, localcheck_flakes.go | modified | snapshot/resolver and existing post guard |
+| Bundle pruning | teststats_store.go | modified | snapshot, parent lock, retained raw logs/inflight state |
+
+Reuse #524's readSuiteEvidence, knownFlakeRerunCommands and runUnderSlotBatch; do not add a second batch engine. Reuse queueOwnerAbsent/processgroup.StartTime for exact owner-incarnation checks and landingline.Authorize for operator/:0 authority. ghFake and the tracker fixture remain the stateful external seams; subprocess/Git/lock tests use private roots only. Link-derived paths must stay under the validated store, and symlinks/replaced parent paths refuse lock/identity validation.
+
+#### One executable uncertain-resume recovery command
+
+`sdlc local-check reconcile --attempt PARENT_ID --link-digest SHA256 --note 'operator verified no descendants remain'`
+
+The refusal prints the exact parent ID and raw-link digest in that command, plus retained paths. It does not silently invoke the command. Only an operator outside Couch or its :0 steward can execute it, following the same authority rule as queue reconcile. Notes are bounded, nonempty data. Require same-host/boot identity or an explicit safely absent old boot; an uncheckable owner refuses. The command takes the parent inode lock, then rereads/revalidates the exact parent, link, child, digest and existing receipt. A live or unknown owner refuses. Operator attestation supplies the descendant-stop fact; a missing PID or an empty queue never supplies it.
+
+With no committed child, reconciliation publishes one exclusive durable terminal receipt before any retirement. Repeated identical requests return that same receipt without another mutation. Crash after publication is resolved by rereading it; a changed digest or competing receipt refuses. Any existing queue unknown record remains handled by the existing exact queue reconciliation command; this command does not remove unrelated queue state or imply admission has resumed. Inflight/raw partial logs stay pinned until the receipt and operator attestation are durable. No success status is posted, no child completion is invented, and no full-suite timing sample is added. Subsequent resume/republish/pass guards report terminal interruption; the supported way forward is to fix/advance the code and run a suite on a new head. This completes proof repair rather than merely clearing a queue tombstone.
+
+#### Authoritative state and sequence tests
+
+The pure model owns the transition table and produces permitted effects. The IO shell feeds confirmed publication/launch/completion/reconciliation outcomes back to it; it cannot turn an error into an inferred absence. The exclusive parent lock is held through queue, execution, child commit and post; reread after waiting. The immutable link is the fence if that lock's process dies. Existing automatic knownFlakeStep keeps its unchanged v2 record semantics and is not retrofitted with resume links.
+
+| State / event | Next state and permitted effects |
+| --- | --- |
+| Eligible / resume requested | Reserve child and publish exactly one link; no launch before durable link |
+| Link publication fails or is unconfirmed | Refused/unknown; reread exact bytes, no launch or fresh link |
+| Linked / launch and managed completion confirmed | Commit exact reserved child; validate actual JSON PASS facts and current registry/policy |
+| Linked / owner death, cancel or child publication unconfirmed | Interrupted/unknown; retain bundle, no duplicate launch or success |
+| Child committed and verified / post reply lost or repeated resume | Revalidate and repost same composite proof; no execution |
+| Child fails, times out or omits required PASS | Terminal failed; no pass and no second child |
+| Unknown / authorized exact reconciliation with absent owner and operator stop attestation | Commit terminal receipt; retain evidence, no pass and no second child |
+| Reconciled / repeated identical reconciliation | Return same terminal receipt; no new mutation |
+| Any / conflicting identity, digest, owner, receipt or unreadable store | Refuse; preserve bytes and existing authority |
+
+Actions are resume once, wait/cancel, reconcile interruption, fix/advance code, and republish verified proof. Covered: owner death, concurrent callers, changed evidence/policy, repeated requests and lost status replies. Not covered automatically: descendant discovery after a killed owner, repairing corrupt evidence, or retrying an interrupted parent. Those cases cannot gain successful authority. The visible-state table above remains applicable, with interrupted/uncertain now naming reconcile interruption; after reconciliation it is terminal failed and names fix/advance code. Possible loss remains uncommitted targeted completion/PASS evidence, never original full-suite history.
+
+#### Current review boundaries
+
+**M1 — Link/proof/reconciliation/retention core.**
+
+- [ ] RED pure resolver and transition tests: exact link identity/digests; missing child; same-parent conflicting links; malformed/unknown records; unsupported v3 kind; terminal failure/interruption cannot become eligible or pass. Unknown fields/large opaque numbers remain preserved in raw bytes.
+- [ ] Implement typed union/snapshot indexes, exclusive link/receipt publication and cancellable parent-inode lifetime lock. Real subprocess contenders prove one link/child reservation, and replaced-path/digest races refuse.
+- [ ] Add link-aware bundle retention before enabling a writer. Pending bundles pin parent/link/inflight/partial logs; terminal bundles retain all members for 30 days from their latest completion/receipt, then prune under the same parent lock. Incomplete/unreadable evidence is retained. Preserve byte/record bounds and refuse new links at capacity rather than dropping unknown evidence. Exercise aged parent versus fresh child, live lock, owner death, partial reads and repeated prune. Update atlas; close M1 through its gate.
+
+**M2 — Resume/reconcile CLI and every success reader.**
+
+- [ ] RED production-path resume tests: actual saved failed parent, current stateful registry, only exact-package argv on original pushed SHA, one child, original bytes unchanged, no full command or timing sample. Reuse existing real-Go PASS controls from #524.
+- [ ] Implement explicit suite-only selection, declared policy/current main pin, real detached worktree, reserved child/link lifecycle, managed batch and before-post fresh policy/registry revalidation. Policy accept still requires actual rerun. Keep failure guard active for unrelated same-head failures.
+- [ ] Route loadSavedAttempt, republishSavedPass, republishRevalidates, guardSuitePass and repeated resume through the same linked resolver. A completed valid parent/child supplies composite status, original full duration and issue links; child or receipt never becomes an independent suite. Unsupported/incomplete/failed proof blocks scoped acceptance. Test every reader.
+- [ ] Implement the exact reconcile command, authority/owner/digest/attestation checks and terminal receipt. Real subprocess sequence barriers kill owner after link/before launch and after child start/before child commit; another caller refuses execution. Operator fixture proves dead owner plus surviving child is not automatic stopped proof; only explicit authorized attestation terminalizes. Tests retain logs and audit bytes on cancellation/error, publication failure and repair retry; no success after repair.
+- [ ] Private production-main CLI conformance covers resume twice, cross-package decoys, caller HEAD drift, registry/policy changes, timeout/cancel, exact child commit then lost post reply, linked failure beside later green attempt, and reconcile after an injected crash. ghFake/tracker/private helper/lock/scratch only; no live failure repair before land. Compare CLI/dependency fake semantics through the same production seam.
+- [ ] Update delivered help/README/atlas and eligible failure recovery output. Push final head, record the required affected/full check through sdlc local-check, close M2/issue through their reviews, PR/merge. Ask the TL for its phase-2 live acceptance/staging decision; prior #524 no-stage applied only to reader/batch work. First production resume waits for the hub's upgraded phase-2 runtime and acceptance choice.
+
+ARCH-CONSTRAINTS/DRY: one bounded snapshot per decision and final revalidation, indexed O(N) over attempts/links/receipts, no per-package rescans. Count index/projection visits and command launches at N/2N and assert linear work. Known-failure count, record/log byte caps, one weight-1 lease and aggregate targeted timeout stay existing limits. Parent/receipt writer checks reserve room for its bundle; incomplete budget refuses safely. ARCH-FUNERAL: no new permanent lock-file family; open parent handles die with their owner, unknown bundles remain bounded by writer refusal until explicit terminal repair, terminal bundles share the existing retention/pruner. No credential surface is added. This is the first phase-2 recovery finalization, not an implementation bypass; approval and change-code plan-quality still precede code.
