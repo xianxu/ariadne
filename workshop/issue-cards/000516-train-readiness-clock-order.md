@@ -1,6 +1,6 @@
 ---
 id: 000516
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.31
+tracker:
+    version: 1
+    completion:
+        token: close-c6ce1c668a36
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 028aa04a505f6a054055a63d1b9ecb11f8a11cac
+        evidence_commit: fa9a703b1dde4ef212f4b9a4a0fe514e8cdee854
 ---
 
 # Train boarding rejects readiness refreshed during conductor checks
