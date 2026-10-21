@@ -35,6 +35,11 @@ Add an optional bounded graph-preparation argv declared by the repository, execu
 - A stateful fixture proves prepare precedes graph, runs exactly once, and never uses the caller checkout's generated output.
 - Failure, timeout and cancellation controls do not produce a passing affected result; genuine graph failure still falls back with its cause.
 - Config validation covers missing optional declaration, malformed argv and bounded limits, with compatibility documented.
+- Only immutable main supplies graph_prepare, even when the candidate edits its
+  declaration and origin/main advances after its pin; the real command fixture
+  must keep running the original main declaration on requested-head inputs.
+- Real CLI SIGINT and SIGTERM during preparation terminate the generator and its
+  descendants, remove the graph checkout and publish no passing check.
 
 ## Plan
 
@@ -83,6 +88,11 @@ Existing stale checkout cleanup covers process death; no new durable state.
   checkpointed for TL approval before implementation; expected under 100 added
   production lines. No pair configuration will be edited here.
 
+- 2026-10-20: real CLI red for both signals (7.560s package): generator and
+  child stayed alive and graph checkout remained. Test cleanup reclaimed only
+  its recorded PIDs/tree. This proves the signal-ownership gap independently
+  of the injected-context control. Correction proposed to TL; no source fix yet.
+
 ## Revisions
 
 - 2026-10-20 23:29 PDT — TL approved schema/bounds, requiring immutable main
@@ -120,3 +130,17 @@ Existing stale checkout cleanup covers process death; no new durable state.
   Asked TL for smoke decision; real native graph/argv/Git fixtures cover this
   provider path, no :0 stage held. Pair adoption remains pair#738 and operator
   verification of its local-gates declaration.
+
+- 2026-10-20 23:47 PDT — BR-1 / owned-subprocess-cancellation: actual CLI
+  signals bypassed the injected-context fixture. Enumerate SIGINT and SIGTERM
+  during graph preparation; cancellation must persist through fallback and
+  cleanup. Add the real CLI regressions before changing ownership.
+- 2026-10-20 23:47 PDT — BR-2 / acceptance-contract-traceability: Done when now
+  explicitly requires immutable-main authority under candidate edits and
+  origin/main movement, matching the already passing production fixture.
+
+- 2026-10-20: first close REWORK (BR-1 Critical signal lifetime, BR-2 Important
+  acceptance traceability). Cancelled this checkout's old recorded suite while
+  queued; no test result from that attempt. No :0 smoke per authenticated TL
+  decision; pair#738 adoption is the live proof. Awaiting lifetime correction
+  approval while adding real CLI red evidence.
