@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1346236b", done: "1cb1011e"}
 ---
 
 # landing: a car held from a train is never told; its runner shows the candidate banner and can cancel the train's suite
