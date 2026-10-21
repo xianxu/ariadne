@@ -45,7 +45,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -75,6 +75,9 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 - Fresh integrated suite on Git-verified88ad817e553c996e0f856d2ff17c2dc626993bfd failed before tests/setup: open /Volumes/AgentScratch/go-build/...: no space left on device. Run lease-2135974495 waited2054s, then exited2 in0s; recorded unattributable-failure. Original failed log test-stats/failed/96a1c200914cff8507ec4063a674e08f.log, SSD copy evidence/000526/integrated-suite-enospc.log, sha25696f6e398106a18399fa108eddb644f2f477336579e9ecf11e403a6a362b5b59f. No blind retry or test flake registration: no tests ran.
 - Read-only diagnosis: /Volumes/AgentScratch is186Gi used186Gi,100Mi available (100%); configured GOCACHE is /Volumes/AgentScratch/go-build and du reports182G. TestScratch has11Gi available; normal Data volume279Gi available. Shared cache/machine changes require hub coordination per tl-worker; no shared deletion or setting change performed. Waiting for hub to coordinate reclamation or authorize an isolated per-invocation SSD GOCACHE and classification/retry path. PR374 remains open; close review has not started.
+
+- Infrastructure recovered by hub (authenticated receipt26411032-120c-4c00-9464-6a3540cd3410): machine Go configuration no longer points GOCACHE at full AgentScratch. Independently verified go env GOCACHE resolves /Users/xianxu/Library/Caches/go-build. No private cache, per-run override, shared deletion, test flake registration or attempt-store edit was made. ENOSPC remains infrastructure evidence only, not test evidence.
+- Explicit recorded rerun on the existing pushed infrastructure-log head1c7f5f11ac7f5b5309ee856b6ca95f9f06cd2bca PASS: all8shards,1959cmd/sdlc tests and75other packages, zero failures, wall707.9s. Run lease-7655348 waited2305s, then exited0 and posted sdlc-local/suite; no same-head refusal occurred. Original log common Git sdlc/local-checks/1c7f5f11ac7f5b5309ee856b6ca95f9f06cd2bca/suite.log; SSD copy evidence/000526/integrated-suite-green.log, sha256a5e7d83b6418 (full checksums in evidence/000526/sha256.json). Suite reports zero attributed SSD temp leakage, ten unattributed folders from other processes. Ready to retry close after the required fresh integrated suite; not landed yet.
 
 ## Revisions
 

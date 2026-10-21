@@ -150,3 +150,5 @@ The merge start fence is admission of the Merge effect after green CI, before it
 - 2026-10-21 final controls: reject ordinary branches before any cleanup GitHub effect and render repeated receipts from actual pending/completed state. Both reproduced red before correction. Final shell controls71.797s, core/lint/race/vet and deterministic deadline controls pass; recorded full suite remains pending.
 
 - 2026-10-21 acceptance: recorded branch suite on957b61af passed all8shards/1940command tests/75other packages in793.3s with zero failures; persisted branch-suite.log. Implementation and acceptance preparation complete; boundary review and merge remain the next gated actions, with project bookkeeping owned by hub.
+
+- 2026-10-21 recovery: noon freshness integration had an atlas-only conflict, resolved by retaining both additions. The first integrated attempt failed before tests on machine GOCACHE ENOSPC; hub reset Go cache to the main SSD. Explicit recorded rerun on1c7f5f11 passes all8shards/1959command tests/75other packages in707.9s with no guard refusal. Infrastructure attempt is retained separately from test evidence. Close review and landing remain pending.
