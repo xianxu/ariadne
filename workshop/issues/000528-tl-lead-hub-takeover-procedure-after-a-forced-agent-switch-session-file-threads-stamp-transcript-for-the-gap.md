@@ -7,7 +7,7 @@ created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '6b66d9a79a16d7e72e1daa4dcca659db14bf3993' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '06ce7cc723d2cbd1752e255f541fbb455eb72306' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T12:23:55-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "fd446026", done: "65a2416d"}
-actual_hours: 0.11
+actual_hours: 0.58
 ---
 
 # tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap)
