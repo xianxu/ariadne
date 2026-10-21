@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 5c458511-dec6-42cb-8233-7fa116331fb9
+        repository: github.com/xianxu/ariadne
+        issue_id: "000526"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        reviewed_head: 3ff4874af80acae08b7d48214f5e3ac03bf318f5
+        slot: ariadne:1
+        requested_at: "2026-10-21T17:37:06.459089Z"
+      phase: finished
+      pid: 9721
+      started_at: "2026-10-21T17:37:06.694614Z"
+      finished_at: "2026-10-21T17:37:36.950018Z"
+      session_id: 01a15f89-c603-70b3-ac34-0bbcd830b55c
+      outcome: returned
 gate: plan-quality
 issue: 526
 id_prefix: PQ
@@ -75,7 +95,41 @@ rounds:
           note: Test inventories are replaced by named risky functions with adversarial strategies and mechanical guards, retaining integration acceptance invariants.
           round: 2
       blocked: false
-content_hash: d9ea20ea8f8bf0b38f38e3027f0bc84cb68b16999e1bf339eb260087ce8a81fa
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 2045086f-fb67-43f2-bd4a-16eecfedab17
+            repository: github.com/xianxu/ariadne
+            issue_id: "000526"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            reviewed_head: 3ff4874af80acae08b7d48214f5e3ac03bf318f5
+            slot: ariadne:1
+            requested_at: "2026-10-21T17:36:34.811534Z"
+          phase: finished
+          pid: 89704
+          started_at: "2026-10-21T17:36:34.91396Z"
+          finished_at: "2026-10-21T17:37:03.997745Z"
+          session_id: 01a15f89-4991-7003-8c9b-63e011e604d2
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-21T10:37:04-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Durable cleanup obligations survive conductor death and gate every successor path until positive cleanup confirmation.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Test strategies name risky functions, adversarial input classes and mechanical guards without duplicating executable case inventories.
+          round: 3
+      blocked: false
+content_hash: 321bbefa3e7d059780ea98cf37386ee6e6a9f2161cb2f21c07da5876e03e357e
 ---
 
 # Gate ledger — ariadne#526 (plan-quality)
@@ -98,6 +152,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Durable cleanup identity, positive confirmation evidence, successor admission enforcement and retirement ordering now cover serial and train paths after conductor death.
 - PQ-2 — addressed — Test inventories are replaced by named risky functions with adversarial strategies and mechanical guards, retaining integration acceptance invariants.
+
+## Round 3 — 2026-10-21T10:37:04-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Durable cleanup obligations survive conductor death and gate every successor path until positive cleanup confirmation.
+- PQ-2 — addressed — Test strategies name risky functions, adversarial input classes and mechanical guards without duplicating executable case inventories.
 
 ## Open findings
 
