@@ -71,30 +71,30 @@ A readiness pass already owns one coherent tracker generation; external edits du
 
 Files: cmd/sdlc/landingcar_records_test.go, cmd/sdlc/trackercompletion_test.go (or a focused trackerpublish_eligibility_test.go).
 
-- [ ] Build from closeReady and the existing real close plus productionCarGates fixture. Assert ready before reopening.
-- [ ] Use an independent clone/tracker writer to change the card to working while preserving its completion; call carReadiness again with the same outer command context. Assert not-ready, issue ID and working in Reason, and no code/card mutations by the gate. The old implementation must fail this assertion as recorded in the issue's Problem.
-- [ ] Re-close corrected work through the real close path, push, and assert readiness recovers on the current generation. Also cover a reopen after evidence was rebased and after details were independently published.
-- [ ] Add ordinary runPublishGate coverage for the same carried reopened binding, plus a two-issue case where a valid newer anchor cannot hide it.
-- [ ] Add controls: genuinely issue-free branch; unrelated working binding absent from head; old binding already on base; current eligible/done archive retry; foreign repository; no new generation claimed by an old token; settlement ignores reopened work.
-- [ ] Run the new named tests alone and capture the expected behavioral RED. Do not fix fixtures and call that the bug reproduction.
+- [x] Build from closeReady and the existing real close plus productionCarGates fixture. Assert ready before reopening.
+- [x] Use an independent clone/tracker writer to change the card to working while preserving its completion; call carReadiness again with the same outer command context. Assert not-ready, issue ID and working in Reason, and no code/card mutations by the gate. The old implementation must fail this assertion as recorded in the issue's Problem.
+- [x] Re-close corrected work through the real close path, push, and assert readiness recovers on the current generation. Also cover a reopen after evidence was rebased and after details were independently published.
+- [x] Add ordinary runPublishGate coverage for the same carried reopened binding, plus a two-issue case where a valid newer anchor cannot hide it.
+- [x] Add controls: genuinely issue-free branch; unrelated working binding absent from head; old binding already on base; current eligible/done archive retry; foreign repository; no new generation claimed by an old token; settlement ignores reopened work.
+- [x] Run the new named tests alone and capture the expected behavioral RED. Do not fix fixtures and call that the bug reproduction.
 
 ### 2. Apply the shared guard
 
 Files: cmd/sdlc/trackercompletion.go, cmd/sdlc/publishgate.go, cmd/sdlc/landinggate.go.
 
-- [ ] Extract the body of ownedCompletions' repository/evidence/base/current-token matching without semantic changes. Its conceptual signature is completionCarried(env, binding, cardPath, head, base) (bool, error); retain error propagation and cancellation.
-- [ ] Add the pure eligibility decision after an ownership match. Example refusal: “#499 is working (reopened after its close); re-run sdlc close --issue 499 --verified '<evidence>', push, then retry publication.” Do not call reopened work a valid completion or create an anchor for it.
-- [ ] Add one guard over the current records. Eligible cards continue through existing selection; ineligible cards with a carried valid current binding refuse. Existing malformed-card/binding refusals must not become silent skips.
-- [ ] Call that guard from runPublishGate and runLandingPublishGate before their existing anchor selection. Pass their existing base/head and records scope; do not fetch separately per card or modify completeLandingPR/settleLandedCompletions/archive eligibility.
-- [ ] Run new regressions and ownership controls GREEN; review the diff for accidental status or token semantic changes. Commit implementation and its red/green Log evidence.
+- [x] Extract the body of ownedCompletions' repository/evidence/base/current-token matching without semantic changes. Its conceptual signature is completionCarried(env, binding, cardPath, head, base) (bool, error); retain error propagation and cancellation.
+- [x] Add the pure eligibility decision after an ownership match. Example refusal: “#499 is working (reopened after its close); re-run sdlc close --issue 499 --verified '<evidence>', push, then retry publication.” Do not call reopened work a valid completion or create an anchor for it.
+- [x] Add one guard over the current records. Eligible cards continue through existing selection; ineligible cards with a carried valid current binding refuse. Existing malformed-card/binding refusals must not become silent skips.
+- [x] Call that guard from runPublishGate and runLandingPublishGate before their existing anchor selection. Pass their existing base/head and records scope; do not fetch separately per card or modify completeLandingPR/settleLandedCompletions/archive eligibility.
+- [x] Run new regressions and ownership controls GREEN; review the diff for accidental status or token semantic changes. Commit implementation and its red/green Log evidence.
 
 ### 3. Verification and documentation after approval
 
 Files: atlas/workflow/sdlc-binary.md, issue Log.
 
-- [ ] Map the publish-only reopened-card refusal, binding authority and re-close/push recovery in the existing landing-train/publish documentation.
-- [ ] Run go test ./cmd/sdlc -run '^(TestCarReadiness|TestLandingPublish|TestRebasedClose|TestOlderCloseToken|TestSquashedClose|TestPublishFlip)' -count=1, plus the exact new test names and relevant tracker unit tests.
-- [ ] Preserve one-snapshot-per-pass coverage with TestCarReadinessPublishChecksShareGeneration and the counted 8/16 case. Compare unaffected settlement/archive tests.
+- [x] Map the publish-only reopened-card refusal, binding authority and re-close/push recovery in the existing landing-train/publish documentation.
+- [x] Run go test ./cmd/sdlc -run '^(TestCarReadiness|TestLandingPublish|TestRebasedClose|TestOlderCloseToken|TestSquashedClose|TestPublishFlip)' -count=1, plus the exact new test names and relevant tracker unit tests.
+- [x] Preserve one-snapshot-per-pass coverage with TestCarReadinessPublishChecksShareGeneration and the counted 8/16 case. Compare unaffected settlement/archive tests.
 - [ ] Supply the hub an isolated production-gate proof using the real temporary tracker and existing fake GitHub. Ask the hub about any separate live staging; do not touch :0 on inference.
 - [ ] Push the issue branch, run sdlc local-check run --name suite, and keep the session alive while its recorded run is queued/running. Close through sdlc close with measured actuals and verification; its mandatory fresh review is the review boundary.
 - [ ] On SHIP enter sdlc merge --yes promptly, retaining the authoritative integration check. Report the confirmed PR merge and clean resting branch to the hub.
@@ -103,4 +103,4 @@ Files: atlas/workflow/sdlc-binary.md, issue Log.
 
 Existing ownership/readiness controls passed together before edits: TestCarReadinessObservesExternalReclose, TestOlderCloseTokenNeverClaimsANewerClose, TestRebasedCloseIsStillOwnedAndGated and TestSquashedCloseRefusesLoudly, 42.504s. This is baseline protection, not a new reproduction or a full-suite claim. The issue preserves the original deterministic red observation from #499.
 
-Await hub approval of the new refusal and ownership boundary before change-code or implementation. No estimate is entered until the binary determines the flow and, if full, completes plan-quality review.
+Hub approved the refusal and ownership boundary on 2026-10-21 (Couch dead3f53-cbb8-4293-9b51-b71b122a51b0); change-code admitted the quick flow. No estimate is entered until the binary determines the flow and, if full, completes plan-quality review.

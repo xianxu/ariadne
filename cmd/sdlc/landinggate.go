@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // runLandingDuplicateGate reads the already-fetched configured destination. It
@@ -94,6 +96,19 @@ func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, 
 	}
 	if rel == "." {
 		return fmt.Errorf("landing publish gate requires a scoped issues directory")
+	}
+	rs, err := loadIssueRecords(ctx, filepath.Join(root, rel), tracker.Fresh)
+	if err != nil {
+		return err
+	}
+	if rs.Tracker {
+		env, err := openTrackerAt(ctx, root)
+		if err != nil {
+			return err
+		}
+		if err := refuseReopenedCompletions(env, rs, pr.HeadOID, pr.BaseOID); err != nil {
+			return err
+		}
 	}
 	selected, err := selectLandingIssues(ctx, root, pr, rel)
 	if err != nil {

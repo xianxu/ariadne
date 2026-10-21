@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -241,4 +243,113 @@ func trackerTraceCounts(trace string) (probes, fetches int) {
 		}
 	}
 	return
+}
+
+// #502: a close carried by a waiting car remains an obligation when an
+// independent tracker writer reopens it. Readiness refresh cannot erase it.
+func TestCarReadinessRefusesExternallyReopenedClose(t *testing.T) {
+	for _, mode := range []string{"original", "rebased", "published-details"} {
+		t.Run(mode, func(t *testing.T) { testCarReadinessReopen(t, mode) })
+	}
+}
+
+func testCarReadinessReopen(t *testing.T, mode string) {
+	r, cardPath, detailPath := closeReady(t, 502)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
+	closeIssue := func() {
+		t.Helper()
+		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "502", "--verified", "reopen regression", "--actual", "1", "--no-atlas"); err != nil {
+			t.Fatalf("close: %v\n%s", err, stderr)
+		}
+	}
+	closeIssue()
+	switch mode {
+	case "rebased":
+		peerCommit(t, r, "peer.go")
+		r.git("fetch", "-q", "origin")
+		r.git("rebase", "-q", "origin/main")
+	case "published-details":
+		main, err := gitx.NewTrunkFileContext(context.Background(), r.root, "origin", "main")
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := []byte(r.git("show", "HEAD:"+detailPath) + "\n")
+		if err := main.UpdateMany("independent details publish", func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
+			return gitx.TrunkWrite{Write: map[string][]byte{detailPath: body}, ExactBytes: true}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		r.git("fetch", "-q", "origin")
+	}
+	branch := r.git("branch", "--show-current")
+	r.git("push", "-q", "--force", "origin", branch)
+	pr := landingPR{Number: 502, State: "OPEN", Repo: "test/repo", HeadRef: branch, HeadOID: r.git("rev-parse", "HEAD"), BaseRef: "main", BaseOID: r.originMain()}
+	gh := &landingFakeGH{t: t, remote: r.origin, pr: pr, followPush: true}
+	target := landingTarget{Root: r.root, Remote: "origin", Repo: "test/repo"}
+	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{IssuesDir: "workshop/issues", NoCI: true})
+	ctx := withIssueRecordsScope(context.Background())
+	check := func(wantReady bool) {
+		t.Helper()
+		before := r.git("rev-parse", "HEAD")
+		ready, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+		if ready.Ready != wantReady {
+			t.Fatalf("ready=%t, want %t: %+v", ready.Ready, wantReady, ready)
+		}
+		if !wantReady {
+			for _, phrase := range []string{"#502", "working", "sdlc close --issue 502 --verified"} {
+				if !strings.Contains(ready.Reason, phrase) {
+					t.Fatalf("missing recovery %q: %+v", phrase, ready)
+				}
+			}
+		}
+		if after := r.git("rev-parse", "HEAD"); after != before {
+			t.Fatal("readiness mutated branch")
+		}
+	}
+	check(true)
+	external := filepath.Join(t.TempDir(), "external")
+	testfix.Git(t, "", "clone", "-q", r.origin, external)
+	writer, err := gitx.NewTrunkFileContext(context.Background(), external, "origin", "issue-tracker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.UpdateMany("external reopen", func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		raw, err := v.Read(cardPath)
+		if err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		next, err := issue.SetCardField(raw, "status", "working")
+		return gitx.TrunkWrite{Write: map[string][]byte{cardPath: next}, ExactBytes: true}, err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	reopened := r.card(cardPath)
+	check(false)
+	env, err := openTracker(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs, err := loadIssueRecords(withIssueRecordsScope(ctx), filepath.Join(r.root, "workshop/issues"), tracker.Fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if owned, err := ownedCompletions(env, rs, r.git("rev-parse", "HEAD"), "", false); err != nil || len(owned) != 0 {
+		t.Fatalf("settlement selector acquired reopened work: %+v %v", owned, err)
+	}
+
+	if r.card(cardPath) != reopened {
+		t.Fatal("readiness mutated reopened card")
+	}
+	err = runPublishGate(withIssueRecordsScope(context.Background()), "origin/main", "workshop/issues", io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "sdlc close --issue 502 --verified") {
+		t.Fatalf("ordinary publish accepted reopen or lacks action: %v", err)
+	}
+	if mode == "published-details" {
+		// Re-close updates the published details. Base that edit on their latest
+		// main version, as the independent transfer guard requires.
+		r.git("merge", "-q", "--no-edit", "origin/main")
+	}
+	closeIssue()
+	r.git("push", "-q", "origin", branch)
+	check(true)
 }

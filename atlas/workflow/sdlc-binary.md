@@ -462,7 +462,16 @@ trains on:
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
   (#499): it observes external close/status updates on the next pass while
   sharing one coherent tracker generation across that pass's gates, without
-  invalidating the parent command or another pass. Transferred-details ownership
+  invalidating the parent command or another pass. A carried completion binding
+  remains a publish obligation after its card is reopened (#502). The shared
+  publish-only guard (`refuseReopenedCompletions`, `trackercompletion.go`) checks
+  every carried binding before review-anchor selection, in ordinary publish and
+  immutable landing. It refuses with the issue, current status and exact
+  `sdlc close --issue N --verified '<evidence>'` action, followed by push/retry.
+  Binding repository/evidence/current-token ownership survives rebase and an
+  independently published details copy; unrelated working cards and branches
+  carrying no close stay valid. Completion, settlement and archive retain their
+  existing status eligibility. Transferred-details ownership
   checks and completion selection use the parsed `Records.CardSnapshot`;
   alternate details directories reuse those cards through `Records.WithDetails`.
   The publication checkout selects that card authority, even if a configured

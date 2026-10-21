@@ -48,8 +48,8 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 ## Plan
 
-- [ ] Add a deterministic ready → external reopen → not-ready → current re-close → ready production-gate regression, plus ownership and empty-selection controls.
-- [ ] Reuse status-independent completion ownership in one publish-eligibility guard shared by ordinary publish and landing; preserve settlement and archive selection.
+- [x] Add a deterministic ready → external reopen → not-ready → current re-close → ready production-gate regression, plus ownership and empty-selection controls.
+- [x] Reuse status-independent completion ownership in one publish-eligibility guard shared by ordinary publish and landing; preserve settlement and archive selection.
 - [ ] Update the atlas and verify targeted ownership/readiness controls, the recorded suite, close review and isolated production-path proof after approval.
 
 ## Log
@@ -59,6 +59,10 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 2026-10-21: Claimed and started from main after #525/PR368 landed. Read-only tracing confirms statusDecision preserves completion metadata while ownedCompletions filters status before branch ownership. A bounded fresh-context read agrees: reuse binding/repository/current-token ancestry, keep publish eligibility separate from settlement, and check all carried issues before review-anchor ranking (ARCH-DRY, ARCH-ORDER). Existing TestCarReadinessObservesExternalReclose, TestOlderCloseTokenNeverClaimsANewerClose, TestRebasedCloseIsStillOwnedAndGated and TestSquashedCloseRefusesLoudly passed together, 42.504s. No implementation or new regression written yet; reported #499 red evidence remains in Problem. A draft durable plan is ready for hub review. Current Couch has no --description option; no slot label was changed through that rejected command.
 
 2026-10-21: Hub approved the plan (Couch dead3f53-cbb8-4293-9b51-b71b122a51b0, submitted): shared publish-only guard, every carried issue, exact re-close command, unchanged ownedCompletions eligibility; missing/replaced bindings stay outside scope. change-code admitted the quick flow. Implementing with regression-first verification.
+
+2026-10-21: TDD reproduction TestCarReadinessRefusesExternallyReopenedClose failed as expected in 8.706s: external working card still returned Ready:true. Added the shared publish-only guard and factored the existing carried-binding predicate without changing ownedCompletions status selection. The original regression then passed in 24.524s, including named action, ordinary publish refusal and re-close/push recovery. Expanded production cases cover original/rebased/independently published details, unchanged reopened card/branch and settlement selection; pure status coverage, issue-free/foreign/not-carried/on-base controls, every-carried-issue refusal and 8/16 real-Git ownership counts also pass together in 74.975s. One intermediate expanded-fixture failure was the existing transferred-details guard rejecting a re-close edit not based on independently published main details; integrating that version before re-close fixed the fixture, with no production-policy widening. This semantic ownership/eligibility bug has no mechanically detectable API misuse for a new Go lint rule; production behavior regressions defend it.
+
+2026-10-21: Broader readiness, landing publish, rebase/squash/current-token, publication completion and archive regression group passed in 223.673s. pkg/golint passed in 0.919s and internal/issue passed in 0.474s. git diff --check clean. Production diff is 91 added lines (including the factored existing ownership predicate); missing/replaced binding policy and persisted formats remain unchanged. Next: committed binary, pushed PR, recorded full suite and mandatory close review.
 
 ## Revisions
 
