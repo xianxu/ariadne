@@ -161,6 +161,11 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   fixture allocation; the one review allowance is not a second review boundary.
   These allocations do not waive any required verification. Calibration remains
   provisional; measured actuals will record the real cost.
+- Task 1 red: the verbatim #508 candidate log is now a replay fixture. New
+  startup grammar, native recorded-run and baseline/train controls fail on the
+  old implementation (targeted package 2.878s): the capture persists/posts
+  unattributable failure, and its main replay reports main-red. No volume was
+  filled; fixture bytes match the retained raw capture.
 
 ## Revisions
 
