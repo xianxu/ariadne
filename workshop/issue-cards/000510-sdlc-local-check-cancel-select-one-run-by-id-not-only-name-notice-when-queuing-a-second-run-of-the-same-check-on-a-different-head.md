@@ -1,6 +1,6 @@
 ---
 id: 000510
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: dcc50b776875f0dd40a0d2639a5fed3a79063d5b
         evidence_commit: 7ec9141d37ca0c169f8683c0ce306ce7d4266e58
+        landed_commit: a6a76cf067e021b620f09b8a8f1b0775e101dd52
 ---
 
 # sdlc local-check cancel: select one run by id (not only --name); notice when queuing a second run of the same check on a different head
