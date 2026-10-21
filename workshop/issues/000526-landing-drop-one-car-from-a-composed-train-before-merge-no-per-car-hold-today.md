@@ -45,7 +45,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -79,7 +79,15 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 - Infrastructure recovered by hub (authenticated receipt26411032-120c-4c00-9464-6a3540cd3410): machine Go configuration no longer points GOCACHE at full AgentScratch. Independently verified go env GOCACHE resolves /Users/xianxu/Library/Caches/go-build. No private cache, per-run override, shared deletion, test flake registration or attempt-store edit was made. ENOSPC remains infrastructure evidence only, not test evidence.
 - Explicit recorded rerun on the existing pushed infrastructure-log head1c7f5f11ac7f5b5309ee856b6ca95f9f06cd2bca PASS: all8shards,1959cmd/sdlc tests and75other packages, zero failures, wall707.9s. Run lease-7655348 waited2305s, then exited0 and posted sdlc-local/suite; no same-head refusal occurred. Original log common Git sdlc/local-checks/1c7f5f11ac7f5b5309ee856b6ca95f9f06cd2bca/suite.log; SSD copy evidence/000526/integrated-suite-green.log, sha256a5e7d83b6418 (full checksums in evidence/000526/sha256.json). Suite reports zero attributed SSD temp leakage, ten unattributed folders from other processes. Ready to retry close after the required fresh integrated suite; not landed yet.
 
+- Close round1 REWORK, BR-1 Critical (drop-preempts-completion): review's controlled overlay demonstrated that an accepted drop could lose precedence to non-merge membership/terminal completion. UpdateTrain had no pending-drop guard; only merge/publication had one. Also swept deferred Aborted cleanup, which previously settled cars/closed PR before its final control update. This is an implementation gap in the approved drop-precedence contract, not a new protocol or scope.
+- Core BR1-core-red.log reproduces bisect membership, terminal refusal and ordinary completion overwriting accepted drops; one common guard now refuses under line.lock without changing bytes. Both orderings (six scenarios) pass, full core1.887s, race2.856s, vet clean. The conductor keeps its pre-completion train until the guarded commit; every pending result routes through Apply, including deferred abort. Abort effects run only after the fence, and the redundant deferred final update is removed because each transition already committed or Apply sealed it.
+- Shell BR1-shell-red.log reproduced all four missing pending routes plus uncommitted abort state. The first green attempt exposed an incorrect new assertion (terminal abort clears Cars and records Released); corrected the assertion, preserving the two-survivor oracle. BR1-shell-green2.log PASS86.475s includes actual outcome audit (dropped held, both survivors released exactly once), four completion paths, real drop-self/drop-middle landings, blocked merge, conflict/red-CI and legacy abort controls. BR1-abort-order-mutation.log then moved abort effects before the fence: the audit correctly failed because all three cars were released (2.104s). Safe ordering restored; final focused/lint/vet and a fresh recorded suite still required before re-close.
+
+- BR-1 final safe source verification: focused completion/abort controls PASS22.720s (BR1-shell-final.log), tracked pkg/golint PASS1.580s, go vet exit0 and staged diff whitespace clean. Earlier broader BR1-shell-green2.log PASS86.475s and full core/race remain valid for this restored source. Fresh recorded suite and the full second close review remain pending; BR-1 is not marked disposed by the implementer.
+
 ## Revisions
+
+- 2026-10-21 BR-1: make the already-approved completion-versus-drop rule explicit for every pre-merge completion, including bisect membership reductions, terminal refusals and deferred aborts. Commit under line.lock before replacing the in-memory train or executing completion effects. A drop that wins uses the original riding set; deterministic tests cover both lock orders and outcome identity. No new persisted state, recovery action or merge boundary.
 
 - 2026-10-21: Full-flow plan gate CLEAN after two rounds; PQ-1/PQ-2 addressed. Derive provisional2.79h estimate only after plan acceptance, from the named v3.1 calibration.
 

@@ -118,36 +118,12 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		// abort's effects are side effects only; their own failures are
 		// reported, never retried here.
 		if err != nil && !tr.Phase.Terminal() {
-			why := "the train stopped: " + firstLine(err.Error())
-			next, effects, terr := landingline.Transition(tr, landingline.Aborted{Reason: why})
-			if terr == nil {
-				tr = next
-				for _, e := range effects {
-					if rel, ok := e.(landingline.Release); ok {
-						for _, s := range rel.Seqs {
-							c.settle(carBySeq(cars, s), landingline.OutcomeReleased, why)
-						}
-					} else {
-						_, _ = c.execute(e, cars)
-					}
-				}
-			}
-			// Cars the machine no longer rides (none, normally) still get a word.
-			for _, car := range cars {
-				c.settle(car, landingline.OutcomeReleased, why)
-			}
+			err = c.abortTrain(&tr, cars, stopWatch, err)
 		}
 		if tr.Phase == landingline.PhaseLanded {
 			c.deleteTrainBranch()
 		}
 		c.removeWorktree()
-		if _, controlErr := c.line.UpdateTrain(c.handle, tr); controlErr != nil {
-			if err == nil {
-				err = controlErr
-			} else {
-				fmt.Fprintf(c.stderr, "train control finalization: %v\n", controlErr)
-			}
-		}
 		c.recordTrain(tr, cars, leftReady)
 	}()
 	tr, effects, err := landingline.Transition(tr, landingline.Boarded{Cars: cars})
@@ -190,18 +166,9 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		if transitionErr != nil {
 			return transitionErr
 		}
-		if next.Phase == landingline.PhaseMerging && !tr.MergeStarted {
-			_, controlErr = c.line.StartTrainMerge(c.handle, next)
-			if errors.Is(controlErr, landingline.ErrTrainDropPending) {
-				return c.applyTrainDrops(&tr, cars, stopWatch)
-			}
-		} else {
-			_, controlErr = c.line.UpdateTrain(c.handle, next)
-		}
-		if controlErr != nil {
+		if controlErr = c.commitTrainCompletion(&tr, next, cars, stopWatch); controlErr != nil {
 			return controlErr
 		}
-		tr = next
 		if _, built := ev.(landingline.Built); built {
 			printTrainMembership(c.stderr, c.id, "composed", tr.Cars)
 		}

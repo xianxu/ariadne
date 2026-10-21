@@ -157,6 +157,12 @@ func (l *Line) UpdateTrain(h *Handle, tr Train) (*TrainControl, error) {
 		if tr.ID != c.Train {
 			return ErrTrainControlStale
 		}
+		// A completion cannot commit over a drop accepted since the
+		// conductor's last poll. Preserve the pre-completion machine so
+		// ApplyTrainDrops can seal that accepted batch against its riders.
+		if len(c.CurrentDrops()) > 0 {
+			return ErrTrainDropPending
+		}
 		if tr.Phase == PhaseMerging && !c.MergeStarted {
 			return errors.New("merge phase requires StartTrainMerge")
 		}
