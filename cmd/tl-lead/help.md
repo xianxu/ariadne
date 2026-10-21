@@ -99,7 +99,7 @@ RUNNING A PROJECT (the order of play; the project file holds the state)
      The project's `mvp_scope` (ariadne#329) is the before-MVP set: triage is
      membership, not a tag.
   4. Dispatch and steward. Apply the approval boundary in STEWARDSHIP. The
-     operator is pulled in only for taste and smoke tests.
+     operator reviews failure-sensitive workflow designs, taste and smoke tests.
   5. The smoke loop: a queue of the operator's attention and of dependencies
      (see LANDING AND SMOKE TESTS).
   6. Hardening. Real use surfaces bugs; triage each into `mvp_scope` or a
@@ -123,6 +123,18 @@ STEWARDSHIP
   Defer worker-approved quick fixes to `tl-worker --help`; do not hold them for
   a TL review. Full-flow designs, design changes and scope revisions still
   need TL approval. Write your reviews to the project's `reviews/` directory.
+
+  Operator-reviewed designs: a design for a workflow that must stay robust
+  across failures goes to the operator for review before code, as a side doc
+  with the options. TL approval alone is insufficient. Recognize the shape:
+  it coordinates many slots or processes, holds or pauses something fleet-wide,
+  persists state across restarts, or defines a recovery path. Examples: drain
+  and shutdown, restart recovery, slot lifecycle and admission, the landing
+  queue and trains, scheduling.
+  The side doc states the internal states, the few states the user sees, and
+  one recovery action for each, plus what happens when each step fails or a
+  restart lands in the middle. The TL may still approve ordinary designs alone.
+  When unsure, ask the operator.
 
 {{PLANNING}}
 
