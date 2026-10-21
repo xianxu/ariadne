@@ -113,3 +113,60 @@ Done-when: current — the correction supports the existing root-cause requireme
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5d39f85d-fc3e-46b5-a407-af3b260d046d","repository":"github.com/xianxu/ariadne","issue_id":"000514","recipe":"fix-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b4142df65d5ef879","reviewed_head":"211ff2523eaf7e831ba5524b0099c0e866538dd7","slot":"ariadne:4","requested_at":"2026-10-21T04:27:29.450914Z"},"phase":"finished","pid":19586,"started_at":"2026-10-21T04:27:29.592644Z","finished_at":"2026-10-21T04:28:41.13564Z","session_id":"01a15cb6-dd27-7e82-a287-f0f0e1fbee3d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T08:47:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 514 — flake: TestMoveCouchRenameDeadlineUnconfirmed |
+| repo | ariadne |
+| issue file | workshop/issues/000514-flake-testmovecouchrenamedeadlineunconfirmed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 944ce7899af5978a1557b83b3ac93b8c4ad4d176..ed14a3fc97dc91e10b245f00516fce367dbc308a |
+| command | sdlc close --issue 514 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T08:47:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned interdiff contains documentation and review records only. The atlas conflict resolution preserves both sides’ intent and matches the code. No prior findings require disposition, and no new defects were found.
+
+Done-when: current — this window leaves Spec, Revisions, and acceptance unchanged; the documentation resolution supports the existing startup-race fix.
+
+```findings
+{}
+```
+
+1. **Strengths**
+   - `atlas/workflow/sdlc-binary.md:2253` retains main’s landing-completion rule.
+   - `atlas/workflow/sdlc-binary.md:2255` retains #514’s assignment and struct-literal deadline coverage, matching `pkg/golint/rules.go:357`.
+   - The #514 lesson is relocated without changing its content.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** `go test ./pkg/golint -count=1` passed, including atlas/catalog consistency and tracked-source checks. `git diff --check` passed. No executable changes require mutation testing; the full suite was not rerun.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** — conflict resolution removes duplicated catalog prose.
+   - **ARCH-PURE: pass** — no executable logic or IO changes.
+   - **ARCH-PURPOSE: pass** — both documented rule intents survive integration.
+   - **ARCH-EVOLVE: pass** — no persisted-format or reader/writer changes.
+   - No new surface requires additional atlas or README updates.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d2ddfe62-48b7-4ae2-a8fe-f2bbba9b6660","repository":"github.com/xianxu/ariadne","issue_id":"000514","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/3c2c9e78d0e30fd0","reviewed_head":"ed14a3fc97dc91e10b245f00516fce367dbc308a","slot":"ariadne:4","requested_at":"2026-10-21T15:47:14.981622Z"},"phase":"finished","pid":53260,"started_at":"2026-10-21T15:47:15.117439Z","finished_at":"2026-10-21T15:47:59.323364Z","session_id":"01a15f25-3182-7381-869e-a6621e85c8ce","outcome":"returned"}] -->
