@@ -1,6 +1,6 @@
 ---
 id: 000524
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.82
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.79
+tracker:
+    version: 1
+    completion:
+        token: close-f093925b6750
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 30b4964360436b238aadaed6ce5a7f261622952e
+        evidence_commit: aa9e33e0c1b9afefc480805d2524c30dd929a598
 ---
 
 # Scoped future evidence and exact-package flake reruns
