@@ -14,14 +14,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.52
+actual_hours: 2.23
 tracker:
     version: 1
     completion:
-        token: close-7a157648ac8e
+        token: close-c8ad20975263
         repository: github.com/xianxu/ariadne
-        reviewed_head: 8d799067dcad5f717b586c067ebf575c778a1bf1
-        evidence_commit: f6a608aaad03cd5d2f45ac4a8be3cd35e480f71d
+        reviewed_head: 211ff2523eaf7e831ba5524b0099c0e866538dd7
+        evidence_commit: 2c120d84e632f1736cf07bc50ad361544431f491
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
