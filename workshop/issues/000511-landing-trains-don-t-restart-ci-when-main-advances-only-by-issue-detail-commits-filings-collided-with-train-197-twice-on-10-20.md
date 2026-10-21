@@ -77,6 +77,7 @@ Actions: continue the current train; retry a refused landing with the named corr
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Broader real-Git/stateful-GitHub train, main-movement and landing-check controls passed (306.095s), proof p511-targeted.txt outside checkout; exact train head/CI/publication/suite retained for details/cards/both. Config/code/watched issue, unknown/stale/unavailable/identity, add-revert and readiness races preserved fallback; late duplicate refused before merge. Go catalog passed (0.901s); clean binary built at 71d9a6ae50fe907a400ad899372ed073f02613be. Recorded full suite queued on PR367; final-head pass and hub live-proof acceptance required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed on dispatch and started from fresh main after #510. Investigation: conductor.reintegrate already retains a docs-only suite, but the reducer republishes a new head and waits for fresh CI. The regression must assert head/publication/CI identity, not only suite count.
 - ARCH-DRY: reuse mainMovementIssueOnly, readinessAllowsUnintegrated and landingCheckOwner.allowsMainMove; generic workshop docs classification alone is too broad (it permits tracker JSON). Alternative status copying would sever exact-head CI authority; broader docs exemptions would exceed the request. Keep the checked head instead.
