@@ -42,3 +42,8 @@ steward need the rules.
 ## Log
 
 ### 2026-10-20
+- 10-21 00:10 (TL ops:0): scope addition (operator-approved, pair#739): **hub automation**. tl-lead rule: after a Couch
+  start where `couch --automation status` reports the hub's automation **off** (full shutdown or unknown start), the
+  TL turns it on (`couch --automation on`) when it reads the operator's first message (console draft, session file or
+  side doc), unless that message says to keep it off; until then, it doesn't act on recovery. The TL may turn its own
+  hub's automation off as a soft stop when the operator asks; it never changes another hub's. Lands after pair#739.
