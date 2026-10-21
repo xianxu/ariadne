@@ -49,7 +49,7 @@ The same procedure applies whether the new agent is in the same slot (force swit
 
 - [x] Add rendered-help guards for both entry points, with each recovery step checked in order and its instructions confined to that step; observe the missing-section failure.
 - [x] Add TAKEOVER before ROLES: read the contract, session and Threads stamp, transcript only for a material gap, re-establish live work and refresh Threads, then give a one-line notice including possible loss. Preserve operator-started fleet recovery.
-- [ ] Verify the focused tests and own built CLI help, run the recorded suite, close and land.
+- [x] Verify the focused tests and own built CLI help; submit the recorded suite. Close and landing retain their independent gates; a completed recorded pass must precede landing.
 
 Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY keeps the procedure in the existing embedded help, with its status writer owning the fresh stamp. No new state or hot path.
 
@@ -60,3 +60,5 @@ Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY 
 - Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.
 - Test-first: TestLeadHelpTakeoverSequence failed with TAKEOVER missing before implementation. Added five ordered steps, checking both --help and bare entry points, step-local phrases, switch/session scope, gap-only transcript read, ephemeral loss and stamp-writing ownership. Full cmd/tl-lead package passed (15.838s). Atlas maps the delivered help and guard.
 - Own CLI proof: make tl-lead-build succeeded; bin/tl-lead reports vcs.revision=4333e00a446fbbd2376093cbeded4aaa334ddbad and vcs.modified=false, matching git rev-parse HEAD. Both --help and bare invocation render TAKEOVER; fleet resume still says never run at startup. Final rendered-help focused group passed (0.156s). No :0 touched.
+- Recorded suite submitted on pushed head 45c68451930d55cd5a2c5f36073920bb4b01f7d2 as lease-761235529 (terminal retained); initially normal FIFO position 6. It is queued, not passing evidence. Close review may overlap under tl-worker; wait for this original result before merge and never duplicate it for close-only bookkeeping.
+- Hub confirmed the read-only built help proof is sufficient; no stage.
