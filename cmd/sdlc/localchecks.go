@@ -295,15 +295,16 @@ func jobIDFromLink(link string) (int64, bool) {
 
 // localRunRecord is the outcome of one local run, as recorded.
 type localRunRecord struct {
-	Name      string
-	SHA       string
-	Exit      int // -1: timed out or did not start
-	TimedOut  bool
-	Duration  time.Duration
-	LogSHA256 string
-	LogPath   string
-	Host      string
-	Tail      []string
+	ResumeParent, ResumeChild string
+	Name                      string
+	SHA                       string
+	Exit                      int // -1: timed out or did not start
+	TimedOut                  bool
+	Duration                  time.Duration
+	LogSHA256                 string
+	LogPath                   string
+	Host                      string
+	Tail                      []string
 	// Outcome is the known-flake gate's decision on a failed suite (#394);
 	// "" when no gate ran. A known-flake landing passes despite its exit.
 	Outcome     flakes.Kind
@@ -349,6 +350,9 @@ func (r localRunRecord) statusDescription() string {
 	}
 	if r.Scope != "" {
 		s = r.Scope + " · " + s
+	}
+	if r.ResumeParent != "" {
+		s = fmt.Sprintf("resume %.12s/%.12s · %s", r.ResumeParent, r.ResumeChild, s)
 	}
 	if len(s) > 140 {
 		s = s[:140]

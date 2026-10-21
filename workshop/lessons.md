@@ -1,5 +1,21 @@
 # Lessons
 
+- #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
+
+- #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.
+
+- #463 BR-3 re-review: an absent entry on retry does not prove its removal was durably synced. Lost remove replies and failed directory syncs must retain and discharge the original namespace-sync obligation, including owner-marker release. Reproduce all remove/sync/retry pairs through the production cleanup seam; a happy retry that returns nil is insufficient evidence. Further implementation is stopped for operator review under the approved lifecycle re-plan condition.
+
+- #463 BR-3: a completed-result publisher must not erase the only cleanup reference before locked inputs retire. Order the whole lifecycle: fence before protection, durable owner before lock, confirmed group/scratch/checkout/registration retirement before result commit, reference release last. Test every crash window through real process barriers; GC must preserve unreadable cleanup authority. Deferred cleanup cannot establish crash safety.
+
+- #463 M2: terminal repost is a valid same-state transition when it carries an explicit effect. Test the real repeated CLI operation, not only pure state changes. Before every status retry, re-resolve current linked proof and bind the posted parent/child identity; a lost network reply is not authority to reuse a stale registry decision. Retained-input cleanup must re-read its owner marker after reverse-pointer validation and before deletion. Stateful publication and mutation-barrier tests enforce these temporal contracts.
+
+- #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
+
+- #463 lifetime review: a protected-member snapshot cannot authorize later deletion while a publisher can introduce new links. Serialize one snapshot and all pruning with publication on the existing directory inode. When publication takes parent→directory, pruning may take directory→parent only with a strict try-and-skip; a real subprocess negative control must fail if it becomes blocking. This is a cross-function lifetime invariant, defended by those interleavings rather than source-name lint.
+
+- #463 M1 BR-1/BR-2: exercise every publication variant through its real seam, not just its decoder. A passing-reader guard may reject the state required to publish recovery evidence. Every temporary-file prefix also needs a crash collector; a shared publication/GC mutex can prove a staging file unowned without guessing PID or age. Receipt reachability and killed-publisher regressions enforce these semantic contracts.
+
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
@@ -1291,3 +1307,5 @@ Unknown descendant completion protects every input and output together: checkout
   establish whether the reader can discover and run an external command.
 
 - #527 BR-1: classify a helper by the IO it performs, even when it composes pure algorithms. List Git/worktree/process helpers as INTEGRATION and test them through real isolated resources; reserve PURE for the graph/classifier/reducer core. The plan review enforces this semantic description, which source lint cannot infer from an artifact table.
+
+- #463 BR-4: a successful cleanup IO call can cancel its context before returning nil. Route every live-owner resume cleanup effect, including managed scratch removal/sync and final owner release, through resumeCleanupEffect(ctx, authorize, effect). The resume-cleanup-effect Go lint rule rejects direct effects in those cleanup paths; real private-resource boundary walks prove cancellation stops subsequent mutation. Signal-context teardown deliberately cancels on normal completion, so cleanup authority uses the original caller context and confirmed managed outcome.
