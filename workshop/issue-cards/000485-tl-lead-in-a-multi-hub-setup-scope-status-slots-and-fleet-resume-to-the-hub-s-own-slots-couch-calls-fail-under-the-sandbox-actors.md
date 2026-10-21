@@ -1,6 +1,6 @@
 ---
 id: 000485
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-20
 estimate_hours: 2.02
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 928bc8cc72440d319fb3271090fca90943f3c03c
         evidence_commit: 65b32b1dc963676628bbd2405fa570501a2dd2bf
+        landed_commit: 3721c47ae8acd4441ef21bd02eb47f32cc7f98e6
 ---
 
 # tl-lead in a multi-hub setup: scope status slots and fleet resume to the hub's own slots; couch calls fail under the sandbox (actors '?')
