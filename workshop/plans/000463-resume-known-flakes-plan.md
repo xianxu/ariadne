@@ -80,26 +80,9 @@ Confirmed cancellation retires managed processes through the existing path; the 
 
 ## Review boundaries and implementation tasks
 
-### M1 — Exact-package reruns and reusable proof model
-
-**Files:** internal/flakes/rerun.go, rerun/flakes tests; localcheck_run.go; localcheck_flakes.go and tests; new localcheck_resume_evidence.go/tests; teststats_store.go/tests; atlas/workflow/sdlc-binary.md.
-
-- [ ] RED: a two-package fixture has TestA fail only in package A and TestB only in B, with same-named decoys that write sentinels if over-selected. Keep subtest/sibling controls from #466. Observe the current cross-package command fail the sentinels.
-- [ ] Add deterministic per-package command planning and the bounded sequential managed batch. Ordinary checks wrap a single argv; only the known-flake path uses batches. Exercise fail-fast, aggregate timeout, cancellation between commands, inherited-pipe/process cleanup, one capacity acquisition, and runner single-command regressions.
-- [ ] Add typed ResumeLink decoding/publication and a pure resolver over supplied records/log facts. Test orphan/wrong-parent/wrong-repo/wrong-SHA/digest/child-link combinations; pending link can never resolve to pass. Keep an older decoder fixture proving unknown-version refusal.
-- [ ] Route automatic reruns through the exact-package batch; target existing flake, affected, queue/signal and runner regressions. Update the atlas for the new proof seam. Close M1 through sdlc milestone-close.
-
-### M2 — Explicit resume, all proof readers and delivery
-
-**Files:** new localcheck_resume.go/tests and process/CLI tests; localcheck_cmd.go; localcheck_republish.go/tests; localcheck_flakes.go/tests; teststats_store.go/tests; teststats.go only for shared projection if needed; helptext/local-check.md, README.md, atlas/workflow/sdlc-binary.md.
-
-- [ ] RED: create a complete saved failure through the real attempt writer, register it in a stateful registry, invoke the resume seam and assert no full command, only exact-package argv, one linked child, the original parent/log bytes unchanged and a known-flake status. Assert no new full-suite timing/run sample.
-- [ ] Implement strict CLI selection, digest/identity verification and lifetime parent lock. Reserve child/write link before launch, then use the shared classifier/batch/resolver. Carry real slot/agent identity and registry issue links.
-- [ ] Route saved pass selection, republish, guardSuitePass and repeated resume through one evidence snapshot/resolver. A failed child or unresolved link blocks a later otherwise-green full attempt. Do not make unrelated readers duplicate classification.
-- [ ] Adversarial stateful tests interleave two real subprocess callers under the same parent lock; count one execution, then idempotent repost. Kill the first owner after link publication/before child publication and assert the second refuses unknown rather than duplicating. Cancel a managed child, change registry/policy midrun, corrupt either log, add a later unexplained failure, and lose the GH post reply. Every refusal preserves bytes and posts no success.
-- [ ] Exercise actual exact-SHA detached Git contents while caller HEAD differs, missing/unpushed refs, baselines, legacy records, disabled/accept policies and malformed/partial store reads. Reuse current fake GH/registry and real private Git/helper, not production services.
-- [ ] Update delivered help/README, print the recovery command for eligible saved failures, and document retained uncertain links and existing operator reconciliation. Record private executable conformance against a tiny fixture repo with fake GH, private queue/lock/scratch and actual log/record inspection; no live failed suite is repaired pre-land.
-- [ ] Push final head, central recorded suite, M2 close, whole-issue close and normal PR/merge. The hub's :0 rebuild precedes first production resume; report the exact supported verb/evidence semantics.
+The original M1 exact-package work was delivered by #524. The phase-2
+boundaries and function-level test strategies are in the current revision below;
+this section is retained as the original boundary heading, not an active task list.
 
 ## Cost, retention and scope
 
@@ -185,17 +168,42 @@ Actions are resume once, wait/cancel, reconcile interruption, fix/advance code, 
 
 **M1 — Link/proof/reconciliation/retention core.**
 
-- [ ] RED pure resolver and transition tests: exact link identity/digests; missing child; same-parent conflicting links; malformed/unknown records; unsupported v3 kind; terminal failure/interruption cannot become eligible or pass. Unknown fields/large opaque numbers remain preserved in raw bytes.
-- [ ] Implement typed union/snapshot indexes, exclusive link/receipt publication and cancellable parent-inode lifetime lock. Real subprocess contenders prove one link/child reservation, and replaced-path/digest races refuse.
-- [ ] Add link-aware bundle retention before enabling a writer. Pending bundles pin parent/link/inflight/partial logs; terminal bundles retain all members for 30 days from their latest completion/receipt, then prune under the same parent lock. Incomplete/unreadable evidence is retained. Preserve byte/record bounds and refuse new links at capacity rather than dropping unknown evidence. Exercise aged parent versus fresh child, live lock, owner death, partial reads and repeated prune. Update atlas; close M1 through its gate.
+- [ ] TDD `decodeResumeEvidence`, `resolveResumeProof`, `resumeTransition`: strict byte-boundary fuzz/property tests and generated event sequences; independently assert one child identity and that uncertainty/failure never authorizes pass or execution.
+- [ ] TDD `lockResumeParent` and `publishResumeEvidence`: real-process contention with deterministic publication/rename fault barriers; assert exact inode/raw-byte identity, exclusive publication and no effects before the lock/fence.
+- [ ] TDD `retireResumeBundle` through `pruneSuiteAttempts`: deterministic crashes/deletion/fsync faults at every retirement step; assert no retained selectable parent ever loses its execution fence. Pending evidence is pinned, terminal bundles age together, and linear-work counters enforce the snapshot envelope. Update atlas and close M1 through its gate.
 
 **M2 — Resume/reconcile CLI and every success reader.**
 
-- [ ] RED production-path resume tests: actual saved failed parent, current stateful registry, only exact-package argv on original pushed SHA, one child, original bytes unchanged, no full command or timing sample. Reuse existing real-Go PASS controls from #524.
-- [ ] Implement explicit suite-only selection, declared policy/current main pin, real detached worktree, reserved child/link lifecycle, managed batch and before-post fresh policy/registry revalidation. Policy accept still requires actual rerun. Keep failure guard active for unrelated same-head failures.
-- [ ] Route loadSavedAttempt, republishSavedPass, republishRevalidates, guardSuitePass and repeated resume through the same linked resolver. A completed valid parent/child supplies composite status, original full duration and issue links; child or receipt never becomes an independent suite. Unsupported/incomplete/failed proof blocks scoped acceptance. Test every reader.
-- [ ] Implement the exact reconcile command, authority/owner/digest/attestation checks and terminal receipt. Real subprocess sequence barriers kill owner after link/before launch and after child start/before child commit; another caller refuses execution. Operator fixture proves dead owner plus surviving child is not automatic stopped proof; only explicit authorized attestation terminalizes. Tests retain logs and audit bytes on cancellation/error, publication failure and repair retry; no success after repair.
-- [ ] Private production-main CLI conformance covers resume twice, cross-package decoys, caller HEAD drift, registry/policy changes, timeout/cancel, exact child commit then lost post reply, linked failure beside later green attempt, and reconcile after an injected crash. ghFake/tracker/private helper/lock/scratch only; no live failure repair before land. Compare CLI/dependency fake semantics through the same production seam.
-- [ ] Update delivered help/README/atlas and eligible failure recovery output. Push final head, record the required affected/full check through sdlc local-check, close M2/issue through their reviews, PR/merge. Ask the TL for its phase-2 live acceptance/staging decision; prior #524 no-stage applied only to reader/batch work. First production resume waits for the hub's upgraded phase-2 runtime and acceptance choice.
+- [ ] TDD `resumeSavedSuite`: stateful registry/GH plus private real Git/process fixtures perturb IO and process order; independently count one exact-package rerun, verify original SHA/bytes/full duration, and reject duplicate execution or insufficient PASS evidence.
+- [ ] TDD `resolvedSavedRecord`, `loadSavedAttempt`, `republishSavedPass`, `guardSuitePass`: inject changed or conflicting linked evidence and policy around reads/posting; all consumers must derive the same result and preserve unrelated failure guards.
+- [ ] TDD `reconcileResume`: real owner-death barriers and operator/:0 authority fixtures; exact attestation and durable receipt yield terminal interruption only, and repeated/lost-publication recovery cannot alter proof or run work.
+- [ ] Private production-main CLI conformance drives a real registered suite failure through resume, status publication and the actual pass guard, plus crash/reconcile through the same commands. Use private ghFake/tracker/helper/lock/scratch, counting test sentinels and retained immutable bytes as independent oracles. Never repair live evidence pre-land.
+- [ ] Update delivered help/README/atlas and eligible failure recovery output. Push final head, record the required affected/full check through sdlc local-check, close M2/issue through their reviews, PR/merge. TL-approved acceptance is no stage; private production-CLI proof is the gate, and the TL arranges the first natural post-landing live use.
 
 ARCH-CONSTRAINTS/DRY: one bounded snapshot per decision and final revalidation, indexed O(N) over attempts/links/receipts, no per-package rescans. Count index/projection visits and command launches at N/2N and assert linear work. Known-failure count, record/log byte caps, one weight-1 lease and aggregate targeted timeout stay existing limits. Parent/receipt writer checks reserve room for its bundle; incomplete budget refuses safely. ARCH-FUNERAL: no new permanent lock-file family; open parent handles die with their owner, unknown bundles remain bounded by writer refusal until explicit terminal repair, terminal bundles share the existing retention/pruner. No credential surface is added. This is the first phase-2 recovery finalization, not an implementation bypass; approval and change-code plan-quality still precede code.
+
+### 2026-10-21 10:48 PDT — Plan-quality PQ-1/PQ-2 refinements
+
+PQ-1 (durable-retirement-monotonicity): `retireResumeBundle` acquires the same
+parent inode lock and validates an expired, terminal bundle from a complete
+snapshot. Remove the parent's selectable attempts/ID.json first and fsync the
+attempts directory successfully before touching its link or child. Failure or
+uncertain sync stops retirement, retaining the fence. Only after that durable
+parent removal may child/receipt/log members be removed; the link is removed
+last. A crash at any step therefore leaves either a selectable parent plus its
+fence, or an absent parent that cannot execute. On retry an orphan terminal link
+can finish that same parent-first deletion (including a fresh directory sync);
+a pending/unknown orphan remains retained. Any cleanup error keeps remaining
+members and does not restore authority. All members use terminal bundle age,
+never an independently aged parent. Production prune bypasses its legacy
+individual-file deletion for every indexed bundle member. Deterministic IO
+barriers exercise the full deletion-order/failure class, including repeated
+retirement, rather than testing only a successful cleanup.
+
+PQ-2 (named-risk-function-test-contract): replaced the original and current
+prose case inventories with the function-level strategies above. The risky
+functions are the decoder, pure resolver/transition, lock, publisher, retirement,
+resume runner, shared saved-record projection and reconcile. Individual cases
+belong in their executable tests. No scope or operator-facing contract changes.
+The TL's authenticated 928fcd1f-3d96-4c04-8231-025c9adaf064 also approves the
+phase-2 delta and no-stage private acceptance before this gate rerun.
