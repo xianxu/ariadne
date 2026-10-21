@@ -1926,6 +1926,332 @@ rounds:
       isolation: fenced
       reviewed: 46254a14bdc5a60c514b2a83a12ec7799072892c
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 57147204-fc56-4424-a84e-f8df6a37479e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000463"
+            recipe: milestone-review
+            round: 8
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/888890407b1ee200
+            reviewed_head: 31d5e5b22a8629a9aa774c2e3ff924b9f334b24b
+            slot: ariadne:3
+            requested_at: "2026-10-21T20:23:33.087861Z"
+          phase: finished
+          pid: 81627
+          started_at: "2026-10-21T20:23:33.253249Z"
+          finished_at: "2026-10-21T20:29:14.588165Z"
+          session_id: 01a16022-2841-7253-bdf9-5fdc6c035692
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 31d5e5b22a8629a9aa774c2e3ff924b9f334b24b
+        tracker_head: 7c09d28b6627e29e3d12b880f8764200275634a7
+        branch_point: 82e5783a0defcf1745849cb7d0086fbffa5d3396
+        since: "2026-10-21T04:30:26-07:00"
+        until: "2026-10-21T13:22:24-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T04:30:26-07:00"
+              end: "2026-10-21T13:22:24-07:00"
+              began: "2026-10-21T04:30:26-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6a2e2bbef93f77238828232c2bc7ef14fea9726407b6153fa21ccf3fdfa1834b
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 112292489
+              windows:
+                - start: "2026-10-21T04:30:26-07:00"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 30a72ea5374d706302d12a475dda8caaec7d352eafbcd2ba3f58987efe0b1c69
+              started: "2026-10-21T14:24:08.011Z"
+              spawned: false
+              bytes: 14817156
+              windows:
+                - start: "2026-10-21T14:24:08.011Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15ee2-6d4d-7563-bfbd-69a76a92de09
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: f405b49b1ad6f483b04ca733a6777723362f3cea703d799521da046ebe23e7d6
+              started: "2026-10-21T14:34:20.012Z"
+              spawned: true
+              bytes: 2138380
+              windows:
+                - start: "2026-10-21T14:34:20.012Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f86-6e56-7a21-9e02-00957cdf1673
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: c0df524de4599eb395f308258b3534e820cf0c4d15328ab393411b7cf51bed66
+              started: "2026-10-21T17:33:28.177Z"
+              spawned: true
+              bytes: 741390
+              windows:
+                - start: "2026-10-21T17:33:28.177Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f8a-3fbc-7be2-9eac-270c02542bb1
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: e3f8fb4ee3f38671492de07cfedb5e468d55003edb65e36018febd064b6a8bbb
+              started: "2026-10-21T17:37:38.685Z"
+              spawned: false
+              bytes: 645521
+              windows:
+                - start: "2026-10-21T17:37:38.685Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f8c-92d5-7c93-8304-6dbff1269850
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 3d4fc95794b1073430ce3218e925fd62df60bbb33614797fb650f55cc498ae7e
+              started: "2026-10-21T17:40:10.946Z"
+              spawned: false
+              bytes: 493575
+              windows:
+                - start: "2026-10-21T17:40:10.946Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f8d-f1f4-7a81-b329-7833b350bc9a
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6fa6ac8dcaded1a7f4b64977c4e685eae479761dac6e6b46357ab4d5c70b7d5c
+              started: "2026-10-21T17:41:40.79Z"
+              spawned: false
+              bytes: 405882
+              windows:
+                - start: "2026-10-21T17:41:40.79Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f8e-6c73-7720-ba94-afd118432005
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 071e4919b294899562e1055438af6d30ea9c7824bad43ea65eb4fac32fecb7d1
+              started: "2026-10-21T17:42:12.312Z"
+              spawned: false
+              bytes: 425870
+              windows:
+                - start: "2026-10-21T17:42:12.312Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f8f-9b72-7f33-be7b-b7ace1feffcc
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: db74c4405fc75460b4c014776f565a044767535d90f9a7f278a597e54b61185d
+              started: "2026-10-21T17:43:29.504Z"
+              spawned: true
+              bytes: 1898357
+              windows:
+                - start: "2026-10-21T17:43:29.504Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f92-96cd-70c1-afe9-adf07468499d
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: 8b80f2df788c982d275eb2daac99ba7f9d72dbd1986bfe16b04d0c3f99f870db
+              started: "2026-10-21T17:46:44.971Z"
+              spawned: true
+              bytes: 2869569
+              windows:
+                - start: "2026-10-21T17:46:44.971Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15f9d-1069-7d80-856e-485e528d6e64
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: 15b192009beed780ac6928e17f09376cffbf6c63693638fcc008e0ceae6f0e4f
+              started: "2026-10-21T17:58:11.455Z"
+              spawned: true
+              bytes: 564844
+              windows:
+                - start: "2026-10-21T17:58:11.455Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15fe3-3ce9-7380-81ac-0733e2fc7fe3
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: bd1eb5db1707edebb7e26ecc1855e55b1967a1eca6bf86faa1cea37141ec30d5
+              started: "2026-10-21T19:14:50.751Z"
+              spawned: false
+              bytes: 613670
+              windows:
+                - start: "2026-10-21T19:14:50.751Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a15fe3-b725-77f2-a403-1438ca779990
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 1e32adb216b9f5413bd351e05b4d7154b49054ad5513ec58f79a5bbdec8827c3
+              started: "2026-10-21T19:15:21.879Z"
+              spawned: false
+              bytes: 488670
+              windows:
+                - start: "2026-10-21T19:15:21.879Z"
+                  end: "2026-10-21T13:22:24-07:00"
+            - harness: codex
+              id: 01a16015-cfb6-7882-ae1b-c5c644962b20
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: f41f94483278ef9a19045cad074f7d6130b89eb94d40bf5ecec57633b2c4b234
+              started: "2026-10-21T20:10:04.648Z"
+              spawned: true
+              bytes: 617501
+              windows:
+                - start: "2026-10-21T20:10:04.648Z"
+                  end: "2026-10-21T13:22:24-07:00"
+        queue_waits:
+            - attempt_id: bc29b3b2a562e6665944e1c21982e2ea
+              slot: ariadne:3
+              record_digest: a8f570f8066857b15e9f841ab6d8d012da34e3af27d1dddf318f7f1edac78136
+              start: "2026-10-21T14:52:43.738627Z"
+              end: "2026-10-21T15:05:28.843886Z"
+              queue_seconds: 765.105259
+              raw_seconds: 765.105259
+              exact: true
+            - attempt_id: 7b763ff7713502a1500f8ca24fce0e60
+              slot: ariadne:3
+              record_digest: a3360cca43eda55d15dcc097b7c4dfd1da6e310930e6aaf2ece7ff4586527331
+              start: "2026-10-21T15:38:42.334429Z"
+              end: "2026-10-21T15:54:24.407544Z"
+              queue_seconds: 942.073115
+              raw_seconds: 942.073115
+              exact: true
+        protected:
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T11:42:57.208Z"
+              end: "2026-10-21T05:07:53-07:00"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T05:07:53-07:00"
+              end: "2026-10-21T05:22:11-07:00"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T11:47:29.214Z"
+              end: "2026-10-21T11:48:38.896Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T11:50:14.859Z"
+              end: "2026-10-21T11:50:38.15Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T11:52:00.18Z"
+              end: "2026-10-21T11:52:30.515Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T11:52:33.946Z"
+              end: "2026-10-21T11:53:02.081Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T07:27:35-07:00"
+              end: "2026-10-21T07:43:52-07:00"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T07:43:52-07:00"
+              end: "2026-10-21T07:52:27-07:00"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T14:28:03.076Z"
+              end: "2026-10-21T07:43:52-07:00"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T07:43:52-07:00"
+              end: "2026-10-21T14:46:10.746Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T14:34:21.129Z"
+              end: "2026-10-21T14:40:53.048Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T14:49:01.284Z"
+              end: "2026-10-21T14:50:53.163Z"
+            - issue: "524"
+              slot: ariadne:3
+              start: "2026-10-21T15:05:28.843886Z"
+              end: "2026-10-21T15:19:38.003Z"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-21T11:05:30-07:00"
+              finalized: "2026-10-21T11:08:34-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-21T11:13:55-07:00"
+              finalized: "2026-10-21T11:17:22-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-21T11:37:50-07:00"
+              finalized: "2026-10-21T11:41:15-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-21T11:56:29-07:00"
+              finalized: "2026-10-21T12:00:53-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-21T12:30:40-07:00"
+              finalized: "2026-10-21T12:34:52-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-21T13:05:07-07:00"
+              finalized: "2026-10-21T13:08:44-07:00"
+              finalizing: false
+            - boundary: M3
+              dispatched: "2026-10-21T13:17:13-07:00"
+              finalized: "2026-10-21T13:22:22-07:00"
+              finalizing: true
+      "n": 8
+      timestamp: "2026-10-21T13:29:15-07:00"
+      dispatched: "2026-10-21T13:23:33-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: Superseded by operator option A, decision 390faec8-dc49-498e-9ad5-2c1a718c2c37. Cleanup now precedes child publication; uncertain inputs remain pinned and reconciliation performs zero cleanup. Private crash-window tests pass. Removing retirement in a disposable checkout makes TestResumeCrashCommittedChildStatusPost fail with a retained locked checkout.
+          round: 8
+        - id: BR-1
+          disposition: addressed
+          note: Receipt publication validates supported link authority explicitly. TestResumeStorePublishesTerminalReceipt passes, including unchanged unknown JSON bytes and duplicate-publication refusal.
+          round: 8
+        - id: BR-2
+          disposition: addressed
+          note: Directory-mutex ownership covers staging lifetime and crash reclamation. The staging-lifetime and killed-publisher regressions pass.
+          round: 8
+        - id: BR-4
+          disposition: addressed
+          note: Scratch and environment cleanup share resumeCleanupEffect. Cancellation-boundary tests pass; bypassing that helper in a disposable checkout makes both regressions fail on subsequent effects after cancellation.
+          round: 8
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 31d5e5b22a8629a9aa774c2e3ff924b9f334b24b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#463 (boundary-review)
@@ -1981,6 +2307,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-4 — addressed — localcheck_resume.go:306 centralizes cancellation and authorization checks around each cleanup effect; localcheck_run.go:465 passes the original caller context into scratch retirement. Environment and scratch cancellation-boundary tests pass at the pinned head. Disposable negative controls failed on subsequent syncs and owner-marker deletion when cancellation enforcement was removed. Both disposable copies were removed.
 
+## Round 8 — 2026-10-21T13:29:15-07:00 (codex) — passed
+
+### Disposed
+
+- BR-3 — addressed — Superseded by operator option A, decision 390faec8-dc49-498e-9ad5-2c1a718c2c37. Cleanup now precedes child publication; uncertain inputs remain pinned and reconciliation performs zero cleanup. Private crash-window tests pass. Removing retirement in a disposable checkout makes TestResumeCrashCommittedChildStatusPost fail with a retained locked checkout.
+- BR-1 — addressed — Receipt publication validates supported link authority explicitly. TestResumeStorePublishesTerminalReceipt passes, including unchanged unknown JSON bytes and duplicate-publication refusal.
+- BR-2 — addressed — Directory-mutex ownership covers staging lifetime and crash reclamation. The staging-lifetime and killed-publisher regressions pass.
+- BR-4 — addressed — Scratch and environment cleanup share resumeCleanupEffect. Cancellation-boundary tests pass; bypassing that helper in a disposable checkout makes both regressions fail on subsequent effects after cancellation.
+
 ## Open findings
 
-- **BR-3** [Important] `durable-staging-cleanup` (kind: defect) Completed-child crashes permanently strand locked resume worktrees
+(none — every finding has been disposed)
