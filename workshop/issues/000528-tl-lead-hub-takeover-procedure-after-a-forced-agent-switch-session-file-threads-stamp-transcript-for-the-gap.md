@@ -59,3 +59,4 @@ Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY 
 
 - Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.
 - Test-first: TestLeadHelpTakeoverSequence failed with TAKEOVER missing before implementation. Added five ordered steps, checking both --help and bare entry points, step-local phrases, switch/session scope, gap-only transcript read, ephemeral loss and stamp-writing ownership. Full cmd/tl-lead package passed (15.838s). Atlas maps the delivered help and guard.
+- Own CLI proof: make tl-lead-build succeeded; bin/tl-lead reports vcs.revision=4333e00a446fbbd2376093cbeded4aaa334ddbad and vcs.modified=false, matching git rev-parse HEAD. Both --help and bare invocation render TAKEOVER; fleet resume still says never run at startup. Final rendered-help focused group passed (0.156s). No :0 touched.
