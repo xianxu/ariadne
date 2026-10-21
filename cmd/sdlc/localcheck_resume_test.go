@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,21 +93,81 @@ func TestResumeReconcileRequiresSteward(t *testing.T) {
 }
 
 func TestResumeScratchRetirement(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "owned-scratch")
-	if err := os.Mkdir(path, 0700); err != nil {
-		t.Fatal(err)
+	for _, remove := range []bool{false, true} {
+		t.Run(fmt.Sprint(remove), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "owned-scratch")
+			if err := os.Mkdir(path, 0700); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			d := localRunDeps{runnerLifetime: &runnerArtifactLifetime{retirable: true}}
+			scratch := scratchPreparation{Dir: path, Cleanup: func() {
+				calls++
+				if remove {
+					_ = os.RemoveAll(path)
+				}
+			}}
+			err := finishResumeScratch(d, suiteSlotRun{Exit: 0}, scratch, nil)
+			if remove {
+				if err != nil || calls != 1 {
+					t.Fatalf("successful pass %v calls%d", err, calls)
+				}
+				return
+			}
+			if err == nil || calls != 1 {
+				t.Fatalf("silent removal failure %v calls%d", err, calls)
+			}
+			if err = finishResumeScratch(d, suiteSlotRun{Exit: 0}, scratch, nil); err == nil || calls != 1 {
+				t.Fatalf("failure retried cleanup: %v calls%d", err, calls)
+			}
+			if _, err = os.Stat(path); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
-	// A cleanup callback returning cannot stand in for observed absence.
-	scratch := scratchPreparation{Dir: path, Cleanup: func() {}}
-	if err := confirmResumeScratchCleanup(scratch); err == nil {
-		t.Fatal("silent scratch deletion failure accepted")
-	}
-	scratch.Cleanup = func() { _ = os.RemoveAll(path) }
-	if err := confirmResumeScratchCleanup(scratch); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Lstat(path); !os.IsNotExist(err) {
-		t.Fatalf("scratch remains: %v", err)
+}
+
+func TestResumeScratchStopsOnManagedUncertainty(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		run       suiteSlotRun
+		err       error
+		confirmed bool
+		keep      bool
+	}{
+		{name: "canceled", run: suiteSlotRun{Exit: 0}, err: context.Canceled, confirmed: true, keep: true},
+		{name: "timeout", run: suiteSlotRun{Exit: -1, TimedOut: true}, confirmed: true, keep: true},
+		{name: "did not launch", run: suiteSlotRun{Exit: -1}, confirmed: true, keep: true},
+		{name: "signal exit", run: suiteSlotRun{Exit: 137}, confirmed: true, keep: true},
+		{name: "group uncertain", run: suiteSlotRun{Exit: 0}, keep: true},
+		{name: "ordinary failed test", run: suiteSlotRun{Exit: 1}, confirmed: true},
+		{name: "ordinary pass", run: suiteSlotRun{Exit: 0}, confirmed: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "scratch")
+			if err := os.Mkdir(path, 0700); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			d := localRunDeps{runnerLifetime: &runnerArtifactLifetime{retirable: tc.confirmed}}
+			scratch := scratchPreparation{Dir: path, Cleanup: func() { calls++; _ = os.RemoveAll(path) }}
+			err := finishResumeScratch(d, tc.run, scratch, tc.err)
+			if tc.keep {
+				if err == nil || calls != 0 {
+					t.Fatalf("uncertainty deleted scratch: err=%v calls=%d", err, calls)
+				}
+				if _, e := os.Stat(path); e != nil {
+					t.Fatal(e)
+				}
+				if d.runnerLifetime.mayRetire() {
+					t.Fatal("uncertainty retained cleanup permission")
+				}
+				if tc.err != nil && !errors.Is(err, tc.err) {
+					t.Fatalf("lost cause: %v", err)
+				}
+			} else if err != nil || calls != 1 {
+				t.Fatalf("ordinary completion: err=%v calls=%d", err, calls)
+			}
+		})
 	}
 }

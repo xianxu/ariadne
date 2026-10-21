@@ -94,7 +94,7 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 		return nil, err
 	}
 	x := indexResumeRetention(s)
-	// Retention also preserves unreleased environment ownership.
+	// Interrupted graph retention follows the operator-selected policy.
 	// With unavailable authority, even an apparently unrelated legacy row may be
 	// a bundle member. Prevent the caller's individual-file pruning altogether.
 	if len(s.Warnings) > 0 || len(s.Unsupported) > 0 {
@@ -110,45 +110,30 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 		if x.blocked[parent] {
 			continue
 		}
-		if len(links) != 1 || len(x.receipts[parent]) > 1 || len(x.children[parent]) > 1 {
+		if len(links) != 1 || len(x.receipts[parent]) != 0 || len(x.children[parent]) > 1 {
 			continue
 		}
 		l := links[0]
 		memberIDs := []string{l.RerunOf, l.ID, l.ChildID}
-		for _, r := range x.receipts[parent] {
-			memberIDs = append(memberIDs, r.ID)
-		}
 		if resumeRetentionEnvironmentProtected(root, memberIDs) {
 			continue
 		}
 		child, hasChild := x.attempts[l.ChildID]
-		receipts := x.receipts[parent]
-		if hasChild && len(receipts) > 0 {
+		// Pending, interrupted and receipt-bearing graphs are permanently pinned.
+		if !hasChild {
 			continue
 		}
-		if len(x.children[parent]) > 0 && (!hasChild || x.children[parent][0].ID != l.ChildID) {
+		if len(x.children[parent]) > 0 && x.children[parent][0].ID != l.ChildID {
 			continue
 		}
-		if !hasChild && len(receipts) == 0 {
+		if !retentionChildBound(l, child) {
 			continue
 		}
-		latest := l.CreatedAt
-		if hasChild {
-			if !retentionChildBound(l, child) {
-				continue
-			}
-			raw, e := readRetentionLog(suiteAttemptLogFile(root, child))
-			if e != nil || resumeRecordDigest(raw) != child.LogSHA256 {
-				continue
-			}
-			latest = retentionLatest(latest, child.FinishedAt)
-		} else {
-			r := receipts[0]
-			if !retentionReceiptBound(l, r, s.recordDigests[l.ID]) {
-				continue
-			}
-			latest = retentionLatest(latest, r.FinishedAt)
+		raw, e := readRetentionLog(suiteAttemptLogFile(root, child))
+		if e != nil || resumeRecordDigest(raw) != child.LogSHA256 {
+			continue
 		}
+		latest := retentionLatest(l.CreatedAt, child.FinishedAt)
 		p, hasParent := x.attempts[parent]
 		if hasParent {
 			if !resumeMeasuredDuration(p.WallSeconds) || p.RerunOf != "" || p.Repo != l.Repo || p.SHA != l.SHA || p.Check != l.Check || p.LogSHA256 != l.ParentLogSHA256 || s.recordDigests[p.ID] != l.ParentRecordSHA256 || l.CreatedAt.Before(p.FinishedAt) {
@@ -179,63 +164,12 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 				continue
 			}
 		}
-		err = retireResumeBundle(root, l, p, hasParent, child, hasChild, receipts, s.recordDigests, lock, logRefs, ops)
+		err = retireResumeBundle(root, l, p, hasParent, child, s.recordDigests, lock, logRefs, ops)
 		if lock != nil {
 			err = errors.Join(err, lock.Close())
 		}
 		if err != nil {
 			return x.protected, err
-		}
-	}
-	// A crash after durable fence removal may leave its terminal receipt.
-	// It is no longer needed only when both selectable parent and link are absent.
-	for parent, receipts := range x.receipts {
-		if len(receipts) != 1 || len(x.links[parent]) != 0 || x.blocked[parent] {
-			continue
-		}
-		r := receipts[0]
-		if resumeRetentionEnvironmentProtected(root, []string{parent, r.LinkID, r.ChildID, r.ID}) {
-			continue
-		}
-		if _, ok := x.attempts[parent]; ok {
-			continue
-		}
-		if _, ok := s.recordDigests[r.LinkID]; ok {
-			continue
-		}
-		if _, ok := x.attempts[r.ChildID]; ok {
-			continue
-		}
-		if now.Sub(r.FinishedAt) <= suiteAttemptKeep {
-			continue
-		}
-		for _, id := range []string{parent, r.LinkID} {
-			if _, e := os.Lstat(filepath.Join(root, "attempts", id+".json")); !os.IsNotExist(e) {
-				if e != nil {
-					return x.protected, e
-				}
-				return x.protected, errors.New("orphan receipt authority reappeared")
-			}
-		}
-		if e := ops.sync(filepath.Join(root, "attempts")); e != nil {
-			return x.protected, e
-		}
-		path := filepath.Join(root, "failed", parent+".log")
-		if logRefs[path] == 0 {
-			if e := retentionRemove(ops.remove, path); e != nil {
-				return x.protected, e
-			}
-		}
-		for _, id := range []string{parent, r.LinkID, r.ChildID, r.ID} {
-			if e := retentionRemove(ops.removeAll, filepath.Join(root, "inflight", id)); e != nil {
-				return x.protected, e
-			}
-		}
-		if e := retentionRemove(ops.remove, filepath.Join(root, "attempts", r.ID+".json")); e != nil {
-			return x.protected, e
-		}
-		if e := ops.sync(filepath.Join(root, "attempts")); e != nil {
-			return x.protected, e
 		}
 	}
 	return x.protected, nil
@@ -249,9 +183,6 @@ func retentionLatest(a, b time.Time) time.Time {
 }
 func retentionChildBound(l ResumeLink, c SuiteAttempt) bool {
 	return (c.Version == 1 || c.Version == 2) && c.ID == l.ChildID && c.Repo == l.Repo && c.SHA == l.SHA && c.Check == suiteRerunCheck && c.RerunOf == l.RerunOf && !c.Legacy && !c.MainBaseline && resumeMeasuredDuration(c.WallSeconds) && resumeUTC(c.StartedAt) && resumeUTC(c.FinishedAt) && !c.StartedAt.Before(l.CreatedAt) && !c.FinishedAt.Before(c.StartedAt) && resumeValidDigest(c.LogSHA256)
-}
-func retentionReceiptBound(l ResumeLink, r ResumeReconciliation, digest string) bool {
-	return validateResumeReconciliation(r) == nil && r.Repo == l.Repo && r.SHA == l.SHA && r.Check == l.Check && r.RerunOf == l.RerunOf && r.LinkID == l.ID && r.ChildID == l.ChildID && r.LinkSHA256 == digest && !r.FinishedAt.Before(l.CreatedAt)
 }
 func readRetentionLog(path string) ([]byte, error) {
 	if path == "" {
@@ -271,16 +202,10 @@ func readRetentionLog(path string) ([]byte, error) {
 
 // Retirement revalidates each immutable record under the parent's execution
 // lock. A missing parent is allowed only after terminal binding has been proved.
-func retireResumeBundle(root string, l ResumeLink, p SuiteAttempt, hasParent bool, c SuiteAttempt, hasChild bool, receipts []ResumeReconciliation, digests map[string]string, lock *resumeParentLock, logRefs map[string]int, ops resumeRetentionIO) error {
+func retireResumeBundle(root string, l ResumeLink, p SuiteAttempt, hasParent bool, c SuiteAttempt, digests map[string]string, lock *resumeParentLock, logRefs map[string]int, ops resumeRetentionIO) error {
 	dir := filepath.Join(root, "attempts")
 	record := func(id string) string { return filepath.Join(dir, id+".json") }
-	ids := []string{l.ID}
-	if hasChild {
-		ids = append(ids, c.ID)
-	}
-	for _, r := range receipts {
-		ids = append(ids, r.ID)
-	}
+	ids := []string{l.ID, c.ID}
 	for _, id := range ids {
 		raw, err := readRetentionLog(record(id))
 		if err != nil {
@@ -304,7 +229,7 @@ func retireResumeBundle(root string, l ResumeLink, p SuiteAttempt, hasParent boo
 		return err
 	}
 	// The rest of this sequence is finalized with the durable-retirement order.
-	return retireResumeMembers(root, l, p, hasParent, c, hasChild, receipts, logRefs, ops)
+	return retireResumeMembers(root, l, p, hasParent, c, logRefs, ops)
 }
 func retentionRemove(remove func(string) error, path string) error {
 	err := remove(path)
@@ -316,7 +241,7 @@ func retentionRemove(remove func(string) error, path string) error {
 
 // The terminal witness survives link removal until that removal is durable.
 // An interrupted parent-missing retry can therefore prove terminality again.
-func retireResumeMembers(root string, l ResumeLink, p SuiteAttempt, hasParent bool, c SuiteAttempt, hasChild bool, receipts []ResumeReconciliation, logRefs map[string]int, ops resumeRetentionIO) error {
+func retireResumeMembers(root string, l ResumeLink, p SuiteAttempt, hasParent bool, c SuiteAttempt, logRefs map[string]int, ops resumeRetentionIO) error {
 	dir := filepath.Join(root, "attempts")
 	removeLog := func(a SuiteAttempt) error {
 		path := suiteAttemptLogFile(root, a)
@@ -343,29 +268,17 @@ func retireResumeMembers(root string, l ResumeLink, p SuiteAttempt, hasParent bo
 			return err
 		}
 	}
-	for _, r := range receipts {
-		if err := retentionRemove(ops.removeAll, filepath.Join(root, "inflight", r.ID)); err != nil {
-			return err
-		}
-	}
 	if err := retentionRemove(ops.remove, filepath.Join(dir, l.ID+".json")); err != nil {
 		return err
 	}
 	if err := ops.sync(dir); err != nil {
 		return err
 	}
-	if hasChild {
-		if err := removeLog(c); err != nil {
-			return err
-		}
-		if err := retentionRemove(ops.remove, filepath.Join(dir, c.ID+".json")); err != nil {
-			return err
-		}
+	if err := removeLog(c); err != nil {
+		return err
 	}
-	for _, r := range receipts {
-		if err := retentionRemove(ops.remove, filepath.Join(dir, r.ID+".json")); err != nil {
-			return err
-		}
+	if err := retentionRemove(ops.remove, filepath.Join(dir, c.ID+".json")); err != nil {
+		return err
 	}
 	return ops.sync(dir)
 }

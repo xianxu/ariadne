@@ -1,5 +1,7 @@
 # Lessons
 
+- #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.
+
 - #463 BR-3 re-review: an absent entry on retry does not prove its removal was durably synced. Lost remove replies and failed directory syncs must retain and discharge the original namespace-sync obligation, including owner-marker release. Reproduce all remove/sync/retry pairs through the production cleanup seam; a happy retry that returns nil is insufficient evidence. Further implementation is stopped for operator review under the approved lifecycle re-plan condition.
 
 - #463 BR-3: a completed-result publisher must not erase the only cleanup reference before locked inputs retire. Order the whole lifecycle: fence before protection, durable owner before lock, confirmed group/scratch/checkout/registration retirement before result commit, reference release last. Test every crash window through real process barriers; GC must preserve unreadable cleanup authority. Deferred cleanup cannot establish crash safety.

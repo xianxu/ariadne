@@ -312,3 +312,51 @@ Unused preparation that never launched retains the accepted ordinary collector
 boundary. At whole-issue review, dispose carried M2 BR-3 as superseded by the
 operator's option A, citing decision 390faec8-dc49-498e-9ad5-2c1a718c2c37; do
 not clear its ledger. Record acceptance before the fresh change-code plan gate.
+
+
+### 2026-10-21 — M3 plan-quality admitted; deletion work begins
+
+Fresh change-code passed plan-quality round 4 with no open findings and accepted
+the M3 design on the issue branch. Estimate-quality returned INFO only: the
+original 3.0h baseline predates the superseded M2 re-reviews/operator re-plan;
+those unplanned costs were not individually allocated in its generic rows. It
+remains the original forecast for calibration, not a claim that known actual
+rework fits that allowance or a fabricated updated remaining forecast. Actuals
+will be measured by the gates. No retrospective estimate change is made.
+
+M3 evidence-only reconciliation observed RED 16.341s: the old first reconcile
+deleted the retained Git lock. Removed both cleanup calls. Strict scratch
+uncertainty tests observed RED 0.455s for cancellation, timeout, launch failure,
+signal exit and unconfirmed groups; new forward-only handling passed the
+focused scratch/CLI/authority checks 0.642s. Environment/retention and full CLI
+rewrites are in progress under the accepted plan; no completion is claimed.
+
+### 2026-10-21 — M3 final verification before recorded suite and fresh boundary
+
+M3 removes receipt cleanup/retry adapters, missing-state successes and cleanup
+reconstruction. Reconcile first/repeat has zero destructive effects, retaining
+the interrupted audit and all surviving inputs. The original owner has one
+forward cleanup pass; uncertain managed results and every initial inconsistency
+stop, with needs-reconcile and retained paths. Pending/interrupted/receipt and
+orphan graphs remain pinned without relying on Git-lock/marker visibility.
+Completed-child GC, original raw evidence and all success-proof rules remain.
+
+Final private production-CLI acceptance passed 91.155s, including the seven
+crash windows, additional cleanup-first-pass failure, completed/running flow,
+first/repeated audit-only reconcile, aged prune twice, exact remaining-byte/
+path/mode/registration/lock preservation, no extra launches/posts, and later
+actual green refusal. Output /tmp/ariadne-463-m3-private-conformance.log.
+Focused receipt/fault behaviors passed earlier but that package invocation
+reported a source-checkout guard failure when the docs baseline changed; the
+final combined run passed that guard too. Environment/retention checks passed
+4.983s, with N8/N16 receipt/orphan graphs × three prunes showing zero removals,
+and an added 100-day pending-graph preservation test. The prior RED1.151s
+independently showed receipt/orphan member removals and partial-state successes.
+
+All Resume race checks passed 12.688s; broader legacy saved-proof/run/republish/
+known-flake/scoped-reader checks passed 19.428s; scratch/CLI/authority/current
+saved-proof checks passed 2.504s; Go lint 0.632s and shell lint 0.274s. Diff clean.
+Checkpoint/push final code, queue the fresh recorded suite and close M3 through
+its own boundary. The original M2 remains superseded, not closed; the whole-
+issue gate must dispose of BR-3 as superseded by operator option A, decision
+390faec8-dc49-498e-9ad5-2c1a718c2c37, with ledger history preserved. No stage.

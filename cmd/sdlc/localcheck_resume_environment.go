@@ -39,11 +39,6 @@ func protectResumeEnvironmentWithSync(d localRunDeps, wt, childID, inflight stri
 	return err
 }
 
-func retireResumeEnvironment(ctx context.Context, d localRunDeps, store string, l ResumeLink, r ResumeReconciliation) error {
-	_, roots, _ := scratchdisk.Roots("tmp", os.TempDir())
-	return retireResumeEnvironmentWithRoots(ctx, d, store, l, r, roots)
-}
-
 func resumeEnvironmentRead(path string, max int64) ([]byte, error) {
 	f, err := regularResumeFile(path)
 	if err != nil {
@@ -88,16 +83,9 @@ func resumeEnvironmentGit(d localRunDeps, args ...string) (string, error) {
 	return d.Git(args...)
 }
 
-type resumeEnvironmentBinding struct{ gitdir, wt, common string }
+type resumeEnvironmentBinding struct{ gitdir, wt, common, locked, reverse, commonRaw, head string }
 
-type resumeEnvironmentUnlocked struct{}
-
-func (*resumeEnvironmentUnlocked) Error() string {
-	return "resume environment preparation has no worktree lock; retained for ordinary collection"
-}
-
-// Missing registration after an earlier confirmed removal is a convergent
-// no-op. Missing or inconsistent metadata inside an extant registration refuses.
+// Initial authority must be fully present; this is not a recovery reader.
 func inspectResumeEnvironment(d localRunDeps, owner string, l ResumeLink) (resumeEnvironmentBinding, error) {
 	var b resumeEnvironmentBinding
 	out, err := resumeEnvironmentGit(d, "rev-parse", "--git-common-dir")
@@ -120,9 +108,6 @@ func inspectResumeEnvironment(d localRunDeps, owner string, l ResumeLink) (resum
 	// invitation to inspect or collect artifacts in that repository.
 	registered := filepath.Join(common, "worktrees")
 	canonicalOwner, err := filepath.EvalSymlinks(filepath.Dir(dir))
-	if os.IsNotExist(err) && filepath.Clean(filepath.Dir(dir)) == registered {
-		return b, nil
-	}
 	if err != nil {
 		return b, err
 	}
@@ -130,9 +115,6 @@ func inspectResumeEnvironment(d localRunDeps, owner string, l ResumeLink) (resum
 		return b, errors.New("resume environment belongs to another Git common directory")
 	}
 	gitdir, err := resumeEnvironmentCanonicalDir(dir)
-	if os.IsNotExist(err) {
-		return b, nil
-	}
 	if err != nil {
 		return b, err
 	}
@@ -145,53 +127,47 @@ func inspectResumeEnvironment(d localRunDeps, owner string, l ResumeLink) (resum
 		return b, errors.New("resume environment registration is redirected")
 	}
 	raw, err := resumeEnvironmentRead(filepath.Join(gitdir, "locked"), 4096)
-	unlocked := os.IsNotExist(err)
-	if err != nil && !unlocked {
+	if err != nil {
 		return b, err
 	}
-	if !unlocked && strings.TrimSuffix(string(raw), "\n") != resumeEnvironmentReason(l.ChildID) {
+	locked := string(raw)
+	if strings.TrimSuffix(string(raw), "\n") != resumeEnvironmentReason(l.ChildID) {
 		return b, errors.New("resume environment worktree lock is for another child")
 	}
 	raw, err = resumeEnvironmentRead(filepath.Join(gitdir, "gitdir"), 4096)
 	if err != nil {
 		return b, err
 	}
+	reverse := string(raw)
 	pointer, err := resumeEnvironmentPath(raw)
 	if err != nil || filepath.Base(pointer) != ".git" {
 		return b, errors.New("invalid resume environment worktree reverse pointer")
 	}
 	wt, err := resumeEnvironmentCanonicalDir(filepath.Dir(pointer))
-	missingCheckout := os.IsNotExist(err)
-	if missingCheckout {
-		parent, e := filepath.EvalSymlinks(filepath.Dir(filepath.Dir(pointer)))
-		if e != nil {
-			return b, e
-		}
-		wt = filepath.Join(parent, filepath.Base(filepath.Dir(pointer)))
-	} else if err != nil {
+	if err != nil {
 		return b, err
 	}
 	if !strings.HasPrefix(filepath.Base(wt), localCheckTmpPrefix) || len(filepath.Base(wt)) == len(localCheckTmpPrefix) {
 		return b, errors.New("resume environment is not a private local-check worktree")
 	}
-	if !missingCheckout {
-		raw, err = resumeEnvironmentRead(filepath.Join(wt, ".git"), 4096)
-		if err != nil {
-			return b, err
-		}
-		back, err := parseRunnerOwner(raw, wt, true)
-		if err != nil {
-			return b, err
-		}
-		back, err = filepath.EvalSymlinks(back)
-		if err != nil || back != gitdir {
-			return b, errors.New("resume environment worktree does not point back to its registration")
-		}
+	raw, err = resumeEnvironmentRead(filepath.Join(wt, ".git"), 4096)
+	if err != nil {
+		return b, err
 	}
+	back, err := parseRunnerOwner(raw, wt, true)
+	if err != nil {
+		return b, err
+	}
+	back, err = filepath.EvalSymlinks(back)
+	if err != nil || back != gitdir {
+		return b, errors.New("resume environment worktree does not point back to its registration")
+	}
+
 	raw, err = resumeEnvironmentRead(filepath.Join(gitdir, "commondir"), 4096)
 	if err != nil {
 		return b, err
 	}
+	commonRaw := string(raw)
 	commonPointer := strings.TrimSuffix(string(raw), "\n")
 	if commonPointer == "" || strings.ContainsAny(commonPointer, "\x00\r\n") {
 		return b, errors.New("invalid resume environment common pointer")
@@ -210,52 +186,10 @@ func inspectResumeEnvironment(d localRunDeps, owner string, l ResumeLink) (resum
 	if strings.TrimSuffix(string(raw), "\n") != l.SHA {
 		return b, errors.New("resume environment detached HEAD changed")
 	}
-	bound := resumeEnvironmentBinding{gitdir: gitdir, wt: wt, common: common}
-	if unlocked {
-		return bound, &resumeEnvironmentUnlocked{}
-	}
-	return bound, nil
+	return resumeEnvironmentBinding{gitdir: gitdir, wt: wt, common: common, locked: locked, reverse: reverse, commonRaw: commonRaw, head: string(raw)}, nil
 }
 
-func resumeEnvironmentReceipt(store string, l ResumeLink, r ResumeReconciliation) error {
-	realStore, err := resumeEnvironmentCanonicalDir(store)
-	if err != nil {
-		return err
-	}
-	attempts, err := resumeEnvironmentCanonicalDir(filepath.Join(realStore, "attempts"))
-	if err != nil {
-		return err
-	}
-	if attempts != filepath.Join(realStore, "attempts") {
-		return errors.New("resume environment receipt directory is redirected")
-	}
-	if validateResumeLink(l) != nil || validateResumeReconciliation(r) != nil || !retentionReceiptBound(l, r, r.LinkSHA256) {
-		return errors.New("resume environment requires a bound terminal interrupted receipt")
-	}
-	raw, err := resumeEnvironmentRead(filepath.Join(store, "attempts", l.ID+".json"), suiteAttemptMaxJSON)
-	if err != nil {
-		return err
-	}
-	link, _, err := decodeResumeEvidence(raw, l.ID+".json")
-	if err != nil || link == nil || *link != l || resumeRecordDigest(raw) != r.LinkSHA256 {
-		return errors.New("resume environment link changed")
-	}
-	raw, err = resumeEnvironmentRead(filepath.Join(store, "attempts", r.ID+".json"), suiteAttemptMaxJSON)
-	if err != nil {
-		return err
-	}
-	_, receipt, err := decodeResumeEvidence(raw, r.ID+".json")
-	if err != nil || receipt == nil || *receipt != r {
-		return errors.New("resume environment terminal receipt is not published")
-	}
-	return nil
-}
-
-func retireResumeEnvironmentWithRoots(ctx context.Context, d localRunDeps, store string, l ResumeLink, r ResumeReconciliation, roots []string) error {
-	return retireResumeEnvironmentCore(ctx, d, store, l, roots, true, func() error { return resumeEnvironmentReceipt(store, l, r) })
-}
-
-func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store string, l ResumeLink, roots []string, receiptCleanup bool, authorize func() error) error {
+func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store string, l ResumeLink, roots []string, ops resumeEnvironmentIO, authorize func() error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -269,9 +203,6 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 	inflight := filepath.Join(realStore, "inflight", l.ChildID)
 	realInflight, err := resumeEnvironmentCanonicalDir(inflight)
 	if os.IsNotExist(err) {
-		if receiptCleanup {
-			return nil
-		}
 		return errors.New("completed resume environment ownership marker is missing")
 	}
 	if err != nil {
@@ -282,9 +213,6 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 	}
 	raw, err := resumeEnvironmentRead(filepath.Join(inflight, runnerArtifactOwnerFile), 4096)
 	if os.IsNotExist(err) {
-		if receiptCleanup {
-			return nil
-		}
 		return errors.New("completed resume environment ownership marker is missing")
 	}
 	if err != nil {
@@ -293,19 +221,9 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 	owner := string(raw)
 	binding, err := inspectResumeEnvironment(d, owner, l)
 	if err != nil {
-		var unlocked *resumeEnvironmentUnlocked
-		if receiptCleanup && errors.As(err, &unlocked) {
-			return nil
-		}
 		return err
 	}
-	if binding.wt == "" {
-		// Under this lifecycle Git registration is removed only after its checkout.
-		// The durable marker can now be released; no path is derived from absence.
-		return releaseResumeEnvironmentOwner(inflight, owner, authorize)
-	}
 	var scratch []string
-	var scannedRoots []string
 	for _, root := range roots {
 		realRoot, err := filepath.EvalSymlinks(root)
 		if os.IsNotExist(err) {
@@ -314,7 +232,6 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 		if err != nil {
 			return err
 		}
-		scannedRoots = append(scannedRoots, realRoot)
 		entries, err := os.ReadDir(realRoot)
 		if err != nil {
 			return err
@@ -371,7 +288,7 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 		return nil
 	}
 	// Collect all candidates before mutation. Revalidate reverse pointers, exact
-	// child reason and raw receipt before each irreversible removal.
+	// child reason and original-owner authority before each irreversible removal.
 	for _, path := range scratch {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -404,20 +321,13 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 		if err != nil || dir != binding.gitdir {
 			return errors.New("resume environment scratch binding changed")
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := ops.removeAll(path); err != nil {
 			return err
 		}
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {
 			return errors.New("resume scratch cleanup did not confirm absence")
 		}
-		if err := syncResumeDirectory(filepath.Dir(path)); err != nil {
-			return err
-		}
-	}
-	// Resync scanned parents even on a retry with no visible scratch entries:
-	// an earlier removal may have lost its directory-sync acknowledgement.
-	for _, root := range scannedRoots {
-		if err := syncResumeDirectory(root); err != nil {
+		if err := ops.sync(filepath.Dir(path)); err != nil {
 			return err
 		}
 	}
@@ -437,15 +347,15 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 	if err := confirmOwner(); err != nil {
 		return err
 	}
-	// Delete the bound checkout first while the locked registration still
-	// records its path. A retry can therefore validate and finish either phase.
-	if err := os.RemoveAll(binding.wt); err != nil {
+	// This invocation advances using its original validated binding. A partial
+	// state from any previous invocation is never reconstructed or repaired.
+	if err := ops.removeAll(binding.wt); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(binding.wt); !os.IsNotExist(err) {
 		return errors.New("resume checkout removal unconfirmed")
 	}
-	if err := syncResumeDirectory(filepath.Dir(binding.wt)); err != nil {
+	if err := ops.sync(filepath.Dir(binding.wt)); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -454,12 +364,8 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 	if err := authorize(); err != nil {
 		return err
 	}
-	current, err = inspectResumeEnvironment(d, owner, l)
-	if err != nil {
+	if err := confirmResumeRegistration(binding); err != nil {
 		return err
-	}
-	if current != binding {
-		return errors.New("resume registration changed after checkout removal")
 	}
 	if err := confirmOwner(); err != nil {
 		return err
@@ -472,38 +378,56 @@ func retireResumeEnvironmentCore(ctx context.Context, d localRunDeps, store stri
 			return errors.New("resume environment removal did not confirm both paths absent")
 		}
 	}
-	if err := syncResumeDirectory(filepath.Dir(binding.gitdir)); err != nil {
-		// Git can remove an empty worktrees directory. Its parent then owns the
-		// absent registration namespace and is the directory that must be synced.
-		if !os.IsNotExist(err) {
-			return err
-		}
-		if err := syncResumeDirectory(binding.common); err != nil {
-			return err
-		}
+	parent := filepath.Dir(binding.gitdir)
+	if _, err := os.Lstat(parent); os.IsNotExist(err) {
+		parent = binding.common
+	} else if err != nil {
+		return err
 	}
-	return releaseResumeEnvironmentOwner(inflight, owner, authorize)
+	if err := ops.sync(parent); err != nil {
+		return err
+	}
+	return releaseResumeEnvironmentOwner(inflight, owner, ops, authorize)
 }
 
-func releaseResumeEnvironmentOwner(inflight, owner string, authorize func() error) error {
+// The checkout was removed earlier in this pass. Check the captured registration
+// bytes without deriving or accepting a reconstructed checkout binding.
+func confirmResumeRegistration(b resumeEnvironmentBinding) error {
+	current, err := resumeEnvironmentCanonicalDir(b.gitdir)
+	if err != nil {
+		return err
+	}
+	if current != b.gitdir {
+		return errors.New("resume registration directory changed")
+	}
+	for name, want := range map[string]string{"locked": b.locked, "gitdir": b.reverse, "commondir": b.commonRaw, "HEAD": b.head} {
+		raw, err := resumeEnvironmentRead(filepath.Join(b.gitdir, name), 4096)
+		if err != nil {
+			return err
+		}
+		if string(raw) != want {
+			return errors.New("resume registration bytes changed during cleanup")
+		}
+	}
+	return nil
+}
+
+func releaseResumeEnvironmentOwner(inflight, owner string, ops resumeEnvironmentIO, authorize func() error) error {
 	if err := authorize(); err != nil {
 		return err
 	}
 	marker := filepath.Join(inflight, runnerArtifactOwnerFile)
 	raw, err := resumeEnvironmentRead(marker, 4096)
-	if os.IsNotExist(err) {
-		return nil
-	}
 	if err != nil {
 		return err
 	}
 	if string(raw) != owner {
 		return errors.New("resume environment owner changed before release")
 	}
-	if err := os.Remove(marker); err != nil {
+	if err := ops.remove(marker); err != nil {
 		return err
 	}
-	return syncResumeDirectory(inflight)
+	return ops.sync(inflight)
 }
 
 func retireCompletedResumeEnvironment(ctx context.Context, d localRunDeps, store string, l ResumeLink, lock *resumeParentLock) error {
@@ -511,6 +435,9 @@ func retireCompletedResumeEnvironment(ctx context.Context, d localRunDeps, store
 	return retireCompletedResumeEnvironmentWithRoots(ctx, d, store, l, lock, roots)
 }
 func retireCompletedResumeEnvironmentWithRoots(ctx context.Context, d localRunDeps, store string, l ResumeLink, lock *resumeParentLock, roots []string) error {
+	return retireCompletedResumeEnvironmentWithIO(ctx, d, store, l, lock, roots, resumeEnvironmentIO{removeAll: os.RemoveAll, remove: os.Remove, sync: syncResumeDirectory})
+}
+func retireCompletedResumeEnvironmentWithIO(ctx context.Context, d localRunDeps, store string, l ResumeLink, lock *resumeParentLock, roots []string, ops resumeEnvironmentIO) error {
 	var linkDigest string
 	authorize := func() error {
 		if lock == nil || d.runnerLifetime == nil || !d.runnerLifetime.mayRetire() {
@@ -548,5 +475,7 @@ func retireCompletedResumeEnvironmentWithRoots(ctx context.Context, d localRunDe
 		linkDigest = digest
 		return nil
 	}
-	return retireResumeEnvironmentCore(ctx, d, store, l, roots, false, authorize)
+	return retireResumeEnvironmentInputs(ctx, d, store, l, roots, ops, authorize)
 }
+
+type resumeEnvironmentIO struct{ removeAll, remove, sync func(string) error }

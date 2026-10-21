@@ -236,10 +236,17 @@ RESUME A SAVED SUITE FAILURE (#463)
   This checks the original owner PID incarnation under the parent lock and
   saves an immutable terminal interrupted receipt. Descendant discovery is not
   automatic: --note is the operator's attestation. It never posts a pass, deletes
-  a link or invents an attempt. Bound retained scratch/worktree inputs can then
-  retire; partial raw output stays. Retry the same reconciliation after a lost
-  reply. Fix/advance code and run a suite on a new head. An independently unknown
-  queue operation still requires its own queue reconciliation.
+  a link or invents an attempt. It never removes scratch, checkout, registration
+  or owner markers, and never unlocks or retries cleanup. Repeating the same
+  reconciliation returns the same audit receipt with zero destructive effects.
+  The original live owner gets one cleanup pass; any failure, crash or first-pass
+  inconsistency reports needs-reconcile and preserves surviving files and Git
+  locks. Already completed unlinks cannot be restored. Pending/interrupted bundles
+  and every terminal/orphan receipt remain pinned regardless of lock visibility.
+  Retained logs, checkout and scratch consume disk indefinitely; no automatic
+  reclamation is promised. Completed-child successful-cleanup GC is unchanged.
+  Fix/advance code and run a suite on a new head. An independently unknown queue
+  operation still requires its own queue reconciliation.
 
 REPUBLISH (#431)
 

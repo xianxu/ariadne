@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -83,37 +84,10 @@ func TestResumeEnvironmentProtectBindsExistingArtifacts(t *testing.T) {
 	}
 }
 
-func TestResumeEnvironmentRetiresOnlyBoundInputs(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{f.wt, f.scratch} {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Errorf("bound input survived %s: %v", path, err)
-		}
-	}
-	for _, path := range []string{filepath.Join(f.inflight, "run.log"), filepath.Join(f.store, "attempts", f.receipt.ID+".json")} {
-		if _, err := os.Stat(path); err != nil {
-			t.Errorf("retained audit missing %s: %v", path, err)
-		}
-	}
-	// A marker whose worktree was already removed grants no further effects.
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestResumeEnvironmentRefusesUntrustedBindings(t *testing.T) {
-	for _, mode := range []string{"receipt-outcome", "receipt-unpublished", "wrong-reason", "wrong-sha", "foreign-owner", "wrong-back-pointer", "symlink-owner", "symlink-gitdir", "symlink-inflight", "other-pid", "cancelled"} {
+	for _, mode := range []string{"wrong-reason", "wrong-sha", "foreign-owner", "wrong-back-pointer", "symlink-owner", "symlink-gitdir", "symlink-inflight", "other-pid", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
-			f := resumeEnvironmentPrivate(t)
-			if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-				t.Fatal(err)
-			}
+			f, lock := resumeCompletedEnvironmentPrivate(t)
 			marker := filepath.Join(f.inflight, runnerArtifactOwnerFile)
 			write := func(path, value string) {
 				t.Helper()
@@ -123,12 +97,6 @@ func TestResumeEnvironmentRefusesUntrustedBindings(t *testing.T) {
 			}
 			ctx := context.Background()
 			switch mode {
-			case "receipt-outcome":
-				f.receipt.Outcome = "pending"
-			case "receipt-unpublished":
-				if err := os.Remove(filepath.Join(f.store, "attempts", f.receipt.ID+".json")); err != nil {
-					t.Fatal(err)
-				}
 			case "wrong-reason":
 				write(filepath.Join(f.gitdir, "locked"), resumeEnvironmentReason("ee")+"\n")
 			case "wrong-sha":
@@ -177,7 +145,7 @@ func TestResumeEnvironmentRefusesUntrustedBindings(t *testing.T) {
 				cancel()
 				ctx = cancelled
 			}
-			if err := retireResumeEnvironmentWithRoots(ctx, f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err == nil {
+			if err := retireCompletedResumeEnvironmentWithRoots(ctx, f.d, f.store, f.link, lock, []string{f.scratchRoot}); err == nil {
 				t.Fatal("untrusted binding authorized cleanup")
 			}
 			for _, path := range []string{f.wt, f.scratch, filepath.Join(f.inflight, "run.log")} {
@@ -189,59 +157,8 @@ func TestResumeEnvironmentRefusesUntrustedBindings(t *testing.T) {
 	}
 }
 
-func TestResumeEnvironmentLostRemovalReplyAndMissingMarker(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
-	f.d.CleanupGit = func(args ...string) (string, error) {
-		if len(args) > 1 && args[0] == "worktree" && args[1] == "remove" {
-			if _, err := os.Stat(f.scratch); !os.IsNotExist(err) {
-				t.Errorf("worktree removal preceded scratch cleanup: %v", err)
-			}
-			if _, err := os.Lstat(f.wt); !os.IsNotExist(err) {
-				t.Errorf("registration removal preceded checkout absence: %v", err)
-			}
-			if _, err := os.Stat(filepath.Join(f.gitdir, "locked")); err != nil {
-				t.Errorf("checkout removal lost locked registration: %v", err)
-			}
-
-			want := []string{"worktree", "remove", "--force", "--force", f.wt}
-			if strings.Join(args, "\x00") != strings.Join(want, "\x00") {
-				t.Errorf("unexpected cleanup command %v", args)
-			}
-		}
-		out, err := f.d.Git(args...)
-		if err == nil && len(args) > 1 && args[0] == "worktree" && args[1] == "remove" {
-			return out, errors.New("reply lost after removal")
-		}
-		return out, err
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err == nil {
-		t.Fatal("lost response claimed confirmed cleanup")
-	}
-	if _, err := os.Stat(filepath.Join(f.inflight, "run.log")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(f.store, "attempts", f.receipt.ID+".json")); err != nil {
-		t.Fatal(err)
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(f.inflight, runnerArtifactOwnerFile)); err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestResumeEnvironmentIgnoresUnrelatedScratch(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
+	f, lock := resumeCompletedEnvironmentPrivate(t)
 	other := resumeEnvironmentPrivate(t)
 	unrelated := filepath.Join(f.scratchRoot, "sdlc-run-suite-123-456")
 	if err := os.Mkdir(unrelated, 0700); err != nil {
@@ -250,7 +167,7 @@ func TestResumeEnvironmentIgnoresUnrelatedScratch(t *testing.T) {
 	if err := attachRunnerArtifactOwner(unrelated, other.wt); err != nil {
 		t.Fatal(err)
 	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
+	if err := retireCompletedResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, lock, []string{f.scratchRoot}); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{unrelated, other.wt, other.scratch} {
@@ -261,10 +178,7 @@ func TestResumeEnvironmentIgnoresUnrelatedScratch(t *testing.T) {
 }
 
 func TestResumeEnvironmentRevalidatesInflightOwnerBeforeDeletion(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
+	f, lock := resumeCompletedEnvironmentPrivate(t)
 	reads := 0
 	f.d.CleanupGit = func(args ...string) (string, error) {
 		if len(args) > 0 && args[0] == "rev-parse" {
@@ -277,7 +191,7 @@ func TestResumeEnvironmentRevalidatesInflightOwnerBeforeDeletion(t *testing.T) {
 		}
 		return f.d.Git(args...)
 	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err == nil {
+	if err := retireCompletedResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, lock, []string{f.scratchRoot}); err == nil {
 		t.Fatal("changed inflight owner authorized deletion")
 	}
 	for _, path := range []string{f.wt, f.scratch, filepath.Join(f.inflight, "run.log")} {
@@ -334,6 +248,10 @@ func TestResumeEnvironmentProtectionDurabilityPrecedesLock(t *testing.T) {
 func resumeCompletedEnvironmentPrivate(t *testing.T) (resumeEnvironmentFixture, *resumeParentLock) {
 	t.Helper()
 	f := resumeEnvironmentPrivate(t)
+	// The original live owner has no reconciliation receipt.
+	if err := os.Remove(filepath.Join(f.store, "attempts", f.receipt.ID+".json")); err != nil {
+		t.Fatal(err)
+	}
 	p := resumeCoreFixture(t).Parent
 	p.Repo = f.d.Repo
 	p.SHA = f.link.SHA
@@ -438,71 +356,8 @@ func TestResumeEnvironmentCompletedAuthorizationAndAbsence(t *testing.T) {
 	}
 }
 
-func TestResumeEnvironmentInterruptedRegistrationCleanupRetries(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
-	failed := false
-	f.d.CleanupGit = func(args ...string) (string, error) {
-		if !failed && len(args) > 1 && args[0] == "worktree" && args[1] == "remove" {
-			failed = true
-			return "", errors.New("registration removal interrupted")
-		}
-		return f.d.Git(args...)
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err == nil {
-		t.Fatal("uncertain registration cleanup succeeded")
-	}
-	if _, err := os.Lstat(f.wt); !os.IsNotExist(err) {
-		t.Fatalf("checkout not removed first: %v", err)
-	}
-	for _, path := range []string{filepath.Join(f.gitdir, "locked"), filepath.Join(f.inflight, runnerArtifactOwnerFile)} {
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("uncertain cleanup lost authority: %s %v", path, err)
-		}
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{f.gitdir, filepath.Join(f.inflight, runnerArtifactOwnerFile)} {
-		if _, err := os.Lstat(path); !os.IsNotExist(err) {
-			t.Fatalf("retry retained %s: %v", path, err)
-		}
-	}
-}
-
-func TestResumeEnvironmentPreparedBeforeLockRetainsUnlockedInputs(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	// Crash after durable marker preparation but before the Git lock existed.
-	if err := attachRunnerArtifactOwner(f.inflight, f.wt); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{f.inflight, filepath.Dir(f.inflight)} {
-		if err := syncResumeDirectory(path); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{f.wt, f.gitdir, f.scratch, filepath.Join(f.inflight, runnerArtifactOwnerFile)} {
-		if _, err := os.Lstat(path); err != nil {
-			t.Errorf("unused preparation deleted without child lock %s: %v", path, err)
-		}
-	}
-	for _, path := range []string{f.wt, f.scratch, f.inflight} {
-		if runnerArtifactProtected(path) {
-			t.Errorf("unlocked preparation pinned ordinary collection: %s", path)
-		}
-	}
-}
-
 func TestResumeEnvironmentSkipsUnrelatedDanglingScratchOwner(t *testing.T) {
-	f := resumeEnvironmentPrivate(t)
-	if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
-		t.Fatal(err)
-	}
+	f, lock := resumeCompletedEnvironmentPrivate(t)
 	unrelated := filepath.Join(f.scratchRoot, "sdlc-run-suite-123-456")
 	if err := os.Mkdir(unrelated, 0700); err != nil {
 		t.Fatal(err)
@@ -511,10 +366,132 @@ func TestResumeEnvironmentSkipsUnrelatedDanglingScratchOwner(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("gitdir: "+filepath.Join(t.TempDir(), "missing-registration")+"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := retireResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, f.receipt, []string{f.scratchRoot}); err != nil {
+	if err := retireCompletedResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, lock, []string{f.scratchRoot}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(unrelated); err != nil {
 		t.Fatal("unrelated dangling scratch was deleted", err)
+	}
+}
+
+func resumeEnvironmentSnapshot(t *testing.T, roots ...string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, root := range roots {
+		if _, err := os.Lstat(root); os.IsNotExist(err) {
+			continue
+		}
+		if err := filepath.WalkDir(root, func(path string, e os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			info, err := e.Info()
+			if err != nil {
+				return err
+			}
+			value := info.Mode().String()
+			if info.Mode().IsRegular() {
+				raw, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				value += "\x00" + string(raw)
+			} else if info.Mode()&os.ModeSymlink != 0 {
+				target, err := os.Readlink(path)
+				if err != nil {
+					return err
+				}
+				value += "\x00" + target
+			}
+			out[path] = value
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return out
+}
+
+func TestResumeEnvironmentRequiresPresentInitialState(t *testing.T) {
+	for _, mode := range []string{"missing-checkout", "missing-registration", "missing-marker", "missing-lock"} {
+		t.Run(mode, func(t *testing.T) {
+			f, lock := resumeCompletedEnvironmentPrivate(t)
+			path := map[string]string{"missing-checkout": f.wt, "missing-registration": f.gitdir, "missing-marker": filepath.Join(f.inflight, runnerArtifactOwnerFile), "missing-lock": filepath.Join(f.gitdir, "locked")}[mode]
+			if err := os.RemoveAll(path); err != nil {
+				t.Fatal(err)
+			}
+			before := resumeEnvironmentSnapshot(t, f.wt, f.gitdir, f.inflight, f.scratch)
+			mutations := 0
+			f.d.CleanupGit = func(args ...string) (string, error) {
+				if len(args) > 1 && args[0] == "worktree" && args[1] == "remove" {
+					mutations++
+				}
+				return f.d.Git(args...)
+			}
+			if err := retireCompletedResumeEnvironmentWithRoots(context.Background(), f.d, f.store, f.link, lock, []string{f.scratchRoot}); err == nil {
+				t.Fatal("partial state authorized another cleanup pass")
+			}
+			after := resumeEnvironmentSnapshot(t, f.wt, f.gitdir, f.inflight, f.scratch)
+			if !reflect.DeepEqual(before, after) || mutations != 0 {
+				t.Fatalf("partial state caused mutation: Git removals %d", mutations)
+			}
+		})
+	}
+}
+
+func TestResumeEnvironmentStopsAtFirstCleanupFailure(t *testing.T) {
+	run := func(t *testing.T, failAt int) int {
+		f, lock := resumeCompletedEnvironmentPrivate(t)
+		effects := 0
+		failed := false
+		effect := func() error {
+			effects++
+			if failed {
+				t.Error("mutation continued after cleanup uncertainty")
+			}
+			if failAt == effects {
+				failed = true
+				return errors.New("cleanup uncertainty")
+			}
+			return nil
+		}
+		wrap := func(base func(string) error) func(string) error {
+			return func(path string) error {
+				if err := effect(); err != nil {
+					return err
+				}
+				return base(path)
+			}
+		}
+		ops := resumeEnvironmentIO{removeAll: wrap(os.RemoveAll), remove: wrap(os.Remove), sync: wrap(syncResumeDirectory)}
+		f.d.CleanupGit = func(args ...string) (string, error) {
+			if len(args) > 1 && args[0] == "worktree" && args[1] == "remove" {
+				if err := effect(); err != nil {
+					return "", err
+				}
+			}
+			return f.d.Git(args...)
+		}
+		err := retireCompletedResumeEnvironmentWithIO(context.Background(), f.d, f.store, f.link, lock, []string{f.scratchRoot}, ops)
+		if failAt == 0 {
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err == nil || effects != failAt {
+				t.Fatalf("failure %d: effects=%d err=%v", failAt, effects, err)
+			}
+			if raw, e := os.ReadFile(filepath.Join(f.inflight, "run.log")); e != nil || string(raw) != "partial raw evidence" {
+				t.Fatalf("cleanup failure lost audit: %q %v", raw, e)
+			}
+		}
+		return effects
+	}
+	count := run(t, 0)
+	if count < 7 {
+		t.Fatalf("cleanup effects not observed: %d", count)
+	}
+	for at := 1; at <= count; at++ {
+		t.Run(fmt.Sprint(at), func(t *testing.T) { run(t, at) })
 	}
 }

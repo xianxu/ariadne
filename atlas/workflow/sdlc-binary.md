@@ -2727,14 +2727,15 @@ proof. Recognizing a pending link alone supplies no passing authority.
 
 `localcheck_resume_store.go` holds the immutable parent inode lock across
 recovery, verifies exact raw parent bytes and publishes synced proof with an
-exclusive link. `localcheck_resume_retention.go` pins pending bundles, validates
-terminal bundle age and retires under that lock: selectable parent unlink and
-successful directory sync first, ordinary logs/inflight next, link removal and
-sync next, terminal child/log or interruption receipt last. Crashes retain either
-the fence or an unselectable parent with a terminal witness for cleanup retry.
+exclusive link. `localcheck_resume_retention.go` permanently pins pending and
+interrupted/receipt graphs. Completed-child bundles retain their existing age
+and lock policy: selectable parent unlink and successful directory sync first,
+ordinary logs/inflight next, link removal and sync next, terminal child/log last.
+Crashes in completed-bundle GC retain either the fence or an unselectable parent
+with a terminal witness for the existing evidence-retirement protocol.
 Malformed/unreadable evidence retains data. Shared members/logs stay protected.
 The existing pruner skips all indexed bundle members during individual-file
-cleanup. M2 activates the commands and contextual composite-proof consumers below.
+cleanup. M3 activates the commands and contextual composite-proof consumers below.
 
 One flock on the existing attempts directory spans the protected-member snapshot
 and both bundle and legacy pruning. Publication acquires parent, then directory;
@@ -2753,53 +2754,59 @@ validates its supported link graph explicitly; the passing-reader refusal is
 not an admission rule for publishing interruption evidence.
 
 
-### Saved suite resume and terminal reconciliation (#463 M2)
+### Saved suite resume and evidence-only reconciliation (#463 M3)
 
-`localcheck_resume_cmd.go` exposes explicit suite-only resume on the original
-pushed SHA and operator/:0 reconciliation. `localcheck_resume.go` applies the
-pure transition table to link publication, one managed exact-package batch,
-child commit and status publication. The parent inode lock spans preparation,
-queue, execution, evidence and status retries. One reserved child and immutable
-link make a crash an unknown outcome, never permission to execute twice.
+The operator selected option A after M2's lifecycle re-review; M2 was superseded
+without closing. `localcheck_resume_cmd.go` exposes suite-only resume on the
+original pushed SHA and operator/:0 reconciliation. `localcheck_resume.go`
+applies the pure transition model to link publication, one managed exact-package
+batch, child commit and status publication. The parent inode lock spans
+preparation, queue, execution, evidence and status retries. One immutable link
+reserves one child before launch; later resume of pending proof never executes
+or starts cleanup again. Completed proof only revalidates/reposts.
 
 `localcheck_resume_saved.go` resolves every relevant linked parent from one
 indexed snapshot, hashes actual parent/child logs, and shares one current policy
 and registry read per decision. Saved reuse, explicit republish and every status
-retry use the same resolver. Composite outcomes overlay only in memory; original
+retry use this resolver. Composite outcomes overlay only in memory; original
 suite durations, raw records and measurement samples remain unchanged. Pending,
-failed, interrupted or invalid proof blocks both suite and affected success on
-that head, including a newer green run; unrelated named checks remain usable.
+failed, interrupted or invalid proof blocks suite and affected success on that
+head, including a newer green run; unrelated named checks remain usable.
 
-Reconciliation requires the exact raw link digest, same-host owner-incarnation
-absence and an operator attestation that descendants stopped. No automatic
-descendant discovery is claimed. The immutable receipt is terminal interrupted,
-never a pass or a new attempt. `localcheck_resume_environment.go` then retires only
-scratch and temporary checkout inputs bound through existing owner markers,
-exact child worktree lock reason, reverse Git pointers and detached SHA. Raw
-partial logs and the receipt remain. Queue tombstones retain their independent
-reconciliation contract. Retry finishes cleanup after a lost reply.
+Protected input preparation is fence → durable existing owner marker (file,
+child directory and inflight parent) → exact child Git lock → managed execution.
+On ordinary managed completion the original owner has one forward cleanup pass:
+confirm group shutdown, remove/confirm/sync scratch, remove/confirm/sync checkout
+while its registration still preserves the reverse pointer, remove/confirm/sync
+registration, then release/sync the marker. Child publication requires the whole
+pass to finish. First-pass inconsistencies, errors or crashes stop immediately,
+retain surviving inputs and persistent Git locks, and report needs-reconcile
+with the exact parent/digest command and retained paths. No missing-state
+success, reconstruction or cleanup retry is available. A completed test failure
+can remain a failed child; cleanup permission never grants test-result authority.
 
-Resume retains suite capacity while using the existing runner group-confirmation
-cleanup and Git artifact protection. A missing/unreadable cleanup authority
-retains inputs. The private production-main fixture is opt-in:
-`SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckResumeConformance$' -count=1 -v`.
-It proves real failure before registration, actual exact-package resume/post,
-repeat without execution, immutable original evidence, owner-only crash followed
-by explicit descendant termination and terminal reconciliation, and a later
-actual green suite refused by the guard. All Git, tracker, queue, scratch and
-transport state is private; no installed binary or production proof is repaired.
+Reconciliation checks the exact raw link digest, operator/:0 authority and
+same-host owner-incarnation absence, with the existing explicit attestation that
+descendants stopped. Descendant discovery is not automatic. It only publishes
+or returns immutable terminal interrupted evidence: no scratch/checkout/Git
+registration/marker deletion, unlock, execution or passing status. First and
+repeated requests have zero destructive effects. Queue tombstones keep their
+independent reconciliation contract. Fix/advance code to run another suite.
 
+Pending/interrupted graphs and all terminal/orphan receipts pin their identified
+records, raw logs and inflight members indefinitely, even when Git locks or
+owner markers are absent or unreadable. Successful completed-child cleanup keeps
+its existing 30-day bundle GC and strict nonblocking parent-lock discipline.
+Uncertain resumes can retain one checkout, scratch, raw output, link and receipt
+per reserved child; retained input bytes follow actual build/output size.
+Existing evidence budgets refuse rather than evict authority; there is no new
+automatic disk reclamation policy. Unused preparation that never launched keeps
+the accepted ordinary temporary-collector boundary.
 
-Protected resume inputs follow fence → durable existing owner marker (file,
-child directory and inflight parent synced) → exact child Git lock → managed
-execution. Strong group completion and confirmed/synced scratch, checkout and
-Git registration absence precede child commit. Checkout deletion happens while
-registration still retains its reverse pointer; registration deletion follows;
-owner marker release is last. Thus a committed-child/status-post crash has no
-locked inputs to strand. Uncertain cleanup remains pending for the existing
-operator receipt. Receipt-only cleanup of prepared unlocked inputs is a no-op:
-ordinary age collection owns those unprotected inputs. Terminal bundle/orphan
-receipt pruning retains any protected or unreadable owner binding, including
-nonregular/dangling markers, until cleanup authority can safely retire. The
-crash-window tests map every preparation, execution, cleanup, commit and receipt
-boundary without changing test-result authority or original suite measurements.
+Private production-main conformance is opt-in:
+`SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run '^(TestResumeCrash|TestLocalCheckResumeConformance)' -count=1 -v`.
+The private Git/tracker/queue/scratch/GH fixture covers actual pre-registration
+failure → exact-package resume/post/guard, unchanged original bytes, repeat
+without execution, every crash window, one-pass cleanup failures, evidence-only
+reconcile and repeated prune preservation, and later actual green refusal. All
+fixtures are private; no installed binary or production proof is repaired.

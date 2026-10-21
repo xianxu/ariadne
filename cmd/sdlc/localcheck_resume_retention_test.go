@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -208,7 +209,7 @@ func TestResumeRetentionReceiptAndFutureEvidence(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err = os.Stat(filepath.Join(root, "attempts", l.ID+".json"))
-			if os.IsNotExist(err) != (mode == "receipt") {
+			if err != nil {
 				t.Fatalf("receipt binding %s: %v", mode, err)
 			}
 		})
@@ -284,7 +285,7 @@ func TestResumeRetentionSharedMembersAndLogs(t *testing.T) {
 	}
 }
 
-func TestResumeRetentionOrphanReceiptRetry(t *testing.T) {
+func TestResumeRetentionOrphanReceiptRemainsPinned(t *testing.T) {
 	root, l, now := retentionFixture(t, false)
 	raw, err := os.ReadFile(filepath.Join(root, "attempts", l.ID+".json"))
 	if err != nil {
@@ -300,8 +301,8 @@ func TestResumeRetentionOrphanReceiptRetry(t *testing.T) {
 	if err := pruneSuiteAttempts(root, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "attempts", r.ID+".json")); !os.IsNotExist(err) {
-		t.Fatalf("orphan terminal witness remains: %v", err)
+	if _, err := os.Stat(filepath.Join(root, "attempts", r.ID+".json")); err != nil {
+		t.Fatalf("orphan receipt was lost: %v", err)
 	}
 }
 
@@ -341,42 +342,6 @@ func TestResumeRetentionDurableOrderAndOrphanLog(t *testing.T) {
 	}
 }
 
-func TestResumeRetentionReceiptFaultRetry(t *testing.T) {
-	for failAt := 1; failAt <= 11; failAt++ {
-		t.Run(fmt.Sprint(failAt), func(t *testing.T) {
-			root, l, now := retentionFixture(t, false)
-			raw, err := os.ReadFile(filepath.Join(root, "attempts", l.ID+".json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			r := ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: "dd", Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: l.RerunOf, LinkID: l.ID, LinkSHA256: resumeRecordDigest(raw), ChildID: l.ChildID, Actor: "operator", Note: "stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(time.Hour)}
-			retentionWrite(t, root, r.ID, r)
-			n := 0
-			wrap := func(base func(string) error) func(string) error {
-				return func(path string) error {
-					n++
-					if n == failAt {
-						return errors.New("receipt fault")
-					}
-					return base(path)
-				}
-			}
-			_, err = pruneResumeBundlesWithIO(root, now, resumeRetentionIO{remove: wrap(os.Remove), removeAll: wrap(os.RemoveAll), sync: wrap(syncResumeDirectory)})
-			if err == nil {
-				t.Fatalf("receipt fault %d missed (%d effects)", failAt, n)
-			}
-			if _, err := pruneResumeBundles(root, now); err != nil {
-				t.Fatal(err)
-			}
-			for _, id := range []string{l.RerunOf, l.ID, r.ID} {
-				if _, err := os.Stat(filepath.Join(root, "attempts", id+".json")); !os.IsNotExist(err) {
-					t.Fatalf("receipt retry retained %s: %v", id, err)
-				}
-			}
-		})
-	}
-}
-
 func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
 	for _, which := range []string{"parent", "child", "receipt-parent"} {
 		for _, measured := range []bool{false, true} {
@@ -397,7 +362,7 @@ func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
 					t.Fatal(err)
 				}
 				a.WallSeconds = nil
-				if measured {
+				if measured && !receipt {
 					a.WallSeconds = new(float64)
 				}
 				raw = retentionWrite(t, root, id, a)
@@ -432,7 +397,7 @@ func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
 				}
 				for _, path := range paths {
 					b, err := os.ReadFile(path)
-					if measured {
+					if measured && !receipt {
 						if !os.IsNotExist(err) {
 							t.Errorf("measured zero did not retire %s: %v", path, err)
 						}
@@ -446,7 +411,7 @@ func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
 						t.Errorf("incomplete completion changed %s", path)
 					}
 				}
-				if !measured {
+				if !measured || receipt {
 					protected, err := pruneResumeBundles(root, now)
 					if err != nil {
 						t.Fatal(err)
@@ -506,5 +471,141 @@ func TestResumeRetentionPinsUnreleasedEnvironmentAuthority(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestResumeRetentionInterruptedGraphsRemainPermanent(t *testing.T) {
+	for _, orphan := range []bool{false, true} {
+		t.Run(fmt.Sprintf("orphan=%t", orphan), func(t *testing.T) {
+			visits := []int{}
+			for _, n := range []int{8, 16} {
+				root := t.TempDir()
+				base := resumeCoreFixture(t)
+				now := base.Parent.FinishedAt.Add(100 * 24 * time.Hour)
+				if err := os.MkdirAll(filepath.Join(root, "failed"), 0700); err != nil {
+					t.Fatal(err)
+				}
+				for i := 0; i < n; i++ {
+					p := base.Parent
+					p.ID = fmt.Sprintf("%08x", i*4+1)
+					p.LogPath = filepath.Join("failed", p.ID+".log")
+					p.LogSHA256 = resumeRecordDigest([]byte("original failure"))
+					l := *resumeCoreLink(base)
+					l.RerunOf = p.ID
+					l.ID = fmt.Sprintf("%08x", i*4+2)
+					l.ChildID = fmt.Sprintf("%08x", i*4+3)
+					l.ParentLogSHA256 = p.LogSHA256
+					l.ParentRecordSHA256 = resumeRecordDigest(retentionWrite(t, root, p.ID, p))
+					raw := retentionWrite(t, root, l.ID, l)
+					r := ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: fmt.Sprintf("%08x", i*4+4), Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: p.ID, LinkID: l.ID, LinkSHA256: resumeRecordDigest(raw), ChildID: l.ChildID, Actor: "operator", Note: "stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(time.Hour)}
+					retentionWrite(t, root, r.ID, r)
+					if err := os.WriteFile(filepath.Join(root, p.LogPath), []byte("original failure"), 0600); err != nil {
+						t.Fatal(err)
+					}
+					inflight := filepath.Join(root, "inflight", l.ChildID)
+					if err := os.MkdirAll(inflight, 0700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(inflight, "run.log"), []byte("partial rerun"), 0600); err != nil {
+						t.Fatal(err)
+					}
+					marker := filepath.Join(inflight, runnerArtifactOwnerFile)
+					switch i % 4 {
+					case 1:
+						gitdir := filepath.Join(root, "unused-git", p.ID)
+						if err := os.MkdirAll(gitdir, 0700); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.WriteFile(marker, []byte("gitdir: "+gitdir+"\n"), 0600); err != nil {
+							t.Fatal(err)
+						}
+					case 2:
+						if err := os.WriteFile(marker, []byte("changed owner"), 0600); err != nil {
+							t.Fatal(err)
+						}
+					case 3:
+						if err := os.Mkdir(marker, 0700); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if orphan {
+						for _, id := range []string{p.ID, l.ID} {
+							if err := os.Remove(filepath.Join(root, "attempts", id+".json")); err != nil {
+								t.Fatal(err)
+							}
+						}
+					}
+				}
+				if err := filepath.WalkDir(root, func(path string, e os.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+					old := now.Add(-90 * 24 * time.Hour)
+					return os.Chtimes(path, old, old)
+				}); err != nil {
+					t.Fatal(err)
+				}
+				before := resumeEnvironmentSnapshot(t, root)
+				snapshot, err := readSuiteEvidence(root, testStatsRecordLimit)
+				if err != nil {
+					t.Fatal(err)
+				}
+				visits = append(visits, indexResumeRetention(snapshot).visits)
+				removals := 0
+				wrap := func(base func(string) error) func(string) error {
+					return func(path string) error { removals++; return base(path) }
+				}
+				for repeat := 0; repeat < 3; repeat++ {
+					if _, err := pruneResumeBundlesWithIO(root, now, resumeRetentionIO{remove: wrap(os.Remove), removeAll: wrap(os.RemoveAll), sync: syncResumeDirectory}); err != nil {
+						t.Fatal(err)
+					}
+					if err := pruneSuiteAttempts(root, now); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if removals != 0 {
+					t.Errorf("%d retained receipts caused %d removals", n, removals)
+				}
+				if !reflect.DeepEqual(before, resumeEnvironmentSnapshot(t, root)) {
+					t.Error("permanently retained graph changed bytes or paths")
+				}
+			}
+			if visits[1] != 2*visits[0] {
+				t.Fatalf("nonlinear retained-graph visits %v", visits)
+			}
+		})
+	}
+}
+
+func TestResumeRetentionAgedPendingGraphZeroEffects(t *testing.T) {
+	root, l, now := retentionFixture(t, false)
+	if err := filepath.WalkDir(root, func(path string, e os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		old := now.Add(-100 * 24 * time.Hour)
+		return os.Chtimes(path, old, old)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	before := resumeEnvironmentSnapshot(t, root)
+	removals := 0
+	remove := func(string) error { removals++; return errors.New("pending graph removal forbidden") }
+	for repeat := 0; repeat < 3; repeat++ {
+		protected, err := pruneResumeBundlesWithIO(root, now, resumeRetentionIO{remove: remove, removeAll: remove, sync: syncResumeDirectory})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, id := range []string{l.ID, l.RerunOf, l.ChildID} {
+			if !protected[id] {
+				t.Errorf("pending graph lost ID protection %s", id)
+			}
+		}
+		if err := pruneSuiteAttempts(root, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if removals != 0 || !reflect.DeepEqual(before, resumeEnvironmentSnapshot(t, root)) {
+		t.Fatalf("aged pending graph mutated: removals=%d", removals)
 	}
 }

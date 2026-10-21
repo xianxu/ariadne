@@ -5,8 +5,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -137,6 +139,7 @@ sys.exit('unexpected private gh command: '+repr(a))
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.cleanupRetainedFixture()
 	return f
 }
 
@@ -158,8 +161,10 @@ def stop(wt):
 op=''
 if 'worktree' in a:
  i=a.index('worktree'); op=a[i+1]
+if op in ['remove','unlock']:
+ with open(os.path.join(os.environ['PRIVATE_RESUME_MARKS'],'git-mutations'),'a') as f: f.write(op+'\n')
 if phase=='markerbeforelock' and op=='lock': stop(a[-1])
-if phase=='receiptcleanup' and op=='remove': stop(a[-1])
+if phase=='cleanupfault' and op=='remove': sys.exit('private first-pass Git remove failure')
 r=subprocess.run([os.path.join(os.path.dirname(__file__),'git-private-transport')]+a)
 if r.returncode==0 and phase=='prelink' and op=='add': stop(a[-2])
 if r.returncode==0 and phase=='afterlock' and op=='lock': stop(a[-1])
@@ -173,6 +178,97 @@ sys.exit(r.returncode)
 		f.t.Fatal(err)
 	}
 	f.t.Setenv("PRIVATE_RESUME_BARRIER", phase)
+	if err := os.WriteFile(filepath.Join(f.marks, "git-mutations"), nil, 0600); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+// Snapshot every surviving input/proof path and byte, including the exact Git
+// registration and lock. Only the one independently checked new audit receipt
+// is excluded. File contents are streamed to keep large build inputs bounded.
+func (f *privateResumeFixture) retainedInputs() map[string]string {
+	f.t.Helper()
+	excluded := map[string]bool{}
+	for _, r := range f.snapshot().Reconciliations {
+		excluded[filepath.Join(f.store, "attempts", r.ID+".json")] = true
+	}
+	state := map[string]string{}
+	for _, root := range []string{f.store, filepath.Join(f.root, ".git", "worktrees"), os.Getenv("WF_TEST_SCRATCH"), filepath.Join(f.marks, "git-mutations")} {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if excluded[path] {
+				return nil
+			}
+			value := info.Mode().String()
+			if info.Mode()&os.ModeSymlink != 0 {
+				target, e := os.Readlink(path)
+				if e != nil {
+					return e
+				}
+				value += " " + target
+			} else if info.Mode().IsRegular() {
+				file, e := os.Open(path)
+				if e != nil {
+					return e
+				}
+				h := sha256.New()
+				_, e = io.Copy(h, file)
+				closeErr := file.Close()
+				if e != nil {
+					return e
+				}
+				if closeErr != nil {
+					return closeErr
+				}
+				value += fmt.Sprintf(" %d %x", info.Size(), h.Sum(nil))
+			}
+			state[path] = value
+			return nil
+		})
+		if err != nil {
+			f.t.Fatal(err)
+		}
+	}
+	return state
+}
+func (f *privateResumeFixture) assertRetained(before map[string]string) {
+	f.t.Helper()
+	after := f.retainedInputs()
+	for path, value := range before {
+		if after[path] != value {
+			f.t.Fatalf("evidence-only reconcile/prune changed retained input %s: before %s, after %s", path, value, after[path])
+		}
+	}
+	for path := range after {
+		if _, ok := before[path]; !ok {
+			f.t.Fatalf("reconcile created input rather than only audit receipt: %s", path)
+		}
+	}
+}
+
+// Fixture teardown is an explicit test-owner action after preservation oracles;
+// it is not part of production reconciliation or its promised authority.
+func (f *privateResumeFixture) cleanupRetainedFixture() {
+	f.t.Helper()
+	f.t.Cleanup(func() {
+		transport := filepath.Join(os.Getenv("SDLC_QUEUE_BIN"), "git-private-transport")
+		if _, err := os.Stat(transport); os.IsNotExist(err) {
+			transport = filepath.Join(os.Getenv("SDLC_QUEUE_BIN"), "git")
+		}
+		root, _ := filepath.EvalSymlinks(f.root)
+		out, _ := exec.Command(transport, "-C", f.root, "worktree", "list", "--porcelain").Output()
+		for _, line := range strings.Split(string(out), "\n") {
+			if wt, ok := strings.CutPrefix(line, "worktree "); ok && wt != root {
+				_ = exec.Command(transport, "-C", f.root, "worktree", "unlock", wt).Run()
+				_ = exec.Command(transport, "-C", f.root, "worktree", "remove", "--force", "--force", wt).Run()
+			}
+		}
+	})
 }
 
 type privateResumeBarrier struct {
@@ -288,6 +384,7 @@ func (f *privateResumeFixture) reconcileArgs() []string {
 
 func (f *privateResumeFixture) reconcileWithoutExecution() {
 	f.t.Helper()
+	inputs := f.retainedInputs()
 	counts := f.counts()
 	statuses := f.read(f.statuses)
 	args := f.reconcileArgs()
@@ -296,15 +393,38 @@ func (f *privateResumeFixture) reconcileWithoutExecution() {
 	if len(s.Reconciliations) != 1 || len(s.Attempts) != 1 {
 		f.t.Fatalf("expected interruption without committed child: %+v", s)
 	}
+	f.assertRetained(inputs)
 	r := s.Reconciliations[0]
 	path := filepath.Join(f.store, "attempts", r.ID+".json")
 	raw := f.read(path)
 	f.cli(true, args...)
 	f.cli(false, f.resumeArgs()...)
+	f.assertRetained(inputs)
 	if f.counts() != counts || !bytes.Equal(statuses, f.read(f.statuses)) || !bytes.Equal(raw, f.read(path)) {
 		f.t.Fatal("recovery changed execution, publication or immutable receipt")
 	}
+	f.assertPinnedAfterPrune(inputs)
 	f.unchanged()
+}
+
+func (f *privateResumeFixture) assertPinnedAfterPrune(inputs map[string]string) {
+	f.t.Helper()
+	receipts := map[string][]byte{}
+	for _, receipt := range f.snapshot().Reconciliations {
+		path := filepath.Join(f.store, "attempts", receipt.ID+".json")
+		receipts[path] = f.read(path)
+	}
+	for i := 0; i < 2; i++ {
+		if err := pruneSuiteAttempts(f.store, time.Now().Add(2*suiteAttemptKeep)); err != nil {
+			f.t.Fatal(err)
+		}
+		f.assertRetained(inputs)
+		for path, raw := range receipts {
+			if !bytes.Equal(raw, f.read(path)) {
+				f.t.Fatal("pruning rewrote immutable audit receipt")
+			}
+		}
+	}
 }
 
 func TestResumeCrashPreLink(t *testing.T) {
@@ -437,8 +557,8 @@ func TestResumeCrashMarkerBeforeLock(t *testing.T) {
 		t.Fatal("Git lock acquired before lock-call barrier")
 	}
 	f.reconcileWithoutExecution()
-	// The exact child Git lock was never acquired, so destructive receipt
-	// cleanup has no lock authority. Ordinary unlocked preparation GC owns it.
+	// Evidence-only reconciliation leaves unused preparation alone. This
+	// never-locked checkout remains eligible for ordinary preparation GC.
 	old := time.Now().Add(-2 * localCheckStaleAge)
 	if err := os.Chtimes(b.WT, old, old); err != nil {
 		t.Fatal(err)
@@ -503,35 +623,58 @@ func TestResumeCrashCommittedChildStatusPost(t *testing.T) {
 	f.unchanged()
 }
 
-func TestResumeCrashTerminalReceiptBeforeCleanup(t *testing.T) {
+func TestResumeCrashTerminalReceiptHasZeroEffects(t *testing.T) {
 	privateResumeConformanceEnabled(t)
 	f := newPrivateResumeFixture(t)
 	f.installBarrier("afterlock")
 	f.killAtBarrier(f.resumeArgs()...)
-	// The first owner's marker is durable, and no execution was launched.
-	if err := os.Remove(filepath.Join(f.marks, "barrier.json")); err != nil {
-		t.Fatal(err)
-	}
-	f.t.Setenv("PRIVATE_RESUME_BARRIER", "receiptcleanup")
+	f.discoverableProtectedInputs()
+	before := f.retainedInputs()
+	counts, statuses := f.counts(), f.read(f.statuses)
 	args := f.reconcileArgs()
-	f.killAtBarrier(args...)
+	f.cli(true, args...)
 	s := f.snapshot()
 	if len(s.Reconciliations) != 1 || len(s.Attempts) != 1 {
-		t.Fatalf("cleanup preceded immutable interrupted receipt: %+v", s)
+		t.Fatalf("expected audit interruption only: %+v", s)
+	}
+	receiptPath := filepath.Join(f.store, "attempts", s.Reconciliations[0].ID+".json")
+	receipt := f.read(receiptPath)
+	f.assertRetained(before)
+	f.cli(true, args...)
+	f.assertRetained(before)
+	f.discoverableProtectedInputs()
+	if !bytes.Equal(receipt, f.read(receiptPath)) || f.counts() != counts || !bytes.Equal(statuses, f.read(f.statuses)) {
+		t.Fatal("audit reconcile rewrote receipt, launched or posted")
+	}
+	f.assertPinnedAfterPrune(before)
+	if !bytes.Equal(receipt, f.read(receiptPath)) {
+		t.Fatal("pruning changed immutable audit receipt")
+	}
+	f.unchanged()
+}
+
+func TestResumeCleanupFirstPassFailureReconcileHasZeroEffects(t *testing.T) {
+	privateResumeConformanceEnabled(t)
+	f := newPrivateResumeFixture(t)
+	f.installBarrier("cleanupfault")
+	out := f.cli(false, f.resumeArgs()...)
+	if !strings.Contains(out, "reconcile") || !strings.Contains(out, f.parent.ID) {
+		t.Fatalf("first-pass fault lacks exact reconciliation recovery: %s", out)
+	}
+	s := f.snapshot()
+	if len(s.Resumes) != 1 || len(s.Attempts) != 1 {
+		t.Fatalf("cleanup fault committed completion: %+v", s)
 	}
 	f.discoverableProtectedInputs()
-	r := s.Reconciliations[0]
-	path := filepath.Join(f.store, "attempts", r.ID+".json")
-	raw := f.read(path)
-	counts := f.counts()
-	statuses := f.read(f.statuses)
-	f.cli(true, args...)
-	f.cli(true, args...)
-	if !bytes.Equal(raw, f.read(path)) || f.counts() != counts || !bytes.Equal(statuses, f.read(f.statuses)) {
-		t.Fatal("lost cleanup reply changed receipt/execution/publication")
+	if f.counts() != "suite\n/executed\nexecuted\n/executed\nexecuted\n" {
+		t.Fatal("first pass did not execute exactly one targeted rerun")
 	}
-	f.noPreparedWorktree()
-	f.unchanged()
+	if mutations := string(f.read(filepath.Join(f.marks, "git-mutations"))); mutations != "remove\n" {
+		t.Fatalf("failed first cleanup pass performed later destructive effects: %q", mutations)
+	}
+	f.t.Setenv("PRIVATE_RESUME_BARRIER", "")
+	f.reconcileWithoutExecution()
+	f.discoverableProtectedInputs()
 }
 
 func (f *privateResumeFixture) read(path string) []byte {
@@ -634,6 +777,7 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 	})
 	t.Run("running", func(t *testing.T) {
 		f := newPrivateResumeFixture(t)
+		f.installBarrier("")
 		if e := os.WriteFile(filepath.Join(f.marks, "block"), nil, 0600); e != nil {
 			t.Fatal(e)
 		}
@@ -701,21 +845,25 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 		digest := resumeRecordDigest(linkRaw)
 		counts := f.counts()
 		before := f.read(f.statuses)
+		retained := f.retainedInputs()
 		args := []string{"local-check", "reconcile", "--attempt", f.parent.ID, "--link-digest", digest, "--note", "private operator verified recorded fixture descendants stopped"}
 		f.cli(true, args...)
 		s = f.snapshot()
 		if len(s.Reconciliations) != 1 || len(s.Attempts) != 1 || s.Reconciliations[0].Outcome != "interrupted" {
 			t.Fatalf("terminal interruption: %+v", s)
 		}
-		f.noPreparedWorktree()
+		f.assertRetained(retained)
 		r := s.Reconciliations[0]
 		receiptPath := filepath.Join(f.store, "attempts", r.ID+".json")
 		receipt := f.read(receiptPath)
 		f.cli(true, args...)
 		f.cli(false, f.resumeArgs()...)
+		f.assertRetained(retained)
 		if f.counts() != counts || !bytes.Equal(before, f.read(f.statuses)) || !bytes.Equal(receipt, f.read(receiptPath)) || !bytes.Equal(linkRaw, f.read(filepath.Join(f.store, "attempts", link.ID+".json"))) {
 			t.Fatal("reconciliation/repeat changed execution, immutable proof or published status")
 		}
+		f.assertPinnedAfterPrune(retained)
+		f.discoverableProtectedInputs()
 		if e := os.Remove(filepath.Join(f.marks, "block")); e != nil {
 			t.Fatal(e)
 		}
@@ -738,6 +886,7 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 		}
 		f.unchanged()
 		f.noDecoys()
-		t.Log("PRIVATE crash: CLI owner killed after real rerun barrier; recorded descendants stopped; operator reconcile immutable interruption only; no retry/pass; later green blocked")
+		f.discoverableProtectedInputs()
+		t.Log("PRIVATE crash: recorded descendants stopped; first/repeat reconcile and prune preserve every remaining input and Git lock; audit receipt only, no retry/pass; later green blocked")
 	})
 }

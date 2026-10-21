@@ -108,7 +108,7 @@ func newLocalCheckReconcileCmd(authority landingDeps) *cobra.Command {
 		if err := reconcileSavedResume(commandContext(c.Context()), d, parent, digest, note, actor); err != nil {
 			return err
 		}
-		fmt.Fprintf(c.ErrOrStderr(), "==> resume %s terminally interrupted; fix/advance code and run a suite on a new head\n", parent)
+		fmt.Fprintf(c.ErrOrStderr(), "==> resume %s terminally interrupted; surviving inputs retained, no cleanup attempted; fix/advance code and run a suite on a new head\n", parent)
 		return nil
 	}}
 	c.Flags().StringVar(&parent, "attempt", "", "parent attempt ID")

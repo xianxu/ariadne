@@ -286,7 +286,7 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	}
 	if in.Child == nil {
 		out.State = ResumeLinked
-		out.Reason = "reserved child has no committed completion; wait or reconcile"
+		out.Reason = "reserved child has no committed completion; needs reconcile after the active owner and descendants stop"
 		out.Outcome = flakes.Outcome{}
 		return out
 	}

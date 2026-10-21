@@ -144,13 +144,14 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if err = resumeAdvance(&state, ResumeRequested, ResumePublishLink); err != nil {
 		return rec, err
 	}
+	fmt.Fprintf(d.Stderr, "==> resume prepared parent %s child %s\n    checkout %s\n    raw log %s\n", parent, w.ID, wt, w.LogPath)
 	// Once publication is attempted, a lost fsync reply may still leave the fence.
 	linked = true
 	if err = publishResumeEvidence(store, lock, raw); err != nil {
-		return rec, err
+		return rec, fmt.Errorf("needs reconcile: link publication unconfirmed: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	if err = protectResumeEnvironment(d, wt, w.ID, filepath.Dir(w.LogPath)); err != nil {
-		return rec, fmt.Errorf("resume inputs not protected: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+		return rec, fmt.Errorf("needs reconcile: resume inputs not protected: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	if err = resumeAdvance(&state, ResumeLinkPublished, ResumeLaunch); err != nil {
 		return rec, err
@@ -169,15 +170,15 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	run, err := runUnderSlotBatch(ctx, d, wt, helper, logDir, suiteCheckName, sha, 1, subject, commands, w.LogPath, min(knownFlakeRerunTimeout, time.Duration(c.TimeoutMinutes)*d.minute))
 	if err != nil {
 		_ = resumeAdvance(&state, ResumeUncertain, "")
-		return rec, fmt.Errorf("resume completion unknown: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+		return rec, fmt.Errorf("needs reconcile: resume completion unknown: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	logSHA, _, err := hashAndTail(w.LogPath, localCheckTailLines)
 	if err != nil {
-		return rec, err
+		return rec, fmt.Errorf("needs reconcile: targeted raw log unavailable: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	log, err := readLocalCheckLog(w.LogPath)
 	if err != nil {
-		return rec, err
+		return rec, fmt.Errorf("needs reconcile: targeted raw log unreadable: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	facts := parseSuiteLogFacts(string(log))
 	if run.TimedOut || run.Exit < 0 {
@@ -191,16 +192,16 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	child := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: d.Repo, SHA: sha, Check: suiteRerunCheck, Slot: in.Parent.Slot, Agent: in.Parent.Agent, Model: in.Parent.Model, Effort: in.Parent.Effort, StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired), QueueSeconds: &wait, WallSeconds: &wall, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA, Failures: facts.Failures, Units: facts.Units, Outcome: string(o.Kind), KnownFlakes: o.Known, RerunOf: parent}
 	if err = retireCompletedResumeEnvironment(ctx, d, store, link, lock); err != nil {
 		_ = resumeAdvance(&state, ResumeUncertain, "")
-		return rec, fmt.Errorf("resume inputs not confirmed retired: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+		return rec, fmt.Errorf("needs reconcile: resume inputs not confirmed retired: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	if err = ctx.Err(); err != nil {
-		return rec, err
+		return rec, fmt.Errorf("needs reconcile: canceled before child commit: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	if err = resumeAdvance(&state, ResumeCompletionConfirmed, ResumeCommitChild); err != nil {
 		return rec, err
 	}
 	if _, err = publishSuiteAttempt(store, w, child); err != nil {
-		return rec, fmt.Errorf("resume child completion not committed: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+		return rec, fmt.Errorf("needs reconcile: resume child completion not committed: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
 	if err = resumeAdvance(&state, ResumeChildPublished, ""); err != nil {
 		return rec, err
@@ -244,6 +245,10 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 		return errors.New("committed child cannot be reconciled; validate its proof or fix a new head")
 	}
 	l := *in.Link
+	auditOnly := func() error {
+		fmt.Fprintf(d.Stderr, "==> interrupted audit retained at %s; surviving input references %s; no cleanup attempted\n", store, filepath.Join(store, "inflight", l.ChildID))
+		return nil
+	}
 	if l.Owner.Host != hostName() {
 		return errors.New("resume owner host differs; owner absence is unproved")
 	}
@@ -264,7 +269,7 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 		if in.Receipt.LinkSHA256 != digest {
 			return errors.New("receipt digest conflict")
 		}
-		return retireResumeEnvironment(ctx, d, store, l, *in.Receipt)
+		return auditOnly() // Existing receipt is audit only; reconciliation never retries cleanup.
 	}
 	state := ResumeUnknown
 	if err = resumeAdvance(&state, ResumeReconcileAuthorized, ResumePublishReceipt); err != nil {
@@ -285,7 +290,7 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 	if err = resumeAdvance(&state, ResumeReceiptPublished, ""); err != nil {
 		return err
 	}
-	return retireResumeEnvironment(ctx, d, store, l, receipt)
+	return auditOnly() // Operator option A: retain every surviving input; audit only.
 }
 
 func postResumeRecord(ctx context.Context, d localRunDeps, rec localRunRecord) error {
@@ -299,9 +304,29 @@ func confirmResumeScratchCleanup(scratch scratchPreparation) error {
 	if scratch.Dir == "" || scratch.Cleanup == nil {
 		return errors.New("resume scratch cleanup authority unavailable")
 	}
+	info, err := os.Lstat(scratch.Dir)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("resume scratch initial directory unavailable: %v", err)
+	}
 	scratch.Cleanup()
 	if _, err := os.Lstat(scratch.Dir); !os.IsNotExist(err) {
 		return &runnerCleanupUnconfirmed{Detail: fmt.Sprintf("resume scratch %s absence unconfirmed: %v", scratch.Dir, err)}
 	}
 	return syncResumeDirectory(filepath.Dir(scratch.Dir))
+}
+
+func finishResumeScratch(d localRunDeps, run suiteSlotRun, scratch scratchPreparation, runErr error) error {
+	stop := func(cause error) error {
+		if d.runnerLifetime != nil {
+			d.runnerLifetime.retirable = false
+		}
+		return errors.Join(cause, &runnerCleanupUnconfirmed{Detail: "needs reconcile; remaining resume scratch and inputs retained"})
+	}
+	if runErr != nil || run.TimedOut || run.Exit < 0 || run.Exit > 125 || d.runnerLifetime == nil || !d.runnerLifetime.mayRetire() {
+		return stop(runErr)
+	}
+	if err := confirmResumeScratchCleanup(scratch); err != nil {
+		return stop(err)
+	}
+	return nil
 }

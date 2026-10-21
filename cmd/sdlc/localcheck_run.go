@@ -459,16 +459,12 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		return run, err
 	}
 	defer func() {
+		if d.StrictGroupCleanup {
+			err = finishResumeScratch(d, run, scratch, err)
+			return
+		}
 		if d.runnerLifetime.mayRetire() {
-			if d.StrictGroupCleanup {
-				if cleanupErr := confirmResumeScratchCleanup(scratch); cleanupErr != nil {
-					d.runnerLifetime.retirable = false
-					err = errors.Join(err, cleanupErr)
-					return
-				}
-			} else {
-				scratch.Cleanup()
-			}
+			scratch.Cleanup()
 			if resource == "runner" {
 				_ = os.Remove(filepath.Join(filepath.Dir(logPath), runnerArtifactOwnerFile))
 			}
