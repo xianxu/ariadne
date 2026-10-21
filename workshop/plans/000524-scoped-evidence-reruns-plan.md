@@ -84,11 +84,11 @@ This landing creates no cross-event resume state, lock or durable coordination r
 
 **Files:** new teststats_evidence.go/test; teststats_store.go/test; localcheck_republish.go/test; teststats_cmd.go/test and existing flake/actual readers as the caller audit requires; atlas/workflow/sdlc-binary.md.
 
-- [ ] Write RED mixed-store tests through actual consumers: one valid future/v3 envelope, a supported parent and unrelated supported records. Explicit unsupported selection refuses newer-reader; unrelated repo/head/named-check reuse and republish succeed. Same-head unknown test evidence cannot silently authorize suite/affected success.
-- [ ] Implement decodeUnsupportedProof, unsupportedProofBlocks and readSuiteEvidenceBudget using the named adversarial strategies above; retain strict supported-record validation and untouched raw unknown bytes.
-- [ ] Route every authority consumer through the scoped view. Test actual/statistics/registration projection against unrelated valid rows, with explicit unsupported coverage and no fake samples. Count scans/record visits at N and2N; reject per-record whole-store rescans.
-- [ ] Retain a pre-change decoder/guard control proving a v3 record currently poisons the whole snapshot; test the upgraded compatibility reader against the same store and assert scoped refusal only. Do not label the already-built pre-change binary compatible.
-- [ ] Document the two-landing rollout barrier in atlas and close M1 using the binary review. No v3 writer is present.
+- [x] Write RED mixed-store tests through actual consumers: one valid future/v3 envelope, a supported parent and unrelated supported records. Explicit unsupported selection refuses newer-reader; unrelated repo/head/named-check reuse and republish succeed. Same-head unknown test evidence cannot silently authorize suite/affected success.
+- [x] Implement decodeUnsupportedProof, unsupportedProofBlocks and readSuiteEvidenceBudget using the named adversarial strategies above; retain strict supported-record validation and untouched raw unknown bytes.
+- [x] Route every authority consumer through the scoped view. Test actual/statistics/registration projection against unrelated valid rows, with explicit unsupported coverage and no fake samples. Count scans/record visits at N and2N; reject per-record whole-store rescans.
+- [x] Retain a pre-change decoder/guard control proving a v3 record currently poisons the whole snapshot; test the upgraded compatibility reader against the same store and assert scoped refusal only. Do not label the already-built pre-change binary compatible.
+- [ ] Documented the two-landing rollout barrier in atlas; close M1 using the binary review. No v3 writer is present.
 
 ## M2 — Exact-package managed reruns and delivery preparation
 

@@ -2619,3 +2619,26 @@ The Go lint catalog includes `test-sweep-private-root` (#509): test calls to the
 Landing trains enter `PhaseChecking` after the successful final-prefix suite (also after docs reintegration). `RunLandingChecks` produces typed `LandingChecksDone`; only a current-prefix pass permits `WaitCI`. Check failure refuses that prefix without suite bisection or baseline diagnosis.
 
 `landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.
+
+
+### Reader-first attempt compatibility (#524, prerequisite for #463)
+
+`teststats_evidence.go` projects the bounded attempt store into supported runs,
+strictly identified unsupported proof, and unscopable read warnings. A future
+record retains its original bytes and cannot provide outcomes or measurements.
+Saved-proof selection, republish and success guards report “needs a newer sdlc”
+for its exact ID, subject or linked parent; unrelated repo/head/named-check
+proof remains usable. Suite and affected share their existing same-head test
+failure authority. Unreadable, malformed, ambiguous or budget-truncated input
+still prevents proof of completeness. Statistics and actuals keep supported
+measurements with explicit unavailable-record coverage; flake registration
+cannot use unsupported authority or substitute a legacy log for it.
+
+**Activation barrier:** pre-#524 binaries treat a v3 record as a global invalid
+record. A payload cannot retrofit that old reader. This landing writes no v3
+record or ResumeLink and enables no resume command. After it lands the TL must
+upgrade every slot's actual sdlc; verify the binary path and build revision
+across slots before #463's separate writer/activation landing. A stale or
+unverified reader keeps activation held. Never hide links from older readers.
+The later resume design must also name one real recovery command for crashed
+pending proof; queue reconciliation alone does not repair a resume link.
