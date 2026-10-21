@@ -65,6 +65,8 @@ The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow d
 
 2026-10-21: Claimed and start-plan from current main after #502/PR370 landed. Root-cause trace: runSuite feeds only booleans into Train.Results; Bisect finds adjacent pass/fail bounds and split immediately emits Hold, without re-reading historical failure facts or current registrations. A bounded independent read confirmed that tracker.Fresh alone can reuse the command scope and that directory-only equality misses dependency/test/embed inputs (ARCH-DRY, ARCH-ORDER). Existing Release clears its outcome and waits again automatically, so unconditional release could form an unbounded retrain loop. Baseline pure packages passed: landingline 7.021s, flakes 0.140s, affected 0.396s. No new regression, production code or gate configuration changed yet.
 
+2026-10-21 08:45: Authenticated Couch restart notices. Re-read this Log; clean issue branch and pushed plan survived. sdlc queue status reported complete=true with only peer operations; landing status showed #524/ariadne:3, no owned runner. GitHub still confirms #502 PR370 merged at 15:35:16Z; #527 has no PR or recorded check yet. All own earlier checks/runners had completed before the restart; restarted/requeued nothing. Clarified exact new regression command names in the draft plan before sending it for approval.
+
 ## Revisions
 
 2026-10-21: Refined the original behavior into a proposed attribution boundary and explicit safe stop policy. Registration/untouchedness prevent blame but do not waive passing evidence. The plan proposes final unattributed refusal for unresolved cars rather than immediate automatic retrain; TL approval is required before implementation.

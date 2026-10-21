@@ -86,7 +86,7 @@ Files: cmd/sdlc/internal/landingline/attribution_test.go, trainstate_test.go, cm
 - [ ] Add a production two-car regression shaped like train234: full train fails broadcast.TestHubRandomInterleavings, an independent tracker writer registers its exact parent/leaf after fail→pass evidence, the lower prefix passes, and the old implementation wrongly Holds the scribe-only second car. Assert named unattributed outcome, no culprit and no failed-prefix merge. Cover registration already present as well as arriving during split.
 - [ ] Add independent-package and positive controls: touched unregistered failure still holds, changed imported dependency stays relevant, embed/testdata changes are not classified untouched, mixed failures name only the supported culprit.
 - [ ] Add parser/authority controls: registered leaf versus coarsened parent, sibling unknown failure, closed/removed registration, policy off, persistent failure, unreadable log/hash mismatch/registry/graph, no true green baseline for lo=0.
-- [ ] Run new named regressions RED before production changes; preserve current culprit split test as a compatibility control.
+- [ ] Run new named regressions RED before production changes; preserve current culprit split test as a compatibility control. Commands: go test ./cmd/sdlc -run '^(TestLandingTrainSplitRefreshesRegisteredFlake|TestLandingTrainSplitDoesNotBlameUntouchedPackage|TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix|TestTrainSuiteOutcome)$' -count=1; go test ./cmd/sdlc/internal/landingline -run '^(TestSplitAttribution|TestTrainSplit)' -count=1. New tests use those exact prefixes; expect the two new production regressions to expose a wrong Hold before the fix.
 
 ### 2. Add the pure attribution boundary
 
