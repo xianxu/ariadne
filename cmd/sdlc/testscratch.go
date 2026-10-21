@@ -116,7 +116,7 @@ func sweepStaleTemp(dir string, runDirs bool, now time.Time, alive func(int) boo
 			pid, _ := strconv.Atoi(m[1])
 			stale = old || !alive(pid)
 		}
-		if stale {
+		if stale && !runnerArtifactProtected(filepath.Join(dir, name)) {
 			_ = os.RemoveAll(filepath.Join(dir, name))
 		}
 	}

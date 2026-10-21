@@ -242,6 +242,7 @@ type trainSetup struct {
 	// validate runs the instance gate in the cars' merges (landingFlags
 	// turns it off); see gateInstancesByReading.
 	validate bool
+	noCI     bool // explicit CI waiver still owes selected landing checks
 }
 
 type trainRootKey struct{}
@@ -321,6 +322,7 @@ func (s *trainSetup) merge(root string) <-chan error {
 	done := make(chan error, 1)
 	go func() {
 		f := landingFlags()
+		f.NoCI = s.noCI
 		f.NoValidate = !s.validate
 		ctx := context.WithValue(context.Background(), trainRootKey{}, root)
 		f.Context = ctx

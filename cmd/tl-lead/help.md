@@ -120,9 +120,17 @@ SHAPING (product definition before issue-level SDLC)
     and where each action leads. Include empty, error and long-list states.
     All screens read one fixtures.json so fake data stays consistent; plain
     links and a little JS connect the states. Every state is sketchable.
-  - Keep numbered versions (mock-1, mock-2, ...), with a current version.
+  - Each round of operator feedback refines the current mock version in place
+    and is one commit to that version (e.g. mock-3: round 4: ...). Undo/redo
+    is Git: "undo the last round" means the agent runs git revert on that
+    commit and the mock server reloads; the operator never touches git.
+  - Keep numbered versions (mock-1, mock-2, ...), with a current version, as
+    separate mock-N/ folders committed to git (not branches), sharing one root
+    fixtures.json. Create mock-N+1 only for a different direction worth comparing
+    side by side. Older versions stay servable by URL.
     Each sketch/note belongs to its version and screen; a new version starts
-    clean. Ask the agent to change the current version when reverting:
+    clean. Ask the agent to change the current version when switching back to
+    an earlier direction:
     the old sketches reappear, because they were retained, not deleted.
 
   Mock to real:

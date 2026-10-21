@@ -63,6 +63,12 @@ TESTS
   refuses to post a passing rerun over an unexplained failure; fix
   reproducible branch defects on the branch. A second unrelated flake on the same head
   means stop and ask the hub. Never use a blind passing retry as evidence.
+  Checkpoint before queuing a long recorded check, or after it finishes.
+  Do not checkpoint a continuation or restart while your own recorded check is
+  queued or running in your terminal: a restart can lose the check and FIFO place.
+  If a restart cannot wait, tell the hub first; let it decide whether to wait or
+  cancel and requeue. After any restart, verify retained checks: confirm the live
+  run or its completed result on the exact head before assuming it survived.
   Stop your own check with `sdlc local-check cancel`; never kill a PID found
   by `ps`, where every slot's suite looks the same.
 

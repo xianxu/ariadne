@@ -116,7 +116,7 @@ func TestSuiteRawFailureAncestryCoarsens(t *testing.T) {
 func TestKnownFlakeGateCannotRegisterAQuotedLeaf(t *testing.T) {
 	d, sha, gh, _ := localRunRepo(t, "acquired")
 	d.FlakeRegistry = gateRegistry(t, "example.com/outer.TestOuter/helper")
-	asked := scriptRerun(t, "printf -- '--- PASS: TestOuter (0.01s)\\n    --- PASS: TestOuter/helper (0.01s)\\nok example.com/outer 0.1s\\n'")
+	asked := scriptRerun(t, rerunPassJSON("example.com/outer.TestOuter/helper"))
 	log := "--- FAIL: TestOuter (0.01s)\n    x_test.go:9: nested command failed:\n" +
 		"            --- FAIL: TestOuter/helper (0.01s)\nFAIL example.com/outer 0.2s\n"
 	c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", log}, TimeoutMinutes: 30}
@@ -170,7 +170,7 @@ func TestKnownFlakeGateMixedWhitespaceQuotation(t *testing.T) {
 		t.Run(fmt.Sprintf("%x", prefix), func(t *testing.T) {
 			d, sha, gh, _ := localRunRepo(t, "acquired")
 			d.FlakeRegistry = gateRegistry(t, "example.com/outer.TestOuter/helper")
-			asked := scriptRerun(t, "printf -- '--- PASS: TestOuter (0.01s)\\n    --- PASS: TestOuter/helper (0.01s)\\nok example.com/outer 0.1s\\n'")
+			asked := scriptRerun(t, rerunPassJSON("example.com/outer.TestOuter/helper"))
 			log := "--- FAIL: TestOuter (0.01s)\n" + prefix + "--- FAIL: TestOuter/helper (0.01s)\nFAIL example.com/outer 0.2s\n"
 			c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", log}, TimeoutMinutes: 30}
 			rec, err := runLocalCheck(context.Background(), d, c, sha)
@@ -186,7 +186,7 @@ func TestKnownFlakeGateQuotedNestedOutput(t *testing.T) {
 		t.Run(registered, func(t *testing.T) {
 			d, sha, gh, stderr := localRunRepo(t, "acquired")
 			d.FlakeRegistry = gateRegistry(t, registered)
-			asked := scriptRerun(t, "printf -- '--- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees (0.01s)\\n    --- PASS: TestContinuationWriterPublishesExactCheckpointAcrossWorktrees/warm-reattached (0.01s)\\nok github.com/xianxu/pair/cmd/internal/couchcmd 0.02s\\n'")
+			asked := scriptRerun(t, rerunPassJSON(nestedOuter))
 			c := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", `printf '%s' "$1"; exit 1`, "fixture", nestedSuiteLog(t)}, TimeoutMinutes: 30}
 			rec, err := runLocalCheck(context.Background(), d, c, sha)
 			wantPass := registered == nestedOuter

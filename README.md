@@ -573,9 +573,14 @@ machine's suite slots. It is one file per machine beside the suite lock:
   per car. It runs one suite and CI on its train PR, merges that PR once, and
   GitHub marks each car's PR merged. Each car's own `sdlc merge` then finishes
   its cleanup.
-- **Holds:** a car that conflicts with the train is held. An unexplained suite
-  failure is bisected: the culprit is held, the clean prefix lands, and the cars
-  behind it ride the next train at once.
+- **Membership and holds:** the first banner names candidates; the composed
+  membership is printed before suites. A held car prints its reason and the
+  branch-specific recovery command, then exits. Fix the problem, integrate main,
+  and re-close before retrying. If the conductor’s own car is held during
+  composition, it stops before publishing and releases survivors to reform under
+  the next conductor. Its checkout cannot cancel that other checkout’s suite.
+  An unexplained suite failure is bisected: the culprit is held, the clean prefix
+  lands, and the cars behind it ride the next train at once.
 - **Refusals:** a known flake gets its #394 rerun and never splits. Main failing
   the same way refuses the train, and so does red CI on the train PR.
 - **Riding alone:** a fleet-blocking grant departs at once and lands alone,
@@ -592,19 +597,52 @@ for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three code integrations); conflicts abort with the paths to resolve.
 Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
 for the exact PR/head and live base allows the tested head to land unchanged;
-otherwise normal integration and exact-head CI apply. The narrow record policy
+landing trains use the same proof to preserve their checked head and CI, with
+selected landing-check evidence still valid and destination gates rechecked.
+Otherwise normal integration and exact-head CI apply. Card Markdown qualifies;
+tracker configuration does not. The narrow record policy
 is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
-runs one on a pushed head under the machine-wide suite lock and records it as
+runs one on a pushed head (under the machine-wide suite lock by default) and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
-`sdlc local-check cancel` stops this checkout's own queued or running checks and
-never another slot's; never stop one by a PID picked from `ps`. When a finished
+Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
+and `resource: "runner"` for checks whose runner owns independent capacity.
+A landing entry must explicitly declare `required` and `resource`; runner checks
+cannot declare suite `weight` or CI `substitutes`. The path file is
+`{"version":1,"paths":["glob",...]}` with ordered includes/exclusions. Policies
+are read from the pinned main tree. Existing version1 declarations keep their
+per-head defaults. `local-check run --all` excludes landing checks; name one
+explicitly for manual execution. Runner checks use no suite slot and retain
+30s of graceful process-group cancellation even after the immediate leader exits.
+Unconfirmed cleanup retains checkout, scratch and raw logs under the same Git
+worktree lock and leaves queue activity unknown for operator reconciliation.
+Runner execution refuses if its attempt writer cannot be created. Retention has
+no automatic expiry while ownership is held or unreadable. After proving that
+all owned descendants stopped, reconcile the queue and remove the named scratch
+and log directories, then unlock/remove the retained worktree; preserve Git
+metadata until linked artifacts are reconciled. SDLC never unlocks VM positions.
+Enabled (`required:true`) landing checks run after the successful final-prefix
+suite, once per landing owner, before train or single-car merge. Selection unions
+each included car's paths, so a later revert cannot hide an earlier trigger.
+Failures block without VM retries, suite bisection or main-baseline diagnosis.
+A bare saved/manual status does not replace the owner-bound gate. Only proven
+unwatched docs equivalence may reuse that owner's original exact-head evidence;
+a watched `.md` change still invalidates it. `--no-ci` still owes the suite and
+selected landing checks. Disabled entries run only by explicit name on pinned
+main for burn-in. This capability activates no consumer or hosted workflow.
+
+`sdlc local-check cancel --run ID` stops exactly one owned queued or running
+check, using the lease ID printed when it starts. `--name N` cancels every owned
+run of that check; omitting both cancels every owned check. These selectors never
+cross checkouts. A same-check run on a different head prints an exact cancel
+command for the existing run; both keep their FIFO places until explicitly
+cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
 
@@ -629,7 +667,9 @@ to finish without another audit entry. It never resumes holds or restarts work.
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.
-`tl-worker --help` describes the durable checkpoint and drain acknowledgment.
+`tl-worker --help` describes the durable checkpoint and drain acknowledgment,
+continuation/restart timing around owned recorded checks, and verification of
+retained checks after a restart.
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 For generated Go graph inputs, that file can include
@@ -682,7 +722,7 @@ trailers cannot change its package.
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the
-  subtest's PASS line.
+  subtest's package-bound JSON PASS event.
 - **Evidence:** registering a subtest needs the top-level test's same-head
   fail→pass, and the failed attempt's saved log must name that subtest.
 - **Correcting a registration:**
@@ -707,7 +747,10 @@ visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
 are shown as not covered until #451.
 When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
-reruns just those tests once on the same head. Each must show a PASS line, and its
+reruns just those tests once on the same head, grouped into exact-package
+commands under one weight-1 lease and total timeout. Registered subtests run
+their whole top-level test, including siblings. Each required test and package
+must have a matching structured JSON PASS event, and its
 flake issue must still be open when the result is posted; then the status reads
 "pass · known flake #N rerun". Any other failure blocks: an unregistered test, a
 build error or timeout, or a known flake failing again. A full rerun that passes
@@ -731,6 +774,23 @@ docs-only changes such as close's bookkeeping or main prose publication. Code,
 tests, configuration and embedded help invalidate reuse and require another run.
 When the integrated head's suite fails, merge runs an unrecorded copy on main
 and labels the named failures as introduced or pre-existing in its refusal.
+
+Reader-first compatibility verification is opt-in:
+`sh scripts/verify-pre524-reader.sh` runs the committed control against pinned
+pre-#524 source in a private clone. It proves the old global refusal; the new
+reader scopes “needs a newer sdlc” to related proof. The invoker owns the printed
+scratch directory: inspect its evidence, then remove that directory. No live
+binary or production store is changed. Before #463 may activate resume links,
+the TL must upgrade every slot's actual sdlc and verify paths/revisions; any
+stale or unverified reader keeps activation held. See the
+[reader-first rollout contract](atlas/workflow/sdlc-binary.md#reader-first-attempt-compatibility-524-prerequisite-for-463).
+
+The private phase1 executable conformance is opt-in:
+`SDLC_PRIVATE_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckPhase1Conformance$' -count=1 -v`.
+It runs the production CLI against private Git, tracker, queue, lock and fake
+GitHub state, proving scoped future evidence and exact-package decoy exclusion.
+Its temporary inputs and outputs are removed automatically after inspection
+inside the test; it changes no installed binary or live store.
 
 `sdlc test-stats` reads saved suite attempts across local sibling repositories
 and reports wall and queue percentiles, slow packages or shards, and named

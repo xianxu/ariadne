@@ -152,6 +152,15 @@ func TestRules(t *testing.T) {
 		{"test-shrunk-deadline", "limit = 50 * time.Millisecond", true, false},
 		{"test-shrunk-deadline", "fooTimeout = 50 * time.Millisecond", false, false},
 		{"test-shrunk-deadline", "cfg.ShutdownGrace = 10 * time.Millisecond", true, true},
+		// Struct literal fields bypassed the assignment-only guard (#514).
+		{"test-shrunk-deadline", "c := client{timeout: 300 * time.Millisecond}", true, true},
+		{"test-shrunk-deadline", "c := client{Deadline: time.Millisecond}", true, true},
+		{"test-shrunk-deadline", "c := client{timeout: time.Second}", true, false},
+		{"test-shrunk-deadline", "c := client{timeout: budget}", true, false},
+		{"test-shrunk-deadline", "c := client{interval: time.Millisecond}", true, false},
+		{"test-shrunk-deadline", "c := client{timeout: 300 * time.Millisecond}", false, false},
+		{"test-shrunk-deadline", "m := map[string]time.Duration{\"timeout\": time.Millisecond}", true, false},
+		{"test-shrunk-deadline", "cfg.timeout = 50 * time.Millisecond", true, true},
 		// tmp-literal (#342)
 		{"tmp-literal", `p := filepath.Join("/tmp", "x")`, false, true},
 		{"tmp-literal", `os.MkdirAll("/tmp/work", 0o755)`, true, true},

@@ -21,8 +21,8 @@ import (
 // the suite's budget. Tests shrink it.
 var knownFlakeRerunTimeout = 15 * time.Minute
 
-// knownFlakeRerunArgv builds the rerun's command; tests script it.
-var knownFlakeRerunArgv = flakes.RerunCommand
+// knownFlakeRerunCommands builds the exact-package batch; tests script it.
+var knownFlakeRerunCommands = flakes.RerunCommands
 
 // suiteRerunCheck is the check name a known-flake rerun is saved under (#394
 // M2 review, BR-19): never "suite", so no reader that asks for suite runs (the
@@ -65,7 +65,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		return o, nil
 	}
 	// Whole top-level tests (#466): a registered subtest reruns its test.
-	argv, err := knownFlakeRerunArgv(flakes.RerunTests(o.Known))
+	commands, err := knownFlakeRerunCommands(flakes.RerunTests(o.Known))
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
@@ -79,12 +79,12 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 			_ = os.RemoveAll(filepath.Dir(w.LogPath))
 		}
 	}()
-	fmt.Fprintf(d.Stderr, "==> local check %s: rerunning %s on %s (known flakes %s)\n", g.check.Name, strings.Join(argv, " "), abbrevSHA(g.sha), strings.Join(o.Issues(), ", "))
+	fmt.Fprintf(d.Stderr, "==> local check %s: rerunning %s on %s (known flakes %s)\n", g.check.Name, fmt.Sprintf("%d exact-package commands", len(commands)), abbrevSHA(g.sha), strings.Join(o.Issues(), ", "))
 	// Weight 1: a few named tests, not the sharded suite. Its own lease and
 	// slot, released when it exits (#383), so cancel reaches it too.
 	// Bounded by the check's own timeout as well (its declared envelope).
 	timeout := min(knownFlakeRerunTimeout, time.Duration(g.check.TimeoutMinutes)*d.minute)
-	run, err := runUnderSlot(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, g.subject, argv, w.LogPath, timeout)
+	run, err := runUnderSlotBatch(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, g.subject, commands, w.LogPath, timeout)
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
@@ -103,12 +103,12 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	}
 	facts := parseSuiteLogFacts(string(rerunLog))
 	// The rerun proves only what its log shows passing (#394 M2 review): a
-	// timeout, or a named test with no PASS line, is inconclusive.
+	// timeout, or a named test with no package-bound PASS event, is inconclusive.
 	if run.TimedOut {
 		facts.Unattributed = append(facts.Unattributed, "the rerun timed out")
 	}
 	if run.Exit == 0 && !run.TimedOut {
-		for _, t := range flakes.RerunMissing(string(rerunLog), flakes.Tests(o.Known)) {
+		for _, t := range flakes.RerunMissingJSON(string(rerunLog), flakes.Tests(o.Known)) {
 			facts.Unattributed = append(facts.Unattributed, t+" did not pass in the rerun log")
 		}
 	}

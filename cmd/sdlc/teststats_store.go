@@ -456,77 +456,85 @@ func copySuiteLogAtomically(src, dst, privateDir string) error {
 	return os.Rename(out.Name(), dst)
 }
 
-// readSuiteAttempts never opens record-derived log paths. It reports malformed
+// readSuiteEvidence never opens record-derived log paths. It reports malformed
 // input as coverage loss and admits at most limit published files.
-func readSuiteAttempts(root string, limit int) ([]SuiteAttempt, []string, error) {
-	return readSuiteAttemptsBudget(root, limit, suiteAttemptReaderBudget)
+func readSuiteEvidence(root string, limit int) (SuiteEvidenceSnapshot, error) {
+	return readSuiteEvidenceBudget(root, limit, suiteAttemptReaderBudget)
 }
 
-func readSuiteAttemptsBudget(root string, limit int, maxBytes int64) ([]SuiteAttempt, []string, error) {
-	dir, err := os.Open(filepath.Join(root, "attempts"))
+func readSuiteEvidenceBudget(root string, limit int, maxBytes int64) (SuiteEvidenceSnapshot, error) {
+	return readSuiteEvidenceWithOpen(root, limit, maxBytes, os.Open)
+}
+
+func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func(string) (*os.File, error)) (snapshot SuiteEvidenceSnapshot, err error) {
+	defer snapshot.indexLinkedParents()
+	dir, err := open(filepath.Join(root, "attempts"))
 	if os.IsNotExist(err) {
-		return nil, nil, nil
+		return snapshot, nil
 	}
 	if err != nil {
-		return nil, nil, err
+		return snapshot, err
 	}
 	defer dir.Close()
-	var out []SuiteAttempt
-	var warnings []string
 	seen := 0
 	var bytesRead int64
 	for {
 		entries, dirErr := dir.ReadDir(128)
 		if dirErr != nil && dirErr != io.EOF {
-			return out, warnings, dirErr
+			return snapshot, dirErr
 		}
 		for _, e := range entries {
 			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 				continue
 			}
 			if seen >= limit {
-				warnings = append(warnings, "record limit reached; later attempts omitted")
-				return out, warnings, nil
+				snapshot.Warnings = append(snapshot.Warnings, "record limit reached; later attempts omitted")
+				return snapshot, nil
 			}
 			seen++
 			p := filepath.Join(root, "attempts", e.Name())
-			f, openErr := os.Open(p)
+			f, openErr := open(p)
 			if _, lerr := os.Lstat(p); errors.Is(openErr, fs.ErrNotExist) && errors.Is(lerr, fs.ErrNotExist) {
 				continue // the entry itself is gone: pruned since the listing (a dangling link is still unreadable)
 			}
 			if openErr != nil {
-				warnings = append(warnings, p+": "+openErr.Error())
+				snapshot.Warnings = append(snapshot.Warnings, p+": "+openErr.Error())
 				continue
 			}
 			remaining := maxBytes - bytesRead
 			if remaining <= 0 {
 				_ = f.Close()
-				warnings = append(warnings, "record byte budget reached; later attempts omitted")
-				return out, warnings, nil
+				snapshot.Warnings = append(snapshot.Warnings, "record byte budget reached; later attempts omitted")
+				return snapshot, nil
 			}
 			b, readErr := io.ReadAll(io.LimitReader(f, min(int64(suiteAttemptMaxJSON+1), remaining+1)))
 			_ = f.Close()
 			if readErr != nil {
-				warnings = append(warnings, p+": "+readErr.Error())
+				snapshot.Warnings = append(snapshot.Warnings, p+": "+readErr.Error())
 				continue
 			}
 			if int64(len(b)) > remaining {
-				warnings = append(warnings, "record byte budget reached; later attempts omitted")
-				return out, warnings, nil
+				snapshot.Warnings = append(snapshot.Warnings, "record byte budget reached; later attempts omitted")
+				return snapshot, nil
 			}
 			bytesRead += int64(len(b))
 			a, decodeErr := decodeSuiteAttempt(b)
 			if decodeErr != nil || e.Name() != a.ID+".json" {
-				warnings = append(warnings, p+": invalid attempt record")
+				if unsupported, identityErr := decodeUnsupportedProof(b, e.Name()); identityErr == nil {
+					unsupported.Path = p
+					snapshot.addUnsupported(unsupported)
+				} else {
+					snapshot.Warnings = append(snapshot.Warnings, p+": invalid attempt record")
+				}
 				continue
 			}
-			out = append(out, a)
+			snapshot.Attempts = append(snapshot.Attempts, a)
 		}
 		if dirErr == io.EOF {
 			break
 		}
 	}
-	return out, warnings, nil
+	return snapshot, nil
 }
 
 func pruneSuiteAttempts(root string, now time.Time) error {
@@ -540,7 +548,7 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		}
 		if id, ok := attemptTempOwner(e.Name()); ok {
 			info, err := e.Info()
-			if err == nil && now.Sub(info.ModTime()) > suiteInflightStale && suiteOwnerDead(filepath.Join(root, "inflight", id)) {
+			if err == nil && now.Sub(info.ModTime()) > suiteInflightStale && suiteOwnerDead(filepath.Join(root, "inflight", id)) && !runnerArtifactProtected(filepath.Join(root, "inflight", id)) {
 				_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
 			}
 			continue
@@ -579,7 +587,7 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		if err != nil || now.Sub(info.ModTime()) <= suiteInflightStale {
 			continue
 		}
-		if !suiteOwnerDead(filepath.Join(root, "inflight", e.Name())) {
+		if runnerArtifactProtected(filepath.Join(root, "inflight", e.Name())) || !suiteOwnerDead(filepath.Join(root, "inflight", e.Name())) {
 			continue
 		}
 		log := filepath.Join(root, "failed", e.Name()+".log")

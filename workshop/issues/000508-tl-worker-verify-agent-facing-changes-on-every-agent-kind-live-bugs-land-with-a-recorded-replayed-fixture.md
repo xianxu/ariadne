@@ -64,6 +64,13 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+- 2026-10-21: the first recorded branch suite passed all 1,888 SDLC tests and
+  75 other packages with zero failures. Landing then found an append conflict
+  in the worker rule table with main's checkpoint/restart rules (#525).
+  Resolved by retaining both complete row sets; the rendered help and atlas
+  merged without conflicts. All worker, lead and shared rule controls pass
+  after resolution (0.134s, 15.364s, 0.127s). A fresh recorded suite and narrow
+  re-close will verify the integrated generation before another landing entry.
 
 - 2026-10-21: closed — Red first: both rendered entry points lacked all three TESTS rules (0.177s). Worker help now requires every agent kind in tests and live checks (Claude/Codex, Qoder when credited), a recorded real live capture replayed with its fix in the normal suite, and reuse of the shared disposable-Couch harness instead of live fleet/private Couch fixtures. All worker tests pass (latest 0.127s), all lead tests pass (17.095s), shared tlrules tests pass (0.124s); rule-table ownership guard remains green. Atlas updated, diff clean. Pair#744 freshly verified codecomplete/not-landed; exact TL-approved placeholder retained. Restart audit found no own queue/landing/run lease; PR 372, pushed head and local HEAD agree. First recorded suite requested under authorized review overlap; final pass remains required for landing. This changes help instructions only and drives no live fleet or harness process. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 ### 2026-10-20

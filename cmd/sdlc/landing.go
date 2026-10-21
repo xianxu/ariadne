@@ -495,6 +495,8 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 		if f.NoJudge {
 			cwarn(stderr, "--no-judge: skipping reviewed-HEAD publish gate")
 		}
+		sourceHead := head
+		landingChecks := landingCheckOwner{}
 		state := newIntegrationState(head, pr, resumeIntegration)
 		for {
 			var targetMain string
@@ -599,6 +601,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 				state, _, _ = transitionIntegration(state, integrationEvent{kind: integrationGatesRejected})
 				return diagnoseSuiteFailure(ctx, err, targetMain, localDeps)
 			}
+			if err := landingChecks.run(ctx, landingGitCall, targetMain, head, []string{sourceHead}, !f.NoCI, localRun, func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
+				return runLocalCheck(ctx, localDeps, c, sha)
+			}); err != nil {
+				return err
+			}
 			// Read effective readiness outside the transaction. Its live base
 			// target must still match the final fetched main; no status is copied.
 			readiness, readinessErr := landingReadiness{}, fmt.Errorf("adapter has no readiness evidence")
@@ -631,6 +638,10 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 						}
 					} else {
 						fmt.Fprintf(stderr, "issue-record readiness unavailable (%v); integrating normally without charging the code budget\n", readinessErr)
+					}
+					if observation.ready && !landingChecks.allowsMainMove(landingGitCall, targetMain, latest, []string{sourceHead}) {
+						observation.ready = false
+						fmt.Fprintln(stderr, "main movement changes landing-check evidence; integrating before checking again")
 					}
 					if observation.ready {
 						// Main may have gained issue IDs or published details
@@ -711,12 +722,8 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return err
 		}
 		complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-		var unproven *landingArchiveWithoutProvenance
-		if trainOutcome != nil && trainOutcome.PR > 0 && errors.As(err, &unproven) {
-			complete, err = confirmTrainLandingArchive(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-			if complete && err == nil {
-				fmt.Fprintf(stderr, "landing train %d: PR #%d's issue archived by the train (train PR #%d); finishing cleanup\n", trainOutcome.Train, pr.Number, trainOutcome.PR)
-			}
+		if complete && err == nil && trainOutcome != nil {
+			fmt.Fprintf(stderr, "landing train %d: PR #%d's issue archived by the train (train PR #%d); finishing cleanup\n", trainOutcome.Train, pr.Number, trainOutcome.PR)
 		}
 		if err != nil {
 			return err

@@ -56,6 +56,7 @@ func TestExecGitBoundedStreamsAndCancellation(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		dir := refreshGitScript(t, "sleep 30 &\nwait\n")
 		start := time.Now()
+		//lint:allow test-shrunk-deadline — asserts only deadline classification and shutdown bound; no child readiness effect required
 		_, err := (ExecGit{Raw: true, Timeout: 30 * time.Millisecond}).Run(context.Background(), dir, "probe")
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("got %v", err)
@@ -146,6 +147,7 @@ func TestOriginRefusesOutputLimitOnMissingValue(t *testing.T) {
 
 func TestExecGitCancellationDoesNotExposePredicateExit(t *testing.T) {
 	dir := refreshGitScript(t, "sleep 30 &\nwait\n")
+	//lint:allow test-shrunk-deadline — asserts only deadline classification and shutdown bound; no child readiness effect required
 	_, err := (ExecGit{Raw: true, Timeout: 30 * time.Millisecond}).Run(context.Background(), dir, "config")
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("got %v", err)

@@ -67,13 +67,13 @@ func TestHoldRunLeaseLockedBeforeVisible(t *testing.T) {
 				case <-stop:
 					return
 				default:
-					_, _ = cancelLocalChecks(dir, "/elsewhere", "", &bytes.Buffer{}, time.Second)
+					_, _ = cancelLocalChecks(dir, "/elsewhere", "", "", &bytes.Buffer{}, time.Second)
 				}
 			}
 		}()
 	}
 	for i := 0; i < 300; i++ {
-		release, err := holdRunLease(dir, runLease{Root: "/slot2", Check: "suite", PID: os.Getpid()})
+		_, release, err := holdRunLease(dir, runLease{Root: "/slot2", Check: "suite", PID: os.Getpid()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestCancelSweepsStaleLeaseWithoutSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	n, err := cancelLocalChecks(dir, dir, "", &out, time.Second)
+	n, err := cancelLocalChecks(dir, dir, "", "", &out, time.Second)
 	if err != nil || n != 0 {
 		t.Fatalf("cancel: %d %v\n%s", n, err, out.String())
 	}
@@ -140,12 +140,12 @@ func TestCancelChecksProcessStartTime(t *testing.T) {
 		t.Fatalf("start time: %q %v", started, err)
 	}
 	root := canonicalRoot(dir)
-	release, err := holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: victim.Process.Pid, PIDStarted: "0.000000"})
+	_, release, err := holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: victim.Process.Pid, PIDStarted: "0.000000"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if n, _ := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", &out, 200*time.Millisecond); n != 0 || !strings.Contains(out.String(), "no longer that run") {
+	if n, _ := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", "", &out, 200*time.Millisecond); n != 0 || !strings.Contains(out.String(), "no longer that run") {
 		t.Errorf("reused pid: stopped %d\n%s", n, out.String())
 	}
 	select {
@@ -160,24 +160,24 @@ func TestCancelChecksProcessStartTime(t *testing.T) {
 	realStart := processStartTime
 	processStartTime = func(int) (string, error) { return started, nil }
 	for _, pid := range []int{-1, 0, 1} {
-		release, err := holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: pid, PIDStarted: started})
+		_, release, err := holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: pid, PIDStarted: started})
 		if err != nil {
 			t.Fatal(err)
 		}
 		out.Reset()
-		if n, _ := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", &out, 200*time.Millisecond); n != 0 || !strings.Contains(out.String(), fmt.Sprintf("names pid %d; not signalled", pid)) {
+		if n, _ := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", "", &out, 200*time.Millisecond); n != 0 || !strings.Contains(out.String(), fmt.Sprintf("names pid %d; not signalled", pid)) {
 			t.Errorf("pid %d: stopped %d\n%s", pid, n, out.String())
 		}
 		release()
 	}
 	processStartTime = realStart
-	release, err = holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: victim.Process.Pid, PIDStarted: started})
+	_, release, err = holdRunLease(filepath.Join(dir, "runs"), runLease{Root: root, Check: "suite", PID: victim.Process.Pid, PIDStarted: started})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
 	// The lease stays held by this test, so cancel reports the run as not unwound.
-	if _, err := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", &bytes.Buffer{}, 200*time.Millisecond); err == nil || !strings.Contains(err.Error(), "still running") {
+	if _, err := cancelLocalChecks(filepath.Join(dir, "runs"), dir, "", "", &bytes.Buffer{}, 200*time.Millisecond); err == nil || !strings.Contains(err.Error(), "still running") {
 		t.Errorf("held lease after signal: %v", err)
 	}
 	select {
@@ -212,6 +212,23 @@ func TestLocalCheckLeaseRunChild(t *testing.T) {
 // Two slots' runs coexist in one clone's shared lease directory; cancel from
 // one checkout stops only its own run, and the other keeps running.
 func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
+	started := time.Now()
+	cleanupBudget := testfix.HangCeiling
+	if deadline, ok := t.Deadline(); ok {
+		if remaining := deadline.Sub(started) / 2; remaining < cleanupBudget {
+			cleanupBudget = remaining
+		}
+	}
+	// Register first so this measures the complete fixture, including both
+	// child cleanups after the cancellation assertions have joined them.
+	t.Cleanup(func() {
+		elapsed := time.Since(started)
+		if elapsed > cleanupBudget {
+			t.Errorf("native cancellation fixture including cleanup took %s, exceeds %s budget", elapsed, cleanupBudget)
+		} else {
+			t.Logf("native cancellation fixture including cleanup completed in %s (budget %s)", elapsed, cleanupBudget)
+		}
+	})
 	d, sha, _, _ := localRunRepo(t, "skipped")
 	rootA := d.Root
 	rootB := filepath.Join(t.TempDir(), "slotB")
@@ -240,7 +257,10 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 		if err := c.cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		go func() { c.done <- c.cmd.Wait() }()
+		go func() {
+			c.done <- c.cmd.Wait()
+			close(c.done)
+		}()
 		t.Cleanup(func() {
 			if raw, _ := os.ReadFile(c.pidFile); len(raw) > 0 {
 				if pid, _ := strconv.Atoi(strings.TrimSpace(string(raw))); pid > 0 {
@@ -271,7 +291,7 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 	checkA, checkB := checkPID(a), checkPID(b)
 
 	var out bytes.Buffer
-	n, err := cancelLocalChecks(runs, rootA, "", &out, testfix.HangCeiling)
+	n, err := cancelLocalChecks(runs, rootA, "", "", &out, testfix.HangCeiling)
 	if err != nil || n != 1 {
 		t.Fatalf("cancel from A: stopped %d, %v\n%s", n, err, out.String())
 	}
@@ -304,7 +324,7 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 	// B cancels its own run through the CLI's entry point, from its checkout.
 	out.Reset()
 	t.Chdir(rootB)
-	if err := runLocalCheckCancel(&out, ""); err != nil || !strings.Contains(out.String(), "cancelled local check suite") {
+	if err := runLocalCheckCancel(&out, "", ""); err != nil || !strings.Contains(out.String(), "cancelled local check suite") {
 		t.Fatalf("cancel from B: %v\n%s", err, out.String())
 	}
 	select {
