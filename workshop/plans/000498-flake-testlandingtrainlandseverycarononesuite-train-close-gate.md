@@ -174,6 +174,120 @@ rounds:
       isolation: fenced
       reviewed: 78cc0cbd3b00141880769731fb24bd164a1e8fbb
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 5a66117f-6e58-4b27-b47c-ba4b535fe18e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000498"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/054024344283c22c
+            reviewed_head: 18ef5d0ed97b172b1e1d02eb0b204b4adf76a475
+            slot: ariadne:1
+            requested_at: "2026-10-21T03:17:00.101433Z"
+          phase: finished
+          pid: 24819
+          started_at: "2026-10-21T03:17:00.214Z"
+          finished_at: "2026-10-21T03:17:56.749141Z"
+          session_id: 01a15c76-51d2-7571-924d-f706c936353b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 18ef5d0ed97b172b1e1d02eb0b204b4adf76a475
+        tracker_head: 91c6cd15f7cd4f9f51dc95e0d300376ab82071cf
+        branch_point: 03e116cb767b0dcf9c9f312e3c282ac2127b9fee
+        since: "2026-10-20T14:48:54-07:00"
+        until: "2026-10-20T20:16:24-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T14:48:54-07:00"
+              end: "2026-10-20T20:16:24-07:00"
+              began: "2026-10-20T14:48:54-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 7466b0acacdb06f2bbcb7d91fbb6b326cc53d2e73aeb4aa29ac7be870937a278
+              started: "2026-10-20T01:22:09.69Z"
+              spawned: false
+              bytes: 30179868
+              windows:
+                - start: "2026-10-20T14:48:54-07:00"
+                  end: "2026-10-20T20:16:24-07:00"
+            - harness: codex
+              id: 01a15b4d-0a1f-7b40-add4-866dcf362280
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: 3a4ad1563c0508fecf7cba8185ddd00b903e2e2c90261130aff3354bd5bda634
+              started: "2026-10-20T21:52:18.04Z"
+              spawned: true
+              bytes: 1052016
+              windows:
+                - start: "2026-10-20T21:52:18.04Z"
+                  end: "2026-10-20T20:16:24-07:00"
+            - harness: codex
+              id: 01a15c4c-a0b4-7931-a8e5-f6c042c43b5a
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: 71cd25cdbd4abc83ba35ee7e0a9ebf9ef0a066e8de8bbcd5b3713eb12da12191
+              started: "2026-10-21T02:31:28.384Z"
+              spawned: true
+              bytes: 611758
+              windows:
+                - start: "2026-10-21T02:31:28.384Z"
+                  end: "2026-10-20T20:16:24-07:00"
+        queue_waits:
+            - attempt_id: 706d1c6db69cb8835e2befae20926eb5
+              slot: ariadne:1
+              record_digest: c8e1ea1fe2fe3a7aed87d70f4830b67ea7f9ab35bdd279495f2e76175180b80c
+              start: "2026-10-20T23:53:42.083097Z"
+              end: "2026-10-21T00:25:08.919132Z"
+              queue_seconds: 1886.836035
+              raw_seconds: 1886.836035
+              exact: true
+            - attempt_id: a1a8983f0805bb5c183a550dedd34044
+              slot: ariadne:1
+              record_digest: 81948b5bab1e50e790727dd715b8c68dd13939541d9eb0fb12610a6973d1da01
+              start: "2026-10-21T02:33:51.505279Z"
+              end: "2026-10-21T03:03:01.464336Z"
+              queue_seconds: 1749.959057
+              raw_seconds: 1749.959057
+              exact: true
+        cuts:
+            - dispatched: "2026-10-20T16:54:33-07:00"
+              finalized: "2026-10-20T16:56:21-07:00"
+              finalizing: false
+            - dispatched: "2026-10-20T17:41:38-07:00"
+              finalized: "2026-10-20T17:43:35-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-20T20:17:57-07:00"
+      dispatched: "2026-10-20T20:17:00-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Verified attempt 706d1c6db69cb8835e2befae20926eb5 passed with exit 0 and its log matches SHA256 bb46b4829d2fde6e2c242130fe31c4b04ac7cd32de7b3947559489b7b65278df. Also verified integrated attempt a1a8983f0805bb5c183a550dedd34044 passed all eight shards and 75 other packages; its log matches SHA256 1afa234db8460f35ecdf14bd44cc23f05073e4fa671df181772131ecbda81984. Tested integrated commit 73f4695 differs from pinned head only in the issue log.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 18ef5d0ed97b172b1e1d02eb0b204b4adf76a475
+      blocked: false
 ---
 
 # Gate ledger — ariadne#498 (boundary-review)
@@ -193,6 +307,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-1 — addressed — Inspected completed attempt 706d1c6db69cb8835e2befae20926eb5: exit 0, outcome passed, all eight shards and 75 other packages. Verified suite.log SHA256 bb46b4829d2fde6e2c242130fe31c4b04ac7cd32de7b3947559489b7b65278df. The tested implementation commit e51983d differs from pinned head only in tracker/review documentation; issue lines 69–70 record verification before unregistration.
+
+## Round 3 — 2026-10-20T20:17:57-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Verified attempt 706d1c6db69cb8835e2befae20926eb5 passed with exit 0 and its log matches SHA256 bb46b4829d2fde6e2c242130fe31c4b04ac7cd32de7b3947559489b7b65278df. Also verified integrated attempt a1a8983f0805bb5c183a550dedd34044 passed all eight shards and 75 other packages; its log matches SHA256 1afa234db8460f35ecdf14bd44cc23f05073e4fa671df181772131ecbda81984. Tested integrated commit 73f4695 differs from pinned head only in the issue log.
 
 ## Open findings
 
