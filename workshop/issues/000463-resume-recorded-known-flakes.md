@@ -479,3 +479,16 @@ This includes retained pre-link, link-before-marker, marker-before-lock,
 checkout-retired-before-child, committed-child-post and terminal-receipt
 windows. Diff check clean. Checkpoint the class-complete correction and its
 review history, push, queue one fresh recorded suite, then rerun the M3 gate.
+
+### 2026-10-21 — Recorded suite passed; enter landing
+
+The preserved lease-558999101 survived the Couch restart and acquired capacity
+after 6241s. Its final-code head 46254a14bdc5a60c514b2a83a12ec7799072892c passed
+all 2039 cmd/sdlc tests in eight shards plus 75 other packages, zero failures,
+wall 687.8s (recorded 11m28s). Status sdlc-local/suite was posted on that exact
+head; saved log .git/sdlc/local-checks/46254a14bdc5a60c514b2a83a12ec7799072892c/suite.log,
+log sha256 prefix de10740b5fac. No flake rerun or infrastructure refusal.
+M3 and whole-issue reviews are SHIP, with all blockers disposed; M2 remains
+superseded by operator option A. Only issue/review bookkeeping changed after
+the tested code. Enter sdlc merge --yes promptly; its landing turn owns any
+required current-main integration and fresh integration suite. No stage.
