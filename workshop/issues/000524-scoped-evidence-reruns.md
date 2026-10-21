@@ -1,13 +1,21 @@
 ---
 id: 000524
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '7c8c7934b4da94209e6653f06adea3e246c74873' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ea5c2944a30cb858d60c463cf083c18a4020799f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T04:42:56-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Scoped future evidence and exact-package flake reruns
@@ -38,5 +46,9 @@ No ResumeLink writer or resume activation. Atlas must name the old-reader limita
 - [ ] M2 — Exact-package managed rerun batch, automatic integration, process/adversarial tests and final delivery preparation.
 
 ## Log
+
+### 2026-10-21 — Approved reader-first prerequisite
+
+Claimed at filing and started independently from fresh main. The approved design is recorded in [the durable plan](../plans/000524-scoped-evidence-reruns-plan.md): one typed scoped read view plus exact-package managed batches. Hub receipt917bf022-032a-4d84-ac6b-39075bbca2b5 owns the split and fleet rollout barrier. Phase1 does not create links or enable resume; #463 and #520 branches are preserved. Package-bound JSON PASS events prevent a same-name or quoted output from satisfying another package's test. Unscopable malformed data remains unknown; valid future identities are localized so unrelated records/checks stay usable.
 
 Filed as the separately landable phase1 prerequisite from the approved ariadne#463 plan. The original #463 branch holds only committed design, with no implementation. #520 remains held for operator approval on its own branch.
