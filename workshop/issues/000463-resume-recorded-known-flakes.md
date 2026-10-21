@@ -103,3 +103,7 @@ Read-only bounded recovery survey confirms queue reconcile checks owner PID inca
 ### 2026-10-21 10:40 PDT — Active milestone scope after #524
 
 The two active Plan rows now match the approved reader-first split. The superseded M1 combined exact-package execution with the link model; exact-package execution and scoped unknown-record readers landed in #524, while this issue retains two actual boundaries: link/proof/retention, then CLI/readers/delivery. The durable plan's appended phase-2 revision is the current implementation contract; earlier task lists are preserved as design history. Done when remains unchanged: interrupted or repeated resume cannot become success.
+
+### 2026-10-21 10:44 PDT — Phase-2 delta approved
+
+Authenticated receipt 928fcd1f-3d96-4c04-8231-025c9adaf064 approves the exact reconcile command, operator/:0 attestation boundary, owner-incarnation check under the parent lock, and immutable terminal interrupted receipt. No stage: private production-CLI conformance must prove real registered suite failure → resume → post → guard accepts, and crash mid-resume → reconcile. The TL will arrange the first natural post-landing live resume; this worker must not repair production evidence pre-land. Proceed to change-code. No automatic descendant discovery, successful repair, link deletion or invented attempt is authorized.
