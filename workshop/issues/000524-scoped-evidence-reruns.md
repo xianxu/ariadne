@@ -164,3 +164,16 @@ text-PASS helper is removed; all new execution proof is package-bound JSON.
 PR #371 is open. This checkpoint precedes the required central recorded suite
 on the pushed head; suite and M2/final close are still pending. No activation,
 production future record or installed fleet binary change is authorized here.
+
+
+### 2026-10-21 — Recorded suite queued; review overlap
+
+The central recorded suite is live on pushed code head
+21c1c5f3d1bae7d66adeccd4ec8ff160f604b992 (run lease-1500034090), queued
+second behind two Pair holders and an earlier Ariadne suite. Server
+local-gates-guard and its verdict passed on that head. Under tl-worker's
+explicit review-overlap rule, M2 review may proceed with this pending record;
+the suite checklist stays pending and no final delivery/acceptance is claimed.
+A recorded pass on the final code still precedes whole-issue close and landing;
+a code correction will requeue it. This docs-only checkpoint preserves the
+queued run and its FIFO position; no restart is attempted.
