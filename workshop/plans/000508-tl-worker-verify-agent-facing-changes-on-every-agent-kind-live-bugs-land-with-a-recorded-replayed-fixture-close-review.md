@@ -129,3 +129,70 @@ findings:
 7. **Plan revision recommendations:** None. The new revision records execution of an existing conditional instruction.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3ada0742-73ad-4b4f-a14f-7254f8f862b7","repository":"github.com/xianxu/ariadne","issue_id":"000508","recipe":"fix-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/7ee10392ec374e8e","reviewed_head":"c7885cd4c826bd6e894ac7732283d51510c6418d","slot":"ariadne:5","requested_at":"2026-10-21T19:45:26.452876Z"},"phase":"finished","pid":14789,"started_at":"2026-10-21T19:45:26.552483Z","finished_at":"2026-10-21T19:46:55.97343Z","session_id":"01a15fff-4330-7d83-b213-d1ad811ba84e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T12:49:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 508 — tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture |
+| repo | ariadne |
+| issue file | workshop/issues/000508-tl-worker-verify-agent-facing-changes-on-every-agent-kind-live-bugs-land-with-a-recorded-replayed-fixture.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f499a03e33555c2ed91d9dced9fc79ca38125304..42e0402d5f674bcf2b8f9142278dd29bf3e13098 |
+| command | sdlc close --issue 508 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T12:49:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-1 is addressed. The README now provides the Pair-scoped harness command and links to the atlas. The interdiff preserves both sides of the rule-table conflict, introduces no scope expansion, and passes affected tests. No new findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:286–289 adds cmd/internal/testcouch, explicitly scopes make test-couch-fleet to Pair, and links atlas/workflow/tl-skills.md, whose lines 30–36 describe the same worker verification surface. This is a prose-only discovery correction; no wording-presence test is required.
+```
+
+Done-when: current — the harness naming executes the previously recorded conditional refinement; the three-rule contract and rendered-section coverage remain sufficient.
+
+1. **Strengths**
+
+   - `README.md:286` supplies actionable repository context and the requested atlas link.
+   - `cmd/tl-worker/testdata/rules.tsv:70` preserves all 78 rule IDs from both conflict sides; only the harness phrase changes.
+   - `cmd/tl-worker/main_test.go:133` checks the rendered verification contract through both invocation modes.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Passed `go test ./cmd/tl-worker ./pkg/tlrules ./cmd/tl-lead -count=1`.
+   - Restoring base help through a temporary Go overlay makes both rule-table and rendered-section tests fail through both invocation modes.
+   - The default build cache was full; verification succeeded with a temporary cache, subsequently removed.
+   - `git diff --check` passed; checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — retains existing help composition and shared rule checks.
+   - **ARCH-PURE: pass** — adds no business logic or IO coupling.
+   - **ARCH-PURPOSE: pass** — completes documentation discovery and preserves both conflict-side rule families.
+   - **ARCH-EVOLVE: pass** — no persisted-format or reader/writer changes.
+
+7. **Plan revision recommendations:** None. The revision records execution of an existing conditional instruction.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8fc5418c-24fe-41e5-88ed-e2cd9337650a","repository":"github.com/xianxu/ariadne","issue_id":"000508","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b85712e759d90eec","reviewed_head":"42e0402d5f674bcf2b8f9142278dd29bf3e13098","slot":"ariadne:5","requested_at":"2026-10-21T19:47:58.866295Z"},"phase":"finished","pid":32787,"started_at":"2026-10-21T19:47:58.957157Z","finished_at":"2026-10-21T19:49:08.288638Z","session_id":"01a16001-9678-7230-bb08-4429934b676f","outcome":"returned"}] -->

@@ -144,6 +144,96 @@ rounds:
       recipe: fix-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8fc5418c-24fe-41e5-88ed-e2cd9337650a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000508"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/b85712e759d90eec
+            reviewed_head: 42e0402d5f674bcf2b8f9142278dd29bf3e13098
+            slot: ariadne:5
+            requested_at: "2026-10-21T19:47:58.866295Z"
+          phase: finished
+          pid: 32787
+          started_at: "2026-10-21T19:47:58.957157Z"
+          finished_at: "2026-10-21T19:49:08.288638Z"
+          session_id: 01a16001-9678-7230-bb08-4429934b676f
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 42e0402d5f674bcf2b8f9142278dd29bf3e13098
+        tracker_head: 705062eb768281682799530fe4a3959e666a1aec
+        branch_point: 510aab6ff3a55bfdf5472e45eedf5512f6d04420
+        since: "2026-10-21T01:53:24-07:00"
+        until: "2026-10-21T12:47:37-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T01:53:24-07:00"
+              end: "2026-10-21T12:47:37-07:00"
+              began: "2026-10-21T01:53:24-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a09-0f59-7b93-ad53-4f28144d42d9
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: a5d85e91e6ccbfb1cb3feed14d4f4dbc9d75dd484abe2cc25b81f8e6c0617a39
+              started: "2026-10-20T15:58:37.432Z"
+              spawned: false
+              bytes: 18110296
+              windows:
+                - start: "2026-10-21T01:53:24-07:00"
+                  end: "2026-10-21T12:47:37-07:00"
+        queue_waits:
+            - attempt_id: 8f216198d08914b50ddc8c2567941156
+              slot: ariadne:5
+              record_digest: 98ecb57e9a297610667aeb8c498ba32d9acceca859596475dc239b5760779bd6
+              start: "2026-10-21T15:46:24.832536Z"
+              end: "2026-10-21T16:08:17.992856Z"
+              queue_seconds: 1313.16032
+              raw_seconds: 1313.16032
+              exact: true
+            - attempt_id: 0f0d82ae3a3a8dbe413f4abf20a7951b
+              slot: ariadne:5
+              record_digest: b58410f1dda5038a8820be927bd8bbf69e7f45da05f1fd555978eaffb6c04920
+              start: "2026-10-21T18:46:53.048027Z"
+              end: "2026-10-21T19:31:53.266687Z"
+              queue_seconds: 2700.21866
+              raw_seconds: 2700.21866
+              exact: true
+        cuts:
+            - dispatched: "2026-10-21T08:46:44-07:00"
+              finalized: "2026-10-21T08:48:14-07:00"
+              finalizing: true
+            - dispatched: "2026-10-21T12:45:26-07:00"
+              finalized: "2026-10-21T12:46:56-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-21T12:49:08-07:00"
+      dispatched: "2026-10-21T12:47:58-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:286–289 adds cmd/internal/testcouch, explicitly scopes make test-couch-fleet to Pair, and links atlas/workflow/tl-skills.md, whose lines 30–36 describe the same worker verification surface. This is a prose-only discovery correction; no wording-presence test is required.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 42e0402d5f674bcf2b8f9142278dd29bf3e13098
+      blocked: false
 ---
 
 # Gate ledger — ariadne#508 (boundary-review)
@@ -160,6 +250,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Important] `user-facing-surface-documentation` README update appears missing for the harness test command
   cmd/tl-worker/help.md:46 newly directs workers to run `make test-couch-fleet` in Pair, but README.md is unchanged in this range and contains no corresponding usage guidance. Add a concise, Pair-scoped reference near the existing TL tooling documentation, linking to the updated atlas.
 
+## Round 3 — 2026-10-21T12:49:08-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:286–289 adds cmd/internal/testcouch, explicitly scopes make test-couch-fleet to Pair, and links atlas/workflow/tl-skills.md, whose lines 30–36 describe the same worker verification surface. This is a prose-only discovery correction; no wording-presence test is required.
+
 ## Open findings
 
-- **BR-1** [Important] `user-facing-surface-documentation` README update appears missing for the harness test command
+(none — every finding has been disposed)
