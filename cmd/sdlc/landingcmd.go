@@ -23,8 +23,9 @@ type landingDeps struct {
 	// any workspace, which is the operator's plain shell.
 	caller func() (address string, slot *int, ok bool)
 	// couchTree is the slot of the Couch tree this process runs in ($COUCH_TREE).
-	couchTree func() (slot *int, ok bool)
-	name      func() string
+	couchTree    func() (slot *int, ok bool)
+	name         func() string
+	dropIdentity func(string) (workspace.Identity, error)
 }
 
 func defaultLandingDeps() landingDeps {
@@ -103,7 +104,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 	}
 	revoke.Flags().IntVar(&revokeIssue, "issue", 0, "the issue whose priority ends")
 	revoke.Flags().StringVar(&revokeReason, "reason", "revoked", "why it ends")
-	cmd.AddCommand(status, grant, revoke, newLandingPlanCmd(defaultPlanInputs), newSuitePriorityCmd(&repo, d.now))
+	cmd.AddCommand(status, grant, revoke, newLandingDropCmd(&repo, d), newLandingPlanCmd(defaultPlanInputs), newSuitePriorityCmd(&repo, d.now))
 	return cmd
 }
 
@@ -178,6 +179,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		return err
 	}
 	var b strings.Builder
+	printTrainControl(&b, line)
 	repoGit := func(args ...string) (string, error) { return landingGit(execGitRunner{}, repo, args...) }
 	sched, planNote, planErr, serr := effectiveSchedule(repoGit, landingMainRef(repoGit, ""))
 	switch {

@@ -56,6 +56,8 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 - Plan committed and submitted to hub; receipt2475e436-1c76-4c59-a899-06585679a21b submitted. Hub relayed operator review pending (5eb93475-33d7-49f8-9070-cc4584ea31b5): hold code until explicit answer, recommended merge-start boundary and deterministic real-Git fixture conformance. No change-code, implementation, PR, local-check lease or merge runner was started.
 - After Couch restart, reread Log and verified clean retained issue branch/design. Queue running complete=true, no ariadne:1 operation; repository line is held by #524/ariadne:3 and trains remain off. GitHub PR lookup for this branch returned no PR (service degradation caveat retained). No runner/check to recover and nothing restarted; operator-approval hold continues.
 
+- 2026-10-21 implementation checkpoint: pure/storage protocol TDD and strict codec, atomic drop/merge and apply-batch tests implemented; CLI/conductor/cancellation/positive-cleanup wiring in progress. Main CLI RED unknown command (0.414s), then real three-runner RED no control record (23.763s). First integrated fixture: dropped conductor PASS (obsolete PR CLOSED, survivors one new train, dropped head absent); dropped middle fails recomposition invariant: old conductor releases head before its fresh retry ticket/vouch exists, so another survivor departs alone and the conductor subsequently lands serially. Both surviving heads landed and dropped head stayed out; this is a production handoff ordering defect in the planned retry wrapper, not flaky timing. Raw evidence common test-stats/evidence/000526/shell-green-attempt1.log (package63.394s). Stop dependent handoff implementation, send plan refinement to hub; no timeout/sleep workaround.
+
 ## Revisions
 
 - 2026-10-21: Full-flow plan gate CLEAN after two rounds; PQ-1/PQ-2 addressed. Derive provisional2.79h estimate only after plan acceptance, from the named v3.1 calibration.
@@ -84,3 +86,5 @@ item: milestone-review design=0.00 impl=0.16
 design-buffer: 0.15
 total: 2.79
 ```
+
+- 2026-10-21 proposed handoff revision (awaiting hub): retain the old head.lock capability in the outer retry wrapper across old-attempt deferred queue cleanup. During the next ordinary attempt, enqueue a fresh ticket and synchronously refresh/vouch it before releasing the old head; then normal Wait/admission/formation proceeds. A scoped fallback releases the retained old turn on every error/cancellation/return before this handoff. This guarantees both ready survivors exist at formation without changing readiness authority or inventing a timer; no suite/CI runs under a non-riding car. Replacing the conductor generation in place was considered but would duplicate the normal admission path and approved fresh-ticket design.

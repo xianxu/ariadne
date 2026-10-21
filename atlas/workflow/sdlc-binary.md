@@ -518,7 +518,7 @@ trains on:
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
 - **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
-  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`, `CarsDropped`.
   - Effects: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
   - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
 
@@ -2629,3 +2629,11 @@ The Go lint catalog includes `test-sweep-private-root` (#509): test calls to the
 Landing trains enter `PhaseChecking` after the successful final-prefix suite (also after docs reintegration). `RunLandingChecks` produces typed `LandingChecksDone`; only a current-prefix pass permits `WaitCI`. Check failure refuses that prefix without suite bisection or baseline diagnosis.
 
 `landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.
+
+### Dropping a composed train car (#526)
+
+`sdlc landing drop --issue N [--reason WHY] [--repo DIR]` accepts the actual car owner or the repository :0 steward. It holds that exact car until explicit owner retry and aborts the obsolete composition; surviving runners re-form using fresh normal tickets. The dropped runner prints its reason and exact branch recovery. A recomposed head reruns the validation its change invalidates.
+
+The landingline control record (`train-control.json`) pins the held head.lock generation, actual composed members, publication identity, accepted exclusions and cleanup obligation. Drop acceptance and admission of the Merge effect share line.lock. Once that effect starts after green CI, drop refuses with the current phase and irreversible merge-start marker, even if the merge later reintegrates or is unconfirmed. Unsupported/malformed control refuses; an old conductor cannot claim drop support.
+
+A scoped watcher cancels and joins the obsolete effect before held/abort cleanup. Pending drop cleanup survives a dead conductor: every admitted successor, including serial and grant landings, confirms closure of the exact obsolete PR and leased ref before proceeding. `landing status` exposes pending cleanup and its original conductor recovery command. The bounded record retains exclusions until their tickets retire, carries unknown JSON members, and cannot be replaced while cleanup remains unconfirmed. Existing car/train audit events retain their 30-day lifetime.

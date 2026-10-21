@@ -57,7 +57,8 @@ type conductor struct {
 	stderr io.Writer
 	sched  landingline.Schedule
 	id     int64
-	self   int64 // the conductor's own ticket: its car is the first
+	self   int64               // the conductor's own ticket: its car is the first
+	handle *landingline.Handle // lifetime capability for shared train control
 
 	departed   time.Time
 	wt         string   // the train's detached worktree
@@ -105,7 +106,13 @@ func (c *conductor) fetchMain() (main string, err error) {
 func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err error) {
 	c.settled = map[int64]bool{}
 	tr := landingline.NewTrain(c.id)
+	if err = c.beginTrainControl(cars); err != nil {
+		return err
+	}
+	stopWatch := c.watchTrainDrops()
+	defer stopWatch()
 	defer func() {
+		stopWatch()
 		// An error mid-train is the machine's Aborted: every car still
 		// riding goes back to wait, ready, and the train PR is closed. The
 		// abort's effects are side effects only; their own failures are
@@ -134,29 +141,67 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 			c.deleteTrainBranch()
 		}
 		c.removeWorktree()
+		if _, controlErr := c.line.UpdateTrain(c.handle, tr); controlErr != nil {
+			if err == nil {
+				err = controlErr
+			} else {
+				fmt.Fprintf(c.stderr, "train control finalization: %v\n", controlErr)
+			}
+		}
 		c.recordTrain(tr, cars, leftReady)
 	}()
 	tr, effects, err := landingline.Transition(tr, landingline.Boarded{Cars: cars})
 	if err != nil {
 		return err
 	}
+	if _, err = c.line.UpdateTrain(c.handle, tr); err != nil {
+		return err
+	}
 	for _, car := range cars[1:] {
 		c.settle(car, landingline.OutcomeBoarded, fmt.Sprintf("train %d, car %d of %d", c.id, indexOf(cars, car.Seq)+1, len(cars)))
 	}
 	for len(effects) > 0 {
+		pending, controlErr := c.trainDropsPending()
+		if controlErr != nil {
+			return controlErr
+		}
+		if pending {
+			return c.applyTrainDrops(&tr, cars, stopWatch)
+		}
 		e := effects[0]
 		effects = effects[1:]
-		ev, err := c.execute(e, cars)
-		if err != nil {
-			return err
+		ev, effectErr := c.execute(e, cars)
+		// The synchronous effect has joined before its completion competes with a
+		// drop. Never feed a canceled, obsolete completion back into Transition.
+		pending, controlErr = c.trainDropsPending()
+		if controlErr != nil {
+			return controlErr
+		}
+		if pending {
+			return c.applyTrainDrops(&tr, cars, stopWatch)
+		}
+		if effectErr != nil {
+			return effectErr
 		}
 		if ev == nil {
 			continue
 		}
-		var more []landingline.Effect
-		if tr, more, err = landingline.Transition(tr, ev); err != nil {
-			return err
+		next, more, transitionErr := landingline.Transition(tr, ev)
+		if transitionErr != nil {
+			return transitionErr
 		}
+		if next.Phase == landingline.PhaseMerging && !tr.MergeStarted {
+			_, controlErr = c.line.StartTrainMerge(c.handle, next)
+			if errors.Is(controlErr, landingline.ErrTrainDropPending) {
+				return c.applyTrainDrops(&tr, cars, stopWatch)
+			}
+		} else {
+			_, controlErr = c.line.UpdateTrain(c.handle, next)
+		}
+		if controlErr != nil {
+			return controlErr
+		}
+		tr = next
 		if _, built := ev.(landingline.Built); built {
 			printTrainMembership(c.stderr, c.id, "composed", tr.Cars)
 		}
@@ -343,6 +388,12 @@ func (c *conductor) gatePrefixAt(base, head string) string {
 func (c *conductor) publish(k int) error {
 	head := c.heads[k-1]
 	branch := trainBranch(c.id)
+	if _, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+		Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+		ExpectedTip: head, PreviousTip: c.pushed, PR: c.pr.Number, RecoveryBranch: c.handle.Ticket().Branch,
+	}); err != nil {
+		return err
+	}
 	if err := c.locked(func() error {
 		_, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, head+":refs/heads/"+branch)
 		return err
@@ -368,7 +419,11 @@ func (c *conductor) publish(k int) error {
 			if p.State == "OPEN" && p.HeadOID == head {
 				c.pr = p
 				c.local.PR = p.Number
-				return nil
+				_, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+					Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+					ExpectedTip: head, PreviousTip: c.pushed, PR: p.Number, RecoveryBranch: c.handle.Ticket().Branch,
+				})
+				return err
 			}
 		}
 		select {
@@ -821,7 +876,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	}
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
 	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
-	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
+	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, handle: turn.handle, departed: now}
 	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 	printTrainMembership(stderr, c.id, "candidates", cars)
 	if err := conductTrain(c, cars, b.LeftReady); err != nil {

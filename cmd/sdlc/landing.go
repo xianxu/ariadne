@@ -340,7 +340,21 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stde
 	cleanupBranchConfig(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, branch, stderr)
 	return nil
 }
-func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
+func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
+	for {
+		err := runDurableMergeAttempt(stdout, stderr, f, t)
+		var reform *trainReformError
+		if !errors.As(err, &reform) {
+			return err
+		}
+		if err := commandContext(f.Context).Err(); err != nil {
+			return err
+		}
+		fmt.Fprintln(stderr, reform.Error())
+	}
+}
+
+func runDurableMergeAttempt(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
 	ctx := commandContext(f.Context)
 	r := boundedLandingGit(ctx, mergeRunner)
 	branch, current, err := landingIssueBranch(r, t, f.Branch)
@@ -425,6 +439,9 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			landedByTrain = true
 		} else {
 			defer func() { turn.leave(err) }()
+			if err = reconcileDroppedTrain(ctx, turn, t, r, gh, f); err != nil {
+				return err
+			}
 		}
 	}
 	if turn == nil {
