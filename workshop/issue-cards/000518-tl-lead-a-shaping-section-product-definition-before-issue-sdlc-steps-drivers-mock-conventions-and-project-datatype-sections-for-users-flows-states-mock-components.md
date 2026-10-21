@@ -1,8 +1,8 @@
 ---
 id: 000518
-status: codecomplete
+status: done
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 github_issue:
 started: 2026-10-20T20:55:45-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: afda1f73f1e966c2f0a6180287f75301ff60b472
         evidence_commit: eb54a5ea8cdb9a4a8e7ad621d34531f0042893fb
+        landed_commit: 29e3dbcccf3def0aac5772e11bce8c2462e4c645
 ---
 
 # tl-lead: a SHAPING section (product definition before issue SDLC: steps, drivers, mock conventions) and project datatype sections for users, flows, states, mock, components
