@@ -1,13 +1,13 @@
 ---
 id: 000512
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0af13f2978dc6d694ed67a9bf5a4f188b516e0ce' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5a8f443247c9e834e1c63ae955c4f44f3b78a23e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T00:14:22-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "69391e9d", done: "fbc76601"}
+actual_hours: 0.34
 ---
 
 # Train-car cleanup refuses confirmed archived issue after landing
