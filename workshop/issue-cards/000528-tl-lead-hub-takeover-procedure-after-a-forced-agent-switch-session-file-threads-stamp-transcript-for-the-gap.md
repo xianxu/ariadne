@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.11
+actual_hours: 0.58
 tracker:
     version: 1
     completion:
-        token: close-6ce9985c4127
+        token: close-2e3ab6dec3ee
         repository: github.com/xianxu/ariadne
-        reviewed_head: 03346232df01e3eac4fde91d480894f9ec411e6d
-        evidence_commit: 4c92fcb0624588b0c77b3f5f3e363ceef5f598fd
+        reviewed_head: dba27e4716583af1100b997249c49723ecaa54be
+        evidence_commit: 5d5d0f91a1cfb979061f4a965952aab6d8c9dfd3
 ---
 
 # tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap)
