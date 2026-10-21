@@ -62,12 +62,28 @@ TEAMS (ariadne#456: one team per ops repo)
   - Resuming the fleet is one verb the operator asks for ("resume the
     fleet"), never run at startup:
         tl-lead fleet resume            (a dry run: each of your slots classed)
-        tl-lead fleet resume --apply    (resumes the resume class, one at a time)
+        tl-lead fleet resume --apply    (waits for each terminal outcome before the next)
+        tl-lead fleet resume --all      (machine view; same mutation authority)
     running and idle slots are left alone; resume means down with work in
     flight and a proven conversation; ambiguous (a tie, an unclaimed slot, or
     work without a proven conversation) goes to Needs you with Couch's
     choices; unknown means a read failed: never treated as down. Couch's
     runtime moves (`--move-slot`) are not visible to it, and it says so.
+    Unclaimed and other-hub slots are counted by default; --all lists them,
+    but never resumes them. A failed actors read is reported once, with owned
+    rows unknown. After any failed, refused or uncertain resume, --apply stops
+    with nonzero status and names untouched slots; earlier successes remain.
+    Couch owns receipt polling. tl-lead waits for its terminal JSON receipt,
+    bounded at six minutes (Couch's five-minute poll budget plus admission and
+    teardown). Missing/mismatched evidence, timeout or signal death is uncertain.
+    It prints the stopped/untouched result and inspection guidance before an
+    optional read-only actor check (ten seconds plus at most one second of
+    pipe cleanup). It retains request diagnostics; actor presence
+    never proves the operation succeeded. Inspect couch --operation-status ID
+    and couch --peek repo:N before a manual resume or switcher action.
+    Developers closing resume changes or upgrading Couch run the isolated
+    TestCouchResumeReceiptConformance with TL_LEAD_RESUME_CONFORMANCE=1;
+    it checks the real CLI without touching live slots.
 
 RUNNING A PROJECT (the order of play; the project file holds the state)
   1. Frame. A pensive or parley becomes a project file. Its Charter states the
@@ -83,7 +99,7 @@ RUNNING A PROJECT (the order of play; the project file holds the state)
      The project's `mvp_scope` (ariadne#329) is the before-MVP set: triage is
      membership, not a tag.
   4. Dispatch and steward. Apply the approval boundary in STEWARDSHIP. The
-     operator is pulled in only for taste and smoke tests.
+     operator reviews failure-sensitive workflow designs, taste and smoke tests.
   5. The smoke loop: a queue of the operator's attention and of dependencies
      (see LANDING AND SMOKE TESTS).
   6. Hardening. Real use surfaces bugs; triage each into `mvp_scope` or a
@@ -107,6 +123,18 @@ STEWARDSHIP
   Defer worker-approved quick fixes to `tl-worker --help`; do not hold them for
   a TL review. Full-flow designs, design changes and scope revisions still
   need TL approval. Write your reviews to the project's `reviews/` directory.
+
+  Operator-reviewed designs: a design for a workflow that must stay robust
+  across failures goes to the operator for review before code, as a side doc
+  with the options. TL approval alone is insufficient. Recognize the shape:
+  it coordinates many slots or processes, holds or pauses something fleet-wide,
+  persists state across restarts, or defines a recovery path. Examples: drain
+  and shutdown, restart recovery, slot lifecycle and admission, the landing
+  queue and trains, scheduling.
+  The side doc states the internal states, the few states the user sees, and
+  one recovery action for each, plus what happens when each step fails or a
+  restart lands in the middle. The TL may still approve ordinary designs alone.
+  When unsure, ask the operator.
 
 {{PLANNING}}
 
@@ -316,13 +344,22 @@ TALKING TO THE OPERATOR
     `couch --actors` (each slot's agent, `·idle` at its prompt; `?` when couch
     can't be read), each slot's issue (`sdlc issue show`) and its checkout's
     issue file, and writes it; it takes about as long as the inventory,
-    ten to forty seconds.
+    ten to forty seconds. With .hub, it shows only this hub's sole-owned numbered
+    slots and counts excluded slots; --all lists every numbered slot. Without
+    .hub it keeps the machine view. Invalid/unreadable scope refuses rather than
+    widening. A scoped write that would drop an existing hold refuses: use --all
+    to retain it or --release explicitly. A failed Couch actors read produces
+    one note and ? agent labels. Run tl-lead as the whole shell call when the
+    harness's sandbox exclusions apply; wrapping it in a pipe or compound call
+    can leave its Couch child sandboxed.
   - Every write stamps its section's first line, `_updated YYYY-MM-DD HH:MM_`
     (not Operator instructions). The operator may delete a stamp; the next
     write puts it back. `tl-lead status check FILE` lists the stale sections:
-    Threads and Slots after 2 h or once a fleet repository's newest first-parent merge
+    Threads and Slots after 2 h or once a claimed repository's newest first-parent merge
     on origin/main is newer than the stamp (local refs: as fresh as your last
-    fetch). Direct filing, publish, archive and tick commits do not count; the
+    fetch). With .hub only its claimed repos count (repo:N includes that repo);
+    without .hub all sibling SDLC repos count. Direct filing, publish, archive
+    and tick commits do not count; the
     stale message names the repository, merge hash and time. Quota
     after 12 h, Needs you only when unstamped. `submit`, `owed` and every
     write end with the same lines, so each event shows what is stale: refresh
@@ -343,7 +380,7 @@ TALKING TO THE OPERATOR
     four) and passes arguments as a list, never through a shell:
       tl-lead status section FILE HEADING BODYFILE [--fold-owed]
       tl-lead status thread FILE TEXTFILE [--drop PREFIX]... [--fold-owed]
-      tl-lead status slots FILE [--fold-owed]
+      tl-lead status slots FILE [--all] [--fold-owed]
       tl-lead status check FILE
     A thread entry is one `###` subsection: it replaces the subsection with
     the same heading, or goes in before `### Miscellaneous`.

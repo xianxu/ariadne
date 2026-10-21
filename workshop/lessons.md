@@ -1217,6 +1217,11 @@ The simplest durable authority beats a clever scan of consequences.
 
 - #499 root binding: when routing a publication guard through a shared reader, preserve the guard's original repository authority explicitly. A configured details directory is a data location, not the publication repository selector. Test a legacy peer directory beside a tracked checkout and ensure it cannot turn an existing ownership refusal into acceptance. This semantic provenance boundary is enforced by the production guard regression rather than lexical lint.
 
+- #485 plan review: an external mutation's nonzero exit alone does not prove refusal; require a matching terminal receipt and consistent normal exit, and keep timeout, signal death or malformed output uncertain. Test the receipt/exit cross-product through the real subprocess seam. Plans should name risky functions and adversarial test strategies rather than duplicate executable case inventories. These are semantic protocol/review contracts, enforced by stateful/subprocess tests and the plan gate rather than a lexical Go lint rule.
+
+- #485 test fixture: synctest.Wait orders prior writes before the test's observation; it does not serialize that observation with a later fake-time wakeup that writes the same slice. Protect mutable snapshots with the same mutex as writes. The race detector enforces this semantic concurrency contract; a lexical source rule cannot establish happens-before across the fake clock.
+
+- #485 boundary: optional recovery observations must be bounded and follow the already-known stopped/untouched result. Test a successful initial read then a stalled recovery probe. Stage new files before running the tracked-file lint catalog; untracked tests are outside its scan, and virtual synctest Sleep calls need reasoned test-fixed-sleep annotations. README covers new flags, and external receipt readers need an isolated opt-in conformance check against the real CLI. Existing catalog and timeout/subprocess regressions enforce these classes; no name-based lint rule can prove recovery ordering.
 - #504 BR-6: promoting a transform to return validation errors requires every
   consumer to preserve that failure contract. A compatibility adapter returning
   unchanged text on error can falsely authorize deletion. Delete the adapter,

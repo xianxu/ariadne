@@ -14,6 +14,13 @@ The policy is single-sourced in `.claude/settings.ariadne.json` (base layer). we
 
 ### Calling an excluded binary (agent rule, #334, #336)
 
+`tl-lead` follows the same whole-call rule: its `couch` child inherits the
+parent's sandbox. Use a bare `tl-lead …` call when exclusions apply; spawning
+`couch` from a sandboxed parent does not escape that sandbox. Slots and fleet
+resume report unreadable actors once, retaining unknown rows rather than
+inferring that agents are down (#485). Codex has no per-command exclusion;
+its configured execution permissions still determine socket access.
+
 The rule agents follow is single-sourced in the constitution's §15 (Couch Slots). In short, the binary's call is the whole Bash call, with no substitution text in its arguments. Otherwise the call stays sandboxed, and couch then fails with `dial unix …: operation not permitted`.
 
 What was measured:

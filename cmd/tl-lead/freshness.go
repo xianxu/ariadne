@@ -116,24 +116,37 @@ func (d deps) newestLanding(file string) (Landing, error) {
 }
 
 // gitNewestLanding reads origin/main's latest first-parent merge, from local refs (no
-// fetch), in every SDLC repository beside the status file's repository: one
+// fetch), in the local hub's explicitly claimed SDLC repositories (or every
+// sibling SDLC repository when no local .hub exists): one
 // with workshop/issues/ and no .brain/ (a brain's auto-commits are captures,
 // not landings; sdlc's spine guard draws the same line). sdlc merges PRs with
 // gh pr merge --merge. The first-parent restriction excludes issue-branch
 // integrations; direct-main filing, publish, archive and tick commits are skipped.
 func gitNewestLanding(file string) (Landing, error) {
+	scope, err := readHubScope(filepath.Dir(file))
+	if err != nil {
+		return Landing{}, err
+	}
 	top, err := git(filepath.Dir(file), "rev-parse", "--show-toplevel")
 	if err != nil {
 		return Landing{}, err
 	}
 	parent := filepath.Dir(top)
-	entries, err := os.ReadDir(parent)
-	if err != nil {
-		return Landing{}, err
+	var repos []string
+	if scope.enabled {
+		repos = scope.repoNames()
+	} else {
+		entries, err := os.ReadDir(parent)
+		if err != nil {
+			return Landing{}, err
+		}
+		for _, e := range entries {
+			repos = append(repos, e.Name())
+		}
 	}
 	var newest Landing
-	for _, e := range entries {
-		dir := filepath.Join(parent, e.Name())
+	for _, repo := range repos {
+		dir := filepath.Join(parent, repo)
 		if !isDir(filepath.Join(dir, "workshop", "issues")) || isDir(filepath.Join(dir, ".brain")) {
 			continue
 		}
@@ -150,7 +163,7 @@ func gitNewestLanding(file string) (Landing, error) {
 			continue
 		}
 		if at := time.Unix(sec, 0); at.After(newest.At) {
-			newest = Landing{Repo: e.Name(), Commit: fields[1], At: at}
+			newest = Landing{Repo: repo, Commit: fields[1], At: at}
 		}
 	}
 	return newest, nil
