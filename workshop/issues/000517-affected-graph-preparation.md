@@ -93,6 +93,19 @@ Existing stale checkout cleanup covers process death; no new durable state.
   its recorded PIDs/tree. This proves the signal-ownership gap independently
   of the injected-context control. Correction proposed to TL; no source fix yet.
 
+- 2026-10-20: BR-1 correction approved by TL. For declared preparation,
+  runAffectedCheck owns SIGINT/SIGTERM from graph acquisition through completion;
+  it checks the retained context immediately after graph cleanup, before
+  selecting or publishing, so interruption cannot fall into a live-context
+  suite. Real CLI red becomes green for both signals, with descendant shutdown,
+  checkout cleanup and no status calls. Existing queued-helper and default
+  outside-phase signal controls pass. Five race repetitions of all new
+  preparation controls pass (32.860s); broader affected/CLI/signal controls pass
+  (18.273s), affected package and full Go lint catalog pass. Diff remains inside
+  quick flow (97 added production lines). BR-2 explicit acceptance clauses are
+  in Done when; original immutable-main interleaving/candidate-edit test retained.
+  Requesting a fresh pushed-head suite and full round-2 close.
+
 ## Revisions
 
 - 2026-10-20 23:29 PDT — TL approved schema/bounds, requiring immutable main

@@ -333,7 +333,8 @@ declares `{ "command": ["make", "generate"], "timeout_minutes": 2 }` (#517).
 cannot supply their own preparation command. `productionAffectedDeps` invokes
 `prepareAffectedGraph` once in the requested head's detached graph checkout,
 then loads the native graph. The argv runs without implicit shell interpolation,
-with caller cancellation, process-group teardown and a one-second pipe-drain
+with SIGINT/SIGTERM ownership through affected completion, caller cancellation,
+process-group teardown and a one-second pipe-drain
 bound. Timeout defaults to two minutes (range 1..30); absent/null means no prep.
 Preparation failure/deadline or graph failure follows the existing full-suite
 fallback with the cause. Cancellation never publishes a passing affected result.
