@@ -93,6 +93,29 @@ An instance of `project` has, in order:
 6. `## Log` — append-only retros, forecasts and project-level events. Retro headings use `### <ISO date> — retro`.
 7. `## Decisions` — append-only, at the end of the file: `- <ISO date> — <decision> (<who decided>): <one line of why>`.
 
+### Optional shaping sections
+
+For a project with user interactions, the TL follows SHAPING in `tl-lead --help`
+before filing implementation issues. Between Charter and Trains, include the
+following sections when they have content; omit those that do not apply. They
+are optional body sections, not new frontmatter fields or lifecycle guards.
+Keep the project-level summary here and link detailed design and mock artifacts
+in the project folder instead of duplicating them.
+
+| Section | What it captures |
+|---|---|
+| `## Users` | Who uses the product, when they interact and the decision or task it supports. |
+| `## Flows` | Short step-by-step walkthroughs, including the start and end of each interaction. |
+| `## States` | The screen/state list: contents, available actions and their destinations, including empty, error and long-list cases. Link the full list in `design.md` when needed. |
+| `## Mock` | The approved clickable mock and current numbered version, shared `fixtures.json`, and the chosen visual direction (`tokens.css` and component patterns). Link versioned mock artifacts and their design context. |
+| `## Components` | Repositories, component boundaries and the contracts between them, before slicing into issues. |
+
+The operator drives Users and Flows and reviews each shaping step; the TL owns
+the project record. A project without a UI omits Mock and the visual-design
+work. Existing projects need no empty sections or migration. Shaping adds no
+issue refs to `mvp_scope` until slices are agreed; Trains and Breakdown keep
+their execution roles below.
+
 ### Trains
 
 A train is a chain of issues in one code area, run in order by one slot. The TL re-grooms the table at every filing and batch edge.
@@ -161,7 +184,11 @@ When the dispatcher applies this prototype:
 
 4. **Name the TL** (`tl:`) when a TL will drive it. Otherwise leave it out, and the close gate keeps ticking rows.
 
-5. **Write the Charter, then the Trains.** Group issues into trains by code area, one slot each, and write the ⇒ edges between trains. Breakdown rows follow the trains' order.
+5. **Write the Charter, then shape user interactions when applicable.** Follow
+   SHAPING in `tl-lead --help` and include the optional summaries above as they
+   settle. Once slices are agreed, group their issues into Trains by code area,
+   one slot each, and write the ⇒ edges between trains. Breakdown rows follow
+   the trains' order.
 
 6. **Residency:** `workshop/projects/<slug>.md` in the project's
    **center-of-gravity repo** — the top product repo by default. This is a soft

@@ -290,6 +290,14 @@ automatic resume authority. `--apply` waits for each terminal receipt and
 stops at the first failure or uncertainty, naming untouched slots. See
 [TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
 
+Before filing a new project's implementation issues, follow SHAPING in
+`tl-lead --help`: users, flows, clickable mock, visual design, components and
+slices, with operator review at each step. UI mocks use
+`couch mock serve <project>/mocks`, numbered versions and shared fixtures.
+The screen-by-screen mock-to-real switch is development-only; production
+refuses mock-backed screens. The [project datatype](construct/datatype/project.md)
+describes optional Users, Flows, States, Mock and Components sections.
+
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits
 shell configuration. Managed ignore entries and an output identity inventory
