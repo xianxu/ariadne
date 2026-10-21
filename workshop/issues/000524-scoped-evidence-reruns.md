@@ -75,6 +75,7 @@ total: 2.82
 ## Log
 
 ### 2026-10-21 — Approved reader-first prerequisite
+- 2026-10-21: closed — Recorded sdlc-local/suite PASS on 2750b1ed88b29c30a74bb781578b2ba59150f7c1: 1938 cmd/sdlc tests, 75 other packages, zero failures, 839.6s. Real-old-reader control, exact-package real-Go RED/GREEN, private production-CLI conformance, focused normal/race and Go/shell catalogs pass. M1/M2 SHIP; TL accepts conformance and authorizes landing; no ResumeLink writer or activation, fleet rollout barrier documented.; review verdict: SHIP
 - 2026-10-21: closed M2 — BR-5 real Go production RED 3.139s then broader GREEN 42.017s; private CLI with legal incidental names 13.869s; focused race 9.696s and pure race 1.160s; Go/shell lint and diff checks pass. Superseded queued suite cancelled; corrected pushed head suite requeued. Review overlap allowed; recorded suite pass remains required before final close/landing.; review verdict: SHIP
 - 2026-10-21: closed M1 — Scoped reader focused regressions passed 10.218s, race 2.122s, Go lint 0.649s, shell lint 0.313s and diff check; real pre-change control retained; BR-3 README discovery and BR-4 private-clone lifecycle documented; inverse-parent RED/GREEN proves parent check authority.; review verdict: SHIP
 
