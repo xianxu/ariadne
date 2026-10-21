@@ -14,7 +14,12 @@ import (
 
 // Only a positively completed drop cleanup permits this internal retry. The
 // outer attempt has released its line and queue operation before it is retried.
-type trainReformError struct{ train int64 }
+type trainReformReleaseKey struct{}
+
+type trainReformError struct {
+	train int64
+	turn  *landingTurn
+}
 
 func (e *trainReformError) Error() string {
 	return fmt.Sprintf("train %d dropped a car; survivors re-form with a fresh landing ticket", e.train)

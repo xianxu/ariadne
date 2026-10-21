@@ -88,3 +88,5 @@ total: 2.79
 ```
 
 - 2026-10-21 proposed handoff revision (awaiting hub): retain the old head.lock capability in the outer retry wrapper across old-attempt deferred queue cleanup. During the next ordinary attempt, enqueue a fresh ticket and synchronously refresh/vouch it before releasing the old head; then normal Wait/admission/formation proceeds. A scoped fallback releases the retained old turn on every error/cancellation/return before this handoff. This guarantees both ready survivors exist at formation without changing readiness authority or inventing a timer; no suite/CI runs under a non-riding car. Replacing the conductor generation in place was considered but would duplicate the normal admission path and approved fresh-ticket design.
+
+- 2026-10-21: Hub approved proposed handoff revision1139e7ac-1690-4829-bbaf-df866fed2fea; implement without weakening either two-survivor train oracle. Core package/race/fuzz checks passed; retained dropped tickets now excluded from both admission and Board candidate Status, and accepted current drops survive waiter ticket consumption until atomic ApplyTrainDrops seals all requests.
