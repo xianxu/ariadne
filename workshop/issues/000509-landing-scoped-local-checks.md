@@ -46,7 +46,7 @@ pair#743 moves native conformance from capacity-constrained GitHub macOS runners
 
 Durable design: [landing checks plan](../plans/000509-landing-checks-plan.md). Await operator review before implementation and the plan-quality gate.
 
-- [ ] M1 — Versioned declaration, pure selection/proof and separate runner-resource execution; adversarial controls and milestone review.
+- [x] M1 — Versioned declaration, pure selection/proof and separate runner-resource execution; adversarial controls and milestone review.
 - [ ] M2 — Shared post-suite train/single-landing gate, full consumer sweep, stateful/private conformance and milestone review.
 - [ ] Recorded suite, full close, operator local-gates verification where applicable, and central landing.
 
@@ -84,6 +84,7 @@ BR-1: observed tracked-blank regression for both declaration and path blobs, the
 M1 review round2 disposed BR-1/2/3 but raised Critical BR-4: unconditional scratch cleanup and later owner-PID/age collectors can delete inputs still used by unknown descendants. This is the third cleanup design delta; stopped before source changes. The durable plan now enumerates checkout, scratch, raw log and leases under one lifetime rule, recommending references to the existing Git worktree lock and one shared protection predicate, including log collectors. Runner launch without an attempt writer would refuse, preserving suite legacy fallback. Simplest instance fix and bundle/supervisor alternatives are explained. Approval requested from hub; M1 remains open and M2 is not started. No background work remains.
 
 ### 2026-10-21 00:03 PDT — BR-4 protection and confirmed fixture incident
+- 2026-10-21: closed M1 — Corrected-source runner/signal/scratch/attempt controls pass32.030s, narrow race4.359s, golint0.674s. Private collector mutation observed deletion failure then restored; all fake-dead sweep roots derive from t.TempDir and lint enforces provenance. Unknown completion and panic retain checkout/scratch/log/queue through shared Git lock; unavailable attempt writer refuses before launch. Confirmed incident and unsafe execution windows recorded in Log. M2 automatic gate remains pending.; review verdict: SHIP
 
 Implemented the operator-approved shared Git-lock authority for checkout, scratch, raw log and temporary attempt collectors. Runner launch refuses without an attempt writer; a shared retirement proof stays false from launch intent until confirmed process-group completion, including panic unwinding. Unknown endings retain all artifacts for operator reconciliation. Independent-owner and counted owner-read controls cover isolation.
 

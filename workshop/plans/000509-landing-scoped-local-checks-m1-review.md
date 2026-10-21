@@ -190,3 +190,89 @@ The M1 pure entities exist and are tested directly. Train transitions and shared
 Append a `## Revisions` entry enumerating checkout, scratch, logs, and leases as runner lifetime artifacts. Define their retention and reconciliation behavior after unconfirmed cleanup or owner death, and require stale collectors to honor that ownership.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"608c4232-78b8-46a7-ac8b-f5a5f0fb2c0b","repository":"github.com/xianxu/ariadne","issue_id":"000509","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/ae882f2aa0643871","reviewed_head":"bdff0b680d0eb09be2ef59f6d3731d7b2869743a","slot":"ariadne:3","requested_at":"2026-10-21T06:16:51.743369Z"},"phase":"finished","pid":4228,"started_at":"2026-10-21T06:16:51.873689Z","finished_at":"2026-10-21T06:20:16.823649Z","session_id":"01a15d1a-fd32-7270-bafc-17a629b20b3a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T00:07:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 509 — Landing scoped local checks |
+| repo | ariadne |
+| issue file | workshop/issues/000509-landing-scoped-local-checks.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 6573f0810474e4de9a82fc0a4b7a4c7670c78996..ab2d11d407ed60c61f3da6151e089eac6769e74e |
+| command | sdlc milestone-close --issue 509 --milestone M1 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T00:07:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M1 delivers the declaration, selection/proof core and separate runner-resource execution. BR-4 is addressed across immediate cleanup and stale collectors, with regression tests independently demonstrated to fail when protection is removed. No blocking findings remain. Automatic landing enforcement and main-only burn-in restrictions remain explicitly assigned to M2.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      readLandingBlob rejects tracked blank declarations and path policies while preserving genuine absence; TestLandingCheckTrackedBlankPolicyRefuses passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      finishRunnerGroup separately confirms completion after signalling; nil-signal/live-group, retained-recovery and process cleanup controls passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:598 documents version2 fields, explicit naming, --all exclusion and runner resources, while identifying pending M2 restrictions; selectLocalChecks and runner execution support the documented M1 behavior.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Immediate cleanup requires confirmed completion; checkout, scratch, inflight logs and temporary attempts share Git-lock protection, while queue activity remains unknown. Removing the scratch retirement guard failed TestRunnerArtifactsRetainScratchAndLogUntilReconciled; disabling collector protection failed TestRunnerCollectorsRespectPrivateAuthority. Restored-source race controls passed.
+```
+
+1. **Strengths**
+
+   - Cleanup authority covers the artifact family: `localcheck_run.go:448`, `testscratch.go:119` and `teststats_store.go:543,582` consistently preserve unconfirmed runner artifacts.
+   - Ownership parsing is bounded and conservatively retains artifacts when referenced authority is malformed or unavailable (`localcheck_resource.go:91`).
+   - Selection uses per-car path unions, preserves declaration order and caches immutable Git inputs. Tests exercise later reverts and repeated reads.
+   - Version2 preserves opaque metadata while enforcing known-field validation. README and atlas updates explain the delivered surface and recovery procedure.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Targeted declaration, landing-selection, local-runner, signal and cleanup tests passed.
+   - Complete `pkg/golint` and `internal/affected` tests passed.
+   - Narrow runner ownership/recovery tests passed under `-race`.
+   - Both cleanup mutations produced the expected regression failures. Sources were restored; the checkout is clean.
+   - Full-suite, train/single-landing enforcement and live VM qualification were outside this M1 verification.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared artifact protection, existing matcher, runner and attempt store reused.
+   - **ARCH-PURE — pass:** codecs, selection and proof predicates remain deterministic; filesystem/process work stays in integration seams.
+   - **ARCH-PURPOSE — pass:** M1 scope is delivered; the cleanup correction covers the enumerated artifact class.
+   - **ARCH-MOCK — pass:** injected Git/cleanup seams and private executable fixtures exercise production boundaries.
+   - **ARCH-CONSTRAINTS — pass:** input bounds, counted read/matching controls and bounded cleanup are present.
+   - **ARCH-SECURE — pass:** strict policy parsing, conservative ownership handling and private destructive-sweep fixtures are covered.
+   - **ARCH-ORDER — pass:** launch denies retirement; confirmed group completion restores it; uncertainty and panic retain ownership.
+   - **ARCH-FUNERAL — pass:** normal retirement and explicit reconciliation paths are documented and tested.
+   - **ARCH-EVOLVE — pass:** version refusal has an unsafe-to-ignore rationale; unknown nested metadata survives round trips.
+
+   Core-concept classifications match the delivered M1 entities; remaining train/gate entities belong to M2.
+
+7. **Plan revision recommendations:** None. Existing revisions capture the shared retention rule, reconciliation policy and fixture-isolation guard.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8e2d5aaa-4105-4b4e-bd83-5e29600adcbe","repository":"github.com/xianxu/ariadne","issue_id":"000509","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/a9f9913c397a88e1","reviewed_head":"ab2d11d407ed60c61f3da6151e089eac6769e74e","slot":"ariadne:3","requested_at":"2026-10-21T07:03:53.461231Z"},"phase":"finished","pid":38093,"started_at":"2026-10-21T07:03:53.598316Z","finished_at":"2026-10-21T07:07:54.884071Z","session_id":"01a15d46-0b59-74b2-88bc-46bc72810caf","outcome":"returned"}] -->
