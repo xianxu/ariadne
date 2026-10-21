@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-21T17:42:39.764584Z"
       session_id: 01a15f8e-6c73-7720-ba94-afd118432005
       outcome: returned
+    - version: 1
+      intent:
+        id: d4386bfd-2841-4ee2-8e19-c845c40c24c8
+        repository: github.com/xianxu/ariadne
+        issue_id: "000463"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        reviewed_head: 269f4c4f2d27928961ca8ae209b78fb6e5f6b4a2
+        slot: ariadne:3
+        requested_at: "2026-10-21T19:15:21.011876Z"
+      phase: finished
+      pid: 51635
+      started_at: "2026-10-21T19:15:21.169327Z"
+      finished_at: "2026-10-21T19:15:49.231107Z"
+      session_id: 01a15fe3-b725-77f2-a403-1438ca779990
+      outcome: returned
 gate: plan-quality
 issue: 463
 id_prefix: PQ
@@ -129,7 +148,32 @@ rounds:
           note: Risky functions are named with adversarial strategies and independent guards; prose test inventories have been replaced.
           round: 3
       blocked: false
-content_hash: e639a8d2c8e2f3b4563ad920a2cf94303aef9b5e8afdd11de507e519bd594b2f
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 7336c8b0-c7ec-4065-80ce-ab46305a27ab
+            repository: github.com/xianxu/ariadne
+            issue_id: "000463"
+            recipe: plan-quality
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: 269f4c4f2d27928961ca8ae209b78fb6e5f6b4a2
+            slot: ariadne:3
+            requested_at: "2026-10-21T19:14:49.641813Z"
+          phase: finished
+          pid: 22663
+          started_at: "2026-10-21T19:14:49.798044Z"
+          finished_at: "2026-10-21T19:15:19.213655Z"
+          session_id: 01a15fe3-3ce9-7380-81ac-0733e2fc7fe3
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-21T12:15:19-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      blocked: false
+content_hash: 1265da387c52668be439dcbffe1f14b9114ca019aeca2814510afdd92738316d
 ---
 
 # Gate ledger — ariadne#463 (plan-quality)
@@ -159,6 +203,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Parent-first durable retirement preserves the fence until eligibility is irreversibly removed, with fault-injected sequence tests.
 - PQ-2 — addressed — Risky functions are named with adversarial strategies and independent guards; prose test inventories have been replaced.
+
+## Round 4 — 2026-10-21T12:15:19-07:00 (codex) — passed
 
 ## Open findings
 
