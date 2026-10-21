@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '88eac5970b16a64f29cc832434a044f2aca4b516' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '105a024c15709e7117c42d0a903be76127555163' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T14:48:54-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainLandsEveryCarOnOneSuite/train]
+flake_tests:
 flow: {kind: quick, provenance: inferred, spec: "8876058c", done: "15e3cf4e"}
 ---
 
@@ -65,6 +65,9 @@ Fold #500's malformed-car fixture into this shared fix. Add a narrow pkg/golint 
 - The focused required controls plus helper tests passed in a fresh supervising run (81.065s): archive conformance 19.13s; all-car train/null/head 17.56/15.36/12.02s; malformed car 8.38s; diagnostic subprocesses 4.04s each, named failures before their actual eight-second Go alarm. Command: go test ./cmd/sdlc -run '^TestLanding(TrainLandsEveryCarOnOneSuite|TrainHoldsAMalformedCarNamingTheFile|TrainWaiterAcceptsConductorArchive|Completion.*)$' -count=1 -timeout=10m -v. Persistent raw output: /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/evidence/000498/targeted-required-controls.log. This is targeted coverage; the required recorded sharded full suite remains next.
 
 - Recorded suite queued on pushed e51983dee5a21f532fa8d1ae83749d55b59043f3 (attempt 706d1c6db69cb8835e2befae20926eb5). Per worker contract, close review overlapped the queue with explicit pending evidence and --no-plan-check; no checklist was falsely completed. Round 1 returned REWORK solely for BR-1, missing recorded full-suite proof. It found no implementation defect and independently passed pkg/golint plus the focused controls (71.636s). Close is not finalized; supply the suite result, resolve failures, then re-close and unregister only after proof. Hub owns the project (--no-project).
+
+- Required recorded full suite PASS on the exact implementation commit e51983dee5a21f532fa8d1ae83749d55b59043f3: all eight shards, 1,877 cmd/sdlc tests and 75 other packages; zero failures or reruns, wall 878.6s. Queued 1,886s before execution. Attempt 706d1c6db69cb8835e2befae20926eb5, persistent raw log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/e51983dee5a21f532fa8d1ae83749d55b59043f3/suite.log, SHA256 prefix bb46b4829d2f; sdlc-local/suite posted success. Only documentation/review bookkeeping has changed since that code commit. This supplies BR-1's missing exact-code full-suite proof; no test retry was used.
+- After that pass, explicitly unregistered #498's /train and #500's malformed-car test via sdlc flake unregister. #500's unstarted duplicate card was triaged wontfix (folded into #498); its details record the common fix and proof on this same branch. No independent #500 code branch or review is implied. Final review/close and landing remain next; hub owns project records.
 
 ## Revisions
 
