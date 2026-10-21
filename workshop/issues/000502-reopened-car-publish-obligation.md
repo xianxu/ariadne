@@ -50,7 +50,7 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 - [x] Add a deterministic ready → external reopen → not-ready → current re-close → ready production-gate regression, plus ownership and empty-selection controls.
 - [x] Reuse status-independent completion ownership in one publish-eligibility guard shared by ordinary publish and landing; preserve settlement and archive selection.
-- [ ] Update the atlas and verify targeted ownership/readiness controls, the recorded suite, close review and isolated production-path proof after approval.
+- [x] Update the atlas and verify targeted ownership/readiness controls and the isolated production-path proof after approval. The required recorded suite, close review and landing are tracked by their gate records below.
 
 ## Log
 
@@ -66,6 +66,10 @@ Do not globally widen ownedCompletions: settlement and archive retain their curr
 
 2026-10-21: Clean own bin/sdlc built from Git-verified 9f2afa63f780c2660367c9f3743ae6ed01ff5fdd; go version -m reports that vcs.revision and vcs.modified=false. PR370 opened. Hub accepted the isolated production-path proof and explicitly waived any separate live check or :0 stage (Couch 6d2201e5-ce53-40ee-8b28-e32b30dcb59b, submitted). Recorded suite and close remain required before landing.
 
+2026-10-21: First close attempt stopped before review on the remaining checkbox, which combined completed implementation checks with the close review itself. Clarified that row to record completed atlas/targeted/production-proof work; recorded suite, close review and landing remain required through the binary-owned gates. The original recorded suite run lease-53849329 remains queued; no cancellation or restart.
+
 ## Revisions
 
 2026-10-21: Refined the original policy proposal into a reviewable publish-only design. The completion binding survives reopen; its ownership predicate can be reused without changing settlement, archive, tracker schema or issue-free publication. Added explicit multiple-issue, status, generation and recovery controls. Awaiting hub approval of this new refusal.
+
+2026-10-21: Clarified the final Plan checkbox to avoid requiring the close review before admitting that same close review. This is bookkeeping only: verification and landing requirements remain in the durable plan and enforced gates; no code or policy change.
