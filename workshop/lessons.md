@@ -1284,3 +1284,8 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
 - #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.
+- #508 BR-1: a help refinement that first names a usable test command creates
+  a README discovery obligation even when the command belongs to a peer repo.
+  Scope its working directory explicitly and link the existing atlas map.
+  Documentation review owns this semantic coverage; a Go lint rule cannot
+  establish whether the reader can discover and run an external command.

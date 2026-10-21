@@ -64,6 +64,14 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+- 2026-10-21: round 2 confirmed the row union, red/green section controls and
+  harness refinement, but raised BR-1 (Important): the newly named usable Pair
+  test command needs README discovery guidance. Added a concise Pair-scoped
+  reference beside TL tooling, linking the existing atlas, and recorded the
+  lesson. This correction changes only documentation and review bookkeeping;
+  the passing final code-head suite remains the 1,950-test/75-package record
+  (13m2s, zero failures). A narrow re-close will dispose BR-1.
+
 - 2026-10-21: authenticated TL follow-up supplied the concrete parenthetical
   wording after pair#744 landed. Removed the issue-number placeholder from the
   help and its rule assertion, retaining the explicit Pair repository context.
