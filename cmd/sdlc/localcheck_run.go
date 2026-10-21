@@ -460,7 +460,15 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	}
 	defer func() {
 		if d.runnerLifetime.mayRetire() {
-			scratch.Cleanup()
+			if d.StrictGroupCleanup {
+				if cleanupErr := confirmResumeScratchCleanup(scratch); cleanupErr != nil {
+					d.runnerLifetime.retirable = false
+					err = errors.Join(err, cleanupErr)
+					return
+				}
+			} else {
+				scratch.Cleanup()
+			}
 			if resource == "runner" {
 				_ = os.Remove(filepath.Join(filepath.Dir(logPath), runnerArtifactOwnerFile))
 			}
@@ -469,6 +477,14 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	if resource == "runner" || d.StrictGroupCleanup {
 		if err := attachRunnerArtifactOwner(scratch.Dir, wt); err != nil {
 			return run, fmt.Errorf("protect runner scratch: %w", err)
+		}
+		if d.StrictGroupCleanup {
+			if err := syncResumeDirectory(scratch.Dir); err != nil {
+				return run, err
+			}
+			if err := syncResumeDirectory(filepath.Dir(scratch.Dir)); err != nil {
+				return run, err
+			}
 		}
 	}
 	env = append(env, scratch.Env...)

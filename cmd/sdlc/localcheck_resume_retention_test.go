@@ -461,3 +461,50 @@ func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
 		}
 	}
 }
+
+func TestResumeRetentionPinsUnreleasedEnvironmentAuthority(t *testing.T) {
+	for _, orphan := range []bool{false, true} {
+		for _, mode := range []string{"locked", "malformed", "unreadable", "dangling-marker"} {
+			t.Run(fmt.Sprintf("orphan=%t/%s", orphan, mode), func(t *testing.T) {
+				f := resumeEnvironmentPrivate(t)
+				if err := protectResumeEnvironment(f.d, f.wt, f.link.ChildID, f.inflight); err != nil {
+					t.Fatal(err)
+				}
+				marker := filepath.Join(f.inflight, runnerArtifactOwnerFile)
+				switch mode {
+				case "malformed":
+					if err := os.WriteFile(marker, []byte("unknown owner"), 0600); err != nil {
+						t.Fatal(err)
+					}
+				case "dangling-marker":
+					if err := os.Remove(marker); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Symlink(filepath.Join(t.TempDir(), "missing-owner"), marker); err != nil {
+						t.Fatal(err)
+					}
+				case "unreadable":
+					if err := os.Remove(marker); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Mkdir(marker, 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if orphan {
+					if err := os.Remove(filepath.Join(f.store, "attempts", f.link.ID+".json")); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := pruneSuiteAttempts(f.store, f.receipt.FinishedAt.Add(40*24*time.Hour)); err != nil {
+					t.Fatal(err)
+				}
+				for _, path := range []string{filepath.Join(f.store, "attempts", f.receipt.ID+".json"), filepath.Join(f.inflight, "run.log"), marker} {
+					if _, err := os.Lstat(path); err != nil {
+						t.Errorf("GC lost unreleased authority %s: %v", path, err)
+					}
+				}
+			})
+		}
+	}
+}

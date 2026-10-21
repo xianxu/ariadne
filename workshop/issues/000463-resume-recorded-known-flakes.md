@@ -220,3 +220,28 @@ strategies to the durable plan. Proposed fence-before-protection, durable marker
 before lock, confirmed environment retirement before child commit, and bundle
 GC preserving protected/unreadable cleanup authority. No implementation of this
 revision before hub approval. M2 and issue remain open; no PR or stage.
+
+
+### 2026-10-21 — Approved whole-lifecycle repair and final private verification
+
+TL receipt 91596b33-cfe5-4d0d-bfff-1cc377ee1656 approves the whole retirement
+re-plan and requires stopping for operator review if the next review finds
+another retirement/lifecycle gap. The fence now precedes protection; marker,
+child-directory and inflight-parent durability precede Git locking. Managed
+scratch cleanup proves/syncs absence; exact checkout removal precedes Git
+registration removal, both confirmed/synced before child publication. Marker
+release comes last. Receipt cleanup shares exact binding/removal logic while
+retaining its own absent-owner/attestation authority. Prepared unlocked inputs
+remain ordinary collector work, without weakening deletion authority. Bundle
+and orphan-receipt GC preserve locked or unreadable owner bindings.
+
+All eight declared crash windows passed in the final combined private run:
+95.599s, output /tmp/ariadne-463-final-private-conformance.log. The status-post
+crash test now proves no prepared checkout/registration remains before or after
+repeat/republish, immutable parent/child/link bytes and no duplicate execution.
+Environment/retention targeted group passed 5.270s; all Resume race checks passed
+13.378s; scratch/CLI/owner/authority checks passed 0.583s; Go lint 0.604s and shell
+lint 0.167s; diff clean. Silent scratch deletion failure, incomplete ownership,
+unrelated dangling scratch markers and unreadable/dangling GC marker controls
+observed RED before the class repair. No production state, stage or PR. Push
+this final code, queue a fresh recorded suite and rerun mandatory M2 review.

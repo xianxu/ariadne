@@ -89,3 +89,23 @@ func TestResumeReconcileRequiresSteward(t *testing.T) {
 		t.Fatalf("worker authorized reconcile: %v", err)
 	}
 }
+
+func TestResumeScratchRetirement(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "owned-scratch")
+	if err := os.Mkdir(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// A cleanup callback returning cannot stand in for observed absence.
+	scratch := scratchPreparation{Dir: path, Cleanup: func() {}}
+	if err := confirmResumeScratchCleanup(scratch); err == nil {
+		t.Fatal("silent scratch deletion failure accepted")
+	}
+	scratch.Cleanup = func() { _ = os.RemoveAll(path) }
+	if err := confirmResumeScratchCleanup(scratch); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("scratch remains: %v", err)
+	}
+}

@@ -94,6 +94,7 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 		return nil, err
 	}
 	x := indexResumeRetention(s)
+	// Retention also preserves unreleased environment ownership.
 	// With unavailable authority, even an apparently unrelated legacy row may be
 	// a bundle member. Prevent the caller's individual-file pruning altogether.
 	if len(s.Warnings) > 0 || len(s.Unsupported) > 0 {
@@ -113,6 +114,13 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 			continue
 		}
 		l := links[0]
+		memberIDs := []string{l.RerunOf, l.ID, l.ChildID}
+		for _, r := range x.receipts[parent] {
+			memberIDs = append(memberIDs, r.ID)
+		}
+		if resumeRetentionEnvironmentProtected(root, memberIDs) {
+			continue
+		}
 		child, hasChild := x.attempts[l.ChildID]
 		receipts := x.receipts[parent]
 		if hasChild && len(receipts) > 0 {
@@ -186,6 +194,9 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 			continue
 		}
 		r := receipts[0]
+		if resumeRetentionEnvironmentProtected(root, []string{parent, r.LinkID, r.ChildID, r.ID}) {
+			continue
+		}
 		if _, ok := x.attempts[parent]; ok {
 			continue
 		}
@@ -357,4 +368,21 @@ func retireResumeMembers(root string, l ResumeLink, p SuiteAttempt, hasParent bo
 		}
 	}
 	return ops.sync(dir)
+}
+
+func resumeRetentionEnvironmentProtected(root string, ids []string) bool {
+	for _, id := range ids {
+		inflight := filepath.Join(root, "inflight", id)
+		info, err := os.Lstat(filepath.Join(inflight, runnerArtifactOwnerFile))
+		if err != nil && !os.IsNotExist(err) {
+			return true
+		}
+		if err == nil && !info.Mode().IsRegular() {
+			return true
+		}
+		if runnerArtifactProtected(inflight) {
+			return true
+		}
+	}
+	return false
 }

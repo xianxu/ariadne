@@ -2788,3 +2788,18 @@ repeat without execution, immutable original evidence, owner-only crash followed
 by explicit descendant termination and terminal reconciliation, and a later
 actual green suite refused by the guard. All Git, tracker, queue, scratch and
 transport state is private; no installed binary or production proof is repaired.
+
+
+Protected resume inputs follow fence → durable existing owner marker (file,
+child directory and inflight parent synced) → exact child Git lock → managed
+execution. Strong group completion and confirmed/synced scratch, checkout and
+Git registration absence precede child commit. Checkout deletion happens while
+registration still retains its reverse pointer; registration deletion follows;
+owner marker release is last. Thus a committed-child/status-post crash has no
+locked inputs to strand. Uncertain cleanup remains pending for the existing
+operator receipt. Receipt-only cleanup of prepared unlocked inputs is a no-op:
+ordinary age collection owns those unprotected inputs. Terminal bundle/orphan
+receipt pruning retains any protected or unreadable owner binding, including
+nonregular/dangling markers, until cleanup authority can safely retire. The
+crash-window tests map every preparation, execution, cleanup, commit and receipt
+boundary without changing test-result authority or original suite measurements.

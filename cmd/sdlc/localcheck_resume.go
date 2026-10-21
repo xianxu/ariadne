@@ -111,8 +111,7 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	d.StrictGroupCleanup = true
 	d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	defer func() {
-		if !linked || d.runnerLifetime.mayRetire() {
-			_, _ = cleanupGit("worktree", "unlock", wt)
+		if !linked {
 			cleanup()
 		}
 	}()
@@ -125,9 +124,6 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 			_ = os.RemoveAll(filepath.Dir(w.LogPath))
 		}
 	}()
-	if err = protectResumeEnvironment(d, wt, w.ID, filepath.Dir(w.LogPath)); err != nil {
-		return rec, err
-	}
 	pidStarted, err := processStartTime(os.Getpid())
 	if err != nil {
 		return rec, err
@@ -153,6 +149,9 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if err = publishResumeEvidence(store, lock, raw); err != nil {
 		return rec, err
 	}
+	if err = protectResumeEnvironment(d, wt, w.ID, filepath.Dir(w.LogPath)); err != nil {
+		return rec, fmt.Errorf("resume inputs not protected: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+	}
 	if err = resumeAdvance(&state, ResumeLinkPublished, ResumeLaunch); err != nil {
 		return rec, err
 	}
@@ -172,9 +171,6 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 		_ = resumeAdvance(&state, ResumeUncertain, "")
 		return rec, fmt.Errorf("resume completion unknown: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
-	if err = resumeAdvance(&state, ResumeCompletionConfirmed, ResumeCommitChild); err != nil {
-		return rec, err
-	}
 	logSHA, _, err := hashAndTail(w.LogPath, localCheckTailLines)
 	if err != nil {
 		return rec, err
@@ -193,6 +189,16 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: in.ParentFacts.Failures, Subtests: in.ParentFacts.Subtests}, Registry: in.Registry, RegistryErr: in.RegistryErr, Policy: flakes.PolicyRerun, Rerun: &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Subtests: facts.Subtests, Unattributed: facts.Unattributed}})
 	wall, wait := run.Duration.Seconds(), run.QueueWait.Seconds()
 	child := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: d.Repo, SHA: sha, Check: suiteRerunCheck, Slot: in.Parent.Slot, Agent: in.Parent.Agent, Model: in.Parent.Model, Effort: in.Parent.Effort, StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired), QueueSeconds: &wait, WallSeconds: &wall, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA, Failures: facts.Failures, Units: facts.Units, Outcome: string(o.Kind), KnownFlakes: o.Known, RerunOf: parent}
+	if err = retireCompletedResumeEnvironment(ctx, d, store, link, lock); err != nil {
+		_ = resumeAdvance(&state, ResumeUncertain, "")
+		return rec, fmt.Errorf("resume inputs not confirmed retired: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
+	}
+	if err = ctx.Err(); err != nil {
+		return rec, err
+	}
+	if err = resumeAdvance(&state, ResumeCompletionConfirmed, ResumeCommitChild); err != nil {
+		return rec, err
+	}
 	if _, err = publishSuiteAttempt(store, w, child); err != nil {
 		return rec, fmt.Errorf("resume child completion not committed: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
 	}
@@ -287,4 +293,15 @@ func postResumeRecord(ctx context.Context, d localRunDeps, rec localRunRecord) e
 		return fmt.Errorf("resume result was NOT recorded: %w; after repairing publication or proof, run: sdlc local-check republish --name suite --rev %s --attempt %s", err, rec.SHA, rec.ResumeParent)
 	}
 	return nil
+}
+
+func confirmResumeScratchCleanup(scratch scratchPreparation) error {
+	if scratch.Dir == "" || scratch.Cleanup == nil {
+		return errors.New("resume scratch cleanup authority unavailable")
+	}
+	scratch.Cleanup()
+	if _, err := os.Lstat(scratch.Dir); !os.IsNotExist(err) {
+		return &runnerCleanupUnconfirmed{Detail: fmt.Sprintf("resume scratch %s absence unconfirmed: %v", scratch.Dir, err)}
+	}
+	return syncResumeDirectory(filepath.Dir(scratch.Dir))
 }

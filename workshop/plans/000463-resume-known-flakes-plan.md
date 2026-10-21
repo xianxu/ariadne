@@ -322,3 +322,25 @@ the approved absent-owner/operator attestation. The receipt wrapper retains all
 existing authorization checks; normal retirement cannot forge a receipt or call
 its destructive path without its own lifetime precondition. These complete the
 whole-lifecycle proposal; approval remains pending.
+
+
+Whole-lifecycle re-plan approved by TL receipt
+91596b33-cfe5-4d0d-bfff-1cc377ee1656. The next review finding of another
+retirement/lifecycle gap means stop and return to the TL for operator review,
+not another autonomous patch. Implementation keeps the same marker schema and
+locks. Cleanup removes/confirms/syncs the checkout path while locked Git
+registration still preserves its reverse pointer; only then does it remove and
+confirm/sync registration absence, and finally release/sync the owner marker.
+Scratch removal likewise confirms absence and syncs its parent before ownership
+can disappear. A receipt for prepared-but-unlocked inputs is terminal proof
+repair; it leaves unprotected unused preparation for the ordinary age collector
+rather than weakening exact reverse-child deletion authority.
+
+Crash-window test mapping (one named test per row): `TestResumeCrashPreLink`,
+`TestResumeCrashLinkBeforeMarker`, `TestResumeCrashMarkerBeforeLock`,
+`TestLocalCheckResumeConformance/running`, `TestResumeScratchRetirement`,
+`TestResumeCrashCheckoutRetiredBeforeChildCommit`,
+`TestResumeCrashCommittedChildStatusPost`, and
+`TestResumeCrashTerminalReceiptBeforeCleanup`. Integration tests additionally
+fault marker/directory sync, retain protected/unreadable GC authority, mutate
+owner bindings and retry a removed checkout with extant locked registration.

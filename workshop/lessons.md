@@ -1,5 +1,7 @@
 # Lessons
 
+- #463 BR-3: a completed-result publisher must not erase the only cleanup reference before locked inputs retire. Order the whole lifecycle: fence before protection, durable owner before lock, confirmed group/scratch/checkout/registration retirement before result commit, reference release last. Test every crash window through real process barriers; GC must preserve unreadable cleanup authority. Deferred cleanup cannot establish crash safety.
+
 - #463 M2: terminal repost is a valid same-state transition when it carries an explicit effect. Test the real repeated CLI operation, not only pure state changes. Before every status retry, re-resolve current linked proof and bind the posted parent/child identity; a lost network reply is not authority to reuse a stale registry decision. Retained-input cleanup must re-read its owner marker after reverse-pointer validation and before deletion. Stateful publication and mutation-barrier tests enforce these temporal contracts.
 
 - #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
