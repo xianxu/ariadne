@@ -1,6 +1,6 @@
 ---
 id: 000502
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 082414664f1091e790a874ffdac3d2f39dd84e6c
         evidence_commit: 0e98ebb2460b0042eb03aab142425080ff7bdaed
+        landed_commit: 923b01720a85d0bf73c591f7e5c86d79a6a5b933
 ---
 
 # Reopened issue can silently remove a waiting car publish obligation
