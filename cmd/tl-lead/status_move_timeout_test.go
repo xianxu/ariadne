@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -20,19 +21,49 @@ func TestMoveCouchHelperProcess(t *testing.T) {
 	}
 	switch mode {
 	case "hang":
-		//lint:allow test-fixed-sleep — this helper simulates an unresponsive external process; the parent deadline, not this delay, synchronizes the test
-		time.Sleep(700 * time.Millisecond)
+		// Unresponsive input, not a synchronization delay. The parent kills it.
+		for {
+			time.Sleep(time.Hour)
+		}
 	case "rename-hang":
+		if gate := os.Getenv("TL_LEAD_MOVE_GATE"); gate != "" {
+			if err := os.WriteFile(gate+".ready", nil, 0600); err != nil {
+				os.Exit(2)
+			}
+			awaitMoveEffect(t, t.Context(), gate, nil)
+		}
 		if err := os.WriteFile(os.Getenv("TL_LEAD_MOVE_EFFECT"), []byte("renamed"), 0600); err != nil {
 			os.Exit(2)
 		}
-		//lint:allow test-fixed-sleep — this helper simulates an unresponsive external process; the parent deadline, not this delay, synchronizes the test
-		time.Sleep(700 * time.Millisecond)
+		// The parent observes the effect before cancelling. Never return on a
+		// timer: slow scheduling must not turn interruption into success.
+		for {
+			time.Sleep(time.Hour)
+		}
 	case "pipe-parent":
 		child := exec.Command(os.Args[0], "-test.run=^TestMoveCouchHelperProcess$")
-		child.Env = append(os.Environ(), "TL_LEAD_MOVE_HELPER=hang")
+		child.Env = append(os.Environ(), "TL_LEAD_MOVE_HELPER=pipe-child")
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+		awaitMoveEffect(t, t.Context(), os.Getenv("TL_LEAD_MOVE_PIPE")+".ready", nil)
+	case "pipe-child":
+		gate := os.Getenv("TL_LEAD_MOVE_PIPE")
+		if err := os.WriteFile(gate+".ready", nil, 0600); err != nil {
+			os.Exit(2)
+		}
+		for {
+			if _, err := os.Stat(gate); err == nil {
+				break
+			}
+			// A failed parent assertion still removes this t.TempDir.
+			if _, err := os.Stat(filepath.Dir(gate)); err != nil {
+				os.Exit(0)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		if err := os.WriteFile(gate+".done", nil, 0600); err != nil {
 			os.Exit(2)
 		}
 	case "locked":
@@ -62,6 +93,7 @@ func moveCouchHelper(t *testing.T, mode string) string {
 }
 
 func TestMoveCouchDeadline(t *testing.T) {
+	//lint:allow test-shrunk-deadline — asserts only the real elapsed bound, no helper startup effect
 	c := couchSessionSync{bin: moveCouchHelper(t, "hang"), timeout: 100 * time.Millisecond}
 	start := time.Now()
 	_, err := c.run("list", "--json")
@@ -76,16 +108,82 @@ func TestMoveCouchDeadline(t *testing.T) {
 }
 
 func TestMoveCouchRenameDeadlineUnconfirmed(t *testing.T) {
-	bin := moveCouchHelper(t, "rename-hang")
-	effect := filepath.Join(t.TempDir(), "effect")
-	t.Setenv("TL_LEAD_MOVE_EFFECT", effect)
-	c := couchSessionSync{bin: bin, timeout: 300 * time.Millisecond}
-	err := c.Rename("old", "new")
-	if err == nil || !strings.Contains(err.Error(), "outcome unconfirmed") {
-		t.Fatalf("rename error = %v", err)
+	for _, beforeEffect := range []bool{false, true} {
+		name := "after effect"
+		if beforeEffect {
+			name = "before effect"
+		}
+		t.Run(name, func(t *testing.T) {
+			bin := moveCouchHelper(t, "rename-hang")
+			root := t.TempDir()
+			effect, gate := filepath.Join(root, "effect"), filepath.Join(root, "gate")
+			t.Setenv("TL_LEAD_MOVE_EFFECT", effect)
+			t.Setenv("TL_LEAD_MOVE_GATE", gate)
+			ctx, cancel := moveTestContext(t)
+			c := couchSessionSync{bin: bin, ctx: ctx}
+			result := make(chan error, 1)
+			done := make(chan struct{})
+			go func() { defer close(done); result <- c.Rename("old", "new") }()
+			t.Cleanup(func() { cancel(); <-done })
+			// Hold the child before its effect, independently of startup latency.
+			awaitMoveEffect(t, ctx, gate+".ready", result)
+			if _, err := os.Stat(effect); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("effect before release: %v", err)
+			}
+			if !beforeEffect {
+				if err := os.WriteFile(gate, nil, 0600); err != nil {
+					t.Fatal(err)
+				}
+				awaitMoveEffect(t, ctx, effect, result)
+			}
+			cancel()
+			err := <-result
+			if err == nil || !strings.Contains(err.Error(), "outcome unconfirmed") || !strings.Contains(err.Error(), "context canceled") {
+				t.Fatalf("rename error = %v", err)
+			}
+			_, err = os.Stat(effect)
+			if beforeEffect && !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("cancelled gated child published effect: %v", err)
+			}
+			if !beforeEffect && err != nil {
+				t.Fatalf("published effect lost: %v", err)
+			}
+		})
 	}
-	if _, err := os.Stat(effect); err != nil {
-		t.Fatalf("rename never published: %v", err)
+}
+
+// Startup is bounded by the enclosing test, never an assumed launch latency.
+// Cleanup cancellation reaps the child even after an assertion failure.
+func moveTestContext(t *testing.T) (context.Context, context.CancelFunc) {
+	t.Helper()
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if deadline, ok := t.Deadline(); ok {
+		ctx, cancel = context.WithDeadline(context.Background(), deadline)
+	} else {
+		ctx, cancel = context.WithCancel(context.Background())
+	}
+	t.Cleanup(cancel)
+	return ctx, cancel
+}
+
+func awaitMoveEffect(t *testing.T, ctx context.Context, path string, result <-chan error) {
+	t.Helper()
+	tick := time.NewTicker(5 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		} else if !errors.Is(err, os.ErrNotExist) {
+			t.Fatal(err)
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("helper ended before publishing readiness: %v", err)
+		case <-ctx.Done():
+			t.Fatalf("helper not ready before test deadline: %v", ctx.Err())
+		case <-tick.C:
+		}
 	}
 }
 
@@ -95,7 +193,8 @@ func TestMoveCouchKnownRefusals(t *testing.T) {
 		want error
 	}{{"locked", ErrLocked}, {"stale", ErrStale}} {
 		t.Run(tc.mode, func(t *testing.T) {
-			c := couchSessionSync{bin: moveCouchHelper(t, tc.mode), timeout: time.Second}
+			ctx, _ := moveTestContext(t)
+			c := couchSessionSync{bin: moveCouchHelper(t, tc.mode), ctx: ctx}
 			if err := c.Rename("old", "new"); !errors.Is(err, tc.want) {
 				t.Fatalf("got %v; want %v", err, tc.want)
 			}
@@ -104,7 +203,8 @@ func TestMoveCouchKnownRefusals(t *testing.T) {
 }
 
 func TestMoveCouchPermissionFailsClearly(t *testing.T) {
-	c := couchSessionSync{bin: moveCouchHelper(t, "permission"), timeout: time.Second}
+	ctx, _ := moveTestContext(t)
+	c := couchSessionSync{bin: moveCouchHelper(t, "permission"), ctx: ctx}
 	_, err := c.run("list", "--json")
 	if err == nil || !strings.Contains(err.Error(), "cannot reach Couch") || !strings.Contains(err.Error(), "operation not permitted") {
 		t.Fatalf("error = %v", err)
@@ -124,7 +224,17 @@ func TestMoveCouchBoundIsScoped(t *testing.T) {
 }
 
 func TestMoveCouchInheritedPipeIsBounded(t *testing.T) {
-	c := couchSessionSync{bin: moveCouchHelper(t, "pipe-parent"), timeout: 2 * time.Second}
+	gate := filepath.Join(t.TempDir(), "pipe")
+	t.Setenv("TL_LEAD_MOVE_PIPE", gate)
+	ctx, _ := moveTestContext(t)
+	t.Cleanup(func() {
+		if err := os.WriteFile(gate, nil, 0600); err != nil {
+			t.Error(err)
+			return
+		}
+		awaitMoveEffect(t, ctx, gate+".done", nil)
+	})
+	c := couchSessionSync{bin: moveCouchHelper(t, "pipe-parent"), ctx: ctx}
 	_, err := c.run("list", "--json")
 	if err == nil || !strings.Contains(err.Error(), "cannot reach Couch") || !strings.Contains(err.Error(), "WaitDelay") {
 		t.Fatalf("inherited pipe error = %v", err)

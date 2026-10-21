@@ -14,14 +14,14 @@ func TestFleetResumeBoundedRecheck(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	c.resumeErr["pair:6"] = fmt.Errorf("%w: request req-6", errUncertain)
 	dir := t.TempDir()
-	seen := filepath.Join(dir, "seen")
 	bin := filepath.Join(dir, "couch")
-	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
-	script := "#!/bin/sh\nif test ! -e " + quote(seen) + "; then\n : > " + quote(seen) + "\n printf '%s\\n' '{\"Code\":\"ok\",\"Actors\":[]}'\nelse\n exec sleep 30\nfi\n"
+	script := "#!/bin/sh\nexec sleep 30\n"
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	d.actors = execActors{bin: bin, timeout: 500 * time.Millisecond}
+	//lint:allow test-shrunk-deadline — initial snapshot is in-process; the stalled recheck asserts only its bound, not any helper startup effect
+	recheck := &actorsAfterInitial{live: execActors{bin: bin, timeout: 500 * time.Millisecond}}
+	d.actors = recheck
 	var out strings.Builder
 	began := time.Now()
 	err := fleetResume(&out, d, cwd, true)
@@ -34,7 +34,25 @@ func TestFleetResumeBoundedRecheck(t *testing.T) {
 	if stopped < 0 || observed < stopped || guidance < 0 || guidance > observed {
 		t.Fatalf("recovery output followed the optional stalled probe: %s", out.String())
 	}
+	if recheck.queries != 2 {
+		t.Fatalf("actor observations = %d, want initial snapshot plus recheck", recheck.queries)
+	}
 	if strings.Join(c.attempts(), ",") != "pair:2,pair:6" {
 		t.Fatal(c.attempts())
 	}
+}
+
+// Only the optional recovery recheck needs a real stalled subprocess. The
+// initial healthy observation must not share its deliberately short budget.
+type actorsAfterInitial struct {
+	queries int
+	live    CouchActors
+}
+
+func (a *actorsAfterInitial) Actors() (map[string]Actor, error) {
+	a.queries++
+	if a.queries == 1 {
+		return map[string]Actor{}, nil
+	}
+	return a.live.Actors()
 }

@@ -61,7 +61,7 @@ var Catalog = []Rule{
 	},
 	{
 		Name:     "test-shrunk-deadline",
-		Incident: "ariadne#434",
+		Incident: "ariadne#434, ariadne#514",
 		Message:  "a sub-second deadline races fixture startup under load; fire it on cue after readiness (testfix.DeadlineOnCue), or suppress where the test only asserts the bound",
 		TestOnly: true,
 		Match:    shrunkDeadlines,
@@ -354,29 +354,43 @@ func calls(f *ast.File, path string, names []string, visit func(*ast.CallExpr)) 
 	})
 }
 
-// shrunkDeadlines flags an override (=, not a declaration) of a variable or
-// field named for a deadline. Without type-checking a local cannot be told
-// from a package variable; locals so named are rare, and suppressible.
+// shrunkDeadlines catches overrides and struct literal deadline fields. Local
+// declarations remain excluded; known boundary-only tests can suppress the rule.
 func shrunkDeadlines(f *ast.File, _ *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
 	var out []ast.Node
-	ast.Inspect(f, func(n ast.Node) bool {
-		as, ok := n.(*ast.AssignStmt)
-		if !ok || as.Tok != token.ASSIGN || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
-			return true
-		}
+	inspect := func(key, value ast.Expr, node ast.Node) {
 		var name string
-		switch lhs := as.Lhs[0].(type) {
+		switch lhs := key.(type) {
 		case *ast.Ident:
 			name = lhs.Name
 		case *ast.SelectorExpr:
 			name = lhs.Sel.Name
 		}
-		if !strings.Contains(name, "Timeout") && !strings.Contains(name, "Grace") && !strings.Contains(name, "Deadline") {
-			return true
+		name = strings.ToLower(name)
+		if !strings.Contains(name, "timeout") && !strings.Contains(name, "grace") && !strings.Contains(name, "deadline") {
+			return
 		}
-		if d, ok := constDuration(timePkg, as.Rhs[0]); ok && d < time.Second {
-			out = append(out, as)
+		if d, ok := constDuration(timePkg, value); ok && d < time.Second {
+			out = append(out, node)
+		}
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.AssignStmt:
+			if n.Tok == token.ASSIGN && len(n.Lhs) == 1 && len(n.Rhs) == 1 {
+				inspect(n.Lhs[0], n.Rhs[0], n)
+			}
+		case *ast.CompositeLit:
+			// A map key is data, not a duration field.
+			if _, ok := n.Type.(*ast.MapType); ok {
+				return true
+			}
+			for _, elt := range n.Elts {
+				if field, ok := elt.(*ast.KeyValueExpr); ok {
+					inspect(field.Key, field.Value, field)
+				}
+			}
 		}
 		return true
 	})
