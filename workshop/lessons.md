@@ -878,7 +878,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Keep separately bounded metadata outside a byte-measured diagnostic envelope.
   Adding a sidecar block after that envelope changes the reported retained bytes
   even when the diagnostic renderer is untouched (#365).
-- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1).
+- New CLI flags and recovery commands need README coverage alongside atlas and help; enumerate all three before close (#366 BR-1; #501 BR-1).
 - When a fenced reviewer cannot run a regression, record an exact-head host rerun, environment qualification and log path; distinguish unverifiable review execution from a demonstrated implementation failure (#366 BR-2).
 
 - A successful process-group signal is not a fork barrier. Forceful teardown
@@ -1163,6 +1163,7 @@ The simplest durable authority beats a clever scan of consequences.
   context.Background inside a new runtime; run TestVerbContextsReachTrackerReads
   with targeted runtime checks (#481 final suite).
 
+- #501 BR-2/BR-3: apply an approved acceptance change to active Done-when and preserve the old criterion in Revisions. Do not check off IO failure coverage from a crash after a successful fsync: exercise write/sync errors before and after their effects, including retry after the unlink already happened.
 - #504: relocating an indexed document needs both old and new coordinates.
   Rewrite only the validated discussions path scalars; matching every `- doc:`
   line corrupts unrelated metadata. Byte-preservation and generated-coordinate
@@ -1217,6 +1218,11 @@ The simplest durable authority beats a clever scan of consequences.
 
 - #499 root binding: when routing a publication guard through a shared reader, preserve the guard's original repository authority explicitly. A configured details directory is a data location, not the publication repository selector. Test a legacy peer directory beside a tracked checkout and ensure it cannot turn an existing ownership refusal into acceptance. This semantic provenance boundary is enforced by the production guard regression rather than lexical lint.
 
+- #485 plan review: an external mutation's nonzero exit alone does not prove refusal; require a matching terminal receipt and consistent normal exit, and keep timeout, signal death or malformed output uncertain. Test the receipt/exit cross-product through the real subprocess seam. Plans should name risky functions and adversarial test strategies rather than duplicate executable case inventories. These are semantic protocol/review contracts, enforced by stateful/subprocess tests and the plan gate rather than a lexical Go lint rule.
+
+- #485 test fixture: synctest.Wait orders prior writes before the test's observation; it does not serialize that observation with a later fake-time wakeup that writes the same slice. Protect mutable snapshots with the same mutex as writes. The race detector enforces this semantic concurrency contract; a lexical source rule cannot establish happens-before across the fake clock.
+
+- #485 boundary: optional recovery observations must be bounded and follow the already-known stopped/untouched result. Test a successful initial read then a stalled recovery probe. Stage new files before running the tracked-file lint catalog; untracked tests are outside its scan, and virtual synctest Sleep calls need reasoned test-fixed-sleep annotations. README covers new flags, and external receipt readers need an isolated opt-in conformance check against the real CLI. Existing catalog and timeout/subprocess regressions enforce these classes; no name-based lint rule can prove recovery ordering.
 - #504 BR-6: promoting a transform to return validation errors requires every
   consumer to preserve that failure contract. A compatibility adapter returning
   unchanged text on error can falsely authorize deletion. Delete the adapter,
@@ -1225,3 +1231,5 @@ The simplest durable authority beats a clever scan of consequences.
   enforced; behavioral regressions cover semantic suppression, which a lexical
   source rule cannot prove.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
+
+- #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
