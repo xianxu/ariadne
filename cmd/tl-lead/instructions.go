@@ -212,7 +212,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 		Short: "Read ## Operator instructions and link answers to its bullets (by position; numbers repeat)",
 	}
 	list := &cobra.Command{
-		Use:   "list FILE",
+		Use:   "list [FILE]",
 		Short: "Print the open (unanswered) bullets by position, then the section hash",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -226,7 +226,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	var hash string
 	link := &cobra.Command{
-		Use:   "link FILE POS TARGET --hash H",
+		Use:   "link [FILE] POS TARGET --hash H",
 		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -239,6 +239,6 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	link.Flags().StringVar(&hash, "hash", "", "the section hash `list` printed (required)")
 	_ = link.MarkFlagRequired("hash")
-	c.AddCommand(list, link)
+	c.AddCommand(withDefaultStatusFile(list, 1), withDefaultStatusFile(link, 3))
 	return c
 }

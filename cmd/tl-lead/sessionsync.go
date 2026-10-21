@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // SessionSync is the seam over `couch --session-sync` (pair). Couch owns the
@@ -45,6 +47,8 @@ type SessionSync interface {
 	// Rename moves a registration to new, which must already exist; a rerun
 	// of a rename already done succeeds (`rename OLD NEW`).
 	Rename(old, new string) error
+	LookupRegistration(file string) (*syncRegistration, error)
+	RegistrationSnapshot() (map[string]*syncRegistration, error)
 }
 
 // fileHash is couch's name for one version of a whole file (pair
@@ -81,10 +85,38 @@ const (
 
 // couchSessionSync runs the real couch binary with an argv array, never a
 // shell, so a quoted value can't merge with a flag.
-type couchSessionSync struct{ bin string }
+type couchSessionSync struct {
+	bin     string
+	timeout time.Duration
+}
+
+// boundedMoveSync confines the migration's process budget to its own copy.
+func boundedMoveSync(ss SessionSync) SessionSync {
+	switch c := ss.(type) {
+	case couchSessionSync:
+		c.timeout = 5 * time.Second
+		return c
+	case *couchSessionSync:
+		copy := *c
+		copy.timeout = 5 * time.Second
+		return &copy
+	default:
+		return ss
+	}
+}
 
 func (c couchSessionSync) run(args ...string) ([]byte, error) {
-	cmd := exec.Command(c.bin, append([]string{"--session-sync"}, args...)...)
+	argv := append([]string{"--session-sync"}, args...)
+	cmd := exec.Command(c.bin, argv...)
+	var ctx context.Context
+	if c.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), c.timeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, c.bin, argv...)
+		// A descendant may inherit the output pipes even after Couch exits.
+		cmd.WaitDelay = 250 * time.Millisecond
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
@@ -100,6 +132,17 @@ func (c couchSessionSync) run(args ...string) ([]byte, error) {
 	msg := strings.TrimSpace(stderr.String())
 	if msg == "" {
 		msg = strings.TrimSpace(stdout.String())
+	}
+	if c.timeout > 0 {
+		detail := fmt.Sprintf("%v: %s", err, msg)
+		if ctx.Err() != nil {
+			detail = fmt.Sprintf("exceeded %s budget: %v", c.timeout, ctx.Err())
+		}
+		outcome := ""
+		if args[0] == "rename" {
+			outcome = "; rename outcome unconfirmed; rerun to confirm the registration"
+		}
+		return nil, fmt.Errorf("cannot reach Couch: couch --session-sync %s: %s%s; run the move outside the agent sandbox with Couch available", args[0], detail, outcome)
 	}
 	return nil, fmt.Errorf("couch --session-sync %s: %v: %s", args[0], err, msg)
 }

@@ -87,7 +87,7 @@ func reportIndex(out io.Writer, file string, r sidedoc.Report) {
 func newIndexCmd(d deps) *cobra.Command {
 	var add []string
 	c := &cobra.Command{
-		Use:   "index FILE [--add DOC]...",
+		Use:   "index [FILE] [--add DOC]...",
 		Short: "Reconcile the discussions: index: drop entries whose link is gone; --add a side doc the TL just linked",
 		Long: `The session file's discussions: frontmatter lists the side docs waiting for the
 operator's review. The rule is one-way: deleting a link drops its entry on the
@@ -104,5 +104,5 @@ ariadne#426): the operator's unread section edits stay in your diff.`,
 		},
 	}
 	c.Flags().StringArrayVar(&add, "add", nil, "a side doc to list, relative to FILE (repeatable)")
-	return c
+	return withDefaultStatusFile(c, 1)
 }

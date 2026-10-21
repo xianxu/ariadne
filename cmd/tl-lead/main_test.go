@@ -110,7 +110,12 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"review requests use the shared skill", "review request: answer it with the\n    `xx-universal-review` skill"},
 		// #388: a deleted bullet closes its answer doc; where a later follow-up goes.
 		{"a closed bullet's follow-up", "A later follow-up on a deleted bullet's topic goes to Needs you"},
-		{"G3 answer doc folder", "teams/<team>/tl-status-<operator>.side/"},
+		{"G3 answer doc folder", "session.side/"},
+		{"root session file", "session.md at the hub repo's root"},
+		{"decisions are tracked", "Copy decisions into tracked artifacts when they are made"},
+		{"session move", "tl-lead status move [OLD]"},
+		{"default status file", "Omit FILE to use session.md"},
+		{"migration register prerequisite", "couch --session-sync register OLD --owner SLOT"},
 		{"G3 answer docs are gitignored", "The\n    folder is gitignored like the status file"},
 		{"G3 a follow-up extends its doc", "A follow-up extends the file\n    its link names"},
 		{"G3 answers only the question", "answers only the question asked"},
