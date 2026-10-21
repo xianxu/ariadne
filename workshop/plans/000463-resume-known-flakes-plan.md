@@ -563,3 +563,11 @@ are explicit operator-selected boundaries, not future automatic recovery.
 No code is admitted by this plan write. Send its committed/pushed revision to
 TL, wait for plan acceptance, then run the fresh change-code plan-quality gate.
 M2 sidecars and the issue-wide ledger are preserved as review history.
+
+M3 accepted by authenticated TL f1791b10-0ac2-4140-bde3-ae229e144241. The
+operator-selected one-pass/evidence-only/pinned-graph contract and unused
+preparation boundary are accepted. Proceed to change-code. At the whole-issue
+gate dispose carried M2 BR-3 as **superseded by the operator's option A**,
+citing decision 390faec8-dc49-498e-9ad5-2c1a718c2c37; preserve the ledger and
+review history rather than clearing it. This acceptance authorizes M3, not the
+superseded M2 retry design.

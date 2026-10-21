@@ -302,3 +302,13 @@ the TL before code. After TL approval, rerun change-code for fresh plan-quality
 admission, follow the gates' exact freshness remedy if required, then execute
 M3. Final issue close must dispose of the carried M2 BR-3 under the new operator
 contract through the real review, not by manually editing its ledger.
+
+### 2026-10-21 — Fresh M3 accepted; change-code next
+
+TL acceptance f1791b10-0ac2-4140-bde3-ae229e144241 approves M3's one original-owner
+pass, needs-reconcile on every inconsistency, evidence-only interrupted audit,
+pinned pending/interrupted/receipt graph and unchanged completed-cleanup GC.
+Unused preparation that never launched retains the accepted ordinary collector
+boundary. At whole-issue review, dispose carried M2 BR-3 as superseded by the
+operator's option A, citing decision 390faec8-dc49-498e-9ad5-2c1a718c2c37; do
+not clear its ledger. Record acceptance before the fresh change-code plan gate.
