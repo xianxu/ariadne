@@ -2642,3 +2642,10 @@ across slots before #463's separate writer/activation landing. A stale or
 unverified reader keeps activation held. Never hide links from older readers.
 The later resume design must also name one real recovery command for crashed
 pending proof; queue reconciliation alone does not repair a resume link.
+
+The retained compatibility control is opt-in: run
+`sh scripts/verify-pre524-reader.sh`. It creates a private clone at the pinned
+pre-#524 revision and executes the committed old-reader fixture, asserting the
+old global warning, incomplete saved proof and publication refusal. Its printed
+private path is retained for inspection. The upgraded comparison is
+`go test ./cmd/sdlc -run '^TestScopedSavedProofConsumers$' -count=1`.

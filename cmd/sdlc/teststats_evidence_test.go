@@ -22,6 +22,7 @@ func TestScopedSavedProofConsumers(t *testing.T) {
 		{"another named check", "check", "vm", false},
 		{"same suite subject", "", "", true},
 		{"linked parent", "rerun_of", "parent", true},
+		{"cross-check linked parent", "rerun_of", "parent", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d, sha, gh, _ := localRunRepo(t, "skipped")
@@ -54,6 +55,9 @@ func TestScopedSavedProofConsumers(t *testing.T) {
 				}
 				future[tc.field] = v
 			}
+			if tc.name == "cross-check linked parent" {
+				future["check"] = "vm"
+			}
 			raw, err := json.Marshal(future)
 			if err != nil {
 				t.Fatal(err)
@@ -70,6 +74,20 @@ func TestScopedSavedProofConsumers(t *testing.T) {
 			rec, newest, loadErr := loadSavedAttempt(store, d.Repo, sha, "suite", "", "host")
 			guardErr := guardSuitePass(context.Background(), d, "suite", sha)
 			if tc.blocked {
+				for _, id := range []string{w.ID, "d3"} {
+					_, _, err := loadSavedAttempt(store, d.Repo, sha, "suite", id, "host")
+					if err == nil || !strings.Contains(err.Error(), "needs a newer sdlc") {
+						t.Errorf("explicit %s selection: %v", id, err)
+					}
+				}
+				_, reused, err := republishSavedPass(context.Background(), d, localCheck{Name: "suite"}, sha)
+				if !reused || err == nil || !strings.Contains(err.Error(), "needs a newer sdlc") {
+					t.Errorf("saved-pass fallback: reused=%v err=%v", reused, err)
+				}
+				err = postLocalCheckRecord(context.Background(), d, localRunRecord{Name: "suite", SHA: sha, Exit: 0})
+				if err == nil || gh.statuses[sha][localStatusContext("suite")] == "success" {
+					t.Errorf("unsupported parent authorized publication: %v", err)
+				}
 				for _, got := range []error{loadErr, guardErr} {
 					if got == nil || !strings.Contains(got.Error(), "needs a newer sdlc") {
 						t.Errorf("related unsupported proof: %v; want scoped upgrade refusal", got)

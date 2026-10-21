@@ -14,12 +14,12 @@ collaboration-mode: discussion
 
 ## Core concepts
 
-| Name | Lives in | Status |
-| --- | --- | --- |
-| UnsupportedProof | cmd/sdlc/teststats_evidence.go | new |
-| SuiteEvidenceSnapshot | cmd/sdlc/teststats_evidence.go and teststats_store.go | new/modified |
-| ExactRerunBatch | cmd/sdlc/internal/flakes/rerun.go | new |
-| Package-bound rerun PASS facts | cmd/sdlc/internal/flakes/rerun.go | new |
+| Name | Kind | Lives in | Status / boundary |
+| --- | --- | --- | --- |
+| UnsupportedProof | PURE | cmd/sdlc/teststats_evidence.go | new / M1 |
+| SuiteEvidenceSnapshot | PURE projection; INTEGRATION bounded IO shell | cmd/sdlc/teststats_evidence.go and teststats_store.go | new/modified / M1 |
+| ExactRerunBatch | PURE | cmd/sdlc/internal/flakes/rerun.go | planned / M2 |
+| Package-bound rerun PASS facts | PURE | cmd/sdlc/internal/flakes/rerun.go | planned / M2 |
 
 - **UnsupportedProof:** read-only identity, not an accepted attempt. Decode a duplicate-free bounded object with a positive unsupported version, exact ID matching its filename, valid repo/full SHA/check and optional valid rerun_of. Never infer a pass, duration, failures or absence from opaque newer content. A future ResumeLink must use the same envelope, check naming the original proof and rerun_of naming its parent. Preserve raw bytes; no rewrite or writer is added.
 - **SuiteEvidenceSnapshot:** one bounded scan yields Attempts, Unsupported and unscopable Warnings. Map by repo/SHA/check/ID/parent so each authority decision uses one consistent snapshot. Ordinary statistics/actual/registration consume only supported real attempts, with unsupported coverage displayed separately. Unreadable files, invalid/ambiguous identity, duplicate keys or a reached read budget stay incomplete; do not turn them into an empty store.
@@ -116,3 +116,9 @@ Hub receipt917bf022-032a-4d84-ac6b-39075bbca2b5 approves reader-first plus exact
 ### 2026-10-21 — PQ-1 function-level test contracts
 
 Plan review requested named risky functions and compact adversarial strategies instead of prose case inventories. Added one table covering the pure decoder/relation/batch/PASS functions, bounded reader, actual proof consumers, managed execution and flake integration; milestone steps now reference it. No design, scope, state or rollout policy changed.
+
+### 2026-10-21 — M1 BR-1/BR-2 authority and reproducible compatibility evidence
+
+Linked-parent authority must survive implicit as well as explicit selection even when a future record's check differs from its supported parent's check. The bounded read resolves parent edges into the same subject index once; all load/reuse/post consumers then share that authority. Production consumer regressions cover both selectors, merge reuse and zero success publication, with the exact cross-check fixture observed RED before correction. This completes the existing linked-proof rule, not a new state or rollout policy.
+
+Retain the pre-change control as a committed fixture and opt-in scripts/verify-pre524-reader.sh. It executes the immutable pre-change source in a private shared clone, checking the real old read warning, saved-proof incompleteness, guard and publication refusal. Compare with the equivalent unrelated-store case in TestScopedSavedProofConsumers. Decoder rejection alone is not the old compatibility proof. Core concepts now distinguish PURE projections/INTEGRATION IO and current M1/planned M2 entities.

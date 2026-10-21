@@ -467,6 +467,7 @@ func readSuiteEvidenceBudget(root string, limit int, maxBytes int64) (SuiteEvide
 }
 
 func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func(string) (*os.File, error)) (snapshot SuiteEvidenceSnapshot, err error) {
+	defer snapshot.indexLinkedParents()
 	dir, err := open(filepath.Join(root, "attempts"))
 	if os.IsNotExist(err) {
 		return snapshot, nil

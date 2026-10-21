@@ -49,6 +49,16 @@ func (s *SuiteEvidenceSnapshot) addUnsupported(p UnsupportedProof) {
 	}
 }
 
+// A link's parent, rather than the link's own check name, determines its
+// authority. Resolve that edge once per snapshot, including partial reads.
+func (s *SuiteEvidenceSnapshot) indexLinkedParents() {
+	for _, a := range s.Attempts {
+		if p, ok := s.byParent[proofKey(a.Repo, a.SHA, a.ID)]; ok && unsupportedProofBlocks(p, proofSubject{Repo: a.Repo, SHA: a.SHA, Check: a.Check, ID: a.ID}) {
+			s.bySubject[proofKey(a.Repo, a.SHA, a.Check)] = p
+		}
+	}
+}
+
 type needsNewerSDLCError struct{ Proof UnsupportedProof }
 
 func (e *needsNewerSDLCError) Error() string {
@@ -86,7 +96,7 @@ func (s SuiteEvidenceSnapshot) proofError(subject proofSubject) error {
 		index = s.byUnlinked
 	}
 	for _, check := range checks {
-		if p, ok := index[proofKey(subject.Repo, subject.SHA, check)]; ok && unsupportedProofBlocks(p, subject) {
+		if p, ok := index[proofKey(subject.Repo, subject.SHA, check)]; ok {
 			return &needsNewerSDLCError{p}
 		}
 	}
