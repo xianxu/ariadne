@@ -1,13 +1,13 @@
 ---
 id: 000521
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0b1244389a18b755fd7d32e23e8c6981622a827a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a889db8a852cc63173dcd5673eab23dc9bd99ba5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T01:01:42-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "1346236b", done: "1cb1011e"}
+actual_hours: 0.81
 ---
 
 # landing: a car held from a train is never told; its runner shows the candidate banner and can cancel the train's suite
