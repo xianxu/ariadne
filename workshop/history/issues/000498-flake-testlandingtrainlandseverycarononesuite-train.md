@@ -48,7 +48,7 @@ Fold #500's malformed-car fixture into this shared fix. Add a narrow pkg/golint 
 
 - [x] Test and implement the shared derived budget and timeout diagnostics; sweep completion consumers and add the narrow lint guard.
 - [x] Run deadline/diagnostic regressions, actual train cases and the recorded full suite; close with the binary-owned fresh review.
-- [ ] Remove both flake registrations after proof, fold #500, land and report to the hub.
+- [x] Remove both flake registrations after proof, fold #500, land and report to the hub.
 
 ## Log
 
@@ -80,6 +80,8 @@ Fold #500's malformed-car fixture into this shared fix. Add a narrow pkg/golint 
 - Fresh resolved-integration suite queued on 73f469513b02c34d39cadf9dd613734b89ba2c51, attempt a1a8983f0805bb5c183a550dedd34044. Subsequent changes are only this bookkeeping. A passing integrated suite and narrow --fixed-then-ship conflict review remain required before retrying landing.
 
 - Fresh integrated suite PASS on 73f469513b02c34d39cadf9dd613734b89ba2c51: all eight shards, 1,877 cmd/sdlc tests and 75 other packages, zero failures or reruns, wall764.2s. Attempt a1a8983f0805bb5c183a550dedd34044; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/73f469513b02c34d39cadf9dd613734b89ba2c51/suite.log, SHA256 prefix1afa234db846; sdlc-local/suite success. Waited1,749s for both machine slots. Raw copy retained as common test-stats/evidence/000498/integrated-suite.log; original branch proof and baseline failure are also copied into this evidence area. The only pending checklist action is landing/report; removal and fold are already complete. Narrow conflict re-close follows this exact-code proof.
+
+- Landed PR #355, merge eefb06dd092b3aea707341f20bd5afb3b412f36e (Git verified). Authoritative landing suite on c5db8ad16149dbc8553180d8f858b0181b642b89 passed all eight shards, 1,881 cmd/sdlc tests plus 75 other packages, zero failures/reruns, 644.8s; attempt ce8deeb6f924b19622340e1ef8cebca2. Persistent copy: common test-stats/evidence/000498/final-landing-suite.log. Outcome reported to hub, receipt 48622917-1d64-412d-86cd-34c170f3ed0a submitted. #516 is next from main.
 
 ## Revisions
 
