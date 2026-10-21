@@ -47,8 +47,8 @@ The same procedure applies whether the new agent is in the same slot (force swit
 
 ## Plan
 
-- [ ] Add rendered-help guards for both entry points, with each recovery step checked in order and its instructions confined to that step; observe the missing-section failure.
-- [ ] Add TAKEOVER before ROLES: read the contract, session and Threads stamp, transcript only for a material gap, re-establish live work and refresh Threads, then give a one-line notice including possible loss. Preserve operator-started fleet recovery.
+- [x] Add rendered-help guards for both entry points, with each recovery step checked in order and its instructions confined to that step; observe the missing-section failure.
+- [x] Add TAKEOVER before ROLES: read the contract, session and Threads stamp, transcript only for a material gap, re-establish live work and refresh Threads, then give a one-line notice including possible loss. Preserve operator-started fleet recovery.
 - [ ] Verify the focused tests and own built CLI help, run the recorded suite, close and land.
 
 Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY keeps the procedure in the existing embedded help, with its status writer owning the fresh stamp. No new state or hot path.
@@ -58,3 +58,4 @@ Scope: quick-flow embedded help and phrase guards; no runtime changes. ARCH-DRY 
 ### 2026-10-21
 
 - Recovery: claim/start-plan survived; no #528 recorded check or merge runner exists. The operator-approved procedure is settled; implement as quick-flow help text.
+- Test-first: TestLeadHelpTakeoverSequence failed with TAKEOVER missing before implementation. Added five ordered steps, checking both --help and bare entry points, step-local phrases, switch/session scope, gap-only transcript read, ephemeral loss and stamp-writing ownership. Full cmd/tl-lead package passed (15.838s). Atlas maps the delivered help and guard.

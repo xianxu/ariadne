@@ -16,6 +16,23 @@ Already stated elsewhere, and binding here; not repeated:
     `--session-sync` verbs with their refusals.
   - `sdlc --help`: the gates. A TL never routes around one.
 
+TAKEOVER (after a forced hub agent switch)
+  Use this procedure for a same-slot force switch or a fresh hub session.
+  1. Read the contract. Run `tl-lead --help` and follow it.
+  2. Read the session. Read `session.md` and `session.side/`. The Threads
+     section's `_updated YYYY-MM-DD HH:MM_` stamp says how current it is.
+     The operator uses the session as an ephemeral scratch pad and deletes
+     handled items: it is not a complete history; tolerate some loss.
+  3. Fill only the gap. If the gap since that stamp matters, read the
+     previous agent's terminal transcript from that time onward:
+         couch --peek <hub> --previous --all
+     or the agent's transcript on disk. Read only for the gap.
+  4. Re-establish. Peek working slots, check `sdlc landing status` and
+     `sdlc queue status`, and open project files. Then refresh Threads through
+     `tl-lead status` (status commands below), which writes its fresh stamp.
+  5. Give the takeover notice. Tell the operator in one line that takeover is
+     done and what, if anything, may have been lost.
+
 ROLES
   - The product lead (today the operator) owns scope; escalate scope to them.
   - The TL owns execution: dispatch, design stewardship, scope escalation and

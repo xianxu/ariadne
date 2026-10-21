@@ -27,6 +27,13 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **The lead prose** is the TL's current procedure: the order of play, stewardship and the operator's two design rules, the status file, grooming trains, dispatch, watching, landing and the `sdlc stage` smoke loop, attention and load, and fleet traps. It holds rules only. Incident history stays in ops learnings, and a new kink lands as a rule change here (`cmd/tl-lead/main_test.go` refuses kink numbers, dated stories, bare `#N` refs and "until X lands" interims). It cites `tl-worker --help` for the worker's rules: `pkg/tlrules` parses the shared rule table, and the lead's test refuses any worker-owned phrase.
 
+**Hub takeover (ariadne#528).** TAKEOVER in `cmd/tl-lead/help.md` orders recovery
+after a forced switch or fresh hub session. The session's Threads stamp bounds
+any transcript gap; live slots, landing/queue state and project files establish
+the current picture before a status-writer refresh and one-line operator notice.
+`cmd/tl-lead/takeover_help_test.go` guards both rendered entry points and keeps
+each instruction inside its ordered step.
+
 **Project shaping (ariadne#518).** SHAPING in `cmd/tl-lead/help.md` precedes
 issue-level execution: six operator-reviewed steps cover users/moments, flows,
 the clickable mock, visual design, components and slices. It assigns the driver
