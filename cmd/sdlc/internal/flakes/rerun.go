@@ -51,7 +51,6 @@ func RerunCommands(tests []string) ([][]string, error) {
 // text is never evidence. Conflicting terminal outcomes cannot be repaired by
 // a later pass, and ambiguous JSON invalidates the log rather than authorizing
 // a partial prefix. Plain command announcements are allowed between events.
-// RerunMissing remains the separate reader for supported legacy text logs.
 func RerunMissingJSON(log string, tests []string) []string {
 	type identity struct{ pkg, test string }
 	type terminal struct{ passed, blocked bool }

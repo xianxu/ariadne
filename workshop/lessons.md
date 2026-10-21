@@ -1261,8 +1261,8 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #524 BR-3/BR-4: an opt-in verification script is still a discoverable operator command; document it in README and name the owner/end of its private scratch evidence. Parent-authority regressions need both directions: no bypass of a linked parent and no authority over a different check from the link's own label. The scoped consumer tests enforce that relation; documentation review owns discovery/lifecycle wording.
 
-- #524 M2: command announcements share the machine-parsed raw log. Quote argv
-  structurally on one line; a multiline argument can otherwise create synthetic
+- #524 M2: machine-parsed raw logs must contain only process output. Print command
+  announcements separately and quote argv structurally on one line; a multiline argument can otherwise create synthetic
   PASS/failure events even when its process prints nothing. The real subprocess
   argv-as-data regression defends this semantic logging/proof boundary; a lexical
   format-string lint cannot establish the downstream parser's authority.

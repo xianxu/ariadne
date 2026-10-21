@@ -18,8 +18,8 @@ collaboration-mode: discussion
 | --- | --- | --- | --- |
 | UnsupportedProof | PURE | cmd/sdlc/teststats_evidence.go | new / M1 |
 | SuiteEvidenceSnapshot | PURE projection; INTEGRATION bounded IO shell | cmd/sdlc/teststats_evidence.go and teststats_store.go | new/modified / M1 |
-| ExactRerunBatch | PURE | cmd/sdlc/internal/flakes/rerun.go | planned / M2 |
-| Package-bound rerun PASS facts | PURE | cmd/sdlc/internal/flakes/rerun.go | planned / M2 |
+| RerunCommands (exact-package batch) | PURE | cmd/sdlc/internal/flakes/rerun.go | new / M2 |
+| RerunMissingJSON (package-bound PASS facts) | PURE | cmd/sdlc/internal/flakes/rerun.go | new / M2 |
 
 - **UnsupportedProof:** read-only identity, not an accepted attempt. Decode a duplicate-free bounded object with a positive unsupported version, exact ID matching its filename, valid repo/full SHA/check and optional valid rerun_of. Never infer a pass, duration, failures or absence from opaque newer content. A future ResumeLink must use the same envelope, check naming the original proof and rerun_of naming its parent. Preserve raw bytes; no rewrite or writer is added.
 - **SuiteEvidenceSnapshot:** one bounded scan yields Attempts, Unsupported and unscopable Warnings. Map by repo/SHA/check/ID/parent so each authority decision uses one consistent snapshot. Ordinary statistics/actual/registration consume only supported real attempts, with unsupported coverage displayed separately. Unreadable files, invalid/ambiguous identity, duplicate keys or a reached read budget stay incomplete; do not turn them into an empty store.
@@ -94,11 +94,11 @@ This landing creates no cross-event resume state, lock or durable coordination r
 
 **Files:** internal/flakes/rerun.go and flakes_test.go; localcheck_flakes.go/tests; localcheck_run.go plus process/signal tests; localcheck_affected_flakes_test.go; helptext/local-check.md, README.md and atlas/workflow/sdlc-binary.md.
 
-- [ ] RED real two-package fixture: A fails TestA, B fails TestB; A.TestB and B.TestA write decoy sentinels if invoked. Existing cross-product execution must fail this control. Keep real parent/subtest/sibling coverage and named-test absence controls.
-- [ ] Implement RerunCommands and RerunMissingJSON with the pure function strategies above; preserve the existing five-flake limit and revalidation policy.
-- [ ] Implement runUnderSlotBatch/runManagedCommandBatch with the controlled-order strategy above. Fail-fast cannot become a pass when a later required group did not run.
-- [ ] Route automatic suite/affected known-flake reruns through it, preserving one immutable linked child and original suite samples. Run focused normal/race regressions for flake gate, republish/saved pass, queue signals and single-command runner cleanup.
-- [ ] Private executable proof with fake GH/registry/private Git, queue, scratch and lock paths: unrelated proof survives one synthetic future record, affected proof names newer sdlc; exact-package decoys remain absent and one real linked attempt is saved. No real v3 production record or live queue pause.
+- [x] RED real two-package fixture: A fails TestA, B fails TestB; A.TestB and B.TestA write decoy sentinels if invoked. Existing cross-product execution must fail this control. Keep real parent/subtest/sibling coverage and named-test absence controls.
+- [x] Implement RerunCommands and RerunMissingJSON with the pure function strategies above; preserve the existing five-flake limit and revalidation policy.
+- [x] Implement runUnderSlotBatch/runManagedCommandBatch with the controlled-order strategy above. Fail-fast cannot become a pass when a later required group did not run.
+- [x] Route automatic suite/affected known-flake reruns through it, preserving one immutable linked child and original suite samples. Run focused normal/race regressions for flake gate, republish/saved pass, queue signals and single-command runner cleanup.
+- [x] Private executable proof with fake GH/registry/private Git, queue, scratch and lock paths: unrelated proof survives one synthetic future record, affected proof names newer sdlc; exact-package decoys remain absent and one real linked attempt is saved. No real v3 production record or live queue pause.
 - [ ] Push, record the central full suite on final head and complete delivery preparation. Then M2 close, whole close, PR and normal central merge follow through their gates. Report the landing and fleet rollout instructions; do not activate #463.
 
 ## Operating envelope and lifecycle
@@ -139,3 +139,20 @@ per-package argv. Command announcements use quoted argv: a multiline argv
 must remain data rather than injecting synthetic JSON events into the raw log.
 The real argv-injection control failed before that correction. This refines
 the approved structured-proof boundary; no persisted state or policy is added.
+
+
+### 2026-10-21 — M2 conformance and existing recovery preservation
+
+The private executable test uses production main in a subprocess, private real
+Git/tracker/queue/helper and stateful fake GitHub. It verifies both scoped
+future proof and automatic exact-package reruns. t.TempDir removes all fixture
+state; README/atlas expose the opt-in command. The Core concepts table now
+names the actual pure functions rather than the earlier conceptual batch name.
+
+An existing startup-error regression showed that command metadata in the raw
+process log breaks its strict whole-log grammar. Announcements now stay in
+terminal diagnostics, with quoted argv, while the raw log remains process
+output. No parser exception was added. The unused text-PASS helper was removed;
+existing saved-attempt readers are unchanged and the proof assertions now use
+the structured helper. Existing environment recovery, saved republish, queue
+signals, runner cleanup/retention and batch controls passed together.

@@ -532,7 +532,8 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 		if err := ctx.Err(); err != nil {
 			return err, nil
 		}
-		fmt.Fprintf(out, "==> local check %s command: %q\n", check, argv)
+		// Announcements are diagnostics, outside the raw process-output proof.
+		fmt.Fprintf(d.Stderr, "==> local check %s command: %q\n", check, argv)
 		cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 		processgroup.Configure(cmd)
 		cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }

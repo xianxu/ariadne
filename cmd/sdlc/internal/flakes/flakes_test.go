@@ -190,11 +190,11 @@ func TestRevalidate(t *testing.T) {
 
 // A rerun proves only what its log shows passing (#394 M2 review).
 func TestRerunEvidence(t *testing.T) {
-	log := "=== RUN   TestA\n--- PASS: TestA (0.01s)\nok  github.com/x/r/pkg/a 0.1s\n"
-	if m := RerunMissing(log, []string{tA}); len(m) != 0 {
+	log := batchEvent("pass", "github.com/x/r/pkg/a", "TestA") + batchEvent("pass", "github.com/x/r/pkg/a", "")
+	if m := RerunMissingJSON(log, []string{tA}); len(m) != 0 {
 		t.Errorf("TestA passed: missing %v", m)
 	}
-	if m := RerunMissing("ok  github.com/x/r/pkg/a 0.1s [no tests to run]\n", []string{tA}); len(m) != 1 {
+	if m := RerunMissingJSON("ok  github.com/x/r/pkg/a 0.1s [no tests to run]\n", []string{tA}); len(m) != 1 {
 		t.Errorf("no tests ran: missing %v", m)
 	}
 	got := Classify(Input{Attempt: Result{Failures: []string{tA}}, Registry: registry(t), Rerun: &Result{Passed: true, Unattributed: []string{"the rerun timed out"}}})
@@ -302,11 +302,11 @@ func TestClassifySubtests(t *testing.T) {
 	if o := Classify(in); o.Kind != KnownFlakeTwice {
 		t.Fatalf("rerun same failure: %+v", o)
 	}
-	log := "--- PASS: TestConstructScripts/plain/dev-aliases.test.sh (0.10s)\n--- PASS: TestConstructScripts (1.00s)\n"
-	if m := RerunMissing(log, []string{dev}); len(m) != 0 {
+	log := batchEvent("pass", "github.com/x/r/scripts/test", "TestConstructScripts/plain/dev-aliases.test.sh") + batchEvent("pass", "github.com/x/r/scripts/test", "TestConstructScripts/plain") + batchEvent("pass", "github.com/x/r/scripts/test", "TestConstructScripts") + batchEvent("pass", "github.com/x/r/scripts/test", "")
+	if m := RerunMissingJSON(log, []string{dev}); len(m) != 0 {
 		t.Fatalf("missing %v", m)
 	}
-	if m := RerunMissing("--- PASS: TestConstructScripts (1.00s)\n", []string{dev}); len(m) != 1 {
+	if m := RerunMissingJSON("--- PASS: TestConstructScripts (1.00s)\n", []string{dev}); len(m) != 1 {
 		t.Fatal("a rerun without the subtest's PASS line proved it")
 	}
 	// A registered top-level test still covers every subtest.

@@ -712,7 +712,7 @@ trailers cannot change its package.
 - **What it explains:** only its own failure and its subtests'. A sibling
   subtest's failure stays unknown and blocks.
 - **Rerun:** its rerun is the whole top-level test, and it must show the
-  subtest's PASS line.
+  subtest's package-bound JSON PASS event.
 - **Evidence:** registering a subtest needs the top-level test's same-head
   fail→pass, and the failed attempt's saved log must name that subtest.
 - **Correcting a registration:**
@@ -774,6 +774,13 @@ binary or production store is changed. Before #463 may activate resume links,
 the TL must upgrade every slot's actual sdlc and verify paths/revisions; any
 stale or unverified reader keeps activation held. See the
 [reader-first rollout contract](atlas/workflow/sdlc-binary.md#reader-first-attempt-compatibility-524-prerequisite-for-463).
+
+The private phase1 executable conformance is opt-in:
+`SDLC_PRIVATE_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckPhase1Conformance$' -count=1 -v`.
+It runs the production CLI against private Git, tracker, queue, lock and fake
+GitHub state, proving scoped future evidence and exact-package decoy exclusion.
+Its temporary inputs and outputs are removed automatically after inspection
+inside the test; it changes no installed binary or live store.
 
 `sdlc test-stats` reads saved suite attempts across local sibling repositories
 and reports wall and queue percentiles, slow packages or shards, and named

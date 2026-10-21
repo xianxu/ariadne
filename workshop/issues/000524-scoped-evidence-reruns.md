@@ -140,3 +140,27 @@ checks passed0.063s. No full suite or M2 close is claimed yet. Next: private
 executable conformance, broader focused/race + source checks, durable checkpoint
 and recorded central suite, M2 review and final issue close. No v3/link writer
 or resume activation was added. #463/#520 branches remain untouched.
+
+
+### 2026-10-21 — M2 executable proof and pre-suite checkpoint
+
+Private production-main conformance passed9.452s using private real Git,
+tracker refs/cutover, queue, helper, scratch, lock and fake GitHub. It proves
+unrelated lint republish with one future smoke record; smoke upgrade refusal
+with no status; automatic two-package reruns with no same-name decoys; one
+linked child plus original/logs; unchanged future bytes and expected statuses.
+Fixture-only setup corrections supplied upstream, exact cutover root and card
+Problem section. All fixture state is automatically removed.
+
+The shared runner's existing environment refusal test caught command headers
+in the raw log (RED0.633s). Announcements now go only to terminal diagnostics,
+quoted; the strict raw-output grammar is unchanged. Broader normal checks
+passed44.601s, including environment repair, runner cleanup and uncertainty
+retention, saved reuse/republish, known flake/affected, queue signals, managed
+batches and descendants. Focused race passed21.489s; pure race1.152s. Go lint
+catalog0.699s, shell lint0.325s and both diff checks passed. The old unused
+text-PASS helper is removed; all new execution proof is package-bound JSON.
+
+PR #371 is open. This checkpoint precedes the required central recorded suite
+on the pushed head; suite and M2/final close are still pending. No activation,
+production future record or installed fleet binary change is authorized here.
