@@ -1,13 +1,21 @@
 ---
 id: 000507
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '7ae53112ab5d4b8bd6302e0a3caa9817be4a0878' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9a1ff9f50c63a2689a0dad7de3de665069b68ad8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T12:19:30-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible
@@ -34,8 +42,24 @@ once copied, the copy freezes while discussion continues in the side doc.
 
 ## Plan
 
-- [ ]
+- [ ] Implement the workingdoc prototype, marker/refusal projection and pure settlement model, with regression tests.
+- [ ] Add guarded selected-copy publication and retry behavior through the existing product trunk publisher and ops main publication, with stateful fixtures.
+- [ ] Wire doc settle/status, update help/maps, verify the suite, close, arrange the hub-owned live check, then merge.
+
+Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-settle-plan.md). Full flow; awaiting TL approval before change-code. One implementation close boundary; no Mx tags.
 
 ## Log
 
 ### 2026-10-20
+
+### 2026-10-21
+
+- Claimed and started from main after #514's completed merge/cleanup. Existing reusable seams: SessionSync Peek/Apply and whole-file CAS, sidedoc link/index rebasing, and sdlc trunk publication. No Go marker-cleaning implementation exists; the source of marker semantics is construct/local/fix/review-convention.md. Bounded read-only exploration confirmed the file-aware fake gap and the need for a Git blob baseline rather than mtime.
+- TL clarified publication and cleaning (receipt 5ea7ef7f-3e12-4473-8369-91aa89a8425c): product repos use trunk publish; ops operates directly on primary main, inferred from the repository. Unresolved commentary/proposals and malformed markers refuse with diagnostics; settling is not implicit acceptance. Literal code and anchors survive. These decisions are recorded in the durable plan, alongside explicit partial-publication outcomes and retries.
+- Plan proposes a pinned per-path baseline and JSON receipt extension to the existing trunk publisher because its current merge-base-only comparison refuses repeat settlement from a stale hub checkout. This design delta remains for TL review; no implementation started. ARCH-DRY: reuse one publisher and one projection; ARCH-STATE: commit/push and Couch stamping have explicit separate confirmation boundaries.
+
+## Revisions
+
+### 2026-10-21 — publication ownership and unresolved review items
+
+The initial Spec's shorthand "review markers stripped" does not authorize deleting an unanswered operator item or accepting a pending proposal. Only already-accepted clean text can settle; remaining commentary, proposals and malformed markers refuse. Product copies publish through the trunk path; ops copies commit/push directly on primary main under its operating charter. The original working page remains live and receives its confirmed path/commit pointer through Couch Apply. Re-settling updates the same tracked path and Git retains its history. Done-when includes fixtures for these decisions, interrupted publication/stamping and content-based drift; a hub-owned live check precedes landing.
