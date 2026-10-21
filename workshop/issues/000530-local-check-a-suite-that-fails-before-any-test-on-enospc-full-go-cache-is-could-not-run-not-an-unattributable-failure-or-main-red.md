@@ -110,6 +110,11 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   the existing seams to reuse (ARCH-DRY, ARCH-EVOLVE, ARCH-ORDER).
 - Drafted the durable plan with explicit state/recovery and compatibility
   coverage. No estimate before plan-quality, no change-code before hub approval.
+- TL approved the committed design, command/ownership, audited nonpassing v3
+  disposition, genuine rerun and strict refusal controls. Explicit added proof:
+  a real #524-era reader must scope the unsupported v3 record to its subject,
+  rather than poisoning unrelated evidence; fleet shared sdlc includes #524.
+  Proceeding to the full-flow change-code plan gate before implementation.
 
 ## Revisions
 

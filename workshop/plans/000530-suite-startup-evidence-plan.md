@@ -249,7 +249,9 @@ localcheck_reclassify.go and tests, localcheck_republish.go.
 - [ ] Exercise actual guard/post/saved-pass/flake/stats consumers; reclassified
   records never become success or intermittency proof, fresh real pass is allowed.
 - [ ] Test v1/v2 reads, unknown-field preservation and real pinned old-reader
-  behavior using the #524 compatibility fixture approach. Test joint pruning.
+  behavior using the #524 compatibility fixture approach. In particular, the
+  #524-era reader must scope a v3 disposition to its subject and allow unrelated
+  proof. The TL confirmed #524 is deployed fleet-wide. Test joint pruning.
 - [ ] Run focused controls, race-check the bounded mutation/read interleavings,
   and commit only with passing evidence.
 
@@ -275,3 +277,8 @@ atlas/workflow/ci-merge-check.md, workshop issue/lessons.
 
 No estimate until the plan-quality gate passes. No gate bypass or flake label is
 part of this design. Any third design delta on the mechanism triggers re-planning.
+
+## Revisions
+
+- 2026-10-21 — TL approved this design and explicitly required the #524-era
+  reader compatibility control; added it to Task 2. No mechanism change.
