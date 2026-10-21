@@ -1,5 +1,7 @@
 # Lessons
 
+- #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
+
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 

@@ -2715,3 +2715,24 @@ proof. One t.Run may introduce a slash-containing suffix, so slash prefixes
 are not inferred ancestry and cannot require invented events. Exact required
 leaf, whole top-level test and package must pass, preserving sibling-failure
 blocking and required-identity terminal conflict refusal.
+
+### Immutable resume proof core (#463 M1)
+
+`localcheck_resume_evidence.go` defines strict v3 resume links and terminal
+interruption receipts, a pure `resolveResumeProof` and the execution/recovery
+transition table. Links fence one saved suite parent to one reserved rerun child;
+they are coordination evidence and never count as suite samples. The common
+`SuiteEvidenceSnapshot` indexes them alongside real attempts and unsupported
+proof. Recognizing a pending link alone supplies no passing authority.
+
+`localcheck_resume_store.go` holds the immutable parent inode lock across
+recovery, verifies exact raw parent bytes and publishes synced proof with an
+exclusive link. `localcheck_resume_retention.go` pins pending bundles, validates
+terminal bundle age and retires under that lock: selectable parent unlink and
+successful directory sync first, ordinary logs/inflight next, link removal and
+sync next, terminal child/log or interruption receipt last. Crashes retain either
+the fence or an unselectable parent with a terminal witness for cleanup retry.
+Malformed/unreadable evidence retains data. Shared members/logs stay protected.
+The existing pruner skips all indexed bundle members during individual-file
+cleanup. This core milestone adds no user command or automatic link writer;
+CLI activation and all-reader composite proof are the following milestone.
