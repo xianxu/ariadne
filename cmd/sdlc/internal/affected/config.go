@@ -24,12 +24,19 @@ type Group struct {
 
 // Config is the parsed .sdlc/affected.json.
 type Config struct {
-	Version        int      `json:"version"`
+	Version        int          `json:"version"`
+	Command        []string     `json:"command"`
+	Weight         int          `json:"weight,omitempty"`
+	TimeoutMinutes int          `json:"timeout_minutes,omitempty"`
+	Full           []string     `json:"full,omitempty"`
+	Groups         []Group      `json:"groups,omitempty"`
+	GraphPrepare   *Preparation `json:"graph_prepare,omitempty"`
+}
+
+// Preparation establishes generated graph inputs in the head's private checkout.
+type Preparation struct {
 	Command        []string `json:"command"`
-	Weight         int      `json:"weight,omitempty"`
 	TimeoutMinutes int      `json:"timeout_minutes,omitempty"`
-	Full           []string `json:"full,omitempty"`
-	Groups         []Group  `json:"groups,omitempty"`
 }
 
 // groupNameRE is the local-check name rule, so group names need no quoting in make.
@@ -58,6 +65,22 @@ func ParseConfig(data []byte) (Config, error) {
 	for _, a := range cfg.Command {
 		if a == "" {
 			return Config{}, errors.New("affected.json: command has an empty argument")
+		}
+	}
+	if p := cfg.GraphPrepare; p != nil {
+		if len(p.Command) == 0 {
+			return Config{}, errors.New("affected.json: graph_prepare command is empty")
+		}
+		for _, a := range p.Command {
+			if a == "" {
+				return Config{}, errors.New("affected.json: graph_prepare command has an empty argument")
+			}
+		}
+		if p.TimeoutMinutes == 0 {
+			p.TimeoutMinutes = 2
+		}
+		if p.TimeoutMinutes < 1 || p.TimeoutMinutes > 30 {
+			return Config{}, errors.New("affected.json: graph_prepare timeout_minutes outside 1..30")
 		}
 	}
 	if cfg.Weight == 0 {

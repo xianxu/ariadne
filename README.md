@@ -632,6 +632,15 @@ accepted suite attempts. The normal newest-20-head log retention applies.
 `tl-worker --help` describes the durable checkpoint and drain acknowledgment.
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
+For generated Go graph inputs, that file can include
+`"graph_prepare": {"command": ["make", "generate"], "timeout_minutes": 2}`.
+The command is an argv array, read from pinned main and run once in the requested
+head's private graph checkout before `go list`. The default timeout is two
+minutes, with a maximum of 30; omission or null disables preparation. A preparation
+failure or timeout selects the full suite and names its cause; cancellation
+cannot record a passing affected check. Generated graph files are discarded with
+that checkout: the affected test command must establish its own prerequisites.
+Older sdlc versions reject the new field, so upgrade the provider before adopting it.
 `sdlc local-check run --name affected` then runs only what the branch's change can break, and the result of a
 pushed head's run depends on what changed:
 
