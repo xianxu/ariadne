@@ -62,3 +62,5 @@ The rename interruption fixture must publish its simulated rename before cancell
 ### 2026-10-20 — separate pre-close verification from landing
 
 The final Plan row previously bundled suite, close review and landing into one pre-close checkbox. It now records focused checks plus launching the recorded suite; suite pass and SHIP remain mandatory before landing. No behavior or acceptance scope changes.
+
+- Acceptance checkpoint: fresh close round 1 returned SHIP with no findings (evidence commit f6a608aaad03cd5d2f45ac4a8be3cd35e480f71d; measured actual 0.52h). Recorded full suite on 39a3dbe40e48a07fb48aa7610d359f8fe363e15d PASS: all eight shards, 1,874 cmd/sdlc tests and 75 other packages, zero failures, wall 740.6s; log sha256 prefix 8764bf0febdd. Entering the SDLC landing line; no manual integration or gate bypass.
