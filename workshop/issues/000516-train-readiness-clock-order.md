@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestLandingTrainWaiterAcceptsConductorArchive]
+flow: {kind: quick, provenance: inferred, spec: "c4a4d6b6", done: "89531da5"}
 ---
 
 # Train boarding rejects readiness refreshed during conductor checks
