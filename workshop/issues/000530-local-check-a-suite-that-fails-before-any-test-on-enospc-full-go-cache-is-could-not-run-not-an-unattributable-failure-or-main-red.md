@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 3.7
 collaboration-mode: collaboration
-card_mirror: '1aa9c043cf777ec7c136ae941c4bd2451092b58d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '80de363d4ff73c88f548575d8b7763844ffb34a1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T14:22:07-07:00
 claimant:
     operator: Xian Xu
@@ -78,6 +78,39 @@ state/action/recovery table, consumer inventory and counted scan/read checks.
 - Original record/log evidence and actor/time/reason audit survive interruption
   and duplicate recovery. No legacy resurrection, flake proof or old-pass
   promotion; old-reader behavior and unknown-field preservation are exercised.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only; the source is marked stale, so provisional.
+Derived after plan-quality cleared. Familiar Go/evidence territory (1.0).
+
+Decomposition: issue/spec; existing startup classifier; new pure recovery
+transition; audited store; existing schema extension; cross-cutting evidence
+projection; CLI wiring; pinned-reader fixture; docs; one close review. Existing
+code mirrors receive the 0.2 spec discount. Recovery transition is repo-specific
+authority, with no library substitute. Audited storage reuses queue reconciliation
+and standard atomic-file primitives, halving its base design before the 0.2
+discount. Implementation values are already the v2 table's 40% values.
+Design subtotal 1.48h, implementation subtotal 2.00h; thorough-plan buffer 15%:
+1.48 * 1.15 + 2.00 = 3.702h, rounded to 3.70h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.75 impl=0.08
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.15 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 3.70
+```
 
 ## Plan
 
