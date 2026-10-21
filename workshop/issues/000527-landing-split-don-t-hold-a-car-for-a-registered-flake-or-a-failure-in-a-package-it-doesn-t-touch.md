@@ -56,8 +56,8 @@ The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow d
 
 ## Plan
 
-- [ ] Add deterministic pure-state and production-train regressions for train 234's external registration sequence and independent-package failure, with positive culprit and gate-safety controls.
-- [ ] Add the shared attribution decision/effect before suite Holds, preserve exact prefix evidence, and connect fresh registry and dependency-aware impact facts.
+- [x] Add deterministic pure-state and production-train regressions for train 234's external registration sequence and independent-package failure, with positive culprit and gate-safety controls.
+- [x] Add the shared attribution decision/effect before suite Holds, preserve exact prefix evidence, and connect fresh registry and dependency-aware impact facts.
 - [ ] Document the state/event/effect and verify bounded scan/IO work, current flake semantics and the isolated production path before the binary-owned suite, close and landing gates.
 
 ## Estimate
@@ -97,6 +97,11 @@ Design 0.38 x 1.15 + implementation 1.28 = 1.717h, rounded to 1.72h.
 
 2026-10-21: Plan-quality round2 CLEAN, both PQ findings addressed, no new findings. Then read shared estimate grammar and resolved v3.1 calibration, v2/v2.1 procedure and baseline-v3.1. Derived 1.72h from itemized Method A components (source stale/provisional), to be set through the card setter and reconciled by change-code.
 
+- 2026-10-21 implementation checkpoint: full-flow change-code admitted implementation after clean plan-quality review and INFO-only estimate review. The estimate's four smaller-module rows map to reducer, exact evidence/fresh registry shell, endpoint-impact integration, and regressions; milestone-review covers execution/review allowance (queue idle is excluded). Captured behavioral RED before reducer changes: TestTrainSplitRequiresAttributionBeforeHold reported “split held car 2 without fresh attribution”. Added exact-pair attribution phase, final non-blaming remainder refusal, unchanged failed Results and explicit retry diagnostics; pure landingline package now passes (0.955s). Classifier bounded helper work is complete; endpoint graph/lifetime and stateful train234 regression are being implemented in separate files. No recorded suite or merge runner is owned yet; root-package testing waits until all parallel file edits freeze because TestMain snapshots this checkout. ARCH-PURE/ARCH-ORDER preserve one attribution boundary before suite Hold, and no registration/impact fact creates passing evidence.
+
+
+2026-10-21: Integrated exact two-endpoint dependency impact, fresh per-decision registry scope and named evidence checks. Initial production run caught invalid tracker fixture schema and missing tracker in the older Hold control; corrected fixtures use canonical card scaffold plus real tracker bootstrap. New production regressions and genuine-culprit control pass (57.259s: registered sequence18.68s, untouched17.80s, genuine Hold20.27s). Controlled mutation restoring old adjacency-only split reproduced the production false Hold: registered replay failed “held: suite adjacency without attribution, want non-blaming refused” (14.208s). Restored the attribution boundary immediately after that completed test. Internal landingline/flakes/affected passed (0.842/0.073/0.290s), staged-file Go lint passed2.538s. Earlier focused root run passed dependency, resource, evidence-corruption and 8/16 constant-IO controls; no passing authority was changed. Stalled-preparation diagnostic deadline test allows5s for startup under machine load, with the same bounded cleanup contract.
+
 ## Revisions
 
 2026-10-21: Refined the original behavior into a proposed attribution boundary and explicit safe stop policy. Registration/untouchedness prevent blame but do not waive passing evidence. The plan proposes final unattributed refusal for unresolved cars rather than immediate automatic retrain; TL approval is required before implementation.
@@ -104,5 +109,3 @@ Design 0.38 x 1.15 + implementation 1.28 = 1.717h, rounded to 1.72h.
 2026-10-21: Recorded TL approval of the proposed stop policy; no design delta.
 
 2026-10-21: Plan-quality refinements name testable functions and enforce the previously promised bounded attribution IO; no change to the approved refusal or verified-prefix-only policy.
-
-- 2026-10-21 implementation checkpoint: full-flow change-code admitted implementation after clean plan-quality review and INFO-only estimate review. The estimate's four smaller-module rows map to reducer, exact evidence/fresh registry shell, endpoint-impact integration, and regressions; milestone-review covers execution/review allowance (queue idle is excluded). Captured behavioral RED before reducer changes: TestTrainSplitRequiresAttributionBeforeHold reported “split held car 2 without fresh attribution”. Added exact-pair attribution phase, final non-blaming remainder refusal, unchanged failed Results and explicit retry diagnostics; pure landingline package now passes (0.955s). Classifier bounded helper work is complete; endpoint graph/lifetime and stateful train234 regression are being implemented in separate files. No recorded suite or merge runner is owned yet; root-package testing waits until all parallel file edits freeze because TestMain snapshots this checkout. ARCH-PURE/ARCH-ORDER preserve one attribution boundary before suite Hold, and no registration/impact fact creates passing evidence.
