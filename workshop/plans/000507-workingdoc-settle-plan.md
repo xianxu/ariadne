@@ -136,3 +136,29 @@ Files: create `cmd/tl-lead/doc.go`, `doc_status.go`, `doc_status_test.go`; modif
 ## Approval requested
 
 The TL's publication-mode and unresolved-marker decisions above are binding. Review the pinned-path trunk extension, ops identity boundary, copy metadata/link policy and visible interruption outcomes before implementation. Any change after approval is appended under Revisions rather than silently replacing this design.
+
+## Revisions
+
+### 2026-10-21 — approved design and plan-quality refinement
+
+TL approved the initial design and pinned-path/JSON publisher seam (receipt 7f2905de-b94c-4cc8-bb53-582cc8aeb5b7). Plan-quality round 1 then raised PQ-1 (publication payload authority) and PQ-2 (function test-strategy contract). TL approved the payload correction below (receipt 18ce25ca-d968-4481-8f80-879f39ab36ac). These refinements supersede the affected publication and testing instructions above; state outcomes and scope remain unchanged.
+
+**PQ-1: bind effects to validated bytes, not a mutable path.** Add optional `sdlc trunk publish --expected-content-sha256 HASH`, validating its syntax and comparing it to the publisher's one bounded captured local read before any publication effect. A mismatch refuses with no target or remote write. The existing publisher already writes its captured buffer; retain that immutable buffer through every CAS retry. Omission preserves current behavior. tl-lead passes the hash of its pure projection and the expected prior path commit when applicable. A target edit before publisher capture is refused; an edit after capture remains in the live file and cannot change the selected published bytes. Do not restore or clean that newer target. JSON receipt still binds the confirmed commit/path, whose blob must match the captured projection.
+
+Ops publication uses a private temporary Git index loaded from the captured HEAD and the validated in-memory payload (hash-object from stdin, update-index for the one selected path). Verify the prospective tree against that HEAD before the plain commit, commit from the private index, then verify the resulting commit's parent, tree and selected blob before push. If HEAD moved or the commit differs, stop before push and name the retained local outcome; no rollback or automatic duplicate commit. Do not copy the live file into this index or use a commit form that rereads its worktree path. The real index and any concurrently edited live target remain untouched. Push/readback confirmation and source CAS stamp follow the original sequence. Private index, temporary Git environment and payload files are scoped resources removed at command return, including cancellation.
+
+**PQ-2: executable test strategies.** The earlier Task 1–3 examples are historical design context, not an inventory to transcribe into cases. Implement tests from these named function contracts; this table is the current testing instruction. The tasks' file ownership, red/green/commit sequence and one close boundary remain in force.
+
+| Function | Adversarial strategy and independent guard |
+|---|---|
+| `parseWorkingdoc` / `parseSettlementPointer` | Fuzz hand-edited/truncated/duplicate YAML and pointer text; malformed known fields refuse and unknown bytes round-trip exactly. |
+| `projectWorkingdoc` / `stampWorkingdoc` | Fuzz documents and path coordinates; projection never alters source input, excludes its own settlement pointer, and stamping changes only the one managed scalar. |
+| `workingdocMarkers` | Fuzz the authored marker grammar with literal-code contexts; unresolved or malformed active markers are reported with location, never resolved or silently discarded. |
+| `transitionSettlement` | Stateful generated event sequences with failure/cancellation at effect boundaries; independently assert that a stamp can reference only confirmed exact publication and retries cannot duplicate a confirmed commit. |
+| `classifyWorkingdoc` | Vary source, recorded blob and current target independently; bytes, not mtime, decide drift and unverifiable evidence can never become settled. |
+| `pinnedProsePublishDecision` / `runTrunkPublish` | Mutate target/remote before and after captured read with controlled hooks; only the expected immutable payload reaches the remote, unrelated/index/live edits survive, and no-option behavior matches existing publication tests. |
+| `publishOperatingWorkingdoc` | Real temporary Git repository and bare remote with controlled HEAD/target mutation and push uncertainty; verify selected tree/parent before push and preserve live bytes/index on every stop. |
+| `settleWorkingdoc` | Stateful Couch/repository fakes inject edits/locks and lost acknowledgments; the whole-file source hash prevents stamping a newer source and target hash binds publication. |
+| `discoverWorkingdocs` / `readWorkingdocBaselines` | Count reads/traversals and external commands at N and 2N; one walk, bounded per-file read and batched Git access enforce linear growth. |
+
+Existing behavior references verified during review: trunk capture/publication at `cmd/sdlc/trunkpublish.go:158` and `:223`, merge-base baseline at `:182`, link projection at `pkg/sidedoc/rebase.go:44`, index projection at `pkg/sidedoc/index_rebase.go:18`. No new marker acceptance mechanism, journal or publication backend is introduced.
