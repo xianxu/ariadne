@@ -43,7 +43,7 @@ had to cancel both and requeue.
 
 - [ ] Add runtime CLI regressions for exact cancellation of one of two real queued runs, retained sibling FIFO, and foreign/invalid selectors.
 - [ ] Expose the existing lease ID; add exact-ID cancellation and same-check/different-head notices using the shared lease reader and managed interruption path.
-- [ ] Verify targeted cancellation/notice controls, update help/README/atlas and run the recorded full suite before landing.
+- [ ] Verify targeted cancellation/notice controls and update help/README/atlas.
 
 Actions: start a check; cancel one ID; cancel by name/all; retry a completed or refused selection.
 
@@ -68,3 +68,5 @@ Actions: start a check; cancel one ID; cancel by name/all; retry a completed or 
 ## Revisions
 
 - 2026-10-21: corrected the discovery premise: lease IDs currently exist only in filenames, not in a `local-check status` command. Expose them in run/notice output so the requested exact selection is usable; no new status command or automatic replacement.
+
+- 2026-10-21: kept the checklist on implementation acceptance; the required recorded suite and close/landing gates are separate workflow steps, avoiding a gate becoming its own unchecked prerequisite. A final-head recorded suite pass remains mandatory before landing.
