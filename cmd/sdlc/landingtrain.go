@@ -157,6 +157,9 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		if tr, more, err = landingline.Transition(tr, ev); err != nil {
 			return err
 		}
+		if _, built := ev.(landingline.Built); built {
+			printTrainMembership(c.stderr, c.id, "composed", tr.Cars)
+		}
 		effects = append(effects, more...)
 	}
 	switch c.selfEnd {
@@ -174,6 +177,12 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 	case landingline.Build:
 		return c.build(e.Cars)
 	case landingline.Publish:
+		// Composition's Hold effects precede Publish. Tell every conflicting
+		// car its result before stopping; deferred Aborted cleanup releases the
+		// survivors to a conductor whose own car can ride their suite.
+		if c.selfEnd == landingline.OutcomeHeld {
+			return nil, fmt.Errorf("landing train %d: this merge's PR was held: %s", c.id, c.selfWhy)
+		}
 		return nil, c.publish(e.Prefix)
 	case landingline.RunSuite:
 		return c.runSuite(e.Prefix)
@@ -608,12 +617,30 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 		if kind != landingline.OutcomeBoarded {
 			c.selfEnd, c.selfWhy = kind, why
 		}
+		if kind == landingline.OutcomeHeld {
+			reportTrainHeld(c.stderr, c.id, car.Issue, car.Branch, why)
+		}
 		return
 	}
 	err := c.line.Settle(car.Seq, landingline.Outcome{Train: c.id, Kind: kind, Reason: why, PR: c.pr.Number})
 	if err != nil && !errors.Is(err, landingline.ErrGone) {
 		fmt.Fprintf(c.stderr, "landing train %d: could not tell car #%d it was %s (%v); its sdlc merge sees its PR's state on GitHub instead\n", c.id, car.Issue, kind, err)
 	}
+}
+
+// reportTrainHeld tells the owning runner why its car stopped and how to
+// recover; an immediate retry without fixing and re-closing isn't sufficient.
+func reportTrainHeld(stderr io.Writer, train int64, issue int, branch, reason string) {
+	fmt.Fprintf(stderr, "landing train %d: #%d held: %s\n", train, issue, reason)
+	fmt.Fprintf(stderr, "Recovery: fix the reported problem, integrate main, re-close, then run sdlc merge --branch %s --yes\n", branch)
+}
+
+func printTrainMembership(stderr io.Writer, train int64, label string, cars []landingline.Car) {
+	fmt.Fprintf(stderr, "landing train %d %s: %d car(s):", train, label, len(cars))
+	for _, car := range cars {
+		fmt.Fprintf(stderr, " #%d (PR #%d)", car.Issue, car.PR)
+	}
+	fmt.Fprintln(stderr)
 }
 
 // closePR closes the train PR and deletes its branch, once.
@@ -678,7 +705,7 @@ func (c *conductor) recordTrain(tr landingline.Train, cars []landingline.Car, le
 	c.log.record(landingline.Event{Kind: landingline.EventTrain, Seq: c.id, Train: c.id, Cars: seqs, PR: c.pr.Number,
 		Result: string(tr.Phase), Splits: tr.Splits, Culprit: tr.Culprit,
 		NextDue: landingline.NextDue(c.departed, c.sched, leftReady > 0 || len(tr.Released) > 0), Departed: c.departed})
-	fmt.Fprintf(c.stderr, "landing train %d: %s; %d car(s), %d split suite(s)\n", c.id, tr.Phase, len(cars), tr.Splits)
+	fmt.Fprintf(c.stderr, "landing train %d: %s; %d car(s), %d split suite(s)\n", c.id, tr.Phase, len(tr.Cars), tr.Splits)
 }
 
 // reclaimTrains closes train PRs a dead conductor left open: head.lock was
@@ -796,11 +823,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
 	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
 	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
-	fmt.Fprintf(stderr, "landing train %d: %d cars:", c.id, len(cars))
-	for _, car := range cars {
-		fmt.Fprintf(stderr, " #%d (PR #%d)", car.Issue, car.PR)
-	}
-	fmt.Fprintln(stderr)
+	printTrainMembership(stderr, c.id, "candidates", cars)
 	if err := conductTrain(c, cars, b.LeftReady); err != nil {
 		return pr, false, err
 	}
