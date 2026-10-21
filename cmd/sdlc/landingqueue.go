@@ -177,6 +177,9 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 		var settled *landingline.Settled
 		if errors.As(err, &settled) {
 			// The conductor logged this car's outcome; it only leaves.
+			if settled.Outcome.Kind == landingline.OutcomeHeld {
+				reportTrainHeld(stderr, settled.Outcome.Train, tk.Issue, branch, settled.Outcome.Reason)
+			}
 			h.Release()
 			return nil, err
 		}

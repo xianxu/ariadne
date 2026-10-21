@@ -60,7 +60,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `local-check cancel` | (new #400)                  | Select one owned run with `--run ID` (printed at run start), all owned runs of `--name N`, or all this checkout's checks; ID/name are exclusive and foreign/invalid/inactive IDs refuse. Same-check/different-head overlap prints a notice and exact existing-run cancellation command, preserving both FIFO places until explicit cancellation. Each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
-| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's card `flake_tests`, landing merge and Git ancestry (never issue Markdown); since #479 each row is an uncovered failing leaf (`flakes.Uncovered`), matched to a terminal issue by the same `Covers` rule, nearest name first (`fixedCandidates`); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlot` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's exact PASS line required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
+| `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's card `flake_tests`, landing merge and Git ancestry (never issue Markdown); since #479 each row is an uncovered failing leaf (`flakes.Uncovered`), matched to a terminal issue by the same `Covers` rule, nearest name first (`fixedCandidates`); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlotBatch` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's package-bound JSON PASS event required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
@@ -306,7 +306,8 @@ MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
 Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
-Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Markdown under `workshop/issues/`, `workshop/issue-cards/`, `workshop/plans/` and
+`workshop/history/`. Tracker configuration (`workshop/issue-tracker.json`) does not qualify.
 Every novel commit and merge-parent difference is classified, including rename
 sources; code added then reverted, mixed changes and unreadable history remain
 ordinary. The existing integration state machine charges only ordinary moves to
@@ -461,7 +462,16 @@ trains on:
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
   (#499): it observes external close/status updates on the next pass while
   sharing one coherent tracker generation across that pass's gates, without
-  invalidating the parent command or another pass. Transferred-details ownership
+  invalidating the parent command or another pass. A carried completion binding
+  remains a publish obligation after its card is reopened (#502). The shared
+  publish-only guard (`refuseReopenedCompletions`, `trackercompletion.go`) checks
+  every carried binding before review-anchor selection, in ordinary publish and
+  immutable landing. It refuses with the issue, current status and exact
+  `sdlc close --issue N --verified '<evidence>'` action, followed by push/retry.
+  Binding repository/evidence/current-token ownership survives rebase and an
+  independently published details copy; unrelated working cards and branches
+  carrying no close stay valid. Completion, settlement and archive retain their
+  existing status eligibility. Transferred-details ownership
   checks and completion selection use the parsed `Records.CardSnapshot`;
   alternate details directories reuse those cards through `Records.WithDetails`.
   The publication checkout selects that card authority, even if a configured
@@ -475,6 +485,13 @@ trains on:
   to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
+- Candidate and composed membership have distinct banners (#521); the terminal
+  summary counts retained cars. Held outcomes print their reason and exact branch
+  recovery in the owning runner (`reportTrainHeld`). If the conductor’s own car
+  is held, the Publish boundary stops it after all composition holds are delivered;
+  existing Aborted cleanup releases survivors to reform. No sibling suite runs
+  under the excluded checkout’s lifetime lease. A reformed suite belongs to its
+  new conductor’s checkout, so foreign local-check cancellation leaves it alive.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness
   codec, boarding), `trainstate.go` (the running train's state machine) and
   `bisect.go` (splitting a failing train).
@@ -500,7 +517,7 @@ trains on:
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
 - **Locking:** ref writes take the repo transaction lock.
-- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Main moves (#511):** issue-record-only movement uses the shared strict history classifier and fresh same-PR/head/base CLEAN readiness. The train retains its exact checked head and CI only while policy/car/log-bound landing-check proof remains valid and the final destination passes instance/duplicate-ID gates under the merge transaction. Other movement or unavailable/stale readiness reintegrates main; generic docs-only reintegration can retain the suite but still needs CI on the new head. No statuses are copied.
 - **Lost reply:** a merge whose reply was lost is read back from GitHub.
 - **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
 - **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
@@ -2046,7 +2063,9 @@ own cancellation through processgroup cleanup. A direct make watcher alone
 only proves one PID ended, so an unproved descendant boundary stays unknown
 for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline.
+the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+owns safe timing, hub-first context-pressure recovery, and post-restart retained
+check verification; the continuation prototype points workers to that rule.
 
 **Reconcile one unresolved operation (#501).** The operator/:0 runs
 `sdlc queue reconcile --id ID --digest SHA256 --note TEXT` only after verifying
@@ -2619,3 +2638,80 @@ The Go lint catalog includes `test-sweep-private-root` (#509): test calls to the
 Landing trains enter `PhaseChecking` after the successful final-prefix suite (also after docs reintegration). `RunLandingChecks` produces typed `LandingChecksDone`; only a current-prefix pass permits `WaitCI`. Check failure refuses that prefix without suite bisection or baseline diagnosis.
 
 `landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.
+
+
+### Reader-first attempt compatibility (#524, prerequisite for #463)
+
+`teststats_evidence.go` projects the bounded attempt store into supported runs,
+strictly identified unsupported proof, and unscopable read warnings. A future
+record retains its original bytes and cannot provide outcomes or measurements.
+Saved-proof selection, republish and success guards report “needs a newer sdlc”
+for its exact ID, subject or linked parent; unrelated repo/head/named-check
+proof remains usable. Suite and affected share their existing same-head test
+failure authority. Unreadable, malformed, ambiguous or budget-truncated input
+still prevents proof of completeness. Statistics and actuals keep supported
+measurements with explicit unavailable-record coverage; flake registration
+cannot use unsupported authority or substitute a legacy log for it.
+
+**Activation barrier:** pre-#524 binaries treat a v3 record as a global invalid
+record. A payload cannot retrofit that old reader. This landing writes no v3
+record or ResumeLink and enables no resume command. After it lands the TL must
+upgrade every slot's actual sdlc; verify the binary path and build revision
+across slots before #463's separate writer/activation landing. A stale or
+unverified reader keeps activation held. Never hide links from older readers.
+The later resume design must also name one real recovery command for crashed
+pending proof; queue reconciliation alone does not repair a resume link.
+
+The retained compatibility control is opt-in: run
+`sh scripts/verify-pre524-reader.sh`. It creates a private clone at the pinned
+pre-#524 revision and executes the committed old-reader fixture, asserting the
+old global warning, incomplete saved proof and publication refusal. Its printed
+private path is retained for inspection. The upgraded comparison is
+`go test ./cmd/sdlc -run '^TestScopedSavedProofConsumers$' -count=1`.
+
+The invoker owns that private compatibility-control directory, retained only
+through evidence inspection. Afterwards remove the printed parent directory
+(`ariadne-pre524-reader.*`), including its clone; never sweep the shared scratch
+root. It contains no live lease or production evidence and is not a long-term
+artifact store. The committed fixture/script and issue Log retain the proof.
+
+
+### Exact-package known-flake batches (#524)
+
+`internal/flakes.RerunCommands` groups validated names by package and promotes
+registered subtests to whole top-level tests. Each sorted literal argv runs
+one package with anchored names and `go test -json -count=1`. A name from a
+different package cannot select a same-name decoy. `RerunMissingJSON` requires
+package-bound exact-test, whole-top-level and package PASS events; Output text, malformed
+or conflicting terminal events cannot authorize success. Existing saved
+supported evidence remains readable.
+
+`knownFlakeStep` runs the batch through `runUnderSlotBatch` and the shared
+`runManagedCommandBatch` execution seam. One queue admission, weight-1 slot,
+run lease, scratch directory, raw log and aggregate targeted timeout span all
+package processes. Each group is stopped before the next starts; failure,
+timeout or cancellation stops the batch. Argv announcements go to terminal diagnostics with quoted embedded
+newlines; the raw log contains only process output, so command data cannot
+become log facts or interfere with startup-error classification. The result is one immutable
+`suite-rerun` attempt linked to the original failed suite/affected attempt,
+never another full-suite sample. Runner-resource checks retain their existing
+single-command cleanup and retention authority.
+
+
+Executable conformance is opt-in:
+`SDLC_PRIVATE_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckPhase1Conformance$' -count=1 -v`.
+The subprocess enters production main with private real Git/tracker/helper,
+private queue/lock/scratch/evidence, and a stateful fake GitHub publisher.
+It proves unrelated named-check republish beside a future record, related
+refusal with zero publication, exact-package decoy exclusion, unchanged opaque
+bytes, and one retained original/linked rerun pair. The test owns and removes
+all fixture state via `t.TempDir`; no installed binary or live evidence changes.
+
+
+PASS event identity follows actual Go output, separately from the registry's
+narrow eligible-name grammar. Incidental legal subtests (punctuation, Unicode,
+rewritten spaces, empty/duplicate segments) cannot invalidate a required root's
+proof. One t.Run may introduce a slash-containing suffix, so slash prefixes
+are not inferred ancestry and cannot require invented events. Exact required
+leaf, whole top-level test and package must pass, preserving sibling-failure
+blocking and required-identity terminal conflict refusal.

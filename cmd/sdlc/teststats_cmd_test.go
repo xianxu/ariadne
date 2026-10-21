@@ -154,3 +154,49 @@ func TestSuiteStatsCommandSmokeRecordDoesNotHideLegacySuite(t *testing.T) {
 		t.Fatalf("legacy suite hidden by smoke record: %+v", report)
 	}
 }
+
+func TestSuiteStatsUnsupportedCoverageStaysScoped(t *testing.T) {
+	root := t.TempDir()
+	common := filepath.Join(root, ".git")
+	attempts := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(attempts, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	a := storedAttemptFixture("a1")
+	a.Exit = 0
+	a.Failures = nil
+	wall := 1.0
+	a.WallSeconds = &wall
+	raw, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attempts, "a1.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	future := strings.Replace(string(futureProofFixture("d3")), strings.Repeat("a", 40), strings.Repeat("b", 40), 1)
+	if err := os.WriteFile(filepath.Join(attempts, "d3.json"), []byte(future), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(common, "sdlc", "local-checks", strings.Repeat("b", 40))
+	if err := os.MkdirAll(legacy, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(legacy, "suite.log"), []byte("ok x/pkg 9s\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	deps := testStatsDeps{now: func() time.Time { return a.FinishedAt }, identity: func() (workspace.Identity, error) {
+		return workspace.Identity{PrimaryRoot: root, FleetRoot: filepath.Dir(root)}, nil
+	}, fleetDirs: func(string) ([]string, error) { return []string{root}, nil }, commonDir: func(string) (string, error) { return common, nil }}
+	var out bytes.Buffer
+	if err := runTestStats(&out, testStatsFlags{Since: "7d", JSON: true}, deps); err != nil {
+		t.Fatal(err)
+	}
+	var report testStatsReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Repos) != 1 || report.Repos[0].Runs != 1 || report.Repos[0].FullyRecorded != 1 || len(report.Warnings) != 1 || !strings.Contains(report.Warnings[0], "needs a newer sdlc") {
+		t.Fatalf("scoped statistics: %+v", report)
+	}
+}

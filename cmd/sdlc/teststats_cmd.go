@@ -151,7 +151,9 @@ func buildTestStatsReport(flags testStatsFlags, deps testStatsDeps) (testStatsRe
 			continue
 		}
 		root := filepath.Join(common, "sdlc", "test-stats")
-		attempts, warnings, err := readSuiteAttempts(root, testStatsRecordLimit)
+		snapshot, err := readSuiteEvidence(root, testStatsRecordLimit)
+		attempts := snapshot.Attempts
+		warnings := append(snapshot.Warnings, snapshot.coverageNotes("")...)
 		if err != nil {
 			report.Warnings = append(report.Warnings, name+": "+err.Error())
 			continue
@@ -159,7 +161,7 @@ func buildTestStatsReport(flags testStatsFlags, deps testStatsDeps) (testStatsRe
 		for _, warning := range warnings {
 			report.Warnings = append(report.Warnings, name+": "+warning)
 		}
-		known := map[string]bool{}
+		known := snapshot.knownSuiteHeads()
 		for i := range attempts {
 			// A different local check at this head does not cover suite.log.
 			if isSuiteRun(attempts[i]) {

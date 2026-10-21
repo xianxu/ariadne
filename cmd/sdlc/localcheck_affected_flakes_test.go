@@ -18,7 +18,7 @@ func asAffected(c localCheck) localCheck { c.Name = affectedCheckName; return c 
 func TestAffectedKnownFlakeReruns(t *testing.T) {
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
 	d.FlakeRegistry = gateRegistry(t, gateKnown)
-	asked := scriptRerun(t, "echo '--- PASS: TestFlaky (0.00s)'; echo 'ok  o/r/pkg 0.1s'")
+	asked := scriptRerun(t, gatePassJSON)
 	rec, err := runLocalCheck(context.Background(), d, asAffected(suiteFailing(gateKnown)), sha)
 	if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed {
 		t.Fatalf("%+v %v\n%s", rec, err, stderr)
