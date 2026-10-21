@@ -102,3 +102,13 @@ item: milestone-review design=0.02 impl=0.16
 design-buffer: 0.15
 total: 3.41
 ```
+
+### 2026-10-20 23:06 PDT — M1 implementation and controls
+
+change-code passed plan-quality (PQ-1 addressed by function-level strategies) and estimate gates. Existing libraries cover matching, Git, groups and retained evidence. The estimate's pure selection/proof items describe deterministic policy, while the seven smaller modules cover codec/IO/wiring; cross-cutting extraction covers resource lifetime separation. Private executable delivery checks are included in resource/IO implementation and final review allowances; suite execution is included in final delivery allowance, provisional under the stale calibration.
+
+Observed RED then GREEN: v2 declaration acceptance/round-trip, path selection, pinned/cache reader, bound proof, zero-helper runner resource, and leader-exits-before-descendant-cleanup. The latter reproduces Pair's qualified public Make boundary (authenticated receipt f1ee074c-7076-498f-9452-d9777c0249de); group cleanup retains30s even with closed output pipes. Broader targeted parser/selection/runner/signal controls passed (19.697s); affected package passed. No VM or production resource was driven. M2 still owns automatic gate/CLI main-only burn-in integration.
+
+M1 fuzzing found a real empty-array round-trip defect: v2 checks [] became null on encode. Kept the minimized seed and initialized the decoded empty slice; rechecking before review. The fuzz failure wrote its seed under the real testdata directory and the hermeticity guard correctly called out that new file; this is intentional retained regression evidence, not a test fixture writing production state.
+
+M1 additional evidence: fuzz round-trip passed32,233 executions/3s after the empty-array fix; narrow race controls passed9.163s. The disposable mutation ignoring all earlier cars failed TestLandingCheckSelection as intended, then was restored. Distinct8/16-car reads and8/16-path matching have counted linear guards; repeated polling adds zero Git reads. Runner cleanup control now waits6s after leader exit (past the old5s bound), and controlled unresponsive-child escalation joins.

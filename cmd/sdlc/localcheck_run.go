@@ -90,18 +90,23 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if d.minute == 0 {
 		d.minute = time.Minute
 	}
-	helper, err := prepareSuiteHelper(ctx, d.Root, d.WorkflowAnchor)
-	if err != nil {
-		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
-	}
-	// Bind to the caller's tested issue head before entering a detached worktree.
-	subject, subjectErr := suiteSubject(d.Root, sha)
-	if subjectErr != nil {
-		fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
-		subject = suitePrioritySubject{CommonDir: d.Root}
-	}
-	if !isTestCheck(c.Name) || d.SkipRecord {
-		subject.Issue = 0
+	var helper string
+	var subject suitePrioritySubject
+	if c.Resource != "runner" {
+		var err error
+		helper, err = prepareSuiteHelper(ctx, d.Root, d.WorkflowAnchor)
+		if err != nil {
+			return rec, fmt.Errorf("local check %s: %w", c.Name, err)
+		}
+		var subjectErr error
+		subject, subjectErr = suiteSubject(d.Root, sha)
+		if subjectErr != nil {
+			fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
+			subject = suitePrioritySubject{CommonDir: d.Root}
+		}
+		if !isTestCheck(c.Name) || d.SkipRecord {
+			subject.Issue = 0
+		}
 	}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
@@ -136,7 +141,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		rec.LogPath = writer.LogPath
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	run, err := runUnderSlot(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute)
+	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
 		var interrupted *queueInterruptedError
 		if errors.As(err, &interrupted) {
@@ -272,6 +277,10 @@ type suiteSlotRun struct {
 // (#394) are both cancellable and neither holds a slot while it records. An
 // interrupt is an error and records nothing.
 func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration) (run suiteSlotRun, err error) {
+	return runUnderResource(ctx, d, wt, helper, logDir, check, sha, weight, subject, argv, logPath, timeout, "")
+}
+
+func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration, resource string) (run suiteSlotRun, err error) {
 	run = suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
@@ -313,7 +322,11 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 		fmt.Fprintf(d.Stderr, "[!] local check %s: no run lease, so `sdlc local-check cancel` cannot find this run: %v\n", check, err)
 	}
 	defer releaseLease()
-	heldBy, release, err := acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
+	heldBy := ""
+	release := func() {}
+	if resource != "runner" {
+		heldBy, release, err = acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
+	}
 	if err != nil {
 		var interrupted *queueInterruptedError
 		if errors.As(err, &interrupted) {
@@ -369,7 +382,14 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.Dir = wt
 	cmd.WaitDelay = 5 * time.Second
+	var joinRunner func() error
+	if resource == "runner" {
+		joinRunner = configureRunnerCleanup(cmd)
+	}
 	cmd.Env = os.Environ()
+	if resource == "runner" {
+		cmd.Env = withoutSuiteAuthority(cmd.Env)
+	}
 	if heldBy != "" {
 		cmd.Env = append(cmd.Env, "WF_TEST_LOCK_HELD_BY="+heldBy)
 	}
@@ -395,7 +415,14 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 	runErr := cmd.Run()
 	// WaitDelay bounds inherited-pipe draining after the parent exits;
 	// stop remaining children before closing their log or removing their tree.
-	_ = processgroup.Terminate(cmd, true)
+	if joinRunner != nil {
+		if cleanupErr := joinRunner(); cleanupErr != nil {
+			_ = logf.Close()
+			return run, cleanupErr
+		}
+	} else {
+		_ = processgroup.Terminate(cmd, true)
+	}
 	// The slot covers the run only (#383): start its release before the log,
 	// the GitHub writes and whatever the caller (merge) does next. The watcher
 	// frees it on the holder's exit (at once with kqueue, within its 0.5 s

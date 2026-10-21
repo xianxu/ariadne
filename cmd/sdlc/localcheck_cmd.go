@@ -109,7 +109,13 @@ func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCh
 		return nil, errors.New("local-check run: give --name (one or more) or --all")
 	}
 	if all {
-		return decl.Checks, nil
+		var out []localCheck
+		for _, c := range decl.Checks {
+			if c.RunScope != "landing" {
+				out = append(out, c)
+			}
+		}
+		return out, nil
 	}
 	var out []localCheck
 	for _, n := range names {

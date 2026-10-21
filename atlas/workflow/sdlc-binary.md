@@ -2597,3 +2597,10 @@ refills restart calibration. One reading, stale/incomplete evidence or zero burn
 produces a labelled status and null projection. Plain usage has no cache and
 never interacts with the providers. Re-run opt-in identity conformance when the
 agent CLIs change and before bench runs; see the usage help for coverage bounds.
+
+
+### Landing-check capability (#509)
+
+The opt-in version2 local-check declaration separates `scope: landing` from internal affected-test coverage and `resource: runner` from suite-slot weight. Its schema lives in `localchecks_v2.go`; strict known members coexist with preserved opaque future metadata. Existing v1 declarations retain their behavior. `landingchecks.go` selects enabled checks from per-car path unions and binds in-memory proofs to candidate/policy/car identity; `landingchecks_git.go` reads only regular tracked blobs on the configured base and caches immutable input reads for the landing owner's lifetime.
+
+Runner-resource execution uses the existing exact-head worktree, managed queue/run lease, logs and attempt store, while bypassing suite-helper discovery and allocation. Its entire subprocess group gets one30s graceful cancellation budget, including after the immediate Make leader exits; forced cleanup then joins before checkout retirement. No VM lease is acquired or inspected by SDLC. Automatic train/single-landing enforcement is the next milestone; no consumer is activated by this capability issue.
