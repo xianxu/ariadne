@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "fd446026", done: "65a2416d"}
 ---
 
 # tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap)
