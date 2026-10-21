@@ -1289,5 +1289,8 @@ Unknown descendant completion protects every input and output together: checkout
   Scope its working directory explicitly and link the existing atlas map.
   Documentation review owns this semantic coverage; a Go lint rule cannot
   establish whether the reader can discover and run an external command.
+- #530 PQ-1 reinforces #524 PQ-1: a pure-entity table naming concepts/files is
+  insufficient. Name actual risky functions, each adversarial strategy and its
+  independent mechanical guard; keep input-case inventories in executable tests.
 
 - #527 BR-1: classify a helper by the IO it performs, even when it composes pure algorithms. List Git/worktree/process helpers as INTEGRATION and test them through real isolated resources; reserve PURE for the graph/classifier/reducer core. The plan review enforces this semantic description, which source lint cannot infer from an artifact table.

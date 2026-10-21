@@ -115,6 +115,10 @@ Durable plan: [suite startup evidence](../plans/000530-suite-startup-evidence-pl
   a real #524-era reader must scope the unsupported v3 record to its subject,
   rather than poisoning unrelated evidence; fleet shared sdlc includes #524.
   Proceeding to the full-flow change-code plan gate before implementation.
+- Plan gate round 1 raised PQ-1 (Important): name risky functions and replace
+  test-case inventories with adversarial strategy/mechanical-guard contracts.
+  Added those function contracts and compressed the task inventories; no design
+  mechanism or scope changed. Re-running plan-quality before implementation.
 
 ## Revisions
 

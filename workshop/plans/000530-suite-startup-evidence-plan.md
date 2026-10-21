@@ -46,10 +46,11 @@ arbitrary error-text waiver, flake registration or cache cleanup is introduced.
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| Startup diagnosis | cmd/sdlc/suiteenvironment.go | modified |
-| Reclassification eligibility and transition | cmd/sdlc/suitereclassification.go | new |
-| SuiteAttempt evidence projection | cmd/sdlc/teststats.go | modified |
-| Versioned record validation | cmd/sdlc/teststats_store.go | modified |
+| diagnoseSuiteStartup / diagnoseSuiteStartupLines | cmd/sdlc/suiteenvironment.go | new, generalizes existing suiteEnvironmentLines |
+| planSuiteReclassification | cmd/sdlc/suitereclassification.go | new |
+| decodeSuiteAttempt / encodeReclassifiedAttempt | cmd/sdlc/teststats_store.go; teststats_reclassify.go | modified / new |
+| validateReclassificationProof | cmd/sdlc/suitereclassification.go | new |
+| flakeAttempt / isFlakeEvidence / flakes.Unexplained | cmd/sdlc/teststats.go; internal/flakes/evidence.go | modified |
 
 Startup diagnosis returns a typed resource/cause/path, rather than only a bool.
 It scans the complete bounded log once, accepting only enumerated startup lines
@@ -66,6 +67,22 @@ pass, explain a code failure, confirm a flake, or become a baseline verdict.
 One record owns one original-record audit. All proof consumers share the same
 projection; guardSuitePass, saved-result reuse, flake registration/reporting,
 stats and baseline/train handling must not implement independent overrides.
+
+### Function test contracts
+
+Individual input cases belong in executable tests. These are the required
+adversarial strategies and independent mechanical guards for the risky functions:
+
+| Function | Adversarial strategy and mechanical guard |
+|---|---|
+| diagnoseSuiteStartup / diagnoseSuiteStartupLines | Fuzz arbitrary bytes and wrapper mutations seeded with the recorded outage; appending any independently encoded test-start event must reject classification. Count exact iterator visits at N/2N. |
+| planSuiteReclassification | Table/sequence-test the state/action relation below with actor/subject/proof mutations; only an eligible original failure can transition, and no transition returns passing evidence. |
+| decodeSuiteAttempt / encodeReclassifiedAttempt | Fuzz schema/version/type/duplicate mutations and round-trip unknown fields; independently compare preserved original bytes and nested unknown values, and run the pinned old-reader control. |
+| validateReclassificationProof | Mutate each bound record/audit/log identity independently and truncate at every publication boundary; any mismatch refuses, while a valid proof still cannot satisfy Lands. |
+| flakeAttempt / isFlakeEvidence / flakes.Unexplained | Sequence-test real failure, neutral correction and genuine rerun through the shared pure rules; a neutral record never confirms intermittency or explains a different failure. |
+| publishSuiteReclassification / readSuiteEvidenceWithOpen | Inject write/rename failures and interleave complete reads at each commit boundary; readers see the old failure, verified correction or scoped refusal, never absence/success. Count bounded record/log reads at N/2N. |
+| guardSuitePass / savedAttemptRecord / aggregateCheckAttempts | Drive actual consumers from the same persisted fixtures; compare outcomes with an independent ledger of genuine test runs to reject legacy resurrection and old-pass promotion. |
+| diagnoseSuiteFailure / conductor.runSuite / conductor.mainIsRed | Replay the captured startup output through the production runner seam; assert no main-red/attribution transition and preserve an independently introduced genuine code failure. |
 
 ### Integration points
 
@@ -215,16 +232,13 @@ localcheck_flakes.go; recorded fixtures under cmd/sdlc/testdata/.
 
 - [ ] Capture today's retained #508 candidate and baseline logs into replay
   fixtures, preserving diagnostic structure and documenting any path sanitation.
-- [ ] Add failing classifier tables for cache/temp/output ENOSPC/EDQUOT and
-  missing toolchain; controls for tests already running, successful activity,
-  JSON events, quoted diagnostics, compiler errors, truncation and unknown lines.
+- [ ] Implement the red diagnosis contract above in colocated tests before code.
 - [ ] Run focused tests and retain red evidence. Extend the typed classifier and
   existing error/retention path only after the regression fails.
 - [ ] Exercise runLocalCheck on a private repo: no failure status/attempt/flake
   evidence, raw log retained, same-head genuine repair passes. Keep a prior real
   failure blocking. Cover affected and a known-flake rerun's startup failure.
-- [ ] Drive both diagnoseSuiteFailure and conductor.runSuite/mainIsRed with the
-  recorded failure; assert no false main-red or attribution event.
+- [ ] Verify the baseline/train function contract through the same replay seam.
 - [ ] Count scanner work at 8/16 units. Commit the coherent verified change.
 
 Target: go test ./cmd/sdlc -run 'TestSuite(Environment|Infrastructure)' -count=1
@@ -235,19 +249,12 @@ Files: suitereclassification.go and tests, teststats_reclassify.go and tests,
 teststats_store.go, teststats_evidence.go, teststats.go, localcheck_cmd.go,
 localcheck_reclassify.go and tests, localcheck_republish.go.
 
-- [ ] Write red pure transition/authorization tables and store tests using
-  existing storedAttemptFixture; add actual CLI tests through localRunRepo.
+- [ ] Write the red transition, proof, encoding and consumer contracts above
+  using storedAttemptFixture; add actual CLI tests through localRunRepo.
 - [ ] Implement the exact command, audit-first publication and explicit v3
   validation/projection. Reuse existing lock/recovery patterns and scope reads.
-- [ ] Interrupt before audit, after audit, before authority commit and after
-  commit; retry each case. Assert original bytes/raw log retained, one audit,
-  unchanged external statuses and no pass publication or legacy resurrection.
-- [ ] Reject foreign owners, missing ownership outside :0, hash mismatch,
-  baseline-as-pass, timeout, started tests, mixed compiler failure, unknown
-  records, traversal and unrelated subject identity. Verify unrelated checks
-  still work and other real failures on the head remain blocking.
-- [ ] Exercise actual guard/post/saved-pass/flake/stats consumers; reclassified
-  records never become success or intermittency proof, fresh real pass is allowed.
+- [ ] Exercise the publication/read ordering contract with interruption injection,
+  then verify the shared consumer contracts against the independent run ledger.
 - [ ] Test v1/v2 reads, unknown-field preservation and real pinned old-reader
   behavior using the #524 compatibility fixture approach. In particular, the
   #524-era reader must scope a v3 disposition to its subject and allow unrelated
@@ -282,3 +289,6 @@ part of this design. Any third design delta on the mechanism triggers re-plannin
 
 - 2026-10-21 — TL approved this design and explicitly required the #524-era
   reader compatibility control; added it to Task 2. No mechanism change.
+- 2026-10-21 — PQ-1: named the risky functions and their adversarial strategies
+  and mechanical guards; compressed procedural test-case inventories into
+  executable test contracts. Scope, evidence authority and recovery stay intact.
