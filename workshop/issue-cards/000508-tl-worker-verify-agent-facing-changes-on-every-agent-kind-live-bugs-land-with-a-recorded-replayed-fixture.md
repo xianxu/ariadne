@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.33
+actual_hours: 3.16
 tracker:
     version: 1
     completion:
-        token: close-6a291b29d20a
+        token: close-51d6a22dd31d
         repository: github.com/xianxu/ariadne
-        reviewed_head: 07c888e640c0d215f8e069ef16f55dc6264eb9df
-        evidence_commit: b94a2978c25bdd57c0ebbc86d1100d175c0ba55c
+        reviewed_head: 42e0402d5f674bcf2b8f9142278dd29bf3e13098
+        evidence_commit: 23f3760f1f6e4d22a9e85481f670254aa57ab310
 ---
 
 # tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture
