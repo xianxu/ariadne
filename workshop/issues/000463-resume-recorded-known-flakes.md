@@ -1,7 +1,7 @@
 ---
 id: 000463
 status: working
-deps: []
+deps: [ariadne#524]
 github_issue:
 created: 2026-10-19
 updated: 2026-10-21
@@ -89,3 +89,5 @@ The plan replaces the empty planning row with two genuine review boundaries. It 
 ### 2026-10-21 04:40 PDT — Reader-first prerequisite approved
 
 Hub approval eb6d1928-c198-41cd-bde5-fe8c292a4601 accepted the core plan, conditioned on scoped old-reader behavior and one real recovery command for an uncertain resume. Reported the current old reader's whole-store warning/refusal, which a new record cannot change retroactively. Authenticated917bf022-032a-4d84-ac6b-39075bbca2b5 selects a separate reader/batch prerequisite landing, then the hub upgrades every slot and this worker verifies actual binary revisions, then #463 activates resume in a second landing from main. The durable plan's Revisions records this superseding order. No link writer or resume command may ship before that barrier, and links are never hidden from old readers. Preserve this branch's design while working the prerequisite from main; phase-2 reconciliation must repair the link/proof and name one real command.
+
+The prerequisite is filed/claimed as #524, scoped future evidence and exact-package reruns. #463 depends on that landing plus the hub's verified fleet rollout; its design branch remains preserved while #524 starts independently from main.
