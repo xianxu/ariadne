@@ -14,14 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.42
+actual_hours: 3.53
 tracker:
     version: 1
     completion:
-        token: close-8c0813e9c8d5
+        token: close-ab7f12d92611
         repository: github.com/xianxu/ariadne
-        reviewed_head: 78cc0cbd3b00141880769731fb24bd164a1e8fbb
-        evidence_commit: f7466289770253c2230c55170edd77e89087bdf7
+        reviewed_head: 18ef5d0ed97b172b1e1d02eb0b204b4adf76a475
+        evidence_commit: aab0d01046e309b267e3f2d918b327a167946b01
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
