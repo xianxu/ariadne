@@ -41,7 +41,7 @@ Board against a clock sample consistent with the readiness snapshot, after the c
 ## Plan
 
 - [x] After #498 lands, claim/start from main and review the smallest snapshot/clock ordering correction.
-- [ ] Promote the controlled-clock refresh reproduction with stale/future controls, resample after readiness reads immediately before Board, and verify real archive/multicar controls.
+- [x] Promote the controlled-clock refresh reproduction with stale/future controls, resample after readiness reads immediately before Board, and verify real archive/multicar controls.
 - [ ] Run the recorded suite, remove the associated flake registration after proof, and close with the binary-owned fresh review.
 
 ## Log
@@ -52,6 +52,10 @@ Board against a clock sample consistent with the readiness snapshot, after the c
 
 - Pickup after #498 landed as PR #355: fresh issue branch from main. Quick plan posted to hub, proceeding unless it objects; live-conformance decision requested. Keep the early clock for pre-board serial exits, resample immediately after the readiness snapshot for boarding/departure. ARCH-ORDER/PURE: fix ordering at the existing injected clock seam, retain pure Board/Current semantics. ARCH-DRY/PURPOSE: one production Board call site; no fixture workaround. ARCH-MOCK: reuse stateful Git/GitHub train setup. ARCH-CONSTRAINTS: one additional O(1) clock read per conduction; no new loops or capacity. ARCH-ERROR/FUNERAL/EVOLVE: no new error, resource, durable family or format. A lexical lint cannot prove relative clock/snapshot ordering across callbacks; the controlled interleaving regression enforces this semantic race.
 - Registry evidence: original archive test passed unchanged on the exact failed baseline 94bf14d9262f4ced7db0ebdb43b44583d7d8e2d5 in18.11s (package18.597s), clean detached checkout with identical Git HEAD before/after. baseline-original.log and baseline-result.json are in the persistent diagnosis evidence directory. Only TestLandingTrainWaiterAcceptsConductorArchive is registered here, not the #498/#500 completion flakes.
+
+- Hub approved the quick plan and deterministic production-path conformance (e1d09a60-2c6b-4bb4-8088-68b3a67a93e8); no staged check. Ariadne trains are off; hub will observe pair’s next natural multi-car train.
+- Permanent regression forces the callback interleaving and tests refreshed, newly expired (1ns beyond MaxReadinessAge at the post-gate clock) and genuinely future (1ns ahead) vouches. Old code failed all three in3.770s: refreshed was excluded, newly expired was incorrectly boarded, and departure retained the early timestamp. The correction is one injected clock resample after the snapshot; no guard or existing fixture changed.
+- Targeted green controls passed in62.757s (new regression, train admission, archive acceptance, conductor provenance, train/null/head three-car cases, alone and lagging listing). Pure landingline freshness/Board/departure/admission controls passed0.138s. Persistent raw evidence: common test-stats/evidence/000516/{readiness-red.log,readiness-green-controls.log,landingline-controls.log}. Main independently reran the regression8.905s and full pkg/golint0.824s, both PASS; staged diff whitespace clean. Full recorded suite remains pending; registry remains active until that proof.
 
 ## Revisions
 
