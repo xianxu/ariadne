@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "b287a525", done: "f73e0fa9"}
 ---
 
 # workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible
