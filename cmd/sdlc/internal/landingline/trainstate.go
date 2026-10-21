@@ -19,6 +19,7 @@ const (
 	PhaseTesting       Phase = "testing"       // a suite on the full train
 	PhaseBisecting     Phase = "bisecting"     // suites on prefixes, finding a culprit
 	PhaseReintegrating Phase = "reintegrating" // main moved: merging it into the train
+	PhaseChecking      Phase = "checking"      // final prefix landing checks after its suite
 	PhaseLanding       Phase = "landing"       // waiting for CI on the train PR
 	PhaseMerging       Phase = "merging"       // the train PR's merge was sent
 	PhaseLanded        Phase = "landed"        // terminal: prefix 1..Land is on main
@@ -87,6 +88,12 @@ type (
 		Prefix  int
 		Outcome SuiteOutcome
 	}
+	// LandingChecksDone is the selected final-prefix checks' observed result.
+	LandingChecksDone struct {
+		Prefix int
+		Passed bool
+		Detail string
+	}
 	// CIDone: CI on the train PR's head finished.
 	CIDone struct {
 		Green  bool
@@ -110,29 +117,31 @@ type (
 	Aborted struct{ Reason string }
 )
 
-func (Boarded) trainEvent()      {}
-func (Built) trainEvent()        {}
-func (SuiteDone) trainEvent()    {}
-func (CIDone) trainEvent()       {}
-func (MainMoved) trainEvent()    {}
-func (Reintegrated) trainEvent() {}
-func (Merged) trainEvent()       {}
-func (MergeUnknown) trainEvent() {}
-func (Probed) trainEvent()       {}
-func (Aborted) trainEvent()      {}
+func (Boarded) trainEvent()           {}
+func (Built) trainEvent()             {}
+func (SuiteDone) trainEvent()         {}
+func (LandingChecksDone) trainEvent() {}
+func (CIDone) trainEvent()            {}
+func (MainMoved) trainEvent()         {}
+func (Reintegrated) trainEvent()      {}
+func (Merged) trainEvent()            {}
+func (MergeUnknown) trainEvent()      {}
+func (Probed) trainEvent()            {}
+func (Aborted) trainEvent()           {}
 
 // Effect is work the conductor executes; its outcome comes back as an Event.
 type Effect interface{ trainEffect() }
 
 type (
-	Build       struct{ Cars []Car } // merge main, then each car's head, in order
-	Publish     struct{ Prefix int } // push the train branch at prefix, open or update its PR
-	RunSuite    struct{ Prefix int } // a recorded suite on prefix's commit
-	WaitCI      struct{ Prefix int }
-	Merge       struct{ Prefix int } // merge the train PR, pinned to its head
-	Probe       struct{}             // read the train PR's state
-	Reintegrate struct{ Prefix int } // merge current main into the train
-	Hold        struct {             // a car leaves, refused with reason (culprit, conflict)
+	Build            struct{ Cars []Car } // merge main, then each car's head, in order
+	Publish          struct{ Prefix int } // push the train branch at prefix, open or update its PR
+	RunLandingChecks struct{ Prefix int } // selected final-prefix checks, never probes
+	RunSuite         struct{ Prefix int } // a recorded suite on prefix's commit
+	WaitCI           struct{ Prefix int }
+	Merge            struct{ Prefix int } // merge the train PR, pinned to its head
+	Probe            struct{}             // read the train PR's state
+	Reintegrate      struct{ Prefix int } // merge current main into the train
+	Hold             struct {             // a car leaves, refused with reason (culprit, conflict)
 		Seq    int64
 		Reason string
 	}
@@ -145,18 +154,19 @@ type (
 	ClosePR  struct{}               // close the train PR and delete its branch
 )
 
-func (Build) trainEffect()       {}
-func (Publish) trainEffect()     {}
-func (RunSuite) trainEffect()    {}
-func (WaitCI) trainEffect()      {}
-func (Merge) trainEffect()       {}
-func (Probe) trainEffect()       {}
-func (Reintegrate) trainEffect() {}
-func (Hold) trainEffect()        {}
-func (Release) trainEffect()     {}
-func (Refuse) trainEffect()      {}
-func (LandCars) trainEffect()    {}
-func (ClosePR) trainEffect()     {}
+func (Build) trainEffect()            {}
+func (Publish) trainEffect()          {}
+func (RunLandingChecks) trainEffect() {}
+func (RunSuite) trainEffect()         {}
+func (WaitCI) trainEffect()           {}
+func (Merge) trainEffect()            {}
+func (Probe) trainEffect()            {}
+func (Reintegrate) trainEffect()      {}
+func (Hold) trainEffect()             {}
+func (Release) trainEffect()          {}
+func (Refuse) trainEffect()           {}
+func (LandCars) trainEffect()         {}
+func (ClosePR) trainEffect()          {}
 
 // NewTrain is a train its conductor just formed.
 func NewTrain(id int64) Train { return Train{ID: id, Phase: PhaseForming, Results: map[int]bool{}} }
@@ -230,8 +240,8 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 		}
 		n.Results[e.Prefix] = e.Outcome == SuitePass
 		if t.Phase == PhaseTesting && e.Outcome == SuitePass {
-			n.Phase, n.Land = PhaseLanding, e.Prefix
-			return n, append(n.publish(e.Prefix), WaitCI{Prefix: e.Prefix}), nil
+			n.Phase, n.Land = PhaseChecking, e.Prefix
+			return n, append(n.publish(e.Prefix), RunLandingChecks{Prefix: e.Prefix}), nil
 		}
 		next, culprit, lo, done := Bisect(len(n.Cars), n.Results)
 		if !done {
@@ -240,6 +250,16 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			return n, []Effect{RunSuite{Prefix: next}}, nil
 		}
 		return split(n, culprit, lo)
+	case LandingChecksDone:
+		if t.Phase != PhaseChecking || e.Prefix != t.Land {
+			break
+		}
+		if !e.Passed {
+			n.Phase = PhaseRefused
+			return n, []Effect{Refuse{Seqs: carSeqs(n.Cars[:n.Land]), Reason: "the train's landing checks failed: " + e.Detail}, ClosePR{}}, nil
+		}
+		n.Phase = PhaseLanding
+		return n, []Effect{WaitCI{Prefix: n.Land}}, nil
 	case CIDone:
 		if t.Phase != PhaseLanding {
 			break
@@ -274,8 +294,8 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			return n, append(n.publish(n.Land), RunSuite{Prefix: n.Land}), nil
 		}
 		n.Published = 0
-		n.Phase = PhaseLanding
-		return n, append(n.publish(n.Land), WaitCI{Prefix: n.Land}), nil
+		n.Phase = PhaseChecking
+		return n, append(n.publish(n.Land), RunLandingChecks{Prefix: n.Land}), nil
 	case Merged:
 		if t.Phase != PhaseMerging {
 			break
@@ -324,9 +344,9 @@ func split(n Train, culprit, lo int) (Train, []Effect, error) {
 		return n, append(effects, ClosePR{}), nil
 	}
 	n.Cars = n.Cars[:lo]
-	n.Phase, n.Land = PhaseLanding, lo
+	n.Phase, n.Land = PhaseChecking, lo
 	effects = append(effects, n.publish(lo)...)
-	return n, append(effects, WaitCI{Prefix: lo}), nil
+	return n, append(effects, RunLandingChecks{Prefix: lo}), nil
 }
 
 // publish moves the train PR's head to prefix k when it is not there yet (a

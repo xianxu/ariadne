@@ -1242,4 +1242,15 @@ The simplest durable authority beats a clever scan of consequences.
   source rule cannot prove.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
 
+### #509 M1 — Refusal evidence must distinguish absence from uncertainty
+
+A tracked empty policy is invalid input, not an absent opt-in declaration. A nil kill result proves a signal attempt, not completed descendant cleanup. Test those distinctions directly; retain existing queue unknown evidence and locked checkout inputs until cleanup is confirmed, and ensure stale cleanup honors those locks. Document delivered configuration at its milestone boundary.
+
+### #509 — Fake cleanup probes require a private destructive root
+
+Never run a fake-liveness collector against the runtime-selected scratch/temp root, even when the fixture's own run is private. Use a root derived directly from t.TempDir and explicit relative children. The Go lint catalog's test-sweep-private-root rule enforces that provenance across aliases, reassignments, branches and address escapes. Collector simulations must be incapable of touching another run's folder.
+
+### #509 — Retention is one artifact-lifetime proof
+
+Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.
 - #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.

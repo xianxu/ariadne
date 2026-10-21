@@ -13,6 +13,7 @@ import (
 // Catalog is the curated list, in the order findings are reported. Add a rule
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
+	{Name: "test-sweep-private-root", Incident: "ariadne#509", Message: "a test sweeper may delete another run when liveness is fake; pass a root derived directly from t.TempDir (or a literal relative filepath.Join), never runtime-selected scratch or temp roots", TestOnly: true, Match: testSweepPrivateRoot},
 	{
 		Name:     "test-landing-completion-wait",
 		Incident: "ariadne#498, ariadne#500",

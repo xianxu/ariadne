@@ -597,12 +597,38 @@ is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-la
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
 checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
-runs one on a pushed head under the machine-wide suite lock and records it as
+runs one on a pushed head (under the machine-wide suite lock by default) and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
+and `resource: "runner"` for checks whose runner owns independent capacity.
+A landing entry must explicitly declare `required` and `resource`; runner checks
+cannot declare suite `weight` or CI `substitutes`. The path file is
+`{"version":1,"paths":["glob",...]}` with ordered includes/exclusions. Policies
+are read from the pinned main tree. Existing version1 declarations keep their
+per-head defaults. `local-check run --all` excludes landing checks; name one
+explicitly for manual execution. Runner checks use no suite slot and retain
+30s of graceful process-group cancellation even after the immediate leader exits.
+Unconfirmed cleanup retains checkout, scratch and raw logs under the same Git
+worktree lock and leaves queue activity unknown for operator reconciliation.
+Runner execution refuses if its attempt writer cannot be created. Retention has
+no automatic expiry while ownership is held or unreadable. After proving that
+all owned descendants stopped, reconcile the queue and remove the named scratch
+and log directories, then unlock/remove the retained worktree; preserve Git
+metadata until linked artifacts are reconciled. SDLC never unlocks VM positions.
+Enabled (`required:true`) landing checks run after the successful final-prefix
+suite, once per landing owner, before train or single-car merge. Selection unions
+each included car's paths, so a later revert cannot hide an earlier trigger.
+Failures block without VM retries, suite bisection or main-baseline diagnosis.
+A bare saved/manual status does not replace the owner-bound gate. Only proven
+unwatched docs equivalence may reuse that owner's original exact-head evidence;
+a watched `.md` change still invalidates it. `--no-ci` still owes the suite and
+selected landing checks. Disabled entries run only by explicit name on pinned
+main for burn-in. This capability activates no consumer or hosted workflow.
+
 `sdlc local-check cancel --run ID` stops exactly one owned queued or running
 check, using the lease ID printed when it starts. `--name N` cancels every owned
 run of that check; omitting both cancels every owned check. These selectors never
