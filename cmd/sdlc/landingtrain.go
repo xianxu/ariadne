@@ -397,6 +397,9 @@ func (c *conductor) prText() (string, string) {
 // car's fault.
 func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
+	if head == "" {
+		return nil, fmt.Errorf("unverified: prefix %d needs recomposition after main's code advance", k)
+	}
 	rec, err := c.run(c.ctx, c.suite, head)
 	if err != nil {
 		return nil, fmt.Errorf("the train suite on %s could not run: %w", shortSHA(head), err)
@@ -594,6 +597,9 @@ func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
 	c.heads[k-1], c.base = head, main
 	needSuite := publishGateHasCodeSurface(splitNUL(diff))
 	if needSuite {
+		// Smaller prefix commits still contain the old base. The reducer
+		// refuses a later split instead of treating them as current evidence.
+		clear(c.heads[:k-1])
 		c.evidence = nil
 		c.baseline = nil
 		c.suiteReady = map[int]bool{}

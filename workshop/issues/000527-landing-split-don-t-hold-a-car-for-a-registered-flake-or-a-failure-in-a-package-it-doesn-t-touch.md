@@ -53,12 +53,13 @@ The plan is workshop/plans/000527-landing-split-attribution-plan.md. Full-flow d
 
 - No failed or unverified prefix becomes passing from registration or package equality; verified-prefix landing and genuine-culprit holding remain covered.
 - Unattributed outcomes name the test/issue or package and a concrete recovery action, with no unbounded automatic retry.
+- After a code-main reintegration, a failed multi-car train never splits on old-base smaller prefix heads or lands an untested integration of one.
 
 ## Plan
 
 - [x] Add deterministic pure-state and production-train regressions for train 234's external registration sequence and independent-package failure, with positive culprit and gate-safety controls.
 - [x] Add the shared attribution decision/effect before suite Holds, preserve exact prefix evidence, and connect fresh registry and dependency-aware impact facts.
-- [ ] Document the state/event/effect and verify bounded scan/IO work, current flake semantics and the isolated production path before the binary-owned suite, close and landing gates.
+- [x] Document the state/event/effect and verify bounded scan/IO work, current flake semantics and the isolated production path before the binary-owned suite, close and landing gates.
 
 ## Estimate
 
@@ -102,6 +103,8 @@ Design 0.38 x 1.15 + implementation 1.28 = 1.717h, rounded to 1.72h.
 
 2026-10-21: Integrated exact two-endpoint dependency impact, fresh per-decision registry scope and named evidence checks. Initial production run caught invalid tracker fixture schema and missing tracker in the older Hold control; corrected fixtures use canonical card scaffold plus real tracker bootstrap. New production regressions and genuine-culprit control pass (57.259s: registered sequence18.68s, untouched17.80s, genuine Hold20.27s). Controlled mutation restoring old adjacency-only split reproduced the production false Hold: registered replay failed “held: suite adjacency without attribution, want non-blaming refused” (14.208s). Restored the attribution boundary immediately after that completed test. Internal landingline/flakes/affected passed (0.842/0.073/0.290s), staged-file Go lint passed2.538s. Earlier focused root run passed dependency, resource, evidence-corruption and 8/16 constant-IO controls; no passing authority was changed. Stalled-preparation diagnostic deadline test allows5s for startup under machine load, with the same bounded cleanup contract.
 
+2026-10-21: Broader root train/split/evidence tests passed361.530s. Safety review then reproduced a pre-existing mixed-base reintegration hole: final head was rebuilt on code-main, lower heads were not; production regression RED11.430s observed first car landing despite unverified attribution. Implemented the original approved unverified-evidence policy with existing PhaseTesting/Reintegrated and Refuse machinery: a failed multi-car code reintegration stops all cars before stale-prefix bisection; lower heads/evidence are invalidated. No new phase, outcome type, automatic retry or passing authority. This narrowed implementation needs no train recomposition. New regression GREEN5.34s; docs-only reintegration9.35s preserved; focused group21.952s. Latest pure landingline1.943s and lint1.849s pass. Counted8/16 requests each use one path diff and two endpoint graphs; measured810.066459ms/676.920958ms in real Git/Go fixture. Stalled preparation expired and reclaimed worktrees/child in5.19s. Hub isolated-proof report53572738-c5c4-4648-bc63-fa95f8413ff7 submitted; reintegration heads-up f0e38585-7149-406c-abe5-ec83a7e5fe39 remains queued (hub quota screen), not claimed approved separately. The guard implements the already-approved global unverified stop, using existing state/refusal rather than the additional mechanism considered in that heads-up.
+
 ## Revisions
 
 2026-10-21: Refined the original behavior into a proposed attribution boundary and explicit safe stop policy. Registration/untouchedness prevent blame but do not waive passing evidence. The plan proposes final unattributed refusal for unresolved cars rather than immediate automatic retrain; TL approval is required before implementation.
@@ -109,3 +112,5 @@ Design 0.38 x 1.15 + implementation 1.28 = 1.717h, rounded to 1.72h.
 2026-10-21: Recorded TL approval of the proposed stop policy; no design delta.
 
 2026-10-21: Plan-quality refinements name testable functions and enforce the previously promised bounded attribution IO; no change to the approved refusal or verified-prefix-only policy.
+
+2026-10-21: Recorded the code-main stale-prefix regression and conservative existing-state unverified stop; this enforces the approved no-unverified-prefix-landing contract without recomposing trains or adding state/outcome types.

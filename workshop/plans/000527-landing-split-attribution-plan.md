@@ -90,34 +90,34 @@ Files: cmd/sdlc/internal/landingline/attribution_test.go, trainstate_test.go, cm
 | readSplitEvidence (new IO verifier) | Corrupted/unavailable/mismatched record/log inputs in temporary stores must return unverified; no partial parse or guessed leaf creates authority. |
 | conductor.assessSplit (new bounded IO effect) | Independent tracker writes at explicit train barriers and controllably stalled Git/graph/registry seams prove fresh decision-scoped authority, deadline expiry, cancellation and bounded cleanup; count graph/diff/registry calls at 8/16 leaves. |
 
-- [ ] Add TestLandingTrainSplitRefreshesRegisteredFlake replaying train234 through the real train fixture: failed broadcast.TestHubRandomInterleavings, external issue-backed registration after same-head evidence, passing lower prefix, scribe-only suspect. Assert the current false Hold, then the corrected unattributed outcome, exact retry and absence of any failed-prefix merge.
-- [ ] Add TestLandingTrainSplitDoesNotBlameUntouchedPackage through the same stateful fake and real Git/tracker seam, retaining the ordinary culprit-hold fixture as the positive compatibility control. Pure strategies above defend the class rather than duplicating a prose inventory.
-- [ ] Run the new production regressions RED before implementation: go test ./cmd/sdlc -run '^(TestLandingTrainSplitRefreshesRegisteredFlake|TestLandingTrainSplitDoesNotBlameUntouchedPackage|TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix|TestTrainSuiteOutcome)$' -count=1. Pure verification: go test ./cmd/sdlc/internal/landingline -run '^(TestSplitAttribution|TestTrainSplit)' -count=1.
+- [x] Add TestLandingTrainSplitRefreshesRegisteredFlake replaying train234 through the real train fixture: failed broadcast.TestHubRandomInterleavings, external issue-backed registration after same-head evidence, passing lower prefix, scribe-only suspect. Assert the current false Hold, then the corrected unattributed outcome, exact retry and absence of any failed-prefix merge.
+- [x] Add TestLandingTrainSplitDoesNotBlameUntouchedPackage through the same stateful fake and real Git/tracker seam, retaining the ordinary culprit-hold fixture as the positive compatibility control. Pure strategies above defend the class rather than duplicating a prose inventory.
+- [x] Run the new production regressions RED before implementation: go test ./cmd/sdlc -run '^(TestLandingTrainSplitRefreshesRegisteredFlake|TestLandingTrainSplitDoesNotBlameUntouchedPackage|TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix|TestTrainSuiteOutcome)$' -count=1. Pure verification: go test ./cmd/sdlc/internal/landingline -run '^(TestSplitAttribution|TestTrainSplit)' -count=1.
 
 ### 2. Pure attribution authority
 
 Files: cmd/sdlc/internal/landingline/attribution.go, trainstate.go, trainstate_test.go.
 
-- [ ] Implement ClassifySplit over typed current-registration and impact facts, returning attributable/unattributed/unverified plus reason; existing flakes helpers own matching grammar.
-- [ ] Extend Transition with attribution phase, AssessSplit{lo,hi} and SplitAssessed for that exact pair. Only attributable invokes existing split/Hold; other verdicts Refuse unresolved cars and retain verified lo, or close without landing when lo=0. No Results false-to-true rewrite and no automatic Release on this new path.
-- [ ] Verify the named pure strategies and preserve existing conflict-hold and genuine-culprit remainder-release behavior.
+- [x] Implement ClassifySplit over typed current-registration and impact facts, returning attributable/unattributed/unverified plus reason; existing flakes helpers own matching grammar.
+- [x] Extend Transition with attribution phase, AssessSplit{lo,hi} and SplitAssessed for that exact pair. Only attributable invokes existing split/Hold; other verdicts Refuse unresolved cars and retain verified lo, or close without landing when lo=0. No Results false-to-true rewrite and no automatic Release on this new path.
+- [x] Verify the named pure strategies and preserve existing conflict-hold and genuine-culprit remainder-release behavior.
 
 ### 3. Exact evidence and bounded IO
 
 Files: cmd/sdlc/landingtrain_attribution.go, landingtrain.go, landingtrain_attribution_test.go.
 
-- [ ] Retain per-prefix SHA/run evidence and actual baseline evidence, invalidating it on code reintegration. Implement readSplitEvidence and splitImpact using existing parser, flake and affected owners.
-- [ ] Implement conductor.assessSplit as the sole owner of the 2-minute assessment context. Pass it through every descendant Git, graph-prepare, go-list and registry operation; each expiry yields unverified, never Hold. Cleanup uses the separate bounded 5-second lifetime; a stalled-dependency test must observe child exit and no remote merge before return.
-- [ ] Execute AssessSplit and feed its exact-pair result into the reducer. Report named registered issue/untouched package/unverified evidence and print the affected car's exact sdlc merge --branch BRANCH --yes recovery. Keep knownFlakeStep, Classify, Revalidate and Unexplained passing authority unchanged; no saved-attempt rewriting or synthetic success status.
-- [ ] Run the production regressions GREEN and the named IO strategy; assert one final unattributed outcome per unresolved car, no automatic retrain, and constant per-assessment IO calls with linear leaf processing.
+- [x] Retain per-prefix SHA/run evidence and actual baseline evidence, invalidating it on code reintegration. Implement readSplitEvidence and splitImpact using existing parser, flake and affected owners.
+- [x] Implement conductor.assessSplit as the sole owner of the 2-minute assessment context. Pass it through every descendant Git, graph-prepare, go-list and registry operation; each expiry yields unverified, never Hold. Cleanup uses the separate bounded 5-second lifetime; a stalled-dependency test must observe child exit and no remote merge before return.
+- [x] Execute AssessSplit and feed its exact-pair result into the reducer. Report named registered issue/untouched package/unverified evidence and print the affected car's exact sdlc merge --branch BRANCH --yes recovery. Keep knownFlakeStep, Classify, Revalidate and Unexplained passing authority unchanged; no saved-attempt rewriting or synthetic success status.
+- [x] Run the production regressions GREEN and the named IO strategy; assert one final unattributed outcome per unresolved car, no automatic retrain, and constant per-assessment IO calls with linear leaf processing.
 
 ### 4. Documentation and verification
 
 Files: atlas/workflow/sdlc-binary.md, issue Log and this plan.
 
-- [ ] Map the attribution phase/event/effect, diagnostics, exact retry and unchanged passing-evidence contract into the existing train sketch, satisfying its event/effect drift test.
-- [ ] Run go test ./cmd/sdlc/internal/landingline ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/affected -count=1, targeted root-package train/split/flake/landing checks and pkg/golint. No static lint rule can infer the semantic attribution invariant; the production/model regressions enforce it.
-- [ ] Build the committed own binary and present the isolated train234 production-path proof plus attribution-IO timing to the hub for its live-gate decision. Leave :0 untouched without authorization.
+- [x] Map the attribution phase/event/effect, diagnostics, exact retry and unchanged passing-evidence contract into the existing train sketch, satisfying its event/effect drift test.
+- [x] Run go test ./cmd/sdlc/internal/landingline ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/affected -count=1, targeted root-package train/split/flake/landing checks and pkg/golint. No static lint rule can infer the semantic attribution invariant; the production/model regressions enforce it.
+- [x] Build the committed own binary and present the isolated train234 production-path proof plus attribution-IO timing to the hub for its live-gate decision. Leave :0 untouched without authorization.
 
 The binary owns the remaining lifecycle: after approval run change-code's full-flow plan-quality gate, then derive actual estimate only when requested; implement, push, recorded suite, close's mandatory fresh review, and merge. Keep continuation/restart outside any owned queued/running check. If close is reviewed while a suite remains queued, avoid a redundant merge-triggered check by waiting for the original result before resuming landing if that occurs; cancel only the redundant owned run by exact ID after proving equivalence.
 
@@ -136,3 +136,5 @@ TL approved the review point and the complete plan via submitted Couch 538eeecd-
 ## Revisions
 
 2026-10-21: Addressed PQ-1 by replacing the prose test-case inventory/procedural detail with named-function adversarial strategies, preserving the two motivating production regressions and exact verification commands. Addressed PQ-2 with a concrete 2-minute outer assessment context owned by conductor.assessSplit, propagated through all IO and graph preparation/listing, a 5-second cleanup bound, explicit unverified expiry and a controllably stalled dependency test. The bound is an initial diagnostic-budget choice, not an assertion that arbitrary generators finish within it; no approved attribution/landing policy changed.
+
+2026-10-21 implementation refinement: real production testing additionally exposed stale smaller heads after code-main reintegration. Existing PhaseTesting/Reintegrated and Refuse machinery now stops a failed multi-car reintegration before bisection because no valid current-base smaller prefix exists; lower heads/evidence are invalidated. No new state/outcome type or recomposition mechanism. Production RED11.430s proved the unsafe old-prefix landing, GREEN5.34s proves no merge/hold/release, and docs-only control9.35s stays valid. Production motivating regressions were validated GREEN and by controlled restoration of the old adjacency-only decision (RED14.208s); the first behavioral reducer RED preceded implementation. The binary-owned suite/close/merge gates remain outstanding, as does the hub live-gate response; the checked implementation checklist does not claim those gates passed.

@@ -189,7 +189,9 @@ func TestSplitImpactBatchesEightAndSixteenPackages(t *testing.T) {
 		for len(packages) < count {
 			packages = append(packages, fmt.Sprintf("example.com/split/unknown%d", len(packages)))
 		}
+		started := time.Now()
 		got, err := splitImpact(context.Background(), root, lo, hi, packages)
+		t.Logf("%d packages: exact two-endpoint impact IO took %s", count, time.Since(started))
 		if err != nil || len(got) != count || got[packages[0]] != landingline.ImpactAffected || got[packages[1]] != landingline.ImpactUntouched {
 			t.Fatalf("%d requests = %v, %v", count, got, err)
 		}

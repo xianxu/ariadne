@@ -253,6 +253,14 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			n.Phase, n.Land = PhaseChecking, e.Prefix
 			return n, append(n.publish(e.Prefix), RunLandingChecks{Prefix: e.Prefix}), nil
 		}
+		// Testing after a reintegration is reached only for a code advance.
+		// The IO shell rebuilt the final head, not the smaller prefixes;
+		// none is current-base passing evidence for a split. Stop rather than
+		// blame main's delta or merge an untested integration of an old prefix.
+		if t.Phase == PhaseTesting && t.Reintegrated > 0 && len(t.Cars) > 1 {
+			n.Phase = PhaseRefused
+			return n, []Effect{Refuse{Seqs: carSeqs(n.Cars), Reason: "unverified: splitting after main's code advance needs freshly composed prefix evidence"}, ClosePR{}}, nil
+		}
 		next, culprit, lo, done := Bisect(len(n.Cars), n.Results)
 		if !done {
 			n.Phase, n.Testing = PhaseBisecting, next

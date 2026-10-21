@@ -465,3 +465,12 @@ func TestTrainSplitUnattributedStopsOnlyUnresolvedCars(t *testing.T) {
 		}
 	}
 }
+
+func TestTrainCodeReintegrationFailureRefusesWithoutStaleSplit(t *testing.T) {
+	tr, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, LandingChecksDone{Prefix: 2, Passed: true}, MainMoved{}, Reintegrated{NeedSuite: true})
+	tr, effects := drive(t, tr, SuiteDone{Prefix: 2, Outcome: SuiteFail})
+	wantEffects(t, effects, Refuse{Seqs: []int64{1, 2}, Reason: "unverified: splitting after main's code advance needs freshly composed prefix evidence"}, ClosePR{})
+	if tr.Phase != PhaseRefused || tr.Culprit != 0 || len(tr.Released) > 0 || tr.Results[2] {
+		t.Fatalf("stale evidence authorized split: %+v", tr)
+	}
+}
