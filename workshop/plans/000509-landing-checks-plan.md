@@ -161,7 +161,7 @@ New proofs/selections are in-memory and replaced when candidate authority change
   - `carCIGateFacts`, `prepareCIGateFactsContext`, `runLocalCheckCmd`, `selectLocalChecks`: adversarial scope/default/explicit-name projections; assert head readiness cannot execute landing checks, disabled burn-in stays explicit/main-only, and default injection preserves v2.
   - `runDurableMerge` / legacy `runMerge` (wire at existing post-CI seams in `landing.go` / `merge.go`): stateful candidate/evidence movement; assert both shells enforce the same selected gate, including missing-suite and CI-waiver paths, with controlled ordering rather than launch-time sleeps.
   - Targeted commands: `go test ./cmd/sdlc/internal/landingline -count=1`; `go test ./cmd/sdlc -run 'Test(LandingCheck|LandingTrain|Car.*Landing|CIGate)' -count=1`; narrow race controls. Expected GREEN with counted/negative evidence retained. Update README, `cmd/sdlc/helptext/local-check.md` and `atlas/workflow/sdlc-binary.md`; commit and milestone-close M2.
-- [ ] **Delivery — Private executable conformance, operator gates and landing.**
+- [x] **Delivery preparation — Private executable conformance and operator gates.**
   - Build this slot's binary; verify Git revision/modified=false. A private fixture repository, stateful fake GitHub and runner-owned lock helper drive real named-check and train/single fallback execution. Independent holder proves an external-resource check never waits on or consumes suite slots; cancel proves log retention, join and slot isolation. No production pause, live VM, :0 staging or runner lease mutation.
   - Send private conformance and the final diff to the hub. Any touched local-gates configuration is operator-verified/labeled; never self-label. Before a live rollout/staging step, obtain the hub/operator's explicit window. Operator decides whether private real-executable proof plus normal post-land central rebuild is sufficient, or requests a staged smoke; do not infer staging authorization.
   - Push final branch, recorded `sdlc local-check run --name suite`, full close, then central `sdlc merge --yes` on SHIP. Report merge/PR to hub. Pair consumes only after this lands and the capable central binary is rebuilt.
@@ -238,3 +238,7 @@ Authenticated TL c2678fdc-28f8-4cbc-b547-2ef8932ac278 requires closing the fake-
 ### 2026-10-21 00:38 PDT — Accepted delivery boundary
 
 Authenticated hub e29d3ea3-075f-4463-88e0-718c8a6ab581 accepts private executable proof followed by the hub's post-land :0 rebuild: no staging and no live VM in this issue. Pair#743 M3 owns the later manual-only declaration/named main run. No consumer activation or hosted workflow change; notify pair:3 directly after landing. M1 and M2 are SHIP; recorded suite and final close/merge remain.
+
+### 2026-10-21 01:28 PDT — Delivery preparation verified
+
+Recorded full suite passed1908 command tests plus75 other packages without failures/reruns. Private resource/cancellation proof and operator rollout decision are accepted. The delivery checkbox now names completed preparation; the existing full-close/PR/central-merge instructions remain mandatory next actions and do not represent an already-observed landing. No production configuration path is touched, so no local-gates label applies to this capability PR.

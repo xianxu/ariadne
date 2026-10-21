@@ -48,7 +48,7 @@ Durable design: [landing checks plan](../plans/000509-landing-checks-plan.md). A
 
 - [x] M1 — Versioned declaration, pure selection/proof and separate runner-resource execution; adversarial controls and milestone review.
 - [x] M2 — Shared post-suite train/single-landing gate, full consumer sweep, stateful/private conformance and milestone review.
-- [ ] Recorded suite, full close, operator local-gates verification where applicable, and central landing.
+- [x] Recorded full suite, accepted private executable proof and final delivery preparation; close and central landing follow through their gates.
 
 ## Log
 
@@ -127,6 +127,10 @@ Harness corrections were private only: the first status decoder mistakenly mixed
 
 Authenticated hub receipt e29d3ea3-075f-4463-88e0-718c8a6ab581 accepts private executable proof plus the hub's normal post-land :0 rebuild, with no staging/live VM. Capability only; no consumer declaration or hosted workflow changes. Pair#743 M3 owns the later manual-only declaration and named run on Pair main. Direct landed/schema notice to pair:3 is owed after main contains this change. Proceed to the central recorded full suite, whole close and landing.
 
+### 2026-10-21 01:28 PDT — Recorded full suite passed
+
+Central sdlc local-check run --name suite passed on4400533860ab73eae6ff12dccfd063ceaa496431 after2279s queued: wall649.7s, eight shards covering1908 cmd/sdlc tests and75 other packages, all exit0 with zero failures/reruns. Status sdlc-local/suite recorded on that head; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/4400533860ab73eae6ff12dccfd063ceaa496431/suite.log, sha256 prefix4a9192a35a78. The retained runner survived the transient model-capacity interruption; no replacement suite was started. No local-gates configuration path is changed. M1/M2 SHIP and accepted private conformance complete delivery preparation; full close, PR and central merge remain next.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries
@@ -140,6 +144,10 @@ Authenticated hub receipt 15f0281c-9941-4e15-aee3-03d074fdd9d0 records operator 
 ### 2026-10-20 23:36 PDT — Operator approved re-plan
 
 Authenticated receipt df094eb2-20d4-4e7d-a541-b8f3dab0494f approves both retention choices and continuing M1 with shared lock-based protection. Keep all artifacts until operator reconciliation after an unknown ending; refuse a runner launch without its attempt writer. Revisit retention only if unknown endings are common in practice. The approved durable plan Revision is the execution contract.
+
+### 2026-10-21 01:28 PDT — Delivery checklist describes pre-close evidence
+
+Narrowed the final checklist row to recorded suite/private proof and delivery preparation, now complete. Close and merge own their subsequent effects and remain mandatory; the tick does not claim a future landing. This removes the self-referential requirement to complete close/landing before entering close, with no scope or gate waiver.
 
 ## Estimate
 
