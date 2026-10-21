@@ -131,6 +131,7 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — BR-1 actual plan locations cross-checked and corrected. BR-2 executed-head distinct-from-caller regressions red then PASS across suite/affected, rerun, baseline and missing-Go; startup/environment plus actual recovery-catalog guard PASS 9.529s. Built private CLI, recorded Go-cache capture, audited nonpassing v3 recovery, original-digest/interruption/retention and real-code-failure controls previously PASS; actual #524 reader compatibility and fuzz PASS. First recorded suite completed all 8 shards/1982 SDLC tests/75 packages and exposed the missing recovery catalog contract; that branch defect is fixed, not relabelled. New recorded suite queued on pushed 99c89cf3f2181f380fafd754afd28eb65e10674d; final pass required before landing under authorized review overlap. TL decided no :0 stage.; review verdict: SHIP
 
 - Claimed after #508 landed. TL explicitly requested plan-first gate-evidence
   work. No production changes or tests have been written for #530.

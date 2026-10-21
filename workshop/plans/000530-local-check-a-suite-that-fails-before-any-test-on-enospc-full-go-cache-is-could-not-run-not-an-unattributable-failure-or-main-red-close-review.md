@@ -85,3 +85,75 @@ findings:
    - Retain the exact-check/head recovery contract and implement the missing live SHA propagation.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c297bae0-43c2-4efa-a832-aca5aba269eb","repository":"github.com/xianxu/ariadne","issue_id":"000530","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/1fc084d97a6367d7","reviewed_head":"b76d0d9fa7959b96ad43a3719dd630513bc3beb1","slot":"ariadne:5","requested_at":"2026-10-21T22:21:38.716222Z"},"phase":"finished","pid":74641,"started_at":"2026-10-21T22:21:38.987912Z","finished_at":"2026-10-21T22:23:28.004909Z","session_id":"01a1608e-4778-7b30-a814-a73f0fbf9967","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T16:48:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 530 — local-check: a suite that fails before any test on ENOSPC (full Go cache) is could-not-run, not an unattributable failure or main-red |
+| repo | ariadne |
+| issue file | workshop/issues/000530-local-check-a-suite-that-fails-before-any-test-on-enospc-full-go-cache-is-could-not-run-not-an-unattributable-failure-or-main-red.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4ba9e4210107b9ad50d0e3e731c4c0c93bcf6071..99c89cf3f2181f380fafd754afd28eb65e10674d |
+| command | sdlc close --issue 530 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T16:48:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned changes satisfy the issue’s startup-classification and audited-recovery contracts. Both prior findings are addressed, with regression evidence for the behavior change. No new blocking findings emerged. This review does not replace the separately required final-head recorded suite.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The before/after diff corrects the Core concepts row to cmd/sdlc/teststats_reclassify.go, matching validateReclassificationProof at line 67; the plan's Revisions entry at line 309 records the correction.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Live errors carry the executed SHA and preserve the parent suite/affected check. Caller-HEAD-advanced regressions pass across direct, affected, rerun, baseline and missing-Go paths; removing revision advice through a temporary compiler overlay makes all six cases fail.
+```
+
+1. **Strengths**
+
+   - Strict startup grammar rejects test activity, mixed diagnostics and incomplete output.
+   - Audit-first publication preserves original bytes and verifies record, audit and log identity before projecting neutral evidence.
+   - Recovery cannot publish success, promote an older saved pass or explain a separate code failure.
+   - README, help and atlas updates cover the new command, compatibility and retention.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed focused startup, reclassification, recovery-catalog, scoped-proof and lock-metadata tests; the complete flakes package; and the actual pinned #524 reader compatibility control. The temporary overlay confirmed that BR-2’s regressions fail without revision advice. Repository files remain unchanged; private verification artifacts were removed.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared classifier and evidence projection cover the consumers.
+   - **ARCH-PURE — pass:** Diagnosis, eligibility and proof validation remain separate from file effects.
+   - **ARCH-PURPOSE — pass:** Candidate, affected, rerun, baseline/train and historical-recovery paths are covered.
+   - **ARCH-MOCK — pass:** Private repositories, recorded output and the existing stateful GitHub fake exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** Bounded reads and counted scan/proof tests enforce the declared envelope.
+   - **ARCH-SECURE — pass:** Ownership, strict decoding and digest checks precede authority changes.
+   - **ARCH-ORDER — pass:** Audit-first publication, interrupted retry and lost-response controls preserve failure authority.
+   - **ARCH-FUNERAL — pass:** Attempt-linked pruning and orphan-audit cleanup cover durable residue.
+   - **ARCH-EVOLVE — pass:** Unknown values survive correction; the historical reader safely scopes its refusal.
+
+7. **Plan revision recommendations:** None. The Core concepts locations and documented implementation match the code; subsequent suite and landing gates remain explicitly pending.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"96761d7e-422a-4005-b19e-97c73abe1dd3","repository":"github.com/xianxu/ariadne","issue_id":"000530","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/89447e6c45aa52ab","reviewed_head":"99c89cf3f2181f380fafd754afd28eb65e10674d","slot":"ariadne:5","requested_at":"2026-10-21T23:46:42.664658Z"},"phase":"finished","pid":19215,"started_at":"2026-10-21T23:46:42.820403Z","finished_at":"2026-10-21T23:48:40.072441Z","session_id":"01a160dc-27a9-7fb1-9e7f-9040574bc097","outcome":"returned"}] -->
