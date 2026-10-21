@@ -56,6 +56,7 @@ Add a rule to `tl-lead --help` (the TL's design-approval section):
 ## Log
 
 ### 2026-10-20
+- 2026-10-20: closed — Operator-reviewed Spec implemented in STEWARDSHIP with recognition shapes, examples, side-doc options/states/recovery/failure/restart requirements, ordinary-design exception and unsure escalation. Corrected the contradictory taste/smoke-only playbook sentence. Rendered-help test red first, then tl-lead/tl-worker/tlrules package tests passed (7.809s/0.202s/0.197s); diff check clean; atlas map updated. Recorded pushed-head suite requested under authorized overlap; its passing result remains required before landing.; review verdict: SHIP
 
 Claimed and started in ariadne:5 after #503 landed. Implementing the operator-reviewed Spec from dispatch. ARCH-DRY: keep the rule in the lead’s embedded help, beside existing design approval; tests inspect the rendered help and the atlas points there. Quick plan posted to hub, proceeding unless objected. No runtime state, formats, or new workflow mechanism.
 
