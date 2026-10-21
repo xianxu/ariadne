@@ -147,7 +147,7 @@ func TestWorkerHelpPinsConformanceInVerificationSection(t *testing.T) {
 			"A bug found live lands with a recorded fixture of the real capture",
 			"terminal bytes, agent screen, tool reply",
 			"replayed in the normal suite",
-			"Live tests use the shared disposable-Couch harness (pair#744)",
+			"Live tests use the shared disposable-Couch harness (cmd/internal/testcouch,",
 			"cmd/internal/testcouch",
 			"make test-couch-fleet",
 			"never the live fleet",

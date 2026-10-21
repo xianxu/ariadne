@@ -64,6 +64,14 @@ rule-only change. The future bug fixes own their recorded captures.
 
 ## Log
 
+- 2026-10-21: authenticated TL follow-up supplied the concrete parenthetical
+  wording after pair#744 landed. Removed the issue-number placeholder from the
+  help and its rule assertion, retaining the explicit Pair repository context.
+  Cancelled only queued run lease-3220115629 before changing its head. Both
+  rendered entry points fail the updated rule/section tests before the text
+  change (0.116s), then all worker, lead and shared-rule controls pass (0.119s,
+  14.773s, 0.053s). No cancelled run supplies passing evidence.
+
 - 2026-10-21: pair#744 changed to done/landed while the integrated suite was
   being admitted. Following the TL's existing conditional instruction, cancelled
   only run lease-4082040804 through sdlc (no result recorded), then named Pair's

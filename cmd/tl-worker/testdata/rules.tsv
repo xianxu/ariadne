@@ -69,7 +69,7 @@ drain-suites	own	full suites through `sdlc local-check run --name suite`
 drain-targeted	own	targeted tests through `go test -run`
 verify-every-agent	own	every agent kind in its tests and in any live check
 live-bug-replay	own	replayed in the normal suite
-live-disposable-couch	own	shared disposable-Couch harness (pair#744)
+live-disposable-couch	own	shared disposable-Couch harness (cmd/internal/testcouch,
 check-checkpoint-timing	own	Checkpoint before queuing a long recorded check, or after it finishes.
 check-restart-prohibit	own	Do not checkpoint a continuation or restart
 check-restart-own	own	while your own recorded check is
