@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "96c486c8", done: "bc4ffd7d"}
 ---
 
 # landing trains: don't restart CI when main advances only by issue-detail commits (filings collided with train 197 twice on 10-20)
