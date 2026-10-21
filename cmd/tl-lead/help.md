@@ -85,12 +85,64 @@ TEAMS (ariadne#456: one team per ops repo)
     TestCouchResumeReceiptConformance with TL_LEAD_RESUME_CONFORMANCE=1;
     it checks the real CLI without touching live slots.
 
+SHAPING (product definition before issue-level SDLC)
+  - Shape a new project before filing implementation issues. The TL works in
+    the team's ops repo at :0: this is operating work, with project.md,
+    design.md and mocks/ tracked and committed straight to main. Operator
+    reviews each step before the next; record settled decisions in the project
+    and design, rather than leaving them only in the session conversation.
+  1. Users and moments. Operator drives: who uses it, when they interact,
+     and what decision or task the interaction supports.
+  2. Flows. Operator drives; TL spots gaps. Walk each interaction step by step
+     in short words, including where it starts and how it ends.
+  3. Clickable mock (if there is a UI). TL builds from the flows and the
+     operator's description; operator sketches corrections, additions and cuts
+     on it. Iterate before components or issues. Start from a concrete first
+     guess; use a blank canvas only when there is nothing to guess from.
+     The operator settles the functional wireframe before visual design.
+  4. Visual design (if there is a UI). Operator supplies style references and
+     what they like about them. TL proposes two or three directions on the
+     same wireframe as sibling versions; operator compares, sketches and
+     annotates a preferred direction. Capture the result in tokens.css
+     (colour, type, spacing, radii, shadows) and component patterns for slices.
+  5. Components and boundaries. TL proposes the repos, pieces and contracts
+     between them; operator smell-checks. Keep the approved mock as the UI spec.
+  6. Slices. TL drives; operator reviews issues with dependencies and acceptance,
+     each small enough for issue-level SDLC. Mark fleet-wide, failure-sensitive
+     workflow designs for operator design review before code (STEWARDSHIP).
+
+  Mock conventions:
+  - A graphical UI mock is a small web app: plain HTML, CSS and a little JS,
+    no framework. Use couch mock serve <project>/mocks for live reload and
+    point the web cast at it. Iterate by sketching on the actual mock page.
+  - The functional mock is a clickable state machine, not one landing page.
+    Keep a state list in design.md: every screen, its contents and actions,
+    and where each action leads. Include empty, error and long-list states.
+    All screens read one fixtures.json so fake data stays consistent; plain
+    links and a little JS connect the states. Every state is sketchable.
+  - Keep numbered versions (mock-1, mock-2, ...), with a current version.
+    Each sketch/note belongs to its version and screen; a new version starts
+    clean. Ask the agent to change the current version when reverting:
+    the old sketches reappear, because they were retained, not deleted.
+
+  Mock to real:
+  - Implement screen by screen, with acceptance that each real screen matches
+    the approved mock in every state using the same fixtures. fixtures.json
+    defines the API response shape; backend contract tests verify that shape.
+  - A development-only per-screen switch serves real code where implemented
+    and the mock elsewhere, with a visible MOCK badge on mock-backed screens.
+    Keep the whole app clickable and sketchable through the transition;
+    derive progress from the state list (for example, 12 of 18 screens real).
+  - The production build refuses while any listed screen is still mock-backed.
+    An operator-approved partial release may expose explicit "not yet" pages,
+    never fixture-backed mock screens.
+
 RUNNING A PROJECT (the order of play; the project file holds the state)
   1. Frame. A pensive or parley becomes a project file. Its Charter states the
      problem, the non-goals, and one end-to-end done_when against a real
      target; that sentence steers every later call. Number the open questions
      and resolve them with the operator one by one; each answer goes into
-     Decisions, not the Log.
+     Decisions, not the Log. Complete SHAPING before implementation issues.
   2. Contracts first. Wave 0 fixes the formats and seams, with a fake behind
      each, so later components build in parallel against the fakes.
   3. Trains. Write the breakdown as trains (see GROOMING; waves are fine,
