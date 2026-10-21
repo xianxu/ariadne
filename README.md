@@ -769,6 +769,23 @@ it. The suite's `known_flakes`
 key in `.sdlc/local-checks.json` (`rerun`, the default; `accept`, which posts the
 pass with the issue link and no rerun; `off`) is the operator's policy.
 
+An already saved suite failure can be resumed after its failures are registered:
+`sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA` runs only
+the exact package tests on that pushed commit. It preserves the original suite
+record and duration. Repeating it validates and reposts completed proof without
+executing tests. A pending or interrupted resume blocks later success on the
+same commit. After a crash, the operator or :0 steward verifies all descendants
+stopped, then runs the exact `local-check reconcile --attempt ID --link-digest
+SHA256 --note TEXT` printed by the refusal. That records terminal interruption;
+fix/advance the code and run a suite on a new head. Cleanup has one pass in the
+original live owner. Any cleanup failure or crash reports needs-reconcile and
+preserves surviving files and Git locks. Reconciliation only records the audit;
+it never cleans, unlocks or retries cleanup, including on repeated calls.
+Interrupted bundles and terminal/orphan receipts remain indefinitely, independent
+of lock visibility; their retained checkout, scratch and logs consume disk space.
+Completed-child cleanup/retention keeps its existing policy. Descendants are not
+discovered automatically, and reconciliation never grants a pass or execution.
+
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each
 newer main and repeating pre-close suites. Branch code fixes still require fresh
