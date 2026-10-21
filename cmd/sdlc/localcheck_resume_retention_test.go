@@ -376,3 +376,88 @@ func TestResumeRetentionReceiptFaultRetry(t *testing.T) {
 		})
 	}
 }
+
+func TestResumeRetentionRequiresMeasuredCompletion(t *testing.T) {
+	for _, which := range []string{"parent", "child", "receipt-parent"} {
+		for _, measured := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/measured=%t", which, measured), func(t *testing.T) {
+				receipt := which == "receipt-parent"
+				root, l, now := retentionFixture(t, !receipt)
+				id := l.RerunOf
+				if which == "child" {
+					id = l.ChildID
+				}
+				path := filepath.Join(root, "attempts", id+".json")
+				raw, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var a SuiteAttempt
+				if err := json.Unmarshal(raw, &a); err != nil {
+					t.Fatal(err)
+				}
+				a.WallSeconds = nil
+				if measured {
+					a.WallSeconds = new(float64)
+				}
+				raw = retentionWrite(t, root, id, a)
+				if which != "child" {
+					l.ParentRecordSHA256 = resumeRecordDigest(raw)
+				}
+				linkRaw := retentionWrite(t, root, l.ID, l)
+				ids := []string{l.RerunOf, l.ID, l.ChildID}
+				paths := []string{filepath.Join(root, "attempts", l.RerunOf+".json"), filepath.Join(root, "attempts", l.ID+".json"), filepath.Join(root, "failed", l.RerunOf+".log")}
+				if receipt {
+					r := ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: "dd", Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: l.RerunOf, LinkID: l.ID, LinkSHA256: resumeRecordDigest(linkRaw), ChildID: l.ChildID, Actor: "operator", Note: "stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(time.Hour)}
+					retentionWrite(t, root, r.ID, r)
+					ids = append(ids, r.ID)
+					paths = append(paths, filepath.Join(root, "attempts", r.ID+".json"))
+				} else {
+					paths = append(paths, filepath.Join(root, "attempts", l.ChildID+".json"), filepath.Join(root, "failed", l.ChildID+".log"))
+				}
+				before := make(map[string]string, len(paths))
+				for _, path := range paths {
+					b, err := os.ReadFile(path)
+					if err != nil {
+						t.Fatal(err)
+					}
+					before[path] = string(b)
+					old := now.Add(-40 * 24 * time.Hour)
+					if err := os.Chtimes(path, old, old); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := pruneSuiteAttempts(root, now); err != nil {
+					t.Fatal(err)
+				}
+				for _, path := range paths {
+					b, err := os.ReadFile(path)
+					if measured {
+						if !os.IsNotExist(err) {
+							t.Errorf("measured zero did not retire %s: %v", path, err)
+						}
+						continue
+					}
+					if err != nil {
+						t.Errorf("incomplete completion lost %s: %v", path, err)
+						continue
+					}
+					if string(b) != before[path] {
+						t.Errorf("incomplete completion changed %s", path)
+					}
+				}
+				if !measured {
+					protected, err := pruneResumeBundles(root, now)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, id := range ids {
+						if !protected[id] {
+							t.Errorf("incomplete completion did not protect %s", id)
+						}
+					}
+				}
+			})
+		}
+	}
+}

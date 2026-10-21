@@ -2654,8 +2654,8 @@ measurements with explicit unavailable-record coverage; flake registration
 cannot use unsupported authority or substitute a legacy log for it.
 
 **Activation barrier:** pre-#524 binaries treat a v3 record as a global invalid
-record. A payload cannot retrofit that old reader. This landing writes no v3
-record or ResumeLink and enables no resume command. After it lands the TL must
+record. A payload cannot retrofit that old reader. The #524 landing wrote no v3
+record or ResumeLink and enabled no resume command. After that landing the TL must
 upgrade every slot's actual sdlc; verify the binary path and build revision
 across slots before #463's separate writer/activation landing. A stale or
 unverified reader keeps activation held. Never hide links from older readers.
@@ -2734,8 +2734,7 @@ sync next, terminal child/log or interruption receipt last. Crashes retain eithe
 the fence or an unselectable parent with a terminal witness for cleanup retry.
 Malformed/unreadable evidence retains data. Shared members/logs stay protected.
 The existing pruner skips all indexed bundle members during individual-file
-cleanup. This core milestone adds no user command or automatic link writer;
-CLI activation and all-reader composite proof are the following milestone.
+cleanup. M2 activates the commands and contextual composite-proof consumers below.
 
 One flock on the existing attempts directory spans the protected-member snapshot
 and both bundle and legacy pruning. Publication acquires parent, then directory;
@@ -2752,3 +2751,40 @@ pruning pass streams crash leftovers under the mutex, which proves no active
 publisher can own them. Receipt publication rejects unsupported authority and
 validates its supported link graph explicitly; the passing-reader refusal is
 not an admission rule for publishing interruption evidence.
+
+
+### Saved suite resume and terminal reconciliation (#463 M2)
+
+`localcheck_resume_cmd.go` exposes explicit suite-only resume on the original
+pushed SHA and operator/:0 reconciliation. `localcheck_resume.go` applies the
+pure transition table to link publication, one managed exact-package batch,
+child commit and status publication. The parent inode lock spans preparation,
+queue, execution, evidence and status retries. One reserved child and immutable
+link make a crash an unknown outcome, never permission to execute twice.
+
+`localcheck_resume_saved.go` resolves every relevant linked parent from one
+indexed snapshot, hashes actual parent/child logs, and shares one current policy
+and registry read per decision. Saved reuse, explicit republish and every status
+retry use the same resolver. Composite outcomes overlay only in memory; original
+suite durations, raw records and measurement samples remain unchanged. Pending,
+failed, interrupted or invalid proof blocks both suite and affected success on
+that head, including a newer green run; unrelated named checks remain usable.
+
+Reconciliation requires the exact raw link digest, same-host owner-incarnation
+absence and an operator attestation that descendants stopped. No automatic
+descendant discovery is claimed. The immutable receipt is terminal interrupted,
+never a pass or a new attempt. `localcheck_resume_environment.go` then retires only
+scratch and temporary checkout inputs bound through existing owner markers,
+exact child worktree lock reason, reverse Git pointers and detached SHA. Raw
+partial logs and the receipt remain. Queue tombstones retain their independent
+reconciliation contract. Retry finishes cleanup after a lost reply.
+
+Resume retains suite capacity while using the existing runner group-confirmation
+cleanup and Git artifact protection. A missing/unreadable cleanup authority
+retains inputs. The private production-main fixture is opt-in:
+`SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckResumeConformance$' -count=1 -v`.
+It proves real failure before registration, actual exact-package resume/post,
+repeat without execution, immutable original evidence, owner-only crash followed
+by explicit descendant termination and terminal reconciliation, and a later
+actual green suite refused by the guard. All Git, tracker, queue, scratch and
+transport state is private; no installed binary or production proof is repaired.

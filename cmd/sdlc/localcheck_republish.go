@@ -66,13 +66,24 @@ func hostName() string {
 // store was read whole, which merge requires before a saved pass stands in.
 func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRunRecord, newest bool, err error) {
 	snapshot, err := readSuiteEvidence(storeRoot, testStatsRecordLimit)
-	attempts, warnings := snapshot.Attempts, snapshot.Warnings
 	if err != nil {
 		return localRunRecord{}, false, err
 	}
 	if unavailable := snapshot.proofError(proofSubject{Repo: repo, SHA: sha, Check: check, ID: id}); unavailable != nil {
 		return localRunRecord{}, false, fmt.Errorf("%w: %w", errSavedAttemptRefused, unavailable)
 	}
+	// Without current policy/registry this compatibility entry point cannot
+	// promote a different raw pass past same-head linked authority either.
+	if isTestCheck(check) && (len(snapshot.Resumes) > 0 || len(snapshot.Reconciliations) > 0) {
+		if unavailable := snapshot.proofError(proofSubject{Repo: repo, SHA: sha, Check: check}); unavailable != nil {
+			return localRunRecord{}, false, fmt.Errorf("%w: %w", errSavedAttemptRefused, unavailable)
+		}
+	}
+	return selectSavedAttempt(storeRoot, snapshot, repo, sha, check, id, host, nil)
+}
+
+func selectSavedAttempt(storeRoot string, snapshot SuiteEvidenceSnapshot, repo, sha, check, id, host string, resolved map[string]localRunRecord) (rec localRunRecord, newest bool, err error) {
+	attempts, warnings := snapshot.Attempts, snapshot.Warnings
 	// An incomplete read (a limit hit, an unreadable record) leaves the newest
 	// attempt unknown, not absent: nothing then counts as newest.
 	complete := len(warnings) == 0
@@ -85,6 +96,17 @@ func loadSavedAttempt(storeRoot, repo, sha, check, id, host string) (rec localRu
 		}
 		if a.FinishedAt.After(latest) {
 			latest = a.FinishedAt
+		}
+		if composite, ok := resolved[a.ID]; ok {
+			if a.Repo != repo || a.SHA != sha || a.Check != check {
+				refusals = append(refusals, "composite attempt identity mismatch")
+				continue
+			}
+			if best == nil || a.FinishedAt.After(bestAt) {
+				saved := composite
+				best, bestAt = &saved, a.FinishedAt
+			}
+			continue
 		}
 		path := suiteAttemptLogFile(storeRoot, a)
 		if path == "" {
@@ -140,6 +162,10 @@ func (e *unexplainedFailureError) Error() string { return e.msg }
 // full or affected, from turning an unknown failure green. It fails closed: a
 // store it cannot read whole, or a registry it needs and cannot read, refuses.
 func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) error {
+	return guardSuitePassRecord(ctx, d, check, sha, nil)
+}
+
+func guardSuitePassRecord(ctx context.Context, d localRunDeps, check, sha string, posted *localRunRecord) error {
 	refuse := func(format string, a ...any) error {
 		return &unexplainedFailureError{msg: fmt.Sprintf("local check %s on %s not recorded as success: ", check, abbrevSHA(sha)) + fmt.Sprintf(format, a...)}
 	}
@@ -152,12 +178,40 @@ func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) erro
 	if err != nil || len(warnings) > 0 {
 		return refuse("its earlier attempts cannot all be read (%v; %s); inspect or remove the named records", err, strings.Join(warnings, "; "))
 	}
-	if unavailable := snapshot.proofError(proofSubject{Repo: d.Repo, SHA: sha, Check: check}); unavailable != nil {
+	if unavailable := snapshot.unsupportedProofError(proofSubject{Repo: d.Repo, SHA: sha, Check: check}); unavailable != nil {
 		return refuse("%v", unavailable)
+	}
+	// One decision shares one fresh registry across linked proof validation and
+	// the existing unexplained-failure rule. A later post/retry makes a new decision.
+	if fetch := d.FlakeRegistry; fetch != nil {
+		var cached flakes.Registry
+		var cachedErr error
+		read := false
+		d.FlakeRegistry = func(ctx context.Context) (flakes.Registry, error) {
+			if !read {
+				cached, cachedErr = fetch(ctx)
+				read = true
+			}
+			return cached, cachedErr
+		}
+	}
+	resolved, resolveErr := resolvedResumeRecords(ctx, d, suiteStoreRoot(logDir), snapshot, sha, check, hostName())
+	if resolveErr != nil {
+		return fmt.Errorf("%w: %w", refuse("linked suite evidence does not verify"), resolveErr)
+	}
+	if posted != nil && (posted.ResumeParent != "" || posted.ResumeChild != "") {
+		current, ok := resolved[posted.ResumeParent]
+		if !ok || current.ResumeChild != posted.ResumeChild || current.Outcome != posted.Outcome || current.LogSHA256 != posted.LogSHA256 || current.Duration != posted.Duration || current.Exit != posted.Exit || !slices.Equal(current.KnownFlakes, posted.KnownFlakes) {
+			return fmt.Errorf("%w: %w", refuse("posted composite does not match current evidence"), &resumeProofUnavailable{Parent: posted.ResumeParent, Detail: "resume identity or proof changed; reload the exact saved proof; no replacement execution"})
+		}
 	}
 	var ev []SuiteAttempt
 	failed := false
 	for _, a := range attempts {
+		if composite, ok := resolved[a.ID]; ok {
+			a.Outcome = string(composite.Outcome)
+			a.KnownFlakes = slices.Clone(composite.KnownFlakes)
+		}
 		if a.Repo == d.Repo && a.SHA == sha && isFlakeEvidence(a) {
 			ev = append(ev, a)
 			failed = failed || isTestCheck(a.Check) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut)
@@ -171,7 +225,15 @@ func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) erro
 	if d.FlakeRegistry != nil {
 		reg, regErr = d.FlakeRegistry(ctx)
 	}
-	u := flakes.Unexplained(withLogSubtests(flakeAttempts(ev), ev, storeSubtests(suiteStoreRoot(logDir))), sha, reg)
+	subtestsOf := storeSubtests(suiteStoreRoot(logDir))
+	// Verified composites already supplied their leaf facts to the classifier;
+	// Unexplained skips that outcome, so rereading the parent log adds no proof.
+	u := flakes.Unexplained(withLogSubtests(flakeAttempts(ev), ev, func(a SuiteAttempt) ([]string, error) {
+		if _, ok := resolved[a.ID]; ok {
+			return nil, nil
+		}
+		return subtestsOf(a)
+	}), sha, reg)
 	if len(u) == 0 {
 		return nil
 	}
@@ -204,10 +266,14 @@ func guardSuitePass(ctx context.Context, d localRunDeps, check, sha string) erro
 // localCheckPostBackoff, then a failed run's PR comment (best effort). A
 // suite pass first passes guardSuitePass.
 func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecord) error {
-	if rec.passed() && isTestCheck(rec.Name) {
-		if err := guardSuitePass(ctx, d, rec.Name, rec.SHA); err != nil {
-			return err
+	guard := func() error {
+		if rec.passed() && isTestCheck(rec.Name) {
+			return guardSuitePassRecord(ctx, d, rec.Name, rec.SHA, &rec)
 		}
+		return nil
+	}
+	if err := guard(); err != nil {
+		return err
 	}
 	err := d.GH.PostStatus(ctx, d.Repo, rec.SHA, localStatusContext(rec.Name), rec.state(), rec.statusDescription())
 	for _, wait := range localCheckPostBackoff {
@@ -219,6 +285,9 @@ func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecor
 		case <-ctx.Done():
 			return fmt.Errorf("%w (then %w)", err, ctx.Err())
 		case <-time.After(wait):
+		}
+		if err := guard(); err != nil {
+			return err
 		}
 		err = d.GH.PostStatus(ctx, d.Repo, rec.SHA, localStatusContext(rec.Name), rec.state(), rec.statusDescription())
 	}
@@ -243,9 +312,10 @@ func republishSavedPass(ctx context.Context, d localRunDeps, c localCheck, sha s
 		return localRunRecord{}, false, nil
 	}
 	host := hostName()
-	rec, newest, err := loadSavedAttempt(suiteStoreRoot(logDir), d.Repo, sha, check, "", host)
+	rec, newest, err := loadSavedAttemptCurrent(ctx, d, suiteStoreRoot(logDir), sha, check, "", host)
 	var unavailable *needsNewerSDLCError
-	if errors.As(err, &unavailable) {
+	var linkedUnavailable *resumeProofUnavailable
+	if errors.As(err, &unavailable) || errors.As(err, &linkedUnavailable) {
 		return rec, true, err // Never replace unsupported authority with a blind rerun.
 	}
 	switch {
@@ -257,10 +327,14 @@ func republishSavedPass(ctx context.Context, d localRunDeps, c localCheck, sha s
 	if err != nil || !rec.passed() || !newest {
 		return localRunRecord{}, false, nil
 	}
-	// A saved known-flake pass is reused only while it still holds (#394).
-	if next := revalidateKnownFlake(ctx, d, c, rec.knownFlakeOutcome()); next.Kind != rec.Outcome {
-		fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing the saved known-flake pass on %s: %s\n", check, abbrevSHA(sha), next.Reason)
-		return localRunRecord{}, false, nil
+	// Legacy known-flake outcomes use their existing revalidation. Composites
+	// were just fully resolved from current evidence; the post guard will resolve
+	// them again immediately before each post, without a redundant registry read.
+	if rec.ResumeParent == "" {
+		if next := revalidateKnownFlake(ctx, d, c, rec.knownFlakeOutcome()); next.Kind != rec.Outcome {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: not reusing the saved known-flake pass on %s: %s\n", check, abbrevSHA(sha), next.Reason)
+			return localRunRecord{}, false, nil
+		}
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: publishing the saved pass on %s instead of rerunning (log %s)\n", check, abbrevSHA(sha), rec.LogPath)
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {

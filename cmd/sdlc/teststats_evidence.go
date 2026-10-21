@@ -30,6 +30,7 @@ type SuiteEvidenceSnapshot struct {
 	resumeSubjects  map[string]string
 	receiptParents  map[string]ResumeReconciliation
 	attemptIDs      map[string]SuiteAttempt
+	rerunParents    map[string][]SuiteAttempt
 	Unsupported     []UnsupportedProof
 	Warnings        []string // identity cannot be established, or the read was incomplete
 	byID            map[string]UnsupportedProof
@@ -137,8 +138,13 @@ func (s *SuiteEvidenceSnapshot) indexResumeEvidence() {
 	s.resumeSubjects = make(map[string]string, len(s.Resumes))
 	s.receiptParents = make(map[string]ResumeReconciliation, len(s.Reconciliations))
 	s.attemptIDs = make(map[string]SuiteAttempt, len(s.Attempts))
+	s.rerunParents = make(map[string][]SuiteAttempt)
 	for _, a := range s.Attempts {
 		s.attemptIDs[a.ID] = a
+		if a.RerunOf != "" {
+			key := proofKey(a.Repo, a.SHA, a.RerunOf)
+			s.rerunParents[key] = append(s.rerunParents[key], a)
+		}
 	}
 	children := make(map[string]string, len(s.Resumes))
 	for _, l := range s.Resumes {

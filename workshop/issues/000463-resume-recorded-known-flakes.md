@@ -158,3 +158,29 @@ Mandatory review found BR-1 Critical: the publisher's broad proofError rejected 
 Clock correction: earlier manually supplied hour/minute headings in this session's notes are inaccurate. Git commit timestamps, Couch receipts and gate sidecar timestamps carry the actual chronology; later notes use date-only headings.
 
 BR-1/BR-2 repair verification: receipt/staging/crashed-publisher tests passed 0.773s; broader M1 plus legacy compatibility tests passed 1.872s; ResumeStore race passed 5.410s. Raw future JSON values in the published receipt remain byte-identical, and duplicate receipt publication refuses. Diff check clean. Pending mandatory M1 round-2 disposition before starting M2.
+
+
+### 2026-10-21 — M2 checkpoint: commands, contextual proof and private acceptance
+
+M1 closed SHIP at the mandatory boundary (evidence commit recorded by Git).
+M2 now wires explicit suite resume and operator/:0 terminal reconciliation via
+the pure transition model. The parent inode spans all effects, and managed
+execution uses #524's exact-package batch with suite capacity and existing strong
+group cleanup. Contextual saved reuse/republish and each status retry resolve all
+same-head links against current policy/registry and actual raw logs; no raw
+parent is rewritten. Registry-change, stale posted child identity and aggregate
+raw-pass bypass regressions observed RED before their reader repairs.
+
+Private production-CLI acceptance passed 38.698s (completed 14.35s; owner crash
+and reconciliation 23.78s), output /tmp/ariadne-463-private-resume-conformance.log.
+The first run exposed repeat-resume's same-state repost transition; fixed and
+reran the full fixture. It proves failure before registration → exact-package
+resume → post → pass guard, immutable original bytes and no repeat execution;
+then owner-only crash, explicit fixture descendant stop, terminal receipt,
+repeat reconciliation and refusal of a later real green suite. No stage or
+production evidence mutation. Broad current/legacy reader checks passed 60.461s;
+CLI validation passed 0.322s; Go lint passed 1.028s. Environment lifetime tests
+passed 2.864s before an additional changed-owner-marker regression observed RED
+0.538s; its direct revalidation fix awaits final focused verification. Further
+counted N/2N checks, broader/race verification, recorded suite and M2/issue gates
+remain pending. This commit is an in-progress recovery checkpoint.

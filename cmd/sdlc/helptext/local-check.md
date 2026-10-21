@@ -211,6 +211,36 @@ THE AFFECTED SUITE (#473)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
+RESUME A SAVED SUITE FAILURE (#463)
+
+  sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA
+
+  Explicitly select an ordinary completed failed suite on its original pushed
+  commit. Current main policy and open flake registrations must explain every
+  failure. The command runs one exact-package batch of whole top-level tests,
+  under one weight-1 suite lease and aggregate timeout. Even policy accept
+  requires actual package-bound JSON PASS proof here. The original record,
+  log and full-suite duration remain unchanged; status names parent/child IDs
+  and the registered issues. Repeat resume or republish validates current proof
+  without execution. A changed registry, policy or raw log refuses success.
+
+  An immutable link is published before launch. Pending, failed or interrupted
+  links block every same-head suite/affected success, including a later full
+  green suite. Cancellation uses local-check cancel; uncertain completion does
+  not permit another launch. After a crash, wait for the owner to stop and have
+  the operator or :0 steward verify that all descendants stopped, then use the
+  exact raw link digest printed by the refusal:
+
+  sdlc local-check reconcile --attempt ID --link-digest SHA256 --note TEXT
+
+  This checks the original owner PID incarnation under the parent lock and
+  saves an immutable terminal interrupted receipt. Descendant discovery is not
+  automatic: --note is the operator's attestation. It never posts a pass, deletes
+  a link or invents an attempt. Bound retained scratch/worktree inputs can then
+  retire; partial raw output stays. Retry the same reconciliation after a lost
+  reply. Fix/advance code and run a suite on a new head. An independently unknown
+  queue operation still requires its own queue reconciliation.
+
 REPUBLISH (#431)
 
   A run saves its attempt (outcome, duration, log and its sha256, under
