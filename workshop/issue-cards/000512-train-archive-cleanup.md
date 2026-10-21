@@ -1,6 +1,6 @@
 ---
 id: 000512
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.34
+tracker:
+    version: 1
+    completion:
+        token: close-4d1055b4188c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 6dc7f788bd172f4d4c21d6251aba929cbd90f1f0
+        evidence_commit: 936e643a1191ceb44e6a58e73eacf2bfa7029dac
 ---
 
 # Train-car cleanup refuses confirmed archived issue after landing
