@@ -1,13 +1,21 @@
 ---
 id: 000522
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '1d3d1b13b268305b3ca041297005f617e4765c42' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e08f7478b3271e1179b205b71daa1a7d22c127c7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T03:02:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead shaping: mock feedback rounds are commits; a new mock-N+1 only for a new direction
@@ -36,8 +44,12 @@ Source: ops `session.side/2026-10-20-34-mock-server-plan.md`; product-shaping pr
 
 ## Plan
 
-- [ ]
+- [ ] Extend existing SHAPING rendered-help phrase guards for round commits/revert, direction-only folder versions, retained URLs and root fixtures; observe RED at both help entry points.
+- [ ] Update the embedded mock conventions concisely, separating undoing a round from revisiting an earlier direction; observe GREEN and run focused TL tests.
+- [ ] Push, run the central recorded suite, close through review, open/land the PR and report to the hub.
 
 ## Log
 
 ### 2026-10-21
+
+Authenticated dispatch a88deb45-1953-4489-a2df-acffd86d5d7f authorizes this fixed operator rule while #520 waits. Preserved #520's committed branch; claimed and start-plan created this independent branch from main. Quick plan posted to the hub, proceeding unless objected: one embedded-help edit plus existing phrase guards, no runtime mechanism. ARCH-DRY retains help as the rule's one source; ARCH-PURPOSE covers round commits, agent-owned revert/reload, separate mock folders and shared fixtures together. Existing Git history owns the round lifecycle; no new parser/state/store, external dependency, secret, hot path or artifact family is introduced (ARCH-PURE/MOCK/SECURE/ORDER/CONSTRAINTS/FUNERAL/EVOLVE). No extra design approval is needed for the already operator-approved wording in the Spec.
