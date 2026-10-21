@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a0724001", done: "02f13960"}
 ---
 
 # tl-lead status slots: a slot behind a permission picker shows as idle
