@@ -571,3 +571,14 @@ gate dispose carried M2 BR-3 as **superseded by the operator's option A**,
 citing decision 390faec8-dc49-498e-9ad5-2c1a718c2c37; preserve the ledger and
 review history rather than clearing it. This acceptance authorizes M3, not the
 superseded M2 retry design.
+
+### 2026-10-21 — M3 review BR-4 escalation; implementation held
+
+Fresh M3 review identifies cancellation during an otherwise successful cleanup
+effect allowing a later owner-marker deletion. The accepted M3 contract already
+requires checking uncancelled authority at each subsequent effect, but the final
+release path does not do so. Current tests inject failures; they do not inject
+cancellation during successful remove/sync operations. Preserve the finding and
+follow the existing lifecycle escalation condition before another cleanup patch.
+M3 remains unclosed. No change to the operator's evidence-only reconciliation
+or permanently pinned interrupted graph policy is proposed by this checkpoint.

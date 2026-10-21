@@ -379,3 +379,24 @@ integrated tree; Go lint 1.244s, shell lint 0.377s and diff check clean. The
 private M3 acceptance evidence remains 91.155s from the unchanged feature code;
 the fresh recorded suite will validate the full integrated tree. Checkpoint,
 push and requeue once before rerunning the M3 boundary.
+
+### 2026-10-21 — M3 REWORK BR-4; lifecycle escalation checkpoint
+
+The fresh M3 review returned REWORK with BR-4 Important, family
+`durable-staging-cleanup`: cancellation during successful registration removal
+or directory sync can still be followed by owner-marker deletion. The final
+release helper has no context and its authorize callback does not inspect ctx;
+source inspection confirms the missing boundary check. The caller observes
+cancellation only before child publication, after the surviving marker may have
+been removed. M3 already requires uncancelled authority before every subsequent
+cleanup effect, so this is an implementation gap in that accepted rule; the
+existing error-injection matrix did not test cancellation inside a successful
+effect. All reviewer functional/race/private CLI checks otherwise passed.
+
+Honoring the documented lifecycle-gap escalation condition, stop additional
+cleanup patching and return BR-4 to the TL. No dispute or speculative design
+change. Preserve M2 superseded status and carried BR-3 history. Canceled only
+still-queued lease-830246584 on the candidate head through local-check cancel;
+it never acquired suite capacity and completed with context-canceled refusal.
+No full-suite pass, M3 close, issue close, PR, stage or landing is claimed.
+Checkpoint/push review evidence and this Log; await the TL/operator's decision.
