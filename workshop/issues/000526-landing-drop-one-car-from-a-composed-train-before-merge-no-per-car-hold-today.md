@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9369b6cf", done: "725dd86c"}
 ---
 
 # landing: drop one car from a composed train before merge (no per-car hold today)
