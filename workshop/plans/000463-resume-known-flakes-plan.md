@@ -353,3 +353,213 @@ entries. This meets the approved stop condition. Preserve the current code and
 review evidence; do not implement another lifecycle refinement or seek another
 incremental TL approval. The TL takes the failure to the operator. The plan is
 not complete and the lifecycle invariant is not claimed satisfied.
+
+
+### 2026-10-21 — Fresh M3: operator option A supersedes M2 (TL plan review pending)
+
+**Decision and scope.** TL receipt
+390faec8-dc49-498e-9ad5-2c1a718c2c37 relays the operator's explicit selection
+of A. This revision supersedes M2 and its retry-capable environment cleanup;
+M2 never closed and its review/BR-3 evidence remains intact. M1 remains closed.
+M3 is a fresh mandatory milestone boundary covering the delivered CLI/readers
+and the simplified lifecycle together, not a claim that the old review passed.
+Implementation waits for TL review of this plan, then fresh `change-code`
+plan-quality admission. The final issue gate must explicitly dispose of the
+carried M2 BR-3 against the operator's new policy; no manual ledger reset or
+review bypass is planned.
+
+**Goal:** retain the targeted-resume feature while removing cleanup recovery as
+an automatic capability. Exactly one cleanup pass belongs to the original live
+owner. Any failure, crash or inconsistent first-pass observation stops further
+cleanup, leaves surviving files and persistent Git locks as observed, and
+reports needs-reconcile with the existing exact command. Reconcile writes or
+returns immutable terminal interruption only. It never deletes, unlocks,
+releases markers, retries cleanup, grants execution or posts a pass. Already
+completed deletions cannot be restored; retaining means no subsequent mutation
+of the surviving inputs. No new persistent cleanup state, one-shot marker,
+record variant, authority or manual cleanup command is introduced.
+
+#### Entities and integration changes
+
+| Pure entity | Lives in | Status |
+| --- | --- | --- |
+| ResumeProof / transition presentation | cmd/sdlc/localcheck_resume_evidence.go | modified: existing pending/unknown maps to needs-reconcile; execution and pass rules unchanged |
+| Resume retention eligibility/index | cmd/sdlc/localcheck_resume_retention.go | modified: pending/interrupted/receipt graph is permanently protected; completed-child retention unchanged |
+
+| Integration | Lives in | Status | Wraps |
+| --- | --- | --- | --- |
+| Original-owner cleanup pass | cmd/sdlc/localcheck_resume_environment.go, localcheck_resume.go | modified | existing parent lock, current owner incarnation, exact link/marker/reverse Git bindings and one forward deletion sequence |
+| Reconcile evidence only | cmd/sdlc/localcheck_resume.go | modified | existing operator/:0 authority, owner absence, descendant-stop attestation and immutable receipt publisher |
+| Receipt-authorized cleanup and replay | cmd/sdlc/localcheck_resume_environment.go | deleted | remove receipt adapters, retry classification/reconstruction and replay-specific control flow |
+| Managed strict scratch retirement | cmd/sdlc/localcheck_run.go, localcheck_resume.go | modified | retain scratch on managed errors/uncertainty; one confirmed cleanup pass on ordinary completion |
+| Retained-bundle GC guard | cmd/sdlc/localcheck_resume_retention.go | modified | existing one snapshot, directory mutex, nonblocking parent locks and protected-ID projection |
+
+ARCH-DRY/PURE: preserve the one classifier, immutable proof resolver, exact
+package batch, queue/lease, evidence publisher and existing transition model.
+Do not add another cleanup model, durable retry journal or file-absence success
+classifier. The single parent lock plus immutable link already ensures the
+original owner is the only cleanup caller: a later resume of pending proof
+refuses, and completed proof only revalidates/reposts. Reconcile has no cleanup
+call at all. This is why no extra one-shot boundary is needed.
+
+#### Forward-only first-pass algorithm and deletions
+
+Keep the approved preparation order: parent lock → reserve child/unlocked
+checkout → durable link → durable existing owner marker and child/inflight
+parent directories → exact child Git lock → managed execution. Run one weight-1
+batch and one aggregate timeout as before. Ordinary completed test failure is
+still a real terminal failed child; it never grants another execution or pass.
+Cancellation, timeout, launch failure, unconfirmed group completion or IO
+inconsistency reports needs-reconcile and retains surviving inputs.
+
+For an ordinary managed completion, confirm group shutdown and execute one
+scratch cleanup attempt. Confirm and sync absence once, then perform one exact
+checkout removal while locked registration still preserves its reverse pointer;
+confirm/sync checkout absence, remove Git registration once, confirm/sync both
+namespaces, then release/sync the existing marker once. Check cancellation
+before each subsequent effect. Any error stops immediately; do not continue
+later deletions, retry an effect, reinterpret missing metadata as completion or
+invoke deferred cleanup after the link. Child publication follows only a
+completely successful first pass. If publication later fails/crashes, the link
+still fences execution; a committed visible child can be revalidated/reposted,
+otherwise the operator can only terminalize it as interrupted.
+
+Delete these paths rather than repairing their durability retries:
+
+- Both reconcile calls to `retireResumeEnvironment`; receipt-exists returns its
+  already validated interrupted audit result, new receipt returns after durable
+  publication. Neither path calls Git removal/unlock, scratch removal or marker
+  release. Owner/authority/digest and committed-child refusal checks remain.
+- Receipt cleanup adapters, `resumeEnvironmentReceipt`, `receiptCleanup` mode,
+  and receipt-only prepared-unlocked cleanup/no-op classification. Terminal
+  proof resolution already validates receipt/link identity through the shared
+  reader; it does not need a destructive adapter.
+- Missing inflight/marker/registration success paths, empty-binding release,
+  missing-checkout reconstruction, interrupted-registration replay, and missing
+  marker release success. First-pass preconditions require present canonical
+  directories, exact marker and lock, both Git reverse pointers and exact SHA.
+  Once this invocation removes the checkout, its already validated local binding
+  supplies the next registration step; never rerun a general inspector that
+  reconstructs a previous invocation's partial cleanup.
+- Retry-specific scanned-root resynchronization and convergence loops. Keep
+  syncs for this invocation's actual deletions; a lost reply/error is a stop,
+  not permission to infer absence and continue.
+- Success-on-retry tests and documentation. Replace them with independent
+  retained-byte/lock and zero-effect assertions.
+
+The strict managed scratch defer must not remove scratch when the managed
+result is canceled, timed out, did not launch or has unconfirmed cleanup. It
+must not run a second cleanup after the first cleanup returned an error.
+Preserve actual logs and exact needs-reconcile diagnostics on all such returns.
+Persistent Git locks on protected inputs remain; kernel flock handles naturally
+close on process death. Unused pre-link/unlocked preparation has not launched a
+child and retains the existing ordinary temporary-collector policy; the new
+resume/reconcile code never tries to reclaim it after an inconsistent outcome.
+This distinction is explicit for TL review, not an inferred deletion authority.
+
+#### Evidence retention policy and cost
+
+Pending links remain pinned as today. Any terminal receipt, including an orphan
+receipt with missing parent/link, permanently pins all identified records,
+canonical raw logs and inflight members regardless of marker presence, lock
+visibility, age, or a partly completed cleanup. Remove terminal-receipt bundle
+retirement and the orphan-receipt retirement loop. Keep their protected IDs in
+the returned projection so legacy individual-file/temp cleanup cannot delete
+members. Unsupported/unreadable/ambiguous evidence continues to refuse GC.
+
+Completed-child bundles with successful live-owner cleanup retain the existing
+30-day GC, parent-first durable deletion, terminal-child/log witness last and
+existing directory→strict-TRY-parent locking. A failed test child with fully
+successful cleanup is still a completed child for this retention rule; test
+result acceptance is independent. Do not introduce an automatic cleanup retry
+for retained input artifacts or change unrelated suite/runner cleanup policy.
+
+ARCH-FUNERAL/CONSTRAINTS: intentional indefinite retention is the operator's
+tradeoff. Each uncertain resume can retain one reserved child inflight/raw log,
+one detached checkout, its existing scratch and Git registration/lock, one link
+and at most one receipt, plus original failure evidence. Repeated resume or
+reconcile adds no children, cleanup attempts or receipts. Input bytes follow
+the existing suite's actual output/build size, so no new byte cap is claimed.
+Existing bounded evidence publication/read budgets still refuse further proof
+rather than evict retained authority; no emergency automatic pruning is added.
+Diagnostics name retained paths so the operator can inspect actual disk use.
+Removing retained inputs later is a separate operator decision, not this CLI.
+
+The scan remains O(A+L+R) for attempts, links and receipts, one indexed snapshot
+per decision; receipt pinning adds constant indexed work per receipt and skips
+its deletion. Existing N/2N tests stay; add counted N/2N retained receipts with
+zero removal calls, including orphan cases. Normal first-pass input cleanup
+scans scratch roots once and checks each candidate once; no retry scan remains.
+
+#### Visible states, actions and loss
+
+Actions: resume once, wait/cancel, reconcile interruption, republish completed
+proof, fix/advance the code. There is no cleanup-retry action.
+
+| Internal state / failure mode | Visible state | Recovery action | Possible loss |
+| --- | --- | --- | --- |
+| Eligible saved failure | ready to resume | resume once | none |
+| Active owner with durable fence | running or queued | wait/cancel | uncommitted child on cancellation |
+| Any crash, managed uncertainty, cleanup failure or first-pass inconsistency | needs reconcile, exact parent/digest command and retained paths | reconcile interruption after existing owner-absence/descendant attestation | uncommitted targeted PASS; already completed unlink effects are not reversed |
+| Interrupted receipt, including repeated reconcile | interrupted; retained, no cleanup attempted | fix/advance code | retained disk cost, no original history loss |
+| Child committed and valid | pass or terminal test failure with linked evidence | republish completed proof, or fix/advance code for failure | status reply only |
+| Corrupt/changed/unreadable authority | refused, evidence retained | operator inspection | no automatic repair claim |
+
+Covered: one execution and cleanup caller, no cleanup on reconcile (first or
+repeat), raw original evidence, proof invalidation, all crash/error windows and
+permanent interrupted/receipt retention. Not covered: automatic descendant
+inference, cleanup repair after uncertainty, storage reclamation for pinned
+bundles, restoring deleted files, or corrupt-evidence repair. These omissions
+are explicit operator-selected boundaries, not future automatic recovery.
+
+#### M3 tasks and verification (single fresh boundary)
+
+1. **TDD evidence-only reconciliation.** In localcheck_resume_test.go,
+   localcheck_resume_environment_test.go and localcheck_resume_conformance_test.go,
+   use real private Git/tracker/GH fixtures to create a pending link with locked
+   inputs. Snapshot every surviving byte, path/lock and destructive-call count.
+   First and repeated reconcile must publish/return the same receipt and perform
+   zero removals, unlocks, marker releases or launches. Run the focused test and
+   observe RED against current receipt cleanup, then remove the adapters/calls
+   and rerun GREEN. Preserve live-owner/foreign-host/digest/authority/committed
+   child refusal and raw unknown-field preservation tests. Commit this deletion.
+2. **TDD one-pass failure behavior.** Replace lost-reply and partial-registration
+   convergence tests with a deterministic fault matrix over each forward remove
+   and sync effect (scratch, checkout, registration, marker). After the first
+   injected failure, assert no later mutation; after owner exit, resume refuses,
+   repeated reconcile has zero destructive effects, all surviving bytes/locks
+   remain and exact needs-reconcile command is printed. Kill fixture owners at
+   each existing crash-window barrier and explicitly stop fixture descendants
+   before attestation. Observe RED, simplify inspect/core and strict scratch
+   lifecycle, rerun GREEN and commit. No new persistent state or retry loop.
+3. **TDD permanent interrupted retention.** In retention tests call the real
+   production pruner with aged pending, interrupted and orphan receipt bundles;
+   vary missing/unlocked/changed/unreadable markers and missing parent/link.
+   Assert every remaining member/log is byte-identical and removal count zero,
+   including repeated pruning. Add N/2N count checks. Keep the completed-child
+   deletion-order/fsync failures, shared-member protections and real-process
+   nonblocking-lock negative control unchanged. Observe RED, remove receipt
+   retirement eligibility/loop and rerun GREEN. Commit.
+4. **Delivered contract.** Update README, embedded local-check help, atlas and
+   eligible refusal/reconcile output: one pass, needs reconcile, evidence-only
+   reconciliation, retained paths/disk cost, no cleanup retry, no inferred
+   completion and no automatic receipt GC. Keep original execution/proof rules.
+   Review all references to retireResumeEnvironment/receiptCleanup/retry for
+   dead code/tests and contradictory documentation; add lessons for the class.
+5. **Final acceptance and gate.** Run `go test ./cmd/sdlc -run '^TestResume'
+   -count=1 -race -timeout=5m`, focused legacy saved-proof/republish/known-flake
+   checks, Go/shell lint and `git diff --check`. Run the private production-main
+   conformance with `SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run
+   '^(TestResumeCrash|TestLocalCheckResumeConformance)' -count=1 -v`: actual
+   pre-registration failure → exact package resume → pass/post/guard, repeat
+   without execution, crash → attested receipt without cleanup, repeated
+   reconcile/prune preservation, later actual green refused. Record exact
+   evidence and all eight named windows' new oracles. Push final code, queue
+   `sdlc local-check run --name suite`; follow required freshness/integration
+   gate remedies rather than waive them. Close M3 with its fresh review, then
+   whole issue with carried finding disposition, PR/merge and report to TL.
+   No stage; TL's private acceptance/natural post-land live-use policy remains.
+
+No code is admitted by this plan write. Send its committed/pushed revision to
+TL, wait for plan acceptance, then run the fresh change-code plan-quality gate.
+M2 sidecars and the issue-wide ledger are preserved as review history.

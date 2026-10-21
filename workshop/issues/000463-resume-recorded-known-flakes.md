@@ -58,11 +58,21 @@ or a republished failure as a recorded passing suite.
   ownership/evidence rules; no duplicate or unconfirmed run becomes a pass.
 - Stateful regression tests prove targeted-only execution, exact-head binding,
   refusal paths and linked commit status/reporting.
+- Operator option A: cleanup runs once in the original live owner. Any cleanup
+  failure, crash or first-pass inconsistency becomes needs-reconcile; no retry
+  infers completion from absent files or metadata. Reconciliation publishes or
+  returns only terminal interrupted proof and performs zero destructive actions.
+- Pending/interrupted cleanup bundles and all terminal/orphan receipts stay
+  pinned regardless of current Git-lock visibility. Completed-child bundles
+  whose live-owner cleanup finished keep their existing GC policy. Surviving
+  input files/locks are retained; already completed unlinks are not restored.
 
 ## Plan
 
 - [x] M1 — Immutable resume link, pure proof/reconciliation model, parent-lifetime lock and bundle retention; reuse #524's evidence snapshot and exact-package batch.
-- [ ] M2 — Explicit resume/reconcile commands, saved-proof/republish/pass-guard integration, private executable proof and recorded-suite delivery.
+M2 — Explicit resume/reconcile commands and delivery — **superseded, never closed**, by the operator's option A decision (TL receipt 390faec8-dc49-498e-9ad5-2c1a718c2c37). Its REWORK evidence and open BR-3 remain historical review evidence; no SHIP or completed milestone is claimed.
+
+- [ ] M3 — Option A: one live-owner cleanup pass; needs-reconcile preserves remaining inputs; reconcile only terminalizes and retains; interrupted/receipt GC is permanently pinned; reverify CLI/readers and deliver through fresh gates.
 
 Durable proposal: [resume known flakes plan](../plans/000463-resume-known-flakes-plan.md). Await hub approval before change-code or implementation; close/PR/landing remain mandatory after the implementation boundaries.
 
@@ -272,3 +282,23 @@ The re-review sidecar contains the exact failure cases and locations. Next
 worker/TL must read it and await the operator’s decision rather than deriving a
 new incremental patch from this Log. All work and review evidence are pushed;
 the checkout is left on the issue branch.
+
+
+### 2026-10-21 — Operator option A; M2 superseded by fresh M3 (plan review pending)
+
+Authenticated TL 390faec8-dc49-498e-9ad5-2c1a718c2c37 relays the operator's
+choice of A exactly as the read-only deletion map: one live-owner cleanup pass;
+all first-pass inconsistencies become needs-reconcile; reconcile terminalizes
+and retains with zero destructive effects; no reconcile-initiated cleanup and
+no new one-shot boundary. Interrupted cleanup bundles/terminal or orphan
+receipts are never automatic-GC candidates, independent of lock visibility.
+Completed successful-cleanup GC stays unchanged. Updated active Done when and
+Plan accordingly; M2 is superseded without ticking or closing it, and M1 stays
+closed. Its review/ledger evidence remains intact, including open BR-3.
+
+Appended a fresh M3 design/tasks/test and visible-state contract to the durable
+plan. No code changes or tests started. Commit/push the design and send it to
+the TL before code. After TL approval, rerun change-code for fresh plan-quality
+admission, follow the gates' exact freshness remedy if required, then execute
+M3. Final issue close must dispose of the carried M2 BR-3 under the new operator
+contract through the real review, not by manually editing its ledger.
