@@ -527,9 +527,10 @@ trains on:
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
 - **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
-  - Events: `Boarded`, `Built`, `SuiteDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
-  - Effects: `Build`, `Publish`, `RunSuite`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
-  - Phases: forming, integrating, testing, bisecting, reintegrating, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
+  - Events: `Boarded`, `Built`, `SuiteDone`, `SplitAssessed`, `LandingChecksDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - Effects: `Build`, `Publish`, `RunSuite`, `AssessSplit`, `RunLandingChecks`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
+  - Phases: forming, integrating, testing, bisecting, attributing, reintegrating, checking, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
+  - Attribution: `AssessSplit` refreshes registration and dependency-aware package impact for the exact adjacent prefix pair; `SplitAssessed` must match it. Only a named unregistered affected failure permits a suite Hold. Otherwise unresolved cars stop with an unattributed/unverified refusal and the exact `sdlc merge --branch BRANCH --yes` retry. Only the already verified prefix proceeds; neither registration nor untouched sources promotes a failed suite to passing evidence. Assessment has a two-minute diagnostic budget and five-second cleanup bound; unavailable evidence stops without blame. A code-main reintegration rebuilds the final head and invalidates lower heads: if that multi-car suite fails, all cars stop as unverified before any split on stale prefixes. Docs-only reuse is unchanged.
 
 With no other car, the head lands alone, as before, and logs the departure. Plan: `workshop/history/plans/000449-landing-train-plan.md`.
 
@@ -2252,7 +2253,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
 `session-move-batched-reads` and `session-move-raw-fields` #504,
-`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
+`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // fakeRuns makes Dispatch's process seam replay outputs in order, counting
@@ -135,16 +137,19 @@ func TestDispatchParsesOnlyClaudeAsAStream(t *testing.T) {
 func TestDispatchRetryDeadlineKeepsTheFirstAttempt(t *testing.T) {
 	orig := Run
 	t.Cleanup(func() { Run = orig })
+	ctx, expire := testfix.DeadlineOnCue(context.Background())
+	t.Cleanup(expire)
 	n := 0
 	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
 		n++
 		if n == 1 {
 			return streamOut(t, "background_wait.jsonl"), nil
 		}
+		expire() // Expire only after the retry has actually begun.
 		<-ctx.Done()
 		return ProcessOutput{}, ctx.Err()
 	}
-	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "review", Timeout: 300 * time.Millisecond})
+	out, err := Dispatch(ctx, DispatchOptions{Agent: AgentClaude, Prompt: "review"})
 	if err != nil || !strings.Contains(out, "I'll wait") || !strings.Contains(out, "## Attempt 2") || HasVerdict(out) {
 		t.Fatalf("err %v, out:\n%s", err, out)
 	}
