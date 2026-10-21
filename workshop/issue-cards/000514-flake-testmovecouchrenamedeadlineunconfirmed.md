@@ -1,6 +1,6 @@
 ---
 id: 000514
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ed14a3fc97dc91e10b245f00516fce367dbc308a
         evidence_commit: ff28d6a6125253b3c7a54bb479f80e4cf2d871da
+        landed_commit: 6e57ce3d00a4e62111f38d6aa0a84a1296d7cc3b
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
