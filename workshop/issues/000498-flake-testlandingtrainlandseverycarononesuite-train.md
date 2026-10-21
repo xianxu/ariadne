@@ -1,13 +1,13 @@
 ---
 id: 000498
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '105a024c15709e7117c42d0a903be76127555163' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a4a74cd5a662efdedb9412723c8b9dce42df042c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-20T14:48:54-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests:
 flow: {kind: quick, provenance: inferred, spec: "8876058c", done: "15e3cf4e"}
+actual_hours: 1.42
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
