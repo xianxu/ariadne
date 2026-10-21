@@ -228,9 +228,9 @@ REPUBLISH (#431)
   never stands in). Under merge the post's retry holds the landing turn, which
   still beats a rerun.
 
-CANCEL (#400)
+CANCEL (#400, #510)
 
-  `sdlc local-check cancel [--name N]` stops the runs started from this
+  `sdlc local-check cancel [--run ID | --name N]` stops the runs started from this
   checkout, and only those, whether queued or running: every run holds a lease
   (<git common dir>/sdlc/local-check-runs/) naming its checkout, locked for the
   run's queue and check. Cancel sends SIGTERM to the run itself, which stops
@@ -239,6 +239,12 @@ CANCEL (#400)
   process start time no longer matches is not signalled, and leases of dead
   runs are swept. Never stop a check by a PID picked from `ps`: every slot's
   suite looks the same there.
+
+  Every leased run prints its ID. `cancel --run ID` stops exactly that owned run;
+  foreign, invalid or inactive IDs refuse. `--run` and `--name` are exclusive.
+  `--name N` stops all this checkout's runs of N; omitting both stops all checks.
+  A second same-check run on another head names the existing ID/head and offers
+  its exact cancel command. Both keep their FIFO places until explicitly cancelled.
 
 HOW MERGE USES IT
 
@@ -254,5 +260,6 @@ USAGE
 
   sdlc local-check run --name zellij        # one check on HEAD
   sdlc local-check run --all --rev <sha>    # every head-scoped check on a pushed commit
-  sdlc local-check cancel                   # stop this checkout's runs
+  sdlc local-check cancel --run <lease-id>  # stop one owned run, retaining siblings
+  sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result
