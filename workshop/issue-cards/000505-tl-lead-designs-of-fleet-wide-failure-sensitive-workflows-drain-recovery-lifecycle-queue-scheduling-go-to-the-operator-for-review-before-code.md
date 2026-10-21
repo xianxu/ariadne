@@ -1,6 +1,6 @@
 ---
 id: 000505
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f090762e0082b0815e7a553be42d438cb4c49ed5
         evidence_commit: ef5c1d3f3371efd06b7b9e0b0f614a1fe98d7a9b
+        landed_commit: 8d68f1933299a2837ec1fda55a90af6a7c9bdc6a
 ---
 
 # tl-lead: designs of fleet-wide, failure-sensitive workflows (drain, recovery, lifecycle, queue, scheduling) go to the operator for review before code
