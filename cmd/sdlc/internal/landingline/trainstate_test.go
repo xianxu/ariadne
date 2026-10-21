@@ -48,9 +48,9 @@ func wantEffects(t *testing.T, got []Effect, want ...Effect) {
 
 func TestTrainLandsAllCarsOnOneSuite(t *testing.T) {
 	tr, effects := drive(t, NewTrain(1),
-		Boarded{Cars: cars(3)}, built(3), SuiteDone{Prefix: 3, Outcome: SuitePass}, CIDone{Green: true}, Merged{})
+		Boarded{Cars: cars(3)}, built(3), SuiteDone{Prefix: 3, Outcome: SuitePass}, LandingChecksDone{Prefix: 3, Passed: true}, CIDone{Green: true}, Merged{})
 	wantEffects(t, effects,
-		Build{Cars: cars(3)}, Publish{Prefix: 3}, RunSuite{Prefix: 3}, WaitCI{Prefix: 3}, Merge{Prefix: 3}, LandCars{Seqs: []int64{1, 2, 3}})
+		Build{Cars: cars(3)}, Publish{Prefix: 3}, RunSuite{Prefix: 3}, RunLandingChecks{Prefix: 3}, WaitCI{Prefix: 3}, Merge{Prefix: 3}, LandCars{Seqs: []int64{1, 2, 3}})
 	if tr.Phase != PhaseLanded || tr.Splits != 0 {
 		t.Fatalf("train %+v", tr)
 	}
@@ -78,12 +78,12 @@ func TestTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 	wantEffects(t, effects[3:],
 		RunSuite{Prefix: 2}, RunSuite{Prefix: 3},
 		Hold{Seq: 3, Reason: "the train's suite fails from car 3 (#103) on; the cars before it pass"},
-		Release{Seqs: []int64{4}}, Publish{Prefix: 2}, WaitCI{Prefix: 2})
-	if tr.Phase != PhaseLanding || tr.Land != 2 || tr.Culprit != 3 || tr.Splits != 2 || !slices.Equal(tr.Released, []int64{4}) {
+		Release{Seqs: []int64{4}}, Publish{Prefix: 2}, RunLandingChecks{Prefix: 2})
+	if tr.Phase != PhaseChecking || tr.Land != 2 || tr.Culprit != 3 || tr.Splits != 2 || !slices.Equal(tr.Released, []int64{4}) {
 		t.Fatalf("train %+v", tr)
 	}
-	tr, effects = drive(t, tr, CIDone{Green: true}, Merged{})
-	wantEffects(t, effects, Merge{Prefix: 2}, LandCars{Seqs: []int64{1, 2}})
+	tr, effects = drive(t, tr, LandingChecksDone{Prefix: 2, Passed: true}, CIDone{Green: true}, Merged{})
+	wantEffects(t, effects, WaitCI{Prefix: 2}, Merge{Prefix: 2}, LandCars{Seqs: []int64{1, 2}})
 }
 
 func TestTrainWhoseFirstCarFailsLandsNothing(t *testing.T) {
@@ -116,7 +116,7 @@ func TestTrainMainRedRefusesEveryCar(t *testing.T) {
 }
 
 func TestTrainCIRedRefusesTheWholeTrain(t *testing.T) {
-	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, CIDone{Detail: "merge-check"})
+	tr, effects := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, LandingChecksDone{Prefix: 2, Passed: true}, CIDone{Detail: "merge-check"})
 	wantEffects(t, effects[len(effects)-2:], Refuse{Seqs: []int64{1, 2}, Reason: "the train's CI is red: merge-check"}, ClosePR{})
 	if tr.Phase != PhaseRefused {
 		t.Fatal(tr.Phase)
@@ -124,10 +124,10 @@ func TestTrainCIRedRefusesTheWholeTrain(t *testing.T) {
 }
 
 func TestTrainMainMovingReintegrates(t *testing.T) {
-	landing, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass})
+	landing, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, LandingChecksDone{Prefix: 2, Passed: true})
 	t.Run("a docs-only move keeps the suite", func(t *testing.T) {
-		tr, effects := drive(t, landing, MainMoved{}, Reintegrated{NeedSuite: false}, CIDone{Green: true})
-		wantEffects(t, effects, Reintegrate{Prefix: 2}, Publish{Prefix: 2}, WaitCI{Prefix: 2}, Merge{Prefix: 2})
+		tr, effects := drive(t, landing, MainMoved{}, Reintegrated{NeedSuite: false}, LandingChecksDone{Prefix: 2, Passed: true}, CIDone{Green: true})
+		wantEffects(t, effects, Reintegrate{Prefix: 2}, Publish{Prefix: 2}, RunLandingChecks{Prefix: 2}, WaitCI{Prefix: 2}, Merge{Prefix: 2})
 		if tr.Reintegrated != 1 {
 			t.Fatal(tr.Reintegrated)
 		}
@@ -148,7 +148,7 @@ func TestTrainMainMovingReintegrates(t *testing.T) {
 	t.Run("bounded", func(t *testing.T) {
 		tr := landing
 		for range MaxReintegrations {
-			tr, _ = drive(t, tr, MainMoved{}, Reintegrated{})
+			tr, _ = drive(t, tr, MainMoved{}, Reintegrated{}, LandingChecksDone{Prefix: 2, Passed: true})
 		}
 		tr, effects := drive(t, tr, MainMoved{})
 		if tr.Phase != PhaseRefused {
@@ -158,7 +158,7 @@ func TestTrainMainMovingReintegrates(t *testing.T) {
 }
 
 func TestTrainLostMergeReplyIsProbed(t *testing.T) {
-	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, CIDone{Green: true})
+	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, LandingChecksDone{Prefix: 2, Passed: true}, CIDone{Green: true})
 	t.Run("it had merged", func(t *testing.T) {
 		tr, effects := drive(t, merging, MergeUnknown{}, Probed{Merged: true})
 		wantEffects(t, effects, Probe{}, LandCars{Seqs: []int64{1, 2}})
@@ -178,7 +178,7 @@ func TestTrainLostMergeReplyIsProbed(t *testing.T) {
 func TestTrainRejectsIllegalEvents(t *testing.T) {
 	integrating, _ := drive(t, NewTrain(1), Boarded{Cars: cars(3)})
 	testing_, _ := drive(t, integrating, built(3))
-	landed, _ := drive(t, testing_, SuiteDone{Prefix: 3, Outcome: SuitePass}, CIDone{Green: true}, Merged{})
+	landed, _ := drive(t, testing_, SuiteDone{Prefix: 3, Outcome: SuitePass}, LandingChecksDone{Prefix: 3, Passed: true}, CIDone{Green: true}, Merged{})
 	for name, c := range map[string]struct {
 		tr Train
 		ev TrainEvent
@@ -218,12 +218,19 @@ func TestTrainInvariantsOverRandomHistories(t *testing.T) {
 			t.Fatal(err)
 		}
 		ended := map[int64]string{}
+		checked := false
 		passed := map[int]bool{} // prefixes whose suite passed on the current head
 		for step := 0; step < 40 && !tr.Phase.Terminal(); step++ {
 			ev := randomEvent(rng, tr)
 			next, effects, err := Transition(tr, ev)
 			if err != nil {
 				continue // a rejected event changes nothing (checked above)
+			}
+			if cd, ok := ev.(LandingChecksDone); ok {
+				checked = cd.Passed
+			}
+			if _, ok := ev.(Reintegrated); ok {
+				checked = false
 			}
 			if sd, ok := ev.(SuiteDone); ok && sd.Outcome == SuitePass {
 				passed[sd.Prefix] = true
@@ -234,6 +241,9 @@ func TestTrainInvariantsOverRandomHistories(t *testing.T) {
 			for _, e := range effects {
 				switch e := e.(type) {
 				case LandCars:
+					if !checked {
+						t.Fatalf("run%d: landing without proven checks", run)
+					}
 					if !passed[len(e.Seqs)] {
 						t.Fatalf("run %d: landed prefix %d with no passing suite (history %v)", run, len(e.Seqs), passed)
 					}
@@ -297,6 +307,8 @@ func randomEvent(rng *rand.Rand, tr Train) TrainEvent {
 		return Built{Kept: kept, Conflicts: conflicts}
 	case tr.Phase == PhaseTesting || tr.Phase == PhaseBisecting:
 		return SuiteDone{Prefix: tr.Testing, Outcome: outcomes[rng.IntN(len(outcomes))]}
+	case tr.Phase == PhaseChecking:
+		return LandingChecksDone{Prefix: tr.Land, Passed: rng.IntN(4) != 0, Detail: "runner refused"}
 	case tr.Phase == PhaseLanding:
 		return []TrainEvent{CIDone{Green: true}, CIDone{Green: true}, CIDone{Detail: "red"}, MainMoved{}}[rng.IntN(4)]
 	case tr.Phase == PhaseReintegrating:
@@ -321,7 +333,7 @@ func TestTrainAbortReleasesEveryRidingCar(t *testing.T) {
 // From merging, an abort claims nothing it didn't observe: the merge may
 // have landed, so the train is unconfirmed and its PR stays for the reclaim.
 func TestTrainAbortWhileMergingIsUnconfirmed(t *testing.T) {
-	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, CIDone{Green: true}, MergeUnknown{})
+	merging, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass}, LandingChecksDone{Prefix: 2, Passed: true}, CIDone{Green: true}, MergeUnknown{})
 	tr, effects := drive(t, merging, Aborted{Reason: "probe failed"})
 	wantEffects(t, effects, Release{Seqs: []int64{1, 2}})
 	if tr.Phase != PhaseUnconfirmed || !tr.Phase.Terminal() {
@@ -351,5 +363,34 @@ func TestPlanNamesEveryTrainEventAndEffect(t *testing.T) {
 		if !strings.Contains(string(plan), "`"+m[1]) {
 			t.Errorf("atlas/workflow/sdlc-binary.md does not name train %s %s", strings.ToLower(m[2]), m[1])
 		}
+	}
+}
+
+func TestTrainLandingChecksGateEveryFinalPrefix(t *testing.T) {
+	tr, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2))
+	tr, effects := drive(t, tr, SuiteDone{Prefix: 2, Outcome: SuitePass})
+	if string(tr.Phase) != "checking" {
+		t.Fatalf("suite bypassed landing checks: %s", tr.Phase)
+	}
+	if len(effects) != 1 || reflect.TypeOf(effects[0]).Name() != "RunLandingChecks" {
+		t.Fatalf("effects %#v", effects)
+	}
+	if _, _, err := Transition(tr, CIDone{Green: true}); err == nil {
+		t.Fatal("CI accepted before landing checks")
+	}
+}
+
+func TestTrainLandingCheckCompletionAuthority(t *testing.T) {
+	checking, _ := drive(t, NewTrain(1), Boarded{Cars: cars(2)}, built(2), SuiteDone{Prefix: 2, Outcome: SuitePass})
+	for _, ev := range []TrainEvent{LandingChecksDone{Prefix: 1, Passed: true}, SuiteDone{Prefix: 2, Outcome: SuiteFail}, Merged{}} {
+		got, effects, err := Transition(checking, ev)
+		if err == nil || effects != nil || !reflect.DeepEqual(got, checking) {
+			t.Fatalf("accepted %T", ev)
+		}
+	}
+	refused, effects := drive(t, checking, LandingChecksDone{Prefix: 2, Detail: "vm exit37"})
+	wantEffects(t, effects, Refuse{Seqs: []int64{1, 2}, Reason: "the train's landing checks failed: vm exit37"}, ClosePR{})
+	if refused.Phase != PhaseRefused || refused.Splits != 0 {
+		t.Fatalf("check failure bisected %+v", refused)
 	}
 }

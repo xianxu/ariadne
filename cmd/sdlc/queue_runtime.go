@@ -146,3 +146,13 @@ func consumeQueueCancellation(ctx context.Context, q *queueRuntime, cancel conte
 	}()
 	return func() { stop(); <-done }
 }
+
+// abandon relinquishes our file descriptor without claiming completion. The
+// existing status/reconcile path retains an unknown operation, including while
+// the original process remains alive. Used only for unconfirmed child cleanup.
+func (q *queueRuntime) abandon() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	_ = q.lease.Close()
+	q.retired = true
+}

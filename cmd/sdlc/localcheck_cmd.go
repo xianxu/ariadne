@@ -39,9 +39,9 @@ func NewLocalCheckCmd() *cobra.Command {
 		},
 	}
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
-	run.Flags().BoolVar(&f.All, "all", false, "run every declared check, in declaration order")
+	run.Flags().BoolVar(&f.All, "all", false, "run every head-scoped check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
-	var cancelName string
+	var cancelName, cancelRun string
 	cancel := &cobra.Command{
 		Use:           "cancel",
 		Short:         "Stop this checkout's running local checks (never another slot's)",
@@ -49,10 +49,15 @@ func NewLocalCheckCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLocalCheckCancel(cmd.ErrOrStderr(), cancelName)
+			if cmd.Flags().Changed("run") && cancelRun == "" {
+				return errors.New("local-check cancel: --run requires a nonempty run ID")
+			}
+			return runLocalCheckCancel(cmd.ErrOrStderr(), cancelName, cancelRun)
 		},
 	}
-	cancel.Flags().StringVar(&cancelName, "name", "", "stop only this check (default: every check this checkout runs)")
+	cancel.Flags().StringVar(&cancelName, "name", "", "stop all this checkout's runs of this check (default: every check)")
+	cancel.Flags().StringVar(&cancelRun, "run", "", "stop exactly one leased run ID printed at run start (exclusive with --name)")
+	cancel.MarkFlagsMutuallyExclusive("name", "run")
 	var rp republishFlags
 	republish := &cobra.Command{
 		Use:           "republish",
@@ -76,7 +81,7 @@ const localCheckCancelWait = 2 * time.Minute
 
 // runLocalCheckCancel stops the runs this checkout started, found by their
 // leases (#400): never a process picked from the global process table.
-func runLocalCheckCancel(stderr io.Writer, name string) error {
+func runLocalCheckCancel(stderr io.Writer, name, runID string) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -88,7 +93,7 @@ func runLocalCheckCancel(stderr io.Writer, name string) error {
 	if err != nil {
 		return err
 	}
-	_, err = cancelLocalChecks(localCheckRunsDir(logDir), root, name, stderr, localCheckCancelWait)
+	_, err = cancelLocalChecks(localCheckRunsDir(logDir), root, name, runID, stderr, localCheckCancelWait)
 	return err
 }
 
@@ -109,7 +114,13 @@ func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCh
 		return nil, errors.New("local-check run: give --name (one or more) or --all")
 	}
 	if all {
-		return decl.Checks, nil
+		var out []localCheck
+		for _, c := range decl.Checks {
+			if c.RunScope != "landing" {
+				out = append(out, c)
+			}
+		}
+		return out, nil
 	}
 	var out []localCheck
 	for _, n := range names {
@@ -139,13 +150,18 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if out, err := git("fetch", "--quiet", "origin"); err != nil {
 		return fmt.Errorf("local-check run: git fetch origin: %w\n%s", err, out)
 	}
-	decl, err := readLocalChecks(git, "origin/main")
+	mainHead, err := git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return fmt.Errorf("local-check run: pin origin/main: %w", err)
+	}
+	mainHead = strings.TrimSpace(mainHead)
+	decl, err := readLocalChecks(git, mainHead)
 	if err != nil {
 		return err
 	}
 	// #332: the default suite is runnable by name, so `sdlc local-check run
 	// --name suite` is the close suite.
-	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
+	if decl, err = withDefaultSuiteContext(ctx, git, mainHead, decl); err != nil {
 		return err
 	}
 	if len(decl.Checks) == 0 {
@@ -165,7 +181,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	var affectedCfg affected.Config
 	if wantAffected {
-		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		cfg, ok, err := readAffectedConfig(git, mainHead)
 		if err != nil {
 			return err
 		}
@@ -179,6 +195,9 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
 	}
 	sha := strings.TrimSpace(out)
+	if err := validateManualLandingTarget(checks, sha, mainHead); err != nil {
+		return err
+	}
 	if tips, _ := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/"); strings.TrimSpace(tips) == "" {
 		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
 	}
@@ -203,7 +222,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		if !ok {
 			return fmt.Errorf("local-check run: %s needs a %s check to fall back on for a full selection", affectedCheckName, suiteCheckName)
 		}
-		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "origin/main"), affectedCfg, suite, sha)
+		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, mainHead, affectedCfg), affectedCfg, suite, sha)
 		if err != nil {
 			return err
 		}

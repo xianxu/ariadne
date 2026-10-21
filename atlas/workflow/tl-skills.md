@@ -36,7 +36,8 @@ mock refusal. The optional project summaries are defined by
 [`construct/datatype/project.md`](../../construct/datatype/project.md#optional-shaping-sections);
 the TL keeps detailed design and mock artifacts in the project folder.
 `cmd/tl-lead/shaping_help_test.go` checks the rendered procedure at both entry
-points, including step-local ownership, order and shipping boundary.
+points, including step-local ownership, order, the feedback-round/alternative
+version distinction, and shipping boundary.
 
 **Operator design review (ariadne#505).** STEWARDSHIP in `cmd/tl-lead/help.md`
 routes failure-sensitive workflow designs to the operator before code. It names

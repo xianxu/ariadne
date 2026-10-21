@@ -649,8 +649,15 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) (err error) {
 			die(stderr, err.Error())
 		}
 		root := gitx.Capture("rev-parse", "--show-toplevel")
-		localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: prNum, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)})
+		localDeps := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: prNum, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+		localRun := newLocalCheckRunner(localDeps)
 		if err := runCIGate(ctx, ghClient, repo, prNum, main, head, gitCall, localRun, f.NoCI, stderr); err != nil {
+			die(stderr, err.Error())
+		}
+		landingChecks := landingCheckOwner{}
+		if err := landingChecks.run(ctx, gitCall, main, head, []string{branchHead}, !f.NoCI, localRun, func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
+			return runLocalCheck(ctx, localDeps, c, sha)
+		}); err != nil {
 			die(stderr, err.Error())
 		}
 		if err := f.withLock(func() error {

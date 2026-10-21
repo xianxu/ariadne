@@ -47,8 +47,9 @@ const (
 
 // localCheckDecl is the parsed declaration.
 type localCheckDecl struct {
-	Version int          `json:"version"`
-	Checks  []localCheck `json:"checks"`
+	Version int                        `json:"version"`
+	Checks  []localCheck               `json:"checks"`
+	Extra   map[string]json.RawMessage `json:"-"`
 }
 
 // localCheck is one declared local check: an argv run at the repository root of
@@ -56,11 +57,15 @@ type localCheckDecl struct {
 // "workflow / job") it stands in for when that job never got a runner. Required
 // makes the recorded run mandatory whatever CI reports.
 type localCheck struct {
-	Name           string   `json:"name"`
-	Command        []string `json:"command"`
-	Substitutes    []string `json:"substitutes,omitempty"`
-	Required       bool     `json:"required,omitempty"`
-	TimeoutMinutes int      `json:"timeout_minutes,omitempty"`
+	RunScope       string                     `json:"scope,omitempty"`
+	Resource       string                     `json:"resource,omitempty"`
+	PathsFile      string                     `json:"paths_file,omitempty"`
+	Extra          map[string]json.RawMessage `json:"-"`
+	Name           string                     `json:"name"`
+	Command        []string                   `json:"command"`
+	Substitutes    []string                   `json:"substitutes,omitempty"`
+	Required       bool                       `json:"required,omitempty"`
+	TimeoutMinutes int                        `json:"timeout_minutes,omitempty"`
 	// Weight is how many machine-wide suite slots the run takes at once (#346,
 	// #332): ariadne's sharded suite takes 2 and runs alone. Default 1.
 	Weight int `json:"weight,omitempty"`
@@ -94,6 +99,24 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 	bad := func(format string, a ...any) (localCheckDecl, error) {
 		return localCheckDecl{}, fmt.Errorf("%s: "+format, append([]any{localChecksPath}, a...)...)
 	}
+	if isV2LocalChecks(data) {
+		return parseLocalChecksV2(data)
+	}
+	var legacy map[string]json.RawMessage
+	if err := json.Unmarshal(data, &legacy); err == nil {
+		var checks []map[string]json.RawMessage
+		if json.Unmarshal(legacy["checks"], &checks) == nil {
+			for _, c := range checks {
+				for _, k := range []string{"scope", "resource", "paths_file"} {
+					for key := range c {
+						if strings.EqualFold(key, k) {
+							return bad("unknown field %q in version 1", key)
+						}
+					}
+				}
+			}
+		}
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	var d localCheckDecl
@@ -106,9 +129,19 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 	if d.Version != 1 {
 		return bad("version %d, want 1", d.Version)
 	}
+	return validateLocalChecks(d)
+}
+
+func validateLocalChecks(d localCheckDecl) (localCheckDecl, error) {
+	bad := func(format string, a ...any) (localCheckDecl, error) {
+		return localCheckDecl{}, fmt.Errorf(localChecksPath+": "+format, a...)
+	}
 	names, labels := map[string]bool{}, map[string]string{}
 	for i := range d.Checks {
 		c := &d.Checks[i]
+		if d.Version == 1 && (c.RunScope != "" || c.Resource != "" || c.PathsFile != "") {
+			return bad("version 1 does not support landing fields")
+		}
 		if !localCheckName.MatchString(c.Name) {
 			return bad("check name %q must match %s", c.Name, localCheckName)
 		}
@@ -189,7 +222,9 @@ func effectiveLocalChecks(d localCheckDecl, hasMakeTest bool, weight int) localC
 		return d
 	}
 	out := d
-	out.Version = 1
+	if out.Version == 0 {
+		out.Version = 1
+	}
 	out.Checks = append(append([]localCheck(nil), d.Checks...), defaultSuiteCheck(weight))
 	return out
 }

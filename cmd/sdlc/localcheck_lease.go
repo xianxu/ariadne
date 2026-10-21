@@ -75,18 +75,18 @@ func canonicalRoot(root string) string {
 // holdRunLease publishes rec in dir, already locked: it is written and locked
 // under a temporary name that cancel ignores and only then renamed into place,
 // so no reader ever sees an unlocked lease of a live run. The release removes it.
-func holdRunLease(dir string, rec runLease) (func(), error) {
+func holdRunLease(dir string, rec runLease) (string, func(), error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	f, err := os.CreateTemp(dir, ".lease-*.tmp")
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	abandon := func(err error) (func(), error) {
+	abandon := func(err error) (string, func(), error) {
 		_ = os.Remove(f.Name())
 		_ = f.Close()
-		return nil, err
+		return "", nil, err
 	}
 	if err := flock.Exclusive(f, true); err != nil {
 		return abandon(err)
@@ -94,17 +94,57 @@ func holdRunLease(dir string, rec runLease) (func(), error) {
 	if err := json.NewEncoder(f).Encode(rec); err != nil {
 		return abandon(err)
 	}
-	final := filepath.Join(dir, strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f.Name()), "."), ".tmp")+".json")
+	id := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f.Name()), "."), ".tmp")
+	final := filepath.Join(dir, id+".json")
 	if err := os.Rename(f.Name(), final); err != nil {
 		return abandon(err)
 	}
 	var once sync.Once
-	return func() {
+	return id, func() {
 		once.Do(func() {
 			_ = os.Remove(final)
 			_ = f.Close()
 		})
 	}, nil
+}
+
+// openRunLease observes the existing lifetime lock without taking authority
+// from an unlocked record. Both notices and cancellation use this same reader.
+func openRunLease(p string) (*os.File, runLease, bool, error) {
+	var rec runLease
+	f, err := os.OpenFile(p, os.O_RDWR, 0)
+	if err != nil {
+		return nil, rec, false, err
+	}
+	lockErr := flock.Exclusive(f, true)
+	held := errors.Is(lockErr, syscall.EWOULDBLOCK)
+	if lockErr != nil && !held {
+		f.Close()
+		return nil, rec, false, lockErr
+	}
+	if err := json.NewDecoder(f).Decode(&rec); err != nil && held {
+		f.Close()
+		return nil, rec, false, err
+	}
+	return f, rec, held, nil
+}
+
+func noticeDuplicateRunLeases(dir, id string, current runLease, out io.Writer, read func(string) (*os.File, runLease, bool, error)) {
+	paths, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, p := range paths {
+		f, rec, held, err := read(p)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				fmt.Fprintf(out, "[!] lease %s: %v; duplicate check unavailable\n", p, err)
+			}
+			continue
+		}
+		f.Close()
+		if classifyRunLease(rec, held, current.Root, current.Check) == leaseTarget && rec.SHA != current.SHA {
+			existing := strings.TrimSuffix(filepath.Base(p), ".json")
+			fmt.Fprintf(out, "[!] local check %s run %s on %s also has existing run %s on %s; to replace it explicitly: sdlc local-check cancel --run %s\n", current.Check, id, abbrevSHA(current.SHA), existing, abbrevSHA(rec.SHA), existing)
+		}
+	}
 }
 
 // sweepStaleRunLeases removes the leases of runs that died without releasing
@@ -131,13 +171,19 @@ func sweepStaleRunLeases(dir string) {
 	}
 }
 
-// cancelLocalChecks stops this checkout's live runs (only the check named, when
-// name is set), sweeps leases whose run is gone, and waits up to wait for each
+// cancelLocalChecks selects one runID, one check name, or all this checkout's
+// live runs, sweeps leases whose run is gone, and waits up to wait for each
 // stopped run to release its lease. Another checkout's runs are never touched.
-func cancelLocalChecks(dir, root, name string, out io.Writer, wait time.Duration) (int, error) {
+func cancelLocalChecks(dir, root, name, runID string, out io.Writer, wait time.Duration) (int, error) {
+	if runID != "" && (strings.ContainsAny(runID, "/\\") || runID == "." || runID == "..") {
+		return 0, fmt.Errorf("local-check cancel: invalid run ID %q", runID)
+	}
 	root = canonicalRoot(root)
 	sweepStaleRunLeases(dir)
 	paths, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	if runID != "" {
+		paths = []string{filepath.Join(dir, runID+".json")}
+	}
 	type stopping struct {
 		f   *os.File
 		rec runLease
@@ -145,27 +191,28 @@ func cancelLocalChecks(dir, root, name string, out io.Writer, wait time.Duration
 	var stops []stopping
 	foreign := 0
 	for _, p := range paths {
-		f, err := os.OpenFile(p, os.O_RDWR, 0)
+		f, rec, held, err := openRunLease(p)
 		if err != nil {
-			continue // released meanwhile
-		}
-		lockErr := flock.Exclusive(f, true)
-		held := errors.Is(lockErr, syscall.EWOULDBLOCK)
-		if lockErr != nil && !held {
-			fmt.Fprintf(out, "[!] lease %s: %v; left alone\n", p, lockErr)
-			_ = f.Close()
-			continue
-		}
-		var rec runLease
-		if err := json.NewDecoder(f).Decode(&rec); err != nil && held {
-			fmt.Fprintf(out, "[!] lease %s is unreadable but held by a live run; left alone\n", p)
-			_ = f.Close()
+			if runID != "" {
+				return 0, fmt.Errorf("local-check cancel: run %q unavailable: %w", runID, err)
+			}
+			if !errors.Is(err, os.ErrNotExist) {
+				fmt.Fprintf(out, "[!] lease %s: %v; left alone\n", p, err)
+			}
 			continue
 		}
 		switch classifyRunLease(rec, held, root, name) {
 		case leaseStale:
+			if runID != "" {
+				f.Close()
+				return 0, fmt.Errorf("local-check cancel: run %q is no longer live", runID)
+			}
 			_ = os.Remove(p)
 		case leaseForeign:
+			if runID != "" {
+				f.Close()
+				return 0, fmt.Errorf("local-check cancel: run %q belongs to another checkout: %s", runID, rec.Root)
+			}
 			foreign++
 		case leaseTarget:
 			if rec.PID <= 1 { // 0 and -1 would signal a group or every process

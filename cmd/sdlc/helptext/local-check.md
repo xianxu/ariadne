@@ -30,13 +30,57 @@ DECLARATION (.sdlc/local-checks.json, read from origin/main)
   known_flakes     the suite only: rerun (default) | accept | off, what a
                    failure only known flakes explain does (#394, below)
 
-  Unknown fields, another version, or a malformed entry make the declaration
-  invalid, and `sdlc merge` refuses until main's copy is fixed.
+  Version1 rejects unknown fields; version2 preserves unknown metadata while
+  keeping known fields, required members and duplicate keys strict. Unsupported
+  versions or malformed entries refuse until main's declaration is fixed.
+
+LANDING CHECKS (#509)
+
+  Version2 adds scope: head|landing, resource: suite|runner, and an optional
+  paths_file referencing a tracked main blob of this shape:
+
+    {"version":1,"paths":["src/**","!src/docs/**"]}
+
+  Includes/exclusions are ordered, last match wins. A landing entry explicitly
+  names required and resource; a runner entry cannot declare weight or
+  substitutes. For example, after the capable binary is deployed:
+
+    {"version":2,"checks":[
+      {"name":"conformance-vm","command":["make","conformance-vm"],
+       "scope":"landing","required":false,"resource":"runner",
+       "paths_file":"tests/conformance-paths.json","timeout_minutes":30}]}
+
+  required:false is manual-only burn-in: name it explicitly, on pinned main.
+  --all excludes landing checks. Once required:true, the automatic gate selects
+  from the union of the actual prefix's admitted car paths; later reverts do
+  not erase triggers. It runs once after the passing final-prefix suite, before
+  CI/merge on a train, and after per-head CI/suite on both single-landing paths.
+  Car readiness never demands these checks, but observed red statuses still
+  block. --no-ci waives server CI only: selected landing checks still require
+  a real declared/default passing suite. No suite means refusal.
+
+  resource:runner skips suite allocation/helper discovery and clears inherited
+  WF_TEST_LOCK_HELD_BY; its external executable owns its resource. Managed queue
+  admission, exact-head checkout, logs, attempts and cancellation still apply.
+  Cancellation grants the owned process group 30s even after its leader exits,
+  then escalates and verifies completion. An unknown ending retains checkout,
+  scratch and raw log under the Git worktree lock; repair requires operator
+  proof of descendant absence, queue reconciliation, linked scratch/log removal,
+  then worktree unlock/removal. Runner launch refuses without an attempt writer.
+
+  Gate proof belongs to this landing invocation and binds head, main policy and
+  included cars. A manual/saved green status alone cannot satisfy it. Code or
+  policy/car changes invalidate proof; docs reuse additionally requires no new
+  path watched by the selected check. Original exact-head status stays original.
+  Check failure, timeout or unverifiable evidence blocks without a VM retry,
+  baseline or suite split. Repair and explicitly rerun landing; status-post
+  recovery republishes the saved result without rerunning the command.
+  Consumer activation and hosted workflow changes remain separate operator gates.
 
 WHAT A RUN DOES
 
   1. Prints the command, its worktree and its log path.
-  2. Takes one of the machine-wide full-suite slots (scripts/test-lock.py,
+  2. For the default resource, takes one of the machine-wide full-suite slots (scripts/test-lock.py,
      the cap `make test` shares; WF_TEST_SUITES, WF_TEST_LOCK_TIMEOUT). It
      refuses rather than run unbounded when the lock helper cannot be found.
      The run's checkout (sdlc-local-*) goes to /Volumes/TestScratch/local-checks
@@ -184,9 +228,9 @@ REPUBLISH (#431)
   never stands in). Under merge the post's retry holds the landing turn, which
   still beats a rerun.
 
-CANCEL (#400)
+CANCEL (#400, #510)
 
-  `sdlc local-check cancel [--name N]` stops the runs started from this
+  `sdlc local-check cancel [--run ID | --name N]` stops the runs started from this
   checkout, and only those, whether queued or running: every run holds a lease
   (<git common dir>/sdlc/local-check-runs/) naming its checkout, locked for the
   run's queue and check. Cancel sends SIGTERM to the run itself, which stops
@@ -195,6 +239,12 @@ CANCEL (#400)
   process start time no longer matches is not signalled, and leases of dead
   runs are swept. Never stop a check by a PID picked from `ps`: every slot's
   suite looks the same there.
+
+  Every leased run prints its ID. `cancel --run ID` stops exactly that owned run;
+  foreign, invalid or inactive IDs refuse. `--run` and `--name` are exclusive.
+  `--name N` stops all this checkout's runs of N; omitting both stops all checks.
+  A second same-check run on another head names the existing ID/head and offers
+  its exact cancel command. Both keep their FIFO places until explicitly cancelled.
 
 HOW MERGE USES IT
 
@@ -209,6 +259,7 @@ HOW MERGE USES IT
 USAGE
 
   sdlc local-check run --name zellij        # one check on HEAD
-  sdlc local-check run --all --rev <sha>    # every check on a pushed commit
-  sdlc local-check cancel                   # stop this checkout's runs
+  sdlc local-check run --all --rev <sha>    # every head-scoped check on a pushed commit
+  sdlc local-check cancel --run <lease-id>  # stop one owned run, retaining siblings
+  sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result

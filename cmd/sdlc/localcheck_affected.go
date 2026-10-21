@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -33,11 +36,22 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		// evidence nothing ran for (#473 M1 BR-2).
 		return localRunRecord{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
 	}
+	if cfg.GraphPrepare != nil {
+		// The generator precedes runUnderSlot's signal owner. Keep its
+		// cancellation alive through graph cleanup, fallback and publication.
+		var stop func()
+		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+	}
 	// The graph is loaded even for a docs-only diff: a package may embed or
 	// test against a doc, and only the graph knows (close review).
+	g, graphErr := ad.graph(ctx, sha)
+	if err := ctx.Err(); err != nil {
+		return localRunRecord{}, fmt.Errorf("local check %s: graph interrupted: %w", affectedCheckName, err)
+	}
 	var sel affected.Selection
-	if g, err := ad.graph(ctx, sha); err != nil {
-		sel = affected.Selection{Full: true, Reason: "package graph unavailable: " + err.Error()}
+	if graphErr != nil {
+		sel = affected.Selection{Full: true, Reason: "package graph unavailable: " + graphErr.Error()}
 	} else {
 		sel = affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
 	}
@@ -93,7 +107,7 @@ func affectedScope(sel affected.Selection) string {
 // productionAffectedDeps diffs the head against its merge-base with base and
 // loads the package graph from a detached worktree of the head, released
 // before the run makes its own.
-func productionAffectedDeps(d localRunDeps, base string) affectedDeps {
+func productionAffectedDeps(d localRunDeps, base string, cfg affected.Config) affectedDeps {
 	cleanupGit := d.CleanupGit
 	if cleanupGit == nil {
 		cleanupGit = d.Git
@@ -122,6 +136,9 @@ func productionAffectedDeps(d localRunDeps, base string) affectedDeps {
 				return affected.Graph{}, err
 			}
 			defer cleanup()
+			if err := prepareAffectedGraph(ctx, d, wt, cfg.GraphPrepare); err != nil {
+				return affected.Graph{}, err
+			}
 			return affected.LoadGoGraph(ctx, wt)
 		},
 		run: func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {

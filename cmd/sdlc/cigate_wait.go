@@ -43,7 +43,7 @@ func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string,
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w", err)
 	}
-	return &ciGateFacts{decl: decl, hasWorkflows: hasWF, required: required}, nil
+	return &ciGateFacts{decl: headLocalChecks(decl), hasWorkflows: hasWF, required: required}, nil
 }
 
 const ciWaitLimit = 20 * time.Minute
