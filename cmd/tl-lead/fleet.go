@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,7 +48,8 @@ func orDuration(d, def time.Duration) time.Duration {
 // Couch's cost classes: --resume-candidates takes seconds, --resume is heavy.
 const (
 	candidatesTimeout = time.Minute
-	resumeTimeout     = 3 * time.Minute
+	// Couch polls receipts for five minutes; allow admission and process teardown.
+	resumeTimeout = 6 * time.Minute
 )
 
 func (c execResume) Candidates(addr string) (ResumeCandidates, error) {
@@ -84,27 +84,6 @@ func decodeCandidates(raw []byte) (ResumeCandidates, error) {
 	return ResumeCandidates{Proven: in.Proven != nil && in.Proven.NativeID != "", Incomplete: in.Incomplete, Reasons: in.Reasons}, nil
 }
 
-func (c execResume) Resume(addr string) error {
-	limit := orDuration(c.resume, resumeTimeout)
-	ctx, cancel := context.WithTimeout(context.Background(), limit)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, c.bin, "--resume", addr)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	switch {
-	case ctx.Err() != nil:
-		return fmt.Errorf("%w: no answer within %s", errUncertain, limit)
-	case err != nil:
-		var ee *exec.ExitError
-		if !errors.As(err, &ee) {
-			return fmt.Errorf("did not run: %v", err) // couch missing, say: nothing was attempted
-		}
-		return fmt.Errorf("refused (%v): %s", err, orNone(strings.TrimSpace(stderr.String())))
-	}
-	return nil
-}
-
 // slotClass is what fleet resume makes of one slot.
 type slotClass int
 
@@ -115,9 +94,10 @@ const (
 	classAmbiguous                   // needs the operator: never guessed
 	classUnknown                     // a read failed: never treated as down
 	classCandidates                  // down with work: its candidates decide (planner-internal)
+	classExcluded                    // visible with --all, never a mutation candidate
 )
 
-var classNames = map[slotClass]string{classRunning: "running", classIdle: "idle", classResume: "resume", classAmbiguous: "ambiguous", classUnknown: "unknown"}
+var classNames = map[slotClass]string{classRunning: "running", classIdle: "idle", classResume: "resume", classAmbiguous: "ambiguous", classUnknown: "unknown", classExcluded: "excluded"}
 
 type resumeRow struct {
 	Addr  string
@@ -128,8 +108,8 @@ type resumeRow struct {
 // resumeInputs is everything planResume reads, already fetched. Each
 // slot's claims come from the inventory (FleetSlot.Claims).
 type resumeInputs struct {
-	Self      string
-	Hubs      []hub
+	Scope     hubScope
+	All       bool
 	Slots     []FleetSlot
 	Actors    map[string]Actor
 	ActorsErr error
@@ -140,30 +120,45 @@ type resumeInputs struct {
 // command line; a failed read makes the affected slots unknown. Slots of
 // other hubs are counted, not listed. Down slots with work come back as
 // classCandidates: finishResume decides them once their candidates are read.
-func planResume(in resumeInputs) (rows []resumeRow, others int) {
+func planResume(in resumeInputs) (rows []resumeRow, others, unclaimed int) {
 	for _, sl := range in.Slots {
 		addr := sl.Address
-		if sl.Repo == in.Self && sl.Slot == 0 {
-			continue // this hub itself
+		if sl.Repo == in.Scope.self && sl.Slot == 0 {
+			if in.All {
+				rows = append(rows, resumeRow{addr, classExcluded, "this hub"})
+			}
+			continue
 		}
-		own := ownerOf(sl.Repo, sl.Slot, in.Hubs)
-		if who, ok := own.sole(); !ok {
+		own := in.Scope.owner(sl)
+		if who, sole := own.sole(); !sole {
 			why := "unclaimed: Couch gives it to the first hub on its command line"
 			if !own.Unclaimed {
 				why = "claimed by " + strings.Join(own.Owners, " and ") + ": the first on Couch's command line owns it"
 			}
-			if own.Unclaimed || containsStr(own.Owners, in.Self) {
+			switch {
+			case own.Unclaimed:
+				unclaimed++
+				if in.All {
+					rows = append(rows, resumeRow{addr, classAmbiguous, why})
+				}
+			case containsStr(own.Owners, in.Scope.self):
 				rows = append(rows, resumeRow{addr, classAmbiguous, why})
-			} else {
+			default:
 				others++
+				if in.All {
+					rows = append(rows, resumeRow{addr, classExcluded, why})
+				}
 			}
 			continue
-		} else if who != in.Self {
+		} else if who != in.Scope.self {
 			others++
+			if in.All {
+				rows = append(rows, resumeRow{addr, classExcluded, "belongs to " + who})
+			}
 			continue
 		}
 		if in.ActorsErr != nil {
-			rows = append(rows, resumeRow{addr, classUnknown, "couch --actors unreadable: " + in.ActorsErr.Error()})
+			rows = append(rows, resumeRow{addr, classUnknown, ""})
 			continue
 		}
 		if _, live := in.Actors[addr]; live {
@@ -174,14 +169,13 @@ func planResume(in resumeInputs) (rows []resumeRow, others int) {
 			rows = append(rows, resumeRow{addr, classUnknown, "claims unreadable: " + sl.ClaimsWhy})
 			continue
 		}
-		work := sl.Claims
-		if len(work) == 0 {
+		if len(sl.Claims) == 0 {
 			rows = append(rows, resumeRow{addr, classIdle, ""})
 			continue
 		}
-		rows = append(rows, resumeRow{addr, classCandidates, strings.Join(work, ", ")})
+		rows = append(rows, resumeRow{addr, classCandidates, strings.Join(sl.Claims, ", ")})
 	}
-	return rows, others
+	return rows, others, unclaimed
 }
 
 // finishResume decides a down slot with work from its candidates read.
@@ -210,25 +204,24 @@ func containsStr(xs []string, x string) bool {
 const invisibleLayers = "note: Couch runtime moves (couch --move-slot since Couch started) are not visible here; a moved slot is classed by .hub"
 
 // fleetResume reads, plans, prints, and with apply resumes the resume class
-// one slot at a time, reporting each outcome. A refusal never stops the rest;
-// an uncertain outcome is reported, never retried: peek, then rerun (a slot
-// already resumed is running and skipped).
-func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
-	self, workspace, err := hereHub(cwd)
+// one slot at a time. Every unsuccessful outcome stops the batch; uncertainty
+// permits only read-only inspection, never an automatic mutation retry.
+func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool) error {
+	all := len(allFlags) > 0 && allFlags[0]
+	scope, err := readHubScope(cwd)
 	if err != nil {
 		return err
 	}
-	hubs, err := readHubs(workspace)
-	if err != nil {
-		return err
+	if !scope.enabled {
+		return fmt.Errorf("no .hub at repository root: run from a team's ops repo")
 	}
 	fleet, err := d.sdlc.FleetInventory(cwd)
 	if err != nil {
 		return err
 	}
-	in := resumeInputs{Self: self, Hubs: hubs, Slots: fleet.Slots}
+	in := resumeInputs{Scope: scope, All: all, Slots: fleet.Slots}
 	in.Actors, in.ActorsErr = d.actors.Actors()
-	rows, others := planResume(in)
+	rows, others, unclaimed := planResume(in)
 	for i, r := range rows {
 		if r.Class == classCandidates {
 			c, err := d.resume.Candidates(r.Addr)
@@ -236,7 +229,10 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
 		}
 	}
 	fmt.Fprintln(out, invisibleLayers)
-	for _, cl := range []slotClass{classResume, classAmbiguous, classUnknown, classRunning, classIdle} {
+	if in.ActorsErr != nil {
+		fmt.Fprintf(out, "couch --actors unreadable: %v; run tl-lead as a bare call if sandbox exclusions apply\n", in.ActorsErr)
+	}
+	for _, cl := range []slotClass{classResume, classAmbiguous, classUnknown, classRunning, classIdle, classExcluded} {
 		for _, r := range rows {
 			if r.Class == cl {
 				fmt.Fprintf(out, "%-9s %s  %s\n", classNames[cl], r.Addr, r.Why)
@@ -245,6 +241,9 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
 	}
 	if others > 0 {
 		fmt.Fprintf(out, "(%d slot(s) belong to other hubs)\n", others)
+	}
+	if unclaimed > 0 && !all {
+		fmt.Fprintf(out, "(%d unclaimed slot(s); --all to list)\n", unclaimed)
 	}
 	if !apply {
 		fmt.Fprintln(out, "dry run: --apply resumes the resume class, one slot at a time")
@@ -257,16 +256,32 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool) error {
 		}
 	}
 	fmt.Fprintf(out, "resuming %s\n", orNone(strings.Join(todo, ", ")))
-	for _, addr := range todo {
-		switch err := d.resume.Resume(addr); {
-		case err == nil:
+	for i, addr := range todo {
+		fmt.Fprintf(out, "resuming  %s; waiting for Couch's terminal receipt\n", addr)
+		err := d.resume.Resume(addr)
+		if err == nil {
 			fmt.Fprintf(out, "resumed   %s\n", addr)
-		case errors.Is(err, errUncertain):
-			fmt.Fprintf(out, "uncertain %s: %v; peek the slot before rerunning\n", addr, err)
-		default:
+			continue
+		}
+		fmt.Fprintf(out, "stopped at %s; not attempted: %s\n", addr, orNone(strings.Join(todo[i+1:], ", ")))
+		if errors.Is(err, errUncertain) {
+			fmt.Fprintf(out, "uncertain %s: %v\n", addr, err)
+			fmt.Fprintf(out, "inspect the request with couch --operation-status ID (from the diagnostics) and couch --peek %s before a manual resume or switcher action\n", addr)
+			actors, aerr := readActors(d.actors)
+			switch {
+			case aerr != nil:
+				fmt.Fprintf(out, "observation unavailable: %v\n", aerr)
+			case actors[addr].Agent != "":
+				fmt.Fprintf(out, "observed %s running; operation outcome remains uncertain\n", addr)
+			default:
+				fmt.Fprintf(out, "observed no actor at %s; operation outcome remains uncertain\n", addr)
+			}
+		} else {
 			fmt.Fprintf(out, "refused   %s: %v\n", addr, err)
 		}
+		return fmt.Errorf("fleet resume stopped at %s: %w", addr, err)
 	}
+
 	return nil
 }
 
@@ -275,9 +290,9 @@ func newFleetCmd(d deps) *cobra.Command {
 		Use:   "fleet",
 		Short: "The slots this hub owns",
 	}
-	var apply bool
+	var apply, all bool
 	resume := &cobra.Command{
-		Use:   "resume [--apply]",
+		Use:   "resume [--apply] [--all]",
 		Short: "Resume this hub's down slots that have work in flight (only when the operator asks; never at startup)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -285,10 +300,11 @@ func newFleetCmd(d deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return fleetResume(cmd.OutOrStdout(), d, cwd, apply)
+			return fleetResume(cmd.OutOrStdout(), d, cwd, apply, all)
 		},
 	}
 	resume.Flags().BoolVar(&apply, "apply", false, "resume the resume class, one slot at a time (default: a dry run)")
+	resume.Flags().BoolVar(&all, "all", false, "show every slot; never expand automatic resume authority")
 	fleet.AddCommand(resume)
 	return fleet
 }

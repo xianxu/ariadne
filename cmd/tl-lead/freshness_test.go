@@ -219,6 +219,55 @@ func TestGitNewestLanding(t *testing.T) {
 			t.Errorf("stale diagnostic lacks %q: %s", want, out)
 		}
 	}
+	// A second hub's newer landing must not stale this hub's status. An exact
+	// slot claim still explicitly includes that repository's merge history.
+	for name, claims := range map[string]string{"ops": "ariadne:7\n", "ops-other": "pair\n"} {
+		dir := filepath.Join(parent, name)
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".hub"), []byte(claims), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err = gitNewestLanding(file)
+	if err != nil || got.Repo != "ariadne" || got.At.Unix() != 1000 {
+		t.Fatalf("scoped landing=%+v err=%v; want ariadne at1000", got, err)
+	}
+	f.sections["Slots"] = "_updated " + time.Unix(1500, 0).Format("2006-01-02 15:04") + "_\n\nbody"
+	out, err = run(t, deps{ss: f, now: func() time.Time { return time.Unix(2001, 0) }, landing: gitNewestLanding}, "status", "check", file)
+	if err != nil || out != "fresh: every budgeted section\n" {
+		t.Fatalf("unrelated merge staled own hub: %q %v", out, err)
+	}
+	for _, name := range []string{"nested/own", "nested/foreign"} {
+		_, commit := makeRepo(name, "workshop/issues")
+		root := commit(100, "root")
+		main := commit(200, "main", root)
+		branch := commit(300, "issue", root)
+		at := int64(4000)
+		if name == "nested/foreign" {
+			at = 5000
+		}
+		commit(at, "land nested issue", main, branch)
+	}
+	if err := os.WriteFile(filepath.Join(parent, "ops", ".hub"), []byte("nested/own:4\nnested/own\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(parent, "ops-other", ".hub"), []byte("nested/foreign\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err = gitNewestLanding(file)
+	if err != nil || got.Repo != "nested/own" || got.At.Unix() != 4000 {
+		t.Fatalf("nested claimed landing=%+v err=%v; want nested/own4000", got, err)
+	}
+
+	if err := os.WriteFile(filepath.Join(parent, "ops-other", ".hub"), []byte("../bad"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := gitNewestLanding(file); err == nil {
+		t.Fatal("malformed peer ownership silently widened freshness")
+	}
+
 }
 
 // A landing in the same minute as the stamp is not newer (the stamp has
