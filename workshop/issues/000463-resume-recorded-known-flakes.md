@@ -72,7 +72,7 @@ or a republished failure as a recorded passing suite.
 - [x] M1 — Immutable resume link, pure proof/reconciliation model, parent-lifetime lock and bundle retention; reuse #524's evidence snapshot and exact-package batch.
 M2 — Explicit resume/reconcile commands and delivery — **superseded, never closed**, by the operator's option A decision (TL receipt 390faec8-dc49-498e-9ad5-2c1a718c2c37). Its REWORK evidence and open BR-3 remain historical review evidence; no SHIP or completed milestone is claimed.
 
-- [ ] M3 — Option A: one live-owner cleanup pass; needs-reconcile preserves remaining inputs; reconcile only terminalizes and retains; interrupted/receipt GC is permanently pinned; reverify CLI/readers and deliver through fresh gates.
+- [x] M3 — Option A: one live-owner cleanup pass; needs-reconcile preserves remaining inputs; reconcile only terminalizes and retains; interrupted/receipt GC is permanently pinned; reverify CLI/readers and deliver through fresh gates.
 
 Durable proposal: [resume known flakes plan](../plans/000463-resume-known-flakes-plan.md). Await hub approval before change-code or implementation; close/PR/landing remain mandatory after the implementation boundaries.
 
@@ -107,6 +107,7 @@ The classified intermittent provider failure itself belongs to ariadne#462;
 this issue owns only recovery of already-recorded failed attempts.
 
 ### 2026-10-21 — Resume planning after #522
+- 2026-10-21: closed M3 — Option A private CLI completion/reconcile and managed batch 55.904s; dedicated crash windows 62.396s; all-Resume race 27.860s. BR-4 scratch regression RED then GREEN; ten cleanup boundaries use shared ctx/authority helper; incident Go lint rejects raw effects and bypasses. Go/shell lint pass; fresh recorded suite queued on final code. No stage per TL.; review verdict: SHIP
 - 2026-10-21: closed M1 — BR-1/BR-2 reproduced then fixed: actual receipt publication preserves raw unknown JSON and duplicate refuses; killed publisher staging retained while active and reclaimed after death. Broader M1+legacy tests 1.872s; ResumeStore race 5.410s; Go lint .709s and shell lint .335s; diff clean, atlas updated.; review verdict: SHIP
 
 Authenticated dispatch dff45850-dd79-4197-8aa4-5089515c4de7 prioritizes this recovery after #522, with the plan going to the hub before code. Claimed and start-plan created this independent branch from fresh main. #520 remains held on its separate branch. Read the current knownFlakeStep, saved-attempt/republish/pass guard, immutable attempt writer, bounded store, queue/cancellation and flakes classifier/evidence contracts. No implementation or tests run.

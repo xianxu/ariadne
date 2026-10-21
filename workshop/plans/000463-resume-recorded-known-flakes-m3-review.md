@@ -155,3 +155,81 @@ dispose:
    Append a `## Revisions` entry extending BR-4’s cleanup-effect enumeration to the managed scratch defer, removal, and parent sync. The existing eight-effect walk covers environment retirement only; the revision should name the additional cancellation tests required to establish the stated whole-cleanup invariant.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"af80218f-368a-48ca-b565-62687084457e","repository":"github.com/xianxu/ariadne","issue_id":"000463","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b25a641a97115e7e","reviewed_head":"50eb405fa5c20b4eb767843e98de26ace9bd1e0d","slot":"ariadne:3","requested_at":"2026-10-21T20:05:07.386004Z"},"phase":"finished","pid":30959,"started_at":"2026-10-21T20:05:07.479092Z","finished_at":"2026-10-21T20:08:44.119471Z","session_id":"01a16011-4824-7a53-93a0-e7135d1e88fb","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T13:22:22-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 463 — local-check: resume recorded known-flake failures with targeted tests |
+| repo | ariadne |
+| issue file | workshop/issues/000463-resume-recorded-known-flakes.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 1902b643cb56a439f164c7e55b1bcbc50910bb3d..46254a14bdc5a60c514b2a83a12ec7799072892c |
+| command | sdlc milestone-close --issue 463 --milestone M3 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T13:22:22-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range satisfies M3’s one-pass cleanup, evidence-only reconciliation, and permanent interrupted-evidence retention contract. BR-4 is addressed across environment and managed scratch cleanup, with regression tests confirmed to fail when cancellation enforcement is removed. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      localcheck_resume.go:306 centralizes cancellation and authorization checks around each cleanup effect; localcheck_run.go:465 passes the original caller context into scratch retirement. Environment and scratch cancellation-boundary tests pass at the pinned head. Disposable negative controls failed on subsequent syncs and owner-marker deletion when cancellation enforcement was removed. Both disposable copies were removed.
+```
+
+1. **Strengths**
+
+   - Cleanup shares one authority boundary across scratch removal/sync, checkout removal/sync, registration retirement, and marker release: `cmd/sdlc/localcheck_resume.go:306`.
+   - Reconciliation publishes or returns interruption evidence without invoking cleanup: `cmd/sdlc/localcheck_resume.go:216`. Private CLI tests verify repeated reconciliation preserves surviving inputs.
+   - Saved reuse, republish, and status retries resolve current linked proof; pending or invalid evidence cannot be bypassed by a later green attempt.
+   - README, embedded help, and atlas document the commands, indefinite retention cost, and absence of cleanup retry.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - Resume-related tests and cleanup lint tests.
+   - Focused saved-proof, republish, known-flake, and pass-guard checks.
+   - Private production CLI conformance, crash windows, and first-pass cleanup failure tests.
+   - `go test ./cmd/sdlc -run '^TestResume' -count=1 -race -timeout=5m`.
+   - Pinned-range `git diff --check`.
+
+   Negative controls demonstrated failures for both environment and scratch cancellation regressions. The reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** one cleanup-effect helper and shared proof resolver.
+   - **ARCH-PURE — pass:** proof, transition, and retention indexing remain pure; filesystem and process effects stay in integration code.
+   - **ARCH-PURPOSE — pass:** the BR-4 sweep covers both cleanup callers; proof consumers consistently enforce linked authority.
+   - **ARCH-MOCK — pass:** existing dependency seams, stateful tracker/GH fixtures, and private real Git/process tests are reused.
+   - **ARCH-CONSTRAINTS — pass:** bounded evidence reads, one managed batch, aggregate timeout, and linear indexing remain intact.
+   - **ARCH-SECURE — pass:** digest, repository, owner-incarnation, path, and reverse-pointer checks precede destructive authority.
+   - **ARCH-ORDER — pass:** cancellation stops subsequent effects; uncertain execution remains fenced against retry or success.
+   - **ARCH-FUNERAL — pass:** pending/interrupted graphs and receipts remain pinned under the explicit operator-selected retention policy.
+   - **ARCH-EVOLVE — pass:** immutable raw evidence preserves unknown fields; this range adds no lossy rewrite.
+
+   The active M3 entity tables match the implementation, including deletion of receipt-authorized cleanup.
+
+7. **Plan revision recommendations:** None. The existing BR-4 revisions describe the implemented cleanup-wide rule and regression enumeration.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"284dbc37-2341-49e6-ae61-9ac9bce77d51","repository":"github.com/xianxu/ariadne","issue_id":"000463","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/a5ab87ec4199e713","reviewed_head":"46254a14bdc5a60c514b2a83a12ec7799072892c","slot":"ariadne:3","requested_at":"2026-10-21T20:17:13.864311Z"},"phase":"finished","pid":17198,"started_at":"2026-10-21T20:17:14.017203Z","finished_at":"2026-10-21T20:22:22.065596Z","session_id":"01a1601c-5ea8-7423-8be2-c14545249c09","outcome":"returned"}] -->
