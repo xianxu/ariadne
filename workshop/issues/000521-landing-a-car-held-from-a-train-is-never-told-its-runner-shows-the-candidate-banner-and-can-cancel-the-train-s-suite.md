@@ -67,8 +67,8 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 ## Plan
 
-- [ ] Get hub approval of abort/release tradeoff; reproduce held-conductor output/suite ownership with controlled real train fixtures.
-- [ ] Correct candidate/composed membership output, prompt held outcome and pre-publish self-held guard; verify survivor reformation and cancellation ownership.
+- [x] Get hub approval of abort/release tradeoff; reproduce held-conductor output/suite ownership with controlled real train fixtures.
+- [x] Correct candidate/composed membership output, prompt held outcome and pre-publish self-held guard; verify survivor reformation and cancellation ownership.
 - [ ] Run focused controls and recorded full suite, then prepare close verification.
 
 ## Log
@@ -79,6 +79,12 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 - 2026-10-21: Claimed/start-plan from main after #516 landed. Read-only diagnosis: conductTrain checks selfEnd only after effect queue drains; Built emits Hold then Publish/RunSuite, and settle(self) records without printing. Existing checkout-owned suite lease therefore remains cancellable from the excluded conductor’s checkout. Proposal sent to hub before implementation; no code changed yet.
 
 - Hub approved abort-before-Publish and release/reformation (e4cc5d1b-712b-4e96-8d77-6b9e5d5ae408). No stage; next natural pair conflict is hub’s live follow-up. Tests must force a real conflict, survivor reformation and foreign-cancel refusal. #522 reassigned to ariadne:3; after #521 report and await next dispatch.
+
+- TDD: old runtime published and merged the clean siblings after its own first car and a later third car conflicted; its waiter output omitted held/recovery and its human summary counted excluded cars. held-red.log retains the expected failures. The first green attempt correctly stopped publishing but exposed a fixture assertion omitting status history from a rewritten third branch; snapshotting the actual existing history corrected the measurement, without changing the runtime policy. That failed attempt is retained as held-green-attempt1-fixture-measurement.log.
+- Corrected runtime guards Publish after all Hold effects, reuses one held-recovery formatter for own and waiting cars, and distinguishes candidate/composed banners with one membership formatter. Terminal human summaries count retained membership; persisted candidate event history remains unchanged. No lease fields or cancellation code changed: excluded conductor never creates a sibling suite.
+- Real forced-conflict proof: first/third held, second/fourth released; no train PR/merge/suite from held conductor; both survivors reform under prepared second checkout, whose live suite lease names that new checkout. Actual cancelLocalChecks from held checkout stops zero runs and says the foreign checkout’s run remains running; release of the blocked suite lets both survivors merge while held PRs remain OPEN. All regression and existing archive/clock/multi-car/split/conflict/environment/malformed controls PASS141.821s; pure all-conflict/Aborted/random-state controls PASS0.156s. Membership tests at8/16 cars, both labels, render each car once with at mostN+2 writes. Raw evidence common test-stats/evidence/000521/{held-red.log,held-green.log,held-green-controls.log,held-state-controls.log}. Main’s independent native-cancel/lint checks and required recorded suite remain next.
+
+- Main independently reran held-conductor/reformation/actual-foreign-cancel, held-waiter recovery and the native checkout-ownership cancellation control: PASS256.650s. Native control itself PASS240.56s, with its existing cleanup consuming each child completion channel twice and waiting HangCeiling twice after successful assertions; this independent test-cost discovery is being filed separately, not changed here. Full pkg/golint PASS0.914s; staged diff whitespace clean.
 
 ## Revisions
 

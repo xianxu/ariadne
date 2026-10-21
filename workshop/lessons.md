@@ -1233,3 +1233,9 @@ The simplest durable authority beats a clever scan of consequences.
 - #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
 
 - #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
+
+- #521 fixture: when asserting that an action creates no new external records,
+  snapshot the fake’s history before the action. Rewriting a branch does not
+  remove status records on its previous head; a list of current heads is not
+  the pre-existing history. The real conflict/reformation test retains those
+  records while checking that a held conductor creates no train PR or suite.

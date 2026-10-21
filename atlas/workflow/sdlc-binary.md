@@ -474,6 +474,13 @@ trains on:
   to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
+- Candidate and composed membership have distinct banners (#521); the terminal
+  summary counts retained cars. Held outcomes print their reason and exact branch
+  recovery in the owning runner (`reportTrainHeld`). If the conductor’s own car
+  is held, the Publish boundary stops it after all composition holds are delivered;
+  existing Aborted cleanup releases survivors to reform. No sibling suite runs
+  under the excluded checkout’s lifetime lease. A reformed suite belongs to its
+  new conductor’s checkout, so foreign local-check cancellation leaves it alive.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness
   codec, boarding), `trainstate.go` (the running train's state machine) and
   `bisect.go` (splitting a failing train).
