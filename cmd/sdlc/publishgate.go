@@ -88,6 +88,9 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		if err != nil {
 			return err
 		}
+		if err := refuseReopenedCompletions(env, rs, "HEAD", baseRef); err != nil {
+			return err
+		}
 		owned, err := ownedCompletions(env, rs, "HEAD", baseRef, false)
 		if err != nil {
 			return err
