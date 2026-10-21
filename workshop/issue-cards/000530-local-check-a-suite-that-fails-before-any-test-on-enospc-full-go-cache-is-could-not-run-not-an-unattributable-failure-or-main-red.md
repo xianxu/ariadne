@@ -1,6 +1,6 @@
 ---
 id: 000530
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 3.7
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.63
+tracker:
+    version: 1
+    completion:
+        token: close-317bebf132b6
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 99c89cf3f2181f380fafd754afd28eb65e10674d
+        evidence_commit: e75169873c630fd95313fe81565e488e3d836e1d
 ---
 
 # local-check: a suite that fails before any test on ENOSPC (full Go cache) is could-not-run, not an unattributable failure or main-red
