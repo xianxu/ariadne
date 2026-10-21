@@ -102,6 +102,8 @@ ARCH-ORDER/PURPOSE: cancellation authority follows the existing lifetime-held ru
 
 - Repaired integrated full suite PASS on4af31908915b4b91967dee94f3f640a355f073a4: all eight shards,1,927 cmd/sdlc tests+75 other packages, zero failures/reruns,628.3s, queued360s. Attempt1c28f0b9981a0091c712c473e5aca80f; sdlc-local/suite success. Persistent raw copy common test-stats/evidence/000521/repaired-integrated-suite.log, SHA25697ef38d6fc47dc7e0a545cbbd981de8993133085302f9b425789d40c5fd23d5c. This verifies the actual main API integration plus stronger exact-ID cancellation control. Only issue bookkeeping since tested head. Narrow --fixed-then-ship close is next; prior compile failure remains retained, not reclassified as a flake.
 
+- Landed PR #366, merge8060fbf3a39b297834bc40c1936c407ccb53855a (Git verified). Final authoritative suite onf2b89e18e0a5adb0e3a2e98cc7be6b1b50071137 passed all eight shards,1,931 cmd/sdlc tests+75 other packages, zero failures/reruns,645.3s, queued1,047s. Attempt3c1ba22c416342b56d15b46f68d46ce0; persistent copy common test-stats/evidence/000521/final-landing-suite.log, SHA256467b4707df3cd2b8019b2f3ecbeaaffd3e3955e9efb7f4d5e0230f776a05d72e. Final integration package precompile passed before queue; CI4green, runner exited0. Narrow re-close SHIP/no findings, independently repeated focused controls21.294s. Both failed integration and subsequent repaired/full final proofs retained. Outcome reported to hub; resting checkout refreshed, #523 next from main; #522 remains another slot’s work.
+
 ## Revisions
 
 - 2026-10-21: Hub approved concrete abort/release policy and no-stage conformance; Done-when unchanged.
