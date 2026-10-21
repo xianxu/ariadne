@@ -37,8 +37,47 @@ Add an optional bounded graph-preparation argv declared by the repository, execu
 
 ## Plan
 
-- [ ]
+Quick-flow proposal: optional `graph_prepare` object in main's affected.json,
+with argv `command` and `timeout_minutes` (default 2, range 1..30). Absent/null
+object means no preparation; empty command or invalid limits refuse config.
+Run once in the existing detached graph checkout, before LoadGoGraph. Inherit
+caller cancellation; kill/reap the process group and bound pipe draining to one
+second before graph or cleanup. Stream command output to the existing stderr;
+return a named preparation error into the existing full-suite fallback. No new
+status, cache, log family, queue policy or caller-tree writes.
+
+ARCH-PURE: validation stays pure, execution stays at the graph IO boundary.
+ARCH-DRY: existing processgroup, detached-checkout cleanup and fallback own their
+current responsibilities. ARCH-CONSTRAINTS: one preparation per discovery;
+two-minute default follows the existing make probe, 30-minute maximum follows
+review preparation. No per-file subprocess growth. ARCH-SECURE: main owns the
+argv, the requested head supplies its inputs; no implicit shell or new secrets.
+ARCH-EVOLVE: optional additive field; existing older strict readers refuse it,
+never accept a partial graph. ARCH-FUNERAL: generated files die with the existing
+checkout scope. ARCH-ORDER: no state survives a call; completion or cancellation
+precedes graph access and cleanup. ARCH-MOCK: real Git/module/argv fixtures and
+stateful fake GitHub use production seams. ARCH-PURPOSE: pair#738 adopts the
+provider later; hardcoding a consumer generator or reusing review preparation
+would conflate separate responsibilities.
+
+Actions: run affected; rerun after repairing preparation.
+| Internal outcome | Visible state | Recovery action | Possible loss |
+| --- | --- | --- | --- |
+| absent/success, graph valid | ordinary affected selection | run affected | none |
+| command/timeout/graph failure | full suite with named cause | rerun after repair | disposable generated output |
+| caller cancellation | interrupted, no passing affected record | run affected | partial disposable output |
+Existing stale checkout cleanup covers process death; no new durable state.
+
+- [ ] Red fresh-module missing-embed regression, same-head/once/cleanup assertions.
+- [ ] Bounded preparation and config validation; failure, timeout, cancellation,
+  omitted declaration and genuinely broken graph controls.
+- [ ] README/atlas contract; recorded suite, close review, merge.
 
 ## Log
 
 - Filed from pair:7 for pair#738 under ops:0 approval. Source: cmd/sdlc/localcheck_affected.go productionAffectedDeps creates its private checkout and immediately calls affected.LoadGoGraph; affected/config.go currently has no preparation field. Pair cold-checkout reproduction log: .git/manual-verification/pair738-cold-graph.log. Unclaimed provider work, not permission to alter another slot or bypass local-gates verification.
+
+- 2026-10-20: read actual issue body after discovering issue show omits section
+  bodies. Provider scope already approved. Concrete schema/bounds above are
+  checkpointed for TL approval before implementation; expected under 100 added
+  production lines. No pair configuration will be edited here.
