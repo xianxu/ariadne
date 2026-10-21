@@ -468,7 +468,10 @@ trains on:
   `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
-  train sets no stand-in.
+  train sets no stand-in. A passing full-suite record already satisfies the
+  car directly; the affected stand-in is an alternative. The missing-record
+  message names affected or its full-suite fallback and explains conditionally
+  to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness

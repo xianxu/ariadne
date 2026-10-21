@@ -40,15 +40,17 @@ The readiness gate already accepts a passing required suite before considering i
 
 ## Plan
 
-- [ ] Pin current readiness behavior and red-test the misleading diagnostic.
-- [ ] Clarify only the message and map it in the atlas.
-- [ ] Run focused controls and prepare recorded-suite/close requests; require passing results before landing.
+- [x] Pin current readiness behavior and red-test the misleading diagnostic.
+- [x] Clarify only the message and map it in the atlas.
+- [x] Run focused controls and prepare recorded-suite/close requests; require passing results before landing.
 
 ## Log
 
 ### 2026-10-20
 
 Claimed and started after #505 landed. Source confirms carCIGateFacts maps required suite to affected; decideCIGate first checks the suite’s own passing record, so full-suite success already satisfies the car. Existing TestDecideCIGateLocalChecks pins that case. runAffectedCheck intentionally runs/records suite for full selection. Quick message-only plan posted to hub, proceeding unless objected. ARCH-PURPOSE: diagnose the actual missing-evidence wait rather than alter a correct gate; ARCH-DRY: keep the diagnostic in ciVerdict.refusal.
+
+Red: production-car controls passed same-head suite success and failed-suite refusal on unchanged code; missing/wrong-head cases failed only on the missing fallback diagnostic (package 1.719s). The new message names affected or its full-suite fallback and conditionally tells the user to wait if affected fell back; it preserves the affected command when no run exists. No gate, publishing, state or record-format change. Green: production car cases, pure local-check gate controls, real full-selection fallback execution/recording, broken-config degradation and docs-only ancestry controls passed (5.424s). git diff --check clean; atlas mapped. Preparing pushed-head recorded suite and close review; passing recorded suite remains required before landing.
 
 ## Revisions
 
