@@ -1,13 +1,13 @@
 ---
 id: 000510
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ad6900df69f7e31efadc016f4815603a995ed095' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2e34a0c614f9fa8ab124ee4498c9914a535829a2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T02:17:18-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "51125e6d", done: "a2b9b094"}
+actual_hours: 0.52
 ---
 
 # sdlc local-check cancel: select one run by id (not only --name); notice when queuing a second run of the same check on a different head
