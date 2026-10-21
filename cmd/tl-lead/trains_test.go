@@ -203,8 +203,8 @@ func TestGatherSlots(t *testing.T) {
 	want := "```\n" +
 		"ariadne:2      ariadne#350      working       claude       ▉▕ tasks 1/2  lift\n" +
 		"ariadne:3      ariadne#351      ?             none         no issue file  gone\n" +
-		"ariadne:4      on spike  qoder·idle\n" +
-		"free: ariadne:1 (codex·idle)\n" +
+		"ariadne:4      on spike  qoder\n" +
+		"free: ariadne:1 (codex)\n" +
 		"```"
 	if got != want {
 		t.Errorf("Slots:\n%s\nwant:\n%s", got, want)

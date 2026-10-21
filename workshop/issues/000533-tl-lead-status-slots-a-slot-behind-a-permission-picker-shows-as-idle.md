@@ -1,13 +1,13 @@
 ---
 id: 000533
-status: working
+status: blocked
 deps: [pair#786]
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '24347876990eec11715e0e7b91ca613c6840a603' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '86d3d44499447511dbc114aeedf5b8fd767e1898' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T16:31:41-07:00
 claimant:
     operator: Xian Xu
@@ -45,7 +45,7 @@ operator.
 
 ## Plan
 
-- [ ] Remove the false idle inference in pure agentLabel, document the distinction, and test all three agent kinds before implementation.
+- [x] Remove the false idle inference in pure agentLabel, document the distinction, and test all three agent kinds before implementation.
 - [ ] Checkpoint and park pending pair#786; work #532 separately from main.
 - [ ] Consume pair#786 Picker (boolean or unknown) and PickerPrompt (bounded first line only while true), then verify, run recorded suite and close/land.
 
@@ -64,3 +64,5 @@ The immediate correction uses pure agentLabel and existing decodeActors, with no
 ### 2026-10-21 — producer dependency and immediate correction
 
 On ops:0 instruction, defer picker consumption until pair#786 exposes the registry signal. Remove independently incorrect idle labels now. Original acceptance said genuinely idle slots are unchanged; current acceptance preserves agent identity while removing the unsupported idle inference. Full blocked: picker acceptance remains pending, not silently reduced to this correction.
+
+2026-10-21: TDD regression failed for all three agent kinds on Resting=true (fabricated ·idle), then passed after removing that inference. Full cmd/tl-lead package passed (21.793 s). Existing gathering/rendering expectations updated; help, README and atlas distinguish branch placement from runtime readiness. No full recorded suite or close claimed: picker acceptance is pending pair#786. Branch checkpoint is parked for the independent #532 dispatch.

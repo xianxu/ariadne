@@ -19,7 +19,7 @@ type SlotLine struct {
 	Slug  string // the branch's slug after the id
 	Phase string // the issue's card status, or "?" when its observation failed
 	Bar   string
-	Agent string // its agent and whether it is idle, from couch; "?" unread
+	Agent string // its agent, from couch; "?" unread
 	Hold  string // "until X" when the TL holds it to soak a risky change (ariadne#482)
 }
 
@@ -63,8 +63,8 @@ func applyHolds(lines []SlotLine, holds map[string]string, set map[string]string
 	return nil
 }
 
-// agentLabel renders a slot's actor: `claude`, `codex·idle`, `none` when no
-// agent runs there, `?` when couch was not read.
+// agentLabel renders a slot's agent, `none` when no agent runs there, or `?`
+// when Couch was not read. Resting describes Git, not runtime readiness (#533).
 func agentLabel(actors map[string]Actor, err error, addr string) string {
 	if err != nil {
 		return "?"
@@ -73,8 +73,6 @@ func agentLabel(actors map[string]Actor, err error, addr string) string {
 	switch {
 	case !ok:
 		return "none"
-	case a.Resting:
-		return a.Agent + "·idle"
 	}
 	return a.Agent
 }

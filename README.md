@@ -289,7 +289,9 @@ Reuse it for isolated live tests instead of the live fleet or private fixtures.
 See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
 
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
-slots; `--all` shows the machine view. `tl-lead fleet resume` is an
+slots; `--all` shows the machine view. Agent labels name the agent; the free
+list describes resting Git checkouts, not prompt readiness or absence of a picker.
+`tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding
 automatic resume authority. `--apply` waits for each terminal receipt and
 stops at the first failure or uncertainty, naming untouched slots. See

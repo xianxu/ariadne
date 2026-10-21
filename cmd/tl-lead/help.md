@@ -401,9 +401,12 @@ TALKING TO THE OPERATOR
     thread), and take even its facts from `sdlc`. A fact you retype every pass
     is the next piece to lift into a binary.
     `tl-lead status slots FILE` renders `## Slots` from `sdlc fleet inventory`,
-    `couch --actors` (each slot's agent, `·idle` at its prompt; `?` when couch
+    `couch --actors` (each slot's agent; `?` when couch
     can't be read), each slot's issue (`sdlc issue show`) and its checkout's
-    issue file, and writes it; it takes about as long as the inventory,
+    issue file, and writes it. Couch's Resting describes the Git branch;
+    it does not establish an idle prompt or absence of a permission picker.
+    The free list names resting checkouts, not runtime readiness.
+    The command takes about as long as the inventory,
     ten to forty seconds. With .hub, it shows only this hub's sole-owned numbered
     slots and counts excluded slots; --all lists every numbered slot. Without
     .hub it keeps the machine view. Invalid/unreadable scope refuses rather than

@@ -11,7 +11,7 @@ import (
 )
 
 // CouchActors is the seam over `couch --actors --json`: which agent runs in
-// each slot and whether it is working. It needs the running Couch's socket,
+// each slot and its Git resting-branch observation. It needs the running Couch's socket,
 // so a sandboxed call fails; callers render `?` then. Queries are bounded.
 type CouchActors interface {
 	Actors() (map[string]Actor, error) // by slot address, repo:N
@@ -20,7 +20,7 @@ type CouchActors interface {
 // Actor is the part of one actor row tl-lead reads.
 type Actor struct {
 	Agent   string // claude, codex, qoder, …
-	Resting bool   // idle at its prompt
+	Resting bool   // on its resting Git branch; says nothing about runtime readiness
 }
 
 type execActors struct {
