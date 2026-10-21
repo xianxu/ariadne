@@ -52,6 +52,7 @@ Source: ops `session.side/2026-10-20-34-mock-server-plan.md`; product-shaping pr
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Existing SHAPING guards failed on the missing round/version rule at both help entry points, then passed with the embedded rule (0.156s); full cmd/tl-lead tests passed (14.324s), actual go run help inspected. Central recorded suite on 8af32958a7a3597b8b896af63e23b35d3e1cc2ec passed 1921 SDLC tests +75 packages with zero failures/reruns in721.9s, log hash e50a8b7e2b31. One commit per feedback round, agent-owned revert/reload, direction-only folder versions, retained URLs and root fixtures are all delivered; no runtime or local-gates change. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Authenticated dispatch a88deb45-1953-4489-a2df-acffd86d5d7f authorizes this fixed operator rule while #520 waits. Preserved #520's committed branch; claimed and start-plan created this independent branch from main. Quick plan posted to the hub, proceeding unless objected: one embedded-help edit plus existing phrase guards, no runtime mechanism. ARCH-DRY retains help as the rule's one source; ARCH-PURPOSE covers round commits, agent-owned revert/reload, separate mock folders and shared fixtures together. Existing Git history owns the round lifecycle; no new parser/state/store, external dependency, secret, hot path or artifact family is introduced (ARCH-PURE/MOCK/SECURE/ORDER/CONSTRAINTS/FUNERAL/EVOLVE). No extra design approval is needed for the already operator-approved wording in the Spec.
 
