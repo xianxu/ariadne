@@ -101,6 +101,10 @@ The first source isolation was applied at23:49:04 PDT, before further execution.
 
 The fixture now sets WF_TEST_SCRATCH=t.TempDir(), supplies a private fallback, asserts containment and sweeps only its explicit private child. Per authenticated TL receipt c2678fdc-28f8-4cbc-b547-2ef8932ac278, M1 adds pkg/golint test-sweep-private-root: destructive test sweep roots require visible TempDir provenance through safe literal joins; runtime roots, parent traversal, uncertain aliases/reassignments and address escapes fail. Added lessons.md prevention rule. Private fixture passed0.567s; safe private collector plus integration controls passed0.642s; all golint tests passed0.510s. Earlier broad controls passed26.711s and narrow race2.541s, but used the unsafe fixture: these do not establish safe isolation. Final corrected-source controls and safe mutation remain before M1 review. M2 has not started.
 
+### 2026-10-21 00:05 PDT — Corrected-source M1 verification
+
+Safe mutation: replacing only runnerArtifactProtected with false failed TestRunnerCollectorsRespectPrivateAuthority on deletion of its private scratch, then source restored in finally. No runtime-selected collector is reachable from that mutation test. Corrected-source broad runner/signal/scratch/attempt controls passed32.030s; narrow runner race controls passed4.359s; complete golint package passed0.674s. Git diff is clean after mutation restoration. M1 is ready for fresh boundary review; automatic enforcement remains pending M2.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries
