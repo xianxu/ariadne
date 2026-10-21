@@ -344,3 +344,12 @@ Crash-window test mapping (one named test per row): `TestResumeCrashPreLink`,
 `TestResumeCrashTerminalReceiptBeforeCleanup`. Integration tests additionally
 fault marker/directory sync, retain protected/unreadable GC authority, mutate
 owner bindings and retry a removed checkout with extant locked registration.
+
+### 2026-10-21 — Stop after whole-lifecycle re-review (operator escalation)
+
+M2 re-review leaves BR-3 open: cleanup retry skips prior or unacknowledged
+registration-directory and owner-release sync obligations on already-absent
+entries. This meets the approved stop condition. Preserve the current code and
+review evidence; do not implement another lifecycle refinement or seek another
+incremental TL approval. The TL takes the failure to the operator. The plan is
+not complete and the lifecycle invariant is not claimed satisfied.

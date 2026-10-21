@@ -245,3 +245,30 @@ lint 0.167s; diff clean. Silent scratch deletion failure, incomplete ownership,
 unrelated dangling scratch markers and unreadable/dangling GC marker controls
 observed RED before the class repair. No production state, stage or PR. Push
 this final code, queue a fresh recorded suite and rerun mandatory M2 review.
+
+### 2026-10-21 — STOP: M2 re-review retains BR-3; operator decision required
+
+The mandatory M2 re-review returned REWORK. It confirms the original
+completed-child/status-post leak is fixed and its regression fails under a
+negative-control defer mutation. BR-3 remains not-addressed in the same
+`durable-staging-cleanup` family: retry can observe missing Git registration
+and release the owner without retrying a failed or never-acknowledged sync of
+the registration namespace; similarly, a missing-marker return bypasses a
+previously failed owner-release directory sync. The reviewer’s disposable
+production-cleanup fault tests failed for lost removal reply, registration-sync
+failure and owner-release-sync failure. Source inspection confirms those early
+returns. Visible absence alone does not discharge durable deletion obligations.
+
+Per authenticated TL 91596b33-cfe5-4d0d-bfff-1cc377ee1656, **stop further lifecycle
+patching and return the finding to the TL for operator review**. No additional
+code fix, dispute, review rerun, close, PR, stage or landing is authorized by
+this checkpoint. The recorded suite was still fifth in the shared queue;
+canceled only our exact lease-2271555155 through local-check cancel. It never
+acquired capacity, so no full-suite pass is claimed. Existing private/race and
+reviewer checks remain evidence for delivered behavior, not completion of the
+lifecycle invariant. M1 remains closed; M2 and issue remain working/open.
+
+The re-review sidecar contains the exact failure cases and locations. Next
+worker/TL must read it and await the operator’s decision rather than deriving a
+new incremental patch from this Log. All work and review evidence are pushed;
+the checkout is left on the issue branch.
