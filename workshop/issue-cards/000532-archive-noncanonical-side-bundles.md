@@ -1,6 +1,6 @@
 ---
 id: 000532
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.25
+tracker:
+    version: 1
+    completion:
+        token: close-8db52632e43b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8
+        evidence_commit: eb95a774a2e110fdc66e413d9356ad6992507b24
 ---
 
 # Archive preflight misses noncanonical side bundles
