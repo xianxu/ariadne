@@ -323,19 +323,13 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 		if err != nil || dir != binding.gitdir {
 			return errors.New("resume environment scratch binding changed")
 		}
-		if err := authorize(); err != nil {
-			return err
-		}
-		if err := ops.removeAll(path); err != nil {
+		if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.removeAll(path) }); err != nil {
 			return err
 		}
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {
 			return errors.New("resume scratch cleanup did not confirm absence")
 		}
-		if err := authorize(); err != nil {
-			return err
-		}
-		if err := ops.sync(filepath.Dir(path)); err != nil {
+		if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.sync(filepath.Dir(path)) }); err != nil {
 			return err
 		}
 	}
@@ -357,19 +351,13 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	}
 	// This invocation advances using its original validated binding. A partial
 	// state from any previous invocation is never reconstructed or repaired.
-	if err := authorize(); err != nil {
-		return err
-	}
-	if err := ops.removeAll(binding.wt); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.removeAll(binding.wt) }); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(binding.wt); !os.IsNotExist(err) {
 		return errors.New("resume checkout removal unconfirmed")
 	}
-	if err := authorize(); err != nil {
-		return err
-	}
-	if err := ops.sync(filepath.Dir(binding.wt)); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.sync(filepath.Dir(binding.wt)) }); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -384,11 +372,14 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	if err := confirmOwner(); err != nil {
 		return err
 	}
-	if err := authorize(); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error {
+		out, err := resumeEnvironmentGit(d, "worktree", "remove", "--force", "--force", binding.wt)
+		if err != nil {
+			return fmt.Errorf("resume environment worktree removal unconfirmed: %w: %s", err, strings.TrimSpace(out))
+		}
+		return nil
+	}); err != nil {
 		return err
-	}
-	if out, err := resumeEnvironmentGit(d, "worktree", "remove", "--force", "--force", binding.wt); err != nil {
-		return fmt.Errorf("resume environment worktree removal unconfirmed: %w: %s", err, strings.TrimSpace(out))
 	}
 	for _, path := range []string{binding.wt, binding.gitdir} {
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {
@@ -401,10 +392,7 @@ func retireResumeEnvironmentInputs(ctx context.Context, d localRunDeps, store st
 	} else if err != nil {
 		return err
 	}
-	if err := authorize(); err != nil {
-		return err
-	}
-	if err := ops.sync(parent); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.sync(parent) }); err != nil {
 		return err
 	}
 	return releaseResumeEnvironmentOwner(ctx, inflight, owner, ops, authorize)
@@ -444,16 +432,10 @@ func releaseResumeEnvironmentOwner(ctx context.Context, inflight, owner string, 
 	if string(raw) != owner {
 		return errors.New("resume environment owner changed before release")
 	}
-	if err := authorize(); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.remove(marker) }); err != nil {
 		return err
 	}
-	if err := ops.remove(marker); err != nil {
-		return err
-	}
-	if err := authorize(); err != nil {
-		return err
-	}
-	if err := ops.sync(inflight); err != nil {
+	if err := resumeCleanupEffect(ctx, authorize, func() error { return ops.sync(inflight) }); err != nil {
 		return err
 	}
 	return ctx.Err()

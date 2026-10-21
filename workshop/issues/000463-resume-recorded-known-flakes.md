@@ -434,3 +434,45 @@ suite attempt. Fresh all-Resume race checks passed 15.907s on the pushed BR-4
 correction. Checkpoint this result, then run the recorded suite and the same M3
 review gate. A same-head infrastructure-classification refusal must go to the
 hub verbatim, without workaround.
+
+### 2026-10-21 — BR-4 managed scratch class completion
+
+M3 re-review retained BR-4: the environment boundary walk and its negative
+control pass, but managed scratch retirement omitted current cancellation
+authority. This is an additional implementation site under the same accepted
+rule, without a new design state or recovery mechanism. Canceled only queued
+lease-1328913759; no suite capacity was acquired. TL delivery
+42ec5390-0769-4115-a467-297c61a4bb44 approves the same bounded class correction
+and requires one ctx-and-authorize helper for every live-owner cleanup effect
+plus build-time rejection of direct effects. Extend the scratch cancellation
+regression, route both cleanup paths through that helper, and add the incident
+rule to Go lint. Protect/setup and ordinary unused pre-link temporary collection
+keep their existing lifecycle; completed-child proof GC is unchanged.
+
+Managed scratch RED 0.419s confirmed both an already-canceled owner and
+cancellation during successful removal incorrectly reported cleanup completion.
+The shared resumeCleanupEffect now checks original caller context plus current
+authority before each individual effect, and checks cancellation again after
+success. Scratch cancellation revokes retirement and becomes needs-reconcile.
+The runner passes original ctx because normal signal teardown deliberately
+cancels its owned context. Real scratch removal/sync and all eight environment
+boundaries have deterministic cancellation walks; helper refusal and authority-
+cancels cases prohibit mutation.
+
+The incident's resume-cleanup-effect Go lint rule rejects direct effects, local
+effect aliases, multiple effects in one callback, named/aliased callback bypass,
+and deferred/asynchronous raw effects. It covers live-owner cleanup functions
+in the two resume owner files plus strict deferred scratch cleanup in the
+managed runner. Its negative fixtures first failed, then passed; ordinary
+preparation, non-strict runner cleanup and completed-proof GC remain excluded.
+The atlas names the rule and its syntactic scope; runtime tests establish the
+authority semantics. Full all-Resume race checks passed 27.860s; private CLI
+completion/reconcile, first-pass cleanup failure and managed-batch checks passed
+55.904s; Go lint 0.934s and shell lint 0.358s. Dedicated crash windows run
+separately before checkpoint. No full recorded suite pass is claimed yet.
+
+Dedicated opt-in private production-CLI crash-window checks passed 62.396s.
+This includes retained pre-link, link-before-marker, marker-before-lock,
+checkout-retired-before-child, committed-child-post and terminal-receipt
+windows. Diff check clean. Checkpoint the class-complete correction and its
+review history, push, queue one fresh recorded suite, then rerun the M3 gate.

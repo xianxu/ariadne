@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -107,7 +108,7 @@ func TestResumeScratchRetirement(t *testing.T) {
 					_ = os.RemoveAll(path)
 				}
 			}}
-			err := finishResumeScratch(d, suiteSlotRun{Exit: 0}, scratch, nil)
+			err := finishResumeScratch(context.Background(), d, suiteSlotRun{Exit: 0}, scratch, nil)
 			if remove {
 				if err != nil || calls != 1 {
 					t.Fatalf("successful pass %v calls%d", err, calls)
@@ -117,7 +118,7 @@ func TestResumeScratchRetirement(t *testing.T) {
 			if err == nil || calls != 1 {
 				t.Fatalf("silent removal failure %v calls%d", err, calls)
 			}
-			if err = finishResumeScratch(d, suiteSlotRun{Exit: 0}, scratch, nil); err == nil || calls != 1 {
+			if err = finishResumeScratch(context.Background(), d, suiteSlotRun{Exit: 0}, scratch, nil); err == nil || calls != 1 {
 				t.Fatalf("failure retried cleanup: %v calls%d", err, calls)
 			}
 			if _, err = os.Stat(path); err != nil {
@@ -151,7 +152,7 @@ func TestResumeScratchStopsOnManagedUncertainty(t *testing.T) {
 			calls := 0
 			d := localRunDeps{runnerLifetime: &runnerArtifactLifetime{retirable: tc.confirmed}}
 			scratch := scratchPreparation{Dir: path, Cleanup: func() { calls++; _ = os.RemoveAll(path) }}
-			err := finishResumeScratch(d, tc.run, scratch, tc.err)
+			err := finishResumeScratch(context.Background(), d, tc.run, scratch, tc.err)
 			if tc.keep {
 				if err == nil || calls != 0 {
 					t.Fatalf("uncertainty deleted scratch: err=%v calls=%d", err, calls)
@@ -167,6 +168,123 @@ func TestResumeScratchStopsOnManagedUncertainty(t *testing.T) {
 				}
 			} else if err != nil || calls != 1 {
 				t.Fatalf("ordinary completion: err=%v calls=%d", err, calls)
+			}
+		})
+	}
+}
+
+func TestResumeScratchStopsAfterSuccessfulCleanupCancellation(t *testing.T) {
+	for _, before := range []bool{true, false} {
+		t.Run(fmt.Sprint(before), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "scratch")
+			if err := os.Mkdir(path, 0700); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if before {
+				cancel()
+			}
+			calls := 0
+			d := localRunDeps{runnerLifetime: &runnerArtifactLifetime{retirable: true}}
+			scratch := scratchPreparation{Dir: path, Cleanup: func() {
+				calls++
+				if err := os.RemoveAll(path); err != nil {
+					t.Fatal(err)
+				}
+				cancel()
+			}}
+			err := finishResumeScratch(ctx, d, suiteSlotRun{Exit: 0}, scratch, nil)
+			if !errors.Is(err, ctx.Err()) || err == nil || d.runnerLifetime.mayRetire() {
+				t.Fatalf("canceled cleanup reported completion: err=%v retirable=%v", err, d.runnerLifetime.mayRetire())
+			}
+			if before && calls != 0 {
+				t.Fatalf("canceled owner removed scratch %d times", calls)
+			}
+		})
+	}
+}
+
+func TestResumeScratchCleanupEffectBoundaries(t *testing.T) {
+	for cancelAt := 0; cancelAt <= 2; cancelAt++ {
+		t.Run(fmt.Sprint(cancelAt), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "scratch")
+			if err := os.Mkdir(path, 0700); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			effects, authorizations := 0, 0
+			var retained map[string]string
+			after := func() {
+				effects++
+				if effects == cancelAt {
+					cancel()
+					retained = resumeEnvironmentSnapshot(t, path)
+				}
+			}
+			authorize := func() error { authorizations++; return nil }
+			scratch := scratchPreparation{Dir: path, Cleanup: func() {
+				if ctx.Err() != nil {
+					t.Fatal("scratch removal after cancellation")
+				}
+				if err := os.RemoveAll(path); err != nil {
+					t.Fatal(err)
+				}
+				after()
+			}}
+			sync := func(parent string) error {
+				if ctx.Err() != nil {
+					t.Fatal("scratch sync after cancellation")
+				}
+				if err := syncResumeDirectory(parent); err != nil {
+					return err
+				}
+				after()
+				return nil
+			}
+			err := confirmResumeScratchCleanup(ctx, scratch, authorize, sync)
+			want := 2
+			if cancelAt != 0 {
+				want = cancelAt
+				if !errors.Is(err, context.Canceled) {
+					t.Fatalf("canceled effect: %v", err)
+				}
+				if got := resumeEnvironmentSnapshot(t, path); !reflect.DeepEqual(retained, got) {
+					t.Fatal("surviving scratch changed after cancellation")
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if effects != want || authorizations != want {
+				t.Fatalf("effects=%d authorization=%d want=%d", effects, authorizations, want)
+			}
+		})
+	}
+}
+
+func TestResumeCleanupEffectRequiresAuthority(t *testing.T) {
+	for _, mode := range []string{"caller-canceled", "authority-refused", "authority-cancels"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			refusal := errors.New("owner authority lost")
+			if mode == "caller-canceled" {
+				cancel()
+			}
+			err := resumeCleanupEffect(ctx, func() error {
+				if mode == "authority-refused" {
+					return refusal
+				}
+				cancel()
+				return nil
+			}, func() error { t.Fatal("cleanup without uncancelled authority"); return nil })
+			if mode == "authority-refused" {
+				if !errors.Is(err, refusal) {
+					t.Fatal(err)
+				}
+			} else if !errors.Is(err, context.Canceled) {
+				t.Fatal(err)
 			}
 		})
 	}

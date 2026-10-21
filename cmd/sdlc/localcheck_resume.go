@@ -300,7 +300,26 @@ func postResumeRecord(ctx context.Context, d localRunDeps, rec localRunRecord) e
 	return nil
 }
 
-func confirmResumeScratchCleanup(scratch scratchPreparation) error {
+// resumeCleanupEffect is the only live-owner cleanup effect boundary. A
+// successful effect may cancel its caller; that must still stop this pass.
+// The resume-cleanup-effect lint rejects raw effects outside these callbacks.
+func resumeCleanupEffect(ctx context.Context, authorize func() error, effect func() error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := authorize(); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := effect(); err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
+func confirmResumeScratchCleanup(ctx context.Context, scratch scratchPreparation, authorize func() error, sync func(string) error) error {
 	if scratch.Dir == "" || scratch.Cleanup == nil {
 		return errors.New("resume scratch cleanup authority unavailable")
 	}
@@ -308,14 +327,16 @@ func confirmResumeScratchCleanup(scratch scratchPreparation) error {
 	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("resume scratch initial directory unavailable: %v", err)
 	}
-	scratch.Cleanup()
+	if err := resumeCleanupEffect(ctx, authorize, func() error { scratch.Cleanup(); return nil }); err != nil {
+		return err
+	}
 	if _, err := os.Lstat(scratch.Dir); !os.IsNotExist(err) {
 		return &runnerCleanupUnconfirmed{Detail: fmt.Sprintf("resume scratch %s absence unconfirmed: %v", scratch.Dir, err)}
 	}
-	return syncResumeDirectory(filepath.Dir(scratch.Dir))
+	return resumeCleanupEffect(ctx, authorize, func() error { return sync(filepath.Dir(scratch.Dir)) })
 }
 
-func finishResumeScratch(d localRunDeps, run suiteSlotRun, scratch scratchPreparation, runErr error) error {
+func finishResumeScratch(ctx context.Context, d localRunDeps, run suiteSlotRun, scratch scratchPreparation, runErr error) error {
 	stop := func(cause error) error {
 		if d.runnerLifetime != nil {
 			d.runnerLifetime.retirable = false
@@ -325,7 +346,13 @@ func finishResumeScratch(d localRunDeps, run suiteSlotRun, scratch scratchPrepar
 	if runErr != nil || run.TimedOut || run.Exit < 0 || run.Exit > 125 || d.runnerLifetime == nil || !d.runnerLifetime.mayRetire() {
 		return stop(runErr)
 	}
-	if err := confirmResumeScratchCleanup(scratch); err != nil {
+	authorize := func() error {
+		if !d.runnerLifetime.mayRetire() {
+			return errors.New("resume managed process cleanup is not confirmed")
+		}
+		return nil
+	}
+	if err := confirmResumeScratchCleanup(ctx, scratch, authorize, syncResumeDirectory); err != nil {
 		return stop(err)
 	}
 	return nil

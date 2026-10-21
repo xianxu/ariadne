@@ -460,7 +460,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	}
 	defer func() {
 		if d.StrictGroupCleanup {
-			err = finishResumeScratch(d, run, scratch, err)
+			// ownedCtx is intentionally canceled by stopSignals on normal completion.
+			// Cleanup still requires the original caller to remain uncancelled.
+			err = finishResumeScratch(ctx, d, run, scratch, err)
 			return
 		}
 		if d.runnerLifetime.mayRetire() {

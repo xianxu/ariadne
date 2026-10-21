@@ -592,3 +592,17 @@ every cleanup effect. Add one real-private-IO boundary walk: each successful
 effect cancels, then no further mutation may occur. Any actual design gap from
 review still goes to the operator. Hold recorded suites until shared AgentScratch
 Go cache is cleared; no canceled runner was restarted.
+
+### 2026-10-21 — BR-4 managed scratch class completion
+
+M3 re-review retained BR-4: the environment boundary walk and its negative
+control pass, but managed scratch retirement omitted current cancellation
+authority. This is an additional implementation site under the same accepted
+rule, without a new design state or recovery mechanism. Canceled only queued
+lease-1328913759; no suite capacity was acquired. TL delivery
+42ec5390-0769-4115-a467-297c61a4bb44 approves the same bounded class correction
+and requires one ctx-and-authorize helper for every live-owner cleanup effect
+plus build-time rejection of direct effects. Extend the scratch cancellation
+regression, route both cleanup paths through that helper, and add the incident
+rule to Go lint. Protect/setup and ordinary unused pre-link temporary collection
+keep their existing lifecycle; completed-child proof GC is unchanged.

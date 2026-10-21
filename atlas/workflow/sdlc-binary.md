@@ -2253,7 +2253,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
 `session-move-batched-reads` and `session-move-raw-fields` #504,
-`suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
+`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
@@ -2811,3 +2811,17 @@ failure → exact-package resume/post/guard, unchanged original bytes, repeat
 without execution, every crash window, one-pass cleanup failures, evidence-only
 reconcile and repeated prune preservation, and later actual green refusal. All
 fixtures are private; no installed binary or production proof is repaired.
+
+Resume live-owner cleanup routes scratch removal/sync, checkout removal/sync,
+Git registration removal/sync and owner-marker unlink/sync through
+`resumeCleanupEffect`: it checks the original caller context and current owner
+authority before each effect, and observes cancellation even when that effect
+returns success. The managed runner deliberately cancels its signal context on
+normal completion, so strict scratch retirement uses the original caller context
+plus the already confirmed managed outcome. Any cleanup uncertainty revokes
+retirement; reconciliation still has no destructive effects. The Go lint rule
+`resume-cleanup-effect` rejects direct effects in the live-owner cleanup files
+and strict scratch defer, including effect aliases and multiple effects under
+one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
+the authority behavior. Completed proof GC and unused pre-link preparation keep
+their existing lifecycles.
