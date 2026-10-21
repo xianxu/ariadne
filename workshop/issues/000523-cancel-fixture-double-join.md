@@ -43,7 +43,7 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 
 - [x] Add the end-of-cleanup wall-time guard and observe it reject the unchanged slow fixture.
 - [x] Close producer-owned completion channels after publishing Wait results; verify native owner/foreign cancellation, failure teardown and adjacent lease controls.
-- [ ] Run recorded full suite and prepare close verification.
+- [x] Run recorded full suite and prepare close verification.
 
 ## Log
 
@@ -53,6 +53,8 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 - 2026-10-21: Picked up from fresh main after #521 landed PR #366. Quick plan sent to hub, proceeding unless it objects (679cb81b-dbbf-41e6-bf4d-b709add00734 submitted). No product surface/live stage. Current main still has the unclosed producer. Bounded sweep: newer run-ID helper in localcheck_runid_unix_test.go tracks a finished flag before teardown, so it does not have this double-consumption delay; its other helper closes done. No second affected cancellation fixture identified.
 
 - 2026-10-21 TDD: unchanged producer plus new whole-cleanup guard failed as intended: native fixture 4m0.531748083s versus 2m budget (package 240.943s). After close-after-send, the same fixture and unchanged safety assertions completed in393.971959ms. All seven targeted lease/cancel controls passed (package3.999s): native foreign/own cancellation, classification, held lease, stale sweep, PID reuse, lease lifetime, and queued sibling run-ID cancellation. Persistent raw logs: /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/evidence/000523/native-cancel-red.log and native-cancel-green-controls.log. No timeout changed; git diff --check passed.
+
+- 2026-10-21: Recorded suite on Git-verified e3515f11af7b9f219f620ff9adaed48e1a0317e6 passed all eight shards (1931 cmd/sdlc tests) and75 other packages, zero failures,707.5s wall after1690s queue. Persistent branch-suite.log in evidence/000523; SHA256 471d75149153c9074ef0e7c8b0724bf9f063cc22340249129d8f06453a0a6ba5. Independent pkg/golint passed0.623s. This removes the measured native fixture overhead; total suite wall is subject to machine load and is not used as a speedup claim.
 
 ## Revisions
 
