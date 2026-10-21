@@ -657,6 +657,157 @@ rounds:
       isolation: fenced
       reviewed: 8ed79fac33b27fd91dda3182514bf06e9fc54d1d
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 259b275e-cada-4014-8177-6a70c0f7c76b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000509"
+            recipe: fix-review
+            round: 6
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/396df9e053b94384
+            reviewed_head: 93b8fc0a99aa58c69934b0a81b217b190f94c503
+            slot: ariadne:3
+            requested_at: "2026-10-21T09:39:10.747429Z"
+          phase: finished
+          pid: 91762
+          started_at: "2026-10-21T09:39:10.847126Z"
+          finished_at: "2026-10-21T09:40:42.776824Z"
+          session_id: 01a15dd4-3695-7e73-b699-d2f9a74d6754
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 93b8fc0a99aa58c69934b0a81b217b190f94c503
+        tracker_head: 918c6ebdb2245a4d002464b285ba11b5de1c6829
+        branch_point: fb6c4e165c9f3dd37e43ad248e8fa57d343f04fd
+        since: "2026-10-20T22:27:36-07:00"
+        until: "2026-10-21T02:19:16-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-20T22:27:36-07:00"
+              end: "2026-10-21T02:19:16-07:00"
+              began: "2026-10-20T22:27:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 467b49d9e43effe076d85df9b2523e65b9730f2316b53ad428f53cccbb313a0c
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 106136488
+              windows:
+                - start: "2026-10-20T22:27:36-07:00"
+                  end: "2026-10-21T02:19:16-07:00"
+            - harness: codex
+              id: 01a15d03-86e1-7a71-a2ce-ef4bafdda938
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: d25ada22ff39f9340ef29f894ce65f4ab1fd8f7c0e1eed657d80eb8f1b0a07c8
+              started: "2026-10-21T05:51:15.011Z"
+              spawned: false
+              bytes: 633746
+              windows:
+                - start: "2026-10-21T05:51:15.011Z"
+                  end: "2026-10-21T02:19:16-07:00"
+            - harness: codex
+              id: 01a15d05-4be6-7122-9be6-0cc770381dfe
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 706f06321cf7f4cc2cc648d7f65df581da4cb247366968984dee192fc420a6e2
+              started: "2026-10-21T05:53:10.993Z"
+              spawned: false
+              bytes: 543474
+              windows:
+                - start: "2026-10-21T05:53:10.993Z"
+                  end: "2026-10-21T02:19:16-07:00"
+            - harness: codex
+              id: 01a15d06-5a0b-7be3-a48a-c58866001c81
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: fc671f1f1dbf5643b1b8b18d712eb3b2b0770526c88216a8b8abd0e849ae5d8c
+              started: "2026-10-21T05:54:20.122Z"
+              spawned: false
+              bytes: 451768
+              windows:
+                - start: "2026-10-21T05:54:20.122Z"
+                  end: "2026-10-21T02:19:16-07:00"
+            - harness: codex
+              id: 01a15d06-d164-7dd0-9b43-b0e9ee056cd1
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 98c45492655fb9461c4189c7583be5d48e47334ad2f33b2480a4f47a2d9be9f5
+              started: "2026-10-21T05:54:50.689Z"
+              spawned: false
+              bytes: 460459
+              windows:
+                - start: "2026-10-21T05:54:50.689Z"
+                  end: "2026-10-21T02:19:16-07:00"
+        queue_waits:
+            - attempt_id: ce41cf0669725135974efad453457ea8
+              slot: ariadne:3
+              record_digest: f656a4d4e7ab3dd06569fbc1f03837113aee77721a5b1ac669ca6f7c9aeae235
+              start: "2026-10-21T07:38:42.320129Z"
+              end: "2026-10-21T08:16:41.722553Z"
+              queue_seconds: 2279.402424
+              raw_seconds: 2279.402424
+              exact: true
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-20T23:05:58-07:00"
+              finalized: "2026-10-20T23:09:30-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-20T23:16:51-07:00"
+              finalized: "2026-10-20T23:20:17-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-21T00:03:53-07:00"
+              finalized: "2026-10-21T00:07:55-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-21T00:33:59-07:00"
+              finalized: "2026-10-21T00:36:46-07:00"
+              finalizing: true
+            - dispatched: "2026-10-21T01:29:10-07:00"
+              finalized: "2026-10-21T01:33:17-07:00"
+              finalizing: true
+      "n": 6
+      timestamp: "2026-10-21T02:40:43-07:00"
+      dispatched: "2026-10-21T02:39:10-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The tracked-blank guard remains intact in landingchecks_git.go; TestLandingCheckTrackedBlankPolicyRefuses passes.
+          round: 6
+        - id: BR-2
+          disposition: addressed
+          note: finishRunnerGroup still requires completion confirmation after escalation; TestRunnerCleanupNilTerminationIsNotCompletion passes.
+          round: 6
+        - id: BR-3
+          disposition: addressed
+          note: README.md:605-622 retains the schema, selection, resource and recovery documentation consistent with the implementation; this interdiff adds no user-facing surface.
+          round: 6
+        - id: BR-4
+          disposition: addressed
+          note: Shared artifact protection remains intact; retention, reconciliation, private-collector and panic regression tests pass.
+          round: 6
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 93b8fc0a99aa58c69934b0a81b217b190f94c503
+      blocked: false
 ---
 
 # Gate ledger — ariadne#509 (boundary-review)
@@ -707,6 +858,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — localcheck_resource_unix.go:70-75 independently confirms completion after escalation. TestRunnerCleanupNilTerminationIsNotCompletion passes at head and fails when the final confirmation guard is removed.
 - BR-3 — addressed — The pinned README diff adds schema, selection, --all exclusion, resource and recovery documentation at README.md:598-622, consistent with localchecks_v2.go, selectLocalChecks and runUnderResource. No wording test is needed for this prose correction.
 - BR-4 — addressed — Immediate cleanup and stale collectors retain artifacts under shared runner ownership. Artifact retention, reconciliation and panic controls pass; disabling runnerArtifactProtected makes TestRunnerCollectorsRespectPrivateAuthority fail on premature scratch deletion.
+
+## Round 6 — 2026-10-21T02:40:43-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The tracked-blank guard remains intact in landingchecks_git.go; TestLandingCheckTrackedBlankPolicyRefuses passes.
+- BR-2 — addressed — finishRunnerGroup still requires completion confirmation after escalation; TestRunnerCleanupNilTerminationIsNotCompletion passes.
+- BR-3 — addressed — README.md:605-622 retains the schema, selection, resource and recovery documentation consistent with the implementation; this interdiff adds no user-facing surface.
+- BR-4 — addressed — Shared artifact protection remains intact; retention, reconciliation, private-collector and panic regression tests pass.
 
 ## Open findings
 
