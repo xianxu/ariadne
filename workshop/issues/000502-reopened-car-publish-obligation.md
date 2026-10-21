@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "7bdb4ff9", done: "665cf118"}
 ---
 
 # Reopened issue can silently remove a waiting car publish obligation
