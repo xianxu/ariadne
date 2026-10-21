@@ -1,6 +1,6 @@
 ---
 id: 000498
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 18ef5d0ed97b172b1e1d02eb0b204b4adf76a475
         evidence_commit: aab0d01046e309b267e3f2d918b327a167946b01
+        landed_commit: eefb06dd092b3aea707341f20bd5afb3b412f36e
 ---
 
 # flake: TestLandingTrainLandsEveryCarOnOneSuite/train
