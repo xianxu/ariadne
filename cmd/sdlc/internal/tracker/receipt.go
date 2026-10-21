@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"io"
 	"path"
 	"strings"
@@ -724,8 +725,10 @@ func ParseReceipt(raw []byte, expectedRepository string) (Receipt, error) {
 	if len(raw) == 0 || len(raw) > MaxReceiptBytes || !utf8.Valid(raw) {
 		return Receipt{}, errors.New("invalid receipt encoding or size")
 	}
-	if err := uniqueReceiptKeys(json.NewDecoder(bytes.NewReader(raw)), 0); err != nil {
-		return Receipt{}, err
+	// Duplicate keys at any depth would let identity and stage checks read
+	// different spellings; 12 levels bound a hostile receipt's nesting.
+	if err := jsonstrict.Scan(json.NewDecoder(bytes.NewReader(raw)), 12); err != nil {
+		return Receipt{}, fmt.Errorf("receipt: %w", err)
 	}
 	if err := receiptJSONShape(raw); err != nil {
 		return Receipt{}, err
@@ -796,48 +799,4 @@ func receiptJSONShape(raw []byte) error {
 		}
 	}
 	return nil
-}
-
-// Reject duplicate keys at every nesting level; encoding/json otherwise silently
-// accepts the last spelling, allowing identity and stage checks to disagree.
-func uniqueReceiptKeys(d *json.Decoder, depth int) error {
-	if depth > 12 {
-		return errors.New("receipt nesting exceeds limit")
-	}
-	token, err := d.Token()
-	if err != nil {
-		return err
-	}
-	delimiter, ok := token.(json.Delim)
-	if !ok {
-		return nil
-	}
-	switch delimiter {
-	case '{':
-		seen := map[string]bool{}
-		for d.More() {
-			key, err := d.Token()
-			if err != nil {
-				return err
-			}
-			name, ok := key.(string)
-			if !ok || seen[name] {
-				return fmt.Errorf("duplicate or invalid receipt key %v", key)
-			}
-			seen[name] = true
-			if err := uniqueReceiptKeys(d, depth+1); err != nil {
-				return err
-			}
-		}
-	case '[':
-		for d.More() {
-			if err := uniqueReceiptKeys(d, depth+1); err != nil {
-				return err
-			}
-		}
-	default:
-		return errors.New("unexpected receipt delimiter")
-	}
-	_, err = d.Token()
-	return err
 }

@@ -3,6 +3,12 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- #503: an injected readiness callback's entry counter is not evidence that its
+  caller published readiness. Cancel only after observing the persisted effect;
+  force callback-in-flight and cancel-before-publication orderings with channels.
+  A repository sweep found only this fixture, so the TL chose deterministic
+  controls over a one-site lint rule.
+
 - A card owner may hold more than one issue. Before a numbered command commits
   or deletes HEAD's branch, compare it with the branch derived from that issue's
   card; ownership alone cannot identify the checkout. Remote deletion must
@@ -1206,6 +1212,7 @@ The simplest durable authority beats a clever scan of consequences.
   lookup/status API regression in the migration owners. Bound each migration
   subprocess and pipe draining; a rename deadline means outcome unconfirmed,
   not absence or authority to discard old copies.
+- #494: a train outcome that says landed precedes cleanup and cannot establish archive success. Reuse exact archive-transition proof before accepting a sibling's generic sweep archive. For tracked train fixtures, use prepared addressable slots, persist separate card/detail mirrors, and advance the prepared resting baseline past cutover before asserting the post-return sweep. Synthetic car clones exercise boarding but cannot substitute for real durable merge callers.
 - #499 BR-1: a context-scoped cache is coherent only if every authority reader enters it. Sweep direct Snapshot consumers along the production call chain, including transferred-details checks before selection, and retain a production-path test that changes authority between them. A fake gate can verify cache lifetime while missing the raw-reader bypass. Cache lifetime and consumer provenance are semantic properties; the interleaving regression is the enforcement rather than a function-name lint.
 
 - #499 root binding: when routing a publication guard through a shared reader, preserve the guard's original repository authority explicitly. A configured details directory is a data location, not the publication repository selector. Test a legacy peer directory beside a tracked checkout and ensure it cannot turn an existing ownership refusal into acceptance. This semantic provenance boundary is enforced by the production guard regression rather than lexical lint.
@@ -1217,3 +1224,4 @@ The simplest durable authority beats a clever scan of consequences.
   its refusal-before-effects entrypoint. The return signature is compiler
   enforced; behavioral regressions cover semantic suppression, which a lexical
   source rule cannot prove.
+- #494 integration: a final-cleanup barrier does not force a waiting car to consume its train outcome; a concurrent readiness poll may observe MERGED first. A regression for the positive-outcome path must order that observation too. Model a lagging listing until the outcome is consumed, retain the actual merge/archive effects, and mutation-check the original failure. This semantic interleaving is defended by the real fixture and negative controls, rather than a lexical lint rule.
