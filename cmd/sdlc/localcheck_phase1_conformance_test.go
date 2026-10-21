@@ -87,6 +87,7 @@ import ("os"; "path/filepath"; "testing")
 func %s(t *testing.T) {
  p := filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "%s-once")
  if _, err := os.Stat(p); err != nil { if err := os.WriteFile(p, nil, 0600); err != nil { t.Fatal(err) }; t.Fatal("registered once") }
+ for _, name := range []string{"case(value)", "path/file", "spaces here", "λ", "", "trailing/", "double//slash"} { t.Run(name, func(t *testing.T) {}) }
  if err := os.WriteFile(filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "%s-rerun"), nil, 0600); err != nil { t.Fatal(err) }
 }
 func %s(t *testing.T) { if err := os.WriteFile(filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "%s-decoy"), nil, 0600); err != nil { t.Fatal(err) } }

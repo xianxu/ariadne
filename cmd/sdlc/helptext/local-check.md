@@ -180,7 +180,7 @@ THE AFFECTED SUITE (#473)
   A registered subtest reruns its whole top-level test, including siblings.
   The batch shares one weight-1 slot, lease, scratch directory and total timeout
   bounded by the check's timeout; cancel stops the active group and no later
-  group starts. Each required test/subtest, its ancestors and package must have
+  group starts. Each required test/subtest, its whole top-level test and package must have
   structured JSON PASS events for that exact package. Text PASS lines and
   quoted Output cannot supply proof. With its flake issue still open when the result is
   posted, is landing evidence: every test has then passed once on the exact

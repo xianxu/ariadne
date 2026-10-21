@@ -29,6 +29,7 @@ import ("os"; "path/filepath"; "testing")
 func %s(t *testing.T) {
  p := filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "%s-once")
  if _, err := os.Stat(p); err != nil { if err := os.WriteFile(p, nil, 0600); err != nil { t.Fatal(err) }; t.Fatal("registered once") }
+ for _, name := range []string{"case(value)", "path/file", "spaces here", "λ", "", "trailing/", "double//slash"} { t.Run(name, func(t *testing.T) {}) }
 }
 func %s(t *testing.T) { if err := os.WriteFile(filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "%s-decoy"), nil, 0600); err != nil { t.Fatal(err) } }
 `, pkg, selected, pkg, decoy, pkg)
@@ -78,5 +79,38 @@ func %s(t *testing.T) { if err := os.WriteFile(filepath.Join(os.Getenv("EXACT_RE
 	}
 	if parent == nil || child == nil || child.RerunOf != parent.ID || child.Check != suiteRerunCheck || parent.Check != suiteCheckName || parent.Exit != 1 || child.Exit != 0 {
 		t.Fatalf("batch linkage: %+v", rows)
+	}
+}
+
+// Go does not emit an event for every slash prefix: a single t.Run call can
+// introduce the entire path/file suffix. The required leaf and whole parent
+// must pass; a nonexistent intermediate event cannot be required.
+func TestKnownFlakeGateFlatSlashSubtest(t *testing.T) {
+	d, _, gh, stderr := localRunRepo(t, "acquired")
+	marks := t.TempDir()
+	t.Setenv("EXACT_RERUN_MARKS", marks)
+	writeRepoFile(t, d.Root, "go.mod", "module example.com/flat\n\ngo 1.22\n")
+	writeRepoFile(t, d.Root, "flat_test.go", `package flat
+import ("os"; "path/filepath"; "testing")
+func TestSlash(t *testing.T) { t.Run("path/file", func(t *testing.T) {
+ p := filepath.Join(os.Getenv("EXACT_RERUN_MARKS"), "once")
+ if _, err := os.Stat(p); err != nil { if err := os.WriteFile(p, nil, 0600); err != nil { t.Fatal(err) }; t.Fatal("registered once") }
+}) }
+`)
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-qm", "flat slash fixture"}} {
+		if out, err := d.Git(args...); err != nil {
+			t.Fatalf("%v %v %s", args, err, out)
+		}
+	}
+	raw, err := d.Git("rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha := strings.TrimSpace(raw)
+	gh.setHead(9, sha)
+	d.FlakeRegistry = gateRegistry(t, "example.com/flat.TestSlash/path/file")
+	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: suiteCheckName, Command: []string{"go", "test", "-json", "-count=1", "."}, TimeoutMinutes: 30}, sha)
+	if err != nil || !rec.passed() || rec.Outcome != flakes.KnownFlakePassed {
+		t.Fatalf("flat-slash rerun: %+v %v\n%s", rec, err, stderr)
 	}
 }

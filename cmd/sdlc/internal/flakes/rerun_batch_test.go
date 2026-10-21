@@ -83,7 +83,7 @@ func TestRerunMissingJSONPackageBoundProof(t *testing.T) {
 	if got := RerunMissingJSON("rerun: go test -json ...\n"+good, required); len(got) != 0 {
 		t.Fatalf("valid proof missing: %v", got)
 	}
-	for _, test := range []string{"TestA/child/grandchild", "TestA/child", "TestA", "TestB", ""} {
+	for _, test := range []string{"TestA/child/grandchild", "TestA", "TestB", ""} {
 		log := strings.Replace(good, batchEvent("pass", pkg, test), "", 1)
 		got := RerunMissingJSON(log, required)
 		if test == "TestB" {
@@ -123,5 +123,40 @@ func TestRerunMissingJSONRejectsNonEvidenceAndConflicts(t *testing.T) {
 	}
 	if got := RerunMissingJSON(good, []string{"invalid"}); !reflect.DeepEqual(got, []string{"invalid"}) {
 		t.Errorf("invalid name accepted: %v", got)
+	}
+}
+
+func TestRerunMissingJSONAcceptsActualGoSubtestNames(t *testing.T) {
+	const pkg = "example.com/a"
+	const selected = "TestA/path/file"
+	// A slash in one t.Run name does not create intermediate test events.
+	// Incidental names come from go test, not the registry's narrower grammar.
+	proof := batchEvent("pass", pkg, selected) + batchEvent("pass", pkg, "TestA") + batchEvent("pass", pkg, "")
+	for _, incidental := range []string{"", "TestA/case(value)", "TestA/日本語", "TestA/case_with_spaces", "TestA/#00", "TestA//child", "TestA/trailing/", "TestA/a[b]"} {
+		t.Run(incidental, func(t *testing.T) {
+			log := proof
+			if incidental != "" {
+				log = batchEvent("pass", pkg, incidental) + log
+			}
+			if got := RerunMissingJSON(log, []string{pkg + "." + selected}); len(got) != 0 {
+				t.Fatalf("valid actual Go events rejected: %v", got)
+			}
+		})
+	}
+	// Neither another package's exact name nor Output text can substitute for
+	// the selected event, its whole top-level test, or its package.
+	for _, needed := range []string{selected, "TestA", ""} {
+		missing := strings.Replace(proof, batchEvent("pass", pkg, needed), "", 1)
+		decoy := missing + batchEvent("pass", "example.com/other", needed) + `{"Action":"output","Package":"example.com/a","Output":"--- PASS: TestA/path/file (0.01s)"}` + "\n"
+		if got := RerunMissingJSON(decoy, []string{pkg + "." + selected}); len(got) != 1 {
+			t.Fatalf("missing %q authorized by decoy: %v", needed, got)
+		}
+		for _, action := range []string{"fail", "skip"} {
+			for _, log := range []string{batchEvent(action, pkg, needed) + proof, proof + batchEvent(action, pkg, needed)} {
+				if got := RerunMissingJSON(log, []string{pkg + "." + selected}); len(got) != 1 {
+					t.Fatalf("conflicting %s for %q accepted: %v", action, needed, got)
+				}
+			}
+		}
 	}
 }

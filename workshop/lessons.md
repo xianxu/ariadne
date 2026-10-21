@@ -1266,3 +1266,11 @@ Unknown descendant completion protects every input and output together: checkout
   PASS/failure events even when its process prints nothing. The real subprocess
   argv-as-data regression defends this semantic logging/proof boundary; a lexical
   format-string lint cannot establish the downstream parser's authority.
+
+- #524 BR-5: validate configured selections with registry grammar, but treat
+  emitted Go test names as external event identities. A t.Run label can contain
+  punctuation or slash segments without creating intermediate tests. Base PASS
+  authority on the exact required name, known whole test and package; retain
+  real-Go fixtures because synthetic event builders can encode the same false
+  assumptions as the parser. These semantic protocol contracts need executable
+  conformance rather than a lexical source lint.

@@ -2663,7 +2663,7 @@ artifact store. The committed fixture/script and issue Log retain the proof.
 registered subtests to whole top-level tests. Each sorted literal argv runs
 one package with anchored names and `go test -json -count=1`. A name from a
 different package cannot select a same-name decoy. `RerunMissingJSON` requires
-package-bound test, ancestor and package PASS events; Output text, malformed
+package-bound exact-test, whole-top-level and package PASS events; Output text, malformed
 or conflicting terminal events cannot authorize success. Existing saved
 supported evidence remains readable.
 
@@ -2687,3 +2687,12 @@ It proves unrelated named-check republish beside a future record, related
 refusal with zero publication, exact-package decoy exclusion, unchanged opaque
 bytes, and one retained original/linked rerun pair. The test owns and removes
 all fixture state via `t.TempDir`; no installed binary or live evidence changes.
+
+
+PASS event identity follows actual Go output, separately from the registry's
+narrow eligible-name grammar. Incidental legal subtests (punctuation, Unicode,
+rewritten spaces, empty/duplicate segments) cannot invalidate a required root's
+proof. One t.Run may introduce a slash-containing suffix, so slash prefixes
+are not inferred ancestry and cannot require invented events. Exact required
+leaf, whole top-level test and package must pass, preserving sibling-failure
+blocking and required-identity terminal conflict refusal.

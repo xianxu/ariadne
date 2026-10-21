@@ -67,11 +67,10 @@ func rerunPassJSON(tests ...string) string {
 		for {
 			data, _ := json.Marshal(map[string]string{"Action": "pass", "Package": n.Pkg, "Test": run})
 			args = append(args, "'"+strings.ReplaceAll(string(data), "'", "'\"'\"'")+"'")
-			at := strings.LastIndexByte(run, '/')
-			if at < 0 {
+			if run == n.Test {
 				break
 			}
-			run = run[:at]
+			run = n.Test
 		}
 		packages[n.Pkg] = true
 	}

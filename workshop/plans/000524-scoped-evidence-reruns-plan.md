@@ -156,3 +156,23 @@ output. No parser exception was added. The unused text-PASS helper was removed;
 existing saved-attempt readers are unchanged and the proof assertions now use
 the structured helper. Existing environment recovery, saved republish, queue
 signals, runner cleanup/retention and batch controls passed together.
+
+
+### 2026-10-21 — M2 BR-5: align proof with actual Go events
+
+The review independently demonstrated that legal incidental subtest names do
+not obey registry eligibility grammar, and one t.Run("path/file") emits no
+intermediate "path" test. Real production-gate controls reproduced both
+inconclusive results after Go exited zero. Require package-bound exact required
+name, whole top-level test and package PASS; top-level success covers real
+ancestors/siblings without inferring them from slash prefixes. Incidental event
+names stay opaque string identities. Strict JSON/null/duplicate validation,
+required-identity conflicts, exact package binding and sibling failure refusal
+remain. Sweep punctuation, Unicode, spaces, generated empty names and slash
+segments using real Go fixtures and private production-main conformance.
+
+The earlier synthetic helper's every-prefix events masked this external event
+contract error; helpers now emit only the exact name and known top-level.
+This corrects the approved Go-proof contract without new state or rollout policy.
+The queued suite on superseded code was explicitly cancelled through its owned
+run lease; it provides no acceptance evidence. Requeue on corrected pushed code.

@@ -177,3 +177,29 @@ the suite checklist stays pending and no final delivery/acceptance is claimed.
 A recorded pass on the final code still precedes whole-issue close and landing;
 a code correction will requeue it. This docs-only checkpoint preserves the
 queued run and its FIFO position; no restart is attempted.
+
+
+### 2026-10-21 — M2 review REWORK BR-5; real-Go class sweep
+
+M2 review found BR-5 (external-event-contract-fidelity): the new collector
+mistook registry name eligibility for valid emitted names and required every
+slash prefix as a real ancestor event. Main reproduced both through actual
+production gates in3.139s: legal incidental subtests and a single flat
+path/file t.Run both exited zero but yielded inconclusive reruns. The fix
+keeps emitted string identities opaque and requires exact required leaf,
+whole top-level and package PASS only; root success covers actual ancestry
+and siblings. Pure perturbation and real-Go fixtures enumerate the class.
+
+Cancelled the superseded queued suite via sdlc local-check cancel --run
+lease-1500034090 and observed its interrupted exit; no passing record exists
+for that run. Corrected code will be pushed and requeued. M2 remains unclosed.
+
+
+BR-5 corrected verification: real-Go production gates and broader known-flake/
+managed/environment/runner/scoped-proof cases passed42.017s. Private executable
+conformance with legal incidental subtest names passed13.869s. Focused race
+(real package/flat-slash/subtest/batch) passed9.696s; pure race1.160s. Pure
+normal0.131s, Go lint1.115s and shell lint0.244s passed. The selected flat leaf
+has no fabricated intermediate event, and package decoys still stay absent.
+This checkpoint precedes a fresh recorded suite and M2 re-review on corrected
+code; no completed central suite or final close is claimed.

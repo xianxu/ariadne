@@ -47,7 +47,8 @@ func RerunCommands(tests []string) ([][]string, error) {
 }
 
 // RerunMissingJSON lists names without complete package-bound go test -json
-// proof. Each required test, its ancestors, and its package must pass. Output
+// proof. Each required test, its whole top-level test, and its package must
+// pass. A slash within a single t.Run name does not imply an ancestor event. Output
 // text is never evidence. Conflicting terminal outcomes cannot be repaired by
 // a later pass, and ambiguous JSON invalidates the log rather than authorizing
 // a partial prefix. Plain command announcements are allowed between events.
@@ -101,13 +102,10 @@ func RerunMissingJSON(log string, tests []string) []string {
 			invalid = true
 			break
 		}
-		if test != "" {
-			name, ok := ParseName(pkg + "." + test)
-			if !ok || name.Pkg != pkg || name.Run() != test {
-				invalid = true
-				break
-			}
-		}
+		// Go emits arbitrary t.Run names (including Unicode, punctuation,
+		// and empty slash segments). Treat Test as an opaque identity, rather
+		// than applying the registry's narrower name grammar to incidental
+		// events. Required names are still validated below.
 		key := identity{pkg, test}
 		outcome := outcomes[key]
 		outcome.passed = outcome.passed || action == "pass"
@@ -121,15 +119,9 @@ func RerunMissingJSON(log string, tests []string) []string {
 		if complete {
 			outcome := outcomes[identity{name.Pkg, ""}]
 			complete = outcome.passed && !outcome.blocked
-			run := name.Run()
-			for {
+			for _, run := range []string{name.Test, name.Run()} {
 				outcome = outcomes[identity{name.Pkg, run}]
 				complete = complete && outcome.passed && !outcome.blocked
-				index := strings.LastIndexByte(run, '/')
-				if index < 0 {
-					break
-				}
-				run = run[:index]
 			}
 		}
 		if !complete {

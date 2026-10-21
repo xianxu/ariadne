@@ -389,6 +389,167 @@ rounds:
       isolation: fenced
       reviewed: f6dc3de33057609c69f6e85f4d71d6df9a8731ee
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: d26bc2cc-ad3e-42d2-91cd-7632fe3243be
+            repository: github.com/xianxu/ariadne
+            issue_id: "000524"
+            recipe: milestone-review
+            round: 1
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/94256da7abb451c1
+            reviewed_head: 1ff8b62a01066df5152816acc8c2d2b6880bd005
+            slot: ariadne:3
+            requested_at: "2026-10-21T14:43:52.827599Z"
+          phase: finished
+          pid: 19966
+          started_at: "2026-10-21T14:43:52.933755Z"
+          finished_at: "2026-10-21T14:47:37.188881Z"
+          session_id: 01a15eeb-2cf5-7ab1-ab83-2cde8a2f21f9
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 1ff8b62a01066df5152816acc8c2d2b6880bd005
+        tracker_head: e80b7aa63ef575209931b9232ccdbe9ccacbc3cf
+        branch_point: 63ebb3385af267d64084921c6e8d1150a188c734
+        since: "2026-10-21T04:42:56-07:00"
+        until: "2026-10-21T07:43:31-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T04:42:56-07:00"
+              end: "2026-10-21T07:43:31-07:00"
+              began: "2026-10-21T04:42:56-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6a2e2bbef93f77238828232c2bc7ef14fea9726407b6153fa21ccf3fdfa1834b
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 112292489
+              windows:
+                - start: "2026-10-21T04:42:56-07:00"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15e49-a810-7030-882b-a3730b969269
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 7640be368b0dcba34d16bbaf45eeffe4b139d26c0d3df6f5bbac547f0ce5d8e8
+              started: "2026-10-21T11:47:28.214Z"
+              spawned: false
+              bytes: 610529
+              windows:
+                - start: "2026-10-21T11:47:28.214Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15e4c-2f6f-7b32-8342-ddb6680a0213
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 6424b68893ef2158a339ccdd018088d74402e5f6b1a9a92e33b32320bf93bfe2
+              started: "2026-10-21T11:50:13.931Z"
+              spawned: false
+              bytes: 446975
+              windows:
+                - start: "2026-10-21T11:50:13.931Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15e4d-ca88-7cd2-99df-2aa22f58516a
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 78a26db060628253c048662e72898683455ac4ea3989dff2aebb9a9aa21cb077
+              started: "2026-10-21T11:51:59.23Z"
+              spawned: false
+              bytes: 421816
+              windows:
+                - start: "2026-10-21T11:51:59.23Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15e4e-4de2-7cb2-84aa-011086f3ced2
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 9f3bd5c328d7cde086fb1e697a8542fec1e74685f1082c28d9c0d2034d045a82
+              started: "2026-10-21T11:52:32.902Z"
+              spawned: false
+              bytes: 383643
+              windows:
+                - start: "2026-10-21T11:52:32.902Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: eae658a57308dc6ca62f6101eee1f3664cac87c9329d68384eb609a254358616
+              started: "2026-10-21T14:24:08.011Z"
+              spawned: false
+              bytes: 2020480
+              windows:
+                - start: "2026-10-21T14:24:08.011Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15edc-a908-7d03-b74b-f339fff0b5b0
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: 362cfe17f9121a3605f424b067f7f672310fd5367618939b67b6e812635d892f
+              started: "2026-10-21T14:28:02.073Z"
+              spawned: true
+              bytes: 564661
+              windows:
+                - start: "2026-10-21T14:28:02.073Z"
+                  end: "2026-10-21T07:43:31-07:00"
+            - harness: codex
+              id: 01a15ee2-6d4d-7563-bfbd-69a76a92de09
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: c335cd2f156a43a89953e408a7ac9af51391586c682d46dbda43052bc75c5c3d
+              started: "2026-10-21T14:34:20.012Z"
+              spawned: true
+              bytes: 888567
+              windows:
+                - start: "2026-10-21T14:34:20.012Z"
+                  end: "2026-10-21T07:43:31-07:00"
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-21T05:07:53-07:00"
+              finalized: "2026-10-21T05:10:29-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-21T05:15:58-07:00"
+              finalized: "2026-10-21T05:18:19-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-21T07:25:14-07:00"
+              finalized: "2026-10-21T07:27:35-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-21T07:47:38-07:00"
+      dispatched: "2026-10-21T07:43:52-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      findings:
+        - kind: defect
+          id: BR-5
+          severity: Critical
+          title: PASS collection rejects valid Go subtest events and invents required ancestors
+          detail: 'cmd/sdlc/internal/flakes/rerun.go:104-108 validates every terminal Test value using the narrower registry-name grammar: a passing t.Run("case(value)") invalidates the entire log, even when only its valid top-level test requires proof. Lines 124-132 also require a PASS event for every slash prefix, but t.Run("path/file") emits TestSlash/path/file and TestSlash, with no TestSlash/path event. Real go test -json runs exited zero in both cases; temporary overlays extending TestKnownFlakeExactPackageGate and TestKnownFlakeGateSubtest reproduced production outcomes of known-flake-rerun-inconclusive. ARCH-PURPOSE/ARCH-MOCK: distinguish registry eligibility from valid tool output, and require actual test outcomes without fabricating ancestors from name separators. Sweep legal subtest-name forms and add real-Go regressions for both cases while preserving package binding, conflict rejection, and sibling-failure blocking.'
+          family: external-event-contract-fidelity
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#524 (boundary-review)
@@ -428,6 +589,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — README.md:765 documents the verification command and reader-first rollout barrier, matching scripts/verify-pre524-reader.sh:5-15 and atlas/workflow/sdlc-binary.md:2637-2651.
 - BR-4 — addressed — scripts/verify-pre524-reader.sh:13 names invoker cleanup; atlas/workflow/sdlc-binary.md:2653 defines retention through inspection and exact-directory removal. Plan lines 108 and 128 acknowledge the private clone lifecycle.
 
+## Round 4 — 2026-10-21T07:47:38-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-5** [Critical] `external-event-contract-fidelity` (kind: defect) PASS collection rejects valid Go subtest events and invents required ancestors
+  cmd/sdlc/internal/flakes/rerun.go:104-108 validates every terminal Test value using the narrower registry-name grammar: a passing t.Run("case(value)") invalidates the entire log, even when only its valid top-level test requires proof. Lines 124-132 also require a PASS event for every slash prefix, but t.Run("path/file") emits TestSlash/path/file and TestSlash, with no TestSlash/path event. Real go test -json runs exited zero in both cases; temporary overlays extending TestKnownFlakeExactPackageGate and TestKnownFlakeGateSubtest reproduced production outcomes of known-flake-rerun-inconclusive. ARCH-PURPOSE/ARCH-MOCK: distinguish registry eligibility from valid tool output, and require actual test outcomes without fabricating ancestors from name separators. Sweep legal subtest-name forms and add real-Go regressions for both cases while preserving package binding, conflict rejection, and sibling-failure blocking.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-5** [Critical] `external-event-contract-fidelity` (kind: defect) PASS collection rejects valid Go subtest events and invents required ancestors
