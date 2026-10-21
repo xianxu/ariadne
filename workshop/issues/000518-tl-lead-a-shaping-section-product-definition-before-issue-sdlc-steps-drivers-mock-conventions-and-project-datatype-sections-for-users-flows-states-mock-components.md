@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: operator, spec: "b36308fd", done: "e981f94b"}
 ---
 
 # tl-lead: a SHAPING section (product definition before issue SDLC: steps, drivers, mock conventions) and project datatype sections for users, flows, states, mock, components
