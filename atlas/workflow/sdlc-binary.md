@@ -335,13 +335,14 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
-A train waiter retains its validated landed outcome (#494). If the conductor's
-done-card sweep already archived that car without per-PR trailers, bounded
-destination-path history locates the archive commit. The same transition verifier
-must confirm its exact tracked completion, all artifact moves and unchanged
-current archive before the waiter reports “archived by the train”. The outcome
-alone confirms landing, never archival; ambiguous or changed proof still refuses
-cleanup. Ordinary serial archive provenance remains required.
+A done-card sweep can archive a car without per-PR trailers (#494, #512).
+Every archive check, including fresh already-merged recovery and the publisher's
+refreshed main view, can locate that archive through bounded destination-path
+history. The shared transition verifier must confirm its exact tracked completion,
+all artifact moves and unchanged current archive. This proof uses the same pinned
+main snapshot and selected completion as the ordinary check; it needs no transient
+train notification. Missing, ambiguous, changed or mismatched proof still refuses
+cleanup. Legacy untracked issues continue to require per-PR archive provenance.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
 Tracked dirt (including tracker edits), active Git operations, conflicting
@@ -468,7 +469,10 @@ trains on:
   `.sdlc/affected.json`, `carCIGateFacts`
   makes a recorded `affected` run stand in for `suite` (`ciInputs.StandIn`,
   #473 D3): the train's prefix suite is the one full run. Merge without a
-  train sets no stand-in.
+  train sets no stand-in. A passing full-suite record already satisfies the
+  car directly; the affected stand-in is an alternative. The missing-record
+  message names affected or its full-suite fallback and explains conditionally
+  to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness
@@ -2227,7 +2231,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`session-move-batched-reads` and `session-move-raw-fields` #504,
+that taught it (`test-landing-completion-wait` #498/#500,
+`session-move-batched-reads` and `session-move-raw-fields` #504,
 `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434, `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -19,21 +21,40 @@ import (
 // with a generic main commit. Both cars are real merges: a synthetic waiting
 // ticket would never exercise the second caller's archive proof and cleanup.
 func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
+	testLandingTrainSiblingArchive(t, 2, false)
+}
+
+// #512: the same confirmed done/landed/archive state stranded pair:7 (#727)
+// and pair:4 (#733). Recreate both issue identities with real two-car merges;
+// interrupt cleanup, then start a fresh invocation with no train notification.
+func TestLandingTrainArchivedCarFreshResume(t *testing.T) {
+	for _, tc := range []struct {
+		id   int
+		slot string
+	}{{727, "pair:7"}, {733, "pair:4"}} {
+		t.Run(fmt.Sprintf("%s/#%d", tc.slot, tc.id), func(t *testing.T) {
+			testLandingTrainSiblingArchive(t, tc.id, true)
+		})
+	}
+}
+
+func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool) {
 	s := newTrainSetup(t, "train")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tf, err := gitx.NewTrunkFileContext(ctx, s.first, "upstream", "issue-tracker")
 	if err != nil {
 		t.Fatal(err)
 	}
-	const secondBranch = "000002-second"
-	const secondDetail = "workshop/issues/000002-second.md"
-	const secondHistory = "workshop/history/issues/000002-second.md"
-	paths := []string{"workshop/issue-cards/000001-procedure.md", "workshop/issue-cards/000002-second.md"}
+	secondBranch := fmt.Sprintf("%06d-second", secondID)
+	secondDetail := "workshop/issues/" + secondBranch + ".md"
+	secondHistory := "workshop/history/issues/" + secondBranch + ".md"
+	ids := []int{1, secondID}
+	paths := []string{"workshop/issue-cards/000001-procedure.md", "workshop/issue-cards/" + secondBranch + ".md"}
 	cards := make([][]byte, 2)
 	seed := map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes()}
 	for i, title := range []string{"Procedure", "second"} {
-		cards[i] = []byte(fmt.Sprintf("---\nid: %06d\nstatus: codecomplete\nactual_hours: 1\nupdated: 2026-09-23\n---\n\n# %s\n\n## Problem\nTrain archive regression.\n", i+1, title))
+		cards[i] = []byte(fmt.Sprintf("---\nid: %06d\nstatus: codecomplete\nactual_hours: 1\nupdated: 2026-09-23\n---\n\n# %s\n\n## Problem\nTrain archive regression.\n", ids[i], title))
 		seed[paths[i]] = cards[i]
 	}
 	if _, err := tf.Bootstrap(seed, "bootstrap train cards", func(gitx.BootstrapResult) error { return nil }); err != nil {
@@ -45,7 +66,13 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 	git(t, s.first, "fetch", "-q", "upstream")
 	git(t, s.first, "branch", "-f", "main-slot1", "upstream/main")
 	git(t, s.first, "rebase", "-q", "upstream/main")
-	second := trainCarWithIssue(t, s, "---\nid: 000002\nstatus: codecomplete\n---\n# second\n")
+	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
+	git(t, second, "fetch", "-q", "upstream")
+	git(t, second, "reset", "-q", "--hard", "upstream/main")
+	git(t, second, "switch", "--quiet", "--no-track", "-c", secondBranch)
+	procedureWrite(t, second, "second.go", "package second\n")
+	git(t, second, "add", "--", "second.go")
+	git(t, second, "commit", "-qm", "close second")
 	for i, root := range []string{s.first, second} {
 		details, err := issue.MirrorDetails(append(append([]byte{}, cards[i]...), []byte("\n## Log\nClosed and reviewed.\n")...), cards[i], "sha1")
 		if err != nil {
@@ -60,7 +87,7 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 		git(t, root, "add", "--", detail)
 		git(t, root, "commit", "-q", "--amend", "--no-edit")
 		git(t, root, "push", "-q", "--force", "upstream", branch)
-		s.addCar(t, branch, i+1)
+		s.addCar(t, branch, ids[i])
 	}
 	env, err := openTrackerAt(ctx, s.first)
 	if err != nil {
@@ -99,7 +126,7 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 		go func() {
 			defer workers.Done()
 			f := landingFlags()
-			f.Context = context.WithValue(ctx, trainRootKey{}, root)
+			f.Context = withIssueRecordsScope(context.WithValue(ctx, trainRootKey{}, root))
 			cmd := markManualLockCommand(&cobra.Command{Use: "merge"})
 			cmd.SetContext(f.Context)
 			f.Lock = func(run func() error) error {
@@ -109,6 +136,9 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 				if waiter && s.gh.pr(secondBranch).State == "MERGED" {
 					select {
 					case <-conductorFinished:
+						if freshResume {
+							return errors.New("simulated runner stopped before cleanup")
+						}
 					case <-ctx.Done():
 						return ctx.Err()
 					}
@@ -161,7 +191,7 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 		t.Fatalf("no sibling archive; card: %s\nconductor: %s\nevents: %+v", a, firstStderr.String(), lineEvents(t, s.line))
 	}
 	message := git(t, s.gh.remote, "show", "-s", "--format=%B", archiveCommit)
-	if !strings.Contains(message, "#2: issue: archive after a merge outside sdlc") || strings.Contains(message, "Landing-PR:") {
+	if !strings.Contains(message, fmt.Sprintf("#%d: issue: archive after a merge outside sdlc", secondID)) || strings.Contains(message, "Landing-PR:") {
 		t.Fatalf("expected the conductor's generic archive, got:\n%s", message)
 	}
 	if _, err := trainGitOut(s.gh.remote, "cat-file", "-e", "main:"+secondDetail); err == nil {
@@ -172,10 +202,36 @@ func TestLandingTrainWaiterAcceptsConductorArchive(t *testing.T) {
 	}
 	release()
 	otherErr := finished(t, two) // join before reading its private stderr
-	if otherErr != nil {
+	if freshResume {
+		if otherErr == nil || !strings.Contains(otherErr.Error(), "simulated runner stopped") {
+			t.Fatalf("interruption: %v", otherErr)
+		}
+		beforeCard, err := tf.Read(paths[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		merges := s.gh.merges
+		ghClient = s.gh
+		retry := landingFlags()
+		retry.Context = withIssueRecordsScope(context.WithValue(ctx, trainRootKey{}, second))
+		// Warm the command-scoped authority just as normal CLI entry does.
+		if _, err := loadIssueRecordsAt(retry.Context, second, "workshop/issues", tracker.Fresh); err != nil {
+			t.Fatal(err)
+		}
+		if err := runMerge(io.Discard, &secondStderr, retry); err != nil {
+			t.Fatalf("fresh merged retry: %v", err)
+		}
+		afterCard, err := tf.Read(paths[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(beforeCard) != string(afterCard) || s.gh.merges != merges {
+			t.Fatal("retry rewrote completion ownership or repeated server merge")
+		}
+	} else if otherErr != nil {
 		t.Fatalf("waiter merge: %v\n%s", otherErr, secondStderr.String())
 	}
-	if output := secondStderr.String(); !strings.Contains(output, "archived by the train") || strings.Contains(output, "active issue missing without confirmed archive") {
+	if output := secondStderr.String(); (!freshResume && !strings.Contains(output, "archived by the train")) || strings.Contains(output, "active issue missing without confirmed archive") {
 		t.Fatalf("waiter did not report its confirmed train archive:\n%s", output)
 	}
 	if current := git(t, second, "branch", "--show-current"); current != "main-slot2" {

@@ -290,6 +290,14 @@ automatic resume authority. `--apply` waits for each terminal receipt and
 stops at the first failure or uncertainty, naming untouched slots. See
 [TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
 
+Before filing a new project's implementation issues, follow SHAPING in
+`tl-lead --help`: users, flows, clickable mock, visual design, components and
+slices, with operator review at each step. UI mocks use
+`couch mock serve <project>/mocks`, numbered versions and shared fixtures.
+The screen-by-screen mock-to-real switch is development-only; production
+refuses mock-backed screens. The [project datatype](construct/datatype/project.md)
+describes optional Users, Flows, States, Mock and Components sections.
+
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits
 shell configuration. Managed ignore entries and an output identity inventory
@@ -650,6 +658,15 @@ accepted suite attempts. The normal newest-20-head log retention applies.
 `tl-worker --help` describes the durable checkpoint and drain acknowledgment.
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
+For generated Go graph inputs, that file can include
+`"graph_prepare": {"command": ["make", "generate"], "timeout_minutes": 2}`.
+The command is an argv array, read from pinned main and run once in the requested
+head's private graph checkout before `go list`. The default timeout is two
+minutes, with a maximum of 30; omission or null disables preparation. A preparation
+failure or timeout selects the full suite and names its cause; cancellation
+cannot record a passing affected check. Generated graph files are discarded with
+that checkout: the affected test command must establish its own prerequisites.
+Older sdlc versions reject the new field, so upgrade the provider before adopting it.
 `sdlc local-check run --name affected` then runs only what the branch's change can break, and the result of a
 pushed head's run depends on what changed:
 

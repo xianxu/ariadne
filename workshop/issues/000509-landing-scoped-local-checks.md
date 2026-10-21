@@ -133,6 +133,11 @@ Authenticated hub receipt e29d3ea3-075f-4463-88e0-718c8a6ab581 accepts private e
 
 Central sdlc local-check run --name suite passed on4400533860ab73eae6ff12dccfd063ceaa496431 after2279s queued: wall649.7s, eight shards covering1908 cmd/sdlc tests and75 other packages, all exit0 with zero failures/reruns. Status sdlc-local/suite recorded on that head; log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/4400533860ab73eae6ff12dccfd063ceaa496431/suite.log, sha256 prefix4a9192a35a78. The retained runner survived the transient model-capacity interruption; no replacement suite was started. No local-gates configuration path is changed. M1/M2 SHIP and accepted private conformance complete delivery preparation; full close, PR and central merge remain next.
 
+
+### 2026-10-21 02:20 PDT — Main integration conflict recovery
+
+The retained central merge reached its turn after #512, then refused a conflict in localcheck_cmd.go and preserved the branch. Manually integrating origin/main exposed the same one-file overlap: #509 and #517 both pin origin/main once, under different variable names. Resolution uses mainHead for the declaration, default suite, affected configuration/graph preparation and #509 manual landing target validation. No mechanism or contract changed. Focused CLI selection/affected graph preparation checks passed (5.313s), then the real manual landing CLI and burn-in target controls passed (0.941s). The inherited archived #516 card has trailing whitespace; it is main's unchanged content, outside this resolution. Commit this integration, push, run a fresh central recorded full suite, then re-close with --fixed-then-ship and full-suite evidence before retrying merge. No waiver or replacement waiter was used.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries

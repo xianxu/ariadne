@@ -742,6 +742,9 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	if err != nil {
 		return pr, false, err
 	}
+	// A waiter can refresh while our own gates run. Evaluate the snapshot
+	// against a clock sampled after reading it, so a new vouch isn't future.
+	now = landingNow()
 	b := landingline.Board(landingline.Car{Seq: tk.Seq, Issue: tk.Issue, Branch: branch, Head: head, PR: pr.Number}, self.Alone, waiting, ready, grants, s, now)
 	cars := b.Cars[:1]
 	for _, car := range b.Cars[1:] {

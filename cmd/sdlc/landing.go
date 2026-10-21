@@ -722,12 +722,8 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			return err
 		}
 		complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-		var unproven *landingArchiveWithoutProvenance
-		if trainOutcome != nil && trainOutcome.PR > 0 && errors.As(err, &unproven) {
-			complete, err = confirmTrainLandingArchive(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
-			if complete && err == nil {
-				fmt.Fprintf(stderr, "landing train %d: PR #%d's issue archived by the train (train PR #%d); finishing cleanup\n", trainOutcome.Train, pr.Number, trainOutcome.PR)
-			}
+		if complete && err == nil && trainOutcome != nil {
+			fmt.Fprintf(stderr, "landing train %d: PR #%d's issue archived by the train (train PR #%d); finishing cleanup\n", trainOutcome.Train, pr.Number, trainOutcome.PR)
 		}
 		if err != nil {
 			return err

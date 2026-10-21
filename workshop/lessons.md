@@ -3,6 +3,16 @@
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
 
+- #517 BR-1: exec.CommandContext plus a separate process group does not own
+  CLI signals. When a new phase precedes an existing signal owner, trace the
+  actual root command context, retain cancellation through fallback, and test
+  real SIGINT/SIGTERM with child shutdown and resource cleanup. Context-only
+  injection cannot prove OS-signal ownership. The CLI regressions enforce this
+  temporal property; a lexical CommandContext rule cannot establish it.
+- #517 BR-2: when review/dispatch adds a behavioral acceptance requirement,
+  append it to Done when as well as Revisions and tests. Tests alone do not
+  make an omitted acceptance clause part of the recorded contract.
+
 - #503: an injected readiness callback's entry counter is not evidence that its
   caller published readiness. Cancel only after observing the persisted effect;
   force callback-in-flight and cancel-before-publication orderings with channels.
@@ -1243,3 +1253,4 @@ Never run a fake-liveness collector against the runtime-selected scratch/temp ro
 ### #509 — Retention is one artifact-lifetime proof
 
 Unknown descendant completion protects every input and output together: checkout, scratch, raw log and temporary attempt writes, including stale collectors and panic unwinding. One shared retirement authority must span launch intent through confirmed group completion; an unavailable attempt writer refuses before runner launch. The private collector mutation and independent-owner regressions enforce this semantic lifetime rule. Keep checkout contents and staging unchanged while cmd/sdlc tests run: its hermeticity snapshot deliberately treats concurrent agent edits as invalid verification.
+- #498 BR-1: a review may overlap a queued suite under the worker contract, but the queue is not acceptance evidence. Keep verification and flake-removal items pending, retain the failed/pending attempts, and supply the completed recorded result before finalizing close. This evidence-ordering rule is defended by the close review and exact-head check records, not a lexical code lint.
