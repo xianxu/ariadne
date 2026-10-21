@@ -1,6 +1,6 @@
 ---
 id: 000503
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a99969209d1387ede6d2d71e297bff9c4b218abb
         evidence_commit: 3857b567dbc4ecc5d68d71ca949b7c703e4c9405
+        landed_commit: d5df60a85e9300cb20be0f2122a48bc3803492e5
 ---
 
 # flake: TestVouchingStartsWhenTrainsTurnOn
