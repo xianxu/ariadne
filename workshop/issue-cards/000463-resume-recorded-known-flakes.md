@@ -1,6 +1,6 @@
 ---
 id: 000463
-status: codecomplete
+status: done
 created: 2026-10-19
 updated: 2026-10-21
 estimate_hours: 3
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 31d5e5b22a8629a9aa774c2e3ff924b9f334b24b
         evidence_commit: f0a2ff98887a6a2ee1fdd9d6c54341f358250163
+        landed_commit: b1a4c7d5b471363705d45af4a4004d47267467a2
 ---
 
 # local-check: resume recorded known-flake failures with targeted tests
