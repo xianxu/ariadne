@@ -1,13 +1,13 @@
 ---
 id: 000526
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.79
 collaboration-mode: collaboration
-card_mirror: 'c15f690588c13a400c4c972c09b0aa22ad988697' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7b6a3d715baa8ab5582e90aa8ed1b06dd3f5b846' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T08:01:01-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 2.78
 ---
 
 # landing: drop one car from a composed train before merge (no per-car hold today)
