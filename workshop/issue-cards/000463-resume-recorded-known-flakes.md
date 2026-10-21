@@ -1,6 +1,6 @@
 ---
 id: 000463
-status: working
+status: codecomplete
 created: 2026-10-19
 updated: 2026-10-21
 estimate_hours: 3
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 7.69
+tracker:
+    version: 1
+    completion:
+        token: close-7adac0c194ca
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 31d5e5b22a8629a9aa774c2e3ff924b9f334b24b
+        evidence_commit: f0a2ff98887a6a2ee1fdd9d6c54341f358250163
 ---
 
 # local-check: resume recorded known-flake failures with targeted tests
