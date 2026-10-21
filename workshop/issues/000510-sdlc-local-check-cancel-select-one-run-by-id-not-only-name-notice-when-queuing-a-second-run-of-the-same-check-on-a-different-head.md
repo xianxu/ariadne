@@ -41,9 +41,9 @@ had to cancel both and requeue.
 
 ## Plan
 
-- [ ] Add runtime CLI regressions for exact cancellation of one of two real queued runs, retained sibling FIFO, and foreign/invalid selectors.
-- [ ] Expose the existing lease ID; add exact-ID cancellation and same-check/different-head notices using the shared lease reader and managed interruption path.
-- [ ] Verify targeted cancellation/notice controls and update help/README/atlas.
+- [x] Add runtime CLI regressions for exact cancellation of one of two real queued runs, retained sibling FIFO, and foreign/invalid selectors.
+- [x] Expose the existing lease ID; add exact-ID cancellation and same-check/different-head notices using the shared lease reader and managed interruption path.
+- [x] Verify targeted cancellation/notice controls and update help/README/atlas.
 
 Actions: start a check; cancel one ID; cancel by name/all; retry a completed or refused selection.
 
@@ -73,6 +73,8 @@ Actions: start a check; cancel one ID; cancel by name/all; retry a completed or 
 - Shared `openRunLease` owns decode/flock observation; selection retains existing PID-generation checks and managed cancellation. IDs remain existing filename stems. Notices are advisory and preserve both runs. Help, README and atlas now state exact ID, by-name/all and duplicate behavior. Executable/help diff remains within the quick shell (96 added lines).
 - Added opt-in `SDLC_RUNID_CLI` to reuse the private real-queue fixture against the built executable, with local Git/GitHub transport stubs; this does not touch actual fleet checks or :0 tools. Committed-build proof follows, then the recorded suite and close review.
 - Hub changed the queue: #520 is assigned to ariadne:3. After #510 lands, report to ops:0 and wait for the next item; do not claim or plan #520 here.
+
+- Committed-build proof: own bin/sdlc reports vcs.revision=18e7cda53cfbfcee5bfe99fd75005b94873d113d, vcs.modified=false. SDLC_RUNID_CLI against this executable passed the complete two-real-run FIFO/cancellation/refusal regression (5.960s package run), with private capacity and local transport fixtures. Output: /Users/xianxu/workspace/worktree/ariadne-slot2/p510-live-proof.txt. No fleet jobs or :0 tools were touched. Implementation acceptance is complete; recorded full suite and close review remain required before landing.
 
 ## Revisions
 
