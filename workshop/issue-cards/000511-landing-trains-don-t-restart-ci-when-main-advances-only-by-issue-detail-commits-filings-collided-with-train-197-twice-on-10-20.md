@@ -1,6 +1,6 @@
 ---
 id: 000511
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.44
+tracker:
+    version: 1
+    completion:
+        token: close-0e121244eb9a
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 71d9a6ae50fe907a400ad899372ed073f02613be
+        evidence_commit: 979dce878905f174c47a5aaaf45feaa34fa4fed2
 ---
 
 # landing trains: don't restart CI when main advances only by issue-detail commits (filings collided with train 197 twice on 10-20)
