@@ -105,7 +105,11 @@ func runLandingDrop(out io.Writer, repo string, issue int, reason string, d land
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "#%d dropped from train %d; cleanup/recomposition pending: %s\n", issue, receipt.Drop.Train, receipt.Drop.Reason)
+	state := "cleanup completed"
+	if receipt.Control.Cleanup.Pending {
+		state = "cleanup/recomposition pending"
+	}
+	fmt.Fprintf(out, "#%d dropped from train %d; %s: %s\n", issue, receipt.Drop.Train, state, receipt.Drop.Reason)
 	if receipt.NotificationError != nil {
 		fmt.Fprintf(out, "drop accepted; waiter notification pending: %v\n", receipt.NotificationError)
 	}

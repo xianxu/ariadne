@@ -389,7 +389,7 @@ func (c *conductor) publish(k int) error {
 	head := c.heads[k-1]
 	branch := trainBranch(c.id)
 	if _, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
-		Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+		Started: c.opened, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
 		ExpectedTip: head, PreviousTip: c.pushed, PR: c.pr.Number, RecoveryBranch: c.handle.Ticket().Branch,
 	}); err != nil {
 		return err
@@ -402,6 +402,14 @@ func (c *conductor) publish(k int) error {
 	}
 	c.pushed = head
 	if !c.opened {
+		// The push identity is already durable. Fence PR creation separately:
+		// a drop during the push can prove no PR create was ever attempted.
+		if _, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+			Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+			ExpectedTip: head, PreviousTip: head, RecoveryBranch: c.handle.Ticket().Branch,
+		}); err != nil {
+			return err
+		}
 		title, body := c.prText()
 		if err := c.gh.CreateTrainPR(c.ctx, c.t.Repo, branch, title, body); err != nil {
 			return fmt.Errorf("open the train PR: %w", err)

@@ -43,8 +43,9 @@ type TrainDrop struct {
 	Extra  map[string]json.RawMessage `json:"-"`
 }
 
-// Publication is fenced before external writes. Either known tip may be left
-// by a canceled push; cleanup still leases the exact positively observed tip.
+// Publication is fenced before external writes. Started means train PR
+// creation was attempted; intended/previous tips are pinned before a push.
+// Cleanup leases the exact positively observed ref tip, even before PR creation.
 type TrainPublication struct {
 	Started        bool                       `json:"started"`
 	Repository     string                     `json:"repository"`
@@ -172,7 +173,10 @@ func decideTrainDrop(c TrainControl, train int64, member TrainMember, reason str
 	if c.MergeStarted {
 		return c, TrainDrop{}, false, fmt.Errorf("%w; train %d is %s", ErrTrainMergeStarted, c.Train, c.Phase)
 	}
-	if c.Phase.Terminal() || c.Phase == PhaseForming {
+	if c.Phase == PhaseForming || c.Phase == PhaseIntegrating {
+		return c, TrainDrop{}, false, fmt.Errorf("train %d is %s; candidates are not yet composed, no drop accepted", c.Train, c.Phase)
+	}
+	if c.Phase.Terminal() {
 		return c, TrainDrop{}, false, fmt.Errorf("train %d is %s, with no droppable composed car", c.Train, c.Phase)
 	}
 	i := slices.IndexFunc(c.Members, func(m TrainMember) bool { return sameTrainMember(m, member) })

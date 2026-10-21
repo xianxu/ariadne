@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,6 +129,31 @@ func closeDroppedTrain(ctx context.Context, gh trainGH, git func(...string) (str
 	if !cleanup.Pending {
 		return nil
 	}
+	id, err := strconv.ParseInt(strings.TrimPrefix(p.Branch, trainBranchPrefix), 10, 64)
+	if err != nil || id <= 0 || trainBranch(id) != p.Branch {
+		return errors.New("cleanup target is not a train branch; original obligation retained")
+	}
+	// The lease pins content; it does not pin where a mutable remote alias
+	// points. Re-read effective fetch/push destinations under the same repo
+	// lock as deletion, as normal landing cleanup revalidates its target.
+	checkedLock := func(run func() error) error {
+		return lock(func() error {
+			for _, args := range [][]string{{"remote", "get-url", "--all", p.Remote}, {"remote", "get-url", "--push", "--all", p.Remote}} {
+				url, err := git(args...)
+				if err != nil {
+					return err
+				}
+				repo, err := landingRepoURL(strings.TrimSpace(url))
+				if err != nil || !strings.EqualFold(repo, p.Repository) {
+					return errors.New("train cleanup destination changed; original obligation retained")
+				}
+			}
+			return run()
+		})
+	}
+	if err := checkedLock(func() error { return nil }); err != nil {
+		return err
+	}
 	if p.Started {
 		prs, err := gh.LandingPRs(ctx, p.Repository, p.Branch)
 		if err != nil {
@@ -173,12 +200,15 @@ func closeDroppedTrain(ctx context.Context, gh trainGH, git func(...string) (str
 		if tip != p.ExpectedTip && tip != p.PreviousTip {
 			return errors.New("old train ref moved to an unrecognized head; retained")
 		}
-		if err := deleteTrainRef(git, lock, p.Remote, p.Branch, tip); err != nil {
+		if err := deleteTrainRef(git, checkedLock, p.Remote, p.Branch, tip); err != nil {
 			return err
 		}
 	}
-	tip, err = remoteRefTip(git, p.Remote, "refs/heads/"+p.Branch)
-	if err != nil {
+	if err := checkedLock(func() error {
+		var readErr error
+		tip, readErr = remoteRefTip(git, p.Remote, "refs/heads/"+p.Branch)
+		return readErr
+	}); err != nil {
 		return err
 	}
 	if tip != "" {
@@ -200,6 +230,9 @@ func reconcileDroppedTrain(ctx context.Context, turn *landingTurn, t landingTarg
 	}
 	if !control.Cleanup.Pending {
 		return nil
+	}
+	if control.Cleanup.Publication.Remote != t.Remote || !strings.EqualFold(control.Cleanup.Publication.Repository, t.Repo) {
+		return dropCleanupError(control, errors.New("train cleanup destination differs from this landing target; original obligation retained"))
 	}
 	trainGH, ok := gh.(trainGH)
 	if !ok {
@@ -240,5 +273,39 @@ func printTrainControl(out io.Writer, line *landingline.Line) {
 	}
 	if control.Cleanup.Pending {
 		fmt.Fprintf(out, "  drop accepted; cleanup/recomposition pending; Recovery: sdlc merge --branch %s --yes\n", control.Cleanup.Publication.RecoveryBranch)
+	}
+}
+
+// retryTrainReformation owns the inherited head across attempts. The attempt
+// seam lets the resource-lifetime paths be exercised against actual line locks.
+func retryTrainReformation(ctx context.Context, out io.Writer, attempt func(context.Context) error) error {
+	var retained *landingTurn
+	defer func() {
+		if retained != nil {
+			retained.leave(errors.New("survivor re-formation interrupted before fresh ticket vouch"))
+		}
+	}()
+	for {
+		attemptCtx := ctx
+		if retained != nil {
+			attemptCtx = context.WithValue(ctx, trainReformReleaseKey{}, func() {
+				retained.leave(errors.New("train dropped a car; fresh survivor ticket vouched"))
+				retained = nil
+			})
+		}
+		err := attempt(attemptCtx)
+		if retained != nil {
+			retained.leave(err)
+			retained = nil
+		}
+		var reform *trainReformError
+		if !errors.As(err, &reform) {
+			return err
+		}
+		retained = reform.turn
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, reform.Error())
 	}
 }

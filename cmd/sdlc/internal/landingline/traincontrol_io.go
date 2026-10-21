@@ -261,14 +261,14 @@ func (l *Line) RequestTrainDrop(train int64, m TrainMember, reason string) (Drop
 		if err != nil {
 			return err
 		}
-		repeated := false
-		for _, d := range c.Drops {
-			if d.Train == train && sameTrainMember(d.Member, m) {
-				repeated = true
-				break
-			}
+		// A recorded merge-start/terminal state can refuse exactly even
+		// after its head left. Only a prospective new acceptance requires
+		// the matching live head; an accepted retry keeps its receipt.
+		next, d, again, err := decideTrainDrop(*c, train, m, reason, l.o.Now())
+		if err != nil {
+			return err
 		}
-		if !repeated {
+		if !again {
 			head, err := l.headGenerationLocked()
 			if err != nil {
 				return err
@@ -276,10 +276,6 @@ func (l *Line) RequestTrainDrop(train int64, m TrainMember, reason string) (Drop
 			if head == nil || head.Unreadable || head.Seq != c.Train || c.Train != train {
 				return ErrTrainControlStale
 			}
-		}
-		next, d, again, err := decideTrainDrop(*c, train, m, reason, l.o.Now())
-		if err != nil {
-			return err
 		}
 		if !again {
 			if err := l.writeTrainControlLocked(next); err != nil {

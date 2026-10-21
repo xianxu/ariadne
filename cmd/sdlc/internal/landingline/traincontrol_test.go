@@ -27,7 +27,7 @@ func controlFixture(t *testing.T) (*Line, *Handle, *Handle, TrainControl) {
 	}
 	w := enqueue(t, l, 2)
 	members := []TrainMember{{Seq: h.Ticket().Seq, Issue: 1, Branch: "b", Head: strings.Repeat("a", 40), PR: 1, OwnerRoot: "/one"}, {Seq: w.Ticket().Seq, Issue: 2, Branch: "b", Head: strings.Repeat("b", 40), PR: 2, OwnerRoot: "/two"}}
-	c := TrainControl{Version: 1, Train: h.Ticket().Seq, Phase: PhaseIntegrating, Members: members, Publication: TrainPublication{Repository: "test/repo", Remote: "origin", Branch: "train-1"}}
+	c := TrainControl{Version: 1, Train: h.Ticket().Seq, Phase: PhaseTesting, Members: members, Publication: TrainPublication{Repository: "test/repo", Remote: "origin", Branch: "train-1"}}
 	if err := l.BeginTrain(h, c); err != nil {
 		t.Fatal(err)
 	}
@@ -300,6 +300,29 @@ func TestTrainControlMergeWinsDropAndStaysStarted(t *testing.T) {
 	}
 	if _, err := l.RequestTrainDrop(c.Train, c.Members[1], "late"); !errors.Is(err, ErrTrainMergeStarted) {
 		t.Fatalf("late drop: %v", err)
+	}
+}
+
+func TestTrainDropTerminalRefusalAfterHeadRelease(t *testing.T) {
+	for _, phase := range []Phase{PhaseLanded, PhaseUnconfirmed} {
+		t.Run(string(phase), func(t *testing.T) {
+			l, h, _, c := controlFixture(t)
+			tr := NewTrain(c.Train)
+			tr.Phase = PhaseMerging
+			tr.MergeStarted = true
+			if _, err := l.StartTrainMerge(h, tr); err != nil {
+				t.Fatal(err)
+			}
+			tr.Phase = phase
+			if _, err := l.UpdateTrain(h, tr); err != nil {
+				t.Fatal(err)
+			}
+			h.Release()
+			_, err := l.RequestTrainDrop(c.Train, c.Members[1], "late")
+			if !errors.Is(err, ErrTrainMergeStarted) || !strings.Contains(err.Error(), string(phase)) {
+				t.Fatalf("terminal state collapsed into generic stale refusal: %v", err)
+			}
+		})
 	}
 }
 

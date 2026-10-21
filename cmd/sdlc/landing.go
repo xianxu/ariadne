@@ -341,36 +341,11 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stde
 	return nil
 }
 func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
-	var retained *landingTurn
-	defer func() {
-		if retained != nil {
-			retained.leave(errors.New("survivor re-formation interrupted before fresh ticket vouch"))
-		}
-	}()
-	for {
+	return retryTrainReformation(commandContext(f.Context), stderr, func(ctx context.Context) error {
 		attempt := *f
-		if retained != nil {
-			attempt.Context = context.WithValue(commandContext(f.Context), trainReformReleaseKey{}, func() {
-				retained.leave(errors.New("train dropped a car; fresh survivor ticket vouched"))
-				retained = nil
-			})
-		}
-		err := runDurableMergeAttempt(stdout, stderr, &attempt, t)
-		// Early errors before enqueue/vouch still release the inherited capability.
-		if retained != nil {
-			retained.leave(err)
-			retained = nil
-		}
-		var reform *trainReformError
-		if !errors.As(err, &reform) {
-			return err
-		}
-		retained = reform.turn
-		if err := commandContext(f.Context).Err(); err != nil {
-			return err
-		}
-		fmt.Fprintln(stderr, reform.Error())
-	}
+		attempt.Context = ctx
+		return runDurableMergeAttempt(stdout, stderr, &attempt, t)
+	})
 }
 
 func runDurableMergeAttempt(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {

@@ -319,12 +319,16 @@ func (s *trainSetup) pushCar(t *testing.T, branch, file string, issue, number in
 
 // merge starts a real sdlc merge in root.
 func (s *trainSetup) merge(root string) <-chan error {
+	return s.mergeContext(context.Background(), root)
+}
+
+func (s *trainSetup) mergeContext(parent context.Context, root string) <-chan error {
 	done := make(chan error, 1)
 	go func() {
 		f := landingFlags()
 		f.NoCI = s.noCI
 		f.NoValidate = !s.validate
-		ctx := context.WithValue(context.Background(), trainRootKey{}, root)
+		ctx := context.WithValue(parent, trainRootKey{}, root)
 		f.Context = ctx
 		// The real repo transaction lock, as production's merge takes it:
 		// cars run their cleanup concurrently once a train lands.

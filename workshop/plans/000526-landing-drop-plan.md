@@ -87,35 +87,35 @@ Actions: inspect status; drop a composed member; explicitly retry the dropped br
 
 Files: internal/landingline/trainstate.go, traincontrol.go and colocated tests; codec.go only for shared nested preservation.
 
-- [ ] TDD CarsDropped through Transition and named pure decideTrainDrop / decideTrainMerge / validateTrainControl functions. Sequence/property tests generate interrupting drop/completion/merge events; invariant: accepted members never appear in a Merge effect, survivor FIFO/exact heads are preserved, and rejection leaves state unchanged.
-- [ ] TDD DecodeTrainControl / TrainControl.MarshalJSON through malformed-record fuzz seeds and round-trip properties; mechanical guards are strict known fields/duplicates/version/size/identity and unknown top-level/nested preservation.
-- [ ] Implement minimal pure transitions and codec; go test ./cmd/sdlc/internal/landingline -count=1; commit passing core.
+- [x] TDD CarsDropped through Transition and named pure decideTrainDrop / decideTrainMerge / validateTrainControl functions. Sequence/property tests generate interrupting drop/completion/merge events; invariant: accepted members never appear in a Merge effect, survivor FIFO/exact heads are preserved, and rejection leaves state unchanged.
+- [x] TDD DecodeTrainControl / TrainControl.MarshalJSON through malformed-record fuzz seeds and round-trip properties; mechanical guards are strict known fields/duplicates/version/size/identity and unknown top-level/nested preservation.
+- [x] Implement minimal pure transitions and codec; go test ./cmd/sdlc/internal/landingline -count=1; commit passing core.
 
 ### 2. Storage, authority and merge fence
 
 Files: internal/landingline/traincontrol_io.go, line.go and colocated tests; cmd/sdlc/landingdrop.go, landingcmd.go and landingdrop_test.go.
 
-- [ ] TDD Line.BeginTrain / UpdateTrain / RequestTrainDrop / StartTrainMerge / FinishTrainControl using real temporary folders and deterministic two-actor barriers; adversarial crash/retry/generation sequences must preserve a single durable decision and forbid a drop/merge double winner.
-- [ ] TDD Line.reconcileTrainDrops and replacement/admission using fault injection after the safety write; the mechanical guard excludes pinned dropped tickets before candidate selection and preserves pending cleanup across dead heads and retries.
-- [ ] TDD authorizeTrainDrop and runLandingDrop with actual-caller/target repository separation and workspace provenance; caller/target mutations must never widen owner/:0 authority. Missing identity/control refuses without effects.
-- [ ] Implement methods under existing line/head locks, shared atomic codec and strict bound; targeted landingline/command checks; commit.
+- [x] TDD Line.BeginTrain / UpdateTrain / RequestTrainDrop / StartTrainMerge / FinishTrainControl using real temporary folders and deterministic two-actor barriers; adversarial crash/retry/generation sequences must preserve a single durable decision and forbid a drop/merge double winner.
+- [x] TDD Line.reconcileTrainDrops and replacement/admission using fault injection after the safety write; the mechanical guard excludes pinned dropped tickets before candidate selection and preserves pending cleanup across dead heads and retries.
+- [x] TDD authorizeTrainDrop and runLandingDrop with actual-caller/target repository separation and workspace provenance; caller/target mutations must never widen owner/:0 authority. Missing identity/control refuses without effects.
+- [x] Implement methods under existing line/head locks, shared atomic codec and strict bound; targeted landingline/command checks; commit.
 
 ### 3. Production conductor and survivor landing
 
 Files: landingtrain.go, landing.go, landingdrop_train_test.go and reusable trainFakeGH/ciFakeGH barriers.
 
-- [ ] TDD conductTrain through a deterministic real-Git three-car scenario and a native blocked old suite: actual command accepts drop, obsolete effect joins, old PR/ref closure is confirmed, survivors automatically re-form a new head and land; Git reachability proves dropped commit absent, survivors present and dropped PR OPEN. This is the operator-approved live conformance, including dropped-conductor behavior.
-- [ ] TDD conductor drop watcher / effect admission with forced completion-vs-drop orderings, native cancellation and foreign live leases; mechanical guard is context cancellation plus lexical join, followed by the atomic merge fence, never timing luck.
-- [ ] TDD closeDroppedTrain / reconcileDroppedTrain against stateful GH lost/failed/lagging observations and restarted real-folder state; enforce no successor publication/merge before positive cleanup proof through both serial and train paths.
-- [ ] TDD runDurableMerge attempt wrapper through the typed re-formation result; observe a fresh queue operation/ticket and re-read heads/gates, with no automatic retry on ordinary errors or dropped self.
-- [ ] Implement scoped watcher, control updates, failure-aware cleanup and retry wrapper; run focused train/lease/serial controls and commit. Retain all failed attempts; classify rather than blind-retry.
+- [x] TDD conductTrain through a deterministic real-Git three-car scenario and a native blocked old suite: actual command accepts drop, obsolete effect joins, old PR/ref closure is confirmed, survivors automatically re-form a new head and land; Git reachability proves dropped commit absent, survivors present and dropped PR OPEN. This is the operator-approved live conformance, including dropped-conductor behavior.
+- [x] TDD conductor drop watcher / effect admission with forced completion-vs-drop orderings, native cancellation and foreign live leases; mechanical guard is context cancellation plus lexical join, followed by the atomic merge fence, never timing luck.
+- [x] TDD closeDroppedTrain / reconcileDroppedTrain against stateful GH lost/failed/lagging observations and restarted real-folder state; enforce no successor publication/merge before positive cleanup proof through both serial and train paths.
+- [x] TDD runDurableMerge attempt wrapper through the typed re-formation result; observe a fresh queue operation/ticket and re-read heads/gates, with no automatic retry on ordinary errors or dropped self.
+- [x] Implement scoped watcher, control updates, failure-aware cleanup and retry wrapper; run focused train/lease/serial controls and commit. Retain all failed attempts; classify rather than blind-retry.
 
 ### 4. Documentation and acceptance evidence
 
 Files: cmd/sdlc/helptext/landing.md, README.md, atlas/workflow/sdlc-binary.md, issue Log.
 
-- [ ] Document command/authority, merge boundary, pending-cleanup state/recovery, held explicit retry and unsupported old conductors; status renders actual current state and exclusions.
-- [ ] TDD counted control/membership operations at8/16cars: O(N+D) walk, one short atomic update per event, one scoped watcher and existing2s cadence; reject per-member IO/poll multiplication. Run targeted checks/lint and push.
+- [x] Document command/authority, merge boundary, pending-cleanup state/recovery, held explicit retry and unsupported old conductors; status renders actual current state and exclusions.
+- [x] TDD counted control/membership operations at8/16cars: O(N+D) walk, one short atomic update per event, one scoped watcher and existing2s cadence; reject per-member IO/poll multiplication. Run targeted checks/lint and push.
 - [ ] Run and persist operator-approved deterministic real-Git conformance, raw red/green/race logs and recorded full suite in common test-stats/evidence/000526; no staged Pair train or configuration change.
 - [ ] Update Log/plan ticks and prepare close evidence; sdlc close owns review, hub owns project (--no-project); on SHIP run sdlc merge --yes and report.
 
@@ -144,3 +144,7 @@ The merge start fence is admission of the Merge effect after green CI, before it
 - 2026-10-21 handoff discovery: deterministic real3runner fixture proves the approved release-before-requeue wrapper can split ready survivors into separate serial landings. Proposed revision, pending hub approval: outer wrapper retains old turn's head.lock while the old queue operation retires; new ordinary attempt enqueues/vouches its fresh ticket before releasing that retained turn, with lexical fallback release on cancellation/early failure. It then uses unchanged normal Wait/Board rules. No timing delay or new persisted hold. This replaces only the release timing in the surviving-conductor handoff; dropped conductors still exit held.
 
 - 2026-10-21: Hub approved head-lock handoff revision (1139e7ac-1690-4829-bbaf-df866fed2fea). Outer wrapper retains the old turn across old queue retirement; next ordinary attempt enqueues and synchronously vouches before releasing it, with fallback release on every early error/cancel/return. Both real conformance variants continue to require the two survivors in one train.
+
+- 2026-10-21 verification: both real three-car drop variants land two survivors in one replacement train. Broad targeted train/drop/grant/cancellation controls pass487.849s; raw red/green cleanup, destination and handoff evidence is recorded in the issue Log and SSD test-stats/evidence/000526. Final recorded suite and boundary review remain pending.
+
+- 2026-10-21 final controls: reject ordinary branches before any cleanup GitHub effect and render repeated receipts from actual pending/completed state. Both reproduced red before correction. Final shell controls71.797s, core/lint/race/vet and deterministic deadline controls pass; recorded full suite remains pending.

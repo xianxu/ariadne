@@ -191,9 +191,17 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 		if t.MergeStarted || t.Phase == PhaseMerging || t.Phase == PhaseForming || len(e.Drops) == 0 {
 			break
 		}
-		bySeq := map[int64]TrainDrop{}
+		members := make(map[int64]Car, len(t.Cars))
+		for _, c := range t.Cars {
+			if _, duplicate := members[c.Seq]; duplicate {
+				return t, nil, fmt.Errorf("train %d: drop cannot resolve an ambiguous riding identity", t.ID)
+			}
+			members[c.Seq] = c
+		}
+		bySeq := make(map[int64]TrainDrop, len(e.Drops))
 		for _, d := range e.Drops {
-			if d.Train != t.ID || d.Reason == "" || bySeq[d.Member.Seq].Train != 0 || !slices.ContainsFunc(t.Cars, func(c Car) bool { return c == d.Member.Car() }) {
+			member, riding := members[d.Member.Seq]
+			if d.Train != t.ID || d.Reason == "" || bySeq[d.Member.Seq].Train != 0 || !riding || member != d.Member.Car() {
 				return t, nil, fmt.Errorf("train %d: drop does not pin a unique riding car", t.ID)
 			}
 			bySeq[d.Member.Seq] = d
