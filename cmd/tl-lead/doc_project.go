@@ -12,6 +12,12 @@ func projectWorkingdoc(text, from, to string, exists func(string) bool) (string,
 	if err != nil {
 		return "", nil, err
 	}
+	// Use the migration's existing parent-coordinate contract. A YAML form
+	// the shared rebaser cannot safely rewrite must not silently change meaning
+	// when the copy gets a different directory.
+	if _, err := moveMetadataFields(text); err != nil {
+		return "", nil, err
+	}
 	if markers := workingdocMarkers(text); len(markers) > 0 {
 		return "", nil, fmt.Errorf("unresolved review markers: %+v", markers)
 	}

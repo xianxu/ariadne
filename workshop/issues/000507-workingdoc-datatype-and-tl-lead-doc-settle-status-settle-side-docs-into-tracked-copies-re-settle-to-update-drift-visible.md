@@ -43,11 +43,11 @@ once copied, the copy freezes while discussion continues in the side doc.
 
 ## Plan
 
-- [ ] Implement the workingdoc prototype, marker/refusal projection and pure settlement model, with regression tests.
-- [ ] Add guarded selected-copy publication and retry behavior through the existing product trunk publisher and ops main publication, with stateful fixtures.
+- [x] Implement the workingdoc prototype, marker/refusal projection and pure settlement model, with regression tests.
+- [x] Add guarded selected-copy publication and retry behavior through the existing product trunk publisher and ops main publication, with stateful fixtures.
 - [ ] Wire doc settle/status, update help/maps, verify the suite, close, arrange the hub-owned live check, then merge.
 
-Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-settle-plan.md). Full flow; awaiting TL approval before change-code. One implementation close boundary; no Mx tags.
+Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-settle-plan.md). Full flow; TL approved the plan and change-code passed. One implementation close boundary; no Mx tags.
 
 ## Log
 
@@ -62,6 +62,12 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 - Full-flow change-code passed with clean plan-quality and an informational estimate-quality verdict. The estimate review correctly noted optimistic aggregation of the ops publisher/pure core and implicit verification allocation; retain the 2.93h derived point as provisional calibration, and report actuals without back-fitting it. Task decomposition delegates only isolated publisher/marker/ops files; the main worker owns the shared model and coordinator.
 - Pure slice verification: metadata/pointer/transition/classification tests began red for absent APIs and pass after implementation. Datatype discovery began red with workingdoc missing, then passes with the prototype and existing collaboration schema checks. Marker scanner behavioral red was observed against its stub; grammar/literal/location/linear-count fixtures pass, and live fuzz passed 45,182 executions. Combined focused pure/marker tests PASS (0.087s); datatype checks PASS (0.132s). No command/coordinator or live-document effect is implemented yet.
 - Shared /Volumes/AgentScratch/go-build filled, causing setup failures before Go compilation. Focused checks use owned caches under TestScratch/tmp (parent: ariadne-slot4/ariadne-507-cache.DnAOfs); no shared cache sweep, queue change or unrelated process cancellation. A selected-index synchronization clarification is pending with TL: private-index commit alone would leave a staged inverse entry in the real index; preserve unrelated entries/live edits while reconciling only the selected path, or report explicit reconciliation if the index changed.
+
+
+- Implemented both commands, bounded repository/Couch seams, source-only CAS stamping, batched status baselines, and publication confirmation/retry behavior. Product publication adds opt-in per-path baseline, immutable SHA256 payload guard and JSON receipt to the existing trunk publisher; default behavior retains regression coverage. Ops publication uses a private index and preserves concurrent target edits. TL approved selected-path real-index reconciliation (cf9b4eed-e7c1-4f55-9c83-4cdfd56f807d): compare the captured index under index.lock, preserve unrelated entries, and return an exact reconciliation instruction on independent changes. The durable plan records this revision.
+- Regression discoveries: unsupported parent forms now refuse through the existing side-doc validator before projection; reserve pointer space before publication; reject annotated-tag baselines and recheck ancestry during each publisher CAS attempt. Git timeout tests exposed surviving hook descendants; bounded runners now own and retire their process groups, with readiness-based cancellation regressions.
+- Focused verification PASS: complete cmd/tl-lead package 36.649s, cmd/datatype 0.072s, pkg/golint 0.515s; existing/new trunk publication tests 30.401s; ops publication tests 17.024s; repository adapter tests 6.089s. Pointer fuzz passed 63,618 executions; marker fuzz passed 45,182. Stateful real bare-remote fixtures cover immutable payloads, uncertain push/retry, source CAS failures, selected-index races, baseline drift and cancellation. No live hub documents were changed.
+- TL explicitly requested a shared-cache hold (52d78dc9-dfa4-4e39-93c1-ff639b35bcc8). Focused checks are finished; no recorded full suite has been queued, and no GOCACHE override will be used for it. Full-suite verification, close, hub-owned live check and landing remain pending until the operator restores the shared cache and TL releases the hold.
 
 ## Revisions
 

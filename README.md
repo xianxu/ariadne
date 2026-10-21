@@ -937,6 +937,15 @@ See `sdlc actual --help` for provenance and recovery.
 MIT — see [LICENSE](LICENSE).
 
 
+`tl-lead doc settle SIDE-DOC [--to PATH]` publishes a resolved side document to
+`workshop/workingdoc/YYYY-MM-DD-topic.md` or an eligible project prose path,
+then records its path and commit in the live source. Re-settling updates that
+copy; Git preserves earlier editions. Resolve review questions and proposals
+before settling, and use a quiet editing window. `tl-lead doc status` shows
+unsettled pages and content drift from the recorded edition. The
+[workingdoc prototype](construct/datatype/workingdoc.md) describes the page;
+[TL skill binaries](atlas/workflow/tl-skills.md) maps publication and recovery.
+
 `tl-lead status` uses the hub repo's gitignored `session.md` and
 `session.side/`; FILE is optional on all status commands. Existing explicit
 FILE arguments remain valid. Copy decisions from these local conversations

@@ -640,6 +640,33 @@ FLEET TRAPS (verify before relying on them)
   - Auto-memory is shared by every slot of a repo, so a worker can rewrite
     your memory. Keep TL state in ops files, not memory.
 
+WORKING DOCUMENTS (ariadne#507)
+  `tl-lead doc settle SIDE-DOC [--to PATH]` preserves an agreed side document
+  as a tracked copy. Resolve open questions/comments and explicitly accept or
+  reject proposals in the editor first: any remaining active review marker,
+  including malformed markup, refuses settlement. Literal code is preserved.
+  The default destination is workshop/workingdoc/YYYY-MM-DD-topic.md; `--to`
+  selects another eligible prose path, such as a project's design.md. Re-settle
+  updates the recorded destination, and Git retains earlier editions.
+
+  Product repositories publish the exact selected copy through sdlc trunk
+  publication. The verified ops primary hub instead commits and pushes on main
+  under its operating charter. The live source remains in its side folder;
+  Couch writes its `settled-into: PATH @ COMMIT` pointer only after the exact
+  copy is confirmed. A source must be registered with Couch first.
+
+  tl-lead doc status lists session.side/ pages as unsettled, settled, drift,
+  conflict or unverifiable. Drift compares content with the recorded Git blob,
+  not modification times. Status is read-only and does not acknowledge edits.
+
+  Use a quiet window for the selected source and copy. Locks, independently
+  edited destinations, ignored paths and symlinks refuse. Git publication and
+  the Couch stamp are separate: a late lock/edit can leave a published copy
+  without a source pointer. Preserve both, reconcile the named source and retry
+  the same command; an identical confirmed copy does not create another commit.
+  Unknown publication is reported as unconfirmed; never infer absence or roll
+  back the copy. Pages over 1 MiB refuse rather than truncate.
+
 TWO HATS
   The TL session is also the operator's chief of staff: features asked for in
   passing, tooling the session needs, demos. Run that work the same way: an
