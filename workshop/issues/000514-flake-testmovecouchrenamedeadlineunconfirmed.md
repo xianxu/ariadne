@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestMoveCouchRenameDeadlineUnconfirmed]
+flow: {kind: quick, provenance: inferred, spec: "2e844cfb", done: "a0bbe98b"}
 ---
 
 # flake: TestMoveCouchRenameDeadlineUnconfirmed
