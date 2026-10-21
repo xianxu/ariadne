@@ -59,6 +59,8 @@ ARCH-DRY/ORDER: reuse the completion channel as the lifetime signal; no second c
 
 - 2026-10-21: Recorded suite on Git-verified e3515f11af7b9f219f620ff9adaed48e1a0317e6 passed all eight shards (1931 cmd/sdlc tests) and75 other packages, zero failures,707.5s wall after1690s queue. Persistent branch-suite.log in evidence/000523; SHA256 471d75149153c9074ef0e7c8b0724bf9f063cc22340249129d8f06453a0a6ba5. Independent pkg/golint passed0.623s. This removes the measured native fixture overhead; total suite wall is subject to machine load and is not used as a speedup claim.
 
+- 2026-10-21 final: close review SHIP/high with no findings; independently passed all seven controls, confirmed no-close overlay RED240.39s, and forced failures before either join/after first join promptly reaped both runs and checks. Deadline-capped and absent-deadline budgets exercised. Landed PR #369, Git-verified merge2be41ca0ec221ae5bb100e25c06ac3b858ce92ab. Authoritative integrated code b6647051a973388facf94b593d54c912df222305 passed all eight shards (1931 SDLC tests) and75 other packages, zero failures/reruns,661.7s after1079s queue. Persistent integrated-suite.log SHA256 a26a5f64d13ac44363975a1b2763faed70c1169ff295b0a2763d6b20f4f0bbdc. Final issue-record integration changed no code; final CI3green, runner exited0. Actual0.34h measured at close; no quick-flow estimate/calibration point. No stage needed for test-only fixture.
+
 ## Revisions
 
 - 2026-10-21: Specify the chosen close-after-send correction and whole-cleanup wall-time bound before implementation; original acceptance preserved.
