@@ -155,6 +155,35 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 	}
 }
 
+func TestLeadHelpRequiresOperatorWorkflowDesignReview(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {}} {
+		help := strings.Join(strings.Fields(helpOutput(t, args...)), " ")
+		start, end := strings.Index(help, "STEWARDSHIP The TL"), strings.Index(help, "TWO MODES OF WORK IN OPS")
+		if start < 0 || end <= start {
+			t.Fatal("design-approval section missing")
+		}
+		section := help[start:end]
+		for _, want := range []string{
+			"Operator-reviewed designs:", "workflow that must stay robust across failures",
+			"operator for review before code", "side doc with the options", "TL approval alone is insufficient",
+			"coordinates many slots or processes", "holds or pauses something fleet-wide",
+			"persists state across restarts", "defines a recovery path",
+			"drain and shutdown", "restart recovery", "slot lifecycle and admission",
+			"landing queue and trains", "scheduling",
+			"internal states", "few states the user sees", "one recovery action for each",
+			"when each step fails", "restart lands in the middle",
+			"TL may still approve ordinary designs alone", "When unsure, ask the operator",
+		} {
+			if !strings.Contains(section, want) {
+				t.Errorf("tl-lead %v: design approval omits %q", args, want)
+			}
+		}
+		if strings.Contains(help, "operator is pulled in only for taste and smoke tests") {
+			t.Error("playbook excludes operator design review")
+		}
+	}
+}
+
 func TestLeadHelpDoesNotClaimExitLifecycleNotice(t *testing.T) {
 	help := helpOutput(t, "--help")
 	start := strings.Index(help, "Couch lifecycle system notices")

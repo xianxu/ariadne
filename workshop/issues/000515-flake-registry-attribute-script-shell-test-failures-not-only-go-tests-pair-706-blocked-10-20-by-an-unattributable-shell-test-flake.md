@@ -41,3 +41,11 @@ flake with an issue.
 ## Log
 
 ### 2026-10-20
+
+## Log
+
+- 10-20 20:10 (TL): related catch-22 seen on pair#706: after an unattributed (unregistrable) shell-test failure on a
+  head, train admission refuses ("PR has failing checks on its head"), but the fix (pair#749) only reaches the PR
+  through main integration, which happens after admission. Recovery was the slot integrating main into its branch by
+  hand and running a fresh suite on the new head. Consider: let admission integrate main when the only red check is a
+  suite whose failure predates a landed fix, or at least name the manual recovery in the refusal.

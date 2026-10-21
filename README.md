@@ -283,6 +283,13 @@ into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
 binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
 distributed weave gateway as part of `tools`.
 
+For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
+slots; `--all` shows the machine view. `tl-lead fleet resume` is an
+operator-started dry run; `--all` exposes excluded slots without expanding
+automatic resume authority. `--apply` waits for each terminal receipt and
+stops at the first failure or uncertainty, naming untouched slots. See
+[TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
+
 Child processes receive the layer tool directories on PATH. After compilation,
 weave prints the directories to add to your own shell PATH; startup never edits
 shell configuration. Managed ignore entries and an output identity inventory
@@ -601,6 +608,15 @@ or unknown observations never prove quiescence. Isolated conformance supplies
 private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
 `WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
 [queue backend and rollout](atlas/workflow/sdlc-binary.md#machine-wide-queue-drain-481).
+
+For a retained unknown operation, the operator/:0 may run
+`sdlc queue reconcile --id ID --digest SHA256 --note TEXT` after verifying that
+no descendants remain. The digest names the exact raw `unresolved/ID.json`
+bytes. A live/unknown original owner or lease, changed bytes or unreadable
+evidence refuses. The command appends original bytes (base64), digest, actor,
+note and time to permanent `reconcile.jsonl` and fsyncs it before removing only
+that tombstone. If interrupted after the audit append, rerun the same ID/digest
+to finish without another audit entry. It never resumes holds or restarts work.
 
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,12 +140,54 @@ func renderSlots(lines []SlotLine) string {
 // and its checkout's issue file (its bar). A failed actors read renders `?`.
 // The holds come from the section being replaced, at write time.
 func gatherSlots(sd SDLC, ca CouchActors, vantage string) ([]SlotLine, error) {
+	lines, _, _, err := gatherScopedSlots(sd, ca, vantage, false)
+	return lines, err
+}
+
+// gatherScopedSlots selects before any per-issue observation or file read.
+// Diagnostics are separate from rows so a failed actor read is reported once.
+func gatherScopedSlots(sd SDLC, ca CouchActors, vantage string, all bool) ([]SlotLine, []string, hubScope, error) {
+	scope, err := readHubScope(vantage)
+	if err != nil {
+		return nil, nil, scope, err
+	}
 	fleet, err := sd.FleetInventory(vantage)
 	if err != nil {
-		return nil, err
+		return nil, nil, scope, err
 	}
-	lines := slotLines(fleet)
+	var lines []SlotLine
+	var notes []string
+	var unclaimed, foreign, tied int
+	for _, l := range slotLines(fleet) {
+		if scope.enabled && !scope.owns(l.Slot) {
+			o := scope.owner(l.Slot)
+			switch {
+			case o.Unclaimed:
+				unclaimed++
+			case len(o.Owners) > 1:
+				tied++
+				for _, owner := range o.Owners {
+					if owner == scope.self {
+						notes = append(notes, fmt.Sprintf("ownership: %s tied between %s; not owned", l.Slot.Address, strings.Join(o.Owners, ", ")))
+						break
+					}
+				}
+			default:
+				foreign++
+			}
+			if !all {
+				continue
+			}
+		}
+		lines = append(lines, l)
+	}
+	if scope.enabled && !all {
+		notes = append(notes, fmt.Sprintf("excluded: %d unclaimed, %d foreign, %d tied (use --all to list)", unclaimed, foreign, tied))
+	}
 	actors, aerr := readActors(ca)
+	if aerr != nil {
+		notes = append(notes, "couch --actors unreadable: "+aerr.Error())
+	}
 	for i := range lines {
 		lines[i].Agent = agentLabel(actors, aerr, lines[i].Slot.Address)
 	}
@@ -163,7 +206,30 @@ func gatherSlots(sd SDLC, ca CouchActors, vantage string) ([]SlotLine, error) {
 		lines[i].Phase, lines[i].Bar = phase, bar
 		mu.Unlock()
 	})
-	return lines, nil
+	return lines, notes, scope, nil
+}
+
+// guardScopedHolds runs inside the guarded write's recomputation, against
+// the latest section. A hidden hold must be explicitly released or retained.
+func guardScopedHolds(lines []SlotLine, holds map[string]string, release []string) error {
+	known := map[string]bool{}
+	for _, l := range lines {
+		known[l.Slot.Address] = true
+	}
+	for _, addr := range release {
+		known[addr] = true
+	}
+	var hidden []string
+	for addr := range holds {
+		if !known[addr] {
+			hidden = append(hidden, addr)
+		}
+	}
+	sort.Strings(hidden)
+	if len(hidden) > 0 {
+		return fmt.Errorf("refused: scoped Slots would discard held %s; use --all or explicitly --release each hold", strings.Join(hidden, ", "))
+	}
+	return nil
 }
 
 func readActors(ca CouchActors) (map[string]Actor, error) {
