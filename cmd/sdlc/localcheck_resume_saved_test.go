@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -395,5 +396,95 @@ func TestResumeSavedRepublishUsesOneRegistryPerDecision(t *testing.T) {
 	}
 	if reads != 2 {
 		t.Fatalf("want one lookup and one fresh post registry read; got %d", reads)
+	}
+}
+
+// Counted multi-bundle regression follows.
+func TestResumeSavedGrowthCounts(t *testing.T) {
+	for _, n := range []int{4, 8} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			d, sha, store, baseLink := resumeSavedFixture(t, true)
+			base, err := readSuiteEvidence(store, testStatsRecordLimit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parent, child := base.attemptIDs[baseLink.RerunOf], base.attemptIDs[baseLink.ChildID]
+			parentLog, err := readResumeLog(store, parent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			childLog, err := readResumeLog(store, child)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 1; i < n; i++ {
+				p := parent
+				p.ID = fmt.Sprintf("%04x", 256+3*i)
+				p.LogPath = "failed/" + p.ID + ".log"
+				resumeSavedWrite(t, store, p, parentLog)
+				raw, err := os.ReadFile(filepath.Join(store, "attempts", p.ID+".json"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				l := baseLink
+				l.ID = fmt.Sprintf("%04x", 257+3*i)
+				l.ChildID = fmt.Sprintf("%04x", 258+3*i)
+				l.RerunOf = p.ID
+				l.ParentRecordSHA256 = resumeRecordDigest(raw)
+				resumeSavedWriteJSON(t, store, l.ID, l)
+				c := child
+				c.ID = l.ChildID
+				c.RerunOf = p.ID
+				c.LogPath = "failed/" + c.ID + ".log"
+				resumeSavedWrite(t, store, c, childLog)
+			}
+			// Independently account for actual directory/record opens while building
+			// the same indexed snapshot used by production projection.
+			opens := map[string]int{}
+			snapshot, err := readSuiteEvidenceWithOpen(store, testStatsRecordLimit, suiteAttemptReaderBudget, func(path string) (*os.File, error) { opens[path]++; return os.Open(path) })
+			if err != nil || len(snapshot.Warnings) > 0 || len(snapshot.Attempts) != 2*n || len(snapshot.Resumes) != n || len(opens) != 3*n+1 {
+				t.Fatalf("snapshot growth n=%d opens=%d attempts=%d links=%d warnings=%v error=%v", n, len(opens), len(snapshot.Attempts), len(snapshot.Resumes), snapshot.Warnings, err)
+			}
+			for path, count := range opens {
+				if count != 1 {
+					t.Fatalf("record rescanned %s %d times", path, count)
+				}
+			}
+			originalRead := readResumeLog
+			defer func() { readResumeLog = originalRead }()
+			logReads, policyReads, registryReads := 0, 0, 0
+			readResumeLog = func(root string, a SuiteAttempt) ([]byte, error) { logReads++; return originalRead(root, a) }
+			registry := d.FlakeRegistry
+			d.FlakeRegistry = func(ctx context.Context) (flakes.Registry, error) { registryReads++; return registry(ctx) }
+			d.CurrentSuitePolicy = func(context.Context) (flakes.Policy, error) { policyReads++; return flakes.PolicyRerun, nil }
+			for _, decision := range []string{"snapshot projection", "saved lookup", "success guard", "saved republish"} {
+				logReads, policyReads, registryReads = 0, 0, 0
+				decisions := 1
+				switch decision {
+				case "snapshot projection":
+					records, e := resolvedResumeRecords(context.Background(), d, store, snapshot, sha, "suite", "h")
+					if e != nil || len(records) != n {
+						t.Fatalf("projection %d %v", len(records), e)
+					}
+				case "saved lookup":
+					rec, newest, e := loadSavedAttemptCurrent(context.Background(), d, store, sha, "suite", "", "h")
+					if e != nil || !newest || !rec.passed() {
+						t.Fatalf("lookup %+v %v %v", rec, newest, e)
+					}
+				case "success guard":
+					if e := guardSuitePass(context.Background(), d, "suite", sha); e != nil {
+						t.Fatal(e)
+					}
+				case "saved republish":
+					decisions = 2
+					if _, ok, e := republishSavedPass(context.Background(), d, suiteCheck("true"), sha); !ok || e != nil {
+						t.Fatalf("republish %v %v", ok, e)
+					}
+				}
+				if logReads != 2*n*decisions || policyReads != decisions || registryReads != decisions {
+					t.Fatalf("%s n=%d logreads=%d policyreads=%d registryreads=%d; want %d/%d/%d", decision, n, logReads, policyReads, registryReads, 2*n*decisions, decisions, decisions)
+				}
+			}
+		})
 	}
 }

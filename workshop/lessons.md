@@ -1,5 +1,7 @@
 # Lessons
 
+- #463 M2: terminal repost is a valid same-state transition when it carries an explicit effect. Test the real repeated CLI operation, not only pure state changes. Before every status retry, re-resolve current linked proof and bind the posted parent/child identity; a lost network reply is not authority to reuse a stale registry decision. Retained-input cleanup must re-read its owner marker after reverse-pointer validation and before deletion. Stateful publication and mutation-barrier tests enforce these temporal contracts.
+
 - #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
 
 - #463 lifetime review: a protected-member snapshot cannot authorize later deletion while a publisher can introduce new links. Serialize one snapshot and all pruning with publication on the existing directory inode. When publication takes parent→directory, pruning may take directory→parent only with a strict try-and-skip; a real subprocess negative control must fail if it becomes blocking. This is a cross-function lifetime invariant, defended by those interleavings rather than source-name lint.

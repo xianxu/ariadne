@@ -184,3 +184,21 @@ passed 2.864s before an additional changed-owner-marker regression observed RED
 0.538s; its direct revalidation fix awaits final focused verification. Further
 counted N/2N checks, broader/race verification, recorded suite and M2/issue gates
 remain pending. This commit is an in-progress recovery checkpoint.
+
+
+### 2026-10-21 — M2 verification before recorded suite and boundary review
+
+CLI/authority/live-owner/foreign-host/wrong-digest/committed-child refusal and
+private environment retirement checks passed 3.475s, including the final
+changed-inflight-owner revalidation guard. All Resume tests under race passed
+15.754s. Broader existing saved-proof/run/republish/known-flake/scoped-reader
+checks passed 23.114s. Counted real-store N/2N checks passed 0.719s: snapshot
+opens exactly 3N+1 paths once each, contextual projection/lookup/guard reads
+exactly 2N actual logs, republish 4N across two decisions, and policy/registry
+reads once per decision at N=4/8. No per-parent snapshot rescan. Go lint 0.634s,
+shell lint 0.307s, diff check clean. The missing-duration retention validation
+now refuses incomplete parents/children while accepting measured zero; it adds
+no retirement mechanism. Docs and help cover the exact commands, terminal
+recovery, explicit descendant attestation, unknown queue independence and
+unchanged original measurement samples. Checkpoint/push before the recorded
+suite; M2 remains pending the mandatory review and recorded pass.

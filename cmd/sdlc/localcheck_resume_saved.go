@@ -80,7 +80,12 @@ func readResumeProofInput(store string, s SuiteEvidenceSnapshot, parent SuiteAtt
 	}
 	return in, resumeLogTail(string(log)), nil
 }
-func readResumeLog(store string, a SuiteAttempt) ([]byte, error) {
+
+// readResumeLog is the bounded log-read seam; instrumentation delegates to
+// the same real reader rather than replacing proof bytes.
+var readResumeLog = readResumeStoredLog
+
+func readResumeStoredLog(store string, a SuiteAttempt) ([]byte, error) {
 	path := suiteAttemptLogFile(store, a)
 	if path == "" {
 		return nil, errors.New("attempt names no log")

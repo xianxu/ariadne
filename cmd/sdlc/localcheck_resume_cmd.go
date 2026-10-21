@@ -17,7 +17,7 @@ type resumeFlags struct{ Name, Attempt, Rev string }
 
 func newLocalCheckResumeCmd() *cobra.Command {
 	var f resumeFlags
-	c := &cobra.Command{Use: "resume", Short: "Rerun the registered flakes of one saved suite failure on its original pushed commit", Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
+	c := &cobra.Command{Use: "resume", Short: "Rerun the registered flakes of one saved suite failure on its original pushed commit", Long: renderLong("local-check"), Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
 		if f.Name == "" {
 			return errors.New("local-check resume: give --name suite")
 		}
@@ -82,7 +82,7 @@ func resumeCommandDeps(ctx context.Context, stderr io.Writer) (localRunDeps, err
 }
 func newLocalCheckReconcileCmd(authority landingDeps) *cobra.Command {
 	var parent, digest, note string
-	c := &cobra.Command{Use: "reconcile", Short: "Record terminal interruption after verifying the resume owner and descendants stopped", Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
+	c := &cobra.Command{Use: "reconcile", Short: "Record terminal interruption after verifying the resume owner and descendants stopped", Long: renderLong("local-check"), Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
 		if parent == "" {
 			return errors.New("local-check reconcile: give --attempt")
 		}
