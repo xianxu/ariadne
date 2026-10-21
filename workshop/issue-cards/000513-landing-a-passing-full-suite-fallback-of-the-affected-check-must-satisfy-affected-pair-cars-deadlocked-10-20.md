@@ -1,6 +1,6 @@
 ---
 id: 000513
-status: working
+status: codecomplete
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.07
+tracker:
+    version: 1
+    completion:
+        token: close-8be9a86ab58b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: e98939c6e3c7f9acd2be1d8785ffb98397d94830
+        evidence_commit: f915c1e1e501e789e3ee239b84b0a6c53d140905
 ---
 
 # landing: a passing full-suite fallback of the affected check must satisfy 'affected' (pair cars deadlocked 10-20)
