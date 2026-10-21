@@ -34,6 +34,14 @@ the current picture before a status-writer refresh and one-line operator notice.
 `cmd/tl-lead/takeover_help_test.go` guards both rendered entry points and keeps
 each instruction inside its ordered step.
 
+**Worker verification (ariadne#508).** TESTS in `cmd/tl-worker/help.md` owns
+verification across every agent kind in tests and live checks, recorded real
+capture fixtures replayed in the normal suite with their live bug fixes, and
+reuse of the shared disposable-Couch harness (pair#744) instead of the live
+fleet or private fixtures. Rendered-section and shared rule-table tests pin
+the worker surface; the lead continues citing it. Pair#744's landed harness is
+`cmd/internal/testcouch`, exercised with `make test-couch-fleet` in Pair.
+
 **Project shaping (ariadne#518).** SHAPING in `cmd/tl-lead/help.md` precedes
 issue-level execution: six operator-reviewed steps cover users/moments, flows,
 the clickable mock, visual design, components and slices. It assigns the driver

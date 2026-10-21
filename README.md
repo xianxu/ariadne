@@ -287,6 +287,11 @@ After a same-slot force switch or in a fresh hub session, follow TAKEOVER in
 `tl-lead --help`. The [TL tooling map](atlas/workflow/tl-skills.md) points to
 the ordered recovery procedure and its rendered-help guards.
 
+Worker live verification uses Pair's shared disposable-Couch harness,
+`cmd/internal/testcouch`; run `make test-couch-fleet` from the Pair repository.
+Reuse it for isolated live tests instead of the live fleet or private fixtures.
+See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
+
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding
