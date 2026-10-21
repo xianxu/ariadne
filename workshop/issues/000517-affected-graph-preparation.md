@@ -81,3 +81,11 @@ Existing stale checkout cleanup covers process death; no new durable state.
   bodies. Provider scope already approved. Concrete schema/bounds above are
   checkpointed for TL approval before implementation; expected under 100 added
   production lines. No pair configuration will be edited here.
+
+## Revisions
+
+- 2026-10-20 23:29 PDT — TL approved schema/bounds, requiring immutable main
+  declaration authority. Resolve main to a commit before reading affected.json;
+  regression edits candidate graph_prepare and proves only pinned main's argv
+  runs. Pair#738 adoption remains separate and requires the operator label when
+  local-gates-guard covers its affected.json. No readiness policy change.
