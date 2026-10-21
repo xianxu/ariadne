@@ -45,7 +45,7 @@ run by the TL in the team's operations repo at :0, with artifacts committed stra
 
 - [x] Pin the six shaping steps, drivers/reviews, mock conventions and development-only gradient in rendered-help contract tests; verify red before editing help.
 - [x] Add SHAPING and connect the execution playbook; add optional project body sections; synchronize README and atlas.
-- [ ] Run targeted help/package checks, inspect compiled help, and queue the required recorded suite.
+- [x] Run targeted help/package checks, inspect compiled help, and queue the required recorded suite.
 
 ## Log
 
@@ -58,6 +58,8 @@ run by the TL in the team's operations repo at :0, with artifacts committed stra
 - Implemented 53 added shipped-help lines (within the quick shell), both rendered-help tests, optional project summaries and authoring guidance, README and atlas pointers. The help remains the canonical procedure; no worker rules or runtime mock/server implementation were added.
 - Red: both new tests failed because SHAPING was absent. Mutation checks then swapped the Flows driver and allowed mock-backed production screens; each failed at both help entry points. Restored text passes TestLeadHelp/TestRoot and the complete tl-lead package (21.024 s). Staged-file Go lint catalog passes (0.845 s); git diff --check is clean.
 - Built bin/tl-lead and inspected its rendered SHAPING section. A scratch defined project with all five optional sections conforms under sdlc project validate; no new schema fields or required sections were introduced. This deliverable changes shipped instructions, with no new live-environment operation to stage.
+
+- Published PR #359 and queued the required recorded full suite on the pushed implementation head. Close review may overlap this queued suite under tl-worker; a recorded pass on the final landing head remains mandatory.
 
 ## Revisions
 
