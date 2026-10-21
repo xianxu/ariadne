@@ -1,13 +1,21 @@
 ---
 id: 000508
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b4362861439cee38147be832e6865ed66426ee56' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3700c6ce4ca456c4b7782199651f66a48483366d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T01:53:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-worker: verify agent-facing changes on every agent kind; live bugs land with a recorded replayed fixture
@@ -34,8 +42,29 @@ Add to `tl-worker --help` (verification section):
 
 ## Plan
 
-- [ ]
+Quick flow, operator-reviewed Spec unchanged. Put all three rules at the start
+of worker TESTS: every agent kind in tests/live checks (Claude, Codex, Qoder
+when credited), real live capture replayed in the normal suite with the fix,
+and live tests isolated through the shared disposable-Couch harness. Extend the
+existing worker rule table and rendered section tests at --help/no-args. The
+lead continues citing worker ownership, rather than duplicating these rules.
+
+ARCH-DRY/PURE: existing embedded help, composition and rule-table tests remain
+the only mechanisms; no new IO. ARCH-PURPOSE: all three approved rules and
+all named capture forms stay explicit. Other architecture lenses introduce
+nothing here: no runtime state, external calls, credentials, new persisted
+formats, growing artifact family or hot-path work; static help dies with its
+command invocation. No state table or new process fixture is needed for a
+rule-only change. The future bug fixes own their recorded captures.
+
+- [ ] Red rendered-section regression and worker rule-table rows.
+- [ ] Three rules in worker help; atlas map and focused verification.
 
 ## Log
 
 ### 2026-10-20
+
+- 2026-10-21: claimed after #517 landed; existing Spec is the operator-reviewed
+  design. Current TESTS and LIVE CHECKS do not state the three conformance
+  requirements. Small plan posted to hub, proceeding unless objected. No change
+  to the agent inventory, Couch harness implementation or live fleet.
