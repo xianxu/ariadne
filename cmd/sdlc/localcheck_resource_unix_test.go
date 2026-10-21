@@ -104,8 +104,21 @@ func TestRunnerCleanupNilTerminationIsNotCompletion(t *testing.T) {
 func TestRunnerCleanupUnconfirmedPreservesRecovery(t *testing.T) {
 	t.Setenv("WF_SDLC_QUEUE_ROOT", t.TempDir())
 	d, sha, _, _ := localRunRepo(t, "unused")
+	var retainedScratch string
+	t.Cleanup(func() {
+		if retainedScratch != "" {
+			_ = os.RemoveAll(retainedScratch)
+		}
+	})
 	d.runnerCleanup = func(cmd *exec.Cmd) func() error {
-		return func() error { return &runnerCleanupUnconfirmed{Detail: "fixture uncertainty"} }
+		return func() error {
+			for _, v := range cmd.Env {
+				if strings.HasPrefix(v, "TMPDIR=") {
+					retainedScratch = strings.TrimPrefix(v, "TMPDIR=")
+				}
+			}
+			return &runnerCleanupUnconfirmed{Detail: "fixture uncertainty"}
+		}
 	}
 	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "vm", Resource: "runner", Command: []string{"sh", "-c", "echo retained"}, TimeoutMinutes: 30}, sha)
 	var uncertain *runnerCleanupUnconfirmed

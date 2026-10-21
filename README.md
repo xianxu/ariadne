@@ -604,8 +604,13 @@ are read from the pinned main tree. Existing version1 declarations keep their
 per-head defaults. `local-check run --all` excludes landing checks; name one
 explicitly for manual execution. Runner checks use no suite slot and retain
 30s of graceful process-group cancellation even after the immediate leader exits.
-Unconfirmed cleanup retains the checkout under Git's worktree lock and leaves
-queue activity unknown for reconciliation. Automatic landing enforcement and
+Unconfirmed cleanup retains checkout, scratch and raw logs under the same Git
+worktree lock and leaves queue activity unknown for operator reconciliation.
+Runner execution refuses if its attempt writer cannot be created. Retention has
+no automatic expiry while ownership is held or unreadable. After proving that
+all owned descendants stopped, reconcile the queue and remove the named scratch
+and log directories, then unlock/remove the retained worktree; preserve Git
+metadata until linked artifacts are reconciled. SDLC never unlocks VM positions. Automatic landing enforcement and
 main-only disabled-check burn-in restriction are pending M2 of #509; this
 milestone does not activate a consumer.
 

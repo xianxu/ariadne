@@ -55,8 +55,9 @@ type localRunDeps struct {
 	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
 	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
-	minute        time.Duration
-	runnerCleanup func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
+	minute         time.Duration
+	runnerLifetime *runnerArtifactLifetime
+	runnerCleanup  func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
 }
 
 // callerRoot names the initiating checkout, independently of suite contents.
@@ -88,6 +89,9 @@ var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1, Scope: c.Scope}
 	rec.Host = hostName()
+	if c.Resource == "runner" {
+		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
+	}
 	if d.minute == 0 {
 		d.minute = time.Minute
 	}
@@ -125,10 +129,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	if err != nil {
 		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 	}
-	cleanupAllowed := true
 	runnerLocked := false
 	defer func() {
-		if cleanupAllowed {
+		if d.runnerLifetime.mayRetire() {
 			if runnerLocked {
 				_, _ = cleanupGit("worktree", "unlock", wt)
 			}
@@ -146,23 +149,30 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	writer, err := beginSuiteAttempt(storeRoot)
 	publishing := false
 	if err != nil {
+		if c.Resource == "runner" {
+			return rec, fmt.Errorf("runner check %s requires an attempt writer; repair storage and rerun: %w", c.Name, err)
+		}
 		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt log unavailable; using legacy log path: %v\n", c.Name, err)
 		// Until classified, raw execution output is not legacy suite evidence.
 		rec.LogPath = filepath.Join(logDir, sha, c.Name+".pending.log")
 	} else {
 		defer func() {
-			if !publishing {
+			if !publishing && d.runnerLifetime.mayRetire() {
 				_ = os.RemoveAll(filepath.Dir(writer.LogPath))
 			}
 		}()
 		rec.LogPath = writer.LogPath
+	}
+	if c.Resource == "runner" {
+		if err := attachRunnerArtifactOwner(filepath.Dir(rec.LogPath), wt); err != nil {
+			return rec, fmt.Errorf("protect runner log: %w", err)
+		}
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
 		var uncertain *runnerCleanupUnconfirmed
 		if errors.As(err, &uncertain) {
-			cleanupAllowed = false
 			publishing = true
 			fmt.Fprintf(d.Stderr, "[!] %v; retained checkout %s and log %s\n", err, wt, rec.LogPath)
 		}
@@ -304,6 +314,9 @@ func runUnderSlot(ctx context.Context, d localRunDeps, wt, helper, logDir, check
 }
 
 func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, check, sha string, weight int, subject suitePrioritySubject, argv []string, logPath string, timeout time.Duration, resource string) (run suiteSlotRun, err error) {
+	if resource == "runner" && d.runnerLifetime == nil {
+		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
+	}
 	run = suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
@@ -319,6 +332,10 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	stopCancellation := consumeQueueCancellation(ownedCtx, q, cancelOwned)
 	defer func() {
 		stopCancellation()
+		if !d.runnerLifetime.mayRetire() {
+			q.abandon()
+			return
+		}
 		if retirement := q.finish(ownedCtx, queueInterruptionReason(err)); retirement != nil {
 			err = errors.Join(err, retirement)
 		}
@@ -398,6 +415,7 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	if err != nil {
 		return run, err
 	}
+	defer logf.Close()
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
@@ -426,7 +444,19 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	if err != nil {
 		return run, err
 	}
-	defer scratch.Cleanup()
+	defer func() {
+		if d.runnerLifetime.mayRetire() {
+			scratch.Cleanup()
+			if resource == "runner" {
+				_ = os.Remove(filepath.Join(filepath.Dir(logPath), runnerArtifactOwnerFile))
+			}
+		}
+	}()
+	if resource == "runner" {
+		if err := attachRunnerArtifactOwner(scratch.Dir, wt); err != nil {
+			return run, fmt.Errorf("protect runner scratch: %w", err)
+		}
+	}
 	cmd.Env = append(cmd.Env, scratch.Env...)
 	var ssdBefore map[string]bool
 	if scratch.OnScratch {
@@ -439,11 +469,15 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 	out := io.MultiWriter(logf, d.Stderr)
 	cmd.Stdout, cmd.Stderr = out, out
 	start := time.Now()
+	if d.runnerLifetime != nil {
+		d.runnerLifetime.retirable = false
+	}
 	runErr := cmd.Run()
 	// WaitDelay bounds inherited-pipe draining after the parent exits;
 	// stop remaining children before closing their log or removing their tree.
 	if joinRunner != nil {
 		if cleanupErr := joinRunner(); cleanupErr != nil {
+			cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
 			fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
 			_ = logf.Close()
 			q.abandon()
@@ -451,6 +485,9 @@ func runUnderResource(ctx context.Context, d localRunDeps, wt, helper, logDir, c
 		}
 	} else {
 		_ = processgroup.Terminate(cmd, true)
+	}
+	if d.runnerLifetime != nil {
+		d.runnerLifetime.retirable = true
 	}
 	// The slot covers the run only (#383): start its release before the log,
 	// the GitHub writes and whatever the caller (merge) does next. The watcher
@@ -722,7 +759,7 @@ func sweepStaleLocalWorktrees(d localRunDeps) {
 	for _, root := range roots {
 		matches, _ := filepath.Glob(filepath.Join(root, localCheckTmpPrefix+"*"))
 		for _, m := range matches {
-			if lockedLocalWorktree(m) {
+			if runnerArtifactProtected(m) {
 				continue
 			}
 			if info, err := os.Stat(m); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
@@ -764,31 +801,4 @@ func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
 	return path, &suiteEnvironmentError{Check: check, LogPath: path}
-}
-
-// Stale scratch roots are shared by repositories. Resolve each worktree's own
-// Git metadata rather than consulting only the sweeper repository's inventory.
-func lockedLocalWorktree(root string) bool {
-	f, err := os.Open(filepath.Join(root, ".git"))
-	if errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	if err != nil {
-		return true
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, 4097))
-	if err != nil || len(raw) > 4096 {
-		return true
-	}
-	line := strings.TrimSpace(string(raw))
-	if !strings.HasPrefix(line, "gitdir: ") {
-		return true
-	}
-	dir := strings.TrimPrefix(line, "gitdir: ")
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(root, dir)
-	}
-	_, err = os.Lstat(filepath.Join(dir, "locked"))
-	return !errors.Is(err, os.ErrNotExist)
 }

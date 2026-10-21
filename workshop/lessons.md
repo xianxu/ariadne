@@ -1235,3 +1235,7 @@ The simplest durable authority beats a clever scan of consequences.
 ### #509 M1 — Refusal evidence must distinguish absence from uncertainty
 
 A tracked empty policy is invalid input, not an absent opt-in declaration. A nil kill result proves a signal attempt, not completed descendant cleanup. Test those distinctions directly; retain existing queue unknown evidence and locked checkout inputs until cleanup is confirmed, and ensure stale cleanup honors those locks. Document delivered configuration at its milestone boundary.
+
+### #509 — Fake cleanup probes require a private destructive root
+
+Never run a fake-liveness collector against the runtime-selected scratch/temp root, even when the fixture's own run is private. Use a root derived directly from t.TempDir and explicit relative children. The Go lint catalog's test-sweep-private-root rule enforces that provenance across aliases, reassignments, branches and address escapes. Collector simulations must be incapable of touching another run's folder.

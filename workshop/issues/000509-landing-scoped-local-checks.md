@@ -83,6 +83,24 @@ BR-1: observed tracked-blank regression for both declaration and path blobs, the
 
 M1 review round2 disposed BR-1/2/3 but raised Critical BR-4: unconditional scratch cleanup and later owner-PID/age collectors can delete inputs still used by unknown descendants. This is the third cleanup design delta; stopped before source changes. The durable plan now enumerates checkout, scratch, raw log and leases under one lifetime rule, recommending references to the existing Git worktree lock and one shared protection predicate, including log collectors. Runner launch without an attempt writer would refuse, preserving suite legacy fallback. Simplest instance fix and bundle/supervisor alternatives are explained. Approval requested from hub; M1 remains open and M2 is not started. No background work remains.
 
+### 2026-10-21 00:03 PDT — BR-4 protection and confirmed fixture incident
+
+Implemented the operator-approved shared Git-lock authority for checkout, scratch, raw log and temporary attempt collectors. Runner launch refuses without an attempt writer; a shared retirement proof stays false from launch intent until confirmed process-group completion, including panic unwinding. Unknown endings retain all artifacts for operator reconciliation. Independent-owner and counted owner-read controls cover isolation.
+
+Incident: the original new TestRunnerArtifactsRetainScratchAndLogUntilReconciled called sweepStaleTemp(filepath.Dir(scratch), ..., fake-dead), which targeted shared /Volumes/TestScratch/tmp. Authenticated hub receipt 75817674-ced7-4303-bcf2-213a9888a0d7 confirms impact on pair#743 owner56219: its live run root disappeared, causing missing importcfg, binaries and fixtures. This was my unsafe fixture, not a production flake. Initial disclosure receipt84ca93c4-65d6-498a-850c-15fb1a8e5cad preceded confirmation. Pair:3 has now received submitted receipt a4d2f16d-0ccf-47d2-9cdf-363b6646f391 confirming only the isolated fixture will run; its invalidated suite may be rerun.
+
+Recovered from this conversation's timestamped tool transcript, conservative affected execution windows on 2026-10-20 PDT (launch through observed completion, not exact sweep instants):
+
+- 23:38:28–23:38:47: initial RED; failed at the scratch-existence assertion before either sweep, so no fake-dead sweep reached in this invocation.
+- 23:40:00–23:40:47: focused corrected implementation, unsafe fixture reached.
+- 23:42:01–23:43:43: broad controls and narrow race run both included the unsafe fixture.
+- 23:45:21–23:46:06: focused runner controls included the unsafe fixture.
+- 23:46:59–23:47:47: broad controls and narrow race run both included the unsafe fixture.
+
+The first source isolation was applied at23:49:04 PDT, before further execution. Exact kernel sweep timestamps are unavailable; the windows intentionally include compilation and delayed result polling. Other missing-temp failures overlapping these windows should be classified against this incident. No peer process or lock was changed.
+
+The fixture now sets WF_TEST_SCRATCH=t.TempDir(), supplies a private fallback, asserts containment and sweeps only its explicit private child. Per authenticated TL receipt c2678fdc-28f8-4cbc-b547-2ef8932ac278, M1 adds pkg/golint test-sweep-private-root: destructive test sweep roots require visible TempDir provenance through safe literal joins; runtime roots, parent traversal, uncertain aliases/reassignments and address escapes fail. Added lessons.md prevention rule. Private fixture passed0.567s; safe private collector plus integration controls passed0.642s; all golint tests passed0.510s. Earlier broad controls passed26.711s and narrow race2.541s, but used the unsafe fixture: these do not establish safe isolation. Final corrected-source controls and safe mutation remain before M1 review. M2 has not started.
+
 ## Revisions
 
 ### 2026-10-20 22:45 PDT — Expand the initial design task into reviewable boundaries

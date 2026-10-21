@@ -540,7 +540,7 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		}
 		if id, ok := attemptTempOwner(e.Name()); ok {
 			info, err := e.Info()
-			if err == nil && now.Sub(info.ModTime()) > suiteInflightStale && suiteOwnerDead(filepath.Join(root, "inflight", id)) {
+			if err == nil && now.Sub(info.ModTime()) > suiteInflightStale && suiteOwnerDead(filepath.Join(root, "inflight", id)) && !runnerArtifactProtected(filepath.Join(root, "inflight", id)) {
 				_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
 			}
 			continue
@@ -579,7 +579,7 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 		if err != nil || now.Sub(info.ModTime()) <= suiteInflightStale {
 			continue
 		}
-		if !suiteOwnerDead(filepath.Join(root, "inflight", e.Name())) {
+		if runnerArtifactProtected(filepath.Join(root, "inflight", e.Name())) || !suiteOwnerDead(filepath.Join(root, "inflight", e.Name())) {
 			continue
 		}
 		log := filepath.Join(root, "failed", e.Name()+".log")

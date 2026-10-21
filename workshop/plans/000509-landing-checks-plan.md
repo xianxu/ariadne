@@ -230,3 +230,7 @@ Runner-resource execution will require an existing attempt writer before launch:
 ### 2026-10-20 23:36 PDT — Operator approved shared artifact protection
 
 Authenticated hub receipt df094eb2-20d4-4e7d-a541-b8f3dab0494f records approval of both re-plan choices: retain every runner artifact until operator reconciliation when the ending is unknown, and refuse runner launch without an attempt writer. Continue M1 using the shared Git-lock-based protection. If unknown endings prove common operationally, revisit retention choice1; no frequency assumption authorizes premature cleanup. M2 and capability-only rollout scope remain unchanged. This supersedes the pending approval above.
+
+### 2026-10-21 00:03 PDT — M1 destructive fixture isolation guard
+
+Authenticated TL c2678fdc-28f8-4cbc-b547-2ef8932ac278 requires closing the fake-liveness/shared-root class after the confirmed pair#743 incident. Chosen boundary: pkg/golint test-sweep-private-root rejects test sweeps lacking visible testing.TempDir provenance, including runtime scratch roots and unsafe aliases. The fixture supplies WF_TEST_SCRATCH plus a private fallback and containment assertion; direct private collector conformance is the only shared-predicate mutation target. Added a lessons.md line. The issue Log records recovered unsafe invocation windows and confirmed impact. This is part of M1; no production resource or rollout change.
