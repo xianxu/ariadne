@@ -1,6 +1,6 @@
 ---
 id: 000501
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-20
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 904e2a9ffb758a43ee764c12b8dad823a8c351b6
         evidence_commit: 87084832daaebc021905004c2ee4cc0faae2c873
+        landed_commit: 5a5e60964551466e793deda04b9bb7deae562819
 ---
 
 # sdlc queue reconcile: an operator-attested verb to retire an unresolved unmanaged tombstone (blocks the live drain)
