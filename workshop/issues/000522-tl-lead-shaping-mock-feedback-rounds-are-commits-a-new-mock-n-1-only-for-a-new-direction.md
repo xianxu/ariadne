@@ -45,12 +45,22 @@ Source: ops `session.side/2026-10-20-34-mock-server-plan.md`; product-shaping pr
 
 ## Plan
 
-- [ ] Extend existing SHAPING rendered-help phrase guards for round commits/revert, direction-only folder versions, retained URLs and root fixtures; observe RED at both help entry points.
-- [ ] Update the embedded mock conventions concisely, separating undoing a round from revisiting an earlier direction; observe GREEN and run focused TL tests.
-- [ ] Push, run the central recorded suite, close through review, open/land the PR and report to the hub.
+- [x] Extend existing SHAPING rendered-help phrase guards for round commits/revert, direction-only folder versions, retained URLs and root fixtures; observe RED at both help entry points.
+- [x] Update the embedded mock conventions concisely, separating undoing a round from revisiting an earlier direction; observe GREEN and run focused TL tests.
+- [ ] Push and record the central suite pass for delivery preparation; close review, PR, central landing and hub report follow through their gates.
 
 ## Log
 
 ### 2026-10-21
 
 Authenticated dispatch a88deb45-1953-4489-a2df-acffd86d5d7f authorizes this fixed operator rule while #520 waits. Preserved #520's committed branch; claimed and start-plan created this independent branch from main. Quick plan posted to the hub, proceeding unless objected: one embedded-help edit plus existing phrase guards, no runtime mechanism. ARCH-DRY retains help as the rule's one source; ARCH-PURPOSE covers round commits, agent-owned revert/reload, separate mock folders and shared fixtures together. Existing Git history owns the round lifecycle; no new parser/state/store, external dependency, secret, hot path or artifact family is introduced (ARCH-PURE/MOCK/SECURE/ORDER/CONSTRAINTS/FUNERAL/EVOLVE). No extra design approval is needed for the already operator-approved wording in the Spec.
+
+### 2026-10-21 — Phrase guards RED/GREEN and delivered help
+
+Extended the existing TestLeadHelpShapingMockAndShippingBoundary guard, which renders both --help and no-argument help. RED reported the missing round/commit/revert, direction-only folder/URL/root-fixture and switch-back clauses at both entry points. After the compact embedded-help edit, targeted shaping tests passed (0.156s) and the full cmd/tl-lead package passed (14.324s). Actual go run ./cmd/tl-lead --help output includes every new convention. Atlas adds only a test-surface pointer. No staging or browser action is necessary for this fixed text rule; no #520 code or plan was changed. Proceed to the central recorded suite and mandatory close/merge gates.
+
+## Revisions
+
+### 2026-10-21 — Delivery checkbox records pre-close evidence
+
+The final checklist row records pushed-head suite evidence, with close/PR/landing/report explicitly following through their gates. This avoids requiring a future landing before entering close; scope and required gates are unchanged.
