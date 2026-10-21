@@ -573,9 +573,14 @@ machine's suite slots. It is one file per machine beside the suite lock:
   per car. It runs one suite and CI on its train PR, merges that PR once, and
   GitHub marks each car's PR merged. Each car's own `sdlc merge` then finishes
   its cleanup.
-- **Holds:** a car that conflicts with the train is held. An unexplained suite
-  failure is bisected: the culprit is held, the clean prefix lands, and the cars
-  behind it ride the next train at once.
+- **Membership and holds:** the first banner names candidates; the composed
+  membership is printed before suites. A held car prints its reason and the
+  branch-specific recovery command, then exits. Fix the problem, integrate main,
+  and re-close before retrying. If the conductor’s own car is held during
+  composition, it stops before publishing and releases survivors to reform under
+  the next conductor. Its checkout cannot cancel that other checkout’s suite.
+  An unexplained suite failure is bisected: the culprit is held, the clean prefix
+  lands, and the cars behind it ride the next train at once.
 - **Refusals:** a known flake gets its #394 rerun and never splits. Main failing
   the same way refuses the train, and so does red CI on the train PR.
 - **Riding alone:** a fleet-blocking grant departs at once and lands alone,
@@ -592,7 +597,10 @@ for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three code integrations); conflicts abort with the paths to resolve.
 Issue-only main movement does not spend that budget. Fresh GitHub CLEAN evidence
 for the exact PR/head and live base allows the tested head to land unchanged;
-otherwise normal integration and exact-head CI apply. The narrow record policy
+landing trains use the same proof to preserve their checked head and CI, with
+selected landing-check evidence still valid and destination gates rechecked.
+Otherwise normal integration and exact-head CI apply. Card Markdown qualifies;
+tracker configuration does not. The narrow record policy
 is described in [durable PR landing](atlas/workflow/sdlc-binary.md#durable-pr-landing). Legacy
 worktrees require manual main integration and refuse pending CI.
 A repository can declare local
@@ -659,7 +667,9 @@ to finish without another audit entry. It never resumes holds or restarts work.
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.
-`tl-worker --help` describes the durable checkpoint and drain acknowledgment.
+`tl-worker --help` describes the durable checkpoint and drain acknowledgment,
+continuation/restart timing around owned recorded checks, and verification of
+retained checks after a restart.
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 For generated Go graph inputs, that file can include

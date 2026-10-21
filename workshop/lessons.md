@@ -1274,3 +1274,12 @@ Unknown descendant completion protects every input and output together: checkout
   real-Go fixtures because synthetic event builders can encode the same false
   assumptions as the parser. These semantic protocol contracts need executable
   conformance rather than a lexical source lint.
+- #521 fixture: when asserting that an action creates no new external records,
+  snapshot the fake’s history before the action. Rewriting a branch does not
+  remove status records on its previous head; a list of current heads is not
+  the pre-existing history. The real conflict/reformation test retains those
+  records while checking that a held conductor creates no train PR or suite.
+- #511 fixture verification: a late train-arrival regression must first board valid cars. Section presence alone is insufficient: Done-when needs a nonempty bullet and Plan needs a non-placeholder checklist. Otherwise an early held car can turn the scenario into a different prefix before the intended event. The real two-car late-duplicate regression and instance gates enforce this semantic fixture contract; a lexical lint would only mirror the helper.
+
+- #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
+- #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.

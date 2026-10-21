@@ -9,7 +9,7 @@ import (
 
 // Only issue records, not the broader docs-only suite-reuse surface (#472).
 // Keep the policy in one place; ops/ is deliberately not admitted.
-var issueRecordRoots = []string{"workshop/issues/", "workshop/plans/", "workshop/history/"}
+var issueRecordRoots = []string{"workshop/issues/", "workshop/issue-cards/", "workshop/plans/", "workshop/history/"}
 
 func issueRecordOnlyPaths(paths []string) bool {
 	if len(paths) == 0 {

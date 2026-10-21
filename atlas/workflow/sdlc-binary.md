@@ -306,7 +306,8 @@ MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
 Issue-only main movement (#472) uses one path policy in `mainmovement.go`:
-Markdown under `workshop/issues/`, `workshop/plans/` and `workshop/history/`.
+Markdown under `workshop/issues/`, `workshop/issue-cards/`, `workshop/plans/` and
+`workshop/history/`. Tracker configuration (`workshop/issue-tracker.json`) does not qualify.
 Every novel commit and merge-parent difference is classified, including rename
 sources; code added then reverted, mixed changes and unreadable history remain
 ordinary. The existing integration state machine charges only ordinary moves to
@@ -461,7 +462,16 @@ trains on:
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
   (#499): it observes external close/status updates on the next pass while
   sharing one coherent tracker generation across that pass's gates, without
-  invalidating the parent command or another pass. Transferred-details ownership
+  invalidating the parent command or another pass. A carried completion binding
+  remains a publish obligation after its card is reopened (#502). The shared
+  publish-only guard (`refuseReopenedCompletions`, `trackercompletion.go`) checks
+  every carried binding before review-anchor selection, in ordinary publish and
+  immutable landing. It refuses with the issue, current status and exact
+  `sdlc close --issue N --verified '<evidence>'` action, followed by push/retry.
+  Binding repository/evidence/current-token ownership survives rebase and an
+  independently published details copy; unrelated working cards and branches
+  carrying no close stay valid. Completion, settlement and archive retain their
+  existing status eligibility. Transferred-details ownership
   checks and completion selection use the parsed `Records.CardSnapshot`;
   alternate details directories reuse those cards through `Records.WithDetails`.
   The publication checkout selects that card authority, even if a configured
@@ -475,6 +485,13 @@ trains on:
   to wait if affected fell back (#513), without asserting a queued run exists.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
+- Candidate and composed membership have distinct banners (#521); the terminal
+  summary counts retained cars. Held outcomes print their reason and exact branch
+  recovery in the owning runner (`reportTrainHeld`). If the conductor’s own car
+  is held, the Publish boundary stops it after all composition holds are delivered;
+  existing Aborted cleanup releases survivors to reform. No sibling suite runs
+  under the excluded checkout’s lifetime lease. A reformed suite belongs to its
+  new conductor’s checkout, so foreign local-check cancellation leaves it alive.
 - The pure core is in `internal/landingline`: `train.go` (schedule, readiness
   codec, boarding), `trainstate.go` (the running train's state machine) and
   `bisect.go` (splitting a failing train).
@@ -500,7 +517,7 @@ trains on:
 - **Outcomes:** every car is told through `outcomes/<seq>` (boarded, landed, held, refused, released). A landed car finishes today's resume cleanup.
 - **Landed commit:** each car proves its landing with `landedCommit` (its mergeCommit or its own head on main; `LandedOID` feeds the archive and the card).
 - **Locking:** ref writes take the repo transaction lock.
-- **Main moves:** a moved main is merged in again, keeping the suite when the move is docs-only.
+- **Main moves (#511):** issue-record-only movement uses the shared strict history classifier and fresh same-PR/head/base CLEAN readiness. The train retains its exact checked head and CI only while policy/car/log-bound landing-check proof remains valid and the final destination passes instance/duplicate-ID gates under the merge transaction. Other movement or unavailable/stale readiness reintegrates main; generic docs-only reintegration can retain the suite but still needs CI on the new head. No statuses are copied.
 - **Lost reply:** a merge whose reply was lost is read back from GitHub.
 - **Branch cleanup:** a landed train's branch is deleted. Every train-branch delete goes through one helper, under the repo lock and leased on the tip last pushed or observed.
 - **Leftovers:** the next conductor closes an open `landing-train/*` PR left by a dead conductor, and deletes train branches with no open PR.
@@ -2046,7 +2063,9 @@ own cancellation through processgroup cleanup. A direct make watcher alone
 only proves one PID ended, so an unproved descendant boundary stays unknown
 for operator reconciliation. No shared process group is signalled. The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline.
+the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+owns safe timing, hub-first context-pressure recovery, and post-restart retained
+check verification; the continuation prototype points workers to that rule.
 
 **Reconcile one unresolved operation (#501).** The operator/:0 runs
 `sdlc queue reconcile --id ID --digest SHA256 --note TEXT` only after verifying
