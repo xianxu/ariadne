@@ -1,6 +1,6 @@
 ---
 id: 000525
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a9ece645dfbe6f89fff995112ee7678f6aa0eec7
         evidence_commit: d158a9f34a6a9d19837de139b650438fd81dcda2
+        landed_commit: f451cd80b4c3d7465692407373d241b0b8188ce5
 ---
 
 # tl-worker: don't checkpoint/restart while your recorded check is queued or running in your terminal
