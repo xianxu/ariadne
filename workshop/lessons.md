@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #552: shell redirection creates the output file before printf/echo writes its content. A PID
+  readiness path observed by existence must be published by sibling write/close/rename; a separate
+  post-write signal is also sound. Hold a native barrier between output-open and the PID write to
+  prove the publication boundary, and cancel/await the fixture even when that assertion fails.
+  The hub approved this deterministic protocol guard instead of a lexical PID-write rule, which
+  would also flag safe validating readers and post-write FIFO consumers.
+
 - #548 BR-1: when splitting a function into its own module, update every core-concepts/function-contract location and append the file-split revision before close. Check table locations against definitions; the boundary reviewer enforces semantic traceability, without prose-presence tests.
 
 - #548: shared-slot and overlapping-clock evidence cannot establish an issue's suite ownership. Classify the immutable tested head first, then apply pinned engagement rules; unknown proof stays strict. Disable replacement refs at the immutable Git reader itself. Safety limits must stop discovery before IO grows past them, and neutral graph nodes must share immutable membership rather than multiply derived storage. Counted graph and real Git/tracker fixtures defend these semantic invariants.

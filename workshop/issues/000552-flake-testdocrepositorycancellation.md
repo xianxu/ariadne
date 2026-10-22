@@ -62,9 +62,9 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
 
 ## Plan
 
-- [ ] Retain the recorded empty-PID failure and add a barrier-controlled regression; observe RED with direct publication.
-- [ ] Publish the fixture PID by sibling staging/close/rename, release the barrier, and verify complete readiness plus the existing cancellation controls.
-- [ ] Sweep sibling readiness consumers and review a mechanically sound lint guard with the hub; avoid a lexical rule that confuses safe validating readers with this race.
+- [x] Retain the recorded empty-PID failure and add a barrier-controlled regression; observe RED with direct publication.
+- [x] Publish the fixture PID by sibling staging/close/rename, release the barrier, and verify complete readiness plus the existing cancellation controls.
+- [x] Sweep sibling readiness consumers and review a mechanically sound lint guard with the hub; avoid a lexical rule that confuses safe validating readers with this race.
 - [ ] Run targeted tests and the recorded pushed-head suite; close, land and confirm registration retirement.
 
 ## Log
@@ -83,6 +83,18 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
 - Proposed quick-flow plan sent to the hub before code. Need a decision on the lint tripwire: a broad
   direct-shell-PID ban would flag safe consumers that validate content or await a post-write signal;
   the deterministic publication interleaving is the precise behavioral guard for this protocol.
+
+- Hub receipt 7a415395-d0ad-4107-b2ce-38cf695bfc64 approved the atomic-publication plan and no new lexical
+  lint; the deterministic interleaving guards this protocol. The fixture comment names the safe pattern.
+- Added the native FIFO output-open/PID-write barrier with direct publication still present. RED:
+  TestDocRepositoryCancellation failed in 0.56s with "readiness published before PID write: <nil>";
+  failure cleanup cancelled and awaited the blocked invocation.
+- Changed only the fixture writer to sibling staging/close/rename. GREEN: the same whole test passed
+  in 0.41s (package 0.573s), including captured empty-content replay before release, complete PID
+  afterward, context.Canceled, inherited-pipe completion and no runnable process group. No timeout changed.
+- Broader targeted verification passed: doc repository tests and adjacent native FIFO/cancellation
+  controls in cmd/tl-lead (13.038s); the full pkg/golint catalog including tracked files (1.274s).
+  The final recorded suite is still outstanding; the last Plan row remains unchecked.
 
 ## Revisions
 
