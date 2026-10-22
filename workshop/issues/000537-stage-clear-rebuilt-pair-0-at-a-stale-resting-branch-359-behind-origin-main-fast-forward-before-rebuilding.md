@@ -65,6 +65,7 @@ Covered: both detached and already-resting clear paths, failed-build retries, re
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Bare-remote regressions failed before the fix and pass after: detached/resting clear and numbered rest build freshly fetched main; ahead/diverged, dirty and failed-fetch states refuse before build; dry-run reports fetched lag or unverified without checkout/lease/build changes; failed-build retry fetches newer main. Pin survives later remote advance; incoming/resting attributes and untracked/ignored files are protected. Stage/move/lease/asset, golint/shelllint and recovery controls pass. Recorded suite lease-2876290610 on pushed 4181f126: 2047 SDLC tests +75 packages, zero failures, 779.3s, log 92f3d39a9cc7; server checks green. Hub approved isolated production-path proof, no live :0 touch; landed-holder authorization filed separately as #538.; review verdict: SHIP
 
 - 2026-10-21: Claimed and started from fresh main while #534 remains on its separate retained issue branch awaiting the operator label. Inspected both clear paths: each rebuilt to.Head/to.RestHead without a remote fetch. The existing stage lock already spans clear/build; gitx.TrunkFile.Snapshot fetches into the exact remote-tracking ref and pins subsequent asset reads. Plan is quick-flow sized and stops for hub review before code, as dispatched.
 
