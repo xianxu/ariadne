@@ -1,6 +1,6 @@
 ---
 id: 000536
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.27
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 790e3102dcc056ea10a9dda097006eb4ecc62c6c
         evidence_commit: edc35f8c5c63b62a8977b3cae8f41aeddfd5c575
+        landed_commit: 6112845309d77700ee31220c32b1af23ed831520
 ---
 
 # local-check: bootstrap a repo with no declaration on main (managed default suite), so first-declaration PRs don't need a direct make test
