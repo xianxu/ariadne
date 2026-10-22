@@ -219,3 +219,173 @@ func TestMeasurementInputsMissingVersionIsRetainedError(t *testing.T) {
 		t.Fatalf("missing snapshot version must remain an evidence error: %v", err)
 	}
 }
+
+func validLegacyPrefixInputs() MeasurementInputs {
+	m := validMeasurementInputs()
+	prefix := validMeasurementInputs()
+	prefix.Method = MeasurementMethodLegacyV1
+	prefix.CodeHead = strings.Repeat("f", 40)
+	prefix.TrackerHead = ""
+	prefix.BranchPoint = ""
+	prefix.Until = "2026-10-01T02:00:00Z"
+	prefix.Engagements = nil
+	prefix.Sources = prefix.Sources[:1]
+	prefix.Cuts = nil
+	m.Engagements[0].Start = prefix.Until
+	m.Sources = m.Sources[1:]
+	m.LegacyPrefix = &prefix
+	m.LegacyCutover = strings.Repeat("e", 40)
+	return m
+}
+
+func TestMeasurementLegacyPrefixRoundTrip(t *testing.T) {
+	for _, method := range []string{MeasurementMethodEngagementV1, MeasurementMethodQueueV1} {
+		t.Run(method, func(t *testing.T) {
+			m := validLegacyPrefixInputs()
+			m.Method = method
+			if err := m.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(data), `"legacy_prefix"`) || !strings.Contains(string(data), `"legacy_cutover"`) {
+				t.Fatalf("missing prefix fields: %s", data)
+			}
+			var decoded MeasurementInputs
+			if err := json.Unmarshal(data, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(decoded, m) {
+				t.Fatal("JSON changed either component")
+			}
+			if err := decoded.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			l := Ledger{Gate: "boundary-review", IssueNum: 544, IDPrefix: "BR", Rounds: []Round{{N: 1, ActualInputs: &m}}}
+			rendered := Render(l, "ariadne")
+			if !strings.Contains(rendered, "legacy_prefix:") || !strings.Contains(rendered, "legacy_cutover:") {
+				t.Fatal("missing YAML prefix fields")
+			}
+			parsed, err := ParseSidecar(rendered)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(parsed.Rounds[0].ActualInputs, &m) {
+				t.Fatal("YAML changed either component")
+			}
+		})
+	}
+	m := validLegacyPrefixInputs()
+	m.Method = MeasurementMethodQueueV1
+	m.LegacyCutover = strings.Repeat("e", 64)
+	m.QueueWaits = []MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: m.LegacyPrefix.Until, End: "2026-10-01T02:01:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
+	m.Protected = []MeasurementCredit{{Issue: "1", Slot: "ariadne:1", Start: m.LegacyPrefix.Until, End: "2026-10-01T02:01:00Z"}}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("queue/protected boundary equality or SHA256 cutover rejected: %v", err)
+	}
+	m = validLegacyPrefixInputs()
+	m.LegacyPrefix.Since = "2026-09-30T18:00:00-07:00"
+	if err := m.Validate(); err != nil {
+		t.Fatalf("equivalent Since rejected: %v", err)
+	}
+	m.LegacyPrefix.Until = m.Until
+	m.LegacyPrefix.Sources = nil
+	m.Sources = nil
+	m.Engagements[0].Start = m.Until
+	m.Engagements[0].End = "2026-10-01T04:00:00Z"
+	if err := m.Validate(); err != nil {
+		t.Fatalf("prefix ending at parent Until rejected: %v", err)
+	}
+}
+
+func TestMeasurementLegacyPrefixValidation(t *testing.T) {
+	for name, mutate := range map[string]func(*MeasurementInputs){
+		"cutover absent":           func(m *MeasurementInputs) { m.LegacyCutover = "" },
+		"cutover short":            func(m *MeasurementInputs) { m.LegacyCutover = "abc" },
+		"cutover nonhex":           func(m *MeasurementInputs) { m.LegacyCutover = strings.Repeat("z", 40) },
+		"cutover without prefix":   func(m *MeasurementInputs) { m.LegacyPrefix = nil },
+		"legacy parent":            func(m *MeasurementInputs) { m.Method = MeasurementMethodLegacyV1 },
+		"child method":             func(m *MeasurementInputs) { m.LegacyPrefix.Method = MeasurementMethodEngagementV1 },
+		"child nesting":            func(m *MeasurementInputs) { m.LegacyPrefix.LegacyPrefix = &MeasurementInputs{} },
+		"child cutover":            func(m *MeasurementInputs) { m.LegacyPrefix.LegacyCutover = m.LegacyCutover },
+		"child repository":         func(m *MeasurementInputs) { m.LegacyPrefix.Repository = "file:/foreign" },
+		"child code head":          func(m *MeasurementInputs) { m.LegacyPrefix.CodeHead = "bad" },
+		"child tracker":            func(m *MeasurementInputs) { m.LegacyPrefix.TrackerHead = m.TrackerHead },
+		"child branch point":       func(m *MeasurementInputs) { m.LegacyPrefix.BranchPoint = m.BranchPoint },
+		"child engagements":        func(m *MeasurementInputs) { m.LegacyPrefix.Engagements = m.Engagements },
+		"child queue":              func(m *MeasurementInputs) { m.LegacyPrefix.QueueWaits = []MeasurementQueueWait{{}} },
+		"child protected":          func(m *MeasurementInputs) { m.LegacyPrefix.Protected = []MeasurementCredit{{}} },
+		"child cuts":               func(m *MeasurementInputs) { m.LegacyPrefix.Cuts = m.Cuts },
+		"child since":              func(m *MeasurementInputs) { m.LegacyPrefix.Since = "2026-10-01T00:59:59Z" },
+		"child until equal since":  func(m *MeasurementInputs) { m.LegacyPrefix.Until = m.Since },
+		"child until after parent": func(m *MeasurementInputs) { m.LegacyPrefix.Until = "2026-10-01T04:00:00Z" },
+		"child until malformed":    func(m *MeasurementInputs) { m.LegacyPrefix.Until = "bad" },
+		"child windows":            func(m *MeasurementInputs) { m.LegacyPrefix.Sources[0].Windows[0].End = m.Until },
+		"engagement overlap":       func(m *MeasurementInputs) { m.Engagements[0].Start = "2026-10-01T01:59:59Z" },
+		"source overlap":           func(m *MeasurementInputs) { m.Sources[0].Windows[0].Start = "2026-10-01T01:59:59Z" },
+		"queue overlap": func(m *MeasurementInputs) {
+			m.Method = MeasurementMethodQueueV1
+			m.QueueWaits = []MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: "2026-10-01T01:59:00Z", End: "2026-10-01T02:00:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
+		},
+		"protected overlap": func(m *MeasurementInputs) {
+			m.Protected = []MeasurementCredit{{Issue: "1", Slot: "ariadne:1", Start: "2026-10-01T01:59:00Z", End: "2026-10-01T02:00:00Z"}}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := validLegacyPrefixInputs()
+			mutate(&m)
+			if err := m.Validate(); err == nil {
+				t.Fatal("accepted invalid legacy prefix")
+			}
+			if _, err := ParseSidecar(Render(Ledger{Rounds: []Round{{ActualInputs: &m}}}, "test")); err == nil {
+				t.Fatal("accepted invalid persisted legacy prefix")
+			}
+		})
+	}
+	// Cycles must be rejected before JSON serialization or recursive validation.
+	m := validLegacyPrefixInputs()
+	m.LegacyPrefix.LegacyPrefix = &m
+	if err := m.Validate(); err == nil || !strings.Contains(err.Error(), "legacy_prefix") {
+		t.Fatalf("cycle was not rejected directly: %v", err)
+	}
+}
+
+func TestMeasurementLegacyPrefixAggregateLimits(t *testing.T) {
+	m := validLegacyPrefixInputs()
+	duplicate := func(s MeasurementSource, n int) []MeasurementSource {
+		out := make([]MeasurementSource, n)
+		for i := range out {
+			out[i] = s
+			out[i].ID = strconv.Itoa(i)
+		}
+		return out
+	}
+	m.Sources = duplicate(m.Sources[0], 64)
+	m.LegacyPrefix.Sources = duplicate(m.LegacyPrefix.Sources[0], 64)
+	if err := m.Validate(); err != nil {
+		t.Fatalf("exact aggregate source limit: %v", err)
+	}
+	m.LegacyPrefix.Sources = append(m.LegacyPrefix.Sources, m.LegacyPrefix.Sources[0])
+	m.LegacyPrefix.Sources[64].ID = "extra"
+	if err := m.Validate(); err == nil || !strings.Contains(err.Error(), "sources") {
+		t.Fatalf("aggregate source cap: %v", err)
+	}
+	m = validLegacyPrefixInputs()
+	// Each component independently fits; only their combined retained JSON is too large.
+	m.Sources[0].ID = strings.Repeat("x", SnapshotLimitBytes/2)
+	m.LegacyPrefix.Sources[0].ID = strings.Repeat("y", SnapshotLimitBytes/2)
+	if err := m.LegacyPrefix.Validate(); err != nil {
+		t.Fatalf("child alone: %v", err)
+	}
+	root := m
+	root.LegacyPrefix = nil
+	root.LegacyCutover = ""
+	if err := root.Validate(); err != nil {
+		t.Fatalf("parent alone: %v", err)
+	}
+	if err := m.Validate(); err == nil || !strings.Contains(err.Error(), "bytes") {
+		t.Fatalf("aggregate JSON cap: %v", err)
+	}
+}

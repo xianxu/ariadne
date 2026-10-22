@@ -74,7 +74,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 				_, hasCompletion, completionErr := issue.CardCompletion(rec.Card.Raw)
 				_, hasLegacy, legacyErr := issue.CardLegacyAdoption(rec.Card.Raw)
 				if !hasCompletion && completionErr == nil && !hasLegacy && legacyErr == nil {
-					legacy, found, rerr := recoverUnboundLegacyAdoption(ctx, root, rec, env.target.Repository, plansDir())
+					legacy, found, rerr := recoverUnboundLegacyAdoption(ctx, root, rs.Ref, rec, env.target.Repository, plansDir())
 					in.LegacyRecoveryErr = rerr
 					if found && rerr == nil {
 						in.RecoveredLegacy = &legacy

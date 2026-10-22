@@ -312,3 +312,12 @@ publish a branch's commits; local sync makes no promise about those later verbs.
 For depth:
 
   sdlc issue <verb> --help
+
+MEASUREMENT ACROSS MIGRATION
+
+An active issue imported during development keeps its provable pre-cutover work.
+`sdlc actual --issue N` labels that prefix as the legacy repository-plus-brain
+heuristic and the suffix as tracker ownership. Both parts are retained for exact
+close replay; the cutover is counted once. Missing or contradictory historical
+evidence refuses measurement instead of adopting a suffix-only total. A legacy
+claim timestamp never becomes an invented tracker owner.

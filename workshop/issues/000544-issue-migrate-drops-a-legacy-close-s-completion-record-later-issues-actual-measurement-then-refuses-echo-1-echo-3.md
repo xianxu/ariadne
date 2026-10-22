@@ -62,6 +62,7 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - [ ] Recover and import verified legacy close bindings, retaining exact saved measurement inputs or explicit windowless provenance.
 - [ ] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
 - [ ] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
+- [ ] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
 - [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
 
 ## Log
@@ -87,6 +88,10 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - Echo-owned pre-landing check on built d50fc9f42511c6d7d7698fe021d258dfc045719d (modified=false) refused read-only: source history lost its path; no apply attempted (delivery1244b5bb-b6d9-42b3-acd2-88dcd44728bc). Captured native Git output persistently at common Git test-stats/evidence/000544/echo-native-history-before.log. Root cause: --follow -M1% follows the issue beyond its creation into an unrelated project template, rather than losing the real archive rename. New real-Git template fixture reproduced that refusal. Trying Git's normal similarity threshold passed that fixture but hid the existing damaged-identity control, so it was rejected.
 - Fixed the bounded reader by retaining the identity-sensitive scan and proving issue creation before stopping at non-issue template ancestry: the oldest issue path must be absent from every parent, and later parsed history may contain no other issue ancestry. Added a real merge control whose second parent already holds the issue, so first-parent-only proof fails. Native follow regression plus close/identity/damaged-evidence/merged-close/old cutover controls passed together (16.847s). Updated the legacy migration test helper to expose original errors when no digest prints. Fresh binary and Echo repeat still pending at this log entry.
 
+- Echo owner confirmed the repair/apply/no-op sequence on fe236ba (delivery5a42758e-fde1-45f6-a108-952fd49b0ccc): correct latest close, unchanged actual/checkout, token migrate-000001. The subsequent actual3 was only0.03h over95s, exposing missing pre-cutover engagement; the TL explicitly folded that measurement gap into #544 and approved the revised prefix/suffix plan (delivery66dc716c-80f0-41d0-97d0-db740be9ebee). Echo closes remain held until the revised live measurement.
+- Added the planned complete pinned tracker-card history fence, rather than comparing only equal endpoints: old and explicit imports reopened then restored no longer inherit the old bound. Shared fence verifies exact pinned raw/blob, root ancestry and bounded complete history, rejects intervening lifecycle/correction/authority changes, permits only monotone matching repair. Restored-reopen tests were RED before the fence and GREEN after; expanded targeted controls passed44.570s, explicit same-value correction-history negative passed1.790s. Different-ID templates are allowed only beyond proven issue birth; the same-ID ancestry guard remains strict.
+- Cutover continuity is implemented as approved: bounded legacy-v1 child inputs plus the exact cutover commit; no invented owner. Discovery includes caller and verified primary checkout plus brain, so a temporary measuring worktree can find the original legacy sessions; unrelated linked workers are excluded. Clipped modern windows retain their true dispatch origin and queue records use the post-cutover boundary. Production claim-before/migrate/close-after measurement and replay passed4.104s, including transcript appends. Combined prefix authority/source/clipping controls passed10.809s. Legacy working-transition and first-commit fallback controls passed4.104s. Codec JSON/YAML, recursion/size/overlap, multi-harness discovery and pure join/engine controls are covered; complete stable combined verification is still pending.
+
 ## Revisions
 
 ### 2026-10-22 — unbound terminal imports
@@ -96,6 +101,10 @@ TL delivery 82679d7d-74d5-4320-9051-4232bdd6f97f extends the same strictly-earli
 ### 2026-10-22 — existing unbound imports
 
 TL delivery ec3a2adf-2b31-4b08-a330-56f170a32a64 adds read-only root/archive proof recovery for old born-archived imports without completion or provenance. Strict-before earliest engagement remains required, no card write or fake close occurs, and modern missing records remain strict.
+
+### 2026-10-22 — pre-cutover measurement continuity
+
+TL delivery9668b551-4c1c-44d3-8751-52b9a5f6a69 folds the live measurement gap into #544. An issue claimed under legacy and closed after migration must measure both its provable pre-cutover interval under the existing labelled repository-plus-brain heuristic and its tracker-owned suffix. The plan revision preserves distinct evidence and retained replay, with no invented owner/window or suffix-only adoption on partial failure. The estimate above this revision predates this additional measurement work; measured actual remains authoritative.
 
 ## Estimate
 

@@ -152,3 +152,9 @@ product-owned consumers that need changes get issues in their owning repositorie
   branch-only issue cannot land; backing out a cutover (with the prune).
 - `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints, Makefile fallbacks, and
   `lint-ids` refusing cardless details.
+
+## Measuring work across the cutover
+
+An imported active issue may have real development before the tracker existed. `sdlc actual` keeps that interval under the existing, explicitly labelled repository-plus-brain heuristic; it does not invent a workspace owner. The immutable pre-cutover source supplies its legacy started/working-transition/first-commit anchor, and the marker commit ends the prefix. Verified tracker intervals are clipped after that boundary, with their original dispatch provenance retained. One final phase split covers both attributed populations.
+
+`cmd/sdlc/actuallegacyprefix.go` owns immutable timing and replay authority; `_sources.go` discovers caller/verified primary-checkout plus brain sources once; `_measurement.go` reuses the active-time engine and joins disjoint results. The normal measurement snapshot retains a single bounded legacy-v1 child and cutover pin, including source-prefix digests. Preview output names the legacy interval and tracker interval plainly. Missing or contradictory prefix evidence refuses the total rather than silently adopting only post-migration hours. Root-absent modern issues and terminal imports gain no prefix. The claimed-before/migrated/closed-after production fixture in `actuallegacyprefix_test.go` pins measurement and retained replay.

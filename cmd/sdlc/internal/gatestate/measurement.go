@@ -45,6 +45,8 @@ type MeasurementInputs struct {
 	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
 	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
 	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
+	LegacyPrefix          *MeasurementInputs      `json:"legacy_prefix,omitempty" yaml:"legacy_prefix,omitempty"`
+	LegacyCutover         string                  `json:"legacy_cutover,omitempty" yaml:"legacy_cutover,omitempty"`
 }
 
 type MeasurementEngagement struct {
@@ -133,6 +135,11 @@ func ValidateMeasurementInputs(m *MeasurementInputs) error {
 // sessions and children dispatched before relocation may start before Since;
 // only contributing source windows must lie inside the sampled interval.
 func (m MeasurementInputs) Validate() error {
+	// Check depth before any recursive validation or marshaling, including cycles
+	// constructed in memory. The retained prefix is exactly one legacy interval.
+	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
+		return fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
+	}
 	if m.Version != MeasurementInputsVersion {
 		return fmt.Errorf("measurement version %d is unsupported", m.Version)
 	}
@@ -165,6 +172,10 @@ func (m MeasurementInputs) Validate() error {
 	if until.Before(since) {
 		return fmt.Errorf("measurement until precedes since")
 	}
+	contributionSince, err := m.validateLegacyPrefix(since, until)
+	if err != nil {
+		return err
+	}
 	if m.BrainRoot != "" && !filepath.IsAbs(m.BrainRoot) {
 		return fmt.Errorf("measurement brain_root must be absolute")
 	}
@@ -194,7 +205,7 @@ func (m MeasurementInputs) Validate() error {
 		seenWaits[q.AttemptID] = true
 		start, _ := time.Parse(time.RFC3339Nano, q.Start)
 		end, _ := time.Parse(time.RFC3339Nano, q.End)
-		if start.Before(since) || end.After(until) {
+		if start.Before(contributionSince) || end.After(until) {
 			return fmt.Errorf("measurement queue_waits[%d] outside sample window", i)
 		}
 	}
@@ -215,11 +226,15 @@ func (m MeasurementInputs) Validate() error {
 		if err != nil {
 			return err
 		}
-		if !end.After(start) || start.Before(since) || end.After(until) {
+		if !end.After(start) || start.Before(contributionSince) || end.After(until) {
 			return fmt.Errorf("measurement protected[%d] must be ordered and within since/until", i)
 		}
 	}
-	if len(m.Sources) > SnapshotLimitSources {
+	sourceCount := len(m.Sources)
+	if m.LegacyPrefix != nil {
+		sourceCount += len(m.LegacyPrefix.Sources)
+	}
+	if sourceCount > SnapshotLimitSources {
 		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)
 	}
 	data, err := json.Marshal(m)
@@ -245,6 +260,9 @@ func (m MeasurementInputs) Validate() error {
 		}
 		if !end.After(start) {
 			return fmt.Errorf("measurement %s end must follow start", field)
+		}
+		if m.LegacyPrefix != nil && start.Before(contributionSince) {
+			return fmt.Errorf("measurement %s overlaps legacy_prefix", field)
 		}
 		if began.After(start) {
 			return fmt.Errorf("measurement %s began must not follow start", field)
@@ -301,7 +319,7 @@ func (m MeasurementInputs) Validate() error {
 			if err != nil {
 				return err
 			}
-			if end.Before(start) || start.Before(since) || end.After(until) {
+			if end.Before(start) || start.Before(contributionSince) || end.After(until) {
 				return fmt.Errorf("measurement %s must be ordered and within since/until", interval)
 			}
 		}
@@ -323,6 +341,36 @@ func (m MeasurementInputs) Validate() error {
 		}
 	}
 	return nil
+}
+
+// validateLegacyPrefix keeps the pre-cutover authority distinct from modern
+// tracker engagement. IO callers prove the pinned cutover and source ancestry.
+func (m MeasurementInputs) validateLegacyPrefix(since, until time.Time) (time.Time, error) {
+	prefix := m.LegacyPrefix
+	if prefix == nil {
+		if m.LegacyCutover != "" {
+			return time.Time{}, fmt.Errorf("measurement legacy_cutover requires legacy_prefix")
+		}
+		return since, nil
+	}
+	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodQueueV1 {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix requires engagement method")
+	}
+	if !measurementHex(m.LegacyCutover, 40, 64) {
+		return time.Time{}, fmt.Errorf("measurement legacy_cutover must be a Git OID")
+	}
+	if prefix.Method != MeasurementMethodLegacyV1 || prefix.Repository != m.Repository || prefix.TrackerHead != "" || prefix.BranchPoint != "" || len(prefix.Engagements) != 0 || len(prefix.QueueWaits) != 0 || len(prefix.Protected) != 0 || len(prefix.Cuts) != 0 {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix must be an unowned legacy-v1 interval in the same repository")
+	}
+	if err := prefix.Validate(); err != nil {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix: %w", err)
+	}
+	prefixSince, _ := time.Parse(time.RFC3339Nano, prefix.Since)
+	prefixUntil, _ := time.Parse(time.RFC3339Nano, prefix.Until)
+	if !prefixSince.Equal(since) || !prefixUntil.After(since) || prefixUntil.After(until) {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix must start at since and end after since within until")
+	}
+	return prefixUntil, nil
 }
 
 func measurementHex(value string, lengths ...int) bool {

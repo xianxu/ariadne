@@ -320,7 +320,7 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 				savedErr = fmt.Errorf("legacy adoption: %w", legacyErr)
 			} else if (!completed && (!explicit || legacy.WindowClass == issue.LegacyWindowlessTerminal)) ||
 				(explicit && completed && legacy.WindowClass == issue.LegacyWindowlessClose) {
-				end, proofErr := verifyLegacyAdoption(ctx, root, rec, current.Snapshot.Repository, plans)
+				end, proofErr := verifyLegacyAdoption(ctx, root, rs.Ref, rec, current.Snapshot.Repository, plans)
 				if proofErr != nil {
 					return nil, fmt.Errorf("%s has no trustworthy saved window: legacy adoption: %w", context, proofErr)
 				} else if legacyWindowDisjoint(end, since) {

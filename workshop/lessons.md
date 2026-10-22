@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
+
 - #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
 
 - #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.

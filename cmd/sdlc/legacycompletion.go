@@ -121,7 +121,7 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 				if birth {
 					for _, remaining := range blocks[blockIndex:] {
 						for _, candidate := range strings.Split(strings.TrimSpace(remaining), "\n")[1:] {
-							if _, _, valid := issue.ParseFilename(path.Base(candidate)); valid {
+							if candidateID, _, valid := issue.ParseFilename(path.Base(candidate)); valid && candidateID == id {
 								return fail("ambiguous issue ancestry beyond its creation")
 							}
 						}
@@ -295,7 +295,7 @@ func fullLegacyOID(s string) bool {
 
 // verifyLegacyAdoption grants a bound to explicit windowless provenance or
 // an old unbound terminal-only import proven against the actual cutover root.
-func verifyLegacyAdoption(ctx context.Context, root string, rec tracker.IssueRecord, repository, plans string) (time.Time, error) {
+func verifyLegacyAdoption(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string) (time.Time, error) {
 	var zero time.Time
 	if rec.Card == nil {
 		return zero, nil
@@ -305,7 +305,7 @@ func verifyLegacyAdoption(ctx context.Context, root string, rec tracker.IssueRec
 		return zero, err
 	}
 	if !ok {
-		return recoverLegacyTerminalAdoption(ctx, root, rec, repository, plans)
+		return recoverLegacyTerminalAdoption(ctx, root, trackerPin, rec, repository, plans)
 	}
 	if a.WindowClass == issue.LegacyRetained {
 		return zero, nil
@@ -398,6 +398,9 @@ func verifyLegacyAdoption(ctx context.Context, root string, rec tracker.IssueRec
 	if has != proof.HasCompletion || (has && completion != proof.Completion) {
 		return zero, fmt.Errorf("legacy adoption completion differs from source close generation")
 	}
+	if err := legacyAdoptionHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
+		return zero, err
+	}
 	pin := a.TerminalCommit
 	if proof.HasCompletion {
 		pin = proof.Completion.EvidenceCommit
@@ -431,7 +434,7 @@ func legacyScalarFields(fm string) (map[string]string, error) {
 // migrations that retained numeric done cards without the newer provenance.
 // Root membership and exact archived generation are positive authority; a
 // missing completion on any other card is never evidence of a legacy close.
-func recoverUnboundLegacyAdoption(ctx context.Context, root string, rec tracker.IssueRecord, repository, plans string) (issue.LegacyAdoption, bool, error) {
+func recoverUnboundLegacyAdoption(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string) (issue.LegacyAdoption, bool, error) {
 	var zero issue.LegacyAdoption
 	if rec.Card == nil || rec.Status() != "done" {
 		return zero, false, nil
@@ -503,11 +506,14 @@ func recoverUnboundLegacyAdoption(ctx context.Context, root string, rec tracker.
 	if proof.HasCompletion || proof.Adoption.WindowClass != issue.LegacyWindowlessTerminal {
 		return zero, false, nil
 	}
+	if err := legacyAdoptionHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
+		return zero, false, err
+	}
 	return proof.Adoption, true, nil
 }
 
-func recoverLegacyTerminalAdoption(ctx context.Context, root string, rec tracker.IssueRecord, repository, plans string) (time.Time, error) {
-	adoption, proven, err := recoverUnboundLegacyAdoption(ctx, root, rec, repository, plans)
+func recoverLegacyTerminalAdoption(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string) (time.Time, error) {
+	adoption, proven, err := recoverUnboundLegacyAdoption(ctx, root, trackerPin, rec, repository, plans)
 	if err != nil || !proven {
 		return time.Time{}, err
 	}
@@ -520,4 +526,99 @@ func recoverLegacyTerminalAdoption(ctx context.Context, root string, rec tracker
 		return time.Time{}, fmt.Errorf("legacy terminal object timestamp: %w", err)
 	}
 	return end, nil
+}
+
+// legacyAdoptionHistory proves continuity on the caller's immutable tracker
+// snapshot. Matching endpoints alone cannot distinguish a reopened generation.
+// Only missing -> exact matching repair metadata may accumulate along the way.
+func legacyAdoptionHistory(ctx context.Context, root, trackerPin, trackerRoot string, rec tracker.IssueRecord, proof legacyCompletionProof) error {
+	if !fullLegacyOID(trackerPin) || !fullLegacyOID(trackerRoot) || rec.Card == nil {
+		return fmt.Errorf("legacy adoption requires an immutable tracker snapshot")
+	}
+	if _, err := ownedActualGit(ctx, root, "merge-base", "--is-ancestor", trackerRoot, trackerPin); err != nil {
+		return fmt.Errorf("legacy adoption tracker snapshot does not descend from imported root: %w", err)
+	}
+	current, err := archiveReadContext(ctx, root, "cat-file", "blob", trackerPin+":"+rec.Card.Path)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(current, rec.Card.Raw) {
+		return fmt.Errorf("legacy adoption current card differs from pinned tracker snapshot")
+	}
+	blob, err := ownedActualGit(ctx, root, "rev-parse", "--verify", trackerPin+":"+rec.Card.Path)
+	if err != nil {
+		return err
+	}
+	if rec.Card.BlobOID != "" && rec.Card.BlobOID != blob {
+		return fmt.Errorf("legacy adoption card blob differs from pinned tracker snapshot")
+	}
+	history, err := ownedActualGit(ctx, root, "--literal-pathspecs", "log", "--full-history", "--topo-order", "--format=%H", "--max-count="+strconv.Itoa(legacyCompletionHistoryLimit+1), trackerPin, "--", rec.Card.Path)
+	if err != nil {
+		return fmt.Errorf("legacy adoption tracker history: %w", err)
+	}
+	commits := strings.Fields(history)
+	if len(commits) > legacyCompletionHistoryLimit {
+		return fmt.Errorf("legacy adoption tracker history exceeds complete-history bound")
+	}
+	rootIndex := -1
+	for i, commit := range commits {
+		if commit == trackerRoot {
+			rootIndex = i
+			break
+		}
+	}
+	if rootIndex < 0 {
+		return fmt.Errorf("legacy adoption tracker history does not reach imported root")
+	}
+	hadCompletion, hadAdoption := false, false
+	for i := rootIndex; i >= 0; i-- {
+		raw, err := archiveReadContext(ctx, root, "cat-file", "blob", commits[i]+":"+rec.Card.Path)
+		if err != nil {
+			return fmt.Errorf("legacy adoption tracker generation read: %w", err)
+		}
+		card, err := issue.ParseCard(raw)
+		if err != nil {
+			return err
+		}
+		if card.ID != rec.ID {
+			return fmt.Errorf("legacy adoption tracker history changes issue identity")
+		}
+		for _, key := range []string{"status", "actual_hours", "started"} {
+			value, err := issue.FieldString(card.Frontmatter, key)
+			if err != nil {
+				return err
+			}
+			if value != rec.Text(key) {
+				return fmt.Errorf("legacy adoption tracker history changes %s generation", key)
+			}
+		}
+		if _, corrected, err := issue.CardActualCorrection(raw); err != nil || corrected {
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("legacy adoption tracker history contains an actual correction")
+		}
+		completion, completed, err := issue.CardCompletion(raw)
+		if err != nil {
+			return err
+		}
+		if completed && (!proof.HasCompletion || completion != proof.Completion) {
+			return fmt.Errorf("legacy adoption tracker history changes completion generation")
+		}
+		if hadCompletion && !completed {
+			return fmt.Errorf("legacy adoption tracker history removes completion evidence")
+		}
+		adoption, marked, err := issue.CardLegacyAdoption(raw)
+		if err != nil {
+			return err
+		}
+		if marked && adoption != proof.Adoption {
+			return fmt.Errorf("legacy adoption tracker history changes provenance generation")
+		}
+		if hadAdoption && !marked {
+			return fmt.Errorf("legacy adoption tracker history removes provenance evidence")
+		}
+		hadCompletion, hadAdoption = completed, marked
+	}
+	return nil
 }

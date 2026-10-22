@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -34,11 +33,17 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	if err != nil {
 		return fail(err)
 	}
+	if (inputs.LegacyPrefix == nil) != (m.LegacyPrefix == nil) {
+		return fail(fmt.Errorf("legacy prefix runtime and retained snapshot differ"))
+	}
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
 		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
 		ProtectedIntervals: inputs.Protected}
+	if inputs.LegacyPrefix != nil {
+		options.SinceISO = inputs.LegacyPrefix.Snapshot.Until
+	}
 	for _, q := range m.QueueWaits {
 		start, err := time.Parse(time.RFC3339Nano, q.Start)
 		if err != nil {
@@ -56,6 +61,24 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	if err := ctx.Err(); err != nil {
 		return fail(err)
+	}
+	ownedOut := out
+	if inputs.LegacyPrefix != nil {
+		res.Warnings = append(res.Warnings, actualExclusionWarnings(inputs.LegacyPrefix.Warnings)...)
+		prefix, pinned, err := measureLegacyPrefix(ctx, root, id, inputs.LegacyPrefix)
+		if err != nil {
+			return fail(err)
+		}
+		cutover, err := time.Parse(time.RFC3339Nano, pinned.Until)
+		if err != nil {
+			return fail(err)
+		}
+		out, err = joinLegacyActualResults(prefix, out, cutover)
+		if err != nil {
+			return fail(err)
+		}
+		m.LegacyPrefix = pinned
+		res.Warnings = append(res.Warnings, fmt.Sprintf("legacy repository-plus-brain heuristic: %s → %s; tracker ownership: %s → %s", pinned.Since, pinned.Until, pinned.Until, m.Until))
 	}
 	res.Status, res.Hours = statusFromResult(out, id)
 	res.Segments = out.Segments
@@ -81,28 +104,13 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	if !inputs.Replay {
 		contributing := map[string]bool{}
-		for _, file := range out.SourceIDs {
+		for _, file := range ownedOut.SourceIDs {
 			contributing[file] = true
 		}
-		for _, file := range out.QueueBindingSourceIDs {
+		for _, file := range ownedOut.QueueBindingSourceIDs {
 			contributing[file] = true // queue replay still needs this prefix when its activity is zero
 		}
-		m.Sources = nil
-		for _, s := range inputs.Sessions {
-			if !contributing[s.File] {
-				continue
-			}
-			item := gatestate.MeasurementSource{Harness: s.Harness, ID: s.ID, CWD: s.CWD, ParentID: s.ParentID, Digest: s.Digest,
-				Started: s.Started.Format(time.RFC3339Nano), Spawned: s.Spawned, Bytes: s.Length, Slot: inputs.SourceSlots[s.File]}
-			for _, w := range inputs.Windows[s.File] {
-				item.Windows = append(item.Windows, gatestate.MeasurementInterval{Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano)})
-			}
-			m.Sources = append(m.Sources, item)
-		}
-		sort.Slice(m.Sources, func(i, j int) bool {
-			a, b := m.Sources[i], m.Sources[j]
-			return a.Harness+":"+a.ID < b.Harness+":"+b.ID
-		})
+		m.Sources = retainedMeasurementSources(inputs, contributing)
 		if len(inputs.ExcludedBrain) > 0 {
 			excluded := options
 			excluded.Files = nil
