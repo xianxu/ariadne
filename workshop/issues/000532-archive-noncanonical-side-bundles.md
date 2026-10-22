@@ -60,14 +60,6 @@ Git verification in pair slot2: HEAD/reviewed source `8b7a72b86f618ab0b06f15e966
 
 SideDir strips `.md`; landingSideRelated accepts broader plan-ID `.side` family members. The snapshot therefore sees `.md.side` but planLandingSideMoves omits it, and only post-commit confirmLandingArchiveCommit rejects the leftover. Bounded read-only agent survey confirmed the close/publish gate currently has no side naming guard. No implementation or repair performed.
 
-## Revisions
-
-### 2026-10-21 — TL selects prevention and explicit one-off repair
-
-Per ops:0 delivery 841eb335-f3f0-4a1d-b817-91d0c7bb9176, the earlier scope requiring automatic normal-retry repair is superseded. Refuse noncanonical names at close and preflight, naming the canonical rename. The two existing Pair leftovers use explicit ordinary Git moves plus issue Log notes; no new recovery mechanism or transition. Old proof remains strict: its re-derived expected set excludes the one-off history entries and cannot retroactively attest them, whereas future selected issue families exclude those unrelated entries. This distinction was reported to the TL before code.
-
-Superseded acceptance included automatic idempotent cleanup retry from a done-card, already-archived parent without operation receipt, plus uncertainty/provenance repair checks. That requirement is removed by the decision above rather than implemented as a new proof-chain mechanism. Original motivating incident and source evidence remain in Problem and Log.
-
 ### 2026-10-21 — implementation and targeted verification
 
 TL approved the short prevention-only plan (ff2d785e-1979-42dd-9dc1-dd1e3ece13b0); pair:4 and pair:2 own the separate real repairs. Shared validateArchiveSideNames checks selected IDs in one pass; checkCloseSideNames reads each active root once, including untracked directory names, without following symlinks. Close invokes it before review/state changes; runLandingPublishGate reads the pinned PR tree with the existing bounded archive tree reader, passes configured plan roots through train readiness and integration replay, and the immutable planner applies the same policy before creating writes. No old archive proof is weakened.
@@ -87,6 +79,14 @@ pair#757 landed via PR532 (https://github.com/xianxu/pair/pull/532), reported Gi
 The original lease-1938211911 survived the Couch restart without a replacement runner. It acquired the full-suite slots after 4114s in FIFO and passed on pushed code head d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8: all eight shards, 2045 cmd/sdlc tests and 75 other packages, zero failures; wall 723.6s (12m4s). Saved log: .git/sdlc/local-checks/d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8/suite.log; reported digest prefix 37e0c9039557; sdlc-local/suite recorded on that head.
 
 Whole-issue close returned SHIP with no findings and adopted measured 0.25h, evidence eb95a774a2e110fdc66e413d9356ad6992507b24. The reviewer independently passed focused and broader archive/publish regressions. The subsequent required main integration 8823171c88a21e828046174c6c223b4ffb25d02e resolved only the published issue's mirror conflict, retaining the sdlc-generated codecomplete card fields. Its diff from the tested head contains only issue/review bookkeeping. PR378 has green server checks. Landing has not yet occurred; sdlc merge owns current-main integration and any authoritative integrated suite.
+
+## Revisions
+
+### 2026-10-21 — TL selects prevention and explicit one-off repair
+
+Per ops:0 delivery 841eb335-f3f0-4a1d-b817-91d0c7bb9176, the earlier scope requiring automatic normal-retry repair is superseded. Refuse noncanonical names at close and preflight, naming the canonical rename. The two existing Pair leftovers use explicit ordinary Git moves plus issue Log notes; no new recovery mechanism or transition. Old proof remains strict: its re-derived expected set excludes the one-off history entries and cannot retroactively attest them, whereas future selected issue families exclude those unrelated entries. This distinction was reported to the TL before code.
+
+Superseded acceptance included automatic idempotent cleanup retry from a done-card, already-archived parent without operation receipt, plus uncertainty/provenance repair checks. That requirement is removed by the decision above rather than implemented as a new proof-chain mechanism. Original motivating incident and source evidence remain in Problem and Log.
 
 ### 2026-10-21 — checklist bookkeeping clarification
 
