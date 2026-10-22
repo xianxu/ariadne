@@ -431,6 +431,16 @@ func archiveSnapshotContext(ctx context.Context, root, ref string, selected []la
 // and the codecomplete transition. Tracked details read their mirror baseline
 // through readCard, so this planner is an integration boundary.
 func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnapshot, dirs landingArchiveRoots, date string) (landingArchivePlan, error) {
+	var paths, issues []string
+	for name := range current {
+		paths = append(paths, name)
+	}
+	for _, owned := range selected {
+		issues = append(issues, owned.path)
+	}
+	if err := validateArchiveSideNames(paths, issues, dirs.issues, dirs.plans); err != nil {
+		return landingArchivePlan{}, err
+	}
 	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}, ExactBytes: true}}
 	add := func(src, dst string, body []byte) error {
 		if _, exists := current[dst]; exists {

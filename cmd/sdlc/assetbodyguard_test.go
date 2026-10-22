@@ -76,7 +76,7 @@ func TestAssetBodyOnlyReferenceRefusedByLandingEntryPoints(t *testing.T) {
 		},
 		"push": func() error { return runPublishGate(context.Background(), base, "workshop/issues", io.Discard) },
 		"merge": func() error {
-			return runLandingPublishGate(context.Background(), landingPR{HeadOID: head, BaseOID: base}, "workshop/issues", io.Discard)
+			return runLandingPublishGate(context.Background(), landingPR{HeadOID: head, BaseOID: base}, "workshop/issues", "workshop/plans", io.Discard)
 		},
 	}
 	for name, check := range checks {

@@ -54,7 +54,7 @@ func TestLandingPublishAndOwnershipReadsHonorCancellation(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				if mode == "publish-first-read" {
-					done <- runLandingPublishGate(ctx, pr, "workshop/issues", io.Discard)
+					done <- runLandingPublishGate(ctx, pr, "workshop/issues", "workshop/plans", io.Discard)
 					return
 				}
 				_, err := selectLandingIssues(ctx, root, pr, "workshop/issues")

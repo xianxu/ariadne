@@ -78,7 +78,7 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 			if err != nil || len(omitted) != 0 {
 				t.Fatalf("fixture not independently published: %v %v", omitted, err)
 			}
-			err = runLandingPublishGate(context.Background(), pr, "workshop/issues", io.Discard)
+			err = runLandingPublishGate(context.Background(), pr, "workshop/issues", "workshop/plans", io.Discard)
 			if delta == "code" {
 				if err == nil || !strings.Contains(err.Error(), publishGateRefusal) || !strings.Contains(err.Error(), "late.go") {
 					t.Fatalf("post-close code escaped review: %v", err)
@@ -87,7 +87,7 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 				t.Fatalf("safe %s refused: %v (close %s)", delta, err, closeHead)
 			}
 			pr.HeadOID = base
-			if err := runLandingPublishGate(context.Background(), pr, "workshop/issues", io.Discard); err == nil {
+			if err := runLandingPublishGate(context.Background(), pr, "workshop/issues", "workshop/plans", io.Discard); err == nil {
 				t.Fatal("gate ran on different checkout head")
 			}
 		})

@@ -336,6 +336,14 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
+The shared `validateArchiveSideNames` policy (#532) rejects active
+`<document>.md.side` bundles at close, pinned-head landing preflight (including
+train readiness), and immutable archive planning; rename to the canonical
+`<document>.side`, preserve contents and update links before retry. Close reads
+both active roots once including untracked names; landing reads the selected
+commit, scoped to its owned issue IDs. Explicit one-off Git repairs of old
+parent-only archives preserve bytes but do not retroactively satisfy historical
+archive proof. Unrelated future issue families remain independent.
 A done-card sweep can archive a car without per-PR trailers (#494, #512).
 Every archive check, including fresh already-merged recovery and the publisher's
 refreshed main view, can locate that archive through bounded destination-path

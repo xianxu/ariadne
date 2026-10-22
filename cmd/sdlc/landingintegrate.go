@@ -164,7 +164,7 @@ func syncIntegrationPR(ctx context.Context, gh landingGH, t landingTarget, branc
 
 // integrateLandingMain makes the merge, or resumes the already validated one;
 // replay must pass before a leased push can make either commit public.
-func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, s integrationState, lock func(func() error) error, noJudge bool, issuesDir string, stderr io.Writer) (integrationState, error) {
+func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, s integrationState, lock func(func() error) error, noJudge bool, issuesDir, plansDir string, stderr io.Writer) (integrationState, error) {
 	if err := lock(func() error {
 		if err := revalidateLanding(r, t, branch, s.head, branch); err != nil {
 			return err
@@ -227,7 +227,7 @@ func integrateLandingMain(ctx context.Context, r gitRunner, gh landingGH, t land
 	integrated.HeadOID, integrated.BaseOID = head, main
 	var replayErr error
 	if !noJudge {
-		replayErr = runLandingPublishGate(ctx, integrated, issuesDir, stderr)
+		replayErr = runLandingPublishGate(ctx, integrated, issuesDir, plansDir, stderr)
 	}
 	event := integrationReplayAccepted
 	if replayErr != nil {
