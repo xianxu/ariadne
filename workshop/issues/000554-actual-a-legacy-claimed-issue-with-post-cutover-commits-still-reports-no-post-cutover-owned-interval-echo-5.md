@@ -1,13 +1,13 @@
 ---
 id: 000554
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '89b6b1bd8808f5e3261e5aa9c3f7851563bf20bd' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '028dc9e4c92e5eb3039e7ed355f3a283de4dd56c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T11:00:55-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "4c6861a1", done: "173e9989"}
+actual_hours: 0.95
 ---
 
 # actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5)
