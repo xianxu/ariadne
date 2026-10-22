@@ -20,7 +20,7 @@ func EmptyInitEligible(in MigrationInput, m MigrationManifest) bool {
 	}
 	return strings.TrimSpace(in.Repository) != "" && validReceiptOID(in.Main) && len(in.Main) == size &&
 		in.Repository == m.Repository && in.ObjectFormat == m.ObjectFormat && in.Main == m.Main && m.Digest != "" &&
-		len(in.Active) == 0 && len(in.Archived) == 0 && len(in.Branches) == 0 && len(in.DirtyIssuePaths) == 0 && len(in.Anchors) == 0 &&
+		len(in.Published) == 0 && len(in.Tips) == 0 && len(in.Active) == 0 && len(in.Archived) == 0 && len(in.Branches) == 0 && len(in.DirtyIssuePaths) == 0 && len(in.Anchors) == 0 &&
 		len(m.Cards) == 0 && len(m.Conversions) == 0 && len(m.Duplicates) == 0 && len(m.Refusals) == 0
 }
 

@@ -40,7 +40,7 @@ func TestCarReadinessObservesExternalReclose(t *testing.T) {
 	target := landingTarget{Root: r.root, Remote: "origin", Repo: "test/repo"}
 	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{IssuesDir: "workshop/issues", NoCI: true})
 	ctx := withIssueRecordsScope(context.Background())
-	before, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	before, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 	if before.Ready || !strings.Contains(before.Reason, "publish gate:") || !strings.Contains(before.Reason, "cmd/a.go") {
 		t.Fatalf("expected uncovered correction: %+v", before)
 	}
@@ -48,7 +48,7 @@ func TestCarReadinessObservesExternalReclose(t *testing.T) {
 	// the waiting command's records cache.
 	closeIssue()
 	r.git("push", "-q", "origin", branch)
-	after, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	after, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 	if !after.Ready || after.Head != r.git("rev-parse", "HEAD") {
 		t.Fatalf("corrected close remained unready: %+v", after)
 	}
@@ -102,7 +102,7 @@ func TestCarReadinessRecordsGeneration(t *testing.T) {
 				}
 				return nil
 			}}
-			ready, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+			ready, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 			if !ready.Ready {
 				t.Fatalf("first pass: %+v", ready)
 			}
@@ -126,7 +126,7 @@ func TestCarReadinessRecordsGeneration(t *testing.T) {
 				}
 				return fmt.Errorf("external status change")
 			}
-			ready, _ = carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+			ready, _, _ = carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 			if ready.Ready || !strings.Contains(ready.Reason, "external status change") {
 				t.Fatalf("second pass: %+v", ready)
 			}
@@ -220,11 +220,11 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 		return nil
 	}
 	ctx := withIssueRecordsScope(context.Background())
-	ready, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	ready, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 	if !changed || !ready.Ready {
 		t.Fatalf("production checks did not retain their initial generation: %+v (external edit=%v)", ready, changed)
 	}
-	ready, _ = carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+	ready, _, _ = carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 	if ready.Ready || !strings.Contains(ready.Reason, "publish gate:") {
 		t.Fatalf("next pass accepted malformed external authority: %+v", ready)
 	}
@@ -291,7 +291,7 @@ func testCarReadinessReopen(t *testing.T, mode string) {
 	check := func(wantReady bool) {
 		t.Helper()
 		before := r.git("rev-parse", "HEAD")
-		ready, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
+		ready, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 		if ready.Ready != wantReady {
 			t.Fatalf("ready=%t, want %t: %+v", ready.Ready, wantReady, ready)
 		}

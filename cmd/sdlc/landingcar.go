@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
@@ -33,16 +34,17 @@ type carGates struct {
 
 // carReadiness reads the car's head, PR and gates now. Any read that fails is
 // "not ready" with the reason, never ready: an unread gate is not a pass.
+// terminal preserves the complete action for a missing required local record.
 // merged reports that the car's PR is already MERGED at its exact head (a
 // train landed it, and its outcome never arrived: a conductor that died after
 // the merge, a lost settle): the wait is over, and the merge resumes.
-func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, g carGates, now time.Time) (ready landingline.Readiness, merged bool) {
+func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarget, branch string, g carGates, now time.Time) (ready landingline.Readiness, merged bool, terminal error) {
 	// A waiting merge may outlive an external close or reopen. Share one
 	// coherent tracker generation inside this pass, never the command's
 	// earlier generation or another concurrent readiness pass's cache.
 	ctx = withIssueRecordsScope(ctx)
-	no := func(format string, a ...any) (landingline.Readiness, bool) {
-		return landingline.Readiness{Branch: branch, Reason: fmt.Sprintf(format, a...), At: now}, false
+	no := func(format string, a ...any) (landingline.Readiness, bool, error) {
+		return landingline.Readiness{Branch: branch, Reason: fmt.Sprintf(format, a...), At: now}, false, nil
 	}
 	head, err := landingGit(r, t.Root, "rev-parse", "--verify", "refs/heads/"+branch)
 	if err != nil || !landingOIDValid(head) {
@@ -60,8 +62,8 @@ func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarge
 		return no("could not list PRs: %v", err)
 	}
 	if slices.ContainsFunc(prs, func(p landingPR) bool { return p.State == "MERGED" && p.HeadOID == head }) {
-		r, _ := no("its PR is merged at %s", shortSHA(head))
-		return r, true
+		r, _, _ := no("its PR is merged at %s", shortSHA(head))
+		return r, true, nil
 	}
 	i := slices.IndexFunc(prs, func(p landingPR) bool { return p.State == "OPEN" && p.HeadOID == head })
 	if i < 0 {
@@ -72,6 +74,16 @@ func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarge
 		return no("publish gate: %s", firstLine(err.Error()))
 	}
 	if err := g.ci(ctx, pr); err != nil {
+		var gate *ciGateError
+		if errors.As(err, &gate) && len(gate.LocalNeeded) > 0 {
+			commands := make([]string, 0, len(gate.LocalNeeded))
+			for _, name := range gate.LocalNeeded {
+				commands = append(commands, localCheckCommand(name))
+			}
+			canonical := (ciVerdict{Reason: ciLocalNeeded, LocalNeeded: gate.LocalNeeded}).refusal(pr.Number)
+			r, _, _ := no("CI gate: %s", firstLine(err.Error()))
+			return r, false, fmt.Errorf("%w\n%s\nmerge stopped: run %s, then re-enter sdlc merge (pushed head %s). If that check is already queued or running, retain it and retry merge after it passes.", err, canonical, strings.Join(commands, " and "), head)
+		}
 		return no("CI gate: %s", firstLine(err.Error()))
 	}
 	alone := pr.LocalGatesVerified
@@ -79,7 +91,7 @@ func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarge
 	if alone {
 		reason = "touches local-gates paths (" + localGatesLabel + ")"
 	}
-	return landingline.Readiness{Branch: branch, Head: head, PR: pr.Number, Ready: true, Alone: alone, Reason: reason, At: now}, false
+	return landingline.Readiness{Branch: branch, Head: head, PR: pr.Number, Ready: true, Alone: alone, Reason: reason, At: now}, false, nil
 }
 
 // errMergedWhileWaiting ends a car's wait when its own PR turned up merged:
@@ -88,7 +100,7 @@ var errMergedWhileWaiting = errors.New("landing train: this PR was merged while 
 
 // productionCarGates are the gates sdlc merge itself runs after admission,
 // run here read-only: the CI gate is given no local-check runner, so a
-// missing suite record is "not ready", not a suite run. A gate the merge was
+// missing suite record ends the wait with its command. A gate the merge was
 // told to skip (--no-judge, --no-ci) is skipped here too, so a car vouches
 // exactly what its own landing would check.
 func productionCarGates(r gitRunner, ci ghCaller, t landingTarget, f *mergeFlags) carGates {
@@ -138,10 +150,11 @@ func carCIGateFacts(ctx context.Context, git func(...string) (string, error), ba
 // spends one config read a minute, and one turned on meanwhile starts
 // vouching. A failed write is reported once; the car then doesn't board.
 //
-// A car that finds its own PR merged calls merged and stops: no outcome may
+// A terminal readiness result ends the wait through stop, after publication.
+// A car that finds its own PR merged calls stop with the merged cause: no outcome may
 // ever come for it (its conductor died after the merge), and only its own
 // observation of GitHub can end the wait.
-func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingline.Handle, sched func() landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool), merged func(), stderr io.Writer) <-chan struct{} {
+func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingline.Handle, sched func() landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool, error), stop func(error), stderr io.Writer) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -149,13 +162,13 @@ func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingli
 		last := ""
 		for {
 			if !sched().Off() {
-				r, isMerged := readiness(ctx)
+				r, isMerged, terminal := readiness(ctx)
 				if ctx.Err() != nil {
 					return
 				}
 				if isMerged {
 					fmt.Fprintln(stderr, "landing train: this PR is already merged; finishing as a resume")
-					merged()
+					stop(errMergedWhileWaiting)
 					return
 				}
 				err := line.Vouch(h, r)
@@ -169,6 +182,10 @@ func vouchWhileWaiting(ctx context.Context, line *landingline.Line, h *landingli
 				if state := readinessLine(r); state != last {
 					last = state
 					fmt.Fprintln(stderr, "landing train: "+state)
+				}
+				if terminal != nil {
+					stop(terminal)
+					return
 				}
 			}
 			select {

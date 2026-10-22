@@ -132,7 +132,8 @@ cards, so after this lands, update ariadne:0 and run `weave refresh` in every
 :1+ slot.
 
 A legacy repository cuts over
-once with `sdlc issue migrate` — see
+once with `sdlc issue migrate`, which imports main’s active and archived
+issues after checking all branch tips and live worktrees — see
 [issue tracker migration](atlas/workflow/issue-tracker-migration.md); until then
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 `issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits
@@ -146,6 +147,22 @@ digest. See [legacy completion recovery](atlas/workflow/issue-tracker-migration.
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
 edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
+
+Boundary reviewers and their preparation commands receive `SDLC_DEP_SUBSTRATE`
+and `SDLC_DEP_DATA` paths for the reviewed commit's direct `construct/deps`
+dependencies. Each path names a disposable clone pinned once to that local
+dependency's last-fetched `origin/main`; setup never fetches or copies dirty
+source files. The prompt names each path, exact SHA, fetch-age evidence (or
+`unknown`) and isolation mode. Missing sources/refs or invalid/conflicting
+declarations stop setup: repair or refresh the local dependency outside the
+review, then rerun the original close command.
+
+An available OS fence makes dependency clones and source Git directories
+read-only. Without the fence, the prompt identifies writable disposable clones
+whose edits are discarded. Retries rebuild the same paths at the same pins;
+normal cleanup and dead-owner sweeps remove them with the review checkout.
+See [boundary review dependency inspection](atlas/workflow/sdlc-binary.md)
+for size/time bounds and freshness limitations.
 
 Boundary reviews can prepare generated assets inside their disposable checkout.
 Commit a regular `.sdlc/review-prepare.json` file at the reviewed HEAD:
@@ -691,6 +708,14 @@ the command rather than promise a drop.
 merge's readiness, and the last trains: result, cars, train PR, split suites
 and culprit.
 
+A train waiter missing a required local-check record exits with
+`merge stopped: run <exact command>, then re-enter sdlc merge`.
+Run the named check under its normal queue; if it is already queued or running,
+retain that check and retry merge after it passes. The refusal releases this
+merge's ticket and position. Readiness stays read-only, including while server
+CI is pending or failing; missing checks still run automatically after
+serial/granted admission.
+
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three code integrations); conflicts abort with the paths to resolve.
@@ -707,7 +732,7 @@ checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
 runs one on a pushed head (under the machine-wide suite lock by default) and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
-for checks declared `required`, and runs a missing one itself, unless a saved
+for checks declared `required`, and after admission runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
 Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /

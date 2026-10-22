@@ -124,7 +124,7 @@ func (l *lineLog) record(e landingline.Event) {
 // With trains on (#449) the merge also vouches its readiness while it waits
 // (readiness reads its own gates); a vouch is a claim, so it observes for
 // the conductor, never for this merge's own landing, which reads again.
-func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched func() landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool), stderr io.Writer) (*landingTurn, error) {
+func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch string, sched func() landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool, error), stderr io.Writer) (*landingTurn, error) {
 	dir, err := landingLineDir(r, t.Root)
 	if err != nil {
 		return nil, err
@@ -184,11 +184,16 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 			turn.leave(err)
 			return nil, err
 		}
-		fresh, _ := readiness(ctx)
+		fresh, _, terminal := readiness(ctx)
 		if err := ctx.Err(); err != nil {
 			finishWait()
 			turn.leave(err)
 			return nil, err
+		}
+		if terminal != nil {
+			finishWait()
+			turn.leave(terminal)
+			return nil, terminal
 		}
 		if err := line.Vouch(h, fresh); err != nil {
 			finishWait()
@@ -202,7 +207,7 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	defer endWait(nil)
 	if sched != nil && readiness != nil {
 		vctx, cancel := context.WithCancel(ctx)
-		done := vouchWhileWaiting(vctx, line, h, sched, readiness, func() { endWait(errMergedWhileWaiting) }, stderr)
+		done := vouchWhileWaiting(vctx, line, h, sched, readiness, endWait, stderr)
 		stopVouching = func() { cancel(); <-done }
 	}
 	err = line.Wait(waitCtx, h)
@@ -226,6 +231,9 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 			}
 			h.Release()
 			return nil, err
+		}
+		if cause := context.Cause(waitCtx); cause != nil && ctx.Err() == nil {
+			err = cause
 		}
 		turn.leave(err)
 		return nil, err

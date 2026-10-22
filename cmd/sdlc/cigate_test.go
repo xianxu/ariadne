@@ -96,7 +96,7 @@ func TestDecideCIGateLocalChecks(t *testing.T) {
 		{"recorded local failure is red", ciInputs{Checks: []prCheck{job, local("zellij", "fail")}, Local: decl, Runnerless: runnerless}, ciRed, []string{localStatusContext("zellij")}, []string{"zellij"}},
 		{"pending CI outranks a needed local run", ciInputs{Checks: []prCheck{pending, job}, Local: decl, Runnerless: runnerless}, ciPending, []string{"build"}, []string{"zellij"}},
 		{"required, no CI at all", ciInputs{Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
-		{"required, CI not registered yet waits", ciInputs{HeadHasWorkflows: true, Local: required}, ciNotRegistered, nil, nil},
+		{"required, CI not registered yet waits", ciInputs{HeadHasWorkflows: true, Local: required}, ciNotRegistered, nil, []string{"e2e"}},
 		{"required, green CI, nothing recorded", ciInputs{Checks: []prCheck{merge}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
 		{"required, recorded failure", ciInputs{Checks: []prCheck{merge, local("e2e", "fail")}, Local: required}, ciRed, []string{localStatusContext("e2e")}, []string{"e2e"}},
 		{"required, recorded pass", ciInputs{Checks: []prCheck{merge, local("e2e", "pass")}, Local: required}, ciGreen, nil, nil},

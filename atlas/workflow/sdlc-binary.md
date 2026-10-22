@@ -544,6 +544,16 @@ trains on:
   car directly; the affected stand-in is an alternative. The missing-record
   message names affected or its full-suite fallback and explains conditionally
   to wait if affected fell back (#513), without asserting a queued run exists.
+  Missing local evidence ends the retained wait (#550): `ciVerdict.LocalNeeded`
+  survives aggregate pending/red/unknown/unregistered/guard refusals through
+  `ciGateError.LocalNeeded`. `carReadiness` returns a separate terminal error
+  with canonical commands; `vouchWhileWaiting` signals the cancellation owner
+  once, then `enterLandingLine` joins it, ends wait evidence and releases the
+  ticket. Successful admission, observed settlement and caller cancellation
+  retain precedence over late errors. The pane says `merge stopped: run <exact
+  command>, then re-enter sdlc merge`. A separately queued check stays intact;
+  retry after its pass, or run the named check through the normal queue first.
+  Serial/granted admission retains automatic missing-check execution.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - Candidate and composed membership have distinct banners (#521); the terminal
@@ -1277,7 +1287,7 @@ prompt's `repository root:` and its `git -C` recipes name the clone, and only
 such an isolated prompt (`PromptInput.Isolated`) tells the reviewer to revert
 in place. `sdlc judge` and plan reviews still run in the caller's checkout and
 keep the scratch-copy instruction. A missing-verdict or invalid-response retry resets the clone first
-(`DispatchOptions.BeforeRetry` → `Checkout.Reset`), so attempt 2 never reads
+(`DispatchOptions.BeforeRetryContext` → `Checkout.ResetContext`), so attempt 2 never reads
 attempt 1's mutations. The process is one argv transform shared by every
 agent (`Isolation.Wrap`, applied through `judge.DispatchOptions.Wrap`):
 
@@ -1315,6 +1325,44 @@ and the round runs clone-only. The ledger round's `isolation:` and the
 sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
 TL's decision on #204. `--dry-run` prints the wrapped command with a
 `<review-checkout>` placeholder.
+
+**Dependency inspection in boundary reviews (#551).** The pinned consumer's
+`construct/deps` supplies direct `SDLC_DEP_SUBSTRATE` and `SDLC_DEP_DATA`
+bindings, using the same declaration, anchor, deduplication and conflict rules
+as managed checks (#545). `reviewdependencies.go` resolves present local
+sources, pins each last-fetched `refs/remotes/origin/main` once, and creates
+separately locked disposable sibling clones. It never fetches, acquires a
+missing source or copies dirty source bytes. Source-less rows remain supported
+when the local repository is present. Missing sources/refs and invalid or
+conflicting declarations fail before the reviewer runs, naming the repair.
+
+The review-window prompt lists each absolute disposable path, exact commit,
+fetch-age evidence and mode. The same paths reach reviewer/preparation commands
+and Claude's restored shell environment; stale inherited `SDLC_DEP_*` values are
+cleared. Fetch age is unknown unless a single matching origin/main `FETCH_HEAD`
+observation supplies its file timestamp. An observation is labeled as such;
+commit dates and ref-change times never substitute for a fetch timestamp, and
+remote freshness remains unverified.
+
+With an available fence, dependency clones, source worktrees and common Git
+directories are protected from writes. Checkout-only fallback instead permits
+writes to disposable clones and says so in the prompt. The primary `Checkout`
+owns its children for reset/close; each child retains its own flock so concurrent
+sweeps spare it. Retry rebuilds the same paths at the original pins; exit or
+cancellation removes them, and dead-owner sweeps reclaim them. Dependency clone
+setup suppresses inherited Git configuration, templates, hooks and smudge
+filters; it copies no source main-authority settings or live overlays.
+
+Preparation accepts at most 64 direct rows, with at most one distinct source
+binding per kind. Before materialization, bounded tree metadata rejects gitlinks,
+more than 100,000 entries, or more than 512 MiB blob bytes per dependency
+(1 GiB across dependencies). A shared two-minute setup budget bounds Git
+process groups. Contextual checkout/reset APIs carry caller cancellation;
+a retry's fresh two-minute budget is capped by Dispatch's remaining deadline.
+`reviewbox/dependencies.go` owns the pure descriptor/tree policy;
+`layergraph.DependencyEnvironment` owns the shared environment projection.
+Real fence conformance on disposable fixtures runs with
+`WF_LIVE_REVIEW_DEPENDENCIES=1 go test ./cmd/sdlc -run '^TestReviewDependencyLiveFence$' -count=1`.
 
 **Pinned preparation and answerable responses (#364).** Boundary reviews read
 `.sdlc/review-prepare.json` from the pinned HEAD's regular Git blob, not the working
