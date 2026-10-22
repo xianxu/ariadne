@@ -50,6 +50,8 @@ Allow the original holder slot to clear its landed stage after normal branch del
 - Exploration confirms runUnstage currently derives holder only from the caller branch. The target already has a lifetime stage lock and records canonical original Slot, Branch and staged Commit, so no new lease format is needed. Reuse #537's main pin and #512's durable archive proof (ARCH-DRY).
 - Proof trap found before code: landingArchiveComplete treats an empty issue selection as success. Recovery must explicitly select the held issue's current done completion/generation before using archive confirmation. Missing/reopened/replaced bindings cannot become issue-free success. Durable plan prepared for hub review; no implementation or tests changed.
 
+- 2026-10-22 03:00 PDT — Hub approved the committed full-flow plan and isolated native production-path proof (receipt 6ad82555-6756-417d-9954-ffba37f12d76). Confirmed original canonical resting slot, current done binding/merged PR/staged commit and explicit nonempty archive selection under existing stage lock/main pin, with final caller/lease/generation re-observation. Do not touch the live pair:0 stages. The existing explicit abandoned acknowledgment remains the interim operator path.
+
 ## Revisions
 
 - 2026-10-22 02:59 PDT — Proposed full-flow design narrows the new recovery route to the original canonical slot on its own rest with current tracked done completion, matching landed PR and confirmed archive. Existing same-holder/legacy and exact --abandoned paths remain; new recovery grants no staging or move authority. Propose isolated native proof to preserve the four live operator stages; awaiting hub review.
