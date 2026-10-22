@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestDocRepositoryCancellation]
+flow: {kind: quick, provenance: inferred, spec: "4ab9c5ad", done: "847448a6"}
 ---
 
 # flake: TestDocRepositoryCancellation
