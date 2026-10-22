@@ -92,10 +92,10 @@ func freshActualRounds(ctx context.Context, root, pin, id, milestone string, rou
 	}
 	milestones, err := pinnedActualPlan(ctx, root, pin, id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("measurement Plan unavailable: %w; restore the canonical issue Plan, commit it, then retry sdlc actual --issue %s", err, id)
+		return nil, nil, fmt.Errorf("measurement Plan unavailable: %w; restore the canonical issue Plan, commit it, then retry sdlc actual --issue %s", err, issue.CLIRef(id))
 	}
 	if milestone != "" && !finalized[milestone] && !slices.Contains(milestones, milestone) {
-		return nil, nil, fmt.Errorf("milestone %s is absent from the pinned executable Plan at %s; restore and commit its executable row or select its replacement with sdlc actual --issue %s --milestone <replacement>", milestone, pin, id)
+		return nil, nil, fmt.Errorf("milestone %s is absent from the pinned executable Plan at %s; restore and commit its executable row or select its replacement with sdlc actual --issue %s --milestone <replacement>", milestone, pin, issue.CLIRef(id))
 	}
 	selected, retired := selectFreshSplitRounds(rounds, milestones)
 	var notes []string

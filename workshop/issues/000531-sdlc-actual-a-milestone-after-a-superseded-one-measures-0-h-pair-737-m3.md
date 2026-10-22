@@ -98,3 +98,9 @@ Tracker-native Codex fixture confirms 0.1h M3 and that fresh retained Cuts exclu
 Verification: go test ./cmd/sdlc -run 'Test.*Actual|Test.*Split|Test.*Measurement|TestCapturedPair737' -count=1 -timeout 10m PASS (374.272s); full activetime and gatestate package tests PASS (9.694s / 0.342s). Broad CLI run retained to completion without cancellation. Recorded full pushed-head suite and close review remain.
 
 Final targeted verification after pinning the legacy engine and identity parsing changes: retired-boundary / original split controls PASS (7.339s). The captured real sequence and tracker replay controls are included. Preparing the exact pushed head for its recorded suite.
+
+### 2026-10-22 — full-suite guard correction
+
+Recorded pushed-head suite attempt f5e4adb1f14c8d5dd1c3330389679e87 / lease-3108312308 completed normally after 3550.675s queue and 853.942s execution. Across 2241 SDLC tests and 76 other packages, the sole named failure was TestIssueHintsRenderDecimalIDs: both new --issue recovery messages needed issue.CLIRef. Seven SDLC shards and all other packages passed. Log SHA256 002ea27e66fbe4350237d4963fe46b021faf41f0b017a2115d8422e2693eda4a. This is a code guard failure, not a flake or infrastructure failure; no flake registration or resume was used.
+
+Extended native refusal coverage to padded 000009 and observed red for the emitted padded command, alongside the existing source guard. Fixed both hint sites with the shared issue.CLIRef formatter and asserted decimal replacement guidance as well. Targeted issue-hint guard, retired-boundary tests, captured pair replay and owned replay PASS (7.188s). Repeating the full suite on the corrected pushed head; the original runner was retained to exit and is not duplicated.

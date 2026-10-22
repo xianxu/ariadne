@@ -142,7 +142,7 @@ func TestFreshActualRoundsRetiredBoundaryRefusals(t *testing.T) {
 		t.Fatal(err)
 	}
 	rounds := []activetime.BoundaryRound{{Boundary: "M2"}}
-	_, _, err := freshActualRounds(context.Background(), root, pin, "9", "M3", rounds)
+	_, _, err := freshActualRounds(context.Background(), root, pin, "000009", "M3", rounds)
 	if err == nil || !strings.Contains(err.Error(), "retry sdlc actual --issue 9") {
 		t.Fatalf("missing actionable refusal: %v", err)
 	}
@@ -156,8 +156,8 @@ func TestFreshActualRoundsRetiredBoundaryRefusals(t *testing.T) {
 	testfix.Git(t, root, "add", ".")
 	testfix.Git(t, root, "commit", "-qm", "#9: executable M2")
 	pin = strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
-	_, _, err = freshActualRounds(context.Background(), root, pin, "9", "M3", rounds)
-	if err == nil || !strings.Contains(err.Error(), "select its replacement") {
+	_, _, err = freshActualRounds(context.Background(), root, pin, "000009", "M3", rounds)
+	if err == nil || !strings.Contains(err.Error(), "select its replacement") || !strings.Contains(err.Error(), "--issue 9 --milestone") {
 		t.Fatalf("absent current accepted: %v", err)
 	}
 	// Both executable rows preserve the open M2 and expose why M3 is empty.
@@ -168,7 +168,7 @@ func TestFreshActualRoundsRetiredBoundaryRefusals(t *testing.T) {
 	testfix.Git(t, root, "add", ".")
 	testfix.Git(t, root, "commit", "-qm", "#9: both boundaries executable")
 	pin = strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
-	kept, notes, err := freshActualRounds(context.Background(), root, pin, "9", "M3", rounds)
+	kept, notes, err := freshActualRounds(context.Background(), root, pin, "000009", "M3", rounds)
 	if err != nil || len(kept) != 1 || !strings.Contains(strings.Join(notes, " "), "retained executable unfinalized boundary M2") {
 		t.Fatalf("open M2 silently retired: %v %v %v", kept, notes, err)
 	}
