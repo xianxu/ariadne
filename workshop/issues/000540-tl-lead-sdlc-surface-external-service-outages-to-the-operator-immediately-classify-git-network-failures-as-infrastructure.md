@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 2.7
 collaboration-mode: collaboration
-card_mirror: '234b9694cc47eb3f51e8033fd8cdc6d31c6b0ee4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fadb435ae51f0dbbb581d8f78da5fe20d5ff8b56' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T20:12:17-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "31ed4e94", done: "34dd4de2"}
+flow: {kind: full, provenance: operator}
 ---
 
 # tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure
@@ -66,3 +66,24 @@ TL approval delivery `047b5c29-ca18-4ce0-9dba-841fbfc49d8a` revises the Spec sen
 
 - Claimed and entered planning from fresh main after #526 landed. Read current worker/SDLC contracts and lessons. Read-only delegated seam audit found the main Git runner, internal contextual/legacy runners and weekly transport runner; one shared pure classifier will serve them (ARCH-DRY/PURE). Preserve exit/error identity and uncertain publication outcomes; no automatic network retries.
 - Compared automatic DNS-on-error against a pure classifier plus explicit bounded probe. TL approved the latter and reviewed incident wording. The durable plan records bounded native resolver/direct DNS/HTTPS seams, unknown/unavailable states, secret-safe output, and test/live-check scope. Implementation has not started; plan-quality gate follows this checkpoint.
+- Plan-quality round 1 identified missing real CLI signal ownership and function-level test strategies. The revised plan names both SIGINT/SIGTERM admission and process-group conformance, and compresses inventories into named adversarial/property tests. Round 2 CLEAN disposed PQ-1/PQ-2 addressed, no new findings. Hub confirmed staged read-only github.com conformance; no forced outage/system change. Implementation admission is waiting only on the derived estimate.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is flagged stale by estimate-source, so the hours are provisional. Issue shaping uses the low issue-spec design primitive without discount. Classifier, CLI/config wiring and HTTP/native adapter extensions use well-specced smaller-module primitives (raw design 0.2, times 0.2 spec discount; raw implementation 0.5, times 0.4). New orchestration uses greenfield design 1.0, halved because stdlib HTTP/context and existing processgroup supply the mechanisms, then times 0.2 for the approved detailed plan; implementation 0.8 times 0.4. The rule uses skill/dispatcher design 0.3 times 0.2 and implementation 0.4 times 0.4. Docs use 0.1 times 0.2 design and 0.2 times 0.4 implementation. One close review and two native resolver/HTTPS live observations account for review and discovery overhead. Familiarity 1.0: existing SDLC/Cobra/processgroup territory. Design 0.80 plus 15% thorough-plan buffer = 0.92; scaled implementation 1.78; total 2.70 focused ship hours. No cross-repo vendor coordination.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: issue-spec design=0.50 impl=0.08
+item: smaller-go-module design=0.04 impl=0.20
+item: greenfield-go-module design=0.10 impl=0.32
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: skill-or-dispatcher design=0.06 impl=0.16
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+total: 2.70
+```
