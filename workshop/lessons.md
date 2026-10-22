@@ -8,6 +8,12 @@
 
 # Lessons
 
+- #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
+  utility's field grammar. Replay recorded native output through the production
+  adapter and cover both address families before relying on parser fuzz seeds;
+  macOS uses distinct ip_address/ipv6_address fields. Native format coverage
+  belongs in capture-backed parser/adapter tests, not a lexical lint rule.
+
 - #540 BR-2: testing a classifier with an already-cancelled cause misses an
   adapter that classifies first and joins cancellation later. Keep execution
   raw until the final context owner completes cleanup and samples its outcome,

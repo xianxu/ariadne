@@ -175,3 +175,90 @@ BR-1’s production and injected regressions failed with native recognition disa
 Append a `## Revisions` entry requiring final context outcomes to precede classification at every contextual Git boundary, with subprocess regressions for cancellation after diagnostic emission.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fc0d1bec-58e6-4f50-ae38-fe436b6d88f6","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2175a223c1c41d32","reviewed_head":"0af0c6e85aa7d9eb00bb80666acae259ab918cc7","slot":"ariadne:1","requested_at":"2026-10-22T03:48:51.279651Z"},"phase":"finished","pid":66875,"started_at":"2026-10-22T03:48:51.501978Z","finished_at":"2026-10-22T03:51:29.52473Z","session_id":"01a161b9-d8d7-7a91-9ced-cdd811381395","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T21:03:56-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 540 — tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure |
+| repo | ariadne |
+| issue file | workshop/issues/000540-tl-lead-sdlc-surface-external-service-outages-to-the-operator-immediately-classify-git-network-failures-as-infrastructure.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d2c7a015f631896fdff770f72ef0e89ff406aab8..7cf22ce3c771dd2cc80d40799468bb1c5f065f64 |
+| command | sdlc close --issue 540 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T21:03:56-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-2 is addressed: cancellation now precedes classification, preserves process-error identity, and has regressions that fail against the pre-fix code. One separate correctness bug blocks shipment: macOS IPv6 DNS answers are discarded, producing misleading network observations.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Production-boundary and outer-context regressions pass at head and fail with pre-fix runner code restored in a disposable checkout, reproducing retained network classification and lost process-error identity. The temporary checkout was removed.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: native-observation-format-completeness
+    title: |
+      macOS system DNS silently discards IPv6 answers
+    detail: |
+      cmd/sdlc/internal/netcheck/probe.go:87 recognizes ip_address: but omits dscacheutil's ipv6_address: field. A local dscacheutil lookup confirmed that format, and an isolated regression using "ipv6_address: ::1" fails with an empty result. For IPv6-only answers, check.go:155 marks successful DNS unknown and skips HTTPS, violating the diagnostic contract (ARCH-PURPOSE). Accept both native address fields and add parser plus production-adapter regressions covering IPv6-only and mixed answers.
+```
+
+1. **Strengths**
+
+   - Context owners finalize cleanup and cancellation before classification; BR-2’s correction covers main and internal runners.
+   - Publication wrappers preserve both infrastructure causes and uncertainty sentinels.
+   - HTTPS retains certificate validation, disables redirects/proxies, and explicitly owns connection cleanup.
+   - README, atlas, and rendered TL/worker instructions cover the new command and incident workflow.
+
+2. **Critical findings**
+
+   - `cmd/sdlc/internal/netcheck/probe.go:87`: handle macOS `ipv6_address:` records as described above. The current tests cover bare IPv6 output but miss the native macOS format.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Targeted Git/CLI network controls, the full netcheck package, TL/worker packages, race controls, vet, and diff whitespace checks passed. The isolated IPv6 regression failed as expected. BR-2 regressions failed against restored pre-fix code. The full repository suite and public-host conformance were not rerun during this review.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — shared classifier and host validation. |
+   | ARCH-PURE | Pass — classification remains free of probes; effects use injected boundaries. |
+   | ARCH-PURPOSE | **Flag** — native macOS IPv6 observations are incomplete. |
+   | ARCH-MOCK | Pass — stateful probe fake, private subprocess/TLS controls, and documented live conformance. |
+   | ARCH-CONSTRAINTS | Pass — explicit deadlines, output caps, bounded jobs and address sampling. |
+   | ARCH-SECURE | Pass — validated hosts/IPs, safe diagnostic rendering, verified TLS. |
+   | ARCH-ORDER | Pass — final context outcome precedes classification; signal controls exercise cleanup. |
+   | ARCH-FUNERAL | Pass — no new durable runtime artifacts; subprocesses and connections have owners. |
+   | ARCH-EVOLVE | Pass — no persisted-format change. |
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry recording native resolver-format coverage: both macOS address fields, IPv6-only and mixed answers, and regression evidence through the production lookup adapter.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"290e3cdb-0c93-4215-8094-ff5205553e18","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/12083b1229c4995a","reviewed_head":"7cf22ce3c771dd2cc80d40799468bb1c5f065f64","slot":"ariadne:1","requested_at":"2026-10-22T04:01:19.270993Z"},"phase":"finished","pid":65431,"started_at":"2026-10-22T04:01:19.378846Z","finished_at":"2026-10-22T04:03:55.888904Z","session_id":"01a161c5-412e-78a0-9ac0-b185779411d8","outcome":"returned"}] -->
