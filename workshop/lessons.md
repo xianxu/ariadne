@@ -1344,3 +1344,5 @@ Unknown descendant completion protects every input and output together: checkout
 - #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
 
 - #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
+
+- #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.

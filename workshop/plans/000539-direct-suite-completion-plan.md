@@ -124,7 +124,7 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 
 - [x] Update the existing direct-suite paragraph: observed clean exit plus empty private group permits retirement; unknown status, survivors, cancellation and observer failure remain unresolved. Document observation timestamps, completion audit location and per-run growth, platform fallback and the managed-path distinction. Do not imply a historical exit time can be recovered from old tombstones.
 - [x] Record red/green evidence, native conformance results, count/limit tests and any platform limits. Check `git diff --check`, commit with issue reference and author trailer, push through SDLC, and run the recorded suite on the pushed head with `sdlc local-check run --name suite`.
-- [ ] Close with the mandatory fresh-context SDLC review, resolve findings, then merge using the retained SDLC runner. No live machine cancellation/reconciliation and no :0 deployment are part of this plan. Report the outcome and PR to the hub.
+- [x] Close with the mandatory fresh-context SDLC review, resolve findings, then merge using the retained SDLC runner. No live machine cancellation/reconciliation and no :0 deployment are part of this plan. Report the outcome and PR to the hub.
 
 ## Architecture review
 
@@ -145,3 +145,5 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 - 2026-10-21: PQ-1 refined the test contract: named the production decision, validation, observer, snapshot, handshake, retirement and audit functions, each with one adversarial strategy and independent mechanical guard; compressed prose input inventories into this table. Behavioral state table and approved scope are unchanged.
 
 - 2026-10-21: Implementation checkpoint: Tasks 1–3 verified with actual make, stateful native observation/snapshot and audit failure seams, real handshake failure/timeout, production retirement crash cuts, fresh Go reader recovery, original bytes and current-provider compatibility. Supplemental pure/integration Python test file is `scripts/test/test-lock-decision.test.py`, registered alongside the real-process file by the Go suite. Group membership is captured for shared groups too, while the pure decision still refuses retirement unless pgid equals the owner PID.
+
+- 2026-10-21: Close returned SHIP, high confidence, no findings in round 1. Reviewer independently reran both Python files, queue package, real-helper/current-provider integration and shell helper suite. Implementation and review are complete; the final checklist row is the publication handoff to the single SDLC merge runner, whose confirmed outcome remains required before reporting landed.
