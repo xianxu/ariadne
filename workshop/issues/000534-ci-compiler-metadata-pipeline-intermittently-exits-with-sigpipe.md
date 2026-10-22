@@ -55,6 +55,8 @@ Quick-flow scope: shared workflow source and its normal tests; consumers derive 
 
 ## Log
 
+
+- 2026-10-21: closed — Exact workflow checks reproduced exit 141 before fix; after full-input grep, 1000 incident loops plus 20 one-MiB loops pass and wrong revision, dirty, missing and empty metadata refuse. Portable CI identity/PATH controls and shelllint/golint pass. Recorded suite lease-2835200300 on pushed 5a855c53: 2039 SDLC tests plus 75 packages, zero failures, 686.9s, log sha256 99b5cca7c481. GitHub merge-check passed; PR380 explicitly requires operator-applied local-gates-verified, never applied by author; landing remains stopped.; review verdict: SHIP
 2026-10-21: echo#1 observed actual workflow exit 141 locally after an earlier
 pass with the same workflow. Minimal exact-pipeline reproduction on macOS Bash:
 set -o pipefail; printf '%s\n' "$METADATA" | grep -Eq "build[[:space:]]+vcs.revision=$PIN$"
