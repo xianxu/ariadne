@@ -115,3 +115,7 @@ Named every new risky function and the existing production entry points, replaci
 ### 2026-10-22 — completion bookkeeping
 
 Separate the pending close/landing procedure from completed verification, without marking a future gate as already passed. All implementation tasks and the corrected recorded suite are complete; mandatory close and landing remain pending.
+
+### 2026-10-22 — BR-1/BR-2: enforce requested authority independently
+
+A requested unfinalized milestone independently requires pinned executable Plan membership, including empty, whole-issue-only and finalized-only review ledgers. The existing early return incorrectly coupled validation to filtering open cuts. Preserve whole-issue and finalized-history fast paths and saved replay. Add native refusal controls for absent/ambiguous Plan and absent requested row, plus production no-review and finalized-only regressions. Document the same prerequisite and retirement/replay limits in README. This completes the already approved requested-milestone authority contract; no new lifecycle or policy.

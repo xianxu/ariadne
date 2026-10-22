@@ -1067,6 +1067,13 @@ the ledger and eligible raw-row hashes. Have the TL/operator select the row by
 its provenance and use `--target-row <full SHA256>`; ordering is not evidence.
 `--exclude` invalidates a proven bad sample when numeric evidence cannot be
 trusted. Pending corrections retain their target; a conflicting selector refuses.
+Fresh milestone measurements require the requested unfinalized milestone to be
+an executable checkbox in the canonical issue Plan committed at the measured
+code pin, even before its first review. Retiring an unfinalized milestone's row
+removes its cut from fresh accounting, so its replacement owns work since the
+last finalized boundary; it does not clear review findings or grant SHIP.
+Missing or ambiguous required Plan evidence refuses with recovery guidance.
+Saved measurement cuts still replay unchanged.
 See `sdlc actual --help` for provenance and recovery.
 
 ## License

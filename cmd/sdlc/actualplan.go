@@ -83,7 +83,8 @@ func freshActualRounds(ctx context.Context, root, pin, id, milestone string, rou
 			finalized[r.Boundary] = true
 		}
 	}
-	needsPlan := false
+	// A live requested boundary needs membership even before any review exists.
+	needsPlan := milestone != "" && !finalized[milestone]
 	for _, r := range rounds {
 		needsPlan = needsPlan || r.Boundary != "" && !finalized[r.Boundary]
 	}

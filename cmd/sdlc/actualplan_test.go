@@ -248,3 +248,53 @@ func TestCapturedPair737RetiredBoundaryReplay(t *testing.T) {
 		t.Fatalf("capture lost M3: split=%+v phases=%+v retired=%v", got, tl.Phases, retired)
 	}
 }
+
+// BR-1: requested live milestone authority is independent of open review cuts.
+func TestFreshActualRoundsRequestedMilestoneAuthority(t *testing.T) {
+	for _, ledger := range []struct {
+		name   string
+		rounds []activetime.BoundaryRound
+	}{
+		{"empty", nil},
+		{"whole issue", []activetime.BoundaryRound{{Boundary: ""}}},
+		{"finalized only", []activetime.BoundaryRound{{Boundary: "M1", Finalizing: true}}},
+	} {
+		for _, plan := range []struct{ name, body, want string }{
+			{"missing", "## Log\nNo Plan\n", "Plan unavailable"},
+			{"ambiguous", "## Plan\n- [ ] M3\n## Plan\n- [ ] M3\n", "Plan unavailable"},
+			{"absent target", "## Plan\n- [x] M1\n", "absent from the pinned executable Plan"},
+			{"executable", "## Plan\n- [ ] M3\n", ""},
+		} {
+			t.Run(ledger.name+"/"+plan.name, func(t *testing.T) {
+				root := testfix.Repo(t, testfix.InitialCommit())
+				path := filepath.Join(root, "workshop/issues/000009-x.md")
+				if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte("---\nid: 000009\n---\n"+plan.body), 0600); err != nil {
+					t.Fatal(err)
+				}
+				testfix.Git(t, root, "add", ".")
+				testfix.Git(t, root, "commit", "-qm", "#9: pinned membership")
+				pin := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+				_, _, err := freshActualRounds(context.Background(), root, pin, "9", "M3", ledger.rounds)
+				if plan.want == "" {
+					if err != nil {
+						t.Fatal(err)
+					}
+				} else if err == nil || !strings.Contains(err.Error(), plan.want) {
+					t.Fatalf("want %q, got %v", plan.want, err)
+				}
+				// Whole-issue accounting and finalized historical membership need no new authority.
+				if _, _, err := freshActualRounds(context.Background(), root, pin, "9", "", ledger.rounds); err != nil {
+					t.Fatal(err)
+				}
+				if ledger.name == "finalized only" {
+					if _, _, err := freshActualRounds(context.Background(), root, pin, "9", "M1", ledger.rounds); err != nil {
+						t.Fatal(err)
+					}
+				}
+			})
+		}
+	}
+}

@@ -194,7 +194,19 @@ func TestActualQueueMeasurementRetainsBindingSource(t *testing.T) {
 }
 
 func TestOwnedActualProductionConsumersShareBrainAndOwnership(t *testing.T) {
-	r, _, _, _, path := ownedResolverFixture(t)
+	r, _, _, _, path := ownedResolverFixture(t, func(r *trackerRepo) {
+		name := filepath.Join(r.root, "workshop/issues/000335-owned.md")
+		raw, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw = []byte(strings.Replace(string(raw), "## Plan\n", "## Plan\n- [ ] M1 — executable\n", 1))
+		if err := os.WriteFile(name, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		testfix.Git(t, r.root, "add", ".")
+		testfix.Git(t, r.root, "commit", "-qm", "#335: declare executable M1")
+	})
 	appendEvents := func(path string, minutes ...int) {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {

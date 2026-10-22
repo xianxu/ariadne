@@ -40,7 +40,9 @@ WHAT IT DOES
      work since the last finalized boundary (or issue start). Finalized history,
      still-executable open boundaries and whole-issue rounds remain. This
      accounting fallback does not mark a review SHIP or clear findings/caps.
-     Missing or ambiguous required Plan evidence refuses with recovery guidance.
+     A requested unfinalized milestone must be executable in that pinned Plan,
+     even with no open review rounds. Missing or ambiguous required Plan evidence
+     refuses with recovery guidance.
 
 OUTPUT
 

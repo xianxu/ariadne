@@ -86,6 +86,19 @@ func m1PassedFirstRound(ts func(int) string) []gatestate.Round {
 // its own phases (E1).
 func TestComputeActualSplitsAtBoundaries(t *testing.T) {
 	top := splitFixture(t, "workshop/plans", m1PassedFirstRound)
+	path := filepath.Join(top, "workshop/issues/000009-x.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(raw, []byte("\n## Plan\n- [x] M1 — finalized\n- [ ] M2 — executable\n")...), 0600); err != nil {
+		t.Fatal(err)
+	}
+	stamp := strings.TrimSpace(testfix.Capture(t, top, "show", "-s", "--format=%aI", "HEAD"))
+	t.Setenv("GIT_AUTHOR_DATE", stamp)
+	t.Setenv("GIT_COMMITTER_DATE", stamp)
+	testfix.Git(t, top, "add", ".")
+	testfix.Git(t, top, "commit", "-qm", "#9: declare executable M2")
 	hours := func(m float64) float64 { return m / 60 }
 	near := func(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
 	for _, c := range []struct {
@@ -222,5 +235,23 @@ func TestActualRetiredBoundaryDiagnostic(t *testing.T) {
 	printActualMeasurement(&out, actualResult{Issue: "9", Window: "2026-01-01T00:00:00Z → 2026-01-01T01:00:00Z", Hours: 0})
 	if !strings.Contains(out.String(), "selected phase evidence unavailable") {
 		t.Fatalf("silent zero diagnostic: %s", out.String())
+	}
+}
+
+func TestComputeActualRequestedMilestoneRequiresPlan(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		rounds func(func(int) string) []gatestate.Round
+	}{
+		{"empty", func(func(int) string) []gatestate.Round { return nil }},
+		{"finalized only", m1PassedFirstRound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			top := splitFixture(t, "workshop/plans", tc.rounds)
+			res := computeActualFor(context.Background(), top, "", "9", "M2", "")
+			if res.Status != actualError || !strings.Contains(res.Detail, "Plan unavailable") {
+				t.Fatalf("unauthorized M2 measured: status=%v hours=%v detail=%s", res.Status, res.Hours, res.Detail)
+			}
+		})
 	}
 }

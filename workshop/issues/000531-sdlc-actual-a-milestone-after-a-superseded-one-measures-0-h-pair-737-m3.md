@@ -111,6 +111,14 @@ Attempt 3d171593dcdf291b51b28c47dd4e440b / lease-1530253159 passed on the exact 
 
 GitHub Actions Results delayed publication despite successful run conclusions; the hub confirmed the upstream incident. PR checks subsequently published success without bypass or Actions rerun. No global recovery claim is made. Updating verification bookkeeping and entering the mandatory close review; close and landing remain pending.
 
+### 2026-10-22 — close review round 1 REWORK
+
+BR-1 (Critical, executable-milestone-authority): verified that the no-open-round early return skipped requested unfinalized milestone authority. New native tests fail across empty/whole-issue/finalized-only ledgers with missing/ambiguous Plan or absent target; production controls incorrectly measured 50/60h and 25/60h without a Plan. Initialized the shared authority predicate from the requested nonfinalized milestone independently of cut filtering. Whole-issue and finalized-history controls retain their fast paths; old/new saved replay remains unchanged. Updated the original split fixture with a pinned executable M2 declaration.
+
+BR-2 (Important, user-surface-documentation): README now states the committed executable Plan prerequisite, retirement fallback without clearing findings/SHIP, visible refusal and unchanged saved replay. Help explicitly covers pre-review requests. Targeted verification and a fresh recorded full suite on the corrected code remain pending before re-close.
+
+Review correction verification: authority / pinned resolver / retired-boundary / replay / original split / decimal-hint tests PASS (24.960s). The broad measurement run completed all remaining controls but failed TestOwnedActualProductionConsumersShareBrainAndOwnership because its M1 request lacked a pinned executable declaration (588.559s overall). Added that declaration to this fixture, preserving its original ownership/provenance assertions. Consumer + requested-authority + production split/refusal rerun PASS (20.689s). No blind passing retry or flake classification. Preparing the corrected pushed head for its recorded full suite; close round 2 may overlap the queue per tl-worker, but no landing before a final code pass.
+
 ## Revisions
 
 ### 2026-10-22 — completion bookkeeping
