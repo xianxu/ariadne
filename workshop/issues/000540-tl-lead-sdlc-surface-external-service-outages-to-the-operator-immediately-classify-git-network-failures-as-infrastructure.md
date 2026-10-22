@@ -45,6 +45,10 @@ Two parts:
 - A simulated DNS failure in a git fetch yields sdlc's "infrastructure: network" classification (test with a fake
   resolver or an unresolvable host).
 - `sdlc net check` reports both lookups (test).
+- Recognized transport errors retain original exit/context and publication uncertainty identities; local-check preparation network failures create no test verdict or status. Ordinary auth/ref/hook/local errors and cancellation remain unclassified.
+- The explicit check reports both DNS and HTTPS paths within its total budget, validates certificates, omits credentials, and joins native probe groups on real CLI SIGINT/SIGTERM. Missing tools/partial observations stay visible.
+- TL wording names the exact known operator remedy and treats a post-remedy recurrence as recurring, investigating its cause before repeating the remedy.
+- The built binary passes the approved read-only github.com conformance, and the stage is cleared with :0 verified at origin/main.
 
 ## Plan
 
@@ -60,6 +64,10 @@ Durable plan: [network outage implementation](../plans/000540-network-outage-pla
 
 TL approval delivery `047b5c29-ca18-4ce0-9dba-841fbfc49d8a` revises the Spec sentence requesting API-host resolution inside each Git failure. Git errors classify immediately as `infrastructure: network`, name only a validated safe host, and print the exact `sdlc net check` command. All system/direct/API DNS and HTTPS probes belong exclusively to that bounded explicit command. This avoids extra resolver IO inside lock-held Git error paths. The incident rule also requires the exact operator command when the known remedy needs their privileges; otherwise distinguish awareness-only from an action request.
 
+### 2026-10-21 — recurring incidents
+
+TL wording approval `ae402fd5-8770-492c-9203-6881ccba84b3` adds: if the same outage recurs after the operator's remedy, report it as recurring and look for the cause behind it before repeating the remedy. This supplements the incident/recovery rule without an automatic remedy or retry mechanism. Added a red/green rendered-help control.
+
 ## Log
 
 ### 2026-10-21
@@ -71,6 +79,7 @@ TL approval delivery `047b5c29-ca18-4ce0-9dba-841fbfc49d8a` revises the Spec sen
 - Implemented one pure typed transport classifier across the four shared runners, preserving original exit/context and publication uncertainty identities. Fake production fetch failures reproduced ordinary exit-128 errors before the fix; isolated real local fetch success remains unchanged. gitx full package passed (99.044s), selected publication/lifetime controls passed, classifier and credential fuzz controls passed. Raw logs and summaries live on SSD under the primary Git common dir's `sdlc/test-stats/evidence/000540/`.
 - Added bounded net-check with system/direct DNS and independent pinned-IP verified HTTPS, fixed safe reason classes, explicit partial/unavailable observations, and no mutation/retry. Native TLS is synchronously owned so cancellation cannot strand a transport dial. Private TLS/process controls, stateful probe sequencing and parser fuzz passed; late-cancellation and partial-A/failed-AAAA regressions observed red then green.
 - Main CLI/remote/preparation/signal controls passed, then race controls passed (5.300s). The local-check preparation regression asserts no test-stat/local-check record or GH test status on failed fetch. A missing-signal-owner overlay fails both real CLI SIGINT and SIGTERM controls, while production passes; evidence `net-signal-mutation-red.log`. TL/worker packages passed (39.493s/0.271s), golint/shelllint passed (2.117s/0.691s), and vet passed for all touched Go packages. Approved incident wording and discovery docs are implemented. Next: commit and stage the approved live check, then recorded suite and close.
+- Live conformance on built/staged source `8c3160b648b295106373d96ac4c1823d7b25f5c2` (all binaries vcs.modified=false) passed read-only against github.com: system/direct DNS both `172.182.252.133`; both independently resolved no-proxy HTTPS paths HTTP 200; api.github.com system/direct DNS both `140.82.116.6`. No forced outage, resolver/cache edit or system change. Hub approved the final wording with the recurring-incident sentence. Stage cleanup and :0 tip verification follow, then the recorded full suite.
 
 ## Estimate
 

@@ -284,6 +284,9 @@ TALKING TO THE OPERATOR
     On verified recovery, send a recovery notification, remove the active
     incident, and check/resume affected slots through their existing recovery
     paths. An outage report is infrastructure evidence, never a test verdict.
+    If the same outage recurs after the operator's remedy,
+    report it as recurring and look for the cause behind it
+    before repeating the remedy.
   - A `submitted: PATH` delivery for a markdown document other than the status
     file (a design doc, a plan) is a review request: answer it with the
     `xx-universal-review` skill, which reads the document's instruction and writes a Couch-tracked

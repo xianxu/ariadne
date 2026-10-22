@@ -38,6 +38,7 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"outage priority", "put the incident first in Needs you"},
 		{"outage notify before diagnosis", "do not wait for root-cause diagnosis"},
 		{"outage exact remedy", "include the exact command for them to run"},
+		{"outage recurrence", "report it as recurring and look for the cause behind it"},
 		{"outage verified recovery", "On verified recovery, send a recovery notification"},
 		{"status file sections", "`## Needs you`"},
 		{"the quota section", "`## Quota`"},
