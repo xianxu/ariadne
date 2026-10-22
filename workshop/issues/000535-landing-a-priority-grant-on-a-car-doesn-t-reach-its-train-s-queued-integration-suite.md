@@ -45,7 +45,9 @@ queue), re-evaluated on each queue tick; revoking or expiring the grant drops it
 - [x] Reproduce missing train-car identity at the production local-check/helper seam.
 - [x] Carry the exact composed prefix's issue IDs into suite queue metadata; reuse the existing grant provider and refresh/cache path to prioritize when any included car has a valid grant.
 - [x] Cover late grant, revoke, unchanged-log expiry, multiple grants, unrelated repository/train, conflict exclusion, split prefix, reintegration and diagnostic baseline; run counted queue projection checks at N and 2N.
-- [ ] Update atlas and shipped guidance as needed; run targeted tests, recorded pushed-head suite and close review, then land through sdlc.
+- [x] Update atlas and shipped guidance; pass targeted tests, recorded pushed-head suite and close review.
+
+Landing and the final hub report follow through sdlc; they are not yet claimed complete.
 
 ### Proposed bounded design
 
@@ -86,3 +88,11 @@ Private conformance proposal: existing real Python helper/process/flock harness 
 - Infrastructure block at publish: sdlc pr failed fetching origin twice, including outside-sandbox retry, with fatal: unable to access https://github.com/xianxu/ariadne.git/: Could not resolve host: github.com. No PR or recorded suite was started. Local implementation and targeted/conformance evidence are committed; no gate bypass. Resume with sdlc pr after GitHub DNS/network recovers, then recorded suite, close and landing.
 
 - Resumed after TL confirmed operator DNS repair. sdlc pr succeeded: PR382. Recorded suite queued on pushed a2cd7f9a89d75fd61505186b991d61ed4dae533f, lease-875822645, first in FIFO behind ariadne:1. This is pending capacity, not a test result. Close review may overlap under the worker contract; no landing until a completed branch-suite pass. Any review code change requires a new final-head suite.
+
+- Recorded branch suite passed on a2cd7f9a89d75fd61505186b991d61ed4dae533f, lease-875822645: 2048 cmd/sdlc tests across 8 shards plus 75 other packages, zero failures, wall 876.8s (14m37s); capacity wait 359s. Saved log under .git/sdlc/local-checks/a2cd7f9a89d75fd61505186b991d61ed4dae533f/suite.log, sha256 prefix bddf2b8f9871; posted sdlc-local/suite. Close round 1 returned SHIP with zero findings; measured actual 0.63h. Reviewer independently passed targeted tests (61.023s), seven Python unit tests, singular-projection negative control and ticket/queue/slot unknown-metadata preservation. No new lesson from review findings (none). Entering landing without manually chasing main; the gate owns any necessary integration suite.
+
+## Revisions
+
+### 2026-10-21 — checklist bookkeeping after branch acceptance
+
+The last routine row now records only completed documentation/tests/close. Landing/reporting remain explicit pending prose rather than a prematurely checked completion claim; scope and acceptance are unchanged.
