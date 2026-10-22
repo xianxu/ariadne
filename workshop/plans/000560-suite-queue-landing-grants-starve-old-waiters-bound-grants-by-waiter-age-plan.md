@@ -70,7 +70,7 @@ Allocation lock is the single ordering resource. The queue token and global admi
 
 ## Compatibility and lifetime
 
-The monotonic enqueue member is additive to existing ticket/slot JSON. Dict copy/rewrite paths retain unknown members; known age types are validated before use. No existing field changes meaning, and older metadata is protected instead of denied admission. Unknown nested metadata survives ticket-to-slot propagation. Files remain bounded by existing record limits and are removed by current ticket release/dead-owner pruning; no new durable history or per-grant bypass counter exists (ARCH-EVOLVE/ARCH-FUNERAL).
+The monotonic enqueue member is additive to existing ticket/slot JSON. Dict copy/rewrite paths retain unknown members; known age types are validated before use. No existing field changes meaning, and older metadata is protected instead of denied admission. Unknown nested metadata survives ticket-to-slot propagation. Inspection caps each record read at64KiB; existing ticket/slot writers do not enforce that size, and adding writer bounds is outside this issue. Files are removed by current ticket release/dead-owner pruning; no new durable history or per-grant bypass counter exists (ARCH-EVOLVE/ARCH-FUNERAL).
 
 Already-running older helper processes do not hot-reload Python code; a new helper protects their missing-age tickets, but cannot retrofit an old process's scheduling algorithm. Do not cancel/reorder live work. Live conformance uses a homogeneous private cohort; rollout is effective on new helper launches. The TL chooses whether any separate operator-controlled fleet cutover is needed. Status explicitly reports unavailable inspection when the supplying helper predates it.
 
@@ -86,25 +86,22 @@ Inspection is a human status read: cap4096 ticket records,64KiB per existing rec
 
 Files: scripts/test-lock.py; scripts/test/test-lock-priority.test.py.
 
-- [ ] Add deterministic tests that the current grant-first partition fails: an aged ordinary head and renewed/new grants; younger waiters still yield to grants; exact threshold, multiple aged tickets and train subjects.
-- [ ] Implement TicketAge/SuiteOrder and route effective_order through it. Test wall-clock jumps separately from monotonic progress, unknown/nonfinite/future timestamps and prefix conservation.
-- [ ] Count age/subject visits at N and2N and assert linear bounds. No provider IO in the pure core.
+- [ ] Write and run the failing pure-order regression, then implement TicketAge/SuiteOrder and route effective_order through the shared projection. Verify using the function-level strategies below.
+- [ ] Commit the verified pure core.
 
 ### 2. Ticket lifecycle and actual admission
 
 Files: scripts/test-lock.py; scripts/test/test-lock-priority.test.py; scripts/test/test-lock-pause.test.py; existing Go helper harness tests.
 
-- [ ] Stamp enqueue time under alloc before publishing the locked ticket; preserve it and unknown metadata through all later records and re-elections.
-- [ ] Extend real helper/provider tests with controlled old/young ticket records, no hour-long sleeps, to prove admission and grant renewal cannot reset protection. Use independent slot acquisition as oracle.
-- [ ] Preserve running holders, weighted all-or-none head behavior, dead-ticket pruning, stopped live heads, pause/resume and invalidated-snapshot retry. Capture a representative real waiting diagnostic for the age override.
+- [ ] Add the lifecycle/admission regressions, observe red, then stamp enqueue time under alloc and propagate the immutable record through election and acquisition.
+- [ ] Verify through the existing real helper/provider harness using the function-level strategies below; capture a waiting diagnostic and commit.
 
 ### 3. Shared inspection and queue status
 
 Files: scripts/test-lock.py; cmd/sdlc/queue_suite_status.go; cmd/sdlc/queue_suite_status_test.go; cmd/sdlc/queuecmd.go; cmd/sdlc/queuecmd_test.go.
 
-- [ ] Add bounded read-only inspection using the same pure order and policy setting. Tests compare identity/age/order to actual admissions and assert status does not prune/create/mutate queue files.
-- [ ] Inject the contextual observer into queueCommandDeps. Resolve the helper beside the actual workflow supplier; capture bounded output and reap cancelled process groups. Tests cover old/missing helpers, malformed/oversized output, cancellation and snapshot churn.
-- [ ] Render setting, each waiter's age, protected-prefix and grant-override explanation in text status; pin frozen --json compatibility.
+- [ ] Add inspection/status regressions and observe red, then implement the bounded read-only inspection and inject its contextual observer into queueCommandDeps.
+- [ ] Render the shared projection in text status, verify with the function-level strategies below, and commit.
 
 ### 4. Docs, conformance and landing
 
@@ -116,13 +113,22 @@ Files: atlas/workflow/sdlc-binary.md; README.md if its queue entry needs the new
 
 ## Risk/function conformance table
 
-| Risky path | Adversarial strategy | Independent guard |
+| Risky function | Adversarial strategy | Independent mechanical guard |
 |---|---|---|
-| effective_order / SuiteOrder | Threshold crossing, renewed/multiple grants, malformed timestamps | Pure expected permutation, linear counted visits |
-| Tickets allocation/elect/admission | Capacity busy, heavy aged head, snapshot changes, pause | Real flock admissions; running holder untouched; no partial slots |
-| inspection snapshot | Concurrent ticket creation/death and provider delay | Explicit unavailable result and unchanged queue files |
-| Go status observer | Old helper, partial output, timeout/cancellation | Bounded real subprocess fixture and unchanged frozen JSON |
-| diagnostic rendering | Same snapshot reaches scheduler and status | Status order/override matches independently observed next admission |
+| ticket_age (TicketAge projection) | Arbitrary JSON ages and independent wall/monotonic clock movement | Explicit unknown/elapsed results and immutable-input assertions |
+| suite_order (SuiteOrder projection), effective_order | Boundary-crossing FIFO cohorts with changing grant evidence | Expected protected permutation; counted age/subject visits at N/2N reject superlinear growth |
+| Tickets.__init__ | Delayed allocation and caller-supplied record members | Controlled allocation lock/clock proves stamp occurs under alloc; record round-trip preserves unknown members |
+| Tickets.elect | Adversarial weighted cohorts with occupied slots | Independent real flock admission oracle proves order and all-or-none capacity; holders remain untouched |
+| Tickets.admission | Pause and provider-triggered snapshot churn | Real gate/snapshot fixture proves revalidation before admission and unchanged enqueue stamp |
+| inspect_queue | Concurrent ticket changes, dead records and slow provider | Explicit unavailable observation plus byte/identity comparison proves no queue mutation; enforce record/count/output ceilings |
+| observeSuiteQueue | Old or malformed helper and process cancellation | Bounded real subprocess fixture proves supplier resolution, deadline/output enforcement and child reaping |
+| format_suite_wait, renderSuiteQueue | Shared projection with overridden grants or unknown age | Rendered position/reason matches independently observed next admission; frozen status JSON fixture remains unchanged |
+
+## Revisions
+
+### 2026-10-22 — plan-quality verification contract
+
+PQ-1 requested function names and one adversarial strategy/mechanical guard per risky function. Consolidated repeated test inventories into the table and named the planned pure, inspection, observer and rendering functions. PQ-2 corrected the distinction between bounded reads and unchecked existing writes; writer enforcement remains outside scope. Approved scheduling policy and rollout are unchanged.
 
 ## Architectural lenses
 

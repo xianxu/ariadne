@@ -63,3 +63,7 @@ TL approved the complete plan (delivery b7226f49-4802-4e84-a68e-dd94c93e60c5): o
 ### 2026-10-22 — approved aging policy and60-minute threshold
 
 TL approved immutable monotonic enqueue age under the allocation lock, FIFO prefix protected through the last at-bound/older ticket, and current grant ordering only in the younger suffix. Renewal never resets age; missing or invalid age protects its prefix. The threshold is60minutes, selected because the machine routinely runs an hour deep;30minutes would suppress nearly all useful priority. Preserve running holders and weighted all-or-none admission. The durable plan proposes one named Python policy setting shared by admission/inspection, with queue text status rendered from that observer; frozen --json remains unchanged. Full-plan approval precedes code.
+
+### 2026-10-22 — plan-quality refinement
+
+First change-code review accepted the design but blocked on PQ-1 (function-level test contract). Consolidated repeated case inventories into one strategy/independent guard per named risky function. Corrected PQ-2: existing holder reads are bounded, existing ticket/slot writers are not; this issue bounds inspection without expanding writer scope. No production code changed; rerun plan-quality.
