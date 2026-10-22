@@ -58,8 +58,8 @@ admitted candidate engagement. Old unmarked born-archived root cards can recover
 terminal provenance read-only through the same verifier; their card stays
 unchanged. Overlap/equality, damaged snapshots and ordinary modern missing
 records remain strict. No source sessions or measurement window are invented.
-Source history has a 10,000-commit bound and overflow sentinel; complete tracker
-generation history uses the existing 5,000-card-commit bound. Incomplete reads
+Source history and complete tracker generation history each have a 10,000-commit
+bound with an overflow sentinel. Incomplete reads
 cannot provide authority.
 
 ## Legacy mode
