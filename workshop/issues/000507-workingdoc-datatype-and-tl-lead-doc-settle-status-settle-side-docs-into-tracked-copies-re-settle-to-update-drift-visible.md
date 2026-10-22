@@ -92,6 +92,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Combined restored BR-7 checks PASS: cmd/tl-lead 76.228s, cmd/datatype 0.180s, pkg/sidedoc 0.095s, pkg/golint 1.258s. Diff check clean. Checkpointing before a new recorded suite, since shared production code changed after the previous pass.
 
+- 2026-10-22 sweep: retained BR-7 suite lease-2547092102 completed PASS on b061d0dd1f2aa6382b3b3c3d34f5fa7256439dba: all 8 shards, 1,960 SDLC tests and 75 other packages, zero failures; wall 737.1s, log SHA256 prefix 982f0f76a78c, recorded sdlc-local/suite. Re-closing now; no duplicate suite or cache override. Round-four gaps outside literal detection remain a stop-and-report boundary.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
