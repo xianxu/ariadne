@@ -193,3 +193,71 @@ dispose:
 7. **Plan revision recommendations:** None. Preserve the recorded-suite and owner-run live-proof holds before landing.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"de1e85c6-61e6-47ca-8f93-ef0153b3ebde","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"small-diff-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2b5b4d29122c0b1a","reviewed_head":"1b6c0480fcba1f208dd088203bc4ca40fd0324eb","slot":"ariadne:4","requested_at":"2026-10-22T19:46:45.658987Z"},"phase":"finished","pid":42319,"started_at":"2026-10-22T19:46:45.86068Z","finished_at":"2026-10-22T19:50:35.588632Z","session_id":"01a16526-d590-7750-8669-039ea2b9deeb","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T15:49:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 554 — actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5) |
+| repo | ariadne |
+| issue file | workshop/issues/000554-actual-a-legacy-claimed-issue-with-post-cutover-commits-still-reports-no-post-cutover-owned-interval-echo-5.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5785330cda6bf31d533e4282aecc8f3f9cd632a7..e01e95a065207a21c29d8e74465f5e7aa69f0448 |
+| command | sdlc close --issue 554 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T15:49:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range delivers actionable ownership recovery, visible unowned-gap reporting, and bounded first-claim queue exclusion without changing attribution arithmetic. No new findings. Final recorded-suite success and owner-run Echo proof remain explicit pre-merge holds.
+
+Done-when: current — the superseding Revised Done when covers refusal, owned-only measurement, gap visibility, immutable replay, and live proof; queue clipping supports that owned-only measurement contract.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan lines 93–95 explicitly supersede the fix-only route; the gate ledger records a full-range review, and this review independently covers the expanded queue behavior. Removing the attachment bound reproduces failures in both native harness fixtures.
+```
+
+1. **Strengths**
+
+   - Typed recovery uses verified pinned history and reaches both preview and close.
+   - Real Claude/Codex lifecycle fixtures verify migration, reconcile, claim, gap exclusion, and immutable replay.
+   - Queue clipping reuses the existing strict selector at `cmd/sdlc/actualinputs.go:413`; README, help, and atlas document the behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Ownership regressions and decimal-hint guard passed: 48.917s.
+   - Neighboring queue, release/reclaim, tested-head, and legacy replay controls passed: 51.428s.
+   - Tracker engagement controls passed: 2.786s.
+   - In a separate disposable checkout, removing decimal formatting failed all three padded-ID cases; removing queue clipping failed both harness fixtures. The checkout was removed.
+   - Diff whitespace checks passed; reviewed checkout remained clean. Full suite and live Echo execution were not independently run.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared error formatting, engagement authority, and queue selector are reused.
+   - **ARCH-PURE: pass** — recovery conversion stays pure; IO remains in existing integration seams. Core-concept entities match their listed locations.
+   - **ARCH-PURPOSE: pass** — preview, close, hybrid measurement, queue attachment, and retained replay are covered.
+   - **ARCH-EVOLVE: pass** — no persisted schema change; gap reporting derives from existing retained inputs.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3dc10227-04ff-4f46-85f3-803895d7158c","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"small-diff-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/979af607b013255c","reviewed_head":"e01e95a065207a21c29d8e74465f5e7aa69f0448","slot":"ariadne:4","requested_at":"2026-10-22T22:46:48.824316Z"},"phase":"finished","pid":40402,"started_at":"2026-10-22T22:46:49.021123Z","finished_at":"2026-10-22T22:49:19.010875Z","session_id":"01a165cb-ad3b-7201-b3a1-33a708c2b0aa","outcome":"returned"}] -->

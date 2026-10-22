@@ -245,6 +245,105 @@ rounds:
       isolation: fenced
       reviewed: 1b6c0480fcba1f208dd088203bc4ca40fd0324eb
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 3dc10227-04ff-4f46-85f3-803895d7158c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000554"
+            recipe: small-diff-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/979af607b013255c
+            reviewed_head: e01e95a065207a21c29d8e74465f5e7aa69f0448
+            slot: ariadne:4
+            requested_at: "2026-10-22T22:46:48.824316Z"
+          phase: finished
+          pid: 40402
+          started_at: "2026-10-22T22:46:49.021123Z"
+          finished_at: "2026-10-22T22:49:19.010875Z"
+          session_id: 01a165cb-ad3b-7201-b3a1-33a708c2b0aa
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: e01e95a065207a21c29d8e74465f5e7aa69f0448
+        tracker_head: 3cf990c135d6768b4f6d8a302340f27f9a119073
+        branch_point: 5785330cda6bf31d533e4282aecc8f3f9cd632a7
+        since: "2026-10-22T11:00:55-07:00"
+        until: "2026-10-22T15:45:56-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-22T11:00:55-07:00"
+              end: "2026-10-22T15:45:56-07:00"
+              began: "2026-10-22T11:00:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: 1177c96b8170e056cbb9bef47ca887ee4a8f46572accca41e6c2e920fa12e38b
+              started: "2026-10-20T16:55:54.591Z"
+              spawned: false
+              bytes: 37113604
+              windows:
+                - start: "2026-10-22T11:00:55-07:00"
+                  end: "2026-10-22T15:45:56-07:00"
+            - harness: codex
+              id: 01a164c6-5399-7210-85eb-6fdf6536cdc0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: ef43bad86de970676d085847c8fc9c82fef1c645748abcad50541d330dc690bb
+              started: "2026-10-22T18:01:21.642Z"
+              spawned: true
+              bytes: 1547287
+              windows:
+                - start: "2026-10-22T18:01:21.642Z"
+                  end: "2026-10-22T15:45:56-07:00"
+        queue_waits:
+            - attempt_id: 87523898ae0044a31e8087b679815bc0
+              slot: ariadne:4
+              record_digest: 41ef79ce0a331fd81f4fadfdf577cf6965a28fc1868fe3268784f9dfdaf9e612
+              start: "2026-10-22T19:41:46.309728Z"
+              end: "2026-10-22T22:17:47.911375Z"
+              queue_seconds: 9361.601647
+              raw_seconds: 9361.601647
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 79.82053333333333
+        cuts:
+            - dispatched: "2026-10-22T11:36:35-07:00"
+              finalized: "2026-10-22T11:39:14-07:00"
+              finalizing: true
+            - dispatched: "2026-10-22T12:43:14-07:00"
+              finalized: "2026-10-22T12:44:48-07:00"
+              finalizing: false
+            - dispatched: "2026-10-22T12:46:45-07:00"
+              finalized: "2026-10-22T12:50:36-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-22T15:49:20-07:00"
+      dispatched: "2026-10-22T15:46:48-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Plan lines 93–95 explicitly supersede the fix-only route; the gate ledger records a full-range review, and this review independently covers the expanded queue behavior. Removing the attachment bound reproduces failures in both native harness fixtures.
+          round: 4
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: e01e95a065207a21c29d8e74465f5e7aa69f0448
+      blocked: false
 ---
 
 # Gate ledger — ariadne#554 (boundary-review)
@@ -266,6 +365,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-1 — addressed — This full pinned-range close review covers the added queue behavior. The plan's Revisions passage at lines 93–95 explicitly supersedes the fix-only route. The queue regression independently fails without the attachment-bound fix and passes with it.
+
+## Round 4 — 2026-10-22T15:49:20-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Plan lines 93–95 explicitly supersede the fix-only route; the gate ledger records a full-range review, and this review independently covers the expanded queue behavior. Removing the attachment bound reproduces failures in both native harness fixtures.
 
 ## Open findings
 
