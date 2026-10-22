@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1a665a97", done: "02bf4c2c"}
 ---
 
 # weave refresh: 'target dependency declarations changed; reconcile that change separately' should name the recovery steps and the changed declaration
