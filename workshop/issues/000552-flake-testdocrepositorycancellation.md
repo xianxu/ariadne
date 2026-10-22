@@ -96,6 +96,16 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
   controls in cmd/tl-lead (13.038s); the full pkg/golint catalog including tracked files (1.274s).
   The final recorded suite is still outstanding; the last Plan row remains unchecked.
 
+- Close round 1 returned REWORK solely for BR-1 Important, required-verification-evidence: the
+  recorded full suite is still pending. The reviewer found no implementation defect; independently
+  passed the cancellation regression ten times, neighboring repository/FIFO/cancellation tests and
+  pkg/golint; restoring direct publication via a temporary overlay reproduced the intended RED.
+  Keep the review sidecars and provide the actual suite result before the next close.
+- Current recorded suite: pushed code head 1603ce1215d805c4d1d63be9c936df8bdaeba65f,
+  lease-1199673725, attempt ffa80947944ff752aeb1b94024e0d3ca, retained terminal 84004.
+  Its normal-FIFO waiter remains intact (position 7 at the close review). No suite pass is claimed;
+  no code correction or replacement run is needed for this verification-only finding.
+
 ## Revisions
 
 ### 2026-10-22 — deterministic readiness-publication fix
