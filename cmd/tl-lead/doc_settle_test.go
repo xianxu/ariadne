@@ -293,3 +293,27 @@ func TestWorkingdocUnsafePointerRefusesBeforePublication(t *testing.T) {
 		t.Fatalf("target created before pointer validation: %v", err)
 	}
 }
+
+func TestSettlementEffectAuthorityRejectsForbiddenCalls(t *testing.T) {
+	for _, phase := range []settlementPhase{settlementPlanned, settlementPublicationConfirmed, settlementDone, settlementStopped} {
+		for _, effect := range []settlementEffect{settlementEffectNone, settlementEffectPublish, settlementEffectStamp} {
+			calls := 0
+			err := runSettlementEffect(settlementState{Phase: phase}, effect, effect, func() error { calls++; return nil })
+			allowed := (phase == settlementPlanned && effect == settlementEffectPublish) || (phase == settlementPublicationConfirmed && effect == settlementEffectStamp)
+			if allowed && (err != nil || calls != 1) {
+				t.Fatalf("allowed phase/effect %d/%d: calls=%d err=%v", phase, effect, calls, err)
+			}
+			if !allowed && (err == nil || calls != 0) {
+				t.Fatalf("forbidden phase/effect %d/%d executed: calls=%d err=%v", phase, effect, calls, err)
+			}
+		}
+	}
+}
+
+func TestSettlementEffectCannotUseAnotherPermission(t *testing.T) {
+	called := false
+	err := runSettlementEffect(settlementState{Phase: settlementPlanned}, settlementEffectPublish, settlementEffectStamp, func() error { called = true; return nil })
+	if err == nil || called {
+		t.Fatal("publication permission authorized stamping")
+	}
+}

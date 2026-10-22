@@ -120,3 +120,132 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ab9c7877-c39d-4050-9048-73e8c522bff3","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/6c9313a65937d49f","reviewed_head":"f8d5927d1879cdae1f12ae63c0f402a30db3a7ef","slot":"ariadne:4","requested_at":"2026-10-21T20:59:23.610973Z"},"phase":"finished","pid":70818,"started_at":"2026-10-21T20:59:23.727838Z","finished_at":"2026-10-21T21:02:53.636432Z","session_id":"01a16042-f81e-75d2-819e-85b7984b7adc","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T19:04:41-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 507 — workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible |
+| repo | ariadne |
+| issue file | workshop/issues/000507-workingdoc-datatype-and-tl-lead-doc-settle-status-settle-side-docs-into-tracked-copies-re-settle-to-update-drift-visible.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 510aab6ff3a55bfdf5472e45eedf5512f6d04420..925290911ba2a36408fdbf416ee06922ad5eee0a |
+| command | sdlc close --issue 507 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T19:04:41-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+All four prior findings are addressed with meaningful regression evidence. Existing tests pass, but a new coordinator probe demonstrates that unresolved human commentary can be published and stamped successfully. The settlement state model also does not enforce the effect ordering promised by the plan.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      doc_model.go:120 reparses generated metadata before effects. Adversarial pointer and coordinator refusal tests pass; removing the roundtrip guard in the disposable checkout makes them fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      doc_repository.go supplies --expect-absent for first settlement, and trunkpublish.go checks ownership inside every CAS callback. Real-remote ownership tests pass; disabling that predicate reproduces successful replacement of unrelated committed content.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      doc_fake_test.go now supports pre-write failure and post-write lost acknowledgment. Coordinator tests exercise late locks, unavailable readback, intervening edits and duplicate-free retries. Disabling uncertain-Apply reconciliation makes the lost-ack regression fail.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      doc_operating_test.go:28 supplies a strict fixture sdlc agent-id executable. All operating tests pass with PATH=/usr/bin:/bin; removing the fixture PATH injection reproduces the missing-sdlc failure.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: marker-literal-boundaries
+    title: |
+      Backticks across Markdown blocks hide unresolved review items
+    detail: |
+      cmd/tl-lead/doc_markers.go:171 searches for matching backticks across every non-fenced region, and line 206 marks the intervening blocks literal. Unmatched backticks in separate paragraphs, headings or list items therefore hide an intervening human question. Three coordinator probes confirmed zero actual CodeSpan nodes using the repository's Goldmark dependency, yet settleWorkingdoc returned success with Published=true and Stamped=true. ARCH-PURPOSE, ARCH-SECURE: restrict literal masking to actual Markdown code contexts and add scanner plus no-effects coordinator regressions across block boundaries, preserving legitimate multiline spans.
+  - id: new
+    severity: Important
+    kind: defect
+    family: state-transition-authority
+    title: |
+      Settlement transitions observe effects instead of authorizing them
+    detail: |
+      cmd/tl-lead/doc_settle.go:359 publishes before consulting transitionSettlement, and line 395 applies the source stamp before its transition. doc_model.go:153 returns no effects, while failure and unconfirmed events have no production consumers. This contradicts the plan's line 49 claim that only the transition model grants the next effect. ARCH-ORDER: make the pure model authorize effects and consume their outcomes, route failures through it, and test forbidden effect sequences through the production coordinator.
+```
+
+1. **Strengths**
+
+   - Pointer generation validates against the production reader before publication and preserves unknown metadata bytes.
+   - First-settlement ownership is enforced within CAS retries, including concurrent destination creation.
+   - Recovery fixtures now model uncertain outcomes and verify exact pointer evidence without duplicate publication.
+   - README, atlas and command help cover the new user-facing surface.
+
+2. **Critical findings**
+
+   The marker defect at `cmd/tl-lead/doc_markers.go:171` permits settlement of this unresolved document body:
+
+   ```text
+   An unmatched ` here.
+
+   🤖[Do not settle before answering this.]
+
+   A separate paragraph with ` here.
+   ```
+
+   The same failure reproduces across headings and separate list items. Use Markdown block-aware literal ranges; Goldmark is already a repository dependency.
+
+3. **Important findings**
+
+   At `cmd/tl-lead/doc_settle.go:359`, effect authority remains in the coordinator’s imperative sequence. The pure state machine records successful effects afterward. Make publication, verification and stamping effects originate from transitions, including failure and uncertainty handling.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - Full `cmd/tl-lead`: 72.540s.
+   - Focused workingdoc/datatype tests.
+   - Existing/new trunk publication tests: 31.135s.
+   - All operating tests under restricted PATH: 17.044s.
+
+   Mutation checks established regression sensitivity for the four prior findings. Three new block-boundary probes failed against pinned HEAD. The disposable checkout was removed; the reviewed checkout remains unchanged. I did not rerun the full repository suite.
+
+6. **Architectural notes for upcoming work**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass: shared projection, metadata handling and existing publisher reused. |
+   | ARCH-PURE | Pass: core parsing/projection tests require no IO. |
+   | ARCH-PURPOSE | Flag: unresolved commentary can cross the settlement boundary. |
+   | ARCH-MOCK | Pass: stateful recovery and isolated Git fixtures; live conformance remains planned after SHIP. |
+   | ARCH-CONSTRAINTS | Pass: bounded documents, batched baselines and cancellation coverage. |
+   | ARCH-SECURE | Flag: incorrect literal classification accepts unresolved input. |
+   | ARCH-ORDER | Flag: transition model lacks effect authority. |
+   | ARCH-FUNERAL | Pass: temporary resources are scoped; durable copies and constant-size lock have documented lifecycles. |
+   | ARCH-EVOLVE | Pass: metadata edits preserve unknown nested fields and reject ambiguous managed values. |
+
+   Core-concept locations and PURE/INTEGRATION classifications otherwise match the implementation.
+
+7. **Plan revision recommendations**
+
+   Add specific `## Revisions` entries covering:
+
+   - Markdown block-aware literal detection, with paragraph, heading and list-boundary regressions.
+   - An authoritative settlement transition/effect contract replacing the currently unenforced claim at plan line 49.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"af5eed74-e535-412b-9833-04db67d9f721","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5bfd30daaf9753de","reviewed_head":"925290911ba2a36408fdbf416ee06922ad5eee0a","slot":"ariadne:4","requested_at":"2026-10-22T01:59:43.319496Z"},"phase":"finished","pid":16075,"started_at":"2026-10-22T01:59:43.479128Z","finished_at":"2026-10-22T02:04:40.239309Z","session_id":"01a16155-ee04-7892-ba23-4bea4502c786","outcome":"returned"}] -->

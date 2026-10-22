@@ -356,52 +356,73 @@ func settleWorkingdoc(ctx context.Context, d deps, repo DocRepository, root, sou
 		return result, err
 	}
 	state := settlementState{Phase: settlementPlanned}
-	commit, err := repo.Publish(ctx, root, target, payload, expected)
+	effect := nextSettlementEffect(state)
+	stop := func(event settlementEvent, cause error) error {
+		var transitionErr error
+		state, effect, transitionErr = transitionSettlement(state, event)
+		return errors.Join(cause, transitionErr)
+	}
+	var commit string
+	err = runSettlementEffect(state, effect, settlementEffectPublish, func() error {
+		var publishErr error
+		commit, publishErr = repo.Publish(ctx, root, target, payload, expected)
+		return publishErr
+	})
 	if err != nil {
 		var warning interface {
 			error
 			PublishedCommit() string
 		}
 		if !errors.As(err, &warning) || warning.PublishedCommit() != commit {
-			return result, fmt.Errorf("copy prepared; publication failed or unconfirmed, source not stamped; retry the same command: %w", err)
+			return result, stop(settlementUnconfirmed, fmt.Errorf("copy prepared; publication failed or unconfirmed, source not stamped; retry the same command: %w", err))
 		}
 		result.Warnings = append(result.Warnings, warning.Error())
 	}
 	result.Commit = commit
 	pointer := settlementPointer{target, commit}
 	if _, err = parseSettlementPointer(target + " @ " + commit); err != nil {
-		return result, fmt.Errorf("publisher returned invalid receipt: %w", err)
+		return result, stop(settlementFailed, fmt.Errorf("publisher returned invalid receipt: %w", err))
 	}
 	blobs, err := repo.ReadBaselines(ctx, root, []settlementPointer{pointer})
 	if err != nil {
-		return result, fmt.Errorf("publication readback unconfirmed; source not stamped: %w", err)
+		return result, stop(settlementUnconfirmed, fmt.Errorf("publication readback unconfirmed; source not stamped: %w", err))
 	}
 	blob, ok := blobs[pointer]
 	if !ok || !bytes.Equal(blob, payload) {
-		return result, fmt.Errorf("published copy differs from the validated snapshot; source not stamped")
+		return result, stop(settlementFailed, fmt.Errorf("published copy differs from the validated snapshot; source not stamped"))
 	}
-	state, err = transitionSettlement(state, settlementPublished)
+	state, effect, err = transitionSettlement(state, settlementPublished)
 	if err != nil {
 		return result, err
 	}
 	result.Published = true
 	stamped, err := stampWorkingdoc(string(before), pointer)
 	if err != nil {
-		return result, err
+		return result, stop(settlementFailed, err)
 	}
 	if err = ctx.Err(); err != nil {
-		return result, fmt.Errorf("copy published; source not stamped: %w", err)
+		return result, stop(settlementFailed, fmt.Errorf("copy published; source not stamped: %w", err))
 	}
-	if err = applyWorkingdoc(ss, sourceFull, string(before), stamped); err != nil {
+	if err = runSettlementEffect(state, effect, settlementEffectStamp, func() error { return applyWorkingdoc(ss, sourceFull, string(before), stamped) }); err != nil {
 		current, _, readErr := readWorkingdoc(root, source)
 		if readErr != nil || string(current) != stamped {
-			return result, fmt.Errorf("copy published at %s; source stamp failed or unconfirmed, reconcile source and retry: %w", commit, err)
+			return result, stop(settlementUnconfirmed, fmt.Errorf("copy published at %s; source stamp failed or unconfirmed, reconcile source and retry: %w", commit, err))
 		}
 	}
-	state, err = transitionSettlement(state, settlementStamped)
+	state, effect, err = transitionSettlement(state, settlementStamped)
 	if err != nil {
 		return result, err
 	}
 	result.Stamped = state.Phase == settlementDone
 	return result, nil
+}
+
+// Every externally visible settlement effect passes this authorization seam.
+// The pure phase model supplies its next effect; a terminal or mismatched
+// request cannot call the repository or Couch even if a caller is reordered.
+func runSettlementEffect(state settlementState, effect, requested settlementEffect, apply func() error) error {
+	if requested == settlementEffectNone || effect != requested || nextSettlementEffect(state) != effect {
+		return fmt.Errorf("settlement phase %d does not authorize effect %d", state.Phase, effect)
+	}
+	return apply()
 }

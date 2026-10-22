@@ -150,13 +150,32 @@ const (
 
 type settlementState struct{ Phase settlementPhase }
 
-func transitionSettlement(s settlementState, e settlementEvent) (settlementState, error) {
+type settlementEffect uint8
+
+const (
+	settlementEffectNone settlementEffect = iota
+	settlementEffectPublish
+	settlementEffectStamp
+)
+
+func nextSettlementEffect(s settlementState) settlementEffect {
+	switch s.Phase {
+	case settlementPlanned:
+		return settlementEffectPublish
+	case settlementPublicationConfirmed:
+		return settlementEffectStamp
+	default:
+		return settlementEffectNone
+	}
+}
+
+func transitionSettlement(s settlementState, e settlementEvent) (settlementState, settlementEffect, error) {
 	if s.Phase >= settlementDone {
-		return s, fmt.Errorf("settlement already terminal")
+		return s, settlementEffectNone, fmt.Errorf("settlement already terminal")
 	}
 	if e == settlementFailed || e == settlementUnconfirmed {
 		s.Phase = settlementStopped
-		return s, nil
+		return s, settlementEffectNone, nil
 	}
 	switch {
 	case s.Phase == settlementPlanned && e == settlementPublished:
@@ -164,9 +183,9 @@ func transitionSettlement(s settlementState, e settlementEvent) (settlementState
 	case s.Phase == settlementPublicationConfirmed && e == settlementStamped:
 		s.Phase = settlementDone
 	default:
-		return s, fmt.Errorf("invalid settlement transition %d/%d", s.Phase, e)
+		return s, settlementEffectNone, fmt.Errorf("invalid settlement transition %d/%d", s.Phase, e)
 	}
-	return s, nil
+	return s, nextSettlementEffect(s), nil
 }
 
 func classifyWorkingdoc(source, baseline, target []byte) string {

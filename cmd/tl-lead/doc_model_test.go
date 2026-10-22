@@ -105,18 +105,18 @@ func TestWorkingdocStampPlainPointerRoundTripPreservesBytes(t *testing.T) {
 
 func TestSettlementCannotStampBeforePublication(t *testing.T) {
 	s := settlementState{Phase: settlementPlanned}
-	if _, err := transitionSettlement(s, settlementStamped); err == nil {
+	if _, _, err := transitionSettlement(s, settlementStamped); err == nil {
 		t.Fatal("stamped before publication")
 	}
-	s, err := transitionSettlement(s, settlementPublished)
+	s, _, err := transitionSettlement(s, settlementPublished)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err = transitionSettlement(s, settlementStamped)
+	s, _, err = transitionSettlement(s, settlementStamped)
 	if err != nil || s.Phase != settlementDone {
 		t.Fatalf("completion: %+v %v", s, err)
 	}
-	if _, err = transitionSettlement(s, settlementPublished); err == nil {
+	if _, _, err = transitionSettlement(s, settlementPublished); err == nil {
 		t.Fatal("terminal phase accepted effect")
 	}
 }
@@ -126,5 +126,24 @@ func TestWorkingdocClassificationUsesBytes(t *testing.T) {
 		if got := classifyWorkingdoc([]byte(tc.source), []byte(tc.base), []byte(tc.target)); got != tc.want {
 			t.Errorf("%+v: %s", tc, got)
 		}
+	}
+}
+
+func TestSettlementOutcomesAuthorizeNextEffect(t *testing.T) {
+	for _, phase := range []settlementPhase{settlementPlanned, settlementPublicationConfirmed} {
+		for _, event := range []settlementEvent{settlementFailed, settlementUnconfirmed} {
+			s, next, err := transitionSettlement(settlementState{Phase: phase}, event)
+			if err != nil || s.Phase != settlementStopped || next != settlementEffectNone {
+				t.Fatalf("outcome %d/%d failed to stop effects: %+v %d %v", phase, event, s, next, err)
+			}
+		}
+	}
+	s, next, err := transitionSettlement(settlementState{Phase: settlementPlanned}, settlementPublished)
+	if err != nil || next != settlementEffectStamp {
+		t.Fatalf("confirmed publication did not authorize stamp: %+v %d %v", s, next, err)
+	}
+	s, next, err = transitionSettlement(s, settlementStamped)
+	if err != nil || next != settlementEffectNone || s.Phase != settlementDone {
+		t.Fatalf("stamp did not retire effects: %+v %d %v", s, next, err)
 	}
 }

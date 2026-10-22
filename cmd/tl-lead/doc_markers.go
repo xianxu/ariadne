@@ -3,6 +3,10 @@ package main
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	gmtext "github.com/yuin/goldmark/text"
 )
 
 type docMarker struct {
@@ -17,8 +21,9 @@ func workingdocMarkers(text string) []docMarker {
 	return markers
 }
 
-// The work counter counts examined/written bytes and delimiter runs, rather
-// than elapsed time, so the linear scanning contract can be tested reliably.
+// The work counter counts scanner bytes, Markdown parser input bytes, visited
+// AST nodes and literal-mask writes rather than elapsed time. Goldmark owns its
+// parser internals; the counter verifies the surrounding linear traversal.
 func scanWorkingdocMarkers(text string) ([]docMarker, int) {
 	literal, work := docMarkerLiterals(text)
 	var out []docMarker
@@ -117,99 +122,47 @@ func docMarkerEnd(text string, start int, work *int) (int, string) {
 	return i, ""
 }
 
-// docMarkerLiterals marks CommonMark-style backtick/tilde fenced blocks and
-// exact-run backtick spans. Unmatched backticks are ordinary text. Indexing
-// the next equal-length run avoids rescanning every unmatched opener; inline
-// spans may cross newlines, but never cross a fenced block.
+// docMarkerLiterals uses actual CommonMark code nodes, so unmatched inline
+// delimiters cannot hide markers across paragraph, heading or container bounds.
+// Goldmark is already the repository's Markdown parser; do not duplicate its
+// block/inline grammar here. Only literal code content is masked.
 func docMarkerLiterals(text string) ([]bool, int) {
 	literal := make([]bool, len(text))
-	work := 0
-	fenceChar, fenceWidth := byte(0), 0
-	for start := 0; start < len(text); {
-		end := start + strings.IndexByte(text[start:], '\n')
-		if end < start {
-			end = len(text)
-		} else {
-			end++
+	source := []byte(text)
+	root := goldmark.DefaultParser().Parse(gmtext.NewReader(source))
+	work := len(source) // one parser input; internal parser operations are external
+	mark := func(start, end int) {
+		for i := start; i < end; i++ {
+			literal[i] = true
+			work++
 		}
-		line := text[start:end]
-		indent := 0
-		for indent < len(line) && line[indent] == ' ' {
-			indent++
-		}
-		width, char := 0, byte(0)
-		if indent <= 3 && indent < len(line) && (line[indent] == '`' || line[indent] == '~') {
-			char = line[indent]
-			for indent+width < len(line) && line[indent+width] == char {
-				width++
-			}
-		}
-		inside := fenceWidth != 0
-		if inside && char == fenceChar && width >= fenceWidth && strings.TrimSpace(line[indent+width:]) == "" {
-			fenceWidth = 0
-		} else if !inside && width >= 3 && (char != '`' || !strings.ContainsRune(line[indent+width:], '`')) {
-			fenceChar, fenceWidth = char, width
-			inside = true
-		}
-		if inside {
-			for j := start; j < end; j++ {
-				literal[j] = true
-			}
-		}
-		work += 3 * len(line) // line lookup, fence recognition and mask writes
-		start = end
 	}
-	type run struct{ start, end, next int }
-	for start := 0; start < len(text); {
-		if literal[start] {
-			start++
-			work++
-			continue
+	ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
 		}
-		end := start
-		var runs []run
-		for end < len(text) && !literal[end] {
-			work++
-			if text[end] != '`' {
-				end++
-				continue
-			}
-			runStart := end
-			for end < len(text) && text[end] == '`' && !literal[end] {
-				end++
+		work++
+		switch node := n.(type) {
+		case *ast.CodeSpan:
+			for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 				work++
+				segment := child.(*ast.Text).Segment
+				mark(segment.Start, segment.Stop)
 			}
-			// A backslash escapes a potential opener, but a closer inside a
-			// span still matches literally, as CommonMark requires.
-			runs = append(runs, run{runStart, end, -1})
-		}
-		next := make(map[int]int)
-		for j := len(runs) - 1; j >= 0; j-- {
-			work++
-			width := runs[j].end - runs[j].start
-			if k, ok := next[width]; ok {
-				runs[j].next = k
-			}
-			next[width] = j
-		}
-		for j := 0; j < len(runs); j++ {
-			work++
-			backslashes := 0
-			for k := runs[j].start - 1; k >= start && text[k] == '\\'; k-- {
-				backslashes++
+			return ast.WalkSkipChildren, nil
+		case *ast.CodeBlock, *ast.FencedCodeBlock:
+			lines := n.Lines()
+			for i := 0; i < lines.Len(); i++ {
 				work++
+				segment := lines.At(i)
+				mark(segment.Start, segment.Stop)
 			}
-			if backslashes%2 != 0 || runs[j].next < 0 {
-				continue
+			if fenced, ok := n.(*ast.FencedCodeBlock); ok && fenced.Info != nil {
+				mark(fenced.Info.Segment.Start, fenced.Info.Segment.Stop)
 			}
-			close := runs[j].next
-			for k := runs[j].start; k < runs[close].end; k++ {
-				literal[k] = true
-				work++
-			}
-			j = close
+			return ast.WalkSkipChildren, nil
 		}
-		start = end
-	}
+		return ast.WalkContinue, nil
+	})
 	return literal, work
 }

@@ -78,6 +78,11 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Post-fix recorded suite PASS on 14b431532272b21654a59108cd6823ffda03e9d8: all 8 shards, 1,960 SDLC tests and 75 other packages, zero failures, wall 694.4s, log SHA256 prefix 6fe7463dffc6. Retained lease-2822675348 survived the restart and completed after its original FIFO wait. No flake resume was needed. Re-running full close review against the four fixes; staging and live conformance remain post-SHIP.
 
+- Close round 2 disposed BR-1 through BR-4 and returned REWORK for BR-5 (cross-block backticks hiding unresolved commentary) and BR-6 (model observed effects without authorizing them). TL approved bounded corrections (af7edb73-8f1f-4e91-ac8e-fbce7dc9c910). Actual Goldmark code nodes now determine literal masks; scanner/coordinator regressions cover paragraph, heading, list and blockquote boundaries plus real code controls. Effect permissions returned by the pure model now gate publication and stamping before calls; production consumes failure and unconfirmed outcomes. Removing the effect guard failed both forbidden-sequence regressions (mutation exit 1).
+- TL accepted Goldmark's bounded-input complexity limit (33dac06b-99a1-4982-90b1-425fec0e8fee): counted linear work covers our input/AST/masks/scanner, not dependency parser internals. On a temporary 1 MiB adversarial same-paragraph fixture with unmatched backtick widths 1..1,446 and an active question, scanning took 383.972ms and retained the question; own work count 2,098,616. No timing threshold remains in tests. Focused marker race PASS 1.528s, fuzz PASS 15,130 executions, final marker/control tests PASS 0.198s. A third-round mechanism-level finding must go to TL before further fixes.
+
+- Combined post-BR-5/6 checks PASS: full cmd/tl-lead 59.286s, cmd/datatype 0.184s, pkg/golint 1.140s; diff check clean. Committing this coherent correction before queuing a fresh recorded suite. No staging or live hub effect has occurred.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items

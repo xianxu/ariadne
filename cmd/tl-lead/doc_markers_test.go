@@ -67,6 +67,43 @@ func TestDocMarkerLiteralContextsAndLocations(t *testing.T) {
 	}
 }
 
+func docMarkerBlockBoundaries() []struct{ name, body string } {
+	return []struct{ name, body string }{
+		{"paragraph", "`opener\n\n🤖[open question]\n\ncloser`\n"},
+		{"heading", "`opener\n# 🤖[open question]\ncloser`\n"},
+		{"list_items", "- `opener\n- 🤖[open question]\n- closer`\n"},
+		{"blockquote", "`opener\n> 🤖[open question]\ncloser`\n"},
+	}
+}
+
+func TestDocMarkersCannotCrossBlockBoundaries(t *testing.T) {
+	for _, tc := range docMarkerBlockBoundaries() {
+		t.Run(tc.name, func(t *testing.T) {
+			got := workingdocMarkers(tc.body)
+			if len(got) != 1 || got[0].Kind != "commentary" || got[0].Text != "🤖[open question]" {
+				t.Fatalf("unmatched delimiters hid active commentary: %#v", got)
+			}
+		})
+	}
+}
+
+func TestDocMarkersActualCodeAndEscapedDelimiters(t *testing.T) {
+	for _, body := range []string{
+		"    🤖[indented code]\n",
+		"- ```\n  🤖[nested fenced code]\n  ```\n",
+		"> ```\n> 🤖[quoted fenced code]\n> ```\n",
+		"- `multiline\n  🤖[literal]\n  code`\n",
+		"\\`🤖[active]`",
+		"`literal \\` 🤖[active]",
+	} {
+		got := workingdocMarkers(body)
+		active := strings.Contains(body, "[active]")
+		if (active && (len(got) != 1 || got[0].Text != "🤖[active]")) || (!active && len(got) != 0) {
+			t.Errorf("%q: %#v", body, got)
+		}
+	}
+}
+
 func FuzzDocMarkers(f *testing.F) {
 	for _, s := range []string{"plain", "🤖[ask]", "`🤖[literal]`", "🤖<x>{y}", "🤖[broken", "🤖[a]{b}[c]"} {
 		f.Add(s)
@@ -104,6 +141,9 @@ func TestDocMarkerLinearWork(t *testing.T) {
 		"🤖[unterminated ",
 		"`unmatched \\\\\\` mixed ``code 🤖[literal]``\n",
 		"~~~\n🤖[literal]\n~~~\n",
+		"`unmatched\n\n🤖[open question]\n\ncloser`\n",
+		"- `unmatched\n- 🤖[open question]\n- closer`\n",
+		"    🤖[indented literal]\n\n",
 	} {
 		_, n := scanWorkingdocMarkers(strings.Repeat(unit, 512))
 		input := strings.Repeat(unit, 1024)

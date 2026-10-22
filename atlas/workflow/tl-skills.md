@@ -9,7 +9,14 @@ that same path. `doc status` compares a shared pure projection with committed
 blobs, distinguishing drift, destination conflicts and unknown evidence.
 
 `doc_model.go`, `doc_project.go` and `doc_markers.go` own metadata, content and
-marker validation. Remaining active questions, proposals and malformed markers
+marker validation. Literal masks come from Goldmark's actual Markdown code nodes;
+unmatched backticks across paragraphs or containers cannot hide active questions.
+The counted linear work covers our input, AST walk, masks and scanner. Goldmark's
+code-span parser can rescan pathological input; the existing 1 MiB document cap
+bounds accepted input, rather than a claim that dependency internals are linear.
+The phase model returns the next permitted publication/stamp effect, and both
+external calls require that permission before executing; failed or unconfirmed
+outcomes stop further effects. Remaining active questions, proposals and malformed markers
 refuse; the operator's editor owns acceptance. `doc_settle.go` coordinates a
 repository lock, source/target guards, immutable publication and Couch's source
 CAS stamp. `doc_repository.go` validates repository identity and batches Git
