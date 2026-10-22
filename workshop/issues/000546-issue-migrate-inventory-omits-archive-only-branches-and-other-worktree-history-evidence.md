@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bc9c1493", done: "4f3b6d1a"}
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
