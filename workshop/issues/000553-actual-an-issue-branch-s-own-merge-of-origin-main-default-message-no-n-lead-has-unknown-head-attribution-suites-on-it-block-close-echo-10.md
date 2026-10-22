@@ -51,6 +51,8 @@ foreign parents keep strict refusal.
 - A merge bringing in a foreign issue branch (a second parent not on main) still refuses (test).
 - Structural fallback applies to every otherwise unknown ordinary merge, including bookkeeping subjects
   and invalid issue leads; definite issue authority and malformed-train refusal retain precedence.
+- Proof selection and classification share the same repository context, including qualified invalid
+  refs and zero-padded zero refs in every lead-list position across repository names.
 - echo#10's live 'sdlc actual --issue 10' measures (owner-run proof).
 
 ## Plan
@@ -140,6 +142,16 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   selected proofs with an empty self-repository name, while the reducer classified with the actual name.
   Qualified invalid local refs therefore received contradictory authority classifications. Cancelled only
   queued lease-801177825, stopped code changes, and replanned the seam with the hub.
+- BR-2 RED: the real-Git context matrix failed for all 45 qualified invalid-ref cases (three repository
+  names, three zero spellings, five list positions). Definite local/foreign authority and foreign-parent
+  controls stayed strict. The reader now receives selfRepo from the resolver's typed call on every read;
+  the proof-selection parse and membership parse consume that identical argument, with no IO-shell default.
+- BR-2 GREEN: targeted queue-head, parser/reducer, owned-actual consumer and Git-object checks passed
+  cmd/sdlc in 13.485s and internal/gitx in 0.495s. The source sweep found one repository derivation at
+  the actual resolver call; both production parser calls now receive its unchanged selfRepo parameter.
+  No second context default or constructor derivation remains. The corrected 954dea6 private binary's
+  earlier owner rerun also exited 0 with the same 1.07h/three-wait result (receipt c976681a-a5c8-45a9-b629-d6e4365b4daa);
+  the new context correction is independently covered by the 45-case real-Git matrix.
 
 ## Revisions
 

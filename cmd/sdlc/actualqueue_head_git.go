@@ -11,7 +11,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
-type queueHeadReader func(context.Context, []string) ([]queueHeadFact, error)
+type queueHeadReader func(ctx context.Context, heads []string, selfRepo string) ([]queueHeadFact, error)
 type queueHeadLimits struct{ Nodes, Bytes, Depth, Batch int }
 
 // Safety ceilings, not latency targets: see #548's recorded initial basis.
@@ -25,7 +25,7 @@ func gitQueueHeadReader(root string, mainRefs ...string) queueHeadReader {
 	main := ""
 	ancestry := map[string]bool{}
 	limit := defaultQueueHeadLimits.Nodes
-	return func(ctx context.Context, heads []string) ([]queueHeadFact, error) {
+	return func(ctx context.Context, heads []string, selfRepo string) ([]queueHeadFact, error) {
 		objects, err := gitx.ReadCommitObjects(ctx, root, heads)
 		if err != nil {
 			return nil, err
@@ -37,7 +37,7 @@ func gitQueueHeadReader(root string, mainRefs ...string) queueHeadReader {
 				return nil, err
 			}
 			// Exact train authority, including malformed trains, takes precedence.
-			if len(fact.Parents) > 1 && parseQueueHead(fact, "").Kind == queueHeadUnknown {
+			if len(fact.Parents) > 1 && parseQueueHead(fact, selfRepo).Kind == queueHeadUnknown {
 				if main == "" {
 					out, diag, err := gitx.RunGitInContext(ctx, root, queueAncestryEnv(), "--no-replace-objects", "rev-parse", "--verify", mainRef+"^{commit}")
 					if err != nil {
@@ -146,7 +146,7 @@ func readQueueHeadMembershipsWithLimits(ctx context.Context, heads []string, sel
 			n := min(len(fetch), limits.Batch)
 			batch := append([]string(nil), fetch[:n]...)
 			fetch = fetch[n:]
-			got, err := read(ctx, batch)
+			got, err := read(ctx, batch, selfRepo)
 			if err != nil {
 				return nil, err
 			}

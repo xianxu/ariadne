@@ -1763,7 +1763,8 @@ repository, immutable tested-head issue membership, owner slot and engagement
 An otherwise unattributed merge also inherits its first parent's membership when every
 other parent is reachable from one pinned publication-main OID (#553), independently
 of the merge message. That command-local ancestry cache has the same node ceiling;
-ref movement cannot change its pin. Structural probes disable replacements, grafts,
+ref movement cannot change its pin. Proof selection and classification receive the
+same repository context through the reader interface. Structural probes disable replacements, grafts,
 shallow boundaries and lazy fetching; a failed probe is distinct from a non-ancestor.
 Exact train parsing, including malformed-train refusal, runs before this fallback.
 Exact same-train composition includes

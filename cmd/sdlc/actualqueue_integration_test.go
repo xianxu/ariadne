@@ -125,15 +125,15 @@ exec "$QUEUE_REAL_GIT" "$@"
 	defaultQueueHeadLimits.Nodes = 1
 	t.Cleanup(func() { defaultQueueHeadLimits = old })
 	limited := gitQueueHeadReader(root, "refs/remotes/upstream/main")
-	if _, err := limited(t.Context(), []string{first}); err != nil {
+	if _, err := limited(t.Context(), []string{first}, "ariadne"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := limited(t.Context(), []string{older}); err == nil || !strings.Contains(err.Error(), "node safety budget") || got != nil {
+	if got, err := limited(t.Context(), []string{older}, "ariadne"); err == nil || !strings.Contains(err.Error(), "node safety budget") || got != nil {
 		t.Fatalf("ancestry cache overflow returned partial evidence: %+v err=%v", got, err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if got, err := reader(ctx, []string{first}); err == nil || got != nil {
+	if got, err := reader(ctx, []string{first}, "ariadne"); err == nil || got != nil {
 		t.Fatalf("cancelled pass returned evidence: %+v err=%v", got, err)
 	}
 }
@@ -281,7 +281,7 @@ func TestQueueHeadStructuralIntegrationControls(t *testing.T) {
 	}
 	t.Run("one-main-generation", func(t *testing.T) {
 		reader := gitQueueHeadReader(root)
-		if _, err := reader(t.Context(), []string{nested}); err != nil {
+		if _, err := reader(t.Context(), []string{nested}, "ariadne"); err != nil {
 			t.Fatal(err)
 		}
 		testfix.Git(t, root, "update-ref", "refs/remotes/origin/main", foreign)
