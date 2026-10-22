@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 1.61
 collaboration-mode: collaboration
-card_mirror: 'd9935d964eb1a764436a68f5dcab305ac13ec8cb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '25d4bc803513a7926e12299e7a4121a1d6b2d8cf' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T15:10:08-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # Suite queue: landing grants starve old waiters; bound grants by waiter age
@@ -67,3 +68,22 @@ TL approved immutable monotonic enqueue age under the allocation lock, FIFO pref
 ### 2026-10-22 — plan-quality refinement
 
 First change-code review accepted the design but blocked on PQ-1 (function-level test contract). Consolidated repeated case inventories into one strategy/independent guard per named risky function. Corrected PQ-2: existing holder reads are bounded, existing ticket/slot writers are not; this issue bounds inspection without expanding writer scope. No production code changed; rerun plan-quality.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only. Calibration is flagged stale by estimate-source; values are provisional. Existing flock, provider and process-group seams cover this familiar stack; no new library or external API is needed. Map the bounded Python policy extension to smaller-go-module (the method has no separate Python primitive), the inspection protocol to greenfield-go-module, and CLI wiring to another smaller-go-module. Use upper implementation ranges for concurrency/process coverage, scaled once by0.40. Detailed approved design receives the0.2 design discount; familiarity1.0 and15% design buffer.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.1 impl=0.08
+item: smaller-go-module design=0.06 impl=0.2
+item: greenfield-go-module design=0.2 impl=0.32
+item: smaller-go-module design=0.06 impl=0.2
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0 impl=0.2
+design-buffer: 0.15
+total: 1.61
+```
+
+Design0.46×1.15=0.529h plus implementation1.08h gives1.609h, rounded1.61h.
