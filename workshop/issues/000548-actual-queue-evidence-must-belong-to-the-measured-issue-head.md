@@ -41,7 +41,7 @@ A suite attempt may affect actual measurement only for the issue whose candidate
 
 Durable plan: [suite head attribution](../plans/000548-suite-head-attribution-plan.md).
 
-- [ ] Reproduce and enforce immutable issue-head membership before queue attribution.
+- [x] Reproduce and enforce immutable issue-head membership before queue attribution.
 - [ ] Verify the owned/foreign/unknown and train controls, owner-run Echo preview, suite, close and landing.
 
 ## Log
@@ -72,3 +72,10 @@ item: milestone-review design=0.02 impl=0.20
 design-buffer: 0.15
 total: 1.93
 ```
+
+- 2026-10-22: Full change-code passed plan-quality and estimate-quality (INFO). The module budgets include their adversarial tests: parser/train controls, reader replacement/framing controls, walker resource/growth tests, and real tracker measurement fixture. The final review budget includes live preview coordination and landing verification; machine queue and suite idle are not counted twice as implementation work.
+- 2026-10-22: Real Git/tracker two-claim fixture reproduced the exact old failure before wiring: foreign failed suite fcf15650129203dfd1408728d625962b reported0 matching pinned slot engagements. Its own crossing wait still refused and its own exact60s wait remained admitted. Added immutable head classification before the shared owned selector, preserving #544 suffix clipping and saved replay. Integration receives the canonical issue ID explicitly; no branch-name inference or persisted fields.
+- 2026-10-22: Bounded reader real replacement-ref, missing/noncommit/cancel and framing checks passed. Stateful graph tests count each node once at8/16 heads with shared tails, test aggregate limits and a real Git train/reintegration excluding main/base cars. An in-session resource audit found depth was checked after discovery and neutral memberships copied per descendant; behavioral red tests measured1000 reads past the256-edge ceiling and unwanted membership copies, then fixes bounded discovery and shared immutable neutral membership. No producer change or landingtrain.go edit.
+- 2026-10-22: Combined targeted behavioral tests passed, but the real-repository hermeticity guard correctly refused the run because this session changed the dirty-path set during execution. No test defect or passing suite evidence is claimed from that run; freeze/stage all edits and repeat on the final source before the recorded suite.
+
+- 2026-10-22: Frozen-source final targeted run passed: cmd/sdlc81.814s (membership, resource limits, real tracker foreign/own/unknown, existing owned actual/correction and hybrid-cutover controls), gitx0.661s; separate full pkg/golint test pass0.963s. Diff checks clean. Next: clean branch build to Echo owner for actual9/actual3 previews and recorded full suite on the pushed head.
