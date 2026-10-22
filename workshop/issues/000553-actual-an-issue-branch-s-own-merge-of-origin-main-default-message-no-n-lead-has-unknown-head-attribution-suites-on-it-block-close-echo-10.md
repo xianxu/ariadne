@@ -61,7 +61,7 @@ foreign parents keep strict refusal.
 - [x] Reproduce the ordinary integrate-main merge with real Git, retaining a foreign-parent control before changing production code.
 - [x] Extend the existing immutable head reader with command-scoped pinned-main ancestry evidence; let the pure classifier/reducer inherit only first-parent membership for a structurally proven integration.
 - [x] Verify repeated integrations, arbitrary messages, multiple side parents, unknown first parents, foreign parents, ref movement, replacement/graft controls, cancellation and bounded shared probes; retain the train grammar and existing budget controls.
-- [ ] Update the attribution atlas, obtain the owner-run echo#10 measurement, then record the pushed-head suite and close review before landing.
+- [x] Update the attribution atlas, obtain the owner-run echo#10 measurement, then record the pushed-head suite and close review before landing.
 
 ### Design
 
@@ -182,6 +182,14 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   `complete=false`. The hub identified this display limitation (receipt
   65d87200-2e03-4876-b7f0-fc40dc639689); the retained terminal/lease still identify the live owned run.
   Preserve that run rather than interpreting the incomplete queue display as a dead runner.
+
+- The retained branch suite on fe9a4c9e4baff739a319d5969a7adeb8ca683212 completed PASS:
+  all eight shards, 2242 SDLC tests and 76 other packages, zero failures, wall 832.2s (13m52s).
+  Log SHA256 prefix bd2dc5987527, retained at the independent clone's
+  .git/sdlc/local-checks/fe9a4c9e4baff739a319d5969a7adeb8ca683212/suite.log.
+  The lease and terminal retired normally; no retry, flake allowance or status promotion was needed.
+  Subsequent canonical commits change only issue/review records, leaving the reviewed executable code
+  unchanged. Acceptance is now complete; proceed through canonical sdlc merge for current-main integration.
 
 ## Revisions
 
