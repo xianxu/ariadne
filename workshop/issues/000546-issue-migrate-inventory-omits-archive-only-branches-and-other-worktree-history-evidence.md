@@ -7,7 +7,7 @@ created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 2.11
 collaboration-mode: collaboration
-card_mirror: '947aab14d0e6aa1f5f4204726b5fc68e4f16425d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '73931c9225eb1ffbee7e85f41e554f2d091c64ac' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T03:02:52-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 1.71
+actual_hours: 3.04
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
