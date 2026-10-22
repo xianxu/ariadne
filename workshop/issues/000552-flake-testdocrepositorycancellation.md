@@ -106,6 +106,20 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
   Its normal-FIFO waiter remains intact (position 7 at the close review). No suite pass is claimed;
   no code correction or replacement run is needed for this verification-only finding.
 
+### 2026-10-22 — drain/lift checkpoint
+
+- Authenticated graceful drain c28152a0-6925-45a6-a5b5-ae9c58bef2b9 arrived while the recorded suite
+  was queued, not running. Left it queued and outstanding: lease-1199673725, runner 84443,
+  terminal 84004, code 1603ce1215d805c4d1d63be9c936df8bdaeba65f, FIFO1 behind #551's running suite.
+  No owned running check needed waiting or stopping; no queue cancellation or duplicate was started.
+- Before this checkpoint finished, authenticated lift 3e5da2b2-5fa7-44a6-8de8-81016d18ae36 explicitly
+  authorized continuation of current work. Continue with the same retained waiter; queued work is
+  still outstanding, not restart-safety evidence. No formal acknowledgement command or courtesy reply.
+- Exact next step: await terminal 84004's recorded suite result. On PASS, retain its exact attempt,
+  head and log hash, tick the last verification checkbox, and close again to dispose of BR-1. Then
+  mark draft PR399 ready, publish the close head and enter canonical sdlc merge; after landing verify
+  TestDocRepositoryCancellation is absent from the flake registry. No full-suite pass is claimed yet.
+
 ## Revisions
 
 ### 2026-10-22 — verification checkpoint
