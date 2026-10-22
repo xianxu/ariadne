@@ -49,7 +49,7 @@ Let A be potentially overlapping suite attempts, U their unique head OIDs, and V
 
 - [ ] Reproduce Echo's two-claims/same-slot/foreign-queue shape in a real Git/tracker measurement fixture, including failed attempts and the exact0-matching-engagements symptom.
 - [ ] Implement the pure membership/filter contract and bounded reader; wire once before owned queue selection. Preserve #544's prefix clipping and retained replay after integrating that landed main.
-- [ ] Verify direct heads, neutral metadata/integration heads, earlier same-issue suite heads, references in citations, distinct issue sibling branches, train included/held membership, missing/cancelled/truncated objects, deduplication and N/2N counts. Existing own-wait endpoint/refusal controls remain strict.
+- [ ] Verify the named function contracts below, including counted growth and existing owned-wait controls.
 - [ ] Run targeted tests and recorded full suite; coordinate Echo-owned actual9/actual3 live previews; update atlas/help, close and land normally.
 
 ## Decisions and ARCH lenses
@@ -82,3 +82,11 @@ Named function contracts for the admitted implementation:
 | `readQueueHeadMemberships` | INTEGRATION, `actualqueue_head_git.go` | Stateful graph reader and real-Git fixtures cover missing/cancelled/overflow results. Count unique fact reads and reducer resolutions at N/2N, including shared parent tails. |
 | `filterIssueQueueAttempts` | PURE, `actualqueue_head.go` | Permute own/foreign/unknown results; foreign skips before owned-evidence validation, while relevant unknown and duplicate identity stay strict. Existing owned queue selector supplies independent endpoint/engagement controls. |
 | `attachOwnedQueueEvidence` | INTEGRATION, existing `actualinputs.go` | Real two-claims/same-slot fixture records A's failed suite then measures B; the old0-matching-engagement symptom must go red before wiring. Own wait, prefix clipping and historical replay controls retain existing measurement authority. |
+
+### 2026-10-22 — plan-quality immutable authority and resource envelope
+
+PQ-1 (`immutable-object-read-authority`): every new commit-object read invokes `git --no-replace-objects cat-file --batch --buffer`. The option belongs to the narrow reader, not caller convention. A real replacement-ref fixture substitutes another issue's commit and verifies that the original object still determines membership. All attribution parents come from those raw objects; no replacement-sensitive secondary history queries.
+
+PQ-2 (`explicit-command-resource-envelope`): one command admits at most 10,000 distinct commit objects, 32 MiB aggregate raw commit content, and 256 first-parent edges per head. Bound each object to 1 MiB and each batch to 32 MiB including framing, with at most 128 requested objects per batch. These are safety ceilings: the node ceiling matches the store's 10,000-attempt input ceiling, aggregate/object caps reuse the existing Git snapshot safety envelope, and 256 edges allows many metadata/integration commits while refusing an unexpectedly deep lineage. Parsed facts replace raw objects after parsing; retained messages/parents plus accounting never exceed the aggregate raw-byte budget, and per-node metadata is bounded by the node ceiling. Check command-global admission before retaining each newly read object, deduplicate shared parents, and track derived lineage depth even when a parent was memoized by another head. On exhaustion refuse with `queue head attribution exceeds <node/byte/depth> safety budget`, naming the relevant attempt and SHA at the caller; restore bounded proof or seek an explicit limit revision, never use partial membership. Tests through `readQueueHeadMemberships` exercise each boundary at limit and limit+1, cross-batch byte accumulation, shared-parent depth, and N/2N unique-node counts. Smaller injected budgets make those tests fast; production defaults are asserted separately. Re-measure these ceilings against recorded suite graphs before raising them.
+
+PQ-3 (`concise-function-test-strategies`): the verification checklist now points to the function-contract table; concrete cases live in executable tests.
