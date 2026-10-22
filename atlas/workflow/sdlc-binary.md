@@ -10,6 +10,33 @@ Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
+## New repository initialization (#543)
+
+The explicit final setup command `sdlc issue init` has a conservative presence-only
+inventory and reuses migration's tracker bootstrap CAS and main cutover. Its pure
+invocation-local `tracker.InitTransition` owns phase changes; `issueinit.go`
+dispatches only returned effects and stops on failure/cancellation/uncertainty.
+Retry verifies existing root/marker evidence, retaining partial publication.
+Clean main checkout completion uses a pinned ff-only commit. Brains/declined
+scaffolds skip.
+
+`issueinit_inventory.go` refuses any recognized issue evidence in the active,
+flat legacy history or history/issues roots: pinned main, every current local
+and publication-remote branch tip, live worktree HEADs (including detached),
+indexes and filesystem entries (including ignored/untracked). It imports no
+records and applies no difference/merge rules. Unreadable or non-directory roots
+refuse as uncertain. Snapshot scans select metadata only, not issue bodies.
+The shared BR-1 head helper refreshes the entire publication heads mapping and
+pins names/OIDs without name exclusions (`publicationBranchTips`); only migrate
+applies its own branch filter. Failed refresh or main moving from its pin refuses. Tags, other
+remotes and FETCH_HEAD remain outside that explicit fetch's write set. Existing
+migration import policy is separate; its archive/worktree gaps are ariadne#546.
+An unverified/pre-existing reserved tracker branch refuses as `tracker already
+initialized`; exact verified empty-bootstrap recovery and completed valid
+root/marker no-ops remain supported.
+Legacy hints use local-only `issue.LocalPathsByID` evidence and never authorize
+publication. See [the setup procedure](setup-and-replication.md#new-repository-default).
+
 ## Executable identity (#461)
 
 `sdlc --version` reports the actual executable path, embedded VCS revision and
@@ -2187,6 +2214,14 @@ Six shards took 747–820s. These are whole-machine measurements under the
 full-suite gate, not a guaranteed load ceiling. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
+
+Managed checks share `localcheck_dependency_environment.go` at
+`runUnderResourceBatch`: tested `construct/deps` rows become caller-anchored
+`SDLC_DEP_SUBSTRATE` / `SDLC_DEP_DATA`, with `SDLC_CALLER_ROOT` preserving the
+initiating checkout even for train trees. The shared layergraph parser/resolver
+owns substrate fallback. Conflicting same-kind paths refuse before execution;
+inherited reserved variables are cleared, absent declared paths remain visible,
+and dependencies are read-only. See `sdlc local-check --help` for the contract.
 
 Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it

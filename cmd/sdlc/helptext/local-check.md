@@ -103,6 +103,19 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
+COMMAND ENVIRONMENT (#545)
+
+  Every managed command receives SDLC_CALLER_ROOT, the initiating checkout
+  (also for train trees), while cwd remains the exact tested checkout.
+  Its construct/deps supplies SDLC_DEP_SUBSTRATE and SDLC_DEP_DATA: absolute
+  paths resolved against the caller, substrate via layergraph's existing
+  primary-checkout fallback, data via its mount. No transitive exports.
+  Identical same-kind paths dedupe; conflicting paths name both rows and
+  refuse before execution. Missing declarations export only caller identity;
+  invalid/unreadable declarations refuse. Inherited reserved values are cleared.
+  Absent declared paths stay visible; repair dependencies and retry as needed.
+  These are read-only inputs: suites must never write to dependency checkouts.
+
 ENVIRONMENT FAILURE (#477, #530)
 
   A completed failed suite whose entire output proves Go could not create
