@@ -233,6 +233,12 @@ func savedMeasurementMayOverlap(savedSince, savedUntil string, since, until time
 	return start.Before(until) && since.Before(end)
 }
 
+// legacyWindowDisjoint needs a proven immutable end and the earliest admitted
+// engagement. Equality and missing bounds remain unknown.
+func legacyWindowDisjoint(end, since time.Time) bool {
+	return !end.IsZero() && !since.IsZero() && end.Before(since)
+}
+
 // loadAdoptedExclusions reads only already adopted same-slot actuals. A
 // potential overlap whose pinned replay cannot be established is unknown, not
 // zero. The measured issue's own completion never excludes itself.
@@ -302,6 +308,24 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 			window = windowOverlap
 			if !savedMeasurementMayOverlap(saved.Since, saved.Until, since, until) {
 				window = windowDisjoint
+			}
+		}
+		// Legacy generations may replace an absent window only with a
+		// revalidated immutable bound. The verifier also handles old imports
+		// without provenance by proving tracker-root and source generation.
+		// Saved input/correction failures never enter this recovery path.
+		if completionErr == nil && ((!completed) || (savedErr == nil && saved == nil)) {
+			legacy, explicit, legacyErr := issue.CardLegacyAdoption(rec.Card.Raw)
+			if legacyErr != nil {
+				savedErr = fmt.Errorf("legacy adoption: %w", legacyErr)
+			} else if (!completed && (!explicit || legacy.WindowClass == issue.LegacyWindowlessTerminal)) ||
+				(explicit && completed && legacy.WindowClass == issue.LegacyWindowlessClose) {
+				end, proofErr := verifyLegacyAdoption(ctx, root, rec, current.Snapshot.Repository, plans)
+				if proofErr != nil {
+					return nil, fmt.Errorf("%s has no trustworthy saved window: legacy adoption: %w", context, proofErr)
+				} else if legacyWindowDisjoint(end, since) {
+					window = windowDisjoint
+				}
 			}
 		}
 		// The saved numeric's own window, not its retained claim, is the

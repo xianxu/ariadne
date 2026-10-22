@@ -29,7 +29,8 @@ SUBCOMMANDS
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
                  and measured actual corrections
   migrate        One-time cutover of a legacy repository to the issue tracker
-                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
+                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch);
+                 `--repair-completions --issue N` repairs a missing imported close
   set-status     Flip an issue card's status with transition guards
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
@@ -250,6 +251,29 @@ origin/main): it proves every details file the branch changed kept the
 imported card's fields and has a card, then merges main's migration commit
 (not the rest of main), so later merges with main start from converted
 details. A conflict aborts the merge and says how to resolve it.
+
+Legacy done issues with numeric actuals retain verified close and measurement
+provenance. `issue show` displays retained, windowless-close or
+windowless-terminal. A terminal-only import stays unbound and warns; migration
+does not manufacture a review or a measurement window. Missing or malformed
+modern evidence is never inferred legacy. A verified windowless close or
+archive/done bound skips adopted-time exclusion only when it strictly predates
+the candidate's earliest admitted engagement; overlap remains unavailable.
+Old unmarked terminal-only imports can recover this bound read-only from the
+actual tracker root and matching pre-cutover archive, without changing a card.
+
+For a completed cutover missing an imported close, inspect one issue:
+
+  sdlc issue migrate --repair-completions --issue N
+  sdlc issue migrate --repair-completions --issue N --apply --expect DIGEST
+
+Apply rechecks the reviewed digest and exact current card blob. It preserves
+status, actual, ownership, checkout and archive; a confirmed repeat is a no-op.
+After an unknown push reply, run the dry run to observe whether repair landed
+before retrying. A moved card requires a fresh dry run; a changed generation,
+existing different completion/correction, or unprovable close refuses and names
+the evidence to restore. This is distinct from branch `--reconcile` and cannot
+be combined with it. Terminal-only imports have no close for this verb to repair.
 
 LEGACY CHECKPOINTING AND PUBLISHING (repositories before the #252 cutover)
 

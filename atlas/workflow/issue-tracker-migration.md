@@ -31,6 +31,37 @@ derivation in `internal/issue/migrate.go`.
   `{version, tracker_root}` beside the details conversion. The marker is what
   makes the era explicit to the binary.
 
+## Legacy completion recovery
+
+Numeric adopted actuals on imported done issues carry `tracker.legacy_adoption`
+provenance. `legacycompletion.go` resolves immutable source history and delegates
+generation selection to `tracker.SelectLegacyClose`; both migration and repair
+use this verifier. A proven close retains its original completion evidence and
+saved measurement inputs. The adoption class shown by `sdlc issue show` is
+`retained`, `windowless-close`, or `windowless-terminal`. Terminal-only records
+remain unbound and warn, preserving the absence of a close.
+
+For older cutovers, run `sdlc issue migrate --repair-completions --issue N`
+and review its source close, class and digest, then apply with
+`--apply --expect DIGEST`. `issuemigrate_repair.go` verifies the actual cutover
+parent/root, selected imported generation and complete card history, then uses
+the existing tracker CAS to update that exact card. It preserves the numeric
+actual, status, owner, unknown metadata, main, checkout and archived documents.
+An already confirmed repair makes no change. A changed card needs a fresh dry
+run; conflicting generations or damaged evidence refuse. After an uncertain
+push, inspect again before retrying. Terminal-only records cannot acquire a fake
+completion through repair. Branch `--reconcile` retains its existing meaning.
+
+Actual exclusion keeps retained snapshots authoritative. A verified windowless
+end bound only establishes disjointness when strictly before the earliest
+admitted candidate engagement. Old unmarked born-archived root cards can recover
+terminal provenance read-only through the same verifier; their card stays
+unchanged. Overlap/equality, damaged snapshots and ordinary modern missing
+records remain strict. No source sessions or measurement window are invented.
+Source history has a 10,000-commit bound and overflow sentinel; complete tracker
+generation history uses the existing 5,000-card-commit bound. Incomplete reads
+cannot provide authority.
+
 ## Legacy mode
 
 Until a repository cuts over, the #252 binary runs its pre-#252 workflow

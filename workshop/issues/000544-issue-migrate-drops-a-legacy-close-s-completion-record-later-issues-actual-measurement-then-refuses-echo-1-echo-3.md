@@ -46,6 +46,8 @@ close predates the candidate's engagement as disjoint (skip), not refuse.
 
 ## Done when
 
+- An already-migrated born-archived root card lacking completion/provenance permits later actuals only through read-only proof of its exact root/archive generation, without changing the card (test).
+
 - A born-archived legacy import with no close remains visibly unbound and warns; proven archive/done provenance strictly before the earliest new engagement permits later actual measurement, while overlap remains strict (test).
 
 - Migrating a legacy fixture with a closed issue keeps its completion record; `sdlc issue show` shows the close (test).
@@ -76,11 +78,20 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 
 - Plan-quality round1 PQ-1 requests named function-level test strategies and compressed prose inventories. Refined that contract without changing approved mechanisms. Existing born-archived fixture records have no actual historical close; sent the hub the narrow compatibility distinction before code.
 
+- Implementation checkpoint: change-code passed the full-flow plan-quality and estimate gates (accepted design commit 42dad88f). The additive legacy_adoption codec, pure close selector/repair planner, shared immutable-source verifier, migration binding, digest-pinned repair CAS, strict-before exclusion and issue-show provenance are implemented. Stored adoption classes are retained/windowless-close/windowless-terminal; old unbound recovery is read-only and restricted to done numeric cards present at the actual tracker root that match a canonical immutable pre-cutover archive generation. No completion is invented. Numeric active-done imports remain supported by explicit migration, but gain no old-import fallback.
+- TDD evidence so far: real archived-close migration reproduced the lost binding, then passed (7.177s); old migration repair initially refused the unknown flag, then dry-run/apply/no-op repeat passed (6.974s). Real CAS stale-card, lost-reply and cancellation-before-push controls passed (11.581s). Codec package, pure planner/selector and observation package checks passed. The final resolver/verifier/old-recovery targeted check passed (19.058s), including active-done, modern missing, correction and changed-source negative controls. Full production actual measurement covers new and already-migrated terminal records, close-backed imports, and earlier parked engagement: all six cases passed (29.569s); removing only the recovery fallback makes the two later-claim cases fail while overlap stays strict. These are targeted checks, not a completed full suite.
+- Observation regression first failed because the recovered class was absent, then passed (2.516s); it confirms issue show labels the provenance read-only while leaving completion absent and card bytes/remote tracker unchanged. Full internal/observe package passed (0.161s). Some earlier concurrent targeted runs tripped the repository hermeticity guard when another authorized implementation agent introduced new dirty paths; stable reruns passed. This is test scheduling during shared edits, not registered flake evidence.
+- Remaining verification: stage all new files before tracked-file lint, run a stable combined targeted/race/vet pass, build an exact committed binary, coordinate ops-echo:0's approved dry-run/apply/repeat/actual3 live check, then push and record the full branch suite. Close review and landing remain outstanding. No Echo writes, PR or recorded #544 suite yet. The estimate's module rows include implementation tests; full-suite wait and owner handoff may increase measured actual and must not reduce verification. All bounded implementation agents have finished; no own recorded check is queued or running at this checkpoint.
+
 ## Revisions
 
 ### 2026-10-22 — unbound terminal imports
 
 TL delivery 82679d7d-74d5-4320-9051-4232bdd6f97f extends the same strictly-earlier rule to unbound legacy imports using a proven archive/done commit. Preserve absence of a close, never fabricate review/window evidence, and keep overlapping cases strict. The plan now uses one LegacyAdoption envelope record across close-backed and terminal-only imports.
+
+### 2026-10-22 — existing unbound imports
+
+TL delivery ec3a2adf-2b31-4b08-a330-56f170a32a64 adds read-only root/archive proof recovery for old born-archived imports without completion or provenance. Strict-before earliest engagement remains required, no card write or fake close occurs, and modern missing records remain strict.
 
 ## Estimate
 
