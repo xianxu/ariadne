@@ -71,3 +71,7 @@ Pair#773's retained suite log records `bash tests/nvim-route-poke-admission-test
 ARCH-DRY/PURE: one typed identity, coverage and unit-proof model must feed registration, live reruns and all saved readers. ARCH-EVOLVE: attempt v3 is already reserved for audited could-not-run corrections, so the draft uses v4 for typed-capable checks and a declaration version barrier. Existing resume links, parent locks, immutable interrupted receipts and option-A cleanup stay unchanged. No tests or production code edits have run for #556.
 
 Checkpoint: durable plan drafted; next step is ops:0 review of the explicit runner/producer contract, peer adoption and private conformance gate. Wait for approval before `sdlc change-code`.
+
+### 2026-10-22 — TL approval
+
+ops:0 approved the full plan: unchanged Go identities, script path and Lua spec/case identities, whole-spec Lua reruns requiring both case and file proof, wrapper-owned script exit, Plenary's separate result channel, v4 attempts, immutable old records, and private production CLI plus real shell/Neovim/Plenary conformance with no stage (Couch delivery `995542a8-742e-4df9-9be0-28058c64cf55`). Proceeding to the full-flow plan-quality gate before production edits.
