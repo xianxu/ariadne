@@ -1,13 +1,21 @@
 ---
 id: 000535
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '26405f5431573eb602d282f44d90333ef99d6895' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd0c5502b4c6600f6b9b62d9acde9c72e749b745e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T19:18:10-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # landing: a priority grant on a car doesn't reach its train's queued integration suite
@@ -32,8 +40,35 @@ queue), re-evaluated on each queue tick; revoking or expiring the grant drops it
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce missing train-car identity at the production local-check/helper seam.
+- [ ] Carry the exact composed prefix's issue IDs into suite queue metadata; reuse the existing grant provider and refresh/cache path to prioritize when any included car has a valid grant.
+- [ ] Cover late grant, revoke, unchanged-log expiry, multiple grants, unrelated repository/train, conflict exclusion, split prefix, reintegration and diagnostic baseline; run counted queue projection checks at N and 2N.
+- [ ] Update atlas and shipped guidance as needed; run targeted tests, recorded pushed-head suite and close review, then land through sdlc.
+
+### Proposed bounded design
+
+The conductor retains issue IDs aligned with its existing successfully composed car heads. A local-run dependency projects only a matching current prefix SHA to its issues. The ordinary recorded test-check path passes those IDs to the capacity helper. Unmatched heads, non-test checks and unrecorded main-baseline diagnostics keep ordinary FIFO. Split/reintegrated runs use their actual prefix; rejected or removed cars confer nothing.
+
+Add an optional issue-ID list to the existing queue subject, retaining common_dir and issue. Train metadata uses issue zero plus its exact prefix list; old helpers safely treat that as FIFO. The Python helper validates the optional list, expands the requested car identities into the existing singular-issue provider requests, and uses the latest active included deadline for admission/display. No protocol version change, grant copying, inferred grant or new authority file. The Go grant provider remains the sole authority (ARCH-DRY); membership projection and any-active ordering stay pure (ARCH-PURE). Existing grant-log signature invalidation and temporal refresh handle later grants, revocation and expiry without requeueing.
+
+Alternatives: granting the conductor's issue cannot represent a later car's grant or a split prefix. Expanding grants by reading train event history adds a second membership authority and invalidation surface. Explicit exact-prefix metadata is smaller and follows the already composed inputs.
+
+Actions remain grant, revoke and wait. Queue classes and recovery stay unchanged:
+
+| Internal observation | Visible state | Action | Possible loss |
+| --- | --- | --- | --- |
+| At least one included grant active | fleet-blocking with included car/deadline | revoke or wait | none |
+| No included grant, all revoked/expired, or unrelated grant | normal FIFO at original ticket | grant or wait | none |
+| Invalid metadata or unreadable grant evidence | priority unavailable; normal FIFO | repair evidence or wait | priority only; suite retained |
+| Suite already owns capacity | running; no preemption | wait | none |
+
+Queue wait metadata has its existing lease lifetime and cleanup; no new durable family or background owner. The immutable membership list is bounded by the composed train; total request/response still obeys the existing 64 KiB protocol ceiling, failing to FIFO on unavailable priority. Per tick, expand each waiting subject once and visit each included issue once; reuse the existing one grant-log stat per repository and cached provider snapshot. Count N/2N projections/provider requests to reject rescans per car. No new external dependency, credential or destructive effect. Persisted additive metadata keeps old issue/common_dir semantics; helper record rewrites retain the subject dictionary. Malformed optional fields confer no priority. Semantic exact-prefix isolation is enforced with production-seam and real-helper regressions rather than a name-based Go lint rule.
+
+Private conformance proposal: existing real Python helper/process/flock harness plus production Go provider, with a queued train subject receiving a later car grant and then revoke/expiry. Ask TL whether this is sufficient without staging before live acceptance.
+
 
 ## Log
 
 ### 2026-10-21
+
+- Claimed and entered planning from refreshed main. Root-cause trace: conductor.build uses a detached train worktree; runLocalCheck calls suiteSubject on that tree and tested composed SHA. suiteSubject only assigns one issue for an exact checkout HEAD on an issue branch, so a train has issue zero. The helper currently orders by one (common_dir, issue) key. Existing grant refresh already observes late grant/revoke/expiry; membership is the missing input. No code changed yet.
