@@ -107,3 +107,9 @@ Files: cmd/sdlc/legacymode.go, cmd/sdlc/issue.go, cmd/sdlc/startplan.go; tests i
 - [ ] Run private production CLI setup conformance in a disposable local bare-remote fixture, including rerun and brain skip. Ask TL whether it suffices without stage before live acceptance.
 - [ ] Push through sdlc pr, run the recorded branch suite, and complete close review. No stage or publication outside the approved acceptance path.
 - [ ] On SHIP and passing branch evidence enter sdlc merge --yes, retain its authoritative integration run, verify merge/card/archive and report to hub. TL owns project updates and real fleet use.
+
+## Revisions
+
+### 2026-10-21 — TL-approved default setup and inventory-sensitive hints
+
+TL approved the explicit command (Couch 87ebe800-5c28-4e19-b11b-5bf5c2c1453a), full flow, and private production CLI plus real bare-Git conformance with no stage. Ordinary weave link/compile/refresh must not publish. To make initialization the default, every documented new-repo/bootstrap procedure in README and atlas, including operator/TL-facing creation guidance discovered in the implementation sweep, ends with issue init. The legacy hint is inventory-sensitive: empty inventory says issue init, nonempty says issue migrate. Brain/declined scaffold skip unchanged. This replaces Task 2's unconditional migrate wording; tests must prove both hints without changing legacy effects or the issue-new stdout path contract. Reuse one empty-inventory policy for initialization and hint selection; hint evidence is advisory, never publication authority, and unreadable/unknown inventory must not be claimed empty. The first hint observes pre-creation inventory (before legacy issue new creates its first details file).

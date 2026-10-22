@@ -59,3 +59,11 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 ### 2026-10-21
 
 - Claimed and entered planning from refreshed main. Read-only survey confirms weave link only declares substrate/seeds a manifest, compile is shared with bootstrap/CI/refresh, and no separate repo-creation command exists. Hooking implicit publication into compile would change existing non-Git/refresh contracts; scaffold absence is not proof of newness and loses retry intent after partial setup. Recommend an explicit issue init final step in the canonical new-repo runbook, reusing migration's exact-root/two-phase publication. Pending TL approval: this interpretation of the allowed equivalent init step, and opt-out as omission/declined issue scaffolding rather than a new config format. No implementation changes.
+
+- TL approved explicit issue init, full flow, no implicit weave publication, and private production CLI/bare-Git conformance with no stage (Couch 87ebe800-5c28-4e19-b11b-5bf5c2c1453a). Added the condition that canonical operator/TL new-repo/bootstrap procedures end with init, and empty legacy inventories hint init rather than migrate. No code changed before approval.
+
+## Revisions
+
+### 2026-10-21 — approved default initialization boundary
+
+The default new-repo procedure explicitly finishes with issue init. Legacy issue new/start-plan hint init for an observed empty inventory and migrate for existing issues; brain/declined scaffold skip. Durable plan's revision records the full condition and acceptance. Existing composition/refresh behavior stays unchanged.
