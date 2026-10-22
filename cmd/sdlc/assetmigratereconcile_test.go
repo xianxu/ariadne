@@ -16,13 +16,16 @@ func migrationAssetFixture(t *testing.T, conversion bool) (*trackerRepo, string)
 	data := "line one\nline two\n"
 	name, _ := issueassets.Name([]byte(data), "png")
 	asset := "workshop/history/issues/assets/000003/" + name
+	// Both tips carry the same published archive document. The conversion
+	// case keeps only the asset and its attributes absent on the old branch,
+	// so inventory acceptance reaches the intended materialization guard.
+	appendDetail(t, r, detail, "![evidence](assets/000003/"+name+")")
 	if !conversion {
-		appendDetail(t, r, detail, "![evidence](assets/000003/"+name+")")
 		writeRepoFile(t, r.root, asset, data)
-		r.git("add", "workshop/history")
-		r.git("commit", "-qm", "existing evidence")
-		r.git("push", "-q", "origin", "main")
 	}
+	r.git("add", "workshop/history")
+	r.git("commit", "-qm", "existing evidence reference")
+	r.git("push", "-q", "origin", "main")
 	r.git("switch", "-q", "-c", "000002-two")
 	writeRepoFile(t, r.root, "branch.txt", "branch\n")
 	r.git("add", "branch.txt")
@@ -33,7 +36,6 @@ func migrationAssetFixture(t *testing.T, conversion bool) (*trackerRepo, string)
 	}
 	r.git("switch", "-q", "main")
 	if conversion {
-		appendDetail(t, r, detail, "![evidence](assets/000003/"+name+")")
 		writeRepoFile(t, r.root, asset, data)
 		writeRepoFile(t, r.root, ".gitattributes", "workshop/history/issues/assets/** text eol=crlf\n")
 		r.git("add", "workshop/history", ".gitattributes")

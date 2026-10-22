@@ -8,6 +8,12 @@
 
 # Lessons
 
+- #552: shell redirection creates the output file before printf/echo writes its content. A PID
+  readiness path observed by existence must be published by sibling write/close/rename; a separate
+  post-write signal is also sound. Hold a native barrier between output-open and the PID write to
+  prove the publication boundary, and cancel/await the fixture even when that assertion fails.
+  The hub approved this deterministic protocol guard instead of a lexical PID-write rule, which
+  would also flag safe validating readers and post-write FIFO consumers.
 - #550: a readiness prerequisite cannot depend on an effect available only
   after that readiness admits its owner. Preserve actionable prerequisite
   facts separately from aggregate status precedence, and exit with the full
@@ -1448,6 +1454,22 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
+- #546: inventory completeness and import authority are separate. Observe all
+  current carriers first; keep archive evidence out of active rename inputs,
+  and preserve related-branch merge-base semantics. A stricter path classifier
+  must not silently hide filename bytes accepted by ParseFilename. Pure matching
+  tests and native root × scope/preservation regressions guard this semantic
+  contract; helper-name lint cannot establish publication completeness.
+- #546 PQ-1: use exact production function names in plan strategy tables and
+  one adversarial class plus independent guard per function. Keep finite test
+  input enumerations in executable tests rather than duplicating them in prose.
+
+- #546 recorded suite: a stricter, intended preflight can make an unrelated
+  regression fail in fixture setup before reaching its original guard. Align
+  prerequisite evidence with the new contract while preserving the exact old
+  refusal and no-mutation oracle; do not weaken production policy or label a
+  reproducible fixture failure a flake. Exercise helper tests through the live
+  consumer path instead of retaining unused compatibility code solely for tests.
 - #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
 
 - #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.
@@ -1496,3 +1518,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   typed reader call; do not substitute an empty or independently derived name
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
+
+- #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
