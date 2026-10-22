@@ -1,13 +1,21 @@
 ---
 id: 000543
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '489cd14006bae11b2c12f55d8fd24fea858c2b78' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e348742c2a4d429c6e3adc83174cd98b2c2feba0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T22:43:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # new repositories start on the legacy issue path: initial setup should create the issue tracker (non-brain repos)
@@ -39,8 +47,15 @@ opt out are left alone. Existing legacy repos get a one-line hint from `sdlc iss
 
 ## Plan
 
-- [ ]
+Proposed durable plan: [new repository tracker initialization](../plans/000543-new-repo-tracker-plan.md). Await TL approval of the explicit initialization seam before change-code.
+
+- [ ] Add an explicit empty-only issue init step reusing tracker migration, with brain/opt-out exclusion, prerequisite refusals, safe retry and checkout completion.
+- [ ] Add the shared legacy migrate hint at issue new and start-plan; document the default new-repository sequence separately from adoption/refresh.
+- [ ] Verify pure eligibility and real-Git sequence/failure/concurrency fixtures, private CLI conformance, recorded suite and whole-issue close review; land through sdlc.
+
 
 ## Log
 
 ### 2026-10-21
+
+- Claimed and entered planning from refreshed main. Read-only survey confirms weave link only declares substrate/seeds a manifest, compile is shared with bootstrap/CI/refresh, and no separate repo-creation command exists. Hooking implicit publication into compile would change existing non-Git/refresh contracts; scaffold absence is not proof of newness and loses retry intent after partial setup. Recommend an explicit issue init final step in the canonical new-repo runbook, reusing migration's exact-root/two-phase publication. Pending TL approval: this interpretation of the allowed equivalent init step, and opt-out as omission/declined issue scaffolding rather than a new config format. No implementation changes.
