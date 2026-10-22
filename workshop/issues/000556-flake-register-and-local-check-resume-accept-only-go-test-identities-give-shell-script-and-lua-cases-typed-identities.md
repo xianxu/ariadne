@@ -54,7 +54,9 @@ Durable design: [typed identities plan](../plans/000556-typed-flake-identities-p
 - [x] Add trusted unit runner declarations and positive script/Lua completion evidence.
 - [x] Connect recorded failures, exact-unit retries, saved resume, republish and guards; preserve legacy Go proof.
 - [x] Prove both motivating shapes with private production CLI, real shell and Plenary conformance; document adoption.
-- [ ] Recorded verification, issue-close review, land and report to hub.
+- [x] Prepare and queue recorded verification; enter issue-close review with the implementation and private acceptance evidence complete.
+
+After the close verdict, the recorded suite must pass before landing; any review code fix requires fresh verification. Land through sdlc merge and report the PR/outcome to ops:0.
 
 ## Revisions
 
@@ -139,3 +141,13 @@ Fresh pure flakes/issue tests passed. Root combined verification passed the type
 `go test ./pkg/golint ./pkg/vocab ./scripts/test -count=1` passed; scripts/test completed in 43.385s. Actual motivating diagnostic excerpts are retained under cmd/sdlc/testdata/typed-flakes; a normal replay test ensures historical text cannot manufacture typed authority. Help/atlas document explicit declaration/producer adoption and the #558 boundary. No construct/base.manifest, live .sdlc or seeded workflow changes. #558 report receipt b82dadae-4705-42b3-a799-ea1f05ab28fa was verified submitted; the later Couch restart requires no resend.
 
 Checkpoint next step: run the existing private legacy-Go resume conformance on this new reader, then push and run the declared recorded affected/suite check. No own recorded check is queued/running yet. Complete the issue-close review, fix/dispute blockers, then PR/land and report the outcome to ops:0. All bounded agents are stable; no own test process remains running.
+
+### 2026-10-22 — legacy compatibility and recorded queue
+
+`SDLC_PRIVATE_RESUME_CONFORMANCE=1 go test ./cmd/sdlc -run '^TestLocalCheckResumeConformance$' -count=1 -timeout 10m` passed in 84.477s: the new reader still resumes legacy Go evidence, reposts without re-execution and keeps crash/reconcile authority intact. Implementation checkpoint 9b546c7c9 is pushed.
+
+The required recorded suite is queued through `sdlc local-check run --name suite`, run lease-641560774, raw attempt f0be49df0fbad21919b67ad5f615f2e9 on that checkpoint. Last observed admission is normal FIFO position 19, behind the running Ariadne suite. It has not passed. The tl-worker contract explicitly permits the close review to overlap a queued recorded check, provided a final code pass precedes landing and review code changes get fresh verification. Entering that review now; retain this runner and queue position. No continuation/restart while it is queued/running.
+
+### 2026-10-22 — close checklist clarification
+
+The final issue Plan row records preparation/queueing and entry to the close boundary; the existing post-verdict suite/landing/report work is stated immediately afterward. This avoids claiming a future landing or verdict was completed merely to satisfy the pre-close unchecked-item gate. No acceptance, gate or scope changed.
