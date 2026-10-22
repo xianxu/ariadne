@@ -43,10 +43,9 @@ Durable plan: [suite head attribution](../plans/000548-suite-head-attribution-pl
 - [ ] Reproduce and enforce immutable issue-head membership before queue attribution.
 - [ ] Verify the owned/foreign/unknown and train controls, owner-run Echo preview, suite, close and landing.
 
-- [ ]
-
 ## Log
 
+- 2026-10-22: TL approved the durable plan (delivery c4635b43-eb9c-41eb-9592-c4174b66fe93): immutable tested-head membership precedes slot/time ownership; reuse local-lead grammar, follow first-parent neutral integration/metadata only, honor exact train composition, skip proven foreign runs, keep unknown/unreadable strict, and add no persisted fields. Implementation starts after #544 lands. ops-echo:0 owns read-only actual9 and actual3 live previews.
 - Started planning from Git-verified main909bf77db0b84bfe73a4b494bec775c40d47b78e in a separate independent ordinary clone, as TL authorized while #544 queues. #544's runner remains intact in the canonical slot. Workspace gate refused a linked dependency worktree; the untouched worktree was removed and the required independent clone passed the gate. No identity override used.
 - The exact offending attempt SHA fc679c0745bbdd09896163978d3f24d7516b4564 leads with #3; selectOwnedQueueAttempts does not inspect SHA at all. A slot/time-only selector is insufficient when two issue claims coexist. Design uses shared local-lead grammar plus bounded immutable lineage proof before existing ownership selection. No code changed; awaiting TL plan review.
 
