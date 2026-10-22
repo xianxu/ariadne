@@ -160,3 +160,5 @@ The merge start fence is admission of the Merge effect after green CI, before it
 - 2026-10-21 final acceptance: SHIP round3, both findings addressed with independent mutations. Recorded suite on final source2eb193c29 passes all8shards/1961command tests/75other packages in623.1s, zero failures. Issue plan complete; normal merge gate is next.
 
 - 2026-10-21 integration correction: main’s #527 attribution flow adds attributing and moves membership reduction to SplitAssessed. Recognize its existing phase in train control and preserve both lock-order oracles at that production boundary, with separate entry-to-attribution coverage. Atlas conflict resolves to the union of documented events/effects/phases. Fresh integrated suite and narrow re-close required before retrying landing.
+
+- 2026-10-21 final integrated acceptance: narrow re-close SHIP and recorded suite on a887eb111 passes all8shards/2050command tests/75other packages, zero failures,817.9s. Evidence persisted on SSD; final plan complete. Retry the normal merge gate.
