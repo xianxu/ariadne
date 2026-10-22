@@ -1,13 +1,13 @@
 ---
 id: 000552
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '08a485b4267eb10ae00c39c1b42fd531bebf4d7c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c02ad2225947632093079053044aa84117f1b363' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T09:21:58-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestDocRepositoryCancellation]
 flow: {kind: quick, provenance: inferred, spec: "4ab9c5ad", done: "847448a6"}
+actual_hours: 0.57
 ---
 
 # flake: TestDocRepositoryCancellation
