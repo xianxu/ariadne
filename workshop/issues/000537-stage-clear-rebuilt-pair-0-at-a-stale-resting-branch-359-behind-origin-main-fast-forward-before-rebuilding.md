@@ -32,13 +32,14 @@ TL caught it by checking `git status` and fast-forwarded plus rebuilt by hand.
 
 Fix: `stage --clear` fetches and fast-forwards the resting branch to `origin/main` before rebuilding (it's a resting
 branch: fast-forward only, never committed on). If it can't fast-forward (diverged or dirty), refuse and name the
-state instead of building a stale tree.
+state instead of building a stale tree. Dry run fetches read-only and reports the resting branch's lag; only a failed fetch makes freshness unverified.
 
 ## Done when
 
 - `stage --clear` on a target whose resting branch is behind origin/main ends on origin/main's tip, with binaries
   built from it (test with a fake remote).
 - A diverged resting branch makes `--clear` refuse before building (test).
+- Dry run fetches and reports behind/ahead counts without checkout, lease or build effects; failed fetch reports freshness unverified.
 
 ## Plan
 
@@ -55,7 +56,7 @@ Actions: clear, repair local Git state/network/build, retry clear.
 | Dirty, ahead/diverged, or failed fetch/probe before checkout | Refused, no rebuild; target and lease retained | Repair named Git state/network, retry clear | None |
 | Checkout/asset verification fails after a local effect | Refused with observed partial progress; no rebuild | Inspect/repair target, retry clear | No reset or rollback; retain existing work |
 | Restored pin, rebuild fails | Resting checkout named, build unverified | Repair build, retry clear (fetches again) | Existing binary may remain stale until success |
-| Dry run | Would fetch main, fast-forward and rebuild; freshness not verified | Run clear | None; no fetch, checkout, lease release or build |
+| Dry run | Fetched behind/ahead counts and proposed clear, or freshness unverified if fetch fails | Run clear after any required repair | None; no checkout, lease release or build |
 
 Covered: both detached and already-resting clear paths, failed-build retries, refusal before stale build, existing stage ownership/assets. Not covered: unrelated move/merge restoration, automatic tool rollout, concurrent manual Git writers outside SDLC; existing stage lock only serializes cooperating operations. Tests use real private Git resources and the existing build-info seam; no live fleet mutation. The invariant depends on ancestry and effect ordering, so behavioral regressions defend it rather than a lexical lint rule that merely names a helper.
 
@@ -64,3 +65,7 @@ Covered: both detached and already-resting clear paths, failed-build retries, re
 ### 2026-10-21
 
 - 2026-10-21: Claimed and started from fresh main while #534 remains on its separate retained issue branch awaiting the operator label. Inspected both clear paths: each rebuilt to.Head/to.RestHead without a remote fetch. The existing stage lock already spans clear/build; gitx.TrunkFile.Snapshot fetches into the exact remote-tracking ref and pins subsequent asset reads. Plan is quick-flow sized and stops for hub review before code, as dispatched.
+
+## Revisions
+
+- 2026-10-21 18:58 PDT — Hub approved plan and isolated production-path proof, no live :0 touch. Dry-run policy revised from no fetch/unverified to a read-only fetch plus behind/ahead counts; retain unverified only on fetch failure. All other scope and recovery behavior approved unchanged.
