@@ -106,6 +106,10 @@ func TestParseAddresses(t *testing.T) {
 }
 func FuzzParseAddresses(f *testing.F) {
 	f.Add("ip_address: 192.0.2.1\n")
+	f.Add("ipv6_address: ::1\n")
+	f.Add("ip_address: 192.0.2.1\nipv6_address: 2001:db8::1\n")
+	f.Add("ipv6_address: ::1 extra\nipv6_address: fe80::1%en0\n")
+	f.Add("2001:db8::1 STREAM example.test\n;; SERVER: 192.0.2.1#53\n")
 	f.Fuzz(func(t *testing.T, s string) {
 		for _, ip := range ParseAddresses([]byte(s)) {
 			if !ip.IsValid() || ip.Zone() != "" {

@@ -84,7 +84,7 @@ func ParseAddresses(raw []byte) []netip.Addr {
 			continue
 		}
 		token := fields[0]
-		if token == "ip_address:" && len(fields) == 2 {
+		if (token == "ip_address:" || token == "ipv6_address:") && len(fields) == 2 {
 			token = fields[1]
 		}
 		ip, err := netip.ParseAddr(token)
