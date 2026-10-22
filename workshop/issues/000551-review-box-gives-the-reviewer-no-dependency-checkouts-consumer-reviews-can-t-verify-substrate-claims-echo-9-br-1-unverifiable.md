@@ -1,13 +1,21 @@
 ---
 id: 000551
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '31dde955af6a4f109be46c791e3593249d1d9091' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b693f91ea7e19c0a951e20b4037b2b69fb6ffbcf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T05:22:03-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable)
@@ -39,8 +47,25 @@ clone (ARCH-FUNERAL), never writable, bounded size and time.
 
 ## Plan
 
-- [ ]
+Implementation plan: [review dependency checkouts](../plans/000551-review-dependency-checkouts-plan.md).
+
+- [ ] Share bounded declaration resolution and dependency descriptors.
+- [ ] Create pinned disposable dependency clones with retry/cleanup ownership.
+- [ ] Expose paths, SHA, freshness and isolation mode in boundary prompts; verify and land.
 
 ## Log
 
 ### 2026-10-22
+
+
+## Revisions
+
+### 2026-10-22 — TL-approved dependency and isolation semantics
+
+The current construct/deps grammar has no revision-pin field. Reuse it without extension, resolve each direct local dependency, and pin refs/remotes/origin/main as last fetched once per review. Do not fetch in setup or retry. The prompt names the exact SHA and evidenced fetch age (unknown when not provable).
+
+The original never-writable condition is revised by TL instruction: with an available OS fence, dependency clones are read-only; without it, give the reviewer disposable dependency clones, permit writes only under the existing checkout isolation guarantee, label that mode, and discard their mutations on retry/cleanup. Do not refuse an otherwise supported review solely because the fence is unavailable. No live dependency checkout is substituted for its disposable copy.
+
+### 2026-10-22 — design checkpoint
+
+Claimed and started planning after #548 landed. #531 is parked by TL. Read #545 environment resolution, layergraph grammar/resolver, reviewbox checkout/fence/confinement and the shared boundary dispatch. Read-only delegated lifecycle audit identified that an unowned sibling directory would be swept during a live review; the plan therefore reuses individually locked Create clones retained by the primary owner. No source implementation started. Full plan includes direct substrate/data bindings, exact last-fetched pins, freshness uncertainty, bounded materialization, retry/death cleanup and real-Git/fence proof. ARCH-DRY reuses existing declaration and checkout owners; ARCH-FUNERAL keeps all artifacts within their current cleanup lifecycle.
