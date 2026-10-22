@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 2.37
 collaboration-mode: collaboration
-card_mirror: 'b693f91ea7e19c0a951e20b4037b2b69fb6ffbcf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0048dd0d5a57ccd9c595e730379c6b54d70ad51c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T05:22:03-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f9a9a85a", done: "31cc2319"}
+flow: {kind: full, provenance: operator}
 ---
 
 # review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable)
@@ -74,3 +74,24 @@ Claimed and started planning after #548 landed. #531 is parked by TL. Read #545 
 ### 2026-10-22 — approved plan and plan-quality refinement
 
 TL approved the full design and Echo-owned #10 boundary review as live conformance. Initial change-code inferred quick while the diff was still empty; reran with --flow full to obtain the intended plan-quality gate before implementation. Round 1 found PQ-1 contextual checkout/retry propagation and PQ-2 repeated test inventories; refined both as recorded in the plan. Current Done-when now reflects the approved modes. TL approved disposable environment exports, including Claude shell restoration. Echo supplied exact BR-1 evidence at its commit 5a3ada9 and confirmed #10 readers honor SDLC_DEP_SUBSTRATE. No source implementation yet.
+
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; calibration marked stale, so provisional. Familiar existing Go/reviewbox/layergraph stack, no vendor propagation. Existing parser, resolver, flock lifecycle, process-group runner and fence implementations supply the library shortcut; the new budget/descriptor unit uses 1.0h base design halved for reuse, then ×0.2 for the approved concrete plan. Smaller extensions use 0.2h base design ×0.2 and 0.4h base implementation ×0.4. Context refactor uses 0.5h base design ×0.2 and 0.5h implementation ×0.4. Issue shaping retains 0.5h design; docs/review design receive the concrete-plan discount. Implementation values below already include v3.1's ×0.4. Bounds, live Echo conformance and regression proof are included, not separate scope.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.08
+item: smaller-go-module design=0.04 impl=0.16
+item: smaller-go-module design=0.04 impl=0.16
+item: smaller-go-module design=0.04 impl=0.16
+item: greenfield-go-module design=0.10 impl=0.32
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 2.37
+```
+
+The three smaller modules are shared resolution, child-clone ownership and prompt/environment integration. Greenfield covers the bounded descriptor/tree policy. Design 0.88h ×1.15 + implementation 1.36h = 2.372h.
