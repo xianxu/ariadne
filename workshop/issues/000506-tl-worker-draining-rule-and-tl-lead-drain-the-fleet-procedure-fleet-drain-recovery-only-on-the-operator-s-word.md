@@ -1,13 +1,13 @@
 ---
 id: 000506
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-20
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f4a4362c069c5992d46e1d538d41978e6421a28d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ffc64a6e84c9ffed8a53e5ebbe4f7770ec03ddf9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T02:11:50-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "60fdb607", done: "87ae8e40"}
+actual_hours: 0.95
 ---
 
 # tl-worker draining rule and tl-lead drain-the-fleet procedure (fleet-drain; recovery only on the operator's word)
