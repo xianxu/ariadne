@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xianxu/ariadne/pkg/procgroup"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -249,14 +250,75 @@ func TestDocRepositoryCancellation(t *testing.T) {
 	root, _ := docRepoFixture(t)
 	dir := t.TempDir()
 	ready := filepath.Join(dir, "ready")
+	openedPath, releasePath := filepath.Join(dir, "opened"), filepath.Join(dir, "release")
+	for _, p := range []string{openedPath, releasePath} {
+		if err := syscall.Mkfifo(p, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opened, err := os.OpenFile(openedPath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close()
+	release, err := os.OpenFile(releasePath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release.Close()
 	bin := filepath.Join(dir, "sdlc")
-	os.WriteFile(bin, []byte("#!/bin/sh\nsleep 60 &\necho $$ > '"+ready+"'\nwait\n"), 0755)
+	// Atomic PID readiness: write a sibling staging file, close, then rename.
+	// The FIFO barrier holds output open before the PID write, making the
+	// create-before-content race deterministic instead of relying on load (#552).
+	script := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nexec 3> %q\nprintf r > %q\nread permit < %q\nprintf '%%s\\n' \"$$\" >&3\nexec 3>&-\nmv %q %q\nwait\n", ready+".tmp", openedPath, releasePath, ready+".tmp", ready)
+	if err := os.WriteFile(bin, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, err := (execDocRepository{sdlcBin: bin}).Mode(ctx, root); done <- err }()
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		_, err := (execDocRepository{sdlcBin: bin}).Mode(ctx, root)
+		done <- err
+	}()
+	defer func() {
+		cancel()
+		select {
+		case <-finished:
+		case <-time.After(3 * time.Second):
+			t.Error("fixture did not stop during cleanup")
+		}
+	}()
 	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
+	arrived := make(chan error, 1)
+	go func() { _, err := io.ReadFull(opened, make([]byte, 1)); arrived <- err }()
+	select {
+	case err := <-arrived:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case err := <-done:
+		t.Fatalf("ended before output-open barrier: %v", err)
+	case <-deadline.C:
+		t.Fatal("no output-open barrier")
+	}
+	if _, err := os.Stat(ready); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("readiness published before PID write: %v", err)
+	}
+	partial, err := os.ReadFile(ready + ".tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, partialErr := strconv.Atoi(strings.TrimSpace(string(partial)))
+	capture, err := os.ReadFile("testdata/doc-repository-cancellation/empty-pid.log")
+	if err != nil || len(partial) != 0 || partialErr == nil || !bytes.Contains(capture, []byte(partialErr.Error())) {
+		t.Fatalf("partial readiness %q / %v does not replay recorded failure: %v", partial, partialErr, err)
+	}
+	if _, err := release.WriteString("continue\n"); err != nil {
+		t.Fatal(err)
+	}
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -276,8 +338,8 @@ func TestDocRepositoryCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	pgid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || pgid <= 1 {
+		t.Fatalf("invalid process group %q: %v", raw, err)
 	}
 	cancel()
 	select {

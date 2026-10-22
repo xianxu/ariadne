@@ -8,6 +8,12 @@
 
 # Lessons
 
+- #552: shell redirection creates the output file before printf/echo writes its content. A PID
+  readiness path observed by existence must be published by sibling write/close/rename; a separate
+  post-write signal is also sound. Hold a native barrier between output-open and the PID write to
+  prove the publication boundary, and cancel/await the fixture even when that assertion fails.
+  The hub approved this deterministic protocol guard instead of a lexical PID-write rule, which
+  would also flag safe validating readers and post-write FIFO consumers.
 - #550: a readiness prerequisite cannot depend on an effect available only
   after that readiness admits its owner. Preserve actionable prerequisite
   facts separately from aggregate status precedence, and exit with the full
