@@ -848,7 +848,7 @@ class Tickets:
                 fcntl.flock(queue, fcntl.LOCK_UN)
         else:
             taken, busy = scan(fds, 0)
-        deadline = deadlines.get(subject_key(order[index][1]), 0)
+        deadline = subject_deadline(order[index][1], deadlines)
         return taken, busy, ahead, head, deadline
 
     def admission(self, fds, queue, want, evidence, gate=None):
@@ -948,24 +948,34 @@ def valid_subject(subject):
             "\x00" in common or common.startswith("//") or os.path.normpath(common) != common or
             type(issue) is not int or issue < 0):
         return False
+    if "issues" in subject and (not isinstance(subject["issues"], list) or
+            any(type(n) is not int or n <= 0 for n in subject["issues"])):
+        return False
     try:
         return len(os.fsencode(common)) <= 4096
     except UnicodeError:
         return False
 
 
-def subject_key(rec):
+def subject_keys(rec):
     subject = rec.get("subject") if isinstance(rec, dict) else None
-    if not valid_subject(subject) or subject["issue"] == 0:
-        return None
-    return subject["common_dir"], subject["issue"]
+    if not valid_subject(subject):
+        return []
+    issues = subject.get("issues", [])
+    if subject["issue"]:
+        issues = [subject["issue"], *issues]
+    return [(subject["common_dir"], issue) for issue in issues]
+
+
+def subject_deadline(rec, deadlines):
+    return max((deadlines.get(key, 0) for key in subject_keys(rec)), default=0)
 
 
 def effective_order(records, deadlines, now):
     """Stable partition of numeric FIFO; expired evidence confers nothing."""
     priority, normal = [], []
     for item in records:
-        (priority if deadlines.get(subject_key(item[1]), 0) > now else normal).append(item)
+        (priority if subject_deadline(item[1], deadlines) > now else normal).append(item)
     return priority + normal
 
 
@@ -986,9 +996,8 @@ class GrantEvidence:
             subject = record.get("subject") if isinstance(record, dict) else None
             if subject is not None and not valid_subject(subject):
                 self.warn("invalid persisted suite subject")
-            key = subject_key(record)
-            if key:
-                requested.setdefault(key[0], set()).add(key[1])
+            for common, issue in subject_keys(record):
+                requested.setdefault(common, set()).add(issue)
         stale, signatures = {}, {}
         result = {}
         for common, issues in requested.items():
@@ -1160,7 +1169,9 @@ def acquire(watch, weight=1):
                     return 'paused'
                 held = holders(busy)
                 if ahead is not None:
-                    classification = (f"fleet-blocking issue #{rec['subject']['issue']}, until "
+                    label = (f"train cars {rec['subject']['issues']}" if rec['subject'].get('issues')
+                             else f"issue #{rec['subject']['issue']}") if deadline > time.time() else ''
+                    classification = (f"fleet-blocking {label}, until "
                                       f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
                                       if deadline > time.time() else "normal FIFO")
                     if head:

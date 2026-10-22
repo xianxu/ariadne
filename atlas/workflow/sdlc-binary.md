@@ -1040,6 +1040,34 @@ ref fake at that same boundary and real bare-Git fixtures in normal test runs,
 including receive-pack races, remote rewinds, lost acknowledgments, identical
 candidate commits, conflicts and retries after later edits or reverts.
 
+## Network incidents
+
+`sdlc net check` (`cmd/sdlc/net.go`, `internal/netcheck`) compares native system
+DNS with direct DNS through dig's configured server, and attempts HTTPS to the
+Git host from one address on each path. TLS hostname verification remains on;
+no redirects, credentials, proxies, cache edits or remote Git mutations occur.
+An HTTP response establishes reachability, not application service health.
+The configured publication remote selects the default effective fetch host;
+`--remote` selects another remote, and `--host` works outside a repository.
+Distinct push hosts receive a separate check hint. github.com includes
+api.github.com DNS; `--api-host` selects another explicit DNS-only observation.
+
+The command owns an eight-second total budget, at most four path jobs,
+two-second native utility bounds and three-second HTTPS bounds. SIGINT/SIGTERM
+use executeCLI's signal owner and each utility's process group; all work joins
+before return. Missing utilities, partial failures and timeouts remain
+observations rather than inferred upstream outages. Private TLS/subprocess
+controls and a stateful probe fake cover address provenance and shutdown.
+
+`gitx.ClassifyNetworkFailure` is a pure shared adapter for the main Git runner,
+internal contextual and legacy runners, and weekly inputs. Recognized
+transport diagnostics become `infrastructure: network` with a safe host and
+exact net-check command, retaining original error identity and publication
+uncertainty. Ordinary auth/ref/hook/local failures and user cancellation are
+unchanged. No probes or retries run inside failed Git paths, and local-check
+preparation failures do not produce test verdicts. TL/worker help owns prompt
+incident escalation and recovery notices; see [TL tooling](tl-skills.md).
+
 ## Drift checks (`sdlc state`)
 
 `state` gates nothing — it reports. `detectDrift` (state.go) surfaces warn-only
@@ -2422,6 +2450,9 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   each class; no running suite is preempted. Expiry or revocation returns the
   waiter to normal FIFO at its original ticket number. A priority head needing
   two slots waits for both; light normal suites cannot backfill ahead of it.
+  A composed train suite inherits any active grant on a car in its exact tested
+  prefix (#535), including a grant added while queued. Removed/conflicting cars
+  and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it
@@ -2434,7 +2465,11 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   issue branch only when its HEAD equals the tested commit. Baselines, other
   checks and unknown identities remain normal. Direct make uses its supplying
   workflow's `bin/sdlc`; recorded checks use their own executable. Tickets carry
-  repository/issue identity, never a priority boolean or executable. Snapshots
+  repository/issue identity, plus an optional exact train-prefix issue list,
+  never a priority boolean or executable. Train metadata leaves the legacy issue
+  zero, so older helpers safely keep it FIFO; upgraded helpers expand the list
+  into the same singular grant-provider requests. Main diagnostics and non-test
+  checks carry no car IDs. Snapshots
   live only in memory, invalidate on source changes or Go-derived activation/
   expiry boundaries, and start no provider process on unchanged pre-boundary
   polls. Provider calls are bounded to 2 seconds and 64 KiB. Missing, old,
@@ -2446,7 +2481,7 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
 The wait names each holder once, then `position K in line; next in line: …` (the
 waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
-normal FIFO or fleet-blocking issue/deadline, and reports class/position changes
+normal FIFO or fleet-blocking issue/train cars and deadline, and reports class/position changes
 immediately rather than waiting for the periodic diagnostic.
 If contention or a pause prevents validating order, it reports `position unknown`
 until an observation is available, then explicitly labels reused diagnostics

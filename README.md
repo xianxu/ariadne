@@ -38,7 +38,10 @@ commit, runs `make build` plus targets declared as `# stage-build: <target>` in
 Go commands' `.skip-make-build` files, and refuses missing, modified or
 wrong-revision `bin/*` binaries. The target must be a simple Make target name,
 not an option or variable assignment. `sdlc stage --clear` returns the target
-to its resting branch, then rebuilds and checks its binaries at that HEAD.
+to its resting branch, fast-forwards it to freshly fetched origin/main, then
+rebuilds and checks its binaries at that exact pin. Dirty, ahead/diverged or
+failed-fetch states refuse before building. Clear dry-run fetches and reports
+behind/ahead counts without checkout or build changes; failed fetch says unverified.
 If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
@@ -490,6 +493,28 @@ To publish a reviewed commit (first done for `weave-v0.1.0` in #241):
    `brew audit --strict --online --formula xianxu/ariadne/weave`. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
+## Network incidents
+
+Git resolver and connection failures report `infrastructure: network` with
+the observed host and an exact diagnostic command. Run:
+
+```sh
+sdlc net check --host github.com
+sdlc net check --remote origin
+```
+
+With no flags, `sdlc net check` uses the configured publication remote. It
+compares native system DNS with direct DNS through the configured server,
+then reports HTTPS through each path using one sampled address, verified TLS,
+and no proxy or credentials. The read-only check has an eight-second budget;
+missing tools and partial observations remain visible. See `sdlc net --help`
+and the [SDLC map](atlas/workflow/sdlc-binary.md#network-incidents).
+
+Workers report external dependency outages immediately to the hub. The TL
+notifies the operator immediately and on verified recovery; the authoritative
+rule is `tl-lead --help`. Preserve any uncertain write's existing recovery
+state rather than treating a network fault as test evidence or blindly retrying.
+
 ## Workspace identity
 
 Resolve the current checkout or a numbered workspace from Git topology:
@@ -548,7 +573,9 @@ next admission without interrupting a running landing or waiving any gate.
 While any valid grant exists, normal admissions wait even before the granted
 issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
-releases the hold; a successful landing ends its grant.
+releases the hold; a successful landing ends its grant. A train's queued integration
+suite inherits any active grant on a car in its exact tested prefix; later grants,
+revocation and expiry update its queue class without restarting it.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,

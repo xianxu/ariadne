@@ -80,3 +80,5 @@ check-restart-decision	own	let it decide whether to wait or
 check-restart-verify	own	After any restart, verify retained checks
 check-restart-head	own	on the exact head before assuming it survived
 check-restart-cancel	own	cancel and requeue.
+
+external-outage-540	own	Report an external dependency outage to the hub immediately as an incident

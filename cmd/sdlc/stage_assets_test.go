@@ -25,6 +25,7 @@ func TestStageAndClearPreserveAssetBytes(t *testing.T) {
 				testfix.Git(t, source, "add", ".")
 				testfix.Git(t, source, "commit", "-qm", "evidence")
 				if clear {
+					testfix.Git(t, source, "push", "-q", "origin", "main")
 					if out, err := runStageTest(t, r[1], ":0", false); err != nil {
 						t.Fatalf("prepare stage: %v\n%s", err, out)
 					}

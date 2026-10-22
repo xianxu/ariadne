@@ -61,10 +61,11 @@ import (
 // .Output() semantics, and folding stderr into strings they parse would break
 // them silently.
 var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
-	return runGitInContext(context.Background(), dir, env, args...)
+	return RunGitInContext(context.Background(), dir, env, args...)
 }
 
-// runGitInContext is the cancellable Git boundary shared by bounded history queries.
+// runGitInContext is the raw injectable process seam. Its contextual callers
+// sample their final context outcome before classifying transport diagnostics.
 var runGitInContext = func(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
 	return runGitInputContext(ctx, dir, env, nil, args...)
 }
@@ -85,9 +86,11 @@ func RunGitInContext(ctx context.Context, dir string, env []string, args ...stri
 	if ctx.Err() != nil {
 		err = errors.Join(ctx.Err(), err)
 	}
+	err = ClassifyNetworkFailure(args, stderr, err)
 	return
 }
 
+// runGitInputContext returns raw process results for the final contextual owner.
 var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
 	var out, errBuf bytes.Buffer
 	err = executeGitInputContext(ctx, dir, env, input, &out, &errBuf, args...)
@@ -225,9 +228,9 @@ func (t *TrunkFile) runIn(ctx context.Context, env []string, args ...string) ([]
 	}
 	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
 	if ctx.Err() != nil {
-		return out, diag, ctx.Err()
+		err = errors.Join(ctx.Err(), err)
 	}
-	return out, diag, err
+	return out, diag, ClassifyNetworkFailure(args, diag, err)
 }
 
 // localRef is the local BRANCH, fully qualified.
@@ -280,6 +283,10 @@ func (t *TrunkFile) Read(path string) ([]byte, error) {
 func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	var warn string
 	if out, err := t.fetch(); err != nil {
+		var network *GitNetworkFailure
+		if errors.As(err, &network) {
+			out = []byte(err.Error())
+		}
 		warn = fmt.Sprintf(
 			"could not fetch from %s — %q read from the stale %s, which may be behind "+
 				"anything published since the last fetch (git says: %s)",
@@ -330,6 +337,10 @@ func (t *TrunkFile) resolveOpt(ref string) (string, error) {
 // first line is the observation; the offline case is offered as a possibility,
 // not a diagnosis.
 func offlineError(remote string, err error, out []byte) error {
+	var network *GitNetworkFailure
+	if errors.As(err, &network) {
+		return err
+	}
 	return fmt.Errorf("could not fetch from %s (offline, auth, or a bad ref — git says): %w\n%s",
 		remote, err, FirstLine(string(out)))
 }
