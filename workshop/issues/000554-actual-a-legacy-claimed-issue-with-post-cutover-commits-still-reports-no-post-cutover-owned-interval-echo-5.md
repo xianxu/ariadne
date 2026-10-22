@@ -99,3 +99,11 @@ Verified frozen source: `go test ./cmd/sdlc -run '^(TestActualOwnership|TestOwne
 Next: publish the verified branch and run the required recorded suite and fresh close review. Live Echo proof remains a post-close/pre-merge hold coordinated with the hub on the final staged build; no Echo/operator state has been touched. The final Plan row remains open until recorded checks and that live proof finish.
 
 Timing correction: the preceding focused-verification entry was recorded at 11:34 PDT; its 11:38 heading is a transcription error. PR #400 is open; recorded-suite and close evidence follow separately.
+
+### 2026-10-22 — SHIP; recorded suite retained in FIFO
+
+PR #400: https://github.com/xianxu/ariadne/pull/400. Close round 1 returned SHIP, high confidence, with zero findings; the reviewer independently ran ownership/race, engagement/history and selected legacy/replay controls and accepted the revised Done when plus explicit post-close live-proof hold. Evidence commit verified with Git: `50fa503cc50a92b6d8cb9296bb26f3a72f1e22f3`; codecomplete mirror `e1971ee53282b9b5f4c1603b75d4e97069c1c95d`. Close adopted measured 0.95h automatically. No hours were hand-entered.
+
+Recorded suite is retained on source head `bf6e38e1ebc285ef74315d90849b2abe2a485db6`: lease `lease-3451749813`, attempt `170d1711e572ce1b452eead85cdddb05`, terminal session 31357; latest observed FIFO position 10. Log: `.git/sdlc/test-stats/inflight/170d1711e572ce1b452eead85cdddb05/run.log` in the common Git directory. Keep this runner and FIFO place; do not start a duplicate, cancel or restart it. Close runner session 64102 completed successfully; no close is running. Only close evidence/mirror prose changed after the suite source head.
+
+Next gate is the retained recorded-suite result. On PASS, coordinate final stage/build with the hub and obtain ops-echo's owner-run `sdlc actual --issue 5` evidence showing measured output and the explicit excluded gap. Append that live proof, finish Plan checkboxes, clear stage and enter `sdlc merge --yes`; do not enter landing before the live hold is satisfied. A suite failure needs same-head classification and normal repair/resume, never a duplicate queue entry or guessed attribution.
