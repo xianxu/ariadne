@@ -127,7 +127,17 @@ for the operator workflow and recovery contract.
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
 | `issue publish --commit SHA` | Legacy repositories: the selected non-merge commit's entire eligible Markdown change set |
-| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, `workingdoc/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+
+Workingdoc settlement (#507) adds optional trunk-publish guards:
+`--expect-absent` requires an absent or already-identical remote path on every CAS attempt; first settlement supplies it, while ordinary trunk publication keeps its existing defaults.
+`--expected-commit SHA` compares only the selected path with its pinned baseline,
+including on each CAS retry; omission retains the merge-base behavior.
+`--expected-content-sha256 HASH` binds the one bounded captured read to the
+validated projection before publication. `--json` returns
+`{schema_version: 1, path, commit}` only after exact remote readback; an unknown
+response or a different blob cannot produce a receipt. The original branch and
+index guards and local-copy preservation remain in force.
 
 For product/discussion work in a tracker repository, `issue publish --issue N`
 owns issue details (and issue plans remain on their issue branch). `trunk

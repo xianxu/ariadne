@@ -70,10 +70,10 @@ metadata automatically when config is writable. See
 For a non-issue workshop note edited while an issue branch is active, run
 `sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
 uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
-`projects/`, or `workshop/lessons.md`, directly to main. If main changed that
+`projects/`, `workingdoc/`, or `workshop/lessons.md`, directly to main. If main changed that
 path since the branch base, reconcile the edit first; the command refuses to
 overwrite it. If a push response is uncertain, rerun the same command with the
-local file intact. Publication leaves the local file untouched. Once this
+local file intact. For first publication, `--expect-absent` requires the remote path to be absent or already identical on every CAS attempt; settlement supplies this guard automatically when the source has no prior pointer. Publication leaves the local file untouched. Once this
 branch has merged main, run the printed `git restore -- ':(literal)<path>'`
 command to discard a tracked local copy, or run it before a merge that would
 otherwise conflict. For an untracked note, run the printed targeted
@@ -1069,6 +1069,15 @@ See `sdlc actual --help` for provenance and recovery.
 
 MIT — see [LICENSE](LICENSE).
 
+
+`tl-lead doc settle SIDE-DOC [--to PATH]` publishes a resolved side document to
+`workshop/workingdoc/YYYY-MM-DD-topic.md` or an eligible project prose path,
+then records its path and commit in the live source. Re-settling updates that
+copy; Git preserves earlier editions. Resolve review questions and proposals
+before settling, and use a quiet editing window. `tl-lead doc status` shows
+unsettled pages and content drift from the recorded edition. The
+[workingdoc prototype](construct/datatype/workingdoc.md) describes the page;
+[TL skill binaries](atlas/workflow/tl-skills.md) maps publication and recovery.
 
 `tl-lead status` uses the hub repo's gitignored `session.md` and
 `session.side/`; FILE is optional on all status commands. Existing explicit

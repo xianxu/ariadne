@@ -29,7 +29,8 @@ type deps struct {
 	resume CouchResume      // couch --resume-candidates / --resume (fleet resume)
 	now    func() time.Time // nil: the wall clock
 	// landing reads the fleet's newest landing; nil: no landing.
-	landing func(file string) (Landing, error)
+	landing   func(file string) (Landing, error)
+	documents DocRepository // nil: real Git/SDLC publication
 }
 
 func (d deps) clock() time.Time {
@@ -66,6 +67,6 @@ func buildRoot(d deps) *cobra.Command {
 		},
 	}
 	root.CompletionOptions.HiddenDefaultCmd = true
-	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d), newFleetCmd(d))
+	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d), newFleetCmd(d), newDocCmd(d))
 	return root
 }
