@@ -74,6 +74,12 @@ pair#778 limitation: train261 enqueue/refusal and conductor-suite records lack t
 
 Recorded suite retained as lease-22710097 on implementation cac298148870ea8e8accea752148c807404c1890, attempt c426025cac3d8b12307e7c5496684c7d. Initial machine admission position 4; shared default GOCACHE confirmed. Per tl-worker's explicit overlap rule, start mandatory close review while this suite remains queued; the final code still requires a recorded suite pass before landing. Do not restart or duplicate this runner. Coverage visibility is implemented; actual idle subtraction remains outside this issue.
 
+### 2026-10-22 — landed and post-landing proof prerequisite
+
+PR #394 merged at b0cd6bad8c2a21a0db06cc09ad8257fef4c8f1b3 (2026-10-22T14:39:41Z), verified by Git and the tracker. Close round 1 was SHIP with no findings. The branch suite passed 2,237 SDLC tests and 76 other packages in 854.5s (log digest prefix 5fb3c30d4310); the authoritative integrated head 1d88afbdd023b643da3ccf5f6ed5eafc72d9323a passed all 8 shards, 2,245 SDLC tests and 76 other packages in 927.6s (03fb7b74042a), with four green CI checks. The retained merge runner exited 0; workspace cleanup completed and main-slot4 was fast-forwarded from main. No flakes or reruns were needed.
+
+TL explicitly waived staging (receipt 24998803-4132-4e1d-8452-a9a137640e36), accepting the real-lock producer, native audit and Claude/Codex replay fixtures. TL requested a real actual output showing coverage after landing. Initial read-only inspection of the live Ariadne and Pair landing audits found zero new wait_start/wait_bind/wait_end records; the installed sdlc still resolved to the older primary-checkout build. Thus no supported real numeric coverage example is available at this checkpoint. The prerequisite is rollout of the new producer and a complete retained-car invocation covered by a fresh measurement window. Old pair#778 inputs remain unchanged and cannot supply missing endpoints; do not fabricate a duration, mutate its historical snapshot, or describe an old-binary output as feature proof. The post-landing output remains pending that evidence. Runtime-job binding for eventual idle subtraction stays in pair#800.
+
 ## Revisions
 
 ### 2026-10-22 — proposed producer-bound attribution contract
