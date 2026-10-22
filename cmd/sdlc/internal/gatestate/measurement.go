@@ -45,6 +45,7 @@ func IsHybridMethod(method string) bool {
 // adopt an actual. It holds no transcript bytes and performs no IO (ARCH-PURE).
 // Validate before persistence; ParseSidecar also validates retained evidence.
 type MeasurementInputs struct {
+	extra                 measurementUnknown      `json:"-" yaml:"-"`
 	Version               int                     `json:"version" yaml:"version"`
 	Method                string                  `json:"method" yaml:"method"`
 	Repository            string                  `json:"repository" yaml:"repository"`
@@ -69,18 +70,21 @@ type MeasurementInputs struct {
 }
 
 type MeasurementEngagement struct {
-	Start string   `json:"start" yaml:"start"`
-	End   string   `json:"end" yaml:"end"`
-	Began string   `json:"began" yaml:"began"`
-	Roots []string `json:"roots" yaml:"roots"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
+	Began string             `json:"began" yaml:"began"`
+	Roots []string           `json:"roots" yaml:"roots"`
 }
 
 type MeasurementInterval struct {
-	Start string `json:"start" yaml:"start"`
-	End   string `json:"end" yaml:"end"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
 }
 
 type MeasurementSource struct {
+	extra    measurementUnknown    `json:"-" yaml:"-"`
 	Harness  string                `json:"harness" yaml:"harness"`
 	ID       string                `json:"id" yaml:"id"`
 	Slot     string                `json:"slot,omitempty" yaml:"slot,omitempty"`
@@ -94,32 +98,35 @@ type MeasurementSource struct {
 }
 
 type MeasurementCut struct {
-	Boundary   string `json:"boundary,omitempty" yaml:"boundary,omitempty"`
-	Dispatched string `json:"dispatched,omitempty" yaml:"dispatched,omitempty"`
-	Finalized  string `json:"finalized" yaml:"finalized"`
-	Finalizing bool   `json:"finalizing" yaml:"finalizing"`
+	extra      measurementUnknown `json:"-" yaml:"-"`
+	Boundary   string             `json:"boundary,omitempty" yaml:"boundary,omitempty"`
+	Dispatched string             `json:"dispatched,omitempty" yaml:"dispatched,omitempty"`
+	Finalized  string             `json:"finalized" yaml:"finalized"`
+	Finalizing bool               `json:"finalizing" yaml:"finalizing"`
 }
 
 // MeasurementQueueWait pins selected, validated suite queue evidence. The
 // transcript sources in the same snapshot bind each wait during computation.
 type MeasurementQueueWait struct {
-	AttemptID    string  `json:"attempt_id" yaml:"attempt_id"`
-	Slot         string  `json:"slot" yaml:"slot"`
-	RecordDigest string  `json:"record_digest" yaml:"record_digest"`
-	Start        string  `json:"start" yaml:"start"`
-	End          string  `json:"end" yaml:"end"`
-	QueueSeconds float64 `json:"queue_seconds" yaml:"queue_seconds"`
-	RawSeconds   float64 `json:"raw_seconds" yaml:"raw_seconds"`
-	Exact        bool    `json:"exact" yaml:"exact"`
+	extra        measurementUnknown `json:"-" yaml:"-"`
+	AttemptID    string             `json:"attempt_id" yaml:"attempt_id"`
+	Slot         string             `json:"slot" yaml:"slot"`
+	RecordDigest string             `json:"record_digest" yaml:"record_digest"`
+	Start        string             `json:"start" yaml:"start"`
+	End          string             `json:"end" yaml:"end"`
+	QueueSeconds float64            `json:"queue_seconds" yaml:"queue_seconds"`
+	RawSeconds   float64            `json:"raw_seconds" yaml:"raw_seconds"`
+	Exact        bool               `json:"exact" yaml:"exact"`
 }
 
 // MeasurementCredit pins an exclusion adopted from another issue. The normal
 // snapshot byte limit bounds the whole collection; old snapshots omit it.
 type MeasurementCredit struct {
-	Issue string `json:"issue" yaml:"issue"`
-	Slot  string `json:"slot" yaml:"slot"`
-	Start string `json:"start" yaml:"start"`
-	End   string `json:"end" yaml:"end"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Issue string             `json:"issue" yaml:"issue"`
+	Slot  string             `json:"slot" yaml:"slot"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
 }
 
 func (q MeasurementQueueWait) Validate() error {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -343,6 +344,126 @@ func TestLegacyCompletionRepairRejectsRestoredAuthority(t *testing.T) {
 			}
 			if after := r.git("ls-remote", "origin", "refs/heads/issue-tracker"); after != before {
 				t.Fatal("refused repair changed tracker")
+			}
+		})
+	}
+}
+
+type legacyRepairScheduleWriter struct {
+	bytes.Buffer
+	before func(string)
+}
+
+func (w *legacyRepairScheduleWriter) Write(p []byte) (int, error) {
+	if w.before != nil {
+		w.before(string(p))
+	}
+	return w.Buffer.Write(p)
+}
+
+// Exercise the production command and real tracker publication, including a
+// CAS retry whose endpoint card is unchanged but whose authority history is not.
+func TestLegacyRepairCommandFencesPublicationGeneration(t *testing.T) {
+	for _, mode := range []string{"before-publication", "retry-invalid-generation", "retry-neutral-tracker", "cancel-after-candidate"} {
+		t.Run(mode, func(t *testing.T) {
+			r, _ := oldMigratedLegacy(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			env, err := openMigrate(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan, err := prepareLegacyCompletionRepair(env, "000001")
+			if err != nil {
+				t.Fatal(err)
+			}
+			scheduled := false
+			candidates := 0
+			var stdout bytes.Buffer
+			stderr := &legacyRepairScheduleWriter{}
+			stderr.before = func(text string) {
+				if strings.HasPrefix(text, "repair candidate ") {
+					candidates++
+				}
+				atRecovery := strings.HasPrefix(text, "Recovery:")
+				atCandidate := strings.HasPrefix(text, "repair candidate ")
+				if scheduled || !(mode == "before-publication" && atRecovery || mode != "before-publication" && atCandidate) {
+					return
+				}
+				scheduled = true
+				if mode == "cancel-after-candidate" {
+					cancel()
+					return
+				}
+				if mode == "retry-neutral-tracker" {
+					peerRaw := []byte(strings.ReplaceAll(string(plan.Current.Raw), "000001", "000002"))
+					peer, err := env.tracker.PrepareCreate(tracker.CardPath("000002", "peer"), peerRaw, "race-peer-card")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := env.tracker.Push(peer); err != nil {
+						t.Fatal(err)
+					}
+					return
+				}
+				if err := env.tracker.UpdateCard(plan.Current, plan.Replacement, "race-add-authority", func(string, string) error { return nil }); err != nil {
+					t.Fatal(err)
+				}
+				snapshot, err := env.tracker.Snapshot()
+				if err != nil {
+					t.Fatal(err)
+				}
+				current, err := snapshot.Require("000001")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := env.tracker.UpdateCard(current, plan.Current.Raw, "race-remove-authority", func(string, string) error { return nil }); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err = runLegacyCompletionRepair(env, &stdout, stderr, issueMigrateFlags{Issue: 1, Apply: true, Expect: plan.Digest})
+			if !scheduled {
+				t.Fatal("publication schedule did not run")
+			}
+			snapshot, snapshotErr := env.tracker.Snapshot()
+			if snapshotErr != nil && mode != "cancel-after-candidate" {
+				t.Fatal(snapshotErr)
+			}
+			if mode == "cancel-after-candidate" {
+				if !errors.Is(err, context.Canceled) {
+					t.Fatalf("cancellation lost: %v", err)
+				}
+				if strings.Contains(r.card(plan.Current.Path), "completion:") {
+					t.Fatal("cancelled repair published")
+				}
+				return
+			}
+			current, readErr := snapshot.Require("000001")
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if mode == "retry-neutral-tracker" {
+				if err != nil || candidates != 2 {
+					t.Fatalf("neutral tracker retry refused: candidates=%d err=%v", candidates, err)
+				}
+				end, verifyErr := verifyLegacyAdoption(t.Context(), r.root, snapshot.Ref(), tracker.IssueRecord{ID: current.ID, Card: &current}, env.target.Repository, plansDir())
+				if verifyErr != nil || end.IsZero() {
+					t.Fatalf("published repair unusable: %v %v", end, verifyErr)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "tracker history removes completion evidence") {
+				t.Fatalf("command published invalid generation: candidates=%d err=%v stdout=%s stderr=%s", candidates, err, stdout.String(), stderr.String())
+			}
+			if !bytes.Equal(current.Raw, plan.Current.Raw) {
+				t.Fatal("refused command changed restored card")
+			}
+			want := 0
+			if mode == "retry-invalid-generation" {
+				want = 1
+			}
+			if candidates != want {
+				t.Fatalf("unexpected published candidates: got %d want %d", candidates, want)
 			}
 		})
 	}

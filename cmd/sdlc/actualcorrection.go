@@ -343,6 +343,16 @@ func strictCorrectionJSON(raw []byte, dst any) error {
 		if t.Kind() == reflect.Pointer {
 			t = t.Elem()
 		}
+		if t == reflect.TypeOf(gatestate.MeasurementInputs{}) {
+			// Measurement inputs own their additive JSON schema, including
+			// bounded future metadata throughout the snapshot tree. Keep the
+			// enclosing correction protocol strict without replacing that codec.
+			var inputs gatestate.MeasurementInputs
+			if err := json.Unmarshal(b, &inputs); err != nil {
+				return err
+			}
+			return inputs.Validate()
+		}
 		if t.Kind() == reflect.Struct {
 			var obj map[string]json.RawMessage
 			if err := json.Unmarshal(b, &obj); err != nil || obj == nil {

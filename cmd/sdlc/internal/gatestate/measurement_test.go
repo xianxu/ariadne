@@ -349,6 +349,14 @@ func TestMeasurementLegacyPrefixValidation(t *testing.T) {
 			if err := m.Validate(); err == nil {
 				t.Fatal("accepted invalid legacy prefix")
 			}
+			// Recursive prefix shapes now refuse before YAML encoding so a
+			// caller-constructed cycle never reaches the encoder's recursion.
+			if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
+				if _, err := m.MarshalYAML(); err == nil {
+					t.Fatal("accepted recursive prefix encoding")
+				}
+				return
+			}
 			if _, err := ParseSidecar(Render(Ledger{Rounds: []Round{{ActualInputs: &m}}}, "test")); err == nil {
 				t.Fatal("accepted invalid persisted legacy prefix")
 			}

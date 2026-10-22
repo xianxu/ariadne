@@ -93,6 +93,14 @@ func runLegacyCompletionRepair(env *migrateEnv, stdout, stderr io.Writer, f issu
 		if err := env.ctx.Err(); err != nil {
 			return err
 		}
+		// The tracker may have advanced since preparation, including through
+		// changes that restore identical endpoint bytes. Re-prove the same
+		// monotone generation on this attempt's actual base before publication.
+		// UpdateCardWithTrailers has already fenced the current card blob; its
+		// conditional push fences changes after this check and retries here.
+		if err := legacyGenerationHistory(env.ctx, env.root, base, plan.Root, tracker.IssueRecord{ID: plan.Current.ID, Card: &plan.Current}, plan.Proof); err != nil {
+			return err
+		}
 		fmt.Fprintf(stderr, "repair candidate %s (tracker base %s)\n", candidate, base)
 		return nil
 	})
