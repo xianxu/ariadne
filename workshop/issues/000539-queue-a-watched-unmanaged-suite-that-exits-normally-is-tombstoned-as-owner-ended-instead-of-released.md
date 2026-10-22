@@ -44,7 +44,7 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 
 ## Plan
 
-- [ ] Implement and verify [the completion-evidence plan](../plans/000539-direct-suite-completion-plan.md), after plan approval and change-code.
+- [x] Implement and verify [the completion-evidence plan](../plans/000539-direct-suite-completion-plan.md), after plan approval and change-code.
 
 ## Log
 
@@ -101,3 +101,5 @@ total: 2.13
 - Audit failure-path correction: inspection found the initial implementation changed confirmed `group_observation=empty` into unknown after an audit write failure. A new assertion reproduced that loss red, then the handler was changed to preserve all observed facts and name `completion audit failed` in detail. Pure tests 11/11 PASS (0.148 s); current-provider helper integration PASS (38.935 s). Cancelled only our queued old-head `lease-2723494484` via local-check cancel before starting any replacement; it never executed a suite and recorded no test result. Terminal 54063 finished interrupted. New recorded run will target the corrected head; do not resume the cancelled lease.
 
 - Replacement durable wait checkpoint: PR #384 now pushed at corrected code head `ce987fd9ca68`. Single retained recorded suite is `lease-1229221159` (terminal 77638), queue position 5 initially. Worktree `/Volumes/TestScratch/local-checks/sdlc-local-4137269143`, log `/Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/43ec553f60c0828c46d74f65896002b8/run.log`. The old lease is cancelled, not retained; no duplicate suite exists. Continue this run, then close review and merge.
+
+- Recorded full suite PASS on `ce987fd9ca68ebe377c8d80e5750e5e37122d0f7`: all 8 shards, 2079 cmd/sdlc tests, 75 other packages, zero failures, wall 771.7 s after 2742 s queue wait. Status `sdlc-local/suite`; log `/Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/ce987fd9ca68ebe377c8d80e5750e5e37122d0f7/suite.log`, SHA256 prefix `1022973b3872`. Server merge-check and local-gates-guard passed; no protected gate paths or operator label required. Close review and merge remain.

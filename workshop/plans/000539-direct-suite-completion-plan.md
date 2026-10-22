@@ -123,7 +123,7 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 **Files:** modify `atlas/workflow/sdlc-binary.md`; update issue Log and this plan.
 
 - [x] Update the existing direct-suite paragraph: observed clean exit plus empty private group permits retirement; unknown status, survivors, cancellation and observer failure remain unresolved. Document observation timestamps, completion audit location and per-run growth, platform fallback and the managed-path distinction. Do not imply a historical exit time can be recovered from old tombstones.
-- [ ] Record red/green evidence, native conformance results, count/limit tests and any platform limits. Check `git diff --check`, commit with issue reference and author trailer, push through SDLC, and run the recorded suite on the pushed head with `sdlc local-check run --name suite`.
+- [x] Record red/green evidence, native conformance results, count/limit tests and any platform limits. Check `git diff --check`, commit with issue reference and author trailer, push through SDLC, and run the recorded suite on the pushed head with `sdlc local-check run --name suite`.
 - [ ] Close with the mandatory fresh-context SDLC review, resolve findings, then merge using the retained SDLC runner. No live machine cancellation/reconciliation and no :0 deployment are part of this plan. Report the outcome and PR to the hub.
 
 ## Architecture review
