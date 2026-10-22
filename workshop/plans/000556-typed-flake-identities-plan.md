@@ -30,11 +30,11 @@ collaboration-mode: discussion
 |------|----------|--------|
 | `Identity` (`ParseIdentity`, canonical string, kind, unit, optional case) | `cmd/sdlc/internal/flakes/identity.go` | new |
 | Type-aware `Covers`, `Leaves`, `Nearest`, `BuildRegistry`, `topOf` | `cmd/sdlc/internal/flakes/registry.go`, `classify.go` | modified |
-| `UnitRunner` declaration parsing and literal argv projection | `cmd/sdlc/internal/flakes/unit_runner.go` | new |
-| `UnitEvidence` event transition and positive completion proof | `cmd/sdlc/internal/flakes/unit_evidence.go` | new |
-| Mixed-kind rerun planning and required-proof selection | `cmd/sdlc/internal/flakes/rerun.go` | modified |
-| Typed log-facts projection and attribution | `cmd/sdlc/teststats_parse.go` | modified |
-| Attempt capability/version and resume eligibility predicates | `cmd/sdlc/teststats_store.go`, `localcheck_resume_evidence.go` | modified |
+| `ParseUnitRunners`, `UnitRunner.Project` | `cmd/sdlc/internal/flakes/unit_runner.go` | new |
+| `UnitEvidence.Apply`, `UnitEvidence.Finish`, `RequiredUnitProof` | `cmd/sdlc/internal/flakes/unit_evidence.go` | new |
+| `RerunPlan`, `RerunMissingJSON` | `cmd/sdlc/internal/flakes/rerun.go` | modified |
+| `parseSuiteLogFacts`, `unattributedFailures` | `cmd/sdlc/teststats_parse.go` | modified |
+| `typedAttemptCapability`, `decodeSuiteAttempt`, `resolveResumeProof`, `resumeSameFailures` | `cmd/sdlc/teststats_store.go`, `localcheck_resume_evidence.go` | modified |
 
 Each row gets colocated tests without IO mocks. Identity owns syntax and coverage; no consumer reparses strings with its own delimiters. Evidence owns transitions; IO submits events and cannot directly mark a unit successful. A registry entry has exactly one identity and one owning issue; many selected case identities can share one execution unit. An attempt contains many units, and each unit many case results. These are the natural extension points for another runner kind, not a generic plugin framework.
 
@@ -74,7 +74,7 @@ Example fixture (not a change to this repo's live gate configuration):
 
 Only `{path}` as a complete argv element is substituted, exactly once; no shell interpolation, arbitrary command in a registry card, or argv learned from a log. Bound to at most the two supported kinds and 32 arguments of 4096 bytes each. The runner must exist for each selected kind. The trusted-main declaration and exact tested commit must agree on that kind's runner before launch; changed/unknown authority refuses with a repair-and-rerun instruction. Preserve the existing check-policy and trusted-main boundary.
 
-The ordinary suite calls `sdlc flake run --unit script:PATH` or `--unit lua:PATH`. It executes that same declared unit runner, without acquiring another suite queue slot. Targeted retries group selected Lua cases by file and scripts by path, execute each unit once, and use the existing single queued batch. Go commands remain byte-for-byte equivalent to the current exact-package selection.
+The ordinary suite calls `sdlc flake run --unit script:PATH` or `--unit lua:PATH`. It executes that same declared unit runner, without acquiring another suite queue slot. Targeted retries group selected Lua cases by file and scripts by path, execute each unit once, and use the existing single queued batch. Go commands remain byte-for-byte equivalent to the current exact-package selection. The wrapper is a managed-check adapter: the outer local-check helper supplies a scoped invocation environment. Outside that managed scope it refuses with `sdlc local-check run` as recovery; it does not create an independent process supervisor. Peer recipes retain their ordinary direct runner when the managed-check environment is absent.
 
 The wrapper owns unit start and observed completion. Child stdout/stderr is indented as diagnostics, so child-printed JSON/control-looking text cannot become wrapper proof. Unit events carry a protocol version, unit and per-invocation identifier; terminal unit evidence includes the observed exit/deadline result. Missing completion is unknown, never success. One script with an observed inner exit 124 is an attributable script failure; killing the outer wrapper without a terminal record remains incomplete/unattributable.
 
@@ -109,14 +109,32 @@ Actions: register with verified evidence, run the exact full check, resume the s
 | Interrupted receipt or pending link | retained interruption | run exact full check | temporary resources stay pinned under existing policy |
 | Old binary sees v4 or typed registry | unsupported evidence | upgrade binary before use | none; raw evidence remains |
 
-Reuse the existing parent lock and one-child immutable link for concurrent resume, status retries and crash fencing. An evidence decoder owns no live resource that can prove a missing event happened: absence of completion must stay unknown. A unit wrapper's subprocess is scoped to the existing process-group execution helper; cancellation stops and observes its managed children before normal return. If the wrapper dies, the outer helper retains its existing cleanup authority. No background task survives a successful wrapper return. Per-unit producer channels are isolated; interleaved or torn outer-log event frames reject rather than borrowing a different unit's completion.
+Reuse the existing parent lock and one-child immutable link for concurrent resume, status retries and crash fencing. An evidence decoder owns no live resource that can prove a missing event happened: absence of completion must stay unknown. The outer `runManagedCommandBatch` alone creates and owns the command's process group. The wrapper launches its direct unit runner with inherited process-group membership (no `processgroup.Configure`, `Setpgid`, `setsid`, detached launch or nested `runManagedCommandBatch`). The wrapper waits for its direct child and drains output before emitting terminal evidence; it does not assert whole-group absence or release capacity/retire inputs. The enclosing managed helper owns group cancellation and confirmation before retiring resources. On wrapper death its unit child and ordinary descendants remain in that same outer group; no nested group has escaped cleanup. A runner which detaches its own descendants still owns and joins them as under the existing declared-check contract; no discovery or automatic reclamation of detached groups is added here. A wrapper cancellation cannot become a terminal pass. Per-unit producer channels are isolated; interleaved or torn outer-log event frames reject rather than borrowing a different unit's completion.
+
+Typed-capable checks use the existing `StrictGroupCleanup` path on the outer helper, for both ordinary runs and retries, so its group join precedes resource retirement. A synchronized production-path test holds a unit child/grandchild at a barrier, kills only the wrapper, and releases the outer helper into cleanup. Assert the original group membership, descendant absence and no resource retirement before the group join; a future accidental `Setpgid` must make this test fail. Scope detection is an invocation constraint, not new authority to signal an arbitrary group: the wrapper never signals a group. The outer helper retains the existing exact group ownership. Add a #556 rule to the Go lint catalog forbidding group creation or nested managed-batch calls in the unit-child launch seam, with the synchronized test as its behavioral guard.
+
+### Function-level verification strategies
+
+| Risky function | Adversarial input strategy and mechanical guard |
+|---|---|
+| `ParseIdentity` | Fuzz arbitrary UTF-8/bytes and delimiter/path mutation; accepted identities round-trip canonically and cannot move their kind/unit boundary. |
+| `Covers`, `Leaves`, `Nearest`, `BuildRegistry` | Generate cross-kind paths and opaque labels; assert exact-only non-Go coverage and unchanged Go ancestor algebra with an independent set oracle. |
+| `ParseUnitRunners`, `UnitRunner.Project` | Fuzz nested JSON and argv substitutions; strict known-field/duplicate checks, unknown-member round trip and literal argv equality forbid inferred shell authority. |
+| `UnitEvidence.Apply`, `UnitEvidence.Finish` | Generate event permutations with dropped/repeated/conflicting terminals; an independent completion oracle and sticky unusable state forbid late promotion. Count visits at N/2N. |
+| `RequiredUnitProof`, `RerunPlan`, `RerunMissingJSON` | Generate mixed selected-unit/case sets and unrelated output; exact required-set equality and a stateful executed-command inventory reject missing coverage or broadened execution. |
+| `parseSuiteLogFacts`, `unattributedFailures` | Fuzz diagnostic nesting and malformed control frames, seeded with captured failures; bounded single-pass scanning and replayed native producer output are independent attribution guards. |
+| `typedAttemptCapability`, `decodeSuiteAttempt` | Mutate version, fields and nested extras across old/new records; frozen older binary plus byte-preservation checks guard unsafe reinterpretation. |
+| `resolveResumeProof`, `resumeSameFailures` | Generate mismatched parent/child/contract evidence and interrupted sequences; production CLI status guard must refuse unless exact required proof and existing authority both hold. |
+| `flakeEvidence`, `shortTestNames` | Generate mixed-kind same-head histories; independently retained positive unit/case evidence guards registration while rendering round-trips preserve identity. |
+| `runFlakeUnit` (IO seam) | Stateful runner controls process barriers and result-channel writes; synchronized wrapper death proves inherited group ownership and exact outer cleanup. |
+| Plenary producer `install` (IO seam) | Tiny real native specs compared with adapter disabled/enabled; identical hook/assertion/exit outcomes and a separate-channel oracle guard adapter transparency. |
 
 ## Constraints, residue and architecture checks
 
 - **ARCH-DRY:** One typed identity, coverage model and evidence projector for live and saved paths; reuse `runUnderSlotBatch`/managed commands and #463 locks/lifetime, not a second runner queue or resume state store.
 - **ARCH-PURE:** The table names the actual risky parse/coverage/argv/proof functions; pure adversarial tests plus independent production-CLI/status-guard assertions are required.
 - **ARCH-PURPOSE:** Both registry acceptance and real producer-to-resume-to-guard paths must work. The fixture uses actual shell timeout and actual Plenary case results. Peer adoption is a concrete documented integration, not a claim that today's historical attempts become resumable.
-- **ARCH-MOCK:** Existing Git/provider seams plus stateful filesystem-backed unit runners; real Git, shell and Neovim/Plenary conformance. Fake output alone cannot establish the Lua adapter contract.
+- **ARCH-MOCK:** Existing Git/provider seams plus stateful filesystem-backed unit runners; real Git, shell and Neovim/Plenary conformance. Fake output alone cannot establish the Lua adapter contract. The owner of any producer/protocol or supported Neovim/Plenary version update reruns native conformance before landing, and the adopting peer's suite runs its native adapter fixture on every landing. Report missing runtime/dependency coverage explicitly rather than accepting a skipped conformance check.
 - **ARCH-CONSTRAINTS:** Batch CLI, not a UI hot path. Preserve five selected registry entries, weight-one rerun lease, 15-minute known-flake ceiling bounded by the original check timeout. Maximum 10,000 cases/unit, 16 MiB producer channel and existing retained-log/read limits; writer enforces channel caps and parser refuses excess. At most one selected unit process at a time inside the existing batch. Path/case/argv caps above are conservative initial requirements, with oversize diagnostics rather than truncation.
 - Hot-path growth drivers: raw bytes B, event/case count E, selected identities S (<=5), registry entries R and selected units U (<=5). Decode one pass O(B+E); index case results once, then lookup selected proof O(S), command planning O(S log S); existing registry overlap policy is unchanged. Count event/byte visits at 8 and 16 units/cases, including long labels and malformed input; reject rescans with `visits <= 2*events + selected` rather than a timing assertion. At most one declaration read per pinned source and one log read per proof resolution.
 - **ARCH-SECURE:** Treat cards, declarations, saved JSON/logs and producer channels as untrusted until typed decoding. Fixed argv projection from trusted main and tested-head contract; no command from logs, path traversal, flags or shell evaluation. No credentials added. Private fixture roots/provider backends prevent real status or tracker writes. A repo's own code/adapter can lie intentionally, as with its declared suite; arbitrary diagnostic output is not proof.
@@ -130,14 +148,14 @@ Reuse the existing parent lock and one-child immutable link for concurrent resum
 
 Files: new `internal/flakes/identity.go`/`identity_test.go`; modify `registry.go`, `classify.go`, `evidence.go`, `flake_cmd.go`, `flake_fixed.go`, `internal/issue/card.go`, vocabulary comment and their tests.
 
-- [ ] Add failing table/property tests for canonical typed parsing, all invalid paths/labels, Go byte compatibility, script path siblings, Lua labels containing `/` and `#`, cross-kind collision/overlap, exact-only narrowing and card CAS validation. Run `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -run 'Identity|Registry|Flake' -count=1`; new cases fail first.
+- [ ] Add red property/fuzz tests for the identity/coverage and card validation functions using the function-level strategies above. Run `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -run 'Identity|Registry|Flake' -count=1`; new behavior fails first.
 - [ ] Implement the discriminated model and make every polymorphic coverage/display/registration consumer derive from it. Keep Go-specific package parsing only at explicit Go branches. Re-run those tests and commit with #556 and Agent trailers.
 
 ### Task 2: Trusted unit execution and producer evidence
 
 Files: new `internal/flakes/unit_runner.go`, `unit_evidence.go` and tests; new `localchecks_v3.go`, `flake_run.go` and tests; new `scripts/sdlc-plenary-events.lua`; modify declaration parser, command wiring and `construct/base.manifest`.
 
-- [ ] Add red tests for v3 declaration parsing, preserved unknown nested members, old-version refusal, exact complete-placeholder argv, runner/main-versus-head mismatch and absent kinds. Add independent transition tests for missing/duplicate/conflicting/out-of-order results, timeout, cancelled process, skipped/missing selected case, sibling failure, diagnostic impostors, wrong file/unit and channel caps.
+- [ ] Add red tests for runner declaration/projection and unit-evidence functions using the function-level strategies above, plus the synchronized wrapper-death ownership test.
 - [ ] Implement pure runner/evidence models, thin wrapper and Plenary result producer. Reuse existing scoped process execution without another queue acquisition. Child diagnostics never become control events. Add counted 8/16-case growth tests and enforce writer-side bounds.
 - [ ] Execute a real shell exit124 fixture and tiny real Plenary file through the production wrapper; assert native assertions/hooks and exit semantics are unchanged, false case text in stdout is ignored, absent adapter cannot pass and all children are observed. Run targeted `go test ./cmd/sdlc -run 'TypedUnit|FlakeRun|LocalChecksV3' -count=1 -timeout 10m`; commit only after evidence passes.
 
@@ -145,7 +163,7 @@ Files: new `internal/flakes/unit_runner.go`, `unit_evidence.go` and tests; new `
 
 Files: `teststats.go`, `teststats_parse.go`, `teststats_store.go`, `teststats_evidence.go`, `localcheck_flakes.go`, `localcheck_resume.go`, `localcheck_resume_evidence.go`, `localcheck_resume_retention.go`, `localcheck_republish.go`, `flake_cmd.go`, `landingtrain_attribution.go`, `suitebaseline.go` and colocated tests.
 
-- [ ] Add failing v4 fixtures and current/old-reader compatibility tests, unknown-field preservation, mixed typed/Go parent and child evidence, same-head registration with required coverage, stale registry/policy, tampered saved log, linked child mismatch and all saved success-guard consumers. Preserve interrupted/could-not-run and legacy-Go fixtures.
+- [ ] Add red v4 fixtures and capability/registration/resume proof tests using the function-level strategies above and independent saved status consumers. Preserve interrupted/could-not-run and legacy-Go fixtures.
 - [ ] Connect shared typed facts/plans/proof to automatic known-flake reruns and explicit resume, version publication and all enumerated readers. Reuse current lock/link/process/cleanup ordering. Make train attribution explicitly conservative for non-Go failures. Run targeted root tests sequentially with a stable HEAD/porcelain; do not edit while TestMain owns the worktree.
 - [ ] Run frozen pre-change production binary against v4 subject evidence and unrelated check, plus new binary against old Go proof. Assert no saved rewrite and no false success. Commit the verified slice.
 
@@ -163,3 +181,9 @@ Files: new `cmd/sdlc/flake_typed_cli_test.go` (private real-Git provider fixture
 ### 2026-10-22 — planning
 
 Read-only code and live-case surveys establish that typed identities require positive non-Go completion proof and a runner authority contract, not merely parser acceptance. V3 attempts are already allocated to the infrastructure correction audit. This draft proposes v4 attempts and explicit v3 declarations, preserving all old Go proof and #463 lifecycle machinery. Await ops:0's scope/contract approval before code.
+
+## Revisions
+
+### 2026-10-22 — PQ-1/PQ-2/PQ-3
+
+Plan-quality round 1 correctly found that nested use of the managed helper would create an escaping process group. Supersede the earlier ambiguous wrapper-lifetime claim: only the outer helper owns a group; the adapter's unit child inherits it, and only the outer owner confirms group completion and retires resources. The adapter requires a managed invocation, with ordinary direct peer-runner fallback outside recorded checks. Add a synchronized death test to prevent accidental nested groups. This ownership clarification is submitted to ops:0 before code. Replace test inventories with function-named strategies and add native conformance ownership/repeat triggers. No attempt/link/reconciliation authority changes.

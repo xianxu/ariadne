@@ -75,3 +75,9 @@ Checkpoint: durable plan drafted; next step is ops:0 review of the explicit runn
 ### 2026-10-22 — TL approval
 
 ops:0 approved the full plan: unchanged Go identities, script path and Lua spec/case identities, whole-spec Lua reruns requiring both case and file proof, wrapper-owned script exit, Plenary's separate result channel, v4 attempts, immutable old records, and private production CLI plus real shell/Neovim/Plenary conformance with no stage (Couch delivery `995542a8-742e-4df9-9be0-28058c64cf55`). Proceeding to the full-flow plan-quality gate before production edits.
+
+### 2026-10-22 — plan-quality round 1
+
+Baseline `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -count=1` passed. Preserved the pre-change binary at `/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-556-prechange.DRxOiQ/sdlc`; `go version -m` verifies revision `a3f81c32ae131786fb4aedc9eb3c080dc0a6330f` and `vcs.modified=false`.
+
+The full-flow gate blocked on PQ-1 (nested process ownership) and PQ-2 (function-level test strategies), with PQ-3 (native conformance cadence) Minor. Verified PQ-1 against `runManagedCommandBatch` and `processgroup.Configure`: nested reuse would indeed create a separate group. Revised the plan so only the outer helper creates/joins the group; the unit child inherits it, and typed-capable checks use the existing strict group-cleanup path. The wrapper requires managed invocation, with a normal direct-runner recipe fallback outside local-checks. Added synchronized wrapper-death coverage and a planned lint rule. Function-named strategies and native conformance repeat ownership address PQ-2/PQ-3. No production code edited; ownership delta sent to TL before rerunning admission.

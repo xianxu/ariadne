@@ -1507,3 +1507,13 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   typed reader call; do not substitute an empty or independently derived name
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
+
+- #556 PQ-1: reusing a managed-process helper inside an already managed command
+  can create a new process group outside the outer owner's cleanup authority.
+  Name the sole group owner before reuse; inner unit adapters inherit that group.
+  A synchronized wrapper-death test must prove child membership and outer join
+  before resource retirement. Guard the inner launch seam against group creation
+  and nested managed-batch calls with a Go lint rule.
+- #556 PQ-2: plans name each risky function and one adversarial-input strategy
+  plus mechanical guard. Keep concrete case inventories in executable tests;
+  name the owner and repeat trigger for external native conformance.
