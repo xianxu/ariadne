@@ -124,3 +124,72 @@ findings:
    Record that the expanded first-claim queue contract requires full close review; replace the revision plan’s fix-only re-close instruction accordingly. Retain the recorded-suite and owner-run live-proof holds.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8a68198c-8773-49e3-9fe9-f3629478aab3","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"fix-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/bcd26a9fac12e5e3","reviewed_head":"c7778d78873aaa2a2e61e48ef295c6fa181df6bd","slot":"ariadne:4","requested_at":"2026-10-22T19:43:14.663186Z"},"phase":"finished","pid":44074,"started_at":"2026-10-22T19:43:15.016283Z","finished_at":"2026-10-22T19:44:47.383643Z","session_id":"01a16523-a053-7272-ba1e-225b4b43c553","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T12:50:36-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 554 — actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5) |
+| repo | ariadne |
+| issue file | workshop/issues/000554-actual-a-legacy-claimed-issue-with-post-cutover-commits-still-reports-no-post-cutover-owned-interval-echo-5.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5785330cda6bf31d533e4282aecc8f3f9cd632a7..1b6c0480fcba1f208dd088203bc4ca40fd0324eb |
+| command | sdlc close --issue 554 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T12:50:36-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range implements the revised ownership-recovery and first-claim queue contracts without finding a blocking defect. This full-range review addresses BR-1’s review-scope requirement. Recorded-suite completion and owner-run Echo proof remain explicit pre-landing holds; neither was independently verified here.
+
+Done-when: current — the superseding criteria cover actionable refusal, evidenced owned-suffix measurement, gap visibility, and immutable replay, including the added queue clipping.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      This full pinned-range close review covers the added queue behavior. The plan's Revisions passage at lines 93–95 explicitly supersedes the fix-only route. The queue regression independently fails without the attachment-bound fix and passes with it.
+```
+
+1. **Strengths**
+
+   - Claim recovery requires validated pinned history; current claimant absence alone cannot authorize it (`cmd/sdlc/actualinputs.go:519`).
+   - Preview and close share typed recovery metadata and rendering.
+   - Real Claude/Codex lifecycle fixtures verify migration, reconcile, claim, credited-gap exclusion, and retained replay.
+   - Queue clipping reuses the existing selector while preserving raw duration and immutable attribution. README, help, and atlas describe the behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Ownership tests passed: **52.673s**.
+   - Removing the queue-boundary fix made both harness regressions fail with “0 matching pinned slot engagements.”
+   - Restored-head queue, release/reclaim, tested-head attribution, last-commit clipping, and legacy replay controls passed: **62.485s**.
+   - Tracker engagement tests passed: **2.777s**.
+   - Diff whitespace checks passed; checkout restored clean at the pinned head.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared diagnostics and existing queue-selection machinery.
+   - **ARCH-PURE: pass** — formatting remains directly testable; history IO stays at the resolver seam.
+   - **ARCH-PURPOSE: pass** — preview, close, queue attachment, and retained replay fulfill the revised scope.
+   - **ARCH-EVOLVE: pass** — transient recovery metadata and derived warnings introduce no persisted-format change.
+
+7. **Plan revision recommendations:** None. Preserve the recorded-suite and owner-run live-proof holds before landing.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"de1e85c6-61e6-47ca-8f93-ef0153b3ebde","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"small-diff-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2b5b4d29122c0b1a","reviewed_head":"1b6c0480fcba1f208dd088203bc4ca40fd0324eb","slot":"ariadne:4","requested_at":"2026-10-22T19:46:45.658987Z"},"phase":"finished","pid":42319,"started_at":"2026-10-22T19:46:45.86068Z","finished_at":"2026-10-22T19:50:35.588632Z","session_id":"01a16526-d590-7750-8669-039ea2b9deeb","outcome":"returned"}] -->
