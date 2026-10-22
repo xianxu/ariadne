@@ -2069,9 +2069,29 @@ failure/flake decisions.
 
 Rollout rebuilds central :0, then lets old runners finish/relaunch; legacy
 activity remains named unknown until that boundary is proved. Managed suites
-own cancellation through processgroup cleanup. A direct make watcher alone
-only proves one PID ended, so an unproved descendant boundary stays unknown
-for operator reconciliation. No shared process group is signalled. The
+own cancellation through processgroup cleanup. A direct make watcher registers
+an exact-incarnation exit observer before acknowledging acquisition (#539).
+On Darwin, a positively observed exit status 0 plus an empty private make
+process group (`pgid == make pid`) permits normal retirement. The watcher
+detaches its own session and takes one bounded native group snapshot after
+exit; it never scans process inventories in its polling or admission loop.
+This boundary covers the shell job's group, not descendants that deliberately
+escape into another session. A nonzero or unobserved status, survivor,
+shared/unknown group, failed observation, cancellation or watcher crash keeps
+the lifetime unresolved. Hosts without native nonparent exit-status support
+keep the conservative unresolved behavior. No shared process group is signalled.
+
+Known endings retain `exit_observed_at` (observation time, not a reconstructed
+kernel exit time), known status and bounded survivor PIDs in the tombstone's
+additive fields and status detail. Normal retirement appends and fsyncs one
+diagnostic line to `completion.jsonl` beside the reconciliation audit before
+committing finished phase and deleting the operation. Each completion line is
+bounded to 1 KiB; like reconciliation, it has no expiry (at most 1 KiB lasting
+growth per direct completion). It is not suite-pass or admission evidence.
+Old tombstones lacking exit evidence remain unknown; there is no retroactive
+promotion. A Couch restart does not end the independent watcher, whereas loss
+of the watcher before its durable terminal transition requires reconciliation.
+The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
 the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained

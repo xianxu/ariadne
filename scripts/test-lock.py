@@ -45,17 +45,167 @@ import re
 import select
 import signal
 import selectors
+import stat
 import tempfile
 import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
+from typing import TypedDict
 
 REPORT_EVERY = 30
 
 QUEUE_MAX_JSON = 1 << 20
 QUEUE_MAX_OPERATIONS = 4096
+EXIT_STATUS_NOTE = 0x04000000  # Darwin SDK NOTE_EXITSTATUS (not exposed by Python).
+GROUP_MAX_PROCESSES = 65536
+GROUP_MAX_SURVIVORS = 256
+GROUP_SCAN_SECONDS = 5
+WATCHER_READY_SECONDS = 5
+COMPLETION_MAX_LINE = 1024
+
+
+class DirectCompletionEvidence(TypedDict, total=False):
+    owner_observation: str
+    status_observation: str
+    exit_status: int
+    exit_observed_at: str
+    process_group: int
+    group_observation: str
+    group_observed_at: str
+    survivor_pids: list[int]
+    survivors_truncated: bool
+
+
+def decode_exit_evidence(fields):
+    """Strict additive evidence; missing members remain unknown, never zero."""
+    types = dict(owner_observation=str, status_observation=str, exit_status=int,
+                 exit_observed_at=str, process_group=int, group_observation=str,
+                 group_observed_at=str, survivor_pids=list, survivors_truncated=bool)
+    present = {key: value for key, value in types.items() if key in fields}
+    value = _queue_known(fields, present, set(types) - set(present))
+    for key, choices in dict(owner_observation=('exact', 'unknown'),
+                             status_observation=('observed', 'unavailable'),
+                             group_observation=('empty', 'survivors', 'unknown')).items():
+        if key in value and value[key] not in choices:
+            raise ValueError('invalid completion evidence ' + key)
+    for key in ('exit_observed_at', 'group_observed_at'):
+        if key in value:
+            stamp = value[key]
+            if len(stamp) > 64 or not re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)', stamp):
+                raise ValueError('invalid completion timestamp')
+            datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+    if 'exit_status' in value and not -255 <= value['exit_status'] <= 255:
+        raise ValueError('invalid exit status')
+    if 'process_group' in value and value['process_group'] <= 1:
+        raise ValueError('invalid process group')
+    if 'survivor_pids' in value:
+        pids = value['survivor_pids']
+        if len(pids) > GROUP_MAX_SURVIVORS or any(type(pid) is not int or pid <= 1 for pid in pids) or len(set(pids)) != len(pids):
+            raise ValueError('invalid survivor PIDs')
+    return value
+
+
+def direct_retirement_decision(evidence: DirectCompletionEvidence, cancellation: bool, owner_pid: int) -> str:
+    """Only independent positive observations authorize a finished lifetime."""
+    return 'finished' if (not cancellation and evidence.get('owner_observation') == 'exact'
+                         and evidence.get('status_observation') == 'observed'
+                         and type(evidence.get('exit_status')) is int and evidence['exit_status'] == 0
+                         and evidence.get('exit_observed_at') and evidence.get('group_observed_at')
+                         and evidence.get('process_group') == owner_pid
+                         and evidence.get('group_observation') == 'empty'
+                         and evidence.get('survivor_pids') == []
+                         and not evidence.get('survivors_truncated', False)) else 'unknown'
+
+
+class OwnerExitObserver:
+    """One exact incarnation, registered before the blocked make may continue."""
+    def __init__(self, pid, started):
+        self.pid, self.started, self.queue = pid, started, None
+        self.evidence = dict(owner_observation='unknown', status_observation='unavailable')
+
+    def register(self):
+        if queue_process_start(self.pid) != self.started:
+            raise ValueError('owner incarnation changed before exit observation')
+        self.evidence['process_group'] = os.getpgid(self.pid)
+        if hasattr(select, 'kqueue'):
+            self.queue = select.kqueue()
+            event = select.kevent(self.pid, select.KQ_FILTER_PROC, select.KQ_EV_ADD,
+                                 select.KQ_NOTE_EXIT | EXIT_STATUS_NOTE)
+            self.queue.control([event], 0, 0)
+        if queue_process_start(self.pid) != self.started:
+            raise ValueError('owner incarnation changed during exit observation')
+        self.evidence['owner_observation'] = 'exact'
+
+    def poll(self):
+        if self.queue is not None:
+            events = self.queue.control([], 1, 0)
+            for event in events:
+                if event.ident != self.pid or event.flags & select.KQ_EV_ERROR:
+                    raise ValueError('invalid owner exit event')
+                if event.fflags & select.KQ_NOTE_EXIT:
+                    self.evidence['exit_observed_at'] = datetime.now(timezone.utc).isoformat()
+                    if event.fflags & EXIT_STATUS_NOTE:
+                        self.evidence.update(status_observation='observed', exit_status=os.waitstatus_to_exitcode(event.data))
+                    return True
+        if not process_alive(self.pid):
+            self.evidence['exit_observed_at'] = datetime.now(timezone.utc).isoformat()
+            return True
+        return False
+
+    def close(self):
+        if self.queue is not None:
+            self.queue.close()
+            self.queue = None
+
+
+def process_group_snapshot(pgid, owner):
+    """One bounded native snapshot, only at exit; errors are never emptiness."""
+    result = dict(group_observation='unknown', survivor_pids=[],
+                  group_observed_at=datetime.now(timezone.utc).isoformat())
+    if type(pgid) is not int or pgid <= 1 or sys.platform != 'darwin':
+        return result
+    start = time.monotonic()
+    library = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+    pids = (ctypes.c_int * (GROUP_MAX_PROCESSES + 1))()
+    ctypes.set_errno(0)
+    count = library.proc_listpids(2, pgid, ctypes.byref(pids), ctypes.sizeof(pids))  # PROC_PGRP_ONLY
+    if count < 0 or (count == 0 and ctypes.get_errno()) or count % ctypes.sizeof(ctypes.c_int) or count >= ctypes.sizeof(pids) or time.monotonic() - start > GROUP_SCAN_SECONDS:
+        return result
+    # The exact owner's exit was observed; it may still be awaiting parent reap.
+    survivors = sorted(set(pid for pid in pids[:count // ctypes.sizeof(ctypes.c_int)] if pid > 1 and pid != owner))
+    result.update(group_observation='survivors' if survivors else 'empty',
+                  survivor_pids=survivors[:GROUP_MAX_SURVIVORS])
+    if len(survivors) > GROUP_MAX_SURVIVORS:
+        result['survivors_truncated'] = True
+    return result
+
+
+def append_completion_audit(root, operation, evidence):
+    """Diagnostic only; existing audit lifecycle, one bounded line per run."""
+    line = json.dumps(dict(schema_version=1, id=operation['id'], pid=operation['pid'],
+                           pid_started=operation['pid_started'], **evidence), separators=(',', ':')).encode() + b'\n'
+    if len(line) > COMPLETION_MAX_LINE:
+        raise ValueError('completion audit line exceeds its bound')
+    path = os.path.join(root, 'completion.jsonl')
+    fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise ValueError('completion audit is not a regular file')
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b'\n':
+            raise ValueError('torn completion audit; inspect before retrying')
+        if os.write(fd, line) != len(line):
+            raise OSError('short completion audit write')
+        os.fsync(fd)
+        directory = os.open(root, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        os.close(fd)
 
 
 def queue_state_root():
@@ -218,6 +368,7 @@ def _queue_operation(fields):
     started = datetime.fromisoformat(op['started_at'].replace('Z', '+00:00'))
     if started == datetime.min.replace(tzinfo=timezone.utc):
         raise ValueError('zero operation timestamp')
+    decode_exit_evidence(fields)
     return op
 
 
@@ -303,6 +454,7 @@ class QueueGate:
                 raise ValueError('managed queue controller incarnation mismatch')
         else:
             started = queue_process_start(watch)
+            self.owner_started = started
             try:
                 boot = queue_boot_id()
             except OSError:
@@ -356,6 +508,8 @@ class QueueGate:
         op = _queue_operation(fields)
         if op['id'] != self.id or op['root'] != self.top or op['managed'] != self.managed:
             raise ValueError('queue lifetime identity changed')
+        if not self.managed and (op['pid'] != self.watch or op['pid_started'] != self.owner_started):
+            raise ValueError('watched owner incarnation changed')
         return fields, op
 
     def pause_reason(self):
@@ -401,14 +555,42 @@ class QueueGate:
             raise ValueError('queue cancellation intent identity mismatch')
         return value['reason']
 
-    def retire(self, owner_ended=False):
+    def retire(self, evidence=None):
         with self.locked():
             fields, op = self.operation()
             if self.managed:
                 return  # Go owns both its lifetime and interruption evidence.
             if op['phase'] != 'waiting':
+                evidence = evidence or {}
+                decode_exit_evidence(queue_strict_object(queue_encode_object({}, **evidence)))
+                try:
+                    reason = self.intent()
+                    cancellation = reason is not None or op['phase'] != 'running'
+                except ValueError:
+                    reason, cancellation = None, True
+                if op['pid'] != self.watch:
+                    raise ValueError('watched owner binding changed')
+                if direct_retirement_decision(evidence, cancellation, self.watch) == 'finished':
+                    try:
+                        append_completion_audit(self.root, op, evidence)
+                    except (OSError, ValueError):
+                        evidence = dict(evidence, group_observation='unknown')
+                    else:
+                        self.rewrite(fields, phase='finished', **evidence)
+                        os.unlink(self.path)
+                        os.close(self.fd)
+                        self.fd = None
+                        return
                 detail = 'unmanaged operation ' + self.id + ' in ' + self.top + ': watched owner ended; descendants require operator reconciliation'
-                unknown = queue_encode_object(fields, phase='unknown', detail=detail)
+                if evidence:
+                    detail += '; exit observed ' + evidence.get('exit_observed_at', 'unavailable')
+                    detail += '; status ' + str(evidence.get('exit_status', 'unavailable'))
+                    detail += '; group ' + evidence.get('group_observation', 'unknown')
+                    survivors = evidence.get('survivor_pids', [])
+                    if survivors:
+                        detail += '; survivors ' + ','.join(map(str, survivors))
+                detail = detail.encode('utf-8')[:4096].decode('utf-8', errors='ignore')
+                unknown = queue_encode_object(fields, phase='unknown', detail=detail, **evidence)
                 destination = os.path.join(self.root, 'unresolved', self.id + '.json')
                 if not os.path.exists(destination):
                     if len(os.listdir(os.path.join(self.root, 'unresolved'))) >= QUEUE_MAX_OPERATIONS:
@@ -447,11 +629,13 @@ class QueueGate:
         self.mutex = os.open(os.path.join(self.root, 'control.lock'), os.O_RDWR)
 
 
-def watch_queue_owner(gate, watch):
+def watch_queue_owner(gate, watch, observer=None):
     """Only unmanaged owners consume intents; managed Go reaps its own group."""
     sent = False
     try:
         while process_alive(watch):
+            if observer is not None and observer.poll():
+                break
             if not gate.managed and not sent:
                 try:
                     with gate.locked():
@@ -472,9 +656,71 @@ def watch_queue_owner(gate, watch):
                     pass
             time.sleep(.1)
         if not gate.managed:
-            gate.retire(owner_ended=True)
+            evidence = {}
+            if observer is not None:
+                observer.poll()  # collect a queued event even if the PID was reaped first
+                evidence = dict(observer.evidence)
+                try:
+                    # Reused PID/group names never supply completion authority.
+                    if queue_process_start(watch) != observer.started:
+                        evidence['owner_observation'] = 'unknown'
+                except ProcessLookupError:
+                    pass
+                except OSError:
+                    if process_alive(watch):
+                        evidence['owner_observation'] = 'unknown'
+                try:
+                    evidence.update(process_group_snapshot(evidence.get('process_group'), watch))
+                except (OSError, ValueError):
+                    evidence.update(group_observation='unknown', survivor_pids=[])
+            gate.retire(evidence=evidence)
     finally:
+        if observer is not None:
+            observer.close()
         gate.close()
+
+
+def start_owner_watcher(gate, watch):
+    """Do not let make run before the post-fork exit observer is registered."""
+    read, write = os.pipe()
+    child = os.fork()
+    if child == 0:
+        os.close(read)
+        observer = None
+        try:
+            os.setsid()  # the monitor must not be counted in make's job group
+            for sig in (signal.SIGINT, signal.SIGHUP):
+                signal.signal(sig, signal.SIG_IGN)
+            null = os.open(os.devnull, os.O_RDWR)
+            for std in (0, 1, 2):
+                os.dup2(null, std)
+            os.close(null)
+            gate.after_fork()
+            if not gate.managed:
+                _, op = gate.operation()
+                observer = OwnerExitObserver(watch, op['pid_started'])
+                observer.register()
+            os.write(write, b'1')
+            os.close(write)
+            write = None
+            watch_queue_owner(gate, watch, observer)
+        except BaseException:
+            os._exit(1)  # incomplete lifetime is recovered conservatively by Go
+        os._exit(0)
+    os.close(write)
+    try:
+        ready, _, _ = select.select([read], [], [], WATCHER_READY_SECONDS)
+        if not ready or os.read(read, 1) != b'1':
+            # This exact child was just forked and remains ours until waitpid.
+            try:
+                os.kill(child, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            os.waitpid(child, 0)
+            raise ValueError('suite watcher did not acknowledge exit observation')
+        return child
+    finally:
+        os.close(read)
 
 
 def log(msg):
@@ -860,19 +1106,6 @@ def require_watch(watch):
         raise SystemExit(1)
 
 
-def wait_for_exit(pid):
-    if hasattr(select, "kqueue"):
-        kq = select.kqueue()
-        ev = select.kevent(pid, select.KQ_FILTER_PROC, select.KQ_EV_ADD, select.KQ_NOTE_EXIT)
-        try:
-            kq.control([ev], 1, None)
-            return
-        except OSError:  # already gone
-            return
-    while process_alive(pid):
-        time.sleep(0.5)
-
-
 def acquire(watch, weight=1):
     if os.environ.get("WF_TEST_LOCK", "").lower() in ("off", "0", "no"):
         log("WF_TEST_LOCK=off: NOT taking the machine-wide full-suite lock; this run may collide with another")
@@ -965,20 +1198,7 @@ def acquire(watch, weight=1):
                 os.close(other)
         if not first:
             log(f"lock acquired after {int(time.time() - start)}s")
-        child = os.fork()
-        if child == 0:
-            for sig in (signal.SIGINT, signal.SIGHUP):
-                signal.signal(sig, signal.SIG_IGN)
-            null = os.open(os.devnull, os.O_RDWR)
-            for std in (0, 1, 2):
-                os.dup2(null, std)
-            os.close(null)
-            try:
-                gate.after_fork()
-                watch_queue_owner(gate, watch)
-            except BaseException:
-                os._exit(1)  # held residue is reconciled conservatively by Go
-            os._exit(0)
+        child = start_owner_watcher(gate, watch)
         detached = True
         rec.update(holder=child, slot=taken[0], slots=taken, started=datetime.now().isoformat(timespec="seconds"))
         with gate.locked():

@@ -94,35 +94,35 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 
 **Files:** new `scripts/test/fixtures/direct-suite-completion/{65dbdc31d6444c45a8692456d1e0a595,f70ce4520db34fdaa8208eb03bf778c0,b54088501a804c8eab8d7bab2de27e79}.json`; new `scripts/test/test-lock-exit.test.py`; existing `scripts/test/test-lock-pause.test.py` private fixture where reusable.
 
-- [ ] Copy the original operation bytes out of the three audited base64 payloads, verify hashes against the Log, and record provenance beside fixtures. Do not reconstruct or normalize these JSON bytes. Assert old records still decode as unknown and never become completion evidence by themselves.
-- [ ] Build a real isolated make fixture in a private process group, with a recipe barrier that lets the test observe admission before releasing a successful recipe. Await bounded observable state, not a sleep standing in for readiness. After make exit 0, assert no active/unresolved record, a valid completion audit line with bound PID and observation time, and reacquirable physical slots.
-- [ ] Run `python3 scripts/test/test-lock-exit.test.py -v`. Record the red failure showing the current tombstone. A separate oracle must inspect actual queue files and acquire the slot; do not merely call the new decision function and assert its return.
+- [x] Copy the original operation bytes out of the three audited base64 payloads, verify hashes against the Log, and record provenance beside fixtures. Do not reconstruct or normalize these JSON bytes. Assert old records still decode as unknown and never become completion evidence by themselves.
+- [x] Build a real isolated make fixture in a private process group, with a recipe barrier that lets the test observe admission before releasing a successful recipe. Await bounded observable state, not a sleep standing in for readiness. After make exit 0, assert no active/unresolved record, a valid completion audit line with bound PID and observation time, and reacquirable physical slots.
+- [x] Run `python3 scripts/test/test-lock-exit.test.py -v`. Record the red failure showing the current tombstone. A separate oracle must inspect actual queue files and acquire the slot; do not merely call the new decision function and assert its return.
 
 ### Task 2: Observe exact owner exits and fence the decision
 
 **Files:** modify `scripts/test-lock.py`; test `scripts/test/test-lock-exit.test.py`.
 
-- [ ] Write decision and evidence-parser tests using the strategies above and the state-transition table as the contract; run them red before implementation.
-- [ ] Register native exit observation in the forked watcher, detach its session, and acknowledge readiness through a bounded pipe handshake before returning acquired. Capture group/incarnation before registration, verify afterward, and fail conservatively on mismatch. Remove or reuse the currently unused `wait_for_exit` instead of leaving a second exit implementation.
-- [ ] Implement `OwnerExitObserver` and `process_group_snapshot` through the named seams; execute their stateful and real-process conformance strategies above.
-- [ ] Feed exact exit and group observations into `direct_retirement_decision`; preserve managed borrowing and fenced cancellation. Apply its independent completion invariant through the actual watcher path.
-- [ ] Run the new file and `python3 scripts/test/test-lock-pause.test.py -v`; keep existing recycled-PID, surviving-child, mutex-reopen, cancellation, nested and managed controls.
+- [x] Write decision and evidence-parser tests using the strategies above and the state-transition table as the contract; run them red before implementation.
+- [x] Register native exit observation in the forked watcher, detach its session, and acknowledge readiness through a bounded pipe handshake before returning acquired. Capture group/incarnation before registration, verify afterward, and fail conservatively on mismatch. Remove or reuse the currently unused `wait_for_exit` instead of leaving a second exit implementation.
+- [x] Implement `OwnerExitObserver` and `process_group_snapshot` through the named seams; execute their stateful and real-process conformance strategies above.
+- [x] Feed exact exit and group observations into `direct_retirement_decision`; preserve managed borrowing and fenced cancellation. Apply its independent completion invariant through the actual watcher path.
+- [x] Run the new file and `python3 scripts/test/test-lock-pause.test.py -v`; keep existing recycled-PID, surviving-child, mutex-reopen, cancellation, nested and managed controls.
 
 ### Task 3: Persist diagnostic evidence and cover crashes
 
 **Files:** modify `scripts/test-lock.py`; tests in `scripts/test/test-lock-exit.test.py`, `cmd/sdlc/internal/queuegate/codec_test.go`, `cmd/sdlc/queue_runtime_test.go`.
 
-- [ ] Write exit evidence on unknown outcomes and a compact diagnostic audit line for confirmed completion. Serialize final cancellation/binding validation and writes using `control.lock`. Preserve all additive raw fields. Apply the named parser, retirement and audit adversarial strategies above.
-- [ ] Inject failures before audit, before/after finished-phase persistence, and before/after unlink. A fresh Go observer must retain unknown before the committed terminal transition and remove terminal residue after it; no record from the three incidents is retroactively treated as finished.
-- [ ] Kill the watcher mid-run in a private fixture; verify unknown remains and no fabricated exit timestamp/status appears. Model a Couch/supervisor exit while the independent watcher survives; release the recipe and verify normal completion. Make clear that losing the watcher is different from restarting Couch. Test that late cancellation cannot rewrite a committed finished outcome.
-- [ ] Verify current Go strict decoding and rewriting preserve new evidence through `Extra`, and `detail` makes exit observations/survivors visible in a real private queue-status invocation. Add the new Python file to the existing Go helper integration runner so the recorded suite actually runs it.
-- [ ] Run `go test ./cmd/sdlc/internal/queuegate -count=1` and the targeted `go test ./cmd/sdlc -run 'TestQueueRealHelper' -count=1 -timeout 10m`; run `bash scripts/test/test-lock.test.sh` and `python3 scripts/test/test-lock-priority.test.py -v` for shared Makefile/helper compatibility. Check exact existing runner names before selecting the final commands.
+- [x] Write exit evidence on unknown outcomes and a compact diagnostic audit line for confirmed completion. Serialize final cancellation/binding validation and writes using `control.lock`. Preserve all additive raw fields. Apply the named parser, retirement and audit adversarial strategies above.
+- [x] Inject failures before audit, before/after finished-phase persistence, and before/after unlink. A fresh Go observer must retain unknown before the committed terminal transition and remove terminal residue after it; no record from the three incidents is retroactively treated as finished.
+- [x] Kill the watcher mid-run in a private fixture; verify unknown remains and no fabricated exit timestamp/status appears. Model a Couch/supervisor exit while the independent watcher survives; release the recipe and verify normal completion. Make clear that losing the watcher is different from restarting Couch. Test that late cancellation cannot rewrite a committed finished outcome.
+- [x] Verify current Go strict decoding and rewriting preserve new evidence through `Extra`, and `detail` makes exit observations/survivors visible in a real private queue-status invocation. Add the new Python file to the existing Go helper integration runner so the recorded suite actually runs it.
+- [x] Run `go test ./cmd/sdlc/internal/queuegate -count=1` and the targeted `go test ./cmd/sdlc -run 'TestQueueRealHelper' -count=1 -timeout 10m`; run `bash scripts/test/test-lock.test.sh` and `python3 scripts/test/test-lock-priority.test.py -v` for shared Makefile/helper compatibility. Check exact existing runner names before selecting the final commands.
 
 ### Task 4: Document, close and land
 
 **Files:** modify `atlas/workflow/sdlc-binary.md`; update issue Log and this plan.
 
-- [ ] Update the existing direct-suite paragraph: observed clean exit plus empty private group permits retirement; unknown status, survivors, cancellation and observer failure remain unresolved. Document observation timestamps, completion audit location and per-run growth, platform fallback and the managed-path distinction. Do not imply a historical exit time can be recovered from old tombstones.
+- [x] Update the existing direct-suite paragraph: observed clean exit plus empty private group permits retirement; unknown status, survivors, cancellation and observer failure remain unresolved. Document observation timestamps, completion audit location and per-run growth, platform fallback and the managed-path distinction. Do not imply a historical exit time can be recovered from old tombstones.
 - [ ] Record red/green evidence, native conformance results, count/limit tests and any platform limits. Check `git diff --check`, commit with issue reference and author trailer, push through SDLC, and run the recorded suite on the pushed head with `sdlc local-check run --name suite`.
 - [ ] Close with the mandatory fresh-context SDLC review, resolve findings, then merge using the retained SDLC runner. No live machine cancellation/reconciliation and no :0 deployment are part of this plan. Report the outcome and PR to the hub.
 
@@ -143,3 +143,5 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 - 2026-10-21: TL approved the plan in receipt c86c6fec-3912-4277-9ea1-f519c2aa7f25, cutting the proposed 256-file diagnostic receipt store. Replaced it with one compact completion audit line beside reconciliation, with no receipt registry or sweeper. Kept the separate log because existing reconciliation readers require original unknown-operation records. Corrected the earlier outgoing checkpoint message: actual plan commit is `35fb28672`, not its accidental placeholder; the correction was also sent immediately through Couch.
 
 - 2026-10-21: PQ-1 refined the test contract: named the production decision, validation, observer, snapshot, handshake, retirement and audit functions, each with one adversarial strategy and independent mechanical guard; compressed prose input inventories into this table. Behavioral state table and approved scope are unchanged.
+
+- 2026-10-21: Implementation checkpoint: Tasks 1–3 verified with actual make, stateful native observation/snapshot and audit failure seams, real handshake failure/timeout, production retirement crash cuts, fresh Go reader recovery, original bytes and current-provider compatibility. Supplemental pure/integration Python test file is `scripts/test/test-lock-decision.test.py`, registered alongside the real-process file by the Go suite. Group membership is captured for shared groups too, while the pure decision still refuses retirement unless pgid equals the owner PID.

@@ -93,3 +93,5 @@ total: 2.13
 ```
 
 - 2026-10-21: Updated Done when to the authenticated TL-approved narrow contract (receipts `298daa02-f072-4415-a649-99a5c8cc6d5b` and `c86c6fec-3912-4277-9ea1-f519c2aa7f25`). This explicitly replaces the original unsafe watcher-restart/PID-exit auto-release alternative; supervisor restart with a surviving independent watcher is the real-process control.
+
+- Final targeted checkpoint: `go test ./cmd/sdlc -run '^(TestQueueRealHelper|TestSuiteQueuePriorityRealHelper)' -count=1 -timeout 10m` PASS (33.678 s), `go test ./cmd/sdlc/internal/queuegate -count=1` PASS (1.264 s); Python decision/observation/audit controls 11/11 PASS (0.129 s). The current provider harness resolves the standalone stale-bin failure. Full shell helper script previously PASS. Readiness failure/timeout and production terminal-publication crash cuts are now covered; no live queue mutation or :0 stage performed.
