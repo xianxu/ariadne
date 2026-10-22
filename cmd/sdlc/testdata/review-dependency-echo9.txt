@@ -1,0 +1,11 @@
+Echo #9 boundary review capture, commit 5a3ada9, supplied by ops-echo:0 for ariadne#551.
+
+findings:
+  - id: new
+    severity: Critical
+    kind: unverifiable
+    family: review-dependency-verification
+    title: |
+      Missing substrate checkout prevents suite and pinned-template verification
+    detail: |
+      tests/ci_support.py:19 and tests/ci-workflow.test.sh:15 require /Volumes/TestScratch/review-checkouts/ariadne. Running make test exited 2 with six fixture errors and one failure; running bash tests/ci-workflow.test.sh exited 1. Direct git -C inspection confirmed “No such file or directory.” Prepare the review sibling with compiler object be45339042cc056c653c16735172014af3cacb2c and its harness inputs, then rerun both checks. Alternatively, provide measured host evidence binding the reviewed source and dependency revisions to those successful checks. The retained af30d2db logs support prior success but do not restore independent inspection of the dependency here.

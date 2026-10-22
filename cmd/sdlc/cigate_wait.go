@@ -13,6 +13,9 @@ import (
 type ciGateError struct {
 	Reason  ciReason
 	Message string
+	// Missing local records remain actionable even when server checks choose
+	// the aggregate Reason (for example pending, red, or not registered).
+	LocalNeeded []string
 }
 
 func (e *ciGateError) Error() string { return e.Message }

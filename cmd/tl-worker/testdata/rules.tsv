@@ -62,9 +62,9 @@ drain-authentic	own	authenticated supervisor drain notice
 drain-graceful	own	finish only the current atomic step
 drain-fast	own	stop now and preserve unfinished edits
 drain-durable	own	commit and push the durable checkpoint
-drain-ack	own	`couch --drain --ack ID`
+drain-current-background	own	wait for background work that is already running to finish
 drain-idle	own	end the turn and stay idle
-drain-no-report	own	Do not send a separate drained report
+drain-new-message	own	acknowledge message received, will resume processing after drain is lifted
 drain-suites	own	full suites through `sdlc local-check run --name suite`
 drain-targeted	own	targeted tests through `go test -run`
 verify-every-agent	own	every agent kind in its tests and in any live check

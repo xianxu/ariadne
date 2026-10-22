@@ -16,6 +16,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewprepare"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewusage"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 	"github.com/xianxu/ariadne/pkg/reviewpolicy"
 )
 
@@ -77,6 +78,10 @@ type DispatchOptions struct {
 	// reverted or half-mutated tree). An error ends the dispatch with attempt 1's
 	// text kept.
 	BeforeRetry func() error
+	// BeforeRetryContext receives the remaining dispatch deadline. Prefer this
+	// callback for resource resets whose Git descendants must obey cancellation.
+	BeforeRetryContext func(context.Context) error
+	Dependencies       []reviewbox.Dependency
 	// Checkout is the review checkout the agent runs in (#204), empty when it
 	// runs in the operator's tree. Dispatch confines the agent around it, or
 	// around the working directory's repository (#339).
@@ -166,6 +171,7 @@ func runCommand(ctx context.Context, onStart func(int), dir string, stdout, stde
 		if cmd.Env == nil {
 			cmd.Env = os.Environ()
 		}
+		cmd.Env, _ = layergraph.DependencyEnvironment(cmd.Env, "", nil)
 		cmd.Env = binAugmentedEnv(c.BinDir(), overlayEnv(cmd.Env, c.Env()))
 	}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
@@ -306,7 +312,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	conf, err := confine(opts)
+	conf, err := confine(ctx, opts)
 	if err != nil {
 		return "", fmt.Errorf("reviewer confinement (#339), the review did not run: %w", err)
 	}
@@ -321,15 +327,15 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 
 // confine prepares the agent's confinement (#339): around its review checkout
 // when it has one, else around the working directory's repository.
-func confine(opts DispatchOptions) (*reviewbox.Confinement, error) {
+func confine(ctx context.Context, opts DispatchOptions) (*reviewbox.Confinement, error) {
 	if opts.Checkout != "" {
-		return reviewbox.Confine(opts.Checkout, true)
+		return reviewbox.ConfineWithDependencies(ctx, opts.Checkout, true, opts.Dependencies)
 	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return reviewbox.Confine(wd, false)
+	return reviewbox.ConfineWithDependencies(ctx, wd, false, opts.Dependencies)
 }
 
 // confinementKey carries the dispatch's confinement to Run, so the agent's
@@ -362,10 +368,17 @@ func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox
 			if opts.Stderr != nil {
 				fmt.Fprintln(opts.Stderr, "    … reviewer response invalid; dispatching it once more:", invalid)
 			}
-			if opts.BeforeRetry != nil {
+			if opts.BeforeRetryContext != nil {
+				if err := opts.BeforeRetryContext(ctx); err != nil {
+					return retryFailure(first, err, opts.ValidateResponse != nil)
+				}
+			} else if opts.BeforeRetry != nil {
 				if err := opts.BeforeRetry(); err != nil {
 					return retryFailure(first, err, opts.ValidateResponse != nil)
 				}
+			}
+			if err := ctx.Err(); err != nil {
+				return retryFailure(first, err, opts.ValidateResponse != nil)
 			}
 			if err := conf.Prepare(); err != nil {
 				return retryFailure(first, err, opts.ValidateResponse != nil)

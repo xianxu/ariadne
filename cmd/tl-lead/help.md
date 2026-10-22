@@ -43,6 +43,37 @@ ROLES
     coordinate through the issue trackers, the project file and one-line
     heads-ups, never by relaying each other's filings.
 
+DRAIN THE FLEET
+  The machine steward coordinates this procedure on the operator's request.
+  Worker obligations live in `tl-worker --help`; Couch's notice and receipt
+  protocol lives in `couch --skill`.
+  1. Pause admissions with `sdlc queue pause --reason TEXT --owner TOKEN`.
+     Keep this owner token for your hold. For a fast drain, add --cancel-running:
+     it interrupts only running suites; admitted merge/landing work retires at
+     its safe boundary.
+  2. Send `couch --drain [--fast]` separately. Couch flags slots and sends
+     notices; it does not orchestrate the queue or provide a completion barrier.
+  3. Inspect `couch --drain --status`, receipts, multi-slot `couch --peek` and
+     idle notices. Verify durable checkpoints and managed work outcomes before
+     reporting restart safety to the operator. Queued work blocked by a pause
+     remains outstanding; quiet screens and drain flags do not prove restart safety.
+     Resolve outstanding work with its owners through supported controls.
+  4. After restart, wait for the operator's explicit "start recovery", then
+     use the existing fleet-resume procedure for owned slots one at a time.
+     Never infer authorization from missing flags or a successful restart.
+  To call off the drain: `couch --undrain [--message TEXT]`, then
+  `sdlc queue resume --owner TOKEN`. This removes only your hold and
+  does not restart interrupted work. Undrain clears flags before attempting
+  continuation notices; a delivery failure is not proof that a slot continued.
+  Hub automation is separate: when Couch provides couch --automation, inspect
+  `couch --automation status` after start. If off, on the first genuine operator
+  message (console, session file or side doc), unless told to keep it off, run
+  `couch --automation on` for your own hub; never change another hub's automation.
+  A restart or cleared flags are not permission to enable automation or recover;
+  worker reports are not operator input. For an operator-requested soft stop,
+  use `couch --automation off` on your hub; no automatic recovery parsing or replay.
+  Automation on does not replace the operator's "start recovery" instruction.
+
 TEAMS (ariadne#456: one team per ops repo)
   - A team is an ops repo (`~/workspace/ops`, `~/workspace/ops-echo`): its
     :0 slot is the TL, addressed like any slot (`ops:0`, `ops-echo:0`). A slot

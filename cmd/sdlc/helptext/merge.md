@@ -29,6 +29,12 @@ DURABLE WORKSPACES (:0 AND :N)
      also vouches its own gates. The admitted head may conduct a train that
      lands this PR with others on one suite. A car the train landed only
      cleans up; one it held or refused fails, naming why.
+     Missing required local records stop the waiting merge, also when server
+     CI is pending or failing: "merge stopped: run <exact command>, then
+     re-enter sdlc merge". Train readiness is read-only. Run the named check
+     under its normal queue, or retain an existing queued/running check and
+     retry merge after it passes. This releases only the merge ticket and its
+     position. After serial/granted admission, missing checks still run as below.
   1. If configured main moved, merge it into the issue branch locally. A
      conflict aborts and names the paths. A clean integration must pass the
      publish replay check before its leased push; a refusal resets this

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -20,8 +20,8 @@ import (
 // exited. When no OS write fence can be applied (Seatbelt cannot nest inside
 // an agent's own sandbox), the round degrades to checkout-only isolation with
 // a loud warning; the round and its sidecar record which one it got.
-func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*reviewbox.Checkout, reviewbox.Isolation, error) {
-	protect, err := reviewProtectPaths(m.RepoRoot)
+func openReviewIsolationContext(ctx context.Context, stderr io.Writer, m judge.ReviewWindowManifest) (*reviewbox.Checkout, reviewbox.Isolation, error) {
+	protect, err := reviewProtectPathsContext(ctx, m.RepoRoot)
 	if err != nil {
 		return nil, reviewbox.Isolation{}, err
 	}
@@ -41,29 +41,37 @@ func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*revie
 			cwarn(stderr, "boundary review: "+p.Error())
 		}
 	}
-	checkout, err := reviewbox.Create(root, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
+	checkout, err := reviewbox.CreateContext(ctx, root, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
 	if fallback := roots[len(roots)-1]; err != nil && root != fallback && (errors.Is(err, fs.ErrPermission) || errors.Is(err, syscall.EROFS)) {
 		// The RAM disk refused the write (an agent sandbox denies it): the
 		// normal root, rather than no review (#468). Any other failure (a bad
 		// head, git) is the review's, and stands.
 		cwarn(stderr, fmt.Sprintf("boundary review: %s refused the review checkout (%v); using %s", root, err, fallback))
-		checkout, err = reviewbox.Create(fallback, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
+		checkout, err = reviewbox.CreateContext(ctx, fallback, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
 	}
 	if err != nil {
 		return nil, reviewbox.Isolation{}, err
 	}
+	deps, dependencyProtect, err := prepareReviewDependencies(ctx, checkout, m.RepoRoot)
+	if err != nil {
+		return nil, reviewbox.Isolation{}, errors.Join(err, checkout.Close())
+	}
+	protect = append(protect, dependencyProtect...)
 	fence, reason := reviewbox.Probe()
-	iso := reviewbox.Isolation{Fence: fence, Dir: checkout.Dir, Protect: protect, Reason: reason}
+	iso := reviewbox.Isolation{Fence: fence, Dir: checkout.Dir, Protect: protect, Reason: reason, Dependencies: deps}
 	if iso.Level() == reviewbox.LevelCheckout {
 		cwarn(stderr, fmt.Sprintf("boundary review: write fence unavailable (%s); the reviewer is isolated to a disposable checkout only (isolation: checkout)", reason))
+	}
+	if manifest := reviewbox.DependencyManifest(deps, iso.Level() == reviewbox.LevelFenced); manifest != "" {
+		fmt.Fprintln(stderr, manifest)
 	}
 	return checkout, iso, nil
 }
 
 // plannedReviewIsolation is the isolation a dispatch would get, for --dry-run:
 // the probed fence around a placeholder checkout path. It creates nothing.
-func plannedReviewIsolation(m judge.ReviewWindowManifest) (reviewbox.Isolation, error) {
-	protect, err := reviewProtectPaths(m.RepoRoot)
+func plannedReviewIsolation(ctx context.Context, m judge.ReviewWindowManifest) (reviewbox.Isolation, error) {
+	protect, err := reviewProtectPathsContext(ctx, m.RepoRoot)
 	if err != nil {
 		return reviewbox.Isolation{}, err
 	}
@@ -84,12 +92,12 @@ func plannedReviewIsolation(m judge.ReviewWindowManifest) (reviewbox.Isolation, 
 // and its Git common dir (refs, config, objects, every worktree's index). Each
 // is canonical, because the fence matches the paths the kernel resolves. A
 // worktree whose directory is gone (prunable) has nothing to protect.
-func reviewProtectPaths(repoRoot string) ([]string, error) {
-	common, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
+func reviewProtectPathsContext(ctx context.Context, repoRoot string) ([]string, error) {
+	common, err := reviewDependencyGit(ctx, repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
 		return nil, fmt.Errorf("resolve review git common dir: %w", err)
 	}
-	list, err := exec.Command("git", "-C", repoRoot, "worktree", "list", "--porcelain").Output()
+	list, err := reviewDependencyGit(ctx, repoRoot, "worktree", "list", "--porcelain")
 	if err != nil {
 		return nil, fmt.Errorf("list review worktrees: %w", err)
 	}

@@ -9,6 +9,12 @@ import (
 
 var ErrOutputLimit = errors.New("Git snapshot output exceeds safety budget")
 
+// RunGitBoundedContext shares the contextual process lifetime and output bound
+// with callers that inspect metadata before materializing a disposable tree.
+func RunGitBoundedContext(ctx context.Context, dir string, env []string, limit int, args ...string) ([]byte, []byte, error) {
+	return runGitBoundedInputContext(ctx, dir, env, nil, limit, args...)
+}
+
 // These are input-safety ceilings, not performance targets. Re-measure with the
 // 10,000-card tracker benchmark before raising them. Diagnostics need only the
 // first failure, and are never parsed as file content.
