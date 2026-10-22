@@ -280,6 +280,15 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   pending close-only equivalence cannot create a duplicate suite (#502 lesson).
   No stage, private cache or completed private CLI/compatibility scratch remains.
 
+- Final branch suite passed on 99c89cf3f2181f380fafd754afd28eb65e10674d:
+  attempt 596fc2146a83d0444c641809908f9f7c, all eight shards, 1,982 SDLC tests
+  and 75 other packages, zero failures, wall 724.6s after 3,465s FIFO wait.
+  Raw log is sdlc/local-checks/99c89cf3f2181f380fafd754afd28eb65e10674d/suite.log
+  in the common Git directory; reported digest prefix 277132873062. The retained
+  runner survived the Couch restart; no duplicate run was started. Recorded as
+  sdlc-local/suite on that implementation head. Close round 2 is already SHIP;
+  enter merge now and let its turn own current-main integration and verification.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after

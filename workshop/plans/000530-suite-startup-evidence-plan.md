@@ -277,7 +277,7 @@ atlas/workflow/sdlc-binary.md, workshop issue/lessons.
 - [x] Ask the hub for the live-smoke decision with the concrete reviewed result;
   never fill a volume or modify the live fleet. Prefer a bounded real CLI replay
   against a private local evidence store.
-- [ ] Push, run sdlc local-check run --name suite, wait for final pass, then close
+- [x] Push, run sdlc local-check run --name suite, wait for final pass, then close
   with behavior evidence. Fix all blocking review findings and record lessons.
 - [ ] Enter sdlc merge --yes promptly; retain the waiter. Report the verified
   merged PR, tracker done/archive and clean resting branch to the hub.
