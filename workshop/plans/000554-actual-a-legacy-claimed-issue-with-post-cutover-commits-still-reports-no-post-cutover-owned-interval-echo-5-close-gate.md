@@ -76,6 +76,90 @@ rounds:
       isolation: fenced
       reviewed: bf6e38e1ebc285ef74315d90849b2abe2a485db6
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8a68198c-8773-49e3-9fe9-f3629478aab3
+            repository: github.com/xianxu/ariadne
+            issue_id: "000554"
+            recipe: fix-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/bcd26a9fac12e5e3
+            reviewed_head: c7778d78873aaa2a2e61e48ef295c6fa181df6bd
+            slot: ariadne:4
+            requested_at: "2026-10-22T19:43:14.663186Z"
+          phase: finished
+          pid: 44074
+          started_at: "2026-10-22T19:43:15.016283Z"
+          finished_at: "2026-10-22T19:44:47.383643Z"
+          session_id: 01a16523-a053-7272-ba1e-225b4b43c553
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c7778d78873aaa2a2e61e48ef295c6fa181df6bd
+        tracker_head: 376ce12f4b5e1f240c98e2459f28c4ecf7196b97
+        branch_point: 5785330cda6bf31d533e4282aecc8f3f9cd632a7
+        since: "2026-10-22T11:00:55-07:00"
+        until: "2026-10-22T12:41:18-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-22T11:00:55-07:00"
+              end: "2026-10-22T12:41:18-07:00"
+              began: "2026-10-22T11:00:55-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: ca8f6eac53500b2a893e92cd1afec198d717fa9c927e25132b8be6a5d3679b59
+              started: "2026-10-20T16:55:54.591Z"
+              spawned: false
+              bytes: 36299414
+              windows:
+                - start: "2026-10-22T11:00:55-07:00"
+                  end: "2026-10-22T12:41:18-07:00"
+            - harness: codex
+              id: 01a164c6-5399-7210-85eb-6fdf6536cdc0
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: ef43bad86de970676d085847c8fc9c82fef1c645748abcad50541d330dc690bb
+              started: "2026-10-22T18:01:21.642Z"
+              spawned: true
+              bytes: 1547287
+              windows:
+                - start: "2026-10-22T18:01:21.642Z"
+                  end: "2026-10-22T12:41:18-07:00"
+        cuts:
+            - dispatched: "2026-10-22T11:36:35-07:00"
+              finalized: "2026-10-22T11:39:14-07:00"
+              finalizing: true
+      "n": 2
+      timestamp: "2026-10-22T12:44:48-07:00"
+      dispatched: "2026-10-22T12:43:14-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      findings:
+        - kind: defect
+          id: BR-1
+          severity: Critical
+          title: scope changed after close — run a full `sdlc close`
+          detail: workshop/plans/000554-cutover-ownership-recovery-plan.md:79-88 and the issue's new Revisions passage authorize first-claim queue clipping, implemented at cmd/sdlc/actualinputs.go:413-414. No prior finding requested this behavior; it changes which queue evidence hybrid measurement accepts. The fix-only review contract explicitly requires a full sdlc close for added behavior or expanded scope, regardless of the recorded approval.
+          family: post-close-scope-review
+          round: 2
+      recipe: fix-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#554 (boundary-review)
@@ -85,6 +169,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ## Round 1 — 2026-10-22T11:39:14-07:00 (codex) — passed
 
+## Round 2 — 2026-10-22T12:44:48-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-1** [Critical] `post-close-scope-review` (kind: defect) scope changed after close — run a full `sdlc close`
+  workshop/plans/000554-cutover-ownership-recovery-plan.md:79-88 and the issue's new Revisions passage authorize first-claim queue clipping, implemented at cmd/sdlc/actualinputs.go:413-414. No prior finding requested this behavior; it changes which queue evidence hybrid measurement accepts. The fix-only review contract explicitly requires a full sdlc close for added behavior or expanded scope, regardless of the recorded approval.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-1** [Critical] `post-close-scope-review` (kind: defect) scope changed after close — run a full `sdlc close`

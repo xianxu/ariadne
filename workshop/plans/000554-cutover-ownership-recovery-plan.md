@@ -89,3 +89,7 @@ Revision Plan:
 - [ ] Verify corrected head, publish, queue its recorded suite and re-close with the fixed-then-ship review. Retain the owner-run Echo live-proof hold before landing.
 
 The original queued suite `lease-3451749813` on the superseded source head was cancelled through `sdlc local-check cancel --run lease-3451749813` before code changes; the CLI confirmed cancellation. Do not revive or duplicate that obsolete run. Copied the live JSON read-only from Echo's common Git evidence into `cmd/sdlc/testdata/actual/echo5-claim-straddling-suite.json`; SHA256 `830e2848c584132315e093e2b4699a8667891ed7ce03ee257fdd342a1ff53b5e`. It records exact queued/acquired endpoints, raw queue 5204.94009 seconds and passing outcome. No peer card, tracker, attempt or checkout was changed.
+
+### 2026-10-22 — full review required for the approved queue scope
+
+Boundary round 2 (BR-1, post-close-scope-review) correctly rejected the fix-only review route: first-claim queue admission is approved added behavior, not disposal of an earlier finding. The reviewer independently passed the queue lifecycle and neighboring controls and reported no implementation defect, but the expanded contract requires a full `sdlc close`. This supersedes the revision plan's fixed-then-ship instruction. Run the full close without that flag; do not waive the finding or alter production code to dispose of a review-routing error. The corrected-source suite lease and owner-run live-proof hold remain unchanged.

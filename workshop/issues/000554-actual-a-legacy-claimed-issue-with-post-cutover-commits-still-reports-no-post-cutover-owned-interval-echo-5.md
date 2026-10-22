@@ -135,3 +135,7 @@ Corrected frozen source verification: focused ownership, queue, legacy-prefix an
 ### 2026-10-22 — corrected head integrated before its recorded suite
 
 The re-close now falls after noon. Current main contains the #551 code landing from 11:27, so integrated that required baseline once before queuing the corrected-source suite. Git merged README, atlas and lessons automatically; no conflicts. On the integrated source, the captured ownership-queue lifecycle plus tested-issue/selector/last-commit-boundary controls PASS (53.542s), and the diff check is clean. The correction's race verification remains above; the required recorded suite on the pushed integrated source is still outstanding. No unreviewed integrated code is authorized to land.
+
+### 2026-10-22 — full review required for the approved queue scope
+
+Boundary round 2 (BR-1, post-close-scope-review) correctly rejected the fix-only review route: first-claim queue admission is approved added behavior, not disposal of an earlier finding. The reviewer independently passed the queue lifecycle and neighboring controls and reported no implementation defect, but the expanded contract requires a full `sdlc close`. This supersedes the revision plan's fixed-then-ship instruction. Run the full close without that flag; do not waive the finding or alter production code to dispose of a review-routing error. The corrected-source suite lease and owner-run live-proof hold remain unchanged.
