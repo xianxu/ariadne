@@ -69,3 +69,9 @@ ARCH-SECURE/MOCK: only verified pinned history may assert missing ownership; mal
 ### 2026-10-22 — approved root-cause scope
 
 Authenticated hub receipt `9d48a9c0-5144-4084-bb86-dd422b2a0800` approves strict no-owner refusal, explicit claim recovery and visible unowned gap. This plan implements that scope. The original right-edge/imported-codecomplete hypotheses were investigated and are not Echo #5's current state; those contracts remain defended by controls.
+
+### 2026-10-22 11:20 PDT — continuity oracle correction and drain
+
+Authenticated hub receipt `0efb89bd-348b-4815-8190-b50f00369f34` narrows the gap-event oracle to the attribution invariant: no credited segment or phase intersects the unowned cutover-to-claim window. Existing continuity arithmetic stays unchanged; a pre-claim event may shape continuity inside ownership. Add a test comment naming that effect. This supersedes the earlier assertions that injected gap events cannot increase the suffix or that total measured hours must stay equal across changed source evidence. Equal-hours assertions still defend immutable historical replay. Check actual credited intersections, not broad phase labels with no credited activity.
+
+Supervisor drain arrived before this test correction. Preserve the partial implementation and known failing lifecycle assertion; resume from the detailed issue Log only after an authenticated lift. No new checks, review, stage or landing work started during drain.

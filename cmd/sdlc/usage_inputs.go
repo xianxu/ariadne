@@ -83,7 +83,7 @@ func resolveUsageAuthority(ctx context.Context, root string, id int, now time.Ti
 			return out, e
 		}
 	}
-	out.Windows, e = ownershipSourceWindows(ctx, repo, pin, rec.Path, out.Repository, out.Until)
+	out.Windows, e = ownershipSourceWindows(ctx, repo, pin, rec.Path, out.Repository, out.Until, "")
 	out.Label = "ownership intervals; local tracker " + pin
 	return out, e
 }
