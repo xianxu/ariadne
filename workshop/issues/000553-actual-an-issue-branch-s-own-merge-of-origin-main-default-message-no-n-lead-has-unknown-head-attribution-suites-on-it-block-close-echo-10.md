@@ -53,9 +53,9 @@ foreign parents keep strict refusal.
 
 ## Plan
 
-- [ ] Reproduce the ordinary integrate-main merge with real Git, retaining a foreign-parent control before changing production code.
-- [ ] Extend the existing immutable head reader with command-scoped pinned-main ancestry evidence; let the pure classifier/reducer inherit only first-parent membership for a structurally proven integration.
-- [ ] Verify repeated integrations, arbitrary messages, multiple side parents, unknown first parents, foreign parents, ref movement, replacement/graft controls, cancellation and bounded shared probes; retain the train grammar and existing budget controls.
+- [x] Reproduce the ordinary integrate-main merge with real Git, retaining a foreign-parent control before changing production code.
+- [x] Extend the existing immutable head reader with command-scoped pinned-main ancestry evidence; let the pure classifier/reducer inherit only first-parent membership for a structurally proven integration.
+- [x] Verify repeated integrations, arbitrary messages, multiple side parents, unknown first parents, foreign parents, ref movement, replacement/graft controls, cancellation and bounded shared probes; retain the train grammar and existing budget controls.
 - [ ] Update the attribution atlas, obtain the owner-run echo#10 measurement, then record the pushed-head suite and close review before landing.
 
 ### Design
@@ -116,6 +116,12 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   the exact dffca4b7/885dc171 unknown-attribution error; the tracked implementation passed the fixture.
   The independent clone has a separate landing line, so its eventual landing must be coordinated through
   the canonical checkout rather than bypassing that queue. Reported this to the hub before merge.
+- Fixture-final suite is queued on pushed 2dd67c231 as lease-1759503955, not yet a pass. The cancelled
+  old lease retired through supported controls with no passing or failed attempt publication.
+  Hub revoked #553's grant and approved finishing suite/close in this clone, then importing the pushed
+  branch into the canonical checkout after #506 lands (receipt 1e45c411-1ba8-4ffc-b17d-ce7fb0d5b577).
+  Start close review during that queue wait under tl-worker PERMISSIONS: the final code still needs its
+  recorded suite pass before landing, and any review code change requires a new tested head.
 
 ## Revisions
 
