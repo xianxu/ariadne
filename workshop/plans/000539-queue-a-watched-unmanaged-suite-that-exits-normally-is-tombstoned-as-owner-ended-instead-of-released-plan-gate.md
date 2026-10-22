@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-22T04:59:06.282879Z"
       session_id: 01a161f9-c28e-76d2-8a85-5ed3bff58c1f
       outcome: returned
+    - version: 1
+      intent:
+        id: 9b8fc6a1-6c36-4d1e-8a32-acf91f3a9af8
+        repository: github.com/xianxu/ariadne
+        issue_id: "000539"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        reviewed_head: 87ed2f18e193802a88298cb52947d2ba20d9e08c
+        slot: ariadne:5
+        requested_at: "2026-10-22T05:07:54.199649Z"
+      phase: finished
+      pid: 89872
+      started_at: "2026-10-22T05:07:54.289028Z"
+      finished_at: "2026-10-22T05:08:23.399308Z"
+      session_id: 01a16202-3630-72a2-b708-c8663e97194c
+      outcome: returned
 gate: plan-quality
 issue: 539
 id_prefix: PQ
@@ -116,7 +135,37 @@ rounds:
           note: Named risky production functions now carry concise adversarial strategies and independent mechanical guards.
           round: 3
       blocked: false
-content_hash: 7bb70cdcc9504f8f98bf33fc48d09820cc136d2b2b12f0403cab03ec7f15495c
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 28d904d5-acd1-47f6-b938-aeda837b02c6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000539"
+            recipe: plan-quality
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 87ed2f18e193802a88298cb52947d2ba20d9e08c
+            slot: ariadne:5
+            requested_at: "2026-10-22T05:07:32.422482Z"
+          phase: finished
+          pid: 87285
+          started_at: "2026-10-22T05:07:32.518912Z"
+          finished_at: "2026-10-22T05:07:52.981839Z"
+          session_id: 01a16201-e130-75f1-91de-47f8e68f03d4
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-21T22:07:53-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Named risky functions each have a concise adversarial strategy and independent guard; prose test-case inventories were compressed.
+          round: 4
+      blocked: false
+content_hash: 7c184b614de094f01a933da1619f8799718d46dadd5de6d5434d1efd77678f45
 ---
 
 # Gate ledger — ariadne#539 (plan-quality)
@@ -142,6 +191,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-1 — addressed — Named risky production functions now carry concise adversarial strategies and independent mechanical guards.
+
+## Round 4 — 2026-10-21T22:07:53-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Named risky functions each have a concise adversarial strategy and independent guard; prose test-case inventories were compressed.
 
 ## Open findings
 

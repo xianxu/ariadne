@@ -38,9 +38,9 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 
 ## Done when
 
-- A watched unmanaged suite that exits 0 releases its queue record, with no tombstone (test with a real child process).
-- Same across a simulated watcher restart mid-run (test), or the tombstone records the observed exit time and is
-  auto-released when the pid's exit is confirmed.
+- On Darwin, a watched direct suite's exact make incarnation exits with positively observed status 0 and its private process group is confirmed empty: the queue operation retires with no unresolved tombstone, and a compact audit records its exit observation time. Prove with real make and real child processes.
+- Survivors, nonzero or unobserved exit, cancellation, failed/shared group observation, or watcher loss retain uncertainty with available exit timestamp/status and survivor PIDs. Historical records without exit evidence remain unresolved.
+- A simulated supervisor exit while the independent watcher survives does not prevent normal completion. Losing the watcher itself never authorizes retirement from PID disappearance; fresh-reader crash recovery distinguishes committed finished phase from an unproved running lifetime.
 
 ## Plan
 
@@ -67,6 +67,13 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 
 - 2026-10-21: Concrete plan approved by TL receipt `c86c6fec-3912-4277-9ea1-f519c2aa7f25`, with the diagnostic receipt-directory proposal cut in favor of one compact audit line beside reconciliation. Actual initial plan commit: `35fb28672` (corrects the accidental placeholder in the outgoing checkpoint message, already corrected through Couch). Enter change-code next; implementation remains unchanged.
 
+### Implementation checkpoint
+
+- Plan-quality CLEAN after PQ-1, estimate recorded after acceptance; change-code full flow passed. Implemented initial observer/retirement path after red evidence. Pure finite-product decision and malformed-boundary tests went red first; a subsequent wrong-incarnation and noncanonical-field regression also went red before their guards.
+- Real red: `python3 scripts/test/test-lock-exit.test.py -v`, clean make PID 98439 returned 0 and physical slot became free, but unresolved operation `4ec001462e77407b9c488b8836088f9c` remained unknown (1 test, 0.508 s, expected failure). Copied the three original audited JSON payloads unchanged, with hash-checked provenance.
+- Initial green: ten private real-process tests, including background survivor, signal/nonzero, cancellation, watcher crash, simulated supervisor exit and five rapid completions; eight decision/snapshot/audit tests; all 18 existing pause/helper controls and the full shell helper regression pass. Fresh Go observer/codec controls preserve additive evidence and never promote historical tombstones.
+- Standalone priority Python tests selected the checkout's stale Oct 15 bin/sdlc and failed with provider-unavailable/FIFO diagnostics. Rerun through `TestSuiteQueuePriorityRealHelper`, whose harness supplies the current production provider; do not classify the stale-provider run as feature evidence or change production to accommodate it.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; source tagged stale by estimate-source, so hours are provisional. Python/make tooling maps to the documented smaller-module primitive. Native observer integration uses existing Python kqueue and libproc (halve API design for library availability), with the thorough approved spec's 0.2 design factor and 15% design buffer. Implementation values are 40% of v2 ranges; familiarity 1.5 reflects bounded novel native exit observation. Includes the real-process discovery, actual make fixtures, one close review, and atlas work; no peer adoption or deployment.
@@ -84,3 +91,5 @@ item: real-api-discovery design=0.00 impl=0.24
 design-buffer: 0.15
 total: 2.13
 ```
+
+- 2026-10-21: Updated Done when to the authenticated TL-approved narrow contract (receipts `298daa02-f072-4415-a649-99a5c8cc6d5b` and `c86c6fec-3912-4277-9ea1-f519c2aa7f25`). This explicitly replaces the original unsafe watcher-restart/PID-exit auto-release alternative; supervisor restart with a surviving independent watcher is the real-process control.
