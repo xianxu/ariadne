@@ -58,6 +58,24 @@ func TestRebaseLinks(t *testing.T) {
 	}
 }
 
+func TestRebaseLinksPreservesActualCodeContexts(t *testing.T) {
+	for _, tc := range []struct{ name, literal string }{
+		{"multiline_span", "`example\n[s](../../s.md)\nend`\n"},
+		{"indented_code", "    [s](../../s.md)\n"},
+		{"nested_list_fence", "- ```\n  [s](../../s.md)\n  ```\n"},
+		{"blockquote_fence", "> ```\n> [s](../../s.md)\n> ```\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := tc.literal + "\n[s](../../s.md)\n"
+			want := tc.literal + "\n[s](../s.md)\n"
+			got, dangling := RebaseLinks(input, "qa/op/a.md", "s.side/a.md", qaMoved, rebaseExists)
+			if got != want || len(dangling) != 0 {
+				t.Fatalf("got %q dangling=%v, want %q", got, dangling, want)
+			}
+		})
+	}
+}
+
 // Over arbitrary Markdown: nothing changes when nothing moves, and every
 // target a move rewrote resolves, from the new place, to an existing path.
 func FuzzRebaseLinks(f *testing.F) {
