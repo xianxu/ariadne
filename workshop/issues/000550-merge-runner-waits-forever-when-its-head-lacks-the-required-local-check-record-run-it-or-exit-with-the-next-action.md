@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "b3e89876", done: "68b71c82"}
 ---
 
 # merge runner waits forever when its head lacks the required local-check record; run it or exit with the next action
