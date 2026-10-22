@@ -1,6 +1,6 @@
 ---
 id: 000543
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.83
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb
         evidence_commit: 45bf72942a70e2ebcf530a46e3f932c45c0f9180
+        landed_commit: d494f6dc9d37dda5872c58b3497f6e96d91c32b7
 ---
 
 # new repositories start on the legacy issue path: initial setup should create the issue tracker (non-brain repos)
