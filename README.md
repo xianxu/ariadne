@@ -548,7 +548,9 @@ next admission without interrupting a running landing or waiving any gate.
 While any valid grant exists, normal admissions wait even before the granted
 issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
-releases the hold; a successful landing ends its grant.
+releases the hold; a successful landing ends its grant. A train's queued integration
+suite inherits any active grant on a car in its exact tested prefix; later grants,
+revocation and expiry update its queue class without restarting it.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,

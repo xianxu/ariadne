@@ -2402,6 +2402,9 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   each class; no running suite is preempted. Expiry or revocation returns the
   waiter to normal FIFO at its original ticket number. A priority head needing
   two slots waits for both; light normal suites cannot backfill ahead of it.
+  A composed train suite inherits any active grant on a car in its exact tested
+  prefix (#535), including a grant added while queued. Removed/conflicting cars
+  and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it
@@ -2414,7 +2417,11 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   issue branch only when its HEAD equals the tested commit. Baselines, other
   checks and unknown identities remain normal. Direct make uses its supplying
   workflow's `bin/sdlc`; recorded checks use their own executable. Tickets carry
-  repository/issue identity, never a priority boolean or executable. Snapshots
+  repository/issue identity, plus an optional exact train-prefix issue list,
+  never a priority boolean or executable. Train metadata leaves the legacy issue
+  zero, so older helpers safely keep it FIFO; upgraded helpers expand the list
+  into the same singular grant-provider requests. Main diagnostics and non-test
+  checks carry no car IDs. Snapshots
   live only in memory, invalidate on source changes or Go-derived activation/
   expiry boundaries, and start no provider process on unchanged pre-boundary
   polls. Provider calls are bounded to 2 seconds and 64 KiB. Missing, old,
@@ -2426,7 +2433,7 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
 The wait names each holder once, then `position K in line; next in line: …` (the
 waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
-normal FIFO or fleet-blocking issue/deadline, and reports class/position changes
+normal FIFO or fleet-blocking issue/train cars and deadline, and reports class/position changes
 immediately rather than waiting for the periodic diagnostic.
 If contention or a pause prevents validating order, it reports `position unknown`
 until an observation is available, then explicitly labels reused diagnostics
