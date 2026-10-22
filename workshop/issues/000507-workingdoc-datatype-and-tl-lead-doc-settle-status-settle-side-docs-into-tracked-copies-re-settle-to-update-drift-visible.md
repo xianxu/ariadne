@@ -97,6 +97,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - 2026-10-22 sweep: retained BR-7 suite lease-2547092102 completed PASS on b061d0dd1f2aa6382b3b3c3d34f5fa7256439dba: all 8 shards, 1,960 SDLC tests and 75 other packages, zero failures; wall 737.1s, log SHA256 prefix 982f0f76a78c, recorded sdlc-local/suite. Re-closing now; no duplicate suite or cache override. Round-four gaps outside literal detection remain a stop-and-report boundary.
 
+- Round-four close returned SHIP: all seven findings disposed, no new findings; measured actual adopted 2.87h. Final close head 25c656f4eec004ea6ecd1bca71536c10a9115946 staged on ariadne:0 through sdlc stage --build. All seven built binaries, including tl-lead and sdlc, verified vcs.revision=25c656f4eec004ea6ecd1bca71536c10a9115946 and vcs.modified=false. Stage report sent to hub; holding for TL/operator disposable live check and ordered fixture-replay evidence before clearing/merge. No worker writes to live hub documents.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
