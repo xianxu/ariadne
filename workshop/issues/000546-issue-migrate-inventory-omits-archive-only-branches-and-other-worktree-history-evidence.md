@@ -1,13 +1,21 @@
 ---
 id: 000546
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
-updated: 2026-10-21
+updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'dc5fc83117cb00a722d670df63678d2111b0850c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fd7fed45a5dc40fbe906e93ea9c6c70caf094bc6' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T03:02:52-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
@@ -20,7 +28,22 @@ Reproductions against real Git/bare origin: (1) clone B creates and pushes a bra
 
 ## Spec
 
-Define and review migrate's complete inventory/import/refusal rule across active, flat legacy history and history/issues, pinned main, local/current remote branches and live worktrees. Keep this distinct from issue init's conservative presence-only gate (#543): init imports nothing and refuses any issue evidence anywhere. #543's BR-1 already refreshes/pins remote head evidence; this issue owns importer gaps beyond that correction.
+Main remains the only source of imported cards. Use the direct-child issue filename rule across the three roots from `issue.IDDirs`: active `workshop/issues`, flat legacy `workshop/history`, and canonical `workshop/history/issues`. Plans, nested side bundles and assets are excluded. Observation is complete before any consumer policy; init retains its independent presence-only policy.
+
+| Scope | Active root | Both archive roots |
+|---|---|---|
+| Pinned publication main | Import and mirror, using existing card/close proof rules | Import cards using existing duplicate selection; never rewrite archived details |
+| Every pinned local/current publication-remote tip and live worktree HEAD, including detached | Refuse a present ID absent from main's imported population, even if inherited. For related tips retain existing merge-base changed-file policy for card fields, active rename/deletion and close anchors. For unrelated tips require exact published active records; otherwise refuse rather than infer ancestry. | A present archive must match a published archive's filename ID and blob bytes (path may differ); otherwise refuse, naming its carrier and path. Main remains authoritative for absences: missing archives on stale tips are not invented deletions. |
+| Every live worktree index and filesystem | Refuse uncommitted issue edits, additions and deletions | Same rule, including ignored/untracked direct-child documents |
+| Unknown, unreadable, malformed or non-directory root observation | Refuse before tracker/main publication | Same rule |
+
+Every branch name is observed, including main, resting and reserved names. Deduplicate immutable reads by OID while retaining carrier names. Verified partial tracker bootstrap and completed migration recovery remain the existing exact-root/marker proofs; no new durable state or publication phase. Bare/prunable worktrees retain their explicit skip policy. The local worktree HEAD is pinned, including detached and unrelated histories. Root components and candidate file kinds cannot silently hide evidence.
+
+The archive rule is intentionally conservative: even an old branch's differing archive copy refuses until the operator lands, aligns or drops that evidence under the legacy workflow. It does not import branch-only cards or decide which differing historical record should win. Related inherited active copies of already represented IDs keep their existing semantics; they are not fabricated edits. Archive observations never enter the active `Branches` rename/reconcile input.
+
+For worktrees, retain Git's tracked-content comparison (including attribute normalization), use NUL-delimited worktree/index/status parsing, and inspect direct filesystem entries against the index so ignored issue documents cannot disappear. Conflicted indexes and issue entries whose assume-unchanged/skip-worktree flags prevent trustworthy observation refuse with the named remedy. No raw-byte filesystem-versus-index comparison that mistakes CRLF normalization for lost work.
+
+The operator's existing freeze of all legacy SDLC writers remains a precondition during dry run/apply. A local lock cannot freeze other clones or editors; this work does not claim a distributed absence guarantee. Apply recollects the complete inventory before checking the reviewed digest. Existing tracker-root CAS, main cutover CAS, exact retry and post-cutover reconcile remain unchanged.
 
 ## Done when
 
@@ -35,3 +58,9 @@ Define and review migrate's complete inventory/import/refusal rule across active
 ## Log
 
 Filed unclaimed per TL direction, Couch 5119a959-0128-4420-89ee-9a91fb0b08d9. Review reproduction was against #543 pinned head 96e8ff1cfaf539a80c5c174ce4ba7bbf83992bae; the omission predates #543 in issuemigrate.go (branch/worktree scopes use d.Home only). No importer expansion authorized in #543.
+
+### 2026-10-22 — planning inventory completeness
+
+Claimed and started on a fresh main-based issue branch after #543's confirmed landing/cleanup. Read the current importer and real-Git regression contracts. Main's archive scan omits the flat root; branch deltas omit archive and inherited/unrelated presence; worktree dirtiness omits both archive roots and detached committed evidence. A bounded read-only survey independently confirmed these gaps and the active rename trap.
+
+Alternatives: (A, recommended) complete observation, main-only imports and conservative refusal of unrepresented non-main evidence; (B) import/merge records from every carrier, rejected because it needs new authority and conflict-selection rules; (C) patch the two reproduced scan sites, rejected because inherited/detached/name-excluded evidence remains invisible. ARCH-PURPOSE requires the root × scope class; ARCH-DRY keeps one path/root observer and separate init/migrate policy; ARCH-PURE keeps archive/presence decisions in the existing pure migration planner. No implementation begun; spec sent to TL for approval before the detailed plan.
