@@ -1,13 +1,13 @@
 ---
 id: 000538
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.43
 collaboration-mode: collaboration
-card_mirror: '24eb65b7684f8ca47ac4677d33240dca79c2acac' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b52ee9fc894e720ca62bc6b882f42c7d39119896' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T02:51:52-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.36
 ---
 
 # stage --clear recognizes its landed holder after branch deletion
