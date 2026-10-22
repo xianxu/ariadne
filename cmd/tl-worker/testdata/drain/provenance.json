@@ -1,0 +1,13 @@
+{
+  "stale_help": {
+    "command": "tl-worker --help",
+    "exit_code": 0,
+    "recorded_date": "2026-10-22",
+    "capture": "verbatim DRAIN section excerpt from the installed real CLI before #506"
+  },
+  "notices": {
+    "source_commit": "638032c6183d82aa72145d22825c422fcef7651a",
+    "source_path": "cmd/internal/couchcore/drain_notice.go",
+    "provenance": "canonical source vectors supplied by pair:5; verified Couch receipt 35f450e9-4333-4b3c-ba15-2b594dd8a007; no live drain sent"
+  }
+}

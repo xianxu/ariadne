@@ -164,3 +164,24 @@ snapshots, not per-document lookup/status. Git policy uses complete batched
 membership checks before copy/switch and one direct check per deletion. Counted
 8/16-document tests bound process growth; real scratch conformance interrupts
 after switching, edits the live root and retries cleanup.
+
+## Drain and hub automation
+
+The worker's DRAIN section in `cmd/tl-worker/help.md` owns graceful/fast background
+work, durable checkpoints, deferral of new work messages and continuation after a
+lift. There is no formal drain-ack command or parsed completion reply. Couch owns
+authenticated notice text and receipts; custom notes are data. Restart-lost flags
+never grant recovery authority.
+
+DRAIN THE FLEET in `cmd/tl-lead/help.md` owns the steward's separate owner-scoped
+queue controls and restart-safety judgment. Paused queued work stays outstanding;
+a flag or quiet screen is not proof of a durable checkpoint or completed work.
+Recovery waits for the operator's explicit instruction and uses the existing
+owned-slot resume procedure. Where Couch provides hub automation controls, its
+first genuine operator message can enable that hub unless told to keep it off;
+automation does not grant recovery authority.
+
+`cmd/tl-worker/drain_test.go` and `cmd/tl-lead/drain_test.go` guard both
+rendered help entry points. Source-backed canonical notice vectors and the
+recorded stale real-CLI DRAIN excerpt live in `cmd/tl-worker/testdata/drain/`;
+these are replay data, not a live drain or a private Couch fleet harness.

@@ -66,13 +66,13 @@ steward need the rules.
 
 ## Plan
 
-- [ ] Red first: preserve the observed stale DRAIN help and canonical pair#722 notice vectors with source
+- [x] Red first: preserve the observed stale DRAIN help and canonical pair#722 notice vectors with source
   provenance; extend existing worker rules.tsv and focused worker/lead rendered-help tests. Pin ordered
   safeguards and forbid the obsolete ack CLI; test both no-args and --help outputs through buildRoot.
-- [ ] Replace worker DRAIN, add the steward/automation procedure to lead help, keeping message mechanics
+- [x] Replace worker DRAIN, add the steward/automation procedure to lead help, keeping message mechanics
   cited to couch --skill and worker obligations owned only by tl-worker. Stay below 100 added shipped lines;
   do not change Couch, SDLC queue behavior, AGENTS, or skill pointers.
-- [ ] Update README's existing drain-ack reference and atlas/workflow/tl-skills.md. Run focused helper/rule
+- [x] Update README's existing drain-ack reference and atlas/workflow/tl-skills.md. Run focused helper/rule
   tests and both real CLI help renders; verify the documented queue flags against current CLI help and
   automation activation/landing against pair#739's actual status. No real drain smoke; pair#722's watched
   live run after this landing supplies live proof.
@@ -142,3 +142,17 @@ steward need the rules.
 - 2026-10-22 revision: TL explicitly superseded the earlier “Lands after pair#739” constraint: ship the
   drain correction before pair#722 live proof, use “when Couch provides couch --automation” so #739's later
   landing simply makes the condition true. The rest of the approved worker/steward/recovery design stands.
+
+### 2026-10-22 — red/green and final-wording review
+
+- Test agent changed only scoped tests, rule-table entries and canonical source vectors; main independently
+  reproduced RED with `go test ./cmd/tl-worker ./cmd/tl-lead -run
+  'TestWorker(HelpCarriesEveryRule|Drain)|TestLead(Drain|Automation|HelpDoesNotRestateWorker)' -count=1`.
+  Exit 1 came from the intended missing notice obligations, retained captured ack instructions and absent
+  steward/automation section, not compilation. Both rendered entry points are exercised.
+- GREEN: focused red command passed after replacing the shipped sections. Full targeted packages passed:
+  `go test ./cmd/tl-worker ./cmd/tl-lead -count=1` (worker 0.065s, lead 20.449s). Both real
+  `go run ./cmd/tl-worker --help` and `go run ./cmd/tl-lead --help` exited 0; inspected final sections.
+  README's stale drain-ack pointer and TL atlas now describe the notice-only contract and its tests.
+- Final worker/steward wording is being sent to the TL as requested before close; recorded suite and
+  the binary-owned boundary review remain. No live drain, slot control or queue pause/resume was executed.
