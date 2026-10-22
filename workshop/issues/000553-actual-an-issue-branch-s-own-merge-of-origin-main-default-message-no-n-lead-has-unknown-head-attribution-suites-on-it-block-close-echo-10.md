@@ -154,6 +154,15 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   No second context default or constructor derivation remains. The corrected 954dea6 private binary's
   earlier owner rerun also exited 0 with the same 1.07h/three-wait result (receipt c976681a-a5c8-45a9-b629-d6e4365b4daa);
   the new context correction is independently covered by the 45-case real-Git matrix.
+- Close round 3 returned SHIP/high, BR-2 addressed, zero new/open findings; evidence
+  fe83377b1a4c4204680ae5b170331012c443a29d, measured actual 0.82h. The independent reviewer passed
+  the targeted suite and restored the old empty reader context through an overlay: all 45 context
+  regressions failed. No additional production correction was required.
+- Current recorded suite remains queued on fe9a4c9e4baff739a319d5969a7adeb8ca683212 as lease-2843917753
+  (terminal18446). Earlier replacement leases retired without execution through their exact supported
+  cancel controls. #506's retained runner remains in the canonical checkout (terminal18055); after it
+  lands and this suite passes, import this pushed branch there and ask the hub to restore landing priority.
+  Do not merge through this clone's separate line. The acceptance checkbox stays open until the suite result.
 
 ## Revisions
 
