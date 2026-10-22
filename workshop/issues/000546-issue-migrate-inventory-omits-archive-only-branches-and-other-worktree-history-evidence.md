@@ -147,6 +147,11 @@ PR 392 remains open/codecomplete; not landed or archived. Existing merge runner 
 
 Stopped before landing admission. After drain is lifted, inspect `sdlc queue status`, `sdlc landing status`, this runner/session and PR 392 before any new action. If it survived, continue observing it; if actually gone, re-enter only through the printed `sdlc merge --branch 000546-issue-migrate-inventory-omits-archive-only-branches-and-other-worktree-history-evidence --yes` recovery. Let SDLC integrate current main and run authoritative integration checks; no manual main chase. After landing, verify done card/archive, clean resting branch, issue-ref cleanup, then report PR 392 to the hub. #533 remains parked on pair#786. Start no new work while drained.
 
+
+### 2026-10-22 — drain lifted; transient Git index lock at landing admission
+
+Authenticated hub lift 2dcf4e55-4d65-4869-af8d-5bfffee39615 resumed the surviving queued runner. After #551 released the turn, its main integration failed before any merge with Git exit 128: worktree index.lock already existed. Inspection immediately afterward found the lock absent, clean porcelain, unchanged checkpoint HEAD and no MERGE_HEAD. No content conflicts, source edits, unfinished merge or lock deletion occurred. This is a transient Git index-writer collision, not test failure or a code conflict requiring re-review. Record the event, push this docs-only checkpoint, then re-enter the existing SDLC recovery path; its fresh integration and authoritative suite remain required. No duplicate runner: terminal session 9024 exited 1 before retry.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.
