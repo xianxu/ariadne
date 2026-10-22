@@ -57,6 +57,8 @@ func RemovalArchivesActive(keptOther, closedOnMain bool) bool { return !keptOthe
 
 // MigrationInput is the inventory the command gathers.
 type MigrationInput struct {
+	Published                      []MigrationObservedFile
+	Tips                           []MigrationTipEvidence
 	Repository, ObjectFormat, Main string
 	Active, Archived               []MigrationFile
 	Branches                       []MigrationBranchFile
@@ -290,6 +292,7 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 	sort.Slice(m.Cards, func(i, j int) bool { return m.Cards[i].ID < m.Cards[j].ID })
 	sort.Slice(m.Conversions, func(i, j int) bool { return m.Conversions[i].Path < m.Conversions[j].Path })
 	sort.Strings(m.Duplicates)
+	m.Refusals = append(m.Refusals, MigrationEvidenceRefusals(in.Published, in.Tips)...)
 	sort.Slice(m.Refusals, func(i, j int) bool {
 		if m.Refusals[i].Subject != m.Refusals[j].Subject {
 			return m.Refusals[i].Subject < m.Refusals[j].Subject
