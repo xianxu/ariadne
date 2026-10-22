@@ -73,3 +73,7 @@ Alternatives: (A, recommended) complete observation, main-only imports and conse
 ### 2026-10-22 — spec approved; durable plan frozen for review
 
 TL approved the complete root-by-scope spec and private production CLI/native bare-Git conformance with no stage (Couch 0fc506bf-9240-416e-b647-898eb9f309a1). A wording check explicitly preserved related-active merge-base/card-field reconciliation and allowed prose differences; byte matching applies to archive evidence and unrelated active snapshots only (7a42fef5-cd44-4876-b333-aff944ce8657). Detailed plan now names pure entities, shared observation extraction, finite refusal/recovery table, the exact preserved authority boundary, counted growth and adversarial guards. No implementation or recorded tests started. Await TL plan approval before change-code.
+
+### 2026-10-22 — plan-quality round 1
+
+TL approved the durable plan (Couch c377850d-b344-4086-9dfc-3587e136bee2). First change-code inferred quick from design size; reran with the approved full-flow pin before implementation. Full plan-quality review accepted the architecture/scope and raised PQ-1 (Important, function-level-test-strategy): name production functions and compress repeated test inventories. Revised the strategy table/tasks accordingly without a design change; rerunning the same gate. No implementation begun.

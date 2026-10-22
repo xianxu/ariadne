@@ -27,7 +27,7 @@ The alternatives were multi-source importing (requires new authority/conflict se
 | `MigrationObservedFile` and `MigrationTipEvidence` | `cmd/sdlc/internal/tracker/migration_inventory.go` | new |
 | `MigrationEvidenceRefusals` | `cmd/sdlc/internal/tracker/migration_inventory.go` | new |
 | `MigrationInput` / `PlanTrackerMigration` | `cmd/sdlc/internal/tracker/migration.go` | modified |
-| Shared issue-root/path classifier | `cmd/sdlc/internal/issue/inventory.go` | new, extracted from initialization |
+| `IssueInventoryPath` | `cmd/sdlc/internal/issue/inventory.go` | new, extracted from initialization |
 
 `MigrationObservedFile` contains a validated path, active/archive role, filename ID, mode and blob OID. A blob OID in this one repository/object format identifies bytes; matching keys are `(role, ID, blob OID)`, independent of path. `MigrationTipEvidence` owns one immutable tip's metadata and its diagnostic carriers, with a typed related/unrelated ancestry result. No document body parsing is needed for presence/matching. Invalid file kinds or malformed identities refuse at the adapter boundary.
 
@@ -39,10 +39,10 @@ The shared classifier derives roots through `issue.IDDirs`, accepts only direct-
 
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
-| Complete tip/worktree observer | `cmd/sdlc/issueinventory.go` | new, extracting existing observation |
+| `observeIssueInventory` | `cmd/sdlc/issueinventory.go` | new, extracting existing observation |
 | `publicationBranchTips` | `cmd/sdlc/issuemigrate.go` | reused | existing explicit all-heads fetch and pinned names/OIDs |
-| `migrationInventory` and bulk active-delta reader | `cmd/sdlc/issuemigrate_inventory.go` | modified/extracted | pinned Git trees, merge bases and close evidence |
-| Complete worktree dirty observer | `cmd/sdlc/issuemigrate_inventory.go` | modified/extracted | NUL Git worktree/index/status data and filesystem metadata |
+| `migrationInventory` / `branchIssueEdits` | `cmd/sdlc/issuemigrate_inventory.go` | modified/extracted | pinned Git trees, merge bases and close evidence |
+| `dirtyIssuePaths` | `cmd/sdlc/issuemigrate_inventory.go` | modified/extracted | NUL Git worktree/index/status data and filesystem metadata |
 
 The observer reuses #543's enumeration, root validation and metadata selection. Extract reusable mechanics, not init's acceptance policy. Read each distinct OID once, retaining all carrier labels. Snapshot the worktree list once with `gitx.ParseWorktrees`; skip only explicit bare/prunable records. Detached HEADs participate as first-class immutable tips. Migration consumes all observed tips rather than the name-filtered `migrationBranchRefs` list. Keep the old helper only if an existing semantic consumer still requires it; do not introduce a second branch enumerator.
 
@@ -95,7 +95,7 @@ Use existing `gitx` snapshot entry, blob and aggregate-output limits. Apply equi
 
 Files: create `cmd/sdlc/internal/tracker/migration_inventory.go` and `_test.go`; modify `migration.go`, `initialization.go` and their tests. Extract shared classification to `cmd/sdlc/internal/issue/inventory.go` with colocated tests.
 
-- [ ] Write pure failing tests for the approved roles, published-byte matching, unknown IDs, path moves, conservative stale archives and unrelated snapshots. Include an archive addition plus active deletion to prove archives never excuse the active-removal refusal; preserve related prose and close-binding examples.
+- [ ] Write pure failing tests using the `IssueInventoryPath`, `MigrationEvidenceRefusals` and `PlanTrackerMigration` strategies below. Preserve the existing active-removal and close-binding oracles.
 - [ ] Run `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/issue -run 'TestMigration|TestEmptyTrackerInit|TestIssueInventory' -count=1`; confirm new cases fail for the intended missing observation/policy.
 - [ ] Implement the typed evidence and keyed matcher; compose with the existing planner and reject added nonempty evidence in `EmptyInitEligible`. Run the same tests green and commit.
 
@@ -103,8 +103,8 @@ Files: create `cmd/sdlc/internal/tracker/migration_inventory.go` and `_test.go`;
 
 Files: create `cmd/sdlc/issueinventory.go`, `cmd/sdlc/issuemigrate_inventory.go` and targeted tests; modify `issuemigrate.go` and `issueinit_inventory.go`. Extend existing inventory/init tests where helper extraction changes names, preserving their behavioral oracles.
 
-- [ ] Add real-Git failing regressions for the two reviewer reproductions, flat-main archive import and no resulting reused max ID. Add related inherited active, unrelated snapshots, detached clean worktree HEADs, all previously excluded ref-name categories, archive path moves and stale differing archive refusal.
-- [ ] Add worktree matrix cases for staged/unstaged/deleted/untracked/ignored/conflicted documents in all roots, quoted/newline paths, observation failures, symlink roots/candidates and relevant untrustworthy index flags. Retain bare/prunable skip and ignored nested assets. Add normalized CRLF clean-control coverage.
+- [ ] Add real-Git failing regressions for both reviewer reproductions and exercise the complete observation strategies below. Assert the resulting imported population reserves the published IDs.
+- [ ] Exercise `dirtyIssuePaths` against adversarial native worktree/index/filesystem state, including a normalization-aware clean control. Keep the finite root × scope inventory in executable tests rather than repeating it in this plan.
 - [ ] Run `go test ./cmd/sdlc -run 'TestIssueMigrate|TestMigrationInventory|TestIssueInit' -count=1 -timeout 20m` to establish intended failures, then implement the shared observer and adapter, bulk active-delta reads and complete worktree dirty checks. No repository edits while this root-package test process runs.
 - [ ] Rerun targeted tests green. Preserve the existing remote-refresh/main-pin/close-pin/rename/reconcile/bootstrap retry tests. Commit.
 
@@ -123,14 +123,22 @@ Files: migration inventory tests; `atlas/workflow/issue-tracker-migration.md`; R
 
 | Function / boundary | Adversarial strategy | Mechanical guard |
 |---|---|---|
-| Shared root/path classifier | Hide an issue in one archive root or count a nested asset as an issue | Root × exact-parent unit matrix and real filesystem negative controls |
-| `MigrationEvidenceRefusals` | Same ID with different archive bytes, moved path, inherited unknown ID, archive masquerading as active rename | Pure keyed-evidence tests plus unchanged active rename/prose/removal contracts |
-| Complete observer / `publicationBranchTips` | Narrow fetch mapping, newly pushed remote branch, excluded ref name, OID changes after pin | Existing two-clone/ref-category/pinned-read regressions, extended for migrate |
-| Bulk active-delta reader | Compare against main instead of merge base or accidentally read a moved branch name | Stale related active and pinned-ref tests; unique-tip native fixtures |
-| Complete dirty observer | Omit detached committed evidence, ignored file, staged deletion or concealed index entry | Native worktree/index/filesystem matrix, unknown-read refusal and checkout-preservation assertions |
-| `migrationInventory` / apply | Observation failure or new evidence after dry-run becomes an empty plan | Real apply-before-publication assertions and unchanged exact-root/marker retry tests |
-| Scan orchestration | Spawn one process per file or rescan every carrier for duplicate OIDs | Counted N/2N subprocess and duplicate-tip controls |
+| `issue.IssueInventoryPath` | Misclassify external paths and root boundaries | Pure root × exact-parent tests, malformed-path fuzz seeds and native negative controls |
+| `MigrationEvidenceRefusals` | Unrepresented or mismatched records disguised as published evidence | Pure role/ID/blob population tests and order-invariant refusal assertions |
+| `PlanTrackerMigration` / `EmptyInitEligible` | New observation data bypasses semantic refusal or emptiness defense | Existing rename/prose/removal/close contracts plus added-input rejection tests |
+| `observeIssueInventory` / `publicationBranchTips` | Omit a carrier or follow a moving name after pinning | Native root × scope/ref-category matrix, two-clone refresh tests and pinned-read assertions |
+| `branchIssueEdits` | Fabricate edits from stale main comparisons or read unpinned data | Related stale-branch and pinned-ref regressions over actual Git histories |
+| `dirtyIssuePaths` | Hidden, ambiguous or malformed worktree evidence looks clean | Native index/filesystem matrix, parser fuzz seeds, normalization control and refusal-preservation assertions |
+| `migrationInventory` / `runIssueMigrate` | Failed or changed observations authorize an empty cutover | Apply-before-publication refusal checks and unchanged exact-root/marker retry tests |
+| `observeIssueInventory` / `migrationInventory` | Per-file subprocesses or duplicate-tip rescans | Counted N/2N process tests and duplicate-OID controls |
 
 ## Review and execution boundary
 
 No implementation before TL approval of this plan and `sdlc change-code` plan-quality admission. This is full flow with one close boundary, not artificial M1/M2 labels. Estimate is derived only after plan quality passes. Another design change is recorded in Revisions; repeated changes to one mechanism trigger a whole-mechanism re-plan under the worker contract.
+
+
+## Revisions
+
+### 2026-10-22 — PQ-1 function-level test strategy
+
+Plan-quality round 1 accepted the architecture and scope, but requested exact risky-function names and compressed test prose. Named the shared classifier, complete observer, active-delta reader and dirty observer, then replaced redundant case inventories with one adversarial strategy and independent guard per function. No behavior, authority, state or scope changed. Detailed input enumeration belongs in executable tests.
