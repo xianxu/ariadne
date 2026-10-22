@@ -46,6 +46,7 @@ Allow the original holder slot to clear its landed stage after normal branch del
 
 
 ### 2026-10-22
+- 2026-10-22: closed — Recorded suite PASS on pushed f04efa370aa0c308faddb46ad594e5b41624464c, attempt 2378cbb55929bb96ab54f3583083144b: 2154 cmd/sdlc tests plus 76 other packages, zero failures, 986.1s execution; log SHA256 50c13d0a1cc8c98c4ef2525a0dd4dd39cb8fba8f1ac70c9b83e8e80891100d99. Native production-path stage then real completion/archive/branch deletion then plain clear verifies exact fresh-main rebuild; original holder refusal, replaced-token acceptance and target movement each observed RED before fixes. Adversarial generation/identity/lease/cancellation/order controls, merge strategies/train-car/generic archive, ordinary/abandoned/freshness/move controls, recovery catalog, lint and compiled help pass. Hub approved isolated proof; no live stages touched. README/help/atlas/recovery updated.; review verdict: SHIP
 
 - Claimed and started from fresh main after #536 landed. Hub highlighted four upcoming operator stages and requested claim/plan, not live :0 mutation.
 - Exploration confirms runUnstage currently derives holder only from the caller branch. The target already has a lifetime stage lock and records canonical original Slot, Branch and staged Commit, so no new lease format is needed. Reuse #537's main pin and #512's durable archive proof (ARCH-DRY).
