@@ -104,6 +104,18 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   real merge controls, upstream remote selection, one pin and one shared-parent probe across repeated
   batches, cache ceiling, cancellation, replacement/graft/shallow controls, missing main/object failures,
   existing train/budget controls, and the recorded suite-to-owned-actual consumer. Diff check clean.
+- Owner-run live proof (receipt 87d26f3f-2805-4d32-9414-a265c7361528): clean binary 43799bb36a7f
+  measured echo#10 on pushed head 83daa1f7d86f with exit 0, actual 1.07h, provenance
+  active-time-v3-engagement-queue-v1; three recorded waits contributed 78.50 raw queue minutes and
+  70.86 excluded activity minutes. The owner retained full output locally. Exact merge metadata,
+  default message with retained conflict comments, and verbatim suite attempt JSON now live in
+  cmd/sdlc/testdata/actualqueue/echo-10-default-main-merge.json and feed the pure classifier/filter regression.
+  The first queued suite lease-484717765 was cancelled through its exact owner-scoped run ID before
+  execution so the executable recorded fixture joins the suite's final tested head. No production delta.
+- Recorded-fixture mutation check: a temporary Go overlay disabling only the structural fallback reproduced
+  the exact dffca4b7/885dc171 unknown-attribution error; the tracked implementation passed the fixture.
+  The independent clone has a separate landing line, so its eventual landing must be coordinated through
+  the canonical checkout rather than bypassing that queue. Reported this to the hub before merge.
 
 ## Revisions
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,39 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
+
+func TestQueueHeadRecordedEchoIntegration(t *testing.T) {
+	raw, err := os.ReadFile("testdata/actualqueue/echo-10-default-main-merge.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var captured struct {
+		Merge struct {
+			OID, Message string
+			Parents      []string
+		}
+		PinnedMain        string `json:"pinned_main"`
+		FirstParentIssues []int  `json:"first_parent_issues"`
+		Attempt           SuiteAttempt
+	}
+	if err := json.Unmarshal(raw, &captured); err != nil {
+		t.Fatal(err)
+	}
+	if len(captured.Merge.Parents) != 2 || captured.Merge.Parents[1] != captured.PinnedMain || captured.Attempt.SHA != captured.Merge.OID {
+		t.Fatal("capture lost its exact merge/main/attempt binding")
+	}
+	// The captured non-first parent is the exact pinned main, so its reachability
+	// is immediate. Native Git controls above exercise nontrivial ancestry.
+	fact := queueHeadFact{OID: captured.Merge.OID, Message: captured.Merge.Message, Parents: captured.Merge.Parents, MainParents: true}
+	step := parseQueueHead(fact, "echo")
+	parent := queueHeadStep{Kind: queueHeadDirect, Issues: captured.FirstParentIssues}
+	parentMembership := selectQueueHeadMembership(parent, nil, nil)
+	got := selectQueueHeadMembership(step, &parent, &parentMembership)
+	selected, err := filterIssueQueueAttempts([]SuiteAttempt{captured.Attempt}, map[string]queueHeadMembership{fact.OID: got}, 10)
+	if err != nil || !got.Known || fmt.Sprint(got.Issues) != "[10]" || len(selected) != 1 || selected[0].ID != "dffca4b701d5264e244d6f019055b21d" {
+		t.Fatalf("captured passing merge suite did not remain issue 10's evidence: %+v %+v err=%v", got, selected, err)
+	}
+}
 
 func TestQueueHeadOrdinaryMainIntegrationRealGit(t *testing.T) {
 	root := testfix.Repo(t, testfix.InitialCommit())
