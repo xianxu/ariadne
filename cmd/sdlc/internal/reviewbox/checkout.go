@@ -19,7 +19,7 @@ import (
 )
 
 // Checkout is one review round's disposable clone. Its lifecycle (ARCH-FUNERAL):
-// Create makes it, the round's dispatcher removes it with Close once the
+// CreateContext makes it, the round's dispatcher removes it with Close once the
 // reviewer has exited, and Sweep reclaims it if its owner died first. Each id
 // is absent → locked (lock file named and held) → checked out → removed.
 type Checkout struct {
@@ -45,8 +45,8 @@ const (
 // all is every root that may hold one, for Sweep. WF_REVIEW_CHECKOUT_ROOT,
 // when set, is the only root. Otherwise a new checkout goes to the TestScratch
 // RAM disk's review-checkouts when it is mounted with room (#468), else to
-// <user cache dir>/sdlc/review-checkouts. A checkout's Dir is fixed at Create
-// and Reset reuses it, so a checkout lives wholly on the root it started on and
+// <user cache dir>/sdlc/review-checkouts. A checkout's Dir is fixed at CreateContext
+// and ResetContext reuses it, so a checkout lives wholly on the root it started on and
 // never moves; all lists both roots so a sweep still reclaims either. note
 // says why the RAM disk was passed over, when it is mounted but full or
 // unreadable.
@@ -62,24 +62,19 @@ func Roots() (create string, all []string, note string, err error) {
 	return create, all, note, nil
 }
 
-// Create makes a fresh shared clone of src at head under root. The clone
-// reads objects through alternates (no copy) and has its own refs, config,
-// index and hooks; its origin remote is removed so nothing in it points back at
-// src. It keeps src's main authority (#447), read-only: copyMainAuthority.
-// overlays are repository-relative paths copied from src's working tree
-// (the live issue and plan text, which may be uncommitted). On error nothing it
-// made is left behind. Callers Sweep root first; Create itself never fails on
-// another checkout's debris.
-func Create(root, src, head string, overlays []string) (*Checkout, error) {
-	return CreateContext(context.Background(), root, src, head, overlays)
-}
-
 // CreateDependencyContext creates a disposable dependency at its pinned head.
 func CreateDependencyContext(ctx context.Context, root, src, head string) (*Checkout, error) {
 	return createContext(ctx, root, src, head, nil, true)
 }
 
-// CreateContext creates a checkout with a bounded, cancellable Git lifecycle.
+// CreateContext makes a fresh shared clone of src at head under root. The clone
+// reads objects through alternates (no copy) and has its own refs, config,
+// index and hooks; its origin remote is removed so nothing in it points back at
+// src. It keeps src's main authority (#447), read-only: copyMainAuthority.
+// overlays are repository-relative paths copied from src's working tree
+// (the live issue and plan text, which may be uncommitted). On error nothing it
+// made is left behind. Callers Sweep root first; CreateContext itself never fails on
+// another checkout's debris.
 func CreateContext(ctx context.Context, root, src, head string, overlays []string) (*Checkout, error) {
 	return createContext(ctx, root, src, head, overlays, false)
 }
@@ -131,13 +126,6 @@ func createContext(ctx context.Context, root, src, head string, overlays []strin
 	return co, co.populate(ctx)
 }
 
-// Reset returns the checkout to its pristine pinned state in place: same
-// directory, same lock, a new clone. A retried attempt of one review uses it,
-// so attempt 2 never reads attempt 1's mutations (#204 close review).
-func (c *Checkout) Reset() error {
-	return c.ResetContext(context.Background())
-}
-
 // OwnDependency transfers a live dependency checkout's lifetime to c. Each
 // checkout retains its separate lock so Sweep needs no ownership schema.
 func (c *Checkout) OwnDependency(child *Checkout) error {
@@ -154,7 +142,8 @@ func (c *Checkout) OwnDependency(child *Checkout) error {
 	return nil
 }
 
-// ResetContext resets every owned checkout at its existing path and pinned head.
+// ResetContext restores the primary and every owned checkout at their existing
+// paths and pinned heads, so retries cannot read earlier reviewer mutations.
 // It attempts all checkouts even when one reset fails.
 func (c *Checkout) ResetContext(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
@@ -410,22 +399,9 @@ func overlay(src, dst, rel string) error {
 	return nil
 }
 
-func git(dir string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	return gitContext(ctx, dir, args...)
-}
-
 func gitContext(ctx context.Context, dir string, args ...string) error {
 	_, err := gitOutputContext(ctx, dir, args...)
 	return err
-}
-
-// gitOutput runs Git with the compatibility wrapper's bounded lifetime.
-func gitOutput(dir string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	return gitOutputContext(ctx, dir, args...)
 }
 
 func gitOutputContext(ctx context.Context, dir string, args ...string) (string, error) {

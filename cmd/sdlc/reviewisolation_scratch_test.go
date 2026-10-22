@@ -38,7 +38,7 @@ func TestReviewIsolationFallsBackFromScratch(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stderr bytes.Buffer
-	checkout, _, err := openReviewIsolation(&stderr, judge.ReviewWindowManifest{RepoRoot: repo, HeadSHA: strings.TrimSpace(string(head))})
+	checkout, _, err := openReviewIsolationContext(t.Context(), &stderr, judge.ReviewWindowManifest{RepoRoot: repo, HeadSHA: strings.TrimSpace(string(head))})
 	if err != nil {
 		t.Fatalf("review isolation: %v\n%s", err, stderr.String())
 	}
@@ -62,7 +62,7 @@ func TestReviewIsolationKeepsOtherErrors(t *testing.T) {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 	var stderr bytes.Buffer
-	_, _, err := openReviewIsolation(&stderr, judge.ReviewWindowManifest{RepoRoot: repo, HeadSHA: strings.Repeat("0", 40)})
+	_, _, err := openReviewIsolationContext(t.Context(), &stderr, judge.ReviewWindowManifest{RepoRoot: repo, HeadSHA: strings.Repeat("0", 40)})
 	if err == nil {
 		t.Fatal("a missing head opened a review checkout")
 	}

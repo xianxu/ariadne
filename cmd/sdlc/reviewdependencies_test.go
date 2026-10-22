@@ -86,6 +86,9 @@ func testBoundaryPinnedDependency(t *testing.T, milestone string) {
 	if r.Verdict != judge.VerdictShip {
 		t.Fatalf("review failed: %+v\n%s", r, errout.String())
 	}
+	if dependency != "" && (!strings.Contains(errout.String(), "SDLC_DEP_SUBSTRATE="+strconv.Quote(dependency)) || !strings.Contains(errout.String(), pin)) {
+		t.Errorf("close output omitted the actual disposable dependency manifest: %s", errout.String())
+	}
 	if dependency != "" {
 		if _, err := os.Stat(dependency); !os.IsNotExist(err) {
 			t.Errorf("dependency outlived the review: %v", err)

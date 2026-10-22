@@ -13,12 +13,12 @@ import (
 func TestCheckoutOwnDependencyResetCloseSweep(t *testing.T) {
 	src, h1, h2 := sourceRepo(t)
 	root := t.TempDir()
-	primary, err := Create(root, src, h2, nil)
+	primary, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer primary.Close()
-	child, err := Create(root, src, h1, nil)
+	child, err := CreateContext(t.Context(), root, src, h1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestCheckoutOwnDependencyRejectsInvalidOwnership(t *testing.T) {
 	src, _, head := sourceRepo(t)
 	root := t.TempDir()
 	makeCheckout := func() *Checkout {
-		co, err := Create(root, src, head, nil)
+		co, err := CreateContext(t.Context(), root, src, head, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -175,14 +175,14 @@ func TestCheckoutOwnDependencyRejectsInvalidOwnership(t *testing.T) {
 func TestCheckoutCloseAttemptsEveryOwnedCheckoutAfterFailure(t *testing.T) {
 	src, _, head := sourceRepo(t)
 	root := t.TempDir()
-	primary, err := Create(root, src, head, nil)
+	primary, err := CreateContext(t.Context(), root, src, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer primary.Close()
 	var children []*Checkout
 	for range 2 {
-		co, err := Create(root, src, head, nil)
+		co, err := CreateContext(t.Context(), root, src, head, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -227,12 +227,12 @@ func TestCheckoutCloseAttemptsEveryOwnedCheckoutAfterFailure(t *testing.T) {
 func TestCheckoutOwnedDependenciesSweptAfterOwnerDeath(t *testing.T) {
 	src, _, head := sourceRepo(t)
 	root := t.TempDir()
-	primary, err := Create(root, src, head, nil)
+	primary, err := CreateContext(t.Context(), root, src, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer primary.Close()
-	child, err := Create(root, src, head, nil)
+	child, err := CreateContext(t.Context(), root, src, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,12 +257,12 @@ func TestCheckoutResetAttemptsDependenciesAfterPrimaryFailure(t *testing.T) {
 	src, _, head := sourceRepo(t)
 	other, _, otherHead := sourceRepo(t)
 	root := t.TempDir()
-	primary, err := Create(root, src, head, nil)
+	primary, err := CreateContext(t.Context(), root, src, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer primary.Close()
-	child, err := Create(root, other, otherHead, nil)
+	child, err := CreateContext(t.Context(), root, other, otherHead, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

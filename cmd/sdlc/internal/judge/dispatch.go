@@ -312,7 +312,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	conf, err := confine(opts)
+	conf, err := confine(ctx, opts)
 	if err != nil {
 		return "", fmt.Errorf("reviewer confinement (#339), the review did not run: %w", err)
 	}
@@ -327,15 +327,15 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 
 // confine prepares the agent's confinement (#339): around its review checkout
 // when it has one, else around the working directory's repository.
-func confine(opts DispatchOptions) (*reviewbox.Confinement, error) {
+func confine(ctx context.Context, opts DispatchOptions) (*reviewbox.Confinement, error) {
 	if opts.Checkout != "" {
-		return reviewbox.ConfineWithDependencies(opts.Checkout, true, opts.Dependencies)
+		return reviewbox.ConfineWithDependencies(ctx, opts.Checkout, true, opts.Dependencies)
 	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return reviewbox.ConfineWithDependencies(wd, false, opts.Dependencies)
+	return reviewbox.ConfineWithDependencies(ctx, wd, false, opts.Dependencies)
 }
 
 // confinementKey carries the dispatch's confinement to Run, so the agent's

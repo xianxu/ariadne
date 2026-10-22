@@ -1,6 +1,7 @@
 package reviewbox
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -41,13 +42,13 @@ const confineBaseName = ".sdlc-review"
 // resolved to its repository's top level and the base is a fresh directory
 // under the OS temp dir. Any failure to create or write the base is an error:
 // a reviewer never falls back to a directory outside.
-func Confine(root string, inside bool) (*Confinement, error) {
-	return ConfineWithDependencies(root, inside, nil)
+func Confine(ctx context.Context, root string, inside bool) (*Confinement, error) {
+	return ConfineWithDependencies(ctx, root, inside, nil)
 }
 
 // ConfineWithDependencies restores bindings to the disposable dependency clones
 // in both the reviewer process and Claude's per-command shell environment.
-func ConfineWithDependencies(root string, inside bool, deps []Dependency) (*Confinement, error) {
+func ConfineWithDependencies(ctx context.Context, root string, inside bool, deps []Dependency) (*Confinement, error) {
 	owned := append([]Dependency(nil), deps...)
 	rows := make([]layergraph.Dependency, 0, len(owned))
 	for _, dep := range owned {
@@ -62,7 +63,7 @@ func ConfineWithDependencies(root string, inside bool, deps []Dependency) (*Conf
 		return nil, fmt.Errorf("resolve the reviewer's root: %w", err)
 	}
 	if !inside {
-		if top, err := gitOutput(r, "rev-parse", "--show-toplevel"); err == nil {
+		if top, err := gitOutputContext(ctx, r, "rev-parse", "--show-toplevel"); err == nil {
 			if t, err := canonicalDir(top); err == nil {
 				r = t
 			}
@@ -152,9 +153,10 @@ func claudeEnvFile(bin, inherited string, env []string) string {
 	if inherited != "" {
 		fmt.Fprintf(&b, "[ -f %[1]s ] && . %[1]s\n", shQuote(inherited))
 	}
-	// Bash expands names here, never their values. Clear reserved bindings after
-	// the inherited snapshot, including dependency kinds absent in this review.
-	b.WriteString("unset SDLC_CALLER_ROOT\nfor __sdlc_dep_key in ${!SDLC_DEP_@}; do unset \"$__sdlc_dep_key\"; done\nunset __sdlc_dep_key\n")
+	// A reviewer may source this file in Bash, zsh or sh. Extract only variable
+	// names (including non-exported bindings) from set; never evaluate values.
+	// Clear after the inherited snapshot, including kinds absent in this review.
+	b.WriteString("unset SDLC_CALLER_ROOT\nfor __sdlc_dep_key in $(set | LC_ALL=C sed -n 's/^\\(SDLC_DEP_[A-Za-z0-9_]*\\)=.*/\\1/p'); do unset \"$__sdlc_dep_key\"; done\nunset __sdlc_dep_key\n")
 	for _, kv := range env {
 		k, v, _ := strings.Cut(kv, "=")
 		if k != "CLAUDE_ENV_FILE" {

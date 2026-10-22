@@ -15,7 +15,7 @@ import (
 func TestDependencyRetryReceivesDispatchCancellation(t *testing.T) {
 	source := testfix.Repo(t, testfix.InitialCommit())
 	head := strings.TrimSpace(testfix.Capture(t, source, "rev-parse", "HEAD"))
-	owner, err := reviewbox.Create(t.TempDir(), source, head, nil)
+	owner, err := reviewbox.CreateContext(t.Context(), t.TempDir(), source, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

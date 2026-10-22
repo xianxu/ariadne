@@ -51,7 +51,7 @@ func TestReplaySmallDiff(t *testing.T) {
 	if why != "" {
 		t.Fatalf("review manifest: %s", why)
 	}
-	checkout, iso, err := openReviewIsolation(os.Stderr, manifest)
+	checkout, iso, err := openReviewIsolationContext(t.Context(), os.Stderr, manifest)
 	if err != nil {
 		t.Fatalf("review checkout: %v", err)
 	}

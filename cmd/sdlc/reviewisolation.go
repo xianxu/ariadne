@@ -20,10 +20,6 @@ import (
 // exited. When no OS write fence can be applied (Seatbelt cannot nest inside
 // an agent's own sandbox), the round degrades to checkout-only isolation with
 // a loud warning; the round and its sidecar record which one it got.
-func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*reviewbox.Checkout, reviewbox.Isolation, error) {
-	return openReviewIsolationContext(context.Background(), stderr, m)
-}
-
 func openReviewIsolationContext(ctx context.Context, stderr io.Writer, m judge.ReviewWindowManifest) (*reviewbox.Checkout, reviewbox.Isolation, error) {
 	protect, err := reviewProtectPathsContext(ctx, m.RepoRoot)
 	if err != nil {
@@ -66,13 +62,16 @@ func openReviewIsolationContext(ctx context.Context, stderr io.Writer, m judge.R
 	if iso.Level() == reviewbox.LevelCheckout {
 		cwarn(stderr, fmt.Sprintf("boundary review: write fence unavailable (%s); the reviewer is isolated to a disposable checkout only (isolation: checkout)", reason))
 	}
+	if manifest := reviewbox.DependencyManifest(deps, iso.Level() == reviewbox.LevelFenced); manifest != "" {
+		fmt.Fprintln(stderr, manifest)
+	}
 	return checkout, iso, nil
 }
 
 // plannedReviewIsolation is the isolation a dispatch would get, for --dry-run:
 // the probed fence around a placeholder checkout path. It creates nothing.
-func plannedReviewIsolation(m judge.ReviewWindowManifest) (reviewbox.Isolation, error) {
-	protect, err := reviewProtectPaths(m.RepoRoot)
+func plannedReviewIsolation(ctx context.Context, m judge.ReviewWindowManifest) (reviewbox.Isolation, error) {
+	protect, err := reviewProtectPathsContext(ctx, m.RepoRoot)
 	if err != nil {
 		return reviewbox.Isolation{}, err
 	}
@@ -93,10 +92,6 @@ func plannedReviewIsolation(m judge.ReviewWindowManifest) (reviewbox.Isolation, 
 // and its Git common dir (refs, config, objects, every worktree's index). Each
 // is canonical, because the fence matches the paths the kernel resolves. A
 // worktree whose directory is gone (prunable) has nothing to protect.
-func reviewProtectPaths(repoRoot string) ([]string, error) {
-	return reviewProtectPathsContext(context.Background(), repoRoot)
-}
-
 func reviewProtectPathsContext(ctx context.Context, repoRoot string) ([]string, error) {
 	common, err := reviewDependencyGit(ctx, repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {

@@ -37,7 +37,7 @@ func TestReviewDependencyLiveFence(t *testing.T) {
 	t.Cleanup(func() { reviewbox.Probe = original })
 	reviewbox.Probe = func() (reviewbox.Fence, string) { return fence, "" }
 	var diagnostics bytes.Buffer
-	owner, iso, err := openReviewIsolation(&diagnostics, judge.ReviewWindowManifest{RepoRoot: consumer, HeadSHA: head})
+	owner, iso, err := openReviewIsolationContext(t.Context(), &diagnostics, judge.ReviewWindowManifest{RepoRoot: consumer, HeadSHA: head})
 	if err != nil {
 		t.Fatal(err)
 	}

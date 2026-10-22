@@ -797,7 +797,7 @@ func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewPara
 	if reason != "" {
 		return judge.DispatchOptions{}, errors.New(reason)
 	}
-	iso, err := plannedReviewIsolation(manifest)
+	iso, err := plannedReviewIsolation(commandContext(p.Context), manifest)
 	if err != nil {
 		return judge.DispatchOptions{}, err
 	}
