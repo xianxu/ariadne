@@ -1759,8 +1759,14 @@ cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
 repository, immutable tested-head issue membership, owner slot and engagement
-(#548). Membership reuses local subject leads and follows only recognized
-first-parent metadata/integration commits. Exact same-train composition includes
+(#548). Membership reuses local subject leads and recognized first-parent metadata.
+An otherwise unattributed merge also inherits its first parent's membership when every
+other parent is reachable from one pinned publication-main OID (#553), independently
+of the merge message. That command-local ancestry cache has the same node ceiling;
+ref movement cannot change its pin. Structural probes disable replacements, grafts,
+shallow boundaries and lazy fetching; a failed probe is distinct from a non-ancestor.
+Exact train parsing, including malformed-train refusal, runs before this fallback.
+Exact same-train composition includes
 admitted cars only; main and held cars contribute nothing. Proven foreign runs
 are excluded before ownership errors can block another issue. Unknown or missing
 head proof refuses with the attempt, SHA and restore/retry guidance. Reads disable

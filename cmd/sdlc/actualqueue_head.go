@@ -10,12 +10,12 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
-// queueHeadFact comes only from the raw immutable commit object, never a ref or
-// replacement-sensitive history query.
+// queueHeadFact retains the raw immutable object and separately proved ancestry.
 type queueHeadFact struct {
 	OID, Message string
 	Bytes        int
 	Parents      []string
+	MainParents  bool // every non-first parent reaches the reader's pinned main
 }
 
 type queueHeadKind uint8
@@ -196,6 +196,9 @@ func parseQueueHead(f queueHeadFact, selfRepo string) queueHeadStep {
 		return unknown
 	}
 	if m := queueHeadIntegrationRE.FindStringSubmatch(subject); m != nil && mergeValid && m[1] == f.Parents[1] && queueHeadTrailer(f.Message, "Integrated-Main", m[1]) {
+		return queueHeadStep{Kind: queueHeadNeutral, NeedParent: firstParent()}
+	}
+	if parentsValid && len(f.Parents) > 1 && f.MainParents {
 		return queueHeadStep{Kind: queueHeadNeutral, NeedParent: firstParent()}
 	}
 	return unknown

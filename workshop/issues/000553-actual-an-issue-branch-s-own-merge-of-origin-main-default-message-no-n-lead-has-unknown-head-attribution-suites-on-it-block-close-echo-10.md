@@ -92,6 +92,18 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
 - Planning alternative: adding Git's default merge subject to the grammar is smaller but repeats the
   message-authority bug; walking and unioning all parents incorrectly imports main's issue membership.
   Selected structural side-parent reachability plus first-parent inheritance, matching the dispatch.
+- Hub approved the committed plan (receipt b9d91ac8-ff32-4fab-ae53-f490f2a84f56).
+  #548's author confirmed train precedence and the absence of an existing bounded ancestry helper
+  (receipt 74ed2f43-8cfa-461c-83c2-8f6e57ef22f4). change-code accepted the quick flow.
+- RED: TestQueueHeadOrdinaryMainIntegrationRealGit failed with unknown issue-head attribution on Git's
+  actual default merge message; the expanded matrix also failed arbitrary, nested, octopus, older-main
+  and next-pass-pin cases. Foreign, unknown-parent and malformed-train controls remained strict.
+  GREEN: the structural reader/classifier inherited only first-parent members.
+- The native counting boundary separately caught missing lazy-fetch suppression in raw commit reads
+  (exit 73), then passed with it enabled. Targeted cmd/sdlc and internal/gitx checks passed (11.493s/0.560s):
+  real merge controls, upstream remote selection, one pin and one shared-parent probe across repeated
+  batches, cache ceiling, cancellation, replacement/graft/shallow controls, missing main/object failures,
+  existing train/budget controls, and the recorded suite-to-owned-actual consumer. Diff check clean.
 
 ## Revisions
 
