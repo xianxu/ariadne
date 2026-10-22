@@ -39,7 +39,9 @@ type ownedActualInputs struct {
 	SourceSlots   map[string]string
 	Replay        bool
 	Protected     []activetime.CreditedInterval
-	LegacyPrefix  *ownedActualInputs // separately labelled, unowned pre-cutover evidence
+	LegacyPrefix  *ownedActualInputs             // separately labelled, unowned pre-cutover evidence
+	CarWaits      []gatestate.MeasurementCarWait // descriptive; never passed to activity subtraction
+	CarWaitNotes  []string
 }
 
 type actualInputPurpose uint8
@@ -397,6 +399,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 			return err
 		}
 	}
+	attachCarWaitInputs(ctx, repoTop, common, repository, issueID, engagements, out)
 	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)
 	if err != nil {
 		return err

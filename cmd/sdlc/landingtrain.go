@@ -138,6 +138,9 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		return err
 	}
 	for _, car := range cars[1:] {
+		if err := c.line.BindWait(c.handle, car); err != nil {
+			fmt.Fprintf(c.stderr, "landing line: retained train wait evidence incomplete: binding ticket %d to train %d failed (%v); train continues\n", car.Seq, c.id, err)
+		}
 		c.settle(car, landingline.OutcomeBoarded, fmt.Sprintf("train %d, car %d of %d", c.id, indexOf(cars, car.Seq)+1, len(cars)))
 	}
 	for len(effects) > 0 {

@@ -496,3 +496,23 @@ func (m *MeasurementCredit) UnmarshalYAML(n *yaml.Node) error { return decodeMea
 func (m MeasurementCredit) MarshalYAML() (any, error) {
 	return encodeMeasurementYAML(measurementCreditWire(m), m.extra)
 }
+
+type measurementCarWaitWire MeasurementCarWait
+
+func (m *MeasurementCarWait) UnmarshalJSON(data []byte) error {
+	var v measurementCarWaitWire
+	extra, err := decodeMeasurementObject(data, &v, v)
+	if err != nil {
+		return err
+	}
+	v.extra = extra
+	*m = MeasurementCarWait(v)
+	return nil
+}
+func (m MeasurementCarWait) MarshalJSON() ([]byte, error) {
+	return encodeMeasurementObject(measurementCarWaitWire(m), m.extra)
+}
+func (m *MeasurementCarWait) UnmarshalYAML(n *yaml.Node) error { return decodeMeasurementYAML(n, m) }
+func (m MeasurementCarWait) MarshalYAML() (any, error) {
+	return encodeMeasurementYAML(measurementCarWaitWire(m), m.extra)
+}

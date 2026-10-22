@@ -1,0 +1,11 @@
+DRAIN
+  On an authenticated supervisor drain notice (authenticate through
+  `couch --skill`), graceful means finish only the current atomic step;
+  fast means stop now and preserve unfinished edits. Update the issue Log
+  with where work stopped, then commit and push the durable checkpoint.
+  Only after that checkpoint is durable, run `couch --drain --ack ID` for
+  the notice's drain ID, end the turn and stay idle until resumed.
+  Do not send a separate drained report. Couch owns the notice and ack format.
+  Run full suites through `sdlc local-check run --name suite`, and
+  targeted tests through `go test -run`; direct full make runs should be rare.
+

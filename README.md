@@ -781,9 +781,12 @@ to finish without another audit entry. It never resumes holds or restarts work.
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.
-`tl-worker --help` describes the durable checkpoint and drain acknowledgment,
-continuation/restart timing around owned recorded checks, and verification of
-retained checks after a restart.
+`tl-worker --help` describes notice-only graceful/fast drain checkpoints,
+deferred work messages, continuation/restart timing around owned recorded checks,
+and verification of retained checks after a restart. `tl-lead --help` owns the
+steward's queue controls, restart-safety judgment and explicit operator recovery
+authority, plus capability-qualified hub automation. Flags and quiet screens do
+not prove restart safety. See [drain and hub automation](atlas/workflow/tl-skills.md#drain-and-hub-automation).
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 For generated Go graph inputs, that file can include
@@ -1061,6 +1064,8 @@ sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
+Retained train waits appear as counted **unverified coverage** beside hours;
+the diagnostic describes a bound waiter invocation and makes no idle subtraction.
 `sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
 repair of a completed sample. If legacy rows are ambiguous, its diagnostic names
 the ledger and eligible raw-row hashes. Have the TL/operator select the row by
