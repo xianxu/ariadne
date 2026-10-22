@@ -155,7 +155,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 					return nil, err
 				}
 				out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
-				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
+				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose, gitx.RemoteTrackingRef(target.Remote, "main")); err != nil {
 					return nil, err
 				}
 				out.Replay = false
@@ -270,7 +270,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
 	}
 	out.Snapshot.Cuts = ownedMeasurementCuts(ledger)
-	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
+	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose, gitx.RemoteTrackingRef(target.Remote, "main")); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -349,7 +349,7 @@ func completedMeasurementSnapshot(ctx context.Context, root string, rec tracker.
 	return nil, ledger, "", nil
 }
 
-func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose) error {
+func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose, mainRefs ...string) error {
 	if issueID <= 0 {
 		return fmt.Errorf("queue evidence requires a canonical issue ID")
 	}
@@ -408,7 +408,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	for _, a := range attempts {
 		heads = append(heads, a.SHA)
 	}
-	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop))
+	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop, mainRefs...))
 	if err != nil {
 		var blockers []string
 		for _, a := range attempts {
