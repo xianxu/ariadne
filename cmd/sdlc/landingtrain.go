@@ -70,6 +70,8 @@ type conductor struct {
 	local      localRunDeps
 	run        localCheckRunner
 	suite      localCheck
+	suiteDecl  *localCheckDecl // immutable main policy; derive again for each tested prefix
+	bootstrap  bool            // the selected suite exists only on the subject
 	landing    landingCheckOwner
 	carHeads   []string // admitted originals, aligned with kept prefixes
 	carIssues  []int    // same successfully composed prefix order; no rejected car inherits priority
@@ -281,18 +283,12 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 	c.local.Root = dir
 	c.local.PriorityIssues = c.priorityIssues
 	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
-	if enabledLandingChecks(decl) {
-		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// Keep execution native even when main has no declaration: each exact
+	// prefix may introduce the bootstrap target. A later prefix's target or
+	// weight must never authorize an earlier prefix.
+	c.suiteDecl = &decl
+	c.run = newLocalCheckRunner(c.local)
 	c.suiteReady = map[int]bool{}
-	if suite, ok := decl.check(suiteCheckName); ok {
-		c.suite, c.run = suite, newLocalCheckRunner(c.local)
-	} else {
-		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
-	}
 	built := landingline.Built{Conflicts: map[int64]string{}}
 	for _, car := range cars {
 		ref := fmt.Sprintf("refs/sdlc/train/%d/%d", c.id, car.Seq)
@@ -436,6 +432,25 @@ func (c *conductor) priorityIssues(sha string) []int {
 	return nil
 }
 
+// deriveSuite selects policy for one exact composed subject. Explicit main
+// declarations may intentionally omit a suite; proven undeclared absence may
+// not stand in for a passing bootstrap run.
+func (c *conductor) deriveSuite(head string) error {
+	decl, bootstrap, err := withSubjectDefaultSuiteContext(c.ctx, c.git, c.base, head, *c.suiteDecl)
+	if err != nil {
+		return err
+	}
+	suite, ok := decl.check(suiteCheckName)
+	if !ok && c.suiteDecl.Version == 0 {
+		return fmt.Errorf("unverified: train prefix %s has no bootstrap make test target; add the target, push and retry sdlc merge", shortSHA(head))
+	}
+	c.suite, c.bootstrap = suite, bootstrap
+	if bootstrap {
+		fmt.Fprintf(c.stderr, "bootstrap suite: make test from train prefix %s (main has no declaration or test target)\n", shortSHA(head))
+	}
+	return nil
+}
+
 // runSuite runs the recorded suite on prefix k. A failure of the full train
 // is compared once with main's baseline: main failing the same way is no
 // car's fault.
@@ -444,7 +459,18 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	if head == "" {
 		return nil, fmt.Errorf("unverified: prefix %d needs recomposition after main's code advance", k)
 	}
-	rec, err := c.run(c.ctx, c.suite, head)
+	if c.suiteDecl != nil {
+		if err := c.deriveSuite(head); err != nil {
+			return nil, err
+		}
+	}
+	var rec localRunRecord
+	var err error
+	if c.suiteDecl != nil && len(c.suite.Command) == 0 {
+		rec = localRunRecord{Exit: 0} // an explicit main policy intentionally has no suite
+	} else {
+		rec, err = c.run(c.ctx, c.suite, head)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("the train suite on %s could not run: %w", shortSHA(head), err)
 	}
@@ -461,6 +487,11 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 		return done, nil
 	}
 	done.Outcome = landingline.SuiteFail
+	if c.bootstrap {
+		// Main has no target to run. Leave its baseline evidence absent so
+		// split attribution reports unverified rather than inventing main-red.
+		return done, nil
+	}
 	if c.baseline == nil {
 		red, err := c.mainIsRed(rec)
 		if err != nil {
@@ -652,17 +683,10 @@ func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	if enabledLandingChecks(decl) {
-		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if suite, ok := decl.check(suiteCheckName); ok {
-		c.suite, c.run = suite, newLocalCheckRunner(c.local)
-	} else {
-		c.suite = localCheck{}
-		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
+	c.suiteDecl = &decl
+	c.run = newLocalCheckRunner(c.local)
+	if err := c.deriveSuite(head); err != nil {
+		return nil, err
 	}
 	return landingline.Reintegrated{NeedSuite: needSuite}, nil
 }

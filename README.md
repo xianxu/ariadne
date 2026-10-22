@@ -890,7 +890,13 @@ verification, and close's noon freshness gate still applies. On SHIP, enter
 authoritative suite when the integrated code needs it. Merge requires this suite's recorded pass: a declaration named `suite` overrides its
 command, timeout and `weight`, but cannot make it optional. Without a declared
 suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
-test target. The optional declaration `weight` (default 1) reserves that many
+test target. Only when main has neither a declaration nor a test target, the
+exact pushed head supplies a **bootstrap** default `make test` and weight, with
+ordinary managed `sdlc-local/suite` evidence. Its first declaration's custom
+checks and CI substitutions take effect after landing on main; bootstrap never
+stands in for server CI. See `sdlc local-check run --help` and the
+[CI gate map](atlas/workflow/ci-merge-check.md).
+The optional declaration `weight` (default 1) reserves that many
 machine-wide suite slots. A passing record on an ancestor remains valid through
 docs-only changes such as close's bookkeeping or main prose publication. Code,
 tests, configuration and embedded help invalidate reuse and require another run.

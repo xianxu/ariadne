@@ -8,6 +8,11 @@
 
 # Lessons
 
+- #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
+  per risky boundary. Task checkboxes reference that strategy instead of repeating
+  its case list; executable tests own the concrete inventory. The plan-quality
+  reviewer enforces this semantic authoring rule; source-name lint cannot prove it.
+
 - #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
 
 - #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
@@ -1412,6 +1417,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.
 
+- #536 integration review: changing suite derivation requires carrying the exact subject through execution, admission and every saved-proof policy reader. Recovery cannot use current HEAD, and an absent baseline is unverified rather than main-red evidence. Native original-SHA republish/resume and missing-baseline regressions defend this semantic authority contract; a lexical helper-name lint cannot establish the provenance.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.

@@ -1,0 +1,3 @@
+.PHONY: test
+test:
+	bash tests/ci-workflow.test.sh
