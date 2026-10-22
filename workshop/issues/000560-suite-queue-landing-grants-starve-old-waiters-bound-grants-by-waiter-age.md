@@ -1,13 +1,13 @@
 ---
 id: 000560
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 1.61
 collaboration-mode: collaboration
-card_mirror: '25d4bc803513a7926e12299e7a4121a1d6b2d8cf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7578fce03bf6e0381b2fd313fb8be81c7f3a01bc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T15:10:08-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 0.61
 ---
 
 # Suite queue: landing grants starve old waiters; bound grants by waiter age
