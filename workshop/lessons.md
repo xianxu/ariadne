@@ -1491,3 +1491,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   typed reader call; do not substitute an empty or independently derived name
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
+
+- #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
