@@ -3,7 +3,7 @@ id: 000549
 status: working
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 0.882
 github_issue:
 severity: medium
 started: 2026-10-22T13:51:39-07:00
