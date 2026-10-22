@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #540 BR-1: a classifier's supported transports must match its host parser's
+  accepted transports. Enumerate HTTP(S), SSH/scp and native Git, and capture
+  real transport failures through the production runner; HTTP-shaped fake
+  diagnostics alone cannot defend native Git's paired header/errno format.
+  Transport provenance and negative hook/local controls belong in executable
+  classification/property tests, not a lexical lint over arbitrary prose.
+
 - #540: classify transport failures at the shared Git seams without probing or
   retrying there. Diagnostics belong in an explicit bounded command; preserve
   original error identity and uncertain publication outcomes. A command that
