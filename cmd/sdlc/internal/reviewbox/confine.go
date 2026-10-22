@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 // Confinement is the environment every dispatched reviewer runs in (#339), with
@@ -23,12 +25,13 @@ import (
 // and removes it after the last. Inside a review checkout the base also dies
 // with the checkout; outside one it is a small directory in the OS temp dir.
 type Confinement struct {
-	Root    string // the directory the reviewer owns: the review checkout or the repository it reviews
-	Base    string // tmp/ (TMPDIR) and bin/ (the git shim)
-	inside  bool
-	realGit string
-	mktemp  string // the real mktemp, shimmed on macOS; empty when not shimmed
-	before  OutsideSnapshot
+	Root          string // the directory the reviewer owns: the review checkout or the repository it reviews
+	Base          string // tmp/ (TMPDIR) and bin/ (the git shim)
+	inside        bool
+	realGit       string
+	mktemp        string // the real mktemp, shimmed on macOS; empty when not shimmed
+	before        OutsideSnapshot
+	dependencyEnv []string // validated once, restored before every reviewer shell
 }
 
 const confineBaseName = ".sdlc-review"
@@ -39,6 +42,21 @@ const confineBaseName = ".sdlc-review"
 // under the OS temp dir. Any failure to create or write the base is an error:
 // a reviewer never falls back to a directory outside.
 func Confine(root string, inside bool) (*Confinement, error) {
+	return ConfineWithDependencies(root, inside, nil)
+}
+
+// ConfineWithDependencies restores bindings to the disposable dependency clones
+// in both the reviewer process and Claude's per-command shell environment.
+func ConfineWithDependencies(root string, inside bool, deps []Dependency) (*Confinement, error) {
+	owned := append([]Dependency(nil), deps...)
+	rows := make([]layergraph.Dependency, 0, len(owned))
+	for _, dep := range owned {
+		rows = append(rows, layergraph.Dependency{Kind: dep.Kind, Path: dep.Dir})
+	}
+	dependencyEnv, err := layergraph.DependencyEnvironment(nil, "", rows)
+	if err != nil {
+		return nil, err
+	}
 	r, err := canonicalDir(root)
 	if err != nil {
 		return nil, fmt.Errorf("resolve the reviewer's root: %w", err)
@@ -66,7 +84,7 @@ func Confine(root string, inside bool) (*Confinement, error) {
 			return nil, fmt.Errorf("create the reviewer's temp dir: %w", err)
 		}
 	}
-	c := &Confinement{Root: r, Base: base, inside: inside, realGit: realGit}
+	c := &Confinement{Root: r, Base: base, inside: inside, realGit: realGit, dependencyEnv: dependencyEnv}
 	if runtime.GOOS == "darwin" {
 		if m, err := exec.LookPath("mktemp"); err == nil {
 			c.mktemp, _ = filepath.Abs(m)
@@ -134,6 +152,9 @@ func claudeEnvFile(bin, inherited string, env []string) string {
 	if inherited != "" {
 		fmt.Fprintf(&b, "[ -f %[1]s ] && . %[1]s\n", shQuote(inherited))
 	}
+	// Bash expands names here, never their values. Clear reserved bindings after
+	// the inherited snapshot, including dependency kinds absent in this review.
+	b.WriteString("unset SDLC_CALLER_ROOT\nfor __sdlc_dep_key in ${!SDLC_DEP_@}; do unset \"$__sdlc_dep_key\"; done\nunset __sdlc_dep_key\n")
 	for _, kv := range env {
 		k, v, _ := strings.Cut(kv, "=")
 		if k != "CLAUDE_ENV_FILE" {
@@ -151,11 +172,12 @@ func claudeEnvFile(bin, inherited string, env []string) string {
 // directory in TMPDIR is not mistaken for part of the checkout.
 func (c *Confinement) Env() []string {
 	tmp := c.Tmp()
-	return []string{
+	env := []string{
 		"TMPDIR=" + tmp, "TMP=" + tmp, "TEMP=" + tmp, "CLAUDE_CODE_TMPDIR=" + tmp,
 		"GIT_CEILING_DIRECTORIES=" + filepath.Dir(c.Root) + string(os.PathListSeparator) + c.Base,
 		"CLAUDE_ENV_FILE=" + c.envFile(),
 	}
+	return append(env, c.dependencyEnv...)
 }
 
 // Check reports, as one error, everything outside the reviewer's directories

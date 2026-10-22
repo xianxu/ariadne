@@ -49,8 +49,8 @@ clone (ARCH-FUNERAL), never writable, bounded size and time.
 
 Implementation plan: [review dependency checkouts](../plans/000551-review-dependency-checkouts-plan.md).
 
-- [ ] Share bounded declaration resolution and dependency descriptors.
-- [ ] Create pinned disposable dependency clones with retry/cleanup ownership.
+- [x] Share bounded declaration resolution and dependency descriptors.
+- [x] Create pinned disposable dependency clones with retry/cleanup ownership.
 - [ ] Expose paths, SHA, freshness and isolation mode in boundary prompts; verify and land.
 
 ## Log
@@ -95,3 +95,17 @@ total: 2.37
 ```
 
 The three smaller modules are shared resolution, child-clone ownership and prompt/environment integration. Greenfield covers the bounded descriptor/tree policy. Design 0.88h ×1.15 + implementation 1.36h = 2.372h.
+
+
+### 2026-10-22 — implementation checkpoint before combined verification
+
+Plan-quality passed with all findings disposed (round 2; round 3 after the estimate body also CLEAN). Estimate-quality INFO accepted the provisional 2.37h derivation and noted implementation allowances may be optimistic; context refactor owns contextual checkout/reset/retry and fence wiring, smaller modules own resolution/child handles/prompt-environment projection, and their tests plus the shared verification/review allowance cover targeted checks, the recorded suite and owner-run Echo conformance.
+
+Initial production-boundary regression failed with the missing SDLC_DEP_SUBSTRATE prompt binding before implementation (0.818s command). Added the exact Echo #9 Critical capture as cmd/sdlc/testdata/review-dependency-echo9.txt; owner supplied its source at echo commit 5a3ada9. Echo #9 subsequently landed through its dispute, so Echo holds #10 for this branch's owner-run check.
+
+Implemented shared direct resolution/environment projection, pinned dependency clones, contextual ownership/reset/cleanup and full prompt/process/Claude-shell bindings. Lifecycle tests found cancellation cause lost through a %v wrapper; fixed it to preserve errors.Is. Targeted main regression/lifecycle/control checks passed in 9.470s. Full judge/reviewbox/layergraph package checks passed (13.332s/18.074s/4.268s). Real disposable OS-fence conformance passed (0.668s command), proving clone/source/common-dir write denials and primary write permission.
+
+Ad-hoc bounded audit found one Important gap: Git ls-tree may lazily fetch promisor objects. The real missing-blob regression reproduced upload-pack invocation and source-config mutation. Disabled lazy fetching and denied transports for dependency observations; dependency materialization only allows the explicit local clone transport. Missing-promisor and both boundary-context regressions then passed (6.189s). The combined final targeted/lint/fence checks are running; no recorded suite queued yet. No commits to other repositories, no source dependency fetches, and no :0 stage requested.
+
+
+Final combined checks passed on this implementation: judge 14.352s, reviewbox 21.398s, layergraph 4.891s and golint 1.308s. Boundary/dependency/local-check controls plus real OS-fence conformance passed together in 46.492s. Checkpointing the tested code next, then building a clean branch binary for Echo #10 and queuing the required recorded suite.

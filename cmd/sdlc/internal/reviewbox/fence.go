@@ -31,10 +31,11 @@ const (
 // Isolation is one review's containment: the checkout it runs in, the paths
 // it must not write, and the fence that enforces that.
 type Isolation struct {
-	Fence   Fence
-	Dir     string   // the disposable checkout: the reviewer's working directory
-	Protect []string // absolute paths the reviewer must not write (source root, git common dir)
-	Reason  string   // why Fence is FenceNone; empty otherwise
+	Fence        Fence
+	Dir          string       // the disposable checkout: the reviewer's working directory
+	Protect      []string     // absolute paths the reviewer must not write (source root, git common dir)
+	Reason       string       // why Fence is FenceNone; empty otherwise
+	Dependencies []Dependency // disposable direct dependency context, pinned once
 }
 
 // Level is the guarantee this isolation gives.

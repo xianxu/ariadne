@@ -341,3 +341,13 @@ Disposable pilots during #239 established the following boundaries:
 | nous `2e7756d5` | Replace inherited root Makefile link with authored root and `tools: nous-build`; keep `nous-bootstrap`/`nous-dev` explicit; guard macOS packages in Brewfile | macOS ordinary owner build and safe help passed without service/signing actions. Full bootstrap remains unverified: Linux code requires launchd and the existing Mutagen tap formula targets amd64 and needs Homebrew trust handling. #241 deferred these consumer choices as a non-goal; they belong to a nous-owned follow-up. |
 
 Actual peer repositories were not modified for these pilots.
+
+### Review dependency snapshots (#551)
+
+Boundary review clones reuse direct construct/deps resolution but inspect
+independent disposable dependency clones at last-fetched origin/main, with no
+fetch or dependency acquisition. Their SDLC_DEP_* paths appear in both the
+review prompt and command environment. This does not change the consuming
+slot's private dependency revision or its working files. See [review dependency
+inspection](sdlc-binary.md) for freshness evidence, isolation modes, bounds and
+cleanup.

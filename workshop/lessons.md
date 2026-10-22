@@ -1442,3 +1442,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
 - #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
+
+- #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.

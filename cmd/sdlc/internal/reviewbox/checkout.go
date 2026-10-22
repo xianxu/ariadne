@@ -1,7 +1,7 @@
 package reviewbox
 
 import (
-	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 )
 
@@ -22,11 +23,14 @@ import (
 // reviewer has exited, and Sweep reclaims it if its owner died first. Each id
 // is absent → locked (lock file named and held) → checked out → removed.
 type Checkout struct {
-	Dir      string
-	lock     *os.File
-	src      string
-	head     string
-	overlays []string
+	Dir          string
+	lock         *os.File
+	src          string
+	head         string
+	overlays     []string
+	dependencies []*Checkout
+	owner        *Checkout
+	dependency   bool
 }
 
 const (
@@ -66,7 +70,26 @@ func Roots() (create string, all []string, note string, err error) {
 // (the live issue and plan text, which may be uncommitted). On error nothing it
 // made is left behind. Callers Sweep root first; Create itself never fails on
 // another checkout's debris.
-func Create(root, src, head string, overlays []string) (co *Checkout, err error) {
+func Create(root, src, head string, overlays []string) (*Checkout, error) {
+	return CreateContext(context.Background(), root, src, head, overlays)
+}
+
+// CreateDependencyContext creates a disposable dependency at its pinned head.
+func CreateDependencyContext(ctx context.Context, root, src, head string) (*Checkout, error) {
+	return createContext(ctx, root, src, head, nil, true)
+}
+
+// CreateContext creates a checkout with a bounded, cancellable Git lifecycle.
+func CreateContext(ctx context.Context, root, src, head string, overlays []string) (*Checkout, error) {
+	return createContext(ctx, root, src, head, overlays, false)
+}
+
+func createContext(ctx context.Context, root, src, head string, overlays []string, dependency bool) (co *Checkout, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, fmt.Errorf("create review checkout root: %w", err)
 	}
@@ -93,7 +116,7 @@ func Create(root, src, head string, overlays []string) (co *Checkout, err error)
 		os.Remove(tmp)
 		return nil, fmt.Errorf("lock review checkout: %w", err)
 	}
-	co = &Checkout{Dir: filepath.Join(root, id), lock: f, src: src, head: head, overlays: overlays}
+	co = &Checkout{Dir: filepath.Join(root, id), lock: f, src: src, head: head, overlays: overlays, dependency: dependency}
 	if err := os.Rename(tmp, co.lockPath()); err != nil {
 		f.Close()
 		os.Remove(tmp)
@@ -105,36 +128,102 @@ func Create(root, src, head string, overlays []string) (co *Checkout, err error)
 			co = nil
 		}
 	}()
-	return co, co.populate()
+	return co, co.populate(ctx)
 }
 
 // Reset returns the checkout to its pristine pinned state in place: same
 // directory, same lock, a new clone. A retried attempt of one review uses it,
 // so attempt 2 never reads attempt 1's mutations (#204 close review).
 func (c *Checkout) Reset() error {
-	if err := removeTree(c.Dir); err != nil {
-		return fmt.Errorf("reset review checkout %s: %w", c.Dir, err)
-	}
-	return c.populate()
+	return c.ResetContext(context.Background())
 }
 
-func (c *Checkout) populate() error {
-	if err := git("", "clone", "--quiet", "--shared", "--no-checkout", c.src, c.Dir); err != nil {
+// OwnDependency transfers a live dependency checkout's lifetime to c. Each
+// checkout retains its separate lock so Sweep needs no ownership schema.
+func (c *Checkout) OwnDependency(child *Checkout) error {
+	if c == nil || c.lock == nil || child == nil || child.lock == nil || c == child || child.owner != nil {
+		return errors.New("review checkout: invalid dependency ownership")
+	}
+	for ancestor := c; ancestor != nil; ancestor = ancestor.owner {
+		if ancestor == child {
+			return errors.New("review checkout: cyclic dependency ownership")
+		}
+	}
+	child.owner = c
+	c.dependencies = append(c.dependencies, child)
+	return nil
+}
+
+// ResetContext resets every owned checkout at its existing path and pinned head.
+// It attempts all checkouts even when one reset fails.
+func (c *Checkout) ResetContext(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if c == nil || c.lock == nil {
+		return errors.New("reset review checkout: checkout is closed")
+	}
+	var problems []error
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := git(c.Dir, "remote", "remove", "origin"); err != nil {
+	if err := removeTree(c.Dir); err != nil {
+		problems = append(problems, fmt.Errorf("reset review checkout %s: %w", c.Dir, err))
+	} else if err := c.populate(ctx); err != nil {
+		problems = append(problems, err)
+	}
+	for _, child := range c.dependencies {
+		if err := child.ResetContext(ctx); err != nil {
+			problems = append(problems, err)
+		}
+	}
+	return errors.Join(problems...)
+}
+
+func (c *Checkout) populate(ctx context.Context) error {
+	args := []string{"clone", "--quiet", "--shared", "--no-checkout"}
+	if c.dependency {
+		args = append(args, "--template=")
+	}
+	args = append(args, "--", c.src, c.Dir)
+	if err := c.runGit(ctx, "", args...); err != nil {
 		return err
 	}
-	if err := git(c.Dir, "checkout", "--quiet", "--detach", c.head); err != nil {
+	if err := c.runGit(ctx, c.Dir, "remote", "remove", "origin"); err != nil {
 		return err
 	}
-	if err := c.copyMainAuthority(); err != nil {
+	if err := c.runGit(ctx, c.Dir, "checkout", "--quiet", "--detach", c.head); err != nil {
 		return err
+	}
+	if !c.dependency {
+		if err := c.copyMainAuthority(ctx); err != nil {
+			return err
+		}
 	}
 	for _, rel := range c.overlays {
 		if err := overlay(c.src, c.Dir, rel); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Dependency clones inherit neither the operator's Git configuration nor
+// templates, hooks or smudge drivers. Source-local config is never cloned.
+func (c *Checkout) runGit(ctx context.Context, dir string, args ...string) error {
+	if !c.dependency {
+		return gitContext(ctx, dir, args...)
+	}
+	env := []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_COUNT=0", "GIT_CONFIG_PARAMETERS=", "GIT_ATTR_NOSYSTEM=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1", "GIT_LFS_SKIP_SMUDGE=1", "GIT_TEMPLATE_DIR="}
+	policy := []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "core.attributesFile=" + os.DevNull, "-c", "protocol.allow=never"}
+	if len(args) > 0 && args[0] == "clone" {
+		// Only the explicit local source can be acquired; later reads must not
+		// invoke a promisor remote, including a file transport.
+		policy = append(policy, "-c", "protocol.file.allow=always")
+	}
+	args = append(policy, args...)
+	_, stderr, err := gitx.RunGitInContext(ctx, dir, env, args...)
+	if err != nil {
+		return fmt.Errorf("review dependency checkout: git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(stderr)))
 	}
 	return nil
 }
@@ -145,8 +234,8 @@ func (c *Checkout) populate() error {
 // does in the slot. Each remote's URL is inert, so the checkout can neither
 // push nor fetch. It runs after the detached checkout, so updating
 // refs/heads/main never moves a checked-out branch.
-func (c *Checkout) copyMainAuthority() error {
-	config, err := gitOutput(c.src, "config", "--local", "--get-regexp", authorityKeys) // the slot's own, not the user's
+func (c *Checkout) copyMainAuthority(ctx context.Context) error {
+	config, err := gitOutputContext(ctx, c.src, "config", "--local", "--get-regexp", authorityKeys) // the slot's own, not the user's
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 1 {
 		config, err = "", nil // no such keys
@@ -154,7 +243,7 @@ func (c *Checkout) copyMainAuthority() error {
 	if err != nil {
 		return fmt.Errorf("review checkout: read main authority: %w", err)
 	}
-	refs, err := gitOutput(c.src, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes/", "refs/heads/main")
+	refs, err := gitOutputContext(ctx, c.src, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes/", "refs/heads/main")
 	if err != nil {
 		return fmt.Errorf("review checkout: read main authority: %w", err)
 	}
@@ -164,18 +253,18 @@ func (c *Checkout) copyMainAuthority() error {
 	}
 	for _, r := range a.remotes {
 		for _, k := range []string{"url", "pushurl"} {
-			if err := git(c.Dir, "config", "remote."+r+"."+k, inertURL); err != nil {
+			if err := gitContext(ctx, c.Dir, "config", "remote."+r+"."+k, inertURL); err != nil {
 				return err
 			}
 		}
 	}
 	for _, kv := range a.config {
-		if err := git(c.Dir, "config", "--add", kv[0], kv[1]); err != nil {
+		if err := gitContext(ctx, c.Dir, "config", "--add", kv[0], kv[1]); err != nil {
 			return err
 		}
 	}
 	for _, r := range a.refs {
-		if err := git(c.Dir, "update-ref", r[0], r[1]); err != nil {
+		if err := gitContext(ctx, c.Dir, "update-ref", r[0], r[1]); err != nil {
 			return err
 		}
 	}
@@ -186,8 +275,18 @@ func (c *Checkout) copyMainAuthority() error {
 // directory cannot be removed, the lock FILE stays (only the flock is
 // released), so the next Sweep sees an unheld lock and retries the removal.
 func (c *Checkout) Close() error {
-	if c == nil || c.lock == nil {
+	if c == nil {
 		return nil
+	}
+	var problems []error
+	for _, child := range c.dependencies {
+		if err := child.Close(); err != nil {
+			problems = append(problems, err)
+		}
+	}
+	c.dependencies = nil
+	if c.lock == nil {
+		return errors.Join(problems...)
 	}
 	err := removeTree(c.Dir)
 	if err == nil {
@@ -198,9 +297,9 @@ func (c *Checkout) Close() error {
 	c.lock.Close() // closing the descriptor drops the flock
 	c.lock = nil
 	if err != nil {
-		return fmt.Errorf("remove review checkout %s (the next review's sweep retries): %w", c.Dir, err)
+		problems = append(problems, fmt.Errorf("remove review checkout %s (the next review's sweep retries): %w", c.Dir, err))
 	}
-	return nil
+	return errors.Join(problems...)
 }
 
 func (c *Checkout) lockPath() string { return c.Dir + lockSuffix }
@@ -312,25 +411,27 @@ func overlay(src, dst, rel string) error {
 }
 
 func git(dir string, args ...string) error {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("review checkout: git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
-	}
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return gitContext(ctx, dir, args...)
 }
 
-// gitOutput runs git in dir and returns its trimmed stdout.
+func gitContext(ctx context.Context, dir string, args ...string) error {
+	_, err := gitOutputContext(ctx, dir, args...)
+	return err
+}
+
+// gitOutput runs Git with the compatibility wrapper's bounded lifetime.
 func gitOutput(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return gitOutputContext(ctx, dir, args...)
+}
+
+func gitOutputContext(ctx context.Context, dir string, args ...string) (string, error) {
+	out, stderr, err := gitx.RunGitInContext(ctx, dir, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("review checkout: git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(stderr)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

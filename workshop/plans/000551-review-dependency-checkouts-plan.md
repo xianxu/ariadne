@@ -16,9 +16,9 @@ collaboration-mode: discussion
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| Dependency bindings | cmd/sdlc/localcheck_dependency_environment.go | modified: shared resolved-row projection, retaining #545 conflict/deduplication semantics |
-| ReviewDependency descriptor and prompt projection | cmd/sdlc/internal/reviewbox/dependencies.go | new: kind, disposable path, source identity, pinned SHA and fetch observation |
-| Dependency tree budget | cmd/sdlc/internal/reviewbox/dependencies.go | new: bounded tree metadata validation before materialization |
+| DependencyEnvironment | pkg/layergraph/environment.go | new shared owner extracted from #545; main wrapper retains existing callers |
+| Dependency and DependencyManifest | cmd/sdlc/internal/reviewbox/dependencies.go | new: kind, disposable path, source identity, pinned SHA and fetch observation |
+| DependencyTreeBudget | cmd/sdlc/internal/reviewbox/dependencies.go | new: bounded tree metadata validation before materialization |
 | Review isolation | cmd/sdlc/internal/reviewbox/fence.go | modified: carries dependency descriptors and protects clone/source paths |
 
 | Integration point | Lives in | Status | Wraps |
@@ -77,25 +77,25 @@ Carry disposable bindings through DispatchOptions.DependencyEnvironment and the 
 
 Files: cmd/sdlc/localcheck_dependency_environment.go and its tests; new cmd/sdlc/reviewdependencies.go and reviewdependencies_test.go; new reviewbox/dependencies.go and dependencies_test.go.
 
-- [ ] Write failing tests using the resolution/descriptor strategies in the conformance table; run them and retain the red evidence.
-- [ ] Extract resolvedDependencyRows, preserving #545 environment behavior; implement pure descriptor rendering and metadata budgets.
-- [ ] Run targeted dependency-environment and descriptor tests to green; commit.
+- [x] Write failing tests using the resolution/descriptor strategies in the conformance table; run them and retain the red evidence.
+- [x] Extract resolvedDependencyRows, preserving #545 environment behavior; implement pure descriptor rendering and metadata budgets.
+- [x] Run targeted dependency-environment and descriptor tests to green; commit.
 
 ### 2. Own bounded dependency clones through setup and retry
 
 Files: reviewbox/checkout.go, dependencies.go and their tests; cmd/sdlc/reviewdependencies.go, reviewisolation.go and tests; judge/dispatch.go and retry tests.
 
-- [ ] Write failing ownership, pinning and cancellation regressions using the table's strategies; verify their red failures.
-- [ ] Implement contextual checkout creation/reset, child ownership, bounded preparation and protected paths under the approved modes.
-- [ ] Run go test ./cmd/sdlc/internal/reviewbox -count=1 and targeted dependency/isolation/retry tests to green; commit.
+- [x] Write failing ownership, pinning and cancellation regressions using the table's strategies; verify their red failures.
+- [x] Implement contextual checkout creation/reset, child ownership, bounded preparation and protected paths under the approved modes.
+- [x] Run go test ./cmd/sdlc/internal/reviewbox -count=1 and targeted dependency/isolation/retry tests to green; commit.
 
 ### 3. Expose dependency context and verify the production boundary
 
 Files: cmd/sdlc/milestoneclose.go; reviewisolation.go; reviewisolation_test.go; reviewpreparation_live_test.go; judge/dispatch.go; reviewbox/confine.go; atlas/workflow/sdlc-binary.md and setup-and-replication.md.
 
-- [ ] Write failing production-dispatch prompt and reviewer-command environment regressions using the table; verify red before threading descriptors.
-- [ ] Render dependency paths, pins, freshness evidence and mode from the shared descriptor list; project its bindings into confinement and Claude shell restoration.
-- [ ] Run targeted tests to green and the available live OS-fence conformance fixture. Document modes, local-last-fetched pins, bounds and recovery.
+- [x] Write failing production-dispatch prompt and reviewer-command environment regressions using the table; verify red before threading descriptors.
+- [x] Render dependency paths, pins, freshness evidence and mode from the shared descriptor list; project its bindings into confinement and Claude shell restoration.
+- [x] Run targeted tests to green and the available live OS-fence conformance fixture. Document modes, local-last-fetched pins, bounds and recovery.
 - [ ] Checkpoint/push; run recorded suite via sdlc local-check run --name suite; obtain the Echo-owned live check; close through the mandatory SDLC review and land on SHIP.
 
 ## Plan conformance table
@@ -117,3 +117,7 @@ Build the branch binary. Ask ops-echo:0 to run its next boundary review from Ech
 ### 2026-10-22 — plan-quality round 1 and environment conformance
 
 PQ-1: name the contextual Create/Reset and BeforeRetryContext seams explicitly; each retry receives a fresh bounded preparation child capped by the remaining dispatch deadline, and all Git descendants terminate before cleanup. PQ-2: remove repeated concrete test inventories, retaining the function-level adversarial strategy table and red/green execution steps; detailed cases belong in tests. PQ-3: align the issue's current acceptance criteria with the approved two isolation modes. TL also approved exporting disposable SDLC_DEP_* through confinement and Claude shell restoration, with the reviewer-command regression. Echo confirmed #10's readers all honor that binding, making its held boundary review the live proof.
+
+### 2026-10-22 — implementation traceability and no-fetch conformance
+
+The shared pure environment projection is extracted to pkg/layergraph/environment.go so both the existing main wrapper and judge/reviewbox consume one owner. Runtime descriptors travel as DispatchOptions.Dependencies (rather than a second environment-string representation); Confinement projects them once with that shared owner. Observational Git and dependency materialization suppress lazy fetching; observational commands deny every transport, while only the explicit local clone permits file transport. A real missing-promisor-object regression exposed implicit Git fetches and source-config writes before this guard, and passes afterward. These complete the approved no-fetch and naming contracts without new persisted state or acquisition.
