@@ -1,6 +1,6 @@
 ---
 id: 000532
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8
         evidence_commit: eb95a774a2e110fdc66e413d9356ad6992507b24
+        landed_commit: 5e89fc0d8071aa64e588506be61c39988490e9a7
 ---
 
 # Archive preflight misses noncanonical side bundles
