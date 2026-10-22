@@ -1,6 +1,6 @@
 ---
 id: 000544
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 3.57
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c90b0bd43d24d8b3e06c02d65c2569d08169eddc
         evidence_commit: cd1d089ab84edcf7f161e9f8b9e6e853bec57400
+        landed_commit: 486b93d9d1a66507799e9f66e3d32cd44f2c0751
 ---
 
 # issue migrate drops a legacy close's completion record; later issues' actual measurement then refuses (echo#1 → echo#3)
