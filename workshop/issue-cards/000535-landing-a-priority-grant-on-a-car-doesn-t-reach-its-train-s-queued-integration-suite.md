@@ -1,6 +1,6 @@
 ---
 id: 000535
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.63
+tracker:
+    version: 1
+    completion:
+        token: close-0979d5b05297
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0daa65594127d8000b33b3d44e87d2f6dea6976c
+        evidence_commit: 2d64edf4e0bfdd807aabf0d667bbeb888c4534cf
 ---
 
 # landing: a priority grant on a car doesn't reach its train's queued integration suite
