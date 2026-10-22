@@ -180,6 +180,14 @@ func publishSuiteReclassification(root, id, repo, actor, reason string, at time.
 	if len(id) < 2 || len(id) > 64 || !suiteHex.MatchString(id) {
 		return errors.New("give an exact published --attempt ID")
 	}
+	// Share the existing publication/pruning boundary with resume evidence.
+	// Otherwise pruning can unlink the original after the last exact reread,
+	// and our replacement would resurrect authority without its proof.
+	directory, err := tryLockResumeDirectory(root)
+	if err != nil {
+		return fmt.Errorf("lock attempt evidence for reclassification; retry the same attempt: %w", err)
+	}
+	defer directory.Close()
 	remaining := int64(suiteAttemptReaderBudget)
 	path := filepath.Join(root, "attempts", id+".json")
 	raw, err := boundedSuiteProofFile(path, suiteAttemptMaxJSON, &remaining, os.Open)
@@ -267,6 +275,9 @@ func publishSuiteReclassification(root, id, repo, actor, reason string, at time.
 		}
 	}
 	// A changed original cannot be silently replaced by a stale recovery plan.
+	if err := directory.verify(); err != nil {
+		return err
+	}
 	latest, err := boundedSuiteProofFile(path, suiteAttemptMaxJSON, &remaining, os.Open)
 	if err != nil || !bytes.Equal(latest, raw) {
 		return errors.New("attempt moved during recovery; inspect before retrying")

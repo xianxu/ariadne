@@ -446,7 +446,7 @@ func TestSuiteReclassificationPruneRefusalKeepsProof(t *testing.T) {
 	}
 }
 
-func TestSuiteReclassificationAuditPublishedAfterPrune(t *testing.T) {
+func TestSuiteReclassificationPruneDuringPublicationPreservesProof(t *testing.T) {
 	root, a, _ := reclassificationFixture(t)
 	now := time.Now()
 	old := now.Add(-suiteAttemptKeep - time.Hour)
@@ -455,15 +455,12 @@ func TestSuiteReclassificationAuditPublishedAfterPrune(t *testing.T) {
 	}
 	private := t.TempDir()
 	if err := publishSuiteReclassification(root, a.ID, a.Repo, "ariadne:5", "repair", now, func(path string, b []byte, exclusive bool) error {
-		if !exclusive {
-			t.Fatal("pruned original reached authority publication")
-		}
 		if err := pruneSuiteAttempts(root, now); err != nil {
 			return err
 		}
-		return writeSuiteReclassificationFile(private, path, b, true)
-	}); err == nil {
-		t.Fatal("recovery did not notice pruned original")
+		return writeSuiteReclassificationFile(private, path, b, exclusive)
+	}); err != nil {
+		t.Fatalf("pruner interfered with recovery publication: %v", err)
 	}
 	audit := filepath.Join(root, "reclassified", a.ID+".json")
 	if _, err := os.Stat(audit); err != nil {
@@ -476,6 +473,15 @@ func TestSuiteReclassificationAuditPublishedAfterPrune(t *testing.T) {
 		t.Fatalf("fresh orphan audit lost: %v", err)
 	}
 	if err := os.Chtimes(audit, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pruneSuiteAttempts(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(audit); err != nil {
+		t.Fatalf("proof pruned while fresh correction remains: %v", err)
+	}
+	if err := os.Chtimes(filepath.Join(root, "attempts", a.ID+".json"), old, old); err != nil {
 		t.Fatal(err)
 	}
 	if err := pruneSuiteAttempts(root, now); err != nil {

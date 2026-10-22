@@ -72,7 +72,7 @@ func NewLocalCheckCmd() *cobra.Command {
 	republish.Flags().StringVar(&rp.Name, "name", "", "the check whose saved result to post (required)")
 	republish.Flags().StringVar(&rp.Rev, "rev", "HEAD", "the commit the saved attempt ran on")
 	republish.Flags().StringVar(&rp.Attempt, "attempt", "", "a specific attempt id (default: the newest that verifies)")
-	cmd.AddCommand(run, cancel, republish, newLocalCheckReclassifyCmd())
+	cmd.AddCommand(run, cancel, republish, newLocalCheckReclassifyCmd(), newLocalCheckResumeCmd(), newLocalCheckReconcileCmd(defaultLandingDeps()))
 	return cmd
 }
 
@@ -266,11 +266,11 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	if err != nil {
 		return err
 	}
-	rec, _, err := loadSavedAttempt(suiteStoreRoot(logDir), repo, sha, f.Name, f.Attempt, hostName())
+	rec, _, err := loadSavedAttemptCurrent(ctx, d, suiteStoreRoot(logDir), sha, f.Name, f.Attempt, hostName())
 	if err != nil {
 		return fmt.Errorf("local-check republish: %w", err)
 	}
-	if rec.Outcome == flakes.KnownFlakePassed || rec.Outcome == flakes.KnownFlakeAccept {
+	if rec.ResumeParent == "" && (rec.Outcome == flakes.KnownFlakePassed || rec.Outcome == flakes.KnownFlakeAccept) {
 		// #394: a saved known-flake pass still needs its flake issue open and
 		// the operator's policy on main to allow it.
 		c, err := declaredCheck(ctx, git, f.Name)

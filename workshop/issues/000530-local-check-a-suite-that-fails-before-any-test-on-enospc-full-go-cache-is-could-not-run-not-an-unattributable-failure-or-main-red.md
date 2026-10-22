@@ -289,6 +289,29 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   sdlc-local/suite on that implementation head. Close round 2 is already SHIP;
   enter merge now and let its turn own current-main integration and verification.
 
+- Landing reached its turn, then refused code conflicts against main
+  660157583b200d7b488ace2fd5a6a21d0c2249dc in localcheck_cmd.go,
+  localcheck_republish.go and teststats_store.go. Followed its prescribed manual
+  integration; no gate waiver. Preserve newly landed #463 resume/reconcile
+  commands, composite validation, raw-record digest indexing and directory /
+  nonblocking-parent pruning locks alongside reclassification and checked audit
+  deletion. Both deterministic pruning seams delegate to one implementation.
+- Integration regressions: a completed resume composite cannot predate a
+  separate same-head corrected startup failure, either through implicit/explicit
+  reuse, cached status posting or resume's completed-proof repost. A fresh full
+  suite remains reusable, while a pending resume fence still refuses it.
+  Publication also shares the existing attempts-directory lock: without it,
+  pruning between the exact final reread and rename could resurrect v3 authority
+  after deleting its proof. Eligible startup corrections and valid named-failure
+  resume parents are disjoint, so no additional parent lock is needed here
+  (ARCH-DRY, one existing directory mutation boundary).
+- Both integration regressions were red (0.547s) before correction; the focused
+  resume/reclassification/process-lock/recovery controls then passed (7.016s).
+  Startup/scoped-proof controls and race checks also passed. The original branch
+  suite remains valid historical evidence, but this code integration requires a
+  new recorded suite and the merge-prescribed narrow re-close with
+  --fixed-then-ship and --full-suite before landing.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
@@ -299,3 +322,8 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   review and land through sdlc; report the outcome to the hub." Those gates remain
   mandatory after implementation readiness, with pending/result evidence in Log;
   no requirement or Done-when criterion changed and no gate is waived.
+- 2026-10-21 — Integration with landed #463 preserves the same genuine-rerun
+  contract across its composite reuse/repost paths, and uses its existing
+  attempts-directory mutation lock for audit publication and retention. No new
+  store or authority state; the required integration suite and narrow re-close
+  replace the superseded pre-integration landing attempt.

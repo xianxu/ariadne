@@ -21,7 +21,7 @@ var Catalog = []Contract{
 			{"completed correction is nonpassing, audited and repeat-safe", []string{"TestSuiteReclassificationPublication"}},
 			{"interrupted publication converges without losing original authority", []string{"TestSuiteReclassificationInterruptedPublication", "TestSuiteReclassificationRetryBindsOriginalRawDigest"}},
 			{"unverified proof refuses and genuine rerun is required", []string{"TestSuiteReclassificationProofMutations", "TestSuiteReclassificationRequiresGenuineRerun", "TestLocalCheckReclassifyPrivateRepository"}},
-			{"retention completes after pruning interruption and publication races", []string{"TestSuiteReclassificationPruneInterruptionReclaimsAudit", "TestSuiteReclassificationAuditPublishedAfterPrune"}},
+			{"retention completes after pruning interruption and publication races", []string{"TestSuiteReclassificationPruneInterruptionReclaimsAudit", "TestSuiteReclassificationPruneDuringPublicationPreservesProof"}},
 		},
 	},
 	{
