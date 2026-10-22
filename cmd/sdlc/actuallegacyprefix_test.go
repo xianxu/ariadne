@@ -229,3 +229,13 @@ func TestLegacyPrefixAuthorityUsesPinnedLegacyFallbacks(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyPrefixOnlyRefusesUntilPostCutoverWork(t *testing.T) {
+	_, ownerRoot, _, _ := legacySpanningFixture(t)
+	cutover := strings.TrimSpace(testfix.Git(t, ownerRoot, "log", "-1", "--diff-filter=A", "--format=%H", "--", tracker.CutoverMarkerPath))
+	testfix.Git(t, ownerRoot, "checkout", "-q", "--detach", cutover)
+	got := computeActualForPurpose(t.Context(), ownerRoot, "", "335", "", "workshop/plans", actualCloseCandidate)
+	if got.Status != actualError || !strings.Contains(got.Detail, "no post-cutover owned interval yet") || !strings.Contains(got.Detail, "before closing") {
+		t.Fatalf("prefix-only preview should explain refusal, not adopt: %+v", got)
+	}
+}

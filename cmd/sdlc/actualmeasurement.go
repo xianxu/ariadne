@@ -110,7 +110,20 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		for _, file := range ownedOut.QueueBindingSourceIDs {
 			contributing[file] = true // queue replay still needs this prefix when its activity is zero
 		}
+		// A positive legacy prefix can make the combined result measurable
+		// while the owned suffix has exactly observed zero elapsed activity.
+		// Keep those inspected bytes so replay can distinguish zero from a
+		// missing transcript population.
+		if inputs.LegacyPrefix != nil && ownedOut.TotalActive == 0 && len(ownedOut.SourceIDs) == 0 {
+			for _, file := range inputs.Files {
+				contributing[file] = true
+			}
+		}
 		m.Sources = retainedMeasurementSources(inputs, contributing)
+		if inputs.LegacyPrefix != nil && len(m.Sources) != len(contributing) {
+			return fail(fmt.Errorf("owned suffix source evidence is incomplete"))
+		}
+
 		if len(inputs.ExcludedBrain) > 0 {
 			excluded := options
 			excluded.Files = nil

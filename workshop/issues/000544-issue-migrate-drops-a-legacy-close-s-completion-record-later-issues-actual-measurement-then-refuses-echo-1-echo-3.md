@@ -46,6 +46,9 @@ close predates the candidate's engagement as disjoint (skip), not refuse.
 
 ## Done when
 
+- An issue claimed under legacy and closed after migration measures the labelled legacy repository-plus-brain prefix and verified tracker suffix once, retains both input populations, and replays the same total after transcript appends; missing/contradictory evidence refuses (test and Echo live preview).
+- Prefix-only previews refuse with an explicit no-post-cutover-owned-interval-yet reason until natural post-cutover work supplies an owned edge; no timestamp is converted into an invented owner.
+
 - An already-migrated born-archived root card lacking completion/provenance permits later actuals only through read-only proof of its exact root/archive generation, without changing the card (test).
 
 - A born-archived legacy import with no close remains visibly unbound and warns; proven archive/done provenance strictly before the earliest new engagement permits later actual measurement, while overlap remains strict (test).
@@ -59,10 +62,10 @@ close predates the candidate's engagement as disjoint (skip), not refuse.
 
 Durable plan: [legacy completion preservation and repair](../plans/000544-legacy-completion-plan.md).
 
-- [ ] Recover and import verified legacy close bindings, retaining exact saved measurement inputs or explicit windowless provenance.
-- [ ] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
-- [ ] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
-- [ ] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
+- [x] Recover and import verified legacy close bindings, retaining exact saved measurement inputs or explicit windowless provenance.
+- [x] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
+- [x] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
+- [x] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
 - [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
 
 ## Log
@@ -91,6 +94,10 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - Echo owner confirmed the repair/apply/no-op sequence on fe236ba (delivery5a42758e-fde1-45f6-a108-952fd49b0ccc): correct latest close, unchanged actual/checkout, token migrate-000001. The subsequent actual3 was only0.03h over95s, exposing missing pre-cutover engagement; the TL explicitly folded that measurement gap into #544 and approved the revised prefix/suffix plan (delivery66dc716c-80f0-41d0-97d0-db740be9ebee). Echo closes remain held until the revised live measurement.
 - Added the planned complete pinned tracker-card history fence, rather than comparing only equal endpoints: old and explicit imports reopened then restored no longer inherit the old bound. Shared fence verifies exact pinned raw/blob, root ancestry and bounded complete history, rejects intervening lifecycle/correction/authority changes, permits only monotone matching repair. Restored-reopen tests were RED before the fence and GREEN after; expanded targeted controls passed44.570s, explicit same-value correction-history negative passed1.790s. Different-ID templates are allowed only beyond proven issue birth; the same-ID ancestry guard remains strict.
 - Cutover continuity is implemented as approved: bounded legacy-v1 child inputs plus the exact cutover commit; no invented owner. Discovery includes caller and verified primary checkout plus brain, so a temporary measuring worktree can find the original legacy sessions; unrelated linked workers are excluded. Clipped modern windows retain their true dispatch origin and queue records use the post-cutover boundary. Production claim-before/migrate/close-after measurement and replay passed4.104s, including transcript appends. Combined prefix authority/source/clipping controls passed10.809s. Legacy working-transition and first-commit fallback controls passed4.104s. Codec JSON/YAML, recursion/size/overlap, multi-harness discovery and pure join/engine controls are covered; complete stable combined verification is still pending.
+
+- Live conformance passed on clean branch binary b1ea6825219db0cf214cef91c1e7ca3e5c740821 (ops-echo:0 deliveryf8174005-af47-42ac-af83-c57928432164): actual3 at its pushed issue head a40d090 measures0.50h, legacy20:05:50–20:25:53 plus tracker20:25:53–20:45:16, queue-aware with6 admitted sessions. Main-head preview is naturally a different pinned history; the owner repeated at the real issue head. Echo10 independently measured0.59h. TL accepted this as #544's live proof (delivery59ea794e-0b24-4d8f-85cf-c1b571d0117a).
+- TL keeps Echo4/5 prefix-only previews refusing until natural reconcile/work supplies a post-cutover owned edge. Added the exact reason no post-cutover owned interval yet, with a production fixture. Echo9's cross-issue queue-attempt refusal is separately filed and reserved as ariadne#548, next after this landing; no cross-issue queue policy is changed in #544.
+- Final audit reproduced another evidence-retention boundary: a positive prefix plus known-zero owned suffix measured correctly but saved no suffix sources, so replay became a telemetry gap. Hybrid-only exact empty-source retention fixes it without accepting missing telemetry; fresh/replay/missing-file controls passed18.073s and the focused race test4.728s. New refusal/replay controls passed6.569s. Full production root prefix/replay/authority and repair race controls passed29.815s. The broader combined matrix printed PASS for all behavioral cases (346.395s), then the real-repository hermeticity guard correctly failed because the authorized audit changed two tracked source paths concurrently. That run is not claimed as a passing check: repeat the stable matrix after all edits stop, then queue the recorded full suite. This is an implementation scheduling error, not registered flake evidence.
 
 ## Revisions
 

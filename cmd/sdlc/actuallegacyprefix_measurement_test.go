@@ -147,6 +147,38 @@ func TestLegacyPrefixMeasurementUsesOneSplitAndDistinctSourceEvidence(t *testing
 	if again.Status != actualMeasured || again.Hours != got.Hours {
 		t.Fatalf("component replay changed hours: %+v original=%+v", again, got)
 	}
+	// The hybrid can have positive legacy activity and exactly observed zero
+	// elapsed suffix activity. Its sole inspected event must survive replay.
+	zeroSuffix := source("zero-suffix", root, 15)
+	zeroInputs := *inputs
+	zeroInputs.Files = []string{zeroSuffix.File}
+	zeroInputs.Sessions = []transcripts.SessionEvidence{shared, brain, zeroSuffix}
+	zeroInputs.Prefixes = map[string]activetime.SourcePrefix{zeroSuffix.File: {Bytes: zeroSuffix.Length, Digest: zeroSuffix.Digest}}
+	zeroInputs.Windows = map[string][]activetime.ActivityWindow{zeroSuffix.File: {{Start: cut, End: end}}}
+	zeroInputs.SourceSlots = map[string]string{zeroSuffix.File: "ariadne:1"}
+	zeroMeasured := computeOwnedActualFor(context.Background(), root, "335", "", &zeroInputs)
+	if zeroMeasured.Status != actualMeasured || math.Abs(zeroMeasured.Hours-13.0/60) > 1e-9 {
+		t.Fatalf("positive-prefix zero-suffix measurement failed: %+v", zeroMeasured)
+	}
+	zeroReplay, err := ownedReplaySources(*zeroMeasured.Inputs, []transcripts.SessionEvidence{zeroSuffix})
+	if err != nil {
+		t.Fatal(err)
+	}
+	zeroReplay.Scope.Issue = "335"
+	zeroReplay.LegacyPrefix = child
+	zeroAgain := computeOwnedActualFor(context.Background(), root, "335", "", zeroReplay)
+	if zeroAgain.Status != actualMeasured || zeroAgain.Hours != zeroMeasured.Hours {
+		t.Fatalf("known-zero suffix lost on replay: %+v original=%+v", zeroAgain, zeroMeasured)
+	}
+	if len(zeroMeasured.Inputs.Sources) != 1 || zeroMeasured.Inputs.Sources[0].ID != "zero-suffix" {
+		t.Fatalf("known-zero suffix lacks exact evidence: %+v", zeroMeasured.Inputs.Sources)
+	}
+	if err := os.Remove(zeroSuffix.File); err != nil {
+		t.Fatal(err)
+	}
+	if broken := computeOwnedActualFor(context.Background(), root, "335", "", &zeroInputs); broken.Status != actualError {
+		t.Fatalf("missing suffix telemetry adopted partial prefix: %+v", broken)
+	}
 	// A missing prefix file is never silently replaced by the owned suffix.
 	if err := os.Remove(brain.File); err != nil {
 		t.Fatal(err)

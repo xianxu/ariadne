@@ -469,7 +469,7 @@ func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, 
 		return nil, err
 	}
 	if len(engagements) == 0 {
-		return nil, fmt.Errorf("measurement has no verified owned interval before its pinned right edge")
+		return nil, fmt.Errorf("no post-cutover owned interval yet: measurement has no verified owned interval before its pinned right edge; reconcile and record post-cutover work before closing")
 	}
 	machine, _, err := localMachine()
 	if err != nil {
