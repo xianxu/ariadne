@@ -85,6 +85,10 @@ The approved supervised mode now keeps provider descendants in the external Go-o
 
 Clean build c66fa30e12d1d12dd3897446f20266f71d444322 (modified=false) passed read-only live status again, now using explicit supervision. The same two private real helper/provider conformance cases passed9.283s. Current raw build/status and source pins are retained in [supervised inspection evidence](../plans/000560-supervised-inspection-evidence.md); this supersedes the earlier runtime capture after BR-1. golint PASS1.694s. Both short conformance terminals completed normally across the Couch restart. Next: push this fixed checkpoint, queue one fresh recorded suite, and rerun close review while it waits. Old suite lease1847011191 remains intentionally cancelled, not passing evidence.
 
+### 2026-10-22 — SHIP; recorded suite outstanding
+
+Close round2 returned SHIP with no findings; BR-1 addressed. Reviewer independently restored detached provider sessions in a disposable copy and reproduced surviving provider/child failures, then removed the copy. Close evidence commit9c821802139fd7259408a299fa49e6362208df39; card mirrord9096385cede775383ffff8b49248c18bf23edc1. Required recorded suite lease-3147671628 remains alive on exact pushed37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47 (retained terminal98827), last FIFO position16. Log: common Git dir sdlc/test-stats/inflight/f615ddb6dbd25ea386315b2508b44e3a/run.log. No suite pass claimed; close overlapped the queued check under tl-worker. Next: open PR for CI overlap, keep this queued runner, inspect its exact-head result when it finishes, then enter sdlc merge --yes after the pass. Merge owns integration and any fresh authoritative suite. Do not requeue a duplicate or restart while the runner remains queued/running.
+
 ## Revisions
 
 ### 2026-10-22 — approved aging policy and60-minute threshold
