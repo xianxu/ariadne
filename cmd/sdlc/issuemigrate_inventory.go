@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -105,6 +106,38 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 			return in, err
 		}
 		in.Anchors[id] = anchors
+	}
+	// Let the pure planner choose duplicate generations once; gather proof only
+	// for the source each resulting card actually imports.
+	selected := tracker.PlanTrackerMigration(in)
+	files := make(map[string]tracker.MigrationFile, len(in.Active)+len(in.Archived))
+	for _, group := range [][]tracker.MigrationFile{in.Active, in.Archived} {
+		for _, f := range group {
+			files[f.Path] = f
+		}
+	}
+	in.Legacy = map[string]tracker.MigrationLegacyClose{}
+	for _, c := range selected.Cards {
+		card, err := issue.ParseCard(c.Raw)
+		if err != nil {
+			return in, err
+		}
+		status, err := issue.FieldString(card.Frontmatter, "status")
+		if err != nil {
+			return in, err
+		}
+		actual, err := issue.FieldString(card.Frontmatter, "actual_hours")
+		if err != nil {
+			return in, err
+		}
+		if _, err := strconv.ParseFloat(actual, 64); status != "done" || err != nil {
+			continue
+		}
+		proof, err := resolveLegacyCompletion(env.ctx, env.root, mainView.Ref(), env.target.Repository, files[c.Source], plansDir())
+		if err != nil {
+			return in, err
+		}
+		in.Legacy[c.Source] = tracker.MigrationLegacyClose{Completion: proof.Completion, HasCompletion: proof.HasCompletion, Adoption: proof.Adoption}
 	}
 	return in, nil
 }

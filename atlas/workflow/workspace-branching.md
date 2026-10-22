@@ -125,7 +125,12 @@ cleared. The behaviour:
   holder (the issue), its branch, slot and time, so one stage at a time holds a
   target. It is taken under a flock and written before the switch. Another
   issue's stage, `--clear` and `sdlc move` into a held target refuse, naming the
-  holder. The holder re-stages and clears freely. For an abandoned stage,
+  holder. The holder re-stages and clears freely. After normal landing deletes
+  its branch, the recorded original slot can clear from its own rest only with
+  the current done completion, matching merged PR carrying the staged commit,
+  and a confirmed archive pinning that same completion. Unknown or changed
+  proof preserves the stage; finish/reconcile landing or repair the evidence,
+  then retry `sdlc stage --clear` from that original resting slot. For an abandoned stage,
   `sdlc stage --clear :0 --abandoned <holder>` frees the lease only when it
   names the current holder. A legacy one-line record has no holder.
 - **The fleet view** shows a staged slot as the hold `staged`, not as a detached

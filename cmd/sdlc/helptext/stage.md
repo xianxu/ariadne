@@ -40,6 +40,17 @@ or `sdlc move` into a held slot refuses, naming the holder and both ways out.
 The holder re-stages and clears freely, so clear the stage when the smoke test
 is done. `--abandoned` frees a lease only when it names the current holder.
 
+After landing deletes the issue branch, plain --clear also works from the
+recorded original slot on its own resting branch. Under the stage lock it
+requires the current done completion, the matching merged PR carrying the
+staged commit, and an archive pinning that same done completion on freshly
+pinned main. This grants clear authority only; another slot or issue gains none.
+Missing, ambiguous, changed or unreachable proof refuses before checkout,
+lease release or build. Finish/reconcile the landing or repair the evidence,
+then rerun sdlc stage --clear from the original slot on rest. Dry-run performs
+the same proof without effects. Explicit --abandoned retains its exact-holder
+acknowledgment and is never inferred from a missing branch.
+
 `sdlc move` into a staged slot replaces the stage, too. The fleet view reports a
 staged slot as holding work (`staged`), not as a detached checkout needing
 recovery. Already-running sessions keep the old binary: start a fresh process to

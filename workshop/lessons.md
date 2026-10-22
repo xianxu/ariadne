@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #548 BR-1: when splitting a function into its own module, update every core-concepts/function-contract location and append the file-split revision before close. Check table locations against definitions; the boundary reviewer enforces semantic traceability, without prose-presence tests.
+
+- #548: shared-slot and overlapping-clock evidence cannot establish an issue's suite ownership. Classify the immutable tested head first, then apply pinned engagement rules; unknown proof stays strict. Disable replacement refs at the immutable Git reader itself. Safety limits must stop discovery before IO grows past them, and neutral graph nodes must share immutable membership rather than multiply derived storage. Counted graph and real Git/tracker fixtures defend these semantic invariants.
+
+- #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
+
+- #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
 - #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
   per risky boundary. Task checkboxes reference that strategy instead of repeating
   its case list; executable tests own the concrete inventory. The plan-quality
@@ -1345,6 +1352,14 @@ Unknown descendant completion protects every input and output together: checkout
 - #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
 - #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.
 
+- #507 fixture: CommandContext and WaitDelay bound the direct Git process but do not prove its hook or transport descendants have exited. Own a process group for bounded Git commands, cancel and confirm that group, and use a readiness-signaled real hook fixture to assert that no descendant survives. This process-lifecycle property needs executable conformance; a lexical timeout guard cannot prove it.
+
+- #507 BR-1/BR-2: a path valid for Git need not roundtrip through a managed YAML scalar; run generated metadata through the actual reader before effects. First creation needs absent-or-identical ownership at every remote CAS callback, even when matching local content hides a different committed owner. Pure adversarial roundtrip tests and real remote collision/retry fixtures defend these semantic authority rules; lexical lint cannot establish YAML or remote identity.
+- #507 BR-3/BR-4: recovery fixtures must retain confirmed identities and model effects before a lost acknowledgment, late locks and unavailable readback. Supply external command identities through controlled fixture executables and verify emitted metadata under a restricted PATH. Executable stateful/conformance tests enforce these protocol and isolation contracts rather than source-pattern lint.
+
+- #507 BR-5/BR-6: literal-code recognition must respect actual Markdown block boundaries; unmatched backticks in separate paragraphs or containers cannot hide a human question. Reuse the actual parser and state complexity ownership honestly. A phase model that records effects afterward does not authorize them: require its permission at each production effect seam and consume failure/uncertainty outcomes. Real parser/coordinator fixtures plus guard-removal mutation defend these semantic grammar and ordering classes; lexical lint cannot prove them.
+
+- #507 BR-7: replacing a literal detector in one consumer leaves semantic drift if a predecessor survives in another. Move the shared owner to the lowest common boundary and retire old scanners; sweep mutation, discovery and projection callers, testing code examples plus ordinary live controls. Shared parser regressions and full publication/retry fixtures enforce byte preservation; lexical lint cannot establish Markdown context identity.
 - #526 handoff: releasing a conductor's lifetime head capability before its fresh retry ticket is synchronously vouched lets a ready survivor depart alone. Retain that capability across old queue retirement, release after the normal enqueue/vouch, and scope fallback release over every early return. The real three-car drop-self/drop-middle regressions and actual-lock retry lifetime tests defend this interleaving; lexical lint cannot establish cross-attempt ownership.
 - #526 cleanup: a content lease pins a ref's SHA, not the repository behind a mutable remote alias. Revalidate effective fetch/push destinations against the pinned repository under the destructive-effect lock. Distinguish a pushed ref from attempted PR creation with a fence immediately before Create; otherwise an accepted drop either creates an obsolete PR or retains a fictitious unknown-publication obligation. Stateful transport and retargeted real-bare-repository regressions defend these semantic contracts.
 
@@ -1380,6 +1395,10 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
 
+- #544 BR-1: an additive evidence field needs a new method/version boundary when ignoring it changes a retained measurement's value. Exercise the actual previous decoder, not only the new codec, and require old readers to reject the new interpretation. Cross-version fixtures defend this semantic compatibility contract; a lexical field-presence rule cannot establish whether omission changes accounting.
+- #544 BR-2: repair must share the consumer's complete generation validator. Restoring original bytes after removing authority does not restore continuity; test repair → removal/replacement → repair → actual, including positive no-op repair, rather than only endpoint equality. The shared validator and production sequence regressions defend this semantic authority contract without a duplicate lexical lint.
+- #544 BR-2 publication: checking history during prepare does not bind a later card-blob CAS to that history. Validate each actual publication base with the same generation rule; a failed conditional push must repeat validation on its new base. Real command schedules for changed/restored bytes, retry, unrelated-card movement and cancellation defend the lifecycle contract without a second validator or lexical lint.
+- #544 BR-3: accepting future metadata creates a preservation obligation across the entire persisted record family and every format, including nested lists and cross-format numeric precision. Decode exact known keys separately from opaque extensions, reject duplicate/unrepresentable values explicitly, and test the real ledger rewrite as well as path-by-type round trips. These semantic codec contracts are guarded by executable matrices rather than a lexical lint rule.
 - #543 plan review: a new mutating command must name its pure phase owner and
   controllable effect boundary before implementation, and join the derived
   recovery catalog/help/proof contract. Reuse durable authority instead of
@@ -1438,3 +1457,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   refusal and no-mutation oracle; do not weaken production policy or label a
   reproducible fixture failure a flake. Exercise helper tests through the live
   consumer path instead of retaining unused compatibility code solely for tests.
+- #538: an archive helper's successful legacy byte-preserving move is not proof
+  of a current tracker completion generation. A new authorization consumer must
+  require the archived done-card mirror to pin the current full binding; empty
+  ownership and unmirrored archives grant nothing. Re-observe target checkout
+  facts as well as caller, lease and generation after remote proof and before
+  effects. Native replaced-token, target-movement and post-archive replacement
+  regressions defend these semantic contracts; lexical lint cannot prove them.

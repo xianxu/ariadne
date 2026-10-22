@@ -261,7 +261,7 @@ func TestOwnedActualSelectorWarningsRefuseCloseAndCorrection(t *testing.T) {
 			}
 			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
 				candidate := *out
-				err := attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", &candidate, purpose)
+				err := attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, &candidate, purpose)
 				if wantWarning {
 					if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
 						t.Fatalf("purpose %d adopted selector-warning evidence: %v", purpose, err)
@@ -308,7 +308,7 @@ func TestAttachOwnedQueueEvidencePreservesEveryMixedBlocker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", out, actualCloseCandidate)
+	err = attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, out, actualCloseCandidate)
 	if err == nil {
 		t.Fatal("mixed queue blockers were admitted")
 	}

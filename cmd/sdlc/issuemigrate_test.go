@@ -52,7 +52,7 @@ func migrateDryRun(t *testing.T) (digest, out string, err error) {
 	stdout, stderr, err := executeSDLCTestCommand("issue", "migrate")
 	m := digestLine.FindStringSubmatch(stdout)
 	if m == nil {
-		t.Fatalf("dry run printed no digest:\n%s\n%s", stdout, stderr)
+		t.Fatalf("dry run printed no digest: %v\n%s\n%s", err, stdout, stderr)
 	}
 	return m[1], stdout + stderr, err
 }

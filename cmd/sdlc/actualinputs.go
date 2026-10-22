@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -38,6 +39,7 @@ type ownedActualInputs struct {
 	SourceSlots   map[string]string
 	Replay        bool
 	Protected     []activetime.CreditedInterval
+	LegacyPrefix  *ownedActualInputs // separately labelled, unowned pre-cutover evidence
 }
 
 type actualInputPurpose uint8
@@ -151,7 +153,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 					return nil, err
 				}
 				out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
-				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
 					return nil, err
 				}
 				out.Replay = false
@@ -203,6 +205,23 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	if err != nil {
 		return nil, err
 	}
+	legacyPrefix, legacyCutover, err := resolveLegacyActualPrefix(ctx, repoTop, head, trackerPin, rec.Card.Path, target.Repository, brainAbs, issueNum)
+	if err != nil {
+		return nil, err
+	}
+	if legacyPrefix != nil {
+		cutover, err := time.Parse(time.RFC3339Nano, legacyPrefix.Snapshot.Until)
+		if err != nil {
+			return nil, err
+		}
+		if cutover.After(until) {
+			return nil, fmt.Errorf("legacy cutover is after the measurement right edge")
+		}
+		sourceWindows = clipOwnedAfterCutover(sourceWindows, cutover)
+		if len(sourceWindows) == 0 {
+			return nil, fmt.Errorf("measurement has no owned suffix after legacy cutover")
+		}
+	}
 	var scope activetime.Scope
 	if completed {
 		scope, err = ownedHistoricalScope(ctx, repoTop, issueNum, completion, ledger, target.Remote)
@@ -213,6 +232,12 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		return nil, err
 	}
 	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementInputsVersion, Method: gatestate.MeasurementMethodEngagementV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
+	if legacyPrefix != nil {
+		snapshot.Version = gatestate.MeasurementHybridInputsVersion
+		snapshot.Method = gatestate.MeasurementMethodHybridV1
+		snapshot.LegacyPrefix, snapshot.LegacyCutover = &legacyPrefix.Snapshot, legacyCutover
+		snapshot.Since = legacyPrefix.Snapshot.Since
+	}
 	roots := []string{}
 	for _, w := range sourceWindows {
 		snapshot.Engagements = append(snapshot.Engagements, gatestate.MeasurementEngagement{Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano), Began: w.Began.Format(time.RFC3339Nano), Roots: append([]string(nil), w.Roots...)})
@@ -229,7 +254,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		return nil, err
 	}
 	warnings = append(warnings, notes...)
-	out := &ownedActualInputs{Snapshot: snapshot, Prefixes: map[string]activetime.SourcePrefix{}, Windows: windows, Scope: scope, TrackerRefs: []string{trackerPin}, Ledger: &ledger, Warnings: warnings}
+	out := &ownedActualInputs{Snapshot: snapshot, Prefixes: map[string]activetime.SourcePrefix{}, Windows: windows, Scope: scope, TrackerRefs: []string{trackerPin}, Ledger: &ledger, Warnings: warnings, LegacyPrefix: legacyPrefix}
 	for _, s := range sessions {
 		if len(windows[s.File]) == 0 {
 			if brainAbs != "" && filepath.Clean(s.CWD) == filepath.Clean(brainAbs) {
@@ -243,7 +268,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
 	}
 	out.Snapshot.Cuts = ownedMeasurementCuts(ledger)
-	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -322,7 +347,10 @@ func completedMeasurementSnapshot(ctx context.Context, root string, rec tracker.
 	return nil, ledger, "", nil
 }
 
-func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, out *ownedActualInputs, purpose actualInputPurpose) error {
+func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose) error {
+	if issueID <= 0 {
+		return fmt.Errorf("queue evidence requires a canonical issue ID")
+	}
 	until, err := time.Parse(time.RFC3339Nano, out.Snapshot.Until)
 	if err != nil {
 		return err
@@ -363,6 +391,35 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
+	if out.Snapshot.LegacyPrefix != nil {
+		since, err = time.Parse(time.RFC3339Nano, out.Snapshot.LegacyPrefix.Until)
+		if err != nil {
+			return err
+		}
+	}
+	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)
+	if err != nil {
+		return err
+	}
+	var heads []string
+	for _, a := range attempts {
+		heads = append(heads, a.SHA)
+	}
+	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop))
+	if err != nil {
+		var blockers []string
+		for _, a := range attempts {
+			blockers = append(blockers, fmt.Sprintf("suite attempt %s SHA %s: %v; restore immutable commit evidence and retry sdlc actual --issue %d", a.ID, a.SHA, err, issueID))
+		}
+		if len(blockers) == 0 {
+			return err
+		}
+		return &queueEvidenceError{Blockers: blockers}
+	}
+	attempts, err = filterIssueQueueAttempts(attempts, memberships, issueID)
+	if err != nil {
+		return err
+	}
 	waits, notes, err := selectOwnedQueueAttempts(attempts, engagements, repository, since, until)
 	if err != nil {
 		return err
@@ -381,6 +438,9 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	out.Warnings = append(out.Warnings, notes...)
 	if len(waits) > 0 {
 		out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
+		if out.LegacyPrefix != nil {
+			out.Snapshot.Method = gatestate.MeasurementMethodHybridQueueV1
+		}
 		out.Snapshot.QueueWaits = waits
 	}
 	return nil
@@ -441,7 +501,7 @@ func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, 
 		return nil, err
 	}
 	if len(engagements) == 0 {
-		return nil, fmt.Errorf("measurement has no verified owned interval before its pinned right edge")
+		return nil, fmt.Errorf("no post-cutover owned interval yet: measurement has no verified owned interval before its pinned right edge; reconcile and record post-cutover work before closing")
 	}
 	machine, _, err := localMachine()
 	if err != nil {
@@ -572,7 +632,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 				return nil, err
 			}
 			var began time.Time
-			if saved.Method == gatestate.MeasurementMethodEngagementV1 || saved.Method == gatestate.MeasurementMethodQueueV1 {
+			if gatestate.IsEngagementMethod(saved.Method) {
 				for _, engagement := range saved.Engagements {
 					left, err := time.Parse(time.RFC3339Nano, engagement.Start)
 					if err != nil {
@@ -605,6 +665,17 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 }
 
 func resolveOwnedReplay(ctx context.Context, root, issueNum string, saved gatestate.MeasurementInputs, ledger gatestate.Ledger) (*ownedActualInputs, error) {
+	var legacyPrefix *ownedActualInputs
+	if saved.LegacyPrefix != nil {
+		if err := validateRetainedLegacyPrefix(ctx, root, issueNum, saved); err != nil {
+			return nil, err
+		}
+		var err error
+		legacyPrefix, err = resolveOwnedReplay(ctx, root, issueNum, *saved.LegacyPrefix, gatestate.Ledger{})
+		if err != nil {
+			return nil, fmt.Errorf("retained legacy prefix: %w", err)
+		}
+	}
 	for _, pin := range nonEmpty(saved.CodeHead, saved.TrackerHead, saved.BranchPoint) {
 		if _, err := ownedActualGit(ctx, root, "cat-file", "-e", pin+"^{commit}"); err != nil {
 			return nil, fmt.Errorf("retained measurement Git pin %s unavailable: %w", pin, err)
@@ -622,6 +693,7 @@ func resolveOwnedReplay(ctx context.Context, root, issueNum string, saved gatest
 	if err != nil {
 		return nil, err
 	}
+	out.LegacyPrefix = legacyPrefix
 	for _, s := range out.Sessions {
 		if err := verifyOwnedPrefix(ctx, s.File, out.Prefixes[s.File]); err != nil {
 			return nil, err

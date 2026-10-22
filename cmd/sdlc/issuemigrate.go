@@ -31,8 +31,10 @@ import (
 )
 
 type issueMigrateFlags struct {
-	Apply, Reconcile bool
-	Expect           string
+	Apply, Reconcile  bool
+	RepairCompletions bool
+	Issue             int
+	Expect            string
 }
 
 func newIssueMigrateCmd() *cobra.Command {
@@ -50,6 +52,8 @@ func newIssueMigrateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Apply, "apply", false, "perform the reviewed plan (requires --expect)")
 	cmd.Flags().StringVar(&f.Expect, "expect", "", "the digest the dry run printed; --apply refuses any other plan")
 	cmd.Flags().BoolVar(&f.Reconcile, "reconcile", false, "bring this pre-cutover branch's details onto the tracker")
+	cmd.Flags().BoolVar(&f.RepairCompletions, "repair-completions", false, "plan a missing imported legacy close repair; requires --issue (dry run unless --apply --expect)")
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "the imported issue whose legacy completion to repair")
 	return cmd
 }
 
@@ -78,12 +82,21 @@ func openMigrate(ctx context.Context) (*migrateEnv, error) {
 }
 
 func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigrateFlags) error {
+	if f.RepairCompletions && (f.Reconcile || f.Issue <= 0) {
+		return errors.New("--repair-completions requires --issue N and cannot combine with --reconcile")
+	}
+	if !f.RepairCompletions && f.Issue != 0 {
+		return errors.New("--issue is only supported with --repair-completions")
+	}
 	if f.Apply && f.Reconcile {
 		return errors.New("--apply migrates main; --reconcile brings a branch across afterwards — pick one")
 	}
 	env, err := openMigrate(ctx)
 	if err != nil {
 		return err
+	}
+	if f.RepairCompletions {
+		return runLegacyCompletionRepair(env, stdout, stderr, f)
 	}
 	if f.Reconcile {
 		return runMigrateReconcile(env, stdout, stderr)
@@ -155,8 +168,6 @@ func migratedAlready(env *migrateEnv, mainView *gitx.TrunkView) (string, bool, e
 	return root, true, nil
 }
 
-// migrationInventory gathers the plan's input from the pinned main tree, every
-// local and publication-remote branch, and this clone's worktrees.
 // migrationBranchRef binds a diagnostic name to the one observed commit.
 // Reads use OID throughout the inventory, including legacy-close evidence.
 type migrationBranchRef struct {

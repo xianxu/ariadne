@@ -64,6 +64,26 @@ type MigrationInput struct {
 	Branches                       []MigrationBranchFile
 	DirtyIssuePaths                []string // "<worktree>: <path>" with uncommitted issue edits
 	Anchors                        map[string][]MigrationAnchor
+	Legacy                         map[string]MigrationLegacyClose // selected immutable source path
+}
+
+// MigrationLegacyClose is validated by the immutable Git shell. Terminal-only
+// imports retain an adoption witness without inventing a completion.
+type MigrationLegacyClose struct {
+	Completion    issue.Completion
+	HasCompletion bool
+	Adoption      issue.LegacyAdoption
+}
+
+func bindMigrationLegacy(card []byte, proof MigrationLegacyClose) ([]byte, error) {
+	var err error
+	if proof.HasCompletion {
+		card, err = issue.SetCardCompletion(card, proof.Completion)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return issue.SetCardLegacyAdoption(card, proof.Adoption)
 }
 
 // MigrationCard is one card the tracker is bootstrapped with.
@@ -168,6 +188,16 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 			}
 			card = bound
 		}
+		if proof, ok := in.Legacy[f.Path]; ok {
+			card, err = bindMigrationLegacy(card, proof)
+			if err != nil {
+				refuse(f.Path, err.Error(), "restore the verified legacy adoption before cutover")
+				continue
+			}
+			if !proof.HasCompletion {
+				inferences = append(inferences, "unbound legacy adoption: no close evidence; windowless-terminal provenance retained")
+			}
+		}
 		// The card is final (bound, if it was codecomplete): pin exactly it.
 		mirrored, err := issue.MirrorDetails(normalized, card, in.ObjectFormat)
 		if err != nil {
@@ -196,6 +226,16 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 		if err != nil {
 			refuse(seed.Path, err.Error(), "fix the archived details, then re-run the dry run")
 			continue
+		}
+		if proof, ok := in.Legacy[seed.Path]; ok {
+			card, err = bindMigrationLegacy(card, proof)
+			if err != nil {
+				refuse(seed.Path, err.Error(), "restore the verified legacy adoption before cutover")
+				continue
+			}
+			if !proof.HasCompletion {
+				inferences = append(inferences, "unbound legacy adoption: no close evidence; windowless-terminal provenance retained")
+			}
 		}
 		_, slug, _ := issue.ParseFilename(path.Base(seed.Path))
 		cards[id] = MigrationCard{ID: id, Path: CardPath(id, slug), Source: seed.Path, Raw: card, Inferences: inferences}
