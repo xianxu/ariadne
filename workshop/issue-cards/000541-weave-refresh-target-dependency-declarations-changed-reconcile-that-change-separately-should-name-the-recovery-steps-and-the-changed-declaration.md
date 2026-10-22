@@ -1,6 +1,6 @@
 ---
 id: 000541
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 47286711ea6fc2bca08fdaa78a7100fad5a6a086
         evidence_commit: 06e80677b5e7e1c57be3bb6cb8b31c7041b14271
+        landed_commit: 13bdac4bac10b7e844ba7dd71d7df5fa940a9205
 ---
 
 # weave refresh: 'target dependency declarations changed; reconcile that change separately' should name the recovery steps and the changed declaration
