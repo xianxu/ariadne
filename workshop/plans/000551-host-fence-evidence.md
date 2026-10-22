@@ -60,4 +60,3 @@ Tested HEAD and immutable source blob identities:
 At execution, the only tracked working-tree changes were the generated close-gate and close-review Markdown sidecars. Executable source matched this HEAD. Subsequent evidence/documentation commits retain these source blob identities; compare with Git when reviewing.
 
 The production openReviewIsolation path creates a disposable consumer and dependency. The test verifies reading the pinned fixture, writing the primary checkout, and rejection of writes in the dependency clone, source checkout and source Git common directory, including ref updates. Its assertions run against the actual platform fence. All repositories and attempted writes are disposable fixtures; no live peer checkout is used.
-

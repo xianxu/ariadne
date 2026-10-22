@@ -146,3 +146,9 @@ The Echo-owned live review cannot launch until independent #553 fixes attributio
 ### 2026-10-22 — retained suite passed
 
 Retained recorded run lease-2607030942 completed successfully on 1151135bfd024f4b709f1af158a58ed52f7a2ce9: all eight shards exit 0, 2236 cmd/sdlc tests and 76 other packages, wall 894.9s after 1510s queue wait. Log .git/sdlc/local-checks/1151135bfd024f4b709f1af158a58ed52f7a2ce9/suite.log, reported SHA256 prefix 7e126b415f4b; sdlc-local/suite posted on that exact head. No retry or flake acceptance was needed. Full close round 5 is SHIP with BR-3 addressed and no open blocking findings. Hold outside landing for #506 then #553; integrate landed main and rebuild for the Echo-owned live review before final landing.
+
+### 2026-10-22 — landed #553 integration and combined live binary
+
+Fetched main through 1c0595d594e74336112d4e274095d467a977386c, including #553 merge be0e64c3d329ddb210880ba570c5bf1a6de76c1e. Integrated without conflicts as f32aaba8fea96d76e745fb282db8bd57d326619b. Built with make sdlc-build and verified vcs.revision matches that commit and vcs.modified=false. Sent bin/sdlc to ops-echo; it confirmed relay to echo:3 for echo#10 close, preserving the required live proof on that issue. Keep this binary unchanged until the owner-run review finishes.
+
+Combined targeted cmd/sdlc tests for queue-head parse/reduction/structural ancestry and production dependency/boundary/context behavior passed in 27.159s. The imported main fixture cmd/tl-worker/testdata/drain/stale-help.txt has an existing final blank line; no edit to that unrelated fixture. Removed only a redundant final blank line in our captured evidence artifact. Queue a fresh recorded suite on the pushed integrated head; the earlier pass remains exact-head evidence for the pre-integration branch, not the integrated candidate.
