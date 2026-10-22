@@ -139,6 +139,21 @@ func queueHeadTrailer(message, key, want string) bool {
 }
 
 func parseQueueHead(f queueHeadFact, selfRepo string) queueHeadStep {
+	step := parseQueueHeadAuthority(f, selfRepo)
+	if step.Kind != queueHeadUnknown || !f.MainParents || len(f.Parents) < 2 {
+		return step
+	}
+	for _, parent := range f.Parents {
+		if !landingOIDValid(parent) || len(parent) != len(f.OID) {
+			return step
+		}
+	}
+	return queueHeadStep{Kind: queueHeadNeutral, NeedParent: f.Parents[0]}
+}
+
+// Definite authority, including malformed train refusal, precedes the structural
+// fallback. All unknown results reach that fallback regardless of message.
+func parseQueueHeadAuthority(f queueHeadFact, selfRepo string) queueHeadStep {
 	subject, _, _ := strings.Cut(f.Message, "\n")
 	unknown := queueHeadStep{Reason: "commit has no definite issue lead or recognized neutral authority"}
 	malformed := queueHeadStep{Kind: queueHeadMalformedTrain, Reason: "malformed landing train authority"}
@@ -196,9 +211,6 @@ func parseQueueHead(f queueHeadFact, selfRepo string) queueHeadStep {
 		return unknown
 	}
 	if m := queueHeadIntegrationRE.FindStringSubmatch(subject); m != nil && mergeValid && m[1] == f.Parents[1] && queueHeadTrailer(f.Message, "Integrated-Main", m[1]) {
-		return queueHeadStep{Kind: queueHeadNeutral, NeedParent: firstParent()}
-	}
-	if parentsValid && len(f.Parents) > 1 && f.MainParents {
 		return queueHeadStep{Kind: queueHeadNeutral, NeedParent: firstParent()}
 	}
 	return unknown

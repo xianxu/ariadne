@@ -49,6 +49,8 @@ foreign parents keep strict refusal.
 - echo#10's exact shape (issue commits, then a default-message merge of origin/main, then a suite on the merge)
   measures, with the suite attributed to the issue (real-git fixture).
 - A merge bringing in a foreign issue branch (a second parent not on main) still refuses (test).
+- Structural fallback applies to every otherwise unknown ordinary merge, including bookkeeping subjects
+  and invalid issue leads; definite issue authority and malformed-train refusal retain precedence.
 - echo#10's live 'sdlc actual --issue 10' measures (owner-run proof).
 
 ## Plan
@@ -122,6 +124,18 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   branch into the canonical checkout after #506 lands (receipt 1e45c411-1ba8-4ffc-b17d-ce7fb0d5b577).
   Start close review during that queue wait under tl-worker PERMISSIONS: the final code still needs its
   recorded suite pass before landing, and any review code change requires a new tested head.
+- Close round 1 returned REWORK with BR-1 Critical, family message-independent-structural-attribution:
+  bookkeeping-message early returns skipped proven structural integration. Independent real-Git RED
+  cases confirmed both bookkeeping subjects; the complete early-return sweep also found invalid #0
+  lead authority. Single-parent bookkeeping, definite issue leads, foreign parents and trains remain controls.
+  Cancelled queued lease-1759503955 through its exact supported run ID before changing production code.
+- BR-1 targeted assertions passed, but the command's hermeticity guard correctly refused my concurrent
+  edit of workshop/lessons.md during its test window. This is an agent sequencing error, not a product
+  failure or flake; rerun the same checks with the source checkout unchanged for their whole lifetime.
+- BR-1 GREEN: the unchanged-checkout rerun passed cmd/sdlc in 21.575s and internal/gitx in 0.822s.
+  The pure wrapper now applies structural fallback to every unknown authority result; recognized authority
+  and malformed trains stay ahead of it. Real-Git cases cover both bookkeeping merges, invalid issue lead,
+  their foreign-parent controls, retained single-parent bookkeeping, and definite other-issue authority.
 
 ## Revisions
 
@@ -129,3 +143,10 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
 
 - Retain the original acceptance contract and add the implementation/proof plan above. The hub requested
   priority work while #506 waits; its recorded runner remains independent and no queue ordering is changed here.
+
+### 2026-10-22 — BR-1: message-independent fallback
+
+- Put the structural fallback after the existing pure authority parser's result, rather than after only
+  some message branches. Every unknown ordinary merge can reach it; definite authority and malformed
+  train refusal still win. Extend the real-Git matrix across bookkeeping subjects and invalid issue leads,
+  preserving single-parent bookkeeping and foreign-parent/definite-authority controls (ARCH-PURPOSE).

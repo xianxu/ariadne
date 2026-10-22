@@ -1448,3 +1448,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   facts as well as caller, lease and generation after remote proof and before
   effects. Native replaced-token, target-movement and post-archive replacement
   regressions defend these semantic contracts; lexical lint cannot prove them.
+
+- #553 BR-1: a structural fallback placed after selected grammar branches can
+  remain message-dependent through earlier unknown returns. Apply fallback to
+  the authority parser's explicit unknown result; preserve definite authority
+  and malformed-train refusal. Enumerate early-return classes, including invalid
+  leads and bookkeeping merges, in the real-Git controls. This semantic ordering
+  invariant needs behavioral tests rather than a source-name lint.
