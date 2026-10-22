@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 2.9
 collaboration-mode: collaboration
-card_mirror: '400b2f9dac75b6d44389bf14eb15d0aa1c3a5104' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b8ff596f57ec7759a5af82367b6a0aea3e89ce73' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T04:59:55-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # Train car active-time counts conductor-owned queue wait and status polls as focused work
@@ -86,3 +87,25 @@ Revised Done when: complete retained train-wait coverage is issue/head/owner/sou
 ### 2026-10-22 — plan-quality refinement
 
 First plan review requested executable interval semantics (PQ-1), optional diagnostic budgets/fallback isolation (PQ-2), and function-named test strategies (PQ-3). The appended governing plan refinement defines coverage as the whole closed retained invocation with at least one verified car binding, including pre-boarding/released gaps; it is not train-ride or idle time. No release/phase journal is needed. Concrete audit/snapshot caps fall back to incomplete diagnostic coverage while preserving the valid accounting snapshot. The new function strategy table supersedes the old exclusion test inventory. Runtime-binding follow-up filed as pair#800, unclaimed and low severity; no Pair checkout changed.
+
+Plan-quality round 2: CLEAN; PQ-1 through PQ-3 addressed, no open blocking findings. Deriving estimate only after this returned gate result.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration source is stale, so rates are provisional. Existing landingline flock/audit, bounded Git head reader and preserving snapshot codec cover the integration stack; no external library short-circuits the domain reducer. The thorough plan discounts module design by x0.2, familiarity is 1, implementation rates are 40% of v2.1. Initial issue shaping and the visibility scope pivot are separate primitives, not repeated module design. Four smaller modules cover producer wiring, selection/reader, snapshot codec and actual integration; tests belong to those modules. One close review and documentation complete the scope.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.04
+item: scope-pivot design=0.20 impl=0.08
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 2.90
+```
