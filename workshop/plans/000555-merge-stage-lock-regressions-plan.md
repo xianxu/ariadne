@@ -51,26 +51,26 @@ The existing common repository lock remains the single exclusion resource for sh
 
 Files: add cmd/sdlc/merge_stage_lock_test.go; reuse landingintegrate_test.go, merge_main_test.go, repolock_test.go and stage tests.
 
-- [ ] Build a disposable integrationFixture with fixed cwd and an origin alias to the existing bare remote. Add a minimal committed Makefile build target whose external marker proves the rebuild happened.
-- [ ] Establish the stage through the actual root command before starting the merge. Start merge --yes --no-judge --no-validate through executeSDLCTestCommandWith, so NewMergeCmd's context/lock wiring and root wrappers are exercised.
-- [ ] Use explicit barriers for admission and suite execution; isolate helper resources/environment from the outer suite. Set all globals and environment before goroutines start. Every fixture return cancels/releases and joins all workers.
+- [x] Build a disposable integrationFixture with fixed cwd and an origin alias to the existing bare remote. Add a minimal committed Makefile build target whose external marker proves the rebuild happened.
+- [x] Establish the stage through the actual root command before starting the merge. Start merge --yes --no-judge --no-validate through executeSDLCTestCommandWith, so NewMergeCmd's context/lock wiring and root wrappers are exercised.
+- [x] Use explicit barriers for admission and suite execution; isolate helper resources/environment from the outer suite. Set all globals and environment before goroutines start. Every fixture return cancels/releases and joins all workers.
 
 ### 2. Admission and execution matrix
 
-- [ ] Write table-driven cases for clear and stage --build while merge is separately blocked at admission and during execution. Use fakeSuiteLockHelper only for bounded admission control, retaining the real acquire helper process and suite subprocess.
-- [ ] Wait for positive barrier evidence, execute the actual stage command, and assert completion before releasing merge. Assert target branch/head, lease state and build marker; source branch/head remains unchanged by stage.
-- [ ] Run the new test on current main. It should pass without runtime changes. Temporarily mutate only the root test command's lock mode to whole-command automatic wrapping; the same regression must fail because stage cannot complete before release. Restore it and rerun green. Never commit the intentional mutation.
+- [x] Write table-driven cases for clear and stage --build while merge is separately blocked at admission and during execution. Use fakeSuiteLockHelper only for bounded admission control, retaining the real acquire helper process and suite subprocess.
+- [x] Wait for positive barrier evidence, execute the actual stage command, and assert completion before releasing merge. Assert target branch/head, lease state and build marker; source branch/head remains unchanged by stage.
+- [x] Run the new test on current main. It should pass without runtime changes. Temporarily mutate only the root test command's lock mode to whole-command automatic wrapping; the same regression must fail because stage cannot complete before release. Restore it and rerun green. Never commit the intentional mutation.
 
 ### 3. Safety controls
 
-- [ ] Hold a real short repository transaction across a controlled barrier. Start stage and observe the existing lock-wait diagnostic; assert target remains unchanged, then release and require completion.
-- [ ] Change the source issue head during a held suite. Release the suite and require actual CLI merge to refuse at reacquisition, with no GitHub merge and the new commit preserved. Reuse the existing head-drift fixture pattern.
-- [ ] Verify cancellation paths join worker/process lifetimes without waiting on a consumed completion channel. Derive test ceilings from t.Deadline where available; timeout output includes goroutines and named barrier.
+- [x] Hold a real short repository transaction across a controlled barrier. Start stage and observe the existing lock-wait diagnostic; assert target remains unchanged, then release and require completion.
+- [x] Change the source issue head during a held suite. Release the suite and require actual CLI merge to refuse at reacquisition, with no GitHub merge and the new commit preserved. Reuse the existing head-drift fixture pattern.
+- [x] Verify cancellation paths join worker/process lifetimes without waiting on a consumed completion channel. Derive test ceilings from t.Deadline where available; timeout output includes goroutines and named barrier.
 
 ### 4. Verification and close
 
-- [ ] Run focused command-lock tests, existing durable/legacy unlock and head-drift tests, plus stage lease/clear tests. Record exact commands and results.
-- [ ] Add the incident's process-age-versus-lock-duration lesson without claiming unrecoverable timing evidence. Update atlas only if an existing explanation needs correction; otherwise acknowledge no new architecture at close.
+- [x] Run focused command-lock tests, existing durable/legacy unlock and head-drift tests, plus stage lease/clear tests. Record exact commands and results.
+- [x] Add the incident's process-age-versus-lock-duration lesson without claiming unrecoverable timing evidence. Update atlas only if an existing explanation needs correction; otherwise acknowledge no new architecture at close.
 - [ ] Push and run the recorded suite on the exact head. Mandatory sdlc close provides the fresh-context review. Close as “not reproduced; regressions pinned” if all tests pass; ask the hub for a revised design if any real locking defect is exposed.
 - [ ] Land via sdlc merge --yes on SHIP and report PR/result. No stage on the live fleet is proposed: this is deterministic real-Git/process conformance; ask the TL to confirm that verification choice.
 

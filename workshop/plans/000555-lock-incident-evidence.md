@@ -45,3 +45,24 @@ Pair:6 retained tool receipts show CI waiting by11:07:09; by11:08:12 CI4green fo
 ## Evidence limits
 
 No exact launch build revision or lock-transition timestamps were retained. The full executable path and prior10:27 clean binary observation do not establish the10:39 runner's revision. Do not substitute the current binary version or infer a stale executable. TL accepted the corrected interpretation: short legitimate post-suite transaction; retain scoped locking and pin command-level regressions.
+
+## Command-level oracle mutation
+
+The temporary mutation set the test root's actual merge command to automatic whole-command locking and re-applied the root wrapper; no production file changed. Targeted command:
+
+```text
+go test ./cmd/sdlc -run '^TestMergeCommandStageDuringSuiteWaits/admission/clear$' -count=1 -timeout=45s
+```
+
+Observed failure excerpt (mutation restored afterward):
+
+```text
+--- FAIL: TestMergeCommandStageDuringSuiteWaits (26.30s)
+    --- FAIL: TestMergeCommandStageDuringSuiteWaits/admission/clear (26.30s)
+        merge_stage_lock_test.go:190: waiting for stage clear during admission exhausted 18.852276646s; goroutine stacks:
+FAIL
+FAIL	github.com/xianxu/ariadne/cmd/sdlc	26.862s
+FAIL
+```
+
+The independent stage-completion condition failed while merge admission remained held, establishing that this command-level regression detects whole-command locking. Final passing verification is recorded in the issue Log.

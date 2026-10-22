@@ -43,9 +43,9 @@ integration or push.
 
 ## Plan
 
-- [ ] Pin the corrected incident timeline and approved test-only design in the durable plan.
-- [ ] Exercise actual CLI stage clear/build during separately blocked suite admission and execution; prove the regression fails under whole-command wrapping.
-- [ ] Pin short-transaction serialization and post-suite head-drift refusal through the command path.
+- [x] Pin the corrected incident timeline and approved test-only design in the durable plan.
+- [x] Exercise actual CLI stage clear/build during separately blocked suite admission and execution; prove the regression fails under whole-command wrapping.
+- [x] Pin short-transaction serialization and post-suite head-drift refusal through the command path.
 - [ ] Run focused checks and the recorded suite; close as not reproduced with regressions pinned, then land.
 
 ## Log
@@ -73,6 +73,14 @@ A read-only subagent audit confirms no context leak: the repo-lock wrapper skips
 ### 2026-10-22 — durable source capture and implementation admission
 
 Read the owner-named recorded suite receipt and landing identity directly; captured the relevant fields and evidence limits in [incident evidence](../plans/000555-lock-incident-evidence.md). The test-only design entered change-code successfully (quick inferred, no production additions planned). Implement the approved command-path regression matrix; do not narrow production locks.
+
+### 2026-10-22 — command-path regression verification complete
+
+Added only cmd/sdlc/merge_stage_lock_test.go: four clear/build × suite-admission/execution cases through actual buildRoot/NewMergeCmd/NewStageCmd, an actual integrateLandingMain lease-push lock control, and post-suite head-drift refusal. Disposable Git worktrees, the existing stateful GH fake, actual helper/suite/build subprocesses and independent target/head/lease/build-marker assertions cover both unlock and exclusion. The control explicitly observes a stage wait naming sdlc merge while the integration push remains inside f.withLock. No production file changed.
+
+Oracle mutation: temporary whole-command automatic locking in the test root made admission/clear fail with its named wait and goroutine dump (26.862s, command timeout45s); restored fully. The new six-case set passed78.415s after the actual-push control correction. One earlier run passed assertions but failed the package hermeticity guard because my concurrent evidence-document edit changed the real checkout during the run; discarded that run and kept all workspace writes sequential with subsequent tests. No product flake or runtime fix was inferred.
+
+Final parent verification: go test ./cmd/sdlc -run '^(TestMergeCommand|TestLandingReleasesRepoLockDuringSuite|TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck|TestLandingRegistrationPollingDoesNotHoldRepoLock|TestLandingReacquiresLockAndRefusesHeadDriftAfterSuite|TestStageLeaseEdges|TestStageClearLandedProofOrdering|TestStageClearBuildUsesPinDespiteLaterRemoteAdvance)' -count=1 -timeout=8m passed205.371s. Tracked-file go test ./pkg/golint -count=1 passed1.195s. git diff --check clean. Outcome remains not reproduced; regressions pinned. Queue the recorded suite on the pushed tested head, then close through the mandatory review.
 
 ## Revisions
 
