@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"os"
@@ -183,5 +184,43 @@ func TestCalibrationLine(t *testing.T) {
 	full := estimate.LedgerRow{Issue: "ariadne#234", Estimate: 2.7, Actual: 3, SplitSource: "manual"}
 	if got := calibrationLine(full, "trusted-window"); !strings.Contains(got, "ratio 0.9×") || strings.Contains(got, "build") {
 		t.Errorf("typed-actual line: %q", got)
+	}
+}
+
+// pair#737: M2's four REWORK rounds remained in history after its executable
+// Plan row was retired. M3 must measure before its first review is dispatched.
+func TestComputeActualRetiredBoundaryBeforeReplacementReview(t *testing.T) {
+	top := splitFixture(t, "workshop/plans", func(ts func(int) string) []gatestate.Round {
+		rounds := m1PassedFirstRound(ts)
+		for i := 0; i < 4; i++ {
+			rounds = append(rounds, gatestate.Round{N: i + 2, Boundary: "M2", Dispatched: ts(27 + i*3), Timestamp: ts(29 + i*3), Agent: "claude", Recipe: "milestone-review"})
+		}
+		return rounds
+	})
+	path := filepath.Join(top, "workshop/issues/000009-x.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = append(raw, []byte("\n## Plan\n\n- [x] M1 — closed\n- M2 — superseded; history retained\n- [ ] M3 — replacement\n")...)
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	stamp := strings.TrimSpace(testfix.Capture(t, top, "show", "-s", "--format=%aI", "HEAD"))
+	t.Setenv("GIT_AUTHOR_DATE", stamp)
+	t.Setenv("GIT_COMMITTER_DATE", stamp)
+	testfix.Git(t, top, "add", ".")
+	testfix.Git(t, top, "commit", "-qm", "#9: retire M2; implement M3")
+	got := computeActualFor(context.Background(), top, "", "9", "M3", "")
+	if got.Status != actualMeasured || math.Abs(got.Hours-25.0/60) > 1e-6 {
+		t.Fatalf("retired M2 swallowed M3: status=%v hours=%v split=%+v detail=%s", got.Status, got.Hours, got.Split, got.Detail)
+	}
+}
+
+func TestActualRetiredBoundaryDiagnostic(t *testing.T) {
+	var out bytes.Buffer
+	printActualMeasurement(&out, actualResult{Issue: "9", Window: "2026-01-01T00:00:00Z → 2026-01-01T01:00:00Z", Hours: 0})
+	if !strings.Contains(out.String(), "selected phase evidence unavailable") {
+		t.Fatalf("silent zero diagnostic: %s", out.String())
 	}
 }

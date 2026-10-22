@@ -62,8 +62,8 @@ total: 1.38
 
 Full-flow proposal: [implementation plan](../plans/000531-retired-boundary-accounting-plan.md).
 
-- [ ] Replay pair#737 and define retired-boundary accounting from the pinned canonical Plan.
-- [ ] Share cut selection across fresh tracker and legacy measurements; preserve retained replay cuts.
+- [x] Replay pair#737 and define retired-boundary accounting from the pinned canonical Plan.
+- [x] Share cut selection across fresh tracker and legacy measurements; preserve retained replay cuts.
 - [ ] Explain effective milestone phases and source counts; verify adversarial and full-suite coverage.
 - [ ] Close through the mandatory review and land.
 
@@ -84,3 +84,17 @@ Hub approved the full-flow membership/fallback policy and isolated production-pa
 Plan-quality round 1 raised PQ-1 (function-level test contract). Named selector, pinned resolver, phase diagnostic and production compute/replay functions; compressed the executable-case inventories into adversarial strategies and mechanical guards. Policy unchanged; re-running admission.
 
 Plan-quality round 2 CLEAN: PQ-1 addressed; no remaining findings. Estimate derived only after acceptance: 1.38h, provisional stale calibration. Baseline pure timeline/boundary/conservation tests PASS.
+
+### 2026-10-22 — implementation and isolated proof
+
+Admission completed: plan-quality CLEAN after PQ-1 correction (third invocation rechecked the estimate-bearing body); estimate-quality INFO, no blocking findings. Estimate module allowances include their unit/native fixtures; review allowance is tight for suite elapsed time and remains provisional rather than retrofitting the number.
+
+Implemented fresh split-cut selection shared by tracker and legacy paths. Plan membership is read at the exact measurement code pin, with identity/uniqueness/fence validation and actionable refusal. Finalized history, executable open reviews and whole-issue rounds remain; retired unfinalized named rounds are omitted only from newly retained ordinary Cuts. Timeline engine, review ledger, findings/caps and persisted formats are unchanged. Legacy code history is pinned once for both its engine and Plan read. Rendering shows selected phase bounds, code pin and truthful session provenance, including empty/blocking cases.
+
+TDD: native pre-M3-review regression first failed at 0h; after selection it measures exactly 25/60h. Silent-zero diagnostic control also failed before rendering was added. Identity adversarial tests exposed duplicate-ID acceptance and quoted-ID rejection; reused issue.FieldString to reject malformed YAML while accepting scalar quoting. Targeted controls then PASS. Captured actual pair#737's pre-review Plan from Git-confirmed dd1109784863d347b580f46e2d0bf4d4e7d1a54b and sanitized real round timestamps in testdata/actual/pair737-retired-boundary.json. The capture reproduces the old zero and attributes the Log's minute-resolution 10:53–11:31 range as 38 minutes with the new ordinary cuts; it contains no raw transcripts and does not claim to replay 21 original sessions.
+
+Tracker-native Codex fixture confirms 0.1h M3 and that fresh retained Cuts exclude M2; old unfiltered snapshots still replay zero and new filtered snapshots replay 0.1h. Claude legacy production fixture supplies the independent provider path. Pure property selection checks 500 generated ledgers against independently stated keep rules. Native Git wrapper counts exactly two Plan reads, one listing and one body, at both 100 and 200 rounds. Adversarial pinned Plan tests cover source authority and visible refusals.
+
+Verification: go test ./cmd/sdlc -run 'Test.*Actual|Test.*Split|Test.*Measurement|TestCapturedPair737' -count=1 -timeout 10m PASS (374.272s); full activetime and gatestate package tests PASS (9.694s / 0.342s). Broad CLI run retained to completion without cancellation. Recorded full pushed-head suite and close review remain.
+
+Final targeted verification after pinning the legacy engine and identity parsing changes: retired-boundary / original split controls PASS (7.339s). The captured real sequence and tracker replay controls are included. Preparing the exact pushed head for its recorded suite.

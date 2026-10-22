@@ -80,24 +80,24 @@ ARCH-DRY/PURE: one selector feeds fresh tracker and legacy paths; BuildTimeline 
 
 Files: cmd/sdlc/actualsplit_test.go, new cmd/sdlc/actualplan_test.go.
 
-- [ ] Write the sanitized pair#737 production-path regression before its first M3 review; run go test ./cmd/sdlc -run 'Test.*RetiredBoundary' -count=1 and observe the existing zero-hour failure.
-- [ ] Add the named pure contracts above as executable property tests; use the state table as the invariant source.
+- [x] Write the sanitized pair#737 production-path regression before its first M3 review; run go test ./cmd/sdlc -run 'Test.*RetiredBoundary' -count=1 and observe the existing zero-hour failure.
+- [x] Add the named pure contracts above as executable property tests; use the state table as the invariant source.
 
 ### 2. Select fresh cuts from the pinned Plan
 
 Files: new cmd/sdlc/actualplan.go; cmd/sdlc/actualsplit.go, actualinputs.go, actual.go.
 
-- [ ] Implement selectFreshSplitRounds and pinnedActualPlan with the authority and failure contracts above, reusing existing parsers and Git seams.
-- [ ] Connect both fresh measurement paths and no-snapshot historical reconstruction. Keep saved replay outside fresh selection.
-- [ ] Execute the named native resolver and input-selection strategies; confirm red-to-green production regression and constant resolver observation budget. Commit the coherent implementation with its tests.
+- [x] Implement selectFreshSplitRounds and pinnedActualPlan with the authority and failure contracts above, reusing existing parsers and Git seams.
+- [x] Connect both fresh measurement paths and no-snapshot historical reconstruction. Keep saved replay outside fresh selection.
+- [x] Execute the named native resolver and input-selection strategies; confirm red-to-green production regression and constant resolver observation budget. Commit the coherent implementation with its tests.
 
 ### 3. Explain and verify the result
 
 Files: cmd/sdlc/actual.go, actualmeasurement.go, actualmeasurement_test.go, actualinputs_test.go, helptext/actual.md, atlas/workflow/sdlc-binary.md.
 
-- [ ] Implement actualPhaseDiagnostic and expose it through actual/close rendering with the existing provenance diagnostics.
-- [ ] Execute the named compute, replay and rendering contracts using disposable Claude and Codex sources, with the available Qoder registry control.
-- [ ] Document the fallback and retained-history limitation in help and atlas.
+- [x] Implement actualPhaseDiagnostic and expose it through actual/close rendering with the existing provenance diagnostics.
+- [x] Execute the named compute, replay and rendering contracts using disposable Claude and Codex sources, with the available Qoder registry control.
+- [x] Document the fallback and retained-history limitation in help and atlas.
 - [ ] Run go test ./cmd/sdlc/internal/activetime ./cmd/sdlc/internal/gatestate -count=1 and targeted cmd/sdlc measurement tests. Push, run sdlc local-check run --name suite and retain the runner through completion. Close with measured verification and mandatory review; on SHIP land through sdlc merge --yes.
 
 ## Proof and review point

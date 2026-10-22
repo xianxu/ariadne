@@ -1,0 +1,63 @@
+{
+  "issue": "pair#737",
+  "head": "dd1109784863d347b580f46e2d0bf4d4e7d1a54b",
+  "issue_source": "workshop/issues/000737-couch-scheduler-run-each-hub-s-scheduled-tasks-from-its-operations-repo-due-notices-direct-script-run-skip-if-missed-schedule-status.md",
+  "since": "2026-10-20T17:17:42-07:00",
+  "until": "2026-10-21T11:48:39-07:00",
+  "admitted_sessions": 21,
+  "current": "M3",
+  "plan": "## Plan\n\n- [x] M1 — Shared manual task path, durable state, and read-only status; implementation tasks 1–4 in [the durable plan](../plans/000737-couch-scheduler-plan.md).\n- M2 — superseded by the one-writer re-plan (operator, 10-21). Prior REWORK findings and evidence retained; no SHIP claim.\n- [ ] M3 — One namespace-scoped scheduler writer, settlement before edits, owner-mediated manual transport, requalified M1 recovery, authenticated notices and required disposable/day-long acceptance; final revision in the durable plan.\n",
+  "rounds": [
+    {
+      "boundary": "M1",
+      "dispatched": "2026-10-20T20:08:11-07:00",
+      "finalized": "2026-10-20T20:12:31-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M1",
+      "dispatched": "2026-10-20T20:36:36-07:00",
+      "finalized": "2026-10-20T20:40:39-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M1",
+      "dispatched": "2026-10-20T21:10:12-07:00",
+      "finalized": "2026-10-20T21:12:59-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M1",
+      "dispatched": "2026-10-20T21:21:32-07:00",
+      "finalized": "2026-10-20T21:23:47-07:00",
+      "finalizing": true
+    },
+    {
+      "boundary": "M2",
+      "dispatched": "2026-10-21T00:01:03-07:00",
+      "finalized": "2026-10-21T00:07:19-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M2",
+      "dispatched": "2026-10-21T08:48:29-07:00",
+      "finalized": "2026-10-21T08:53:10-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M2",
+      "dispatched": "2026-10-21T09:01:23-07:00",
+      "finalized": "2026-10-21T09:06:35-07:00",
+      "finalizing": false
+    },
+    {
+      "boundary": "M2",
+      "dispatched": "2026-10-21T09:41:29-07:00",
+      "finalized": "2026-10-21T10:31:26-07:00",
+      "finalizing": false
+    }
+  ],
+  "observed_activity_start": "2026-10-21T10:53:00-07:00",
+  "observed_activity_end": "2026-10-21T11:31:00-07:00",
+  "note": "Sanitized boundary/Plan capture; activity endpoints are the minute-resolution range reported in the issue Log, not raw transcript events. No private transcript content retained."
+}
