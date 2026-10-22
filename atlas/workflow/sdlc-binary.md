@@ -10,6 +10,33 @@ Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
+## New repository initialization (#543)
+
+The explicit final setup command `sdlc issue init` has a conservative presence-only
+inventory and reuses migration's tracker bootstrap CAS and main cutover. Its pure
+invocation-local `tracker.InitTransition` owns phase changes; `issueinit.go`
+dispatches only returned effects and stops on failure/cancellation/uncertainty.
+Retry verifies existing root/marker evidence, retaining partial publication.
+Clean main checkout completion uses a pinned ff-only commit. Brains/declined
+scaffolds skip.
+
+`issueinit_inventory.go` refuses any recognized issue evidence in the active,
+flat legacy history or history/issues roots: pinned main, every current local
+and publication-remote branch tip, live worktree HEADs (including detached),
+indexes and filesystem entries (including ignored/untracked). It imports no
+records and applies no difference/merge rules. Unreadable or non-directory roots
+refuse as uncertain. Snapshot scans select metadata only, not issue bodies.
+The shared BR-1 head helper refreshes the entire publication heads mapping and
+pins names/OIDs without name exclusions (`publicationBranchTips`); only migrate
+applies its own branch filter. Failed refresh or main moving from its pin refuses. Tags, other
+remotes and FETCH_HEAD remain outside that explicit fetch's write set. Existing
+migration import policy is separate; its archive/worktree gaps are ariadne#546.
+An unverified/pre-existing reserved tracker branch refuses as `tracker already
+initialized`; exact verified empty-bootstrap recovery and completed valid
+root/marker no-ops remain supported.
+Legacy hints use local-only `issue.LocalPathsByID` evidence and never authorize
+publication. See [the setup procedure](setup-and-replication.md#new-repository-default).
+
 ## Executable identity (#461)
 
 `sdlc --version` reports the actual executable path, embedded VCS revision and
@@ -2924,3 +2951,15 @@ and strict scratch defer, including effect aliases and multiple effects under
 one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
 the authority behavior. Completed proof GC and unused pre-link preparation keep
 their existing lifecycles.
+
+### Bootstrap suite derivation (#536)
+
+`localchecks_bootstrap.go` composes existing default-suite constructors and
+bounded native make probes. Main remains authoritative; only proven absent
+declaration and target permit the exact subject's default. `runLocalCheckCmd`
+verifies the pushed subject before fallback. CI facts cache that same policy
+within one wait budget. Conductor `deriveSuite` re-derives per tested prefix and
+reintegration, so a later target/weight never authorizes an earlier prefix.
+The captured echo#1 inputs and native command/train regressions live in
+`testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
+See [the CI gate map](ci-merge-check.md) for evidence and authority rules.

@@ -5,6 +5,7 @@ edits the record itself.
 
 SUBCOMMANDS
 
+  init           Finish new non-brain repository setup with an empty tracker
   new            File an issue on origin in one operation (#308): the card on
                  the tracker, the details on main; claimed by the creating slot
                  `repo:N` (N ≥ 1), unclaimed from `:0`; writes no checkout
@@ -29,7 +30,8 @@ SUBCOMMANDS
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
                  and measured actual corrections
   migrate        One-time cutover of a legacy repository to the issue tracker
-                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
+                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch);
+                 `--repair-completions --issue N` repairs a missing imported close
   set-status     Flip an issue card's status with transition guards
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
@@ -46,6 +48,32 @@ SUBCOMMANDS
                  filter; severity and area columns appear when a listed issue
                  has them
   show           Print an issue's frontmatter + section headers (no bodies)
+
+NEW REPOSITORY SETUP (#543)
+
+  After weave link/compile (or bootstrap.sh), commit initial source/setup files,
+  configure the publication upstream and push main, then finish with:
+
+    sdlc issue init
+
+  The command initializes the issue-tracker branch and main cutover marker,
+  then fast-forwards the clean main checkout. Only a completely empty issue
+  inventory is eligible; evidence in active, flat legacy or history/issues roots
+  on main, any branch or any live worktree (including detached, staged, ignored
+  and untracked files) refuses toward issue migrate. Init imports no records.
+  Other legacy writers must remain quiescent until setup finishes.
+  Brains (.brain/config.md) and absent/declined issue scaffolds are skipped.
+  To opt out, keep using ordinary composition/adoption without issue init.
+  Weave link, compile, refresh and CI never publish a tracker implicitly.
+
+  Retry the same command after a partial or uncertain publication. It verifies
+  the existing root/marker before continuing and never deletes a tracker, resets
+  work, commits source files or creates remotes. An unverified pre-existing
+  tracker branch refuses as "tracker already initialized"; an exact verified
+  empty bootstrap resumes and a completed valid root/marker is a no-op. Dirty/non-main/unborn/no-origin
+  prerequisites refuse with guidance; a later clean retry completes setup.
+  A legacy issue new/start-plan prints locally qualified guidance: init for an
+  empty observed local inventory, migrate for existing issue/history files.
 
 CANONICAL ISSUE FILE
 
@@ -251,6 +279,29 @@ imported card's fields and has a card, then merges main's migration commit
 (not the rest of main), so later merges with main start from converted
 details. A conflict aborts the merge and says how to resolve it.
 
+Legacy done issues with numeric actuals retain verified close and measurement
+provenance. `issue show` displays retained, windowless-close or
+windowless-terminal. A terminal-only import stays unbound and warns; migration
+does not manufacture a review or a measurement window. Missing or malformed
+modern evidence is never inferred legacy. A verified windowless close or
+archive/done bound skips adopted-time exclusion only when it strictly predates
+the candidate's earliest admitted engagement; overlap remains unavailable.
+Old unmarked terminal-only imports can recover this bound read-only from the
+actual tracker root and matching pre-cutover archive, without changing a card.
+
+For a completed cutover missing an imported close, inspect one issue:
+
+  sdlc issue migrate --repair-completions --issue N
+  sdlc issue migrate --repair-completions --issue N --apply --expect DIGEST
+
+Apply rechecks the reviewed digest and exact current card blob. It preserves
+status, actual, ownership, checkout and archive; a confirmed repeat is a no-op.
+After an unknown push reply, run the dry run to observe whether repair landed
+before retrying. A moved card requires a fresh dry run; a changed generation,
+existing different completion/correction, or unprovable close refuses and names
+the evidence to restore. This is distinct from branch `--reconcile` and cannot
+be combined with it. Terminal-only imports have no close for this verb to repair.
+
 LEGACY CHECKPOINTING AND PUBLISHING (repositories before the #252 cutover)
 
 `sdlc issue sync --issue N` commits only the selected issue file locally on the
@@ -288,3 +339,12 @@ publish a branch's commits; local sync makes no promise about those later verbs.
 For depth:
 
   sdlc issue <verb> --help
+
+MEASUREMENT ACROSS MIGRATION
+
+An active issue imported during development keeps its provable pre-cutover work.
+`sdlc actual --issue N` labels that prefix as the legacy repository-plus-brain
+heuristic and the suffix as tracker ownership. Both parts are retained for exact
+close replay; the cutover is counted once. Missing or contradictory historical
+evidence refuses measurement instead of adopting a suffix-only total. A legacy
+claim timestamp never becomes an invented tracker owner.

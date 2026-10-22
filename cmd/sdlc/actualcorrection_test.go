@@ -658,7 +658,7 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 	for _, tc := range []struct {
 		name, method string
 		trusted      bool
-	}{{"legacy", gatestate.MeasurementMethodLegacyV1, false}, {"engagement", gatestate.MeasurementMethodEngagementV1, true}, {"queue", gatestate.MeasurementMethodQueueV1, true}} {
+	}{{"legacy", gatestate.MeasurementMethodLegacyV1, false}, {"engagement", gatestate.MeasurementMethodEngagementV1, true}, {"queue", gatestate.MeasurementMethodQueueV1, true}, {"hybrid", gatestate.MeasurementMethodHybridV1, true}, {"hybrid-queue", gatestate.MeasurementMethodHybridQueueV1, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			r, ledger, _, inputs := actualCorrectionFixture(t)
 			data, err := os.ReadFile(ledger)
@@ -686,8 +686,23 @@ func TestActualCorrectionProvenOwnershipUpdatesCalibrationTrust(t *testing.T) {
 				inputs.Method = tc.method
 				inputs.TrackerHead = snapshot.Ref()
 				inputs.Engagements = []gatestate.MeasurementEngagement{{Start: inputs.Since, End: inputs.Until, Began: inputs.Since, Roots: []string{r.root}}}
-				if tc.method == gatestate.MeasurementMethodQueueV1 {
-					inputs.QueueWaits = []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: inputs.Since, End: "2026-10-14T00:01:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
+				if gatestate.IsHybridMethod(tc.method) {
+					prefix := inputs
+					prefix.Method = gatestate.MeasurementMethodLegacyV1
+					prefix.TrackerHead = ""
+					prefix.Engagements = nil
+					prefix.Until = "2026-10-14T00:00:30Z"
+					inputs.Version = gatestate.MeasurementHybridInputsVersion
+					inputs.LegacyPrefix = &prefix
+					inputs.LegacyCutover = inputs.CodeHead
+					inputs.Engagements[0].Start = prefix.Until
+				}
+				if gatestate.IsQueueMethod(tc.method) {
+					inputs.QueueWaits = []gatestate.MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: inputs.Engagements[0].Start, End: "2026-10-14T00:01:30Z", QueueSeconds: 90, RawSeconds: 90, Exact: true}}
+					if gatestate.IsHybridMethod(tc.method) {
+						inputs.QueueWaits[0].QueueSeconds = 60
+						inputs.QueueWaits[0].RawSeconds = 60
+					}
 				}
 			}
 			if err := inputs.Validate(); err != nil {

@@ -1,6 +1,7 @@
 package observe
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -405,5 +406,40 @@ func TestIsClaimantCheckoutFollowsTheSlot(t *testing.T) {
 		if got := isClaimantCheckout(Inputs{Me: c.me}, c.claimant, c.holding); got != c.want {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
+	}
+}
+
+func TestObserveLegacyWindowClassWithoutFabricatingCompletion(t *testing.T) {
+	for _, class := range []string{issue.LegacyRetained, issue.LegacyWindowlessClose, issue.LegacyWindowlessTerminal} {
+		t.Run(class, func(t *testing.T) {
+			raw := card(t, "done", nil, false)
+			if class == issue.LegacyWindowlessTerminal {
+				raw = []byte("---\nid: 000279\nstatus: done\nactual_hours: 1\n---\n\n# Legacy\n\n## Problem\n\nx\n")
+			}
+			adoption := issue.LegacyAdoption{Repository: "github.com/x/r", SourceMain: strings.Repeat("d", 40), SourcePath: "workshop/history/000279-observe.md", SourceBlob: strings.Repeat("e", 40), TerminalCommit: strings.Repeat("f", 40), WindowClass: class}
+			if class != issue.LegacyWindowlessTerminal {
+				adoption.CompletionToken = "close-aaaaaaaaaaaa"
+			}
+			raw, err := issue.SetCardLegacyAdoption(raw, adoption)
+			if err != nil {
+				t.Fatal(err)
+			}
+			o := Assemble(base(raw))
+			encoded, err := json.Marshal(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(encoded), "\"legacy_window_class\":\""+class+"\"") {
+				t.Fatalf("missing class: %s", encoded)
+			}
+			var out bytes.Buffer
+			RenderText(&out, o)
+			if !strings.Contains(out.String(), class) {
+				t.Fatalf("missing class: %s", out.String())
+			}
+			if class == issue.LegacyWindowlessTerminal && (o.Completion.State != Absent || o.Completion.EvidenceCommit != "" || !strings.Contains(out.String(), "no close recorded")) {
+				t.Fatalf("fabricated completion: %+v\n%s", o.Completion, out.String())
+			}
+		})
 	}
 }

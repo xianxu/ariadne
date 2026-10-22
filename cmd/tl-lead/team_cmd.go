@@ -122,7 +122,7 @@ func teamNew(out io.Writer, path string, raw []string) error {
 		return err
 	}
 	fmt.Fprintf(out, "team %s (TL %s): wrote %s\n", name, name+":0", orNone(strings.Join(written, ", ")))
-	fmt.Fprintf(out, "next (yours, not tl-lead's): fill in team.md's asks, commit both files, create and push the remote, and start Couch with this repo among its hubs (the first hub is the steward)\n")
+	fmt.Fprintf(out, "next (yours, not tl-lead's): fill in team.md's asks. For a new non-brain work repo, run weave link github.com/xianxu/ariadne then weave compile, commit the setup, configure the remote and push main, then finish setup with sdlc issue init. Existing legacy repos use reviewed sdlc issue migrate; brains and declined issue scaffolds skip init. Start Couch with this repo among its hubs (the first hub is the steward)\n")
 	return nil
 }
 

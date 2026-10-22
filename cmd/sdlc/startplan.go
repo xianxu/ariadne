@@ -104,6 +104,9 @@ func runStartPlan(ctx context.Context, stdout io.Writer, issue int) {
 	// A legacy repository checkpoints with `issue sync` as before #252; an
 	// unreadable mode reads as tracked (the stricter advice).
 	tracked, err := repositoryTracked(ctx, ".")
+	if err == nil && !tracked {
+		legacySetupAdvice(stdout, envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
+	}
 	cinfo(stdout, syncPointer(issue, tracked || err != nil))
 
 	// #113: a non-blocking estimate nudge. The estimate gate moved
