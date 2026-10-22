@@ -64,8 +64,8 @@ Full-flow proposal: [implementation plan](../plans/000531-retired-boundary-accou
 
 - [x] Replay pair#737 and define retired-boundary accounting from the pinned canonical Plan.
 - [x] Share cut selection across fresh tracker and legacy measurements; preserve retained replay cuts.
-- [ ] Explain effective milestone phases and source counts; verify adversarial and full-suite coverage.
-- [ ] Close through the mandatory review and land.
+- [x] Explain effective milestone phases and source counts; verify adversarial and full-suite coverage.
+Follow-through (pending): close through the mandatory review and land.
 
 ## Log
 
@@ -104,3 +104,15 @@ Final targeted verification after pinning the legacy engine and identity parsing
 Recorded pushed-head suite attempt f5e4adb1f14c8d5dd1c3330389679e87 / lease-3108312308 completed normally after 3550.675s queue and 853.942s execution. Across 2241 SDLC tests and 76 other packages, the sole named failure was TestIssueHintsRenderDecimalIDs: both new --issue recovery messages needed issue.CLIRef. Seven SDLC shards and all other packages passed. Log SHA256 002ea27e66fbe4350237d4963fe46b021faf41f0b017a2115d8422e2693eda4a. This is a code guard failure, not a flake or infrastructure failure; no flake registration or resume was used.
 
 Extended native refusal coverage to padded 000009 and observed red for the emitted padded command, alongside the existing source guard. Fixed both hint sites with the shared issue.CLIRef formatter and asserted decimal replacement guidance as well. Targeted issue-hint guard, retired-boundary tests, captured pair replay and owned replay PASS (7.188s). Repeating the full suite on the corrected pushed head; the original runner was retained to exit and is not duplicated.
+
+### 2026-10-22 — corrected recorded suite PASS
+
+Attempt 3d171593dcdf291b51b28c47dd4e440b / lease-1530253159 passed on the exact pushed code head after 6265.356s queued and 1101.583s execution. All eight shards (2241 SDLC tests) and all 76 other packages exited zero, with no failures. Log SHA256 7213a4340974d2459072ee959c9d0baad1bc20f29657131e806ff7d7528d6a0a. The retained runner survived Couch restart; nothing was restarted or duplicated. The prior source-guard failure remains recorded and is fixed by the decimal-reference change.
+
+GitHub Actions Results delayed publication despite successful run conclusions; the hub confirmed the upstream incident. PR checks subsequently published success without bypass or Actions rerun. No global recovery claim is made. Updating verification bookkeeping and entering the mandatory close review; close and landing remain pending.
+
+## Revisions
+
+### 2026-10-22 — completion bookkeeping
+
+Separated the pending close/landing procedure from implementation acceptance checkboxes so the close gate can review completed implementation without claiming that its own review or landing already happened. No design or acceptance change.

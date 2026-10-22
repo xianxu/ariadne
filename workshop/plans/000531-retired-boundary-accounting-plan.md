@@ -98,7 +98,9 @@ Files: cmd/sdlc/actual.go, actualmeasurement.go, actualmeasurement_test.go, actu
 - [x] Implement actualPhaseDiagnostic and expose it through actual/close rendering with the existing provenance diagnostics.
 - [x] Execute the named compute, replay and rendering contracts using disposable Claude and Codex sources, with the available Qoder registry control.
 - [x] Document the fallback and retained-history limitation in help and atlas.
-- [ ] Run go test ./cmd/sdlc/internal/activetime ./cmd/sdlc/internal/gatestate -count=1 and targeted cmd/sdlc measurement tests. Push, run sdlc local-check run --name suite and retain the runner through completion. Close with measured verification and mandatory review; on SHIP land through sdlc merge --yes.
+- [x] Run go test ./cmd/sdlc/internal/activetime ./cmd/sdlc/internal/gatestate -count=1 and targeted cmd/sdlc measurement tests. Push, run sdlc local-check run --name suite and retain the runner through completion.
+
+Follow-through (pending): close with measured verification and mandatory review; on SHIP land through sdlc merge --yes.
 
 ## Proof and review point
 
@@ -109,3 +111,7 @@ Request hub approval of canonical Plan membership as the fresh accounting author
 ### 2026-10-22 — PQ-1: executable function contracts
 
 Named every new risky function and the existing production entry points, replacing procedural test-case inventories with one adversarial strategy and mechanical guard per function. The evidence state table remains the accounting contract. No scope or policy change.
+
+### 2026-10-22 — completion bookkeeping
+
+Separate the pending close/landing procedure from completed verification, without marking a future gate as already passed. All implementation tasks and the corrected recorded suite are complete; mandatory close and landing remain pending.
