@@ -127,3 +127,7 @@ Round-2 review disposed BR-1 but reproduced a main bounded-runner ordering defec
 ### 2026-10-21 — BR-3 native resolver formats
 
 Round-3 review disposed BR-2 but found macOS IPv6 answers use `ipv6_address:`, which the parser omitted while accepting bare IPv6 from dig/getent. Both native macOS address keys (`ip_address:` and `ipv6_address:`) must feed the existing validated-address parser and HTTPS eligibility. Record a safe real localhost dscacheutil capture and replay it through the production Lookup adapter; parser/adapter controls cover IPv6-only and mixed native observations, with malformed/unrelated-field property guards. No new resolver path, budget, state or policy is added. Cancel the stale queued suite by its exact lease, and verify the corrected source with a fresh recorded suite/review.
+
+### 2026-10-21 — native fixture deadline readiness
+
+The recorded full suite exposed the existing test-shrunk-deadline catalog rule against the native process fixture's 150ms command timeout. Preserve deadline/cancellation descendant-join proof while cueing deadline expiry only after native child startup, using the shared testfix helper and hang bounds. No production mechanism or live-check scope changes. Re-close and run a fresh recorded suite on the corrected test source.

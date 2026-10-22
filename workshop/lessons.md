@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
+
 - #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
   utility's field grammar. Replay recorded native output through the production
   adapter and cover both address families before relying on parser fuzz seeds;

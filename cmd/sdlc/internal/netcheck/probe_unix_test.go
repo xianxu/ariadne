@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/procgroup"
 )
 
@@ -23,32 +23,27 @@ func TestNativeUtilityTimeoutAndCancellationOwnDescendants(t *testing.T) {
 			pidfile := filepath.Join(dir, "pid")
 			// exec retains the utility PID as the group leader; the background child
 			// retains output pipes and must be terminated even if the leader exits.
-			script := "#!/bin/sh\necho $$ > '" + pidfile + "'\n/bin/sleep 30 &\nwait\n"
+			script := "#!/bin/sh\n/bin/sleep 30 &\necho $$ > '" + pidfile + "'\nwait\n"
 			if err := os.WriteFile(filepath.Join(dir, "dig"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", dir)
-			p := &nativeProber{commandTimeout: 150 * time.Millisecond}
-			ctx, cancel := context.WithCancel(context.Background())
+			// Trigger the deadline only after the utility and its child exist.
+			// The command's own bound is only a hang guard in this fixture.
+			p := &nativeProber{commandTimeout: testfix.HangCeiling}
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
+			stop := cancel
+			if !cancelled {
+				ctx, stop = testfix.DeadlineOnCue(ctx)
+			}
 			done := make(chan error, 1)
 			go func() { _, err := p.Lookup(ctx, "example.com", Direct); done <- err }()
-			var pid int
-			deadline := time.Now().Add(time.Second)
-			for time.Now().Before(deadline) {
-				b, err := os.ReadFile(pidfile)
-				if err == nil {
-					pid, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-					break
-				}
-				time.Sleep(time.Millisecond)
-			}
+			pid := testfix.AwaitPIDFile(pidfile, testfix.HangCeiling, nil)
 			if pid == 0 {
 				t.Fatal("utility never started")
 			}
-			if cancelled {
-				cancel()
-			}
+			stop()
 			select {
 			case err := <-done:
 				if cancelled && !errors.Is(err, context.Canceled) {
@@ -57,7 +52,7 @@ func TestNativeUtilityTimeoutAndCancellationOwnDescendants(t *testing.T) {
 				if !cancelled && !errors.Is(err, context.DeadlineExceeded) {
 					t.Fatal(err)
 				}
-			case <-time.After(time.Second):
+			case <-time.After(testfix.HangCeiling):
 				t.Fatal("utility not joined")
 			}
 			if err := procgroup.Kill(pid, syscall.Signal(0)); !errors.Is(err, os.ErrProcessDone) {
