@@ -40,6 +40,8 @@ Scope:
   and an escape is cheap to attribute; raise the cap only after the escape rate stays low for about a week. The cap is a
   per-repo setting the TL adjusts, shown in `sdlc landing status`.
 
+- **The default onboarding for any repo (operator, 10-22):** every repo that adopts trains starts with the small cap and ramps up by its own measured escape rate; the cap and the ramp rule live in one place, not per-repo improvisation.
+
 ## Done when
 
 - A car with a passing affected record boards without a full suite (test); the train's full suite still gates.
