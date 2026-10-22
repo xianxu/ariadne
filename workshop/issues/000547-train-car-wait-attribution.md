@@ -1,13 +1,13 @@
 ---
 id: 000547
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 2.9
 collaboration-mode: collaboration
-card_mirror: 'b8ff596f57ec7759a5af82367b6a0aea3e89ce73' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '92c99225a718fd2e573e68fa6127021150ced0b2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T04:59:55-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.14
 ---
 
 # Train car active-time counts conductor-owned queue wait and status polls as focused work
