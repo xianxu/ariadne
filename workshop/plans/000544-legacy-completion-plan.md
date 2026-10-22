@@ -116,3 +116,9 @@ ARCH-DRY: shared proof, existing ledger and CAS. ARCH-PURE: selection/temporal/d
 ## Approval
 
 Pending TL review of plan, repair command shape and Echo live-conformance authority. No implementation or peer state mutation before approval.
+
+## Revisions
+
+### 2026-10-22 — TL approval and Echo owner
+
+TL approved the shared verifier, explicit digest-reviewed single-card repair, validated windowless provenance and strict earliest-engagement ordering (delivery d46eb30c-7e6c-4da2-9368-129e6b4cdb7c). Live conformance is owned by ops-echo:0: they run dry run/apply/no-op repeat and actual3 in their temporary origin/main worktree and return output (delivery 904d435d-de8b-446e-8fea-489c1c90ddbe). Hand off an exact built binary before landing when ready, or notify after main contains it. No repair in Echo from this slot.
