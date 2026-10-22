@@ -79,7 +79,7 @@ steward need the rules.
   tests and both real CLI help renders; verify the documented queue flags against current CLI help and
   automation activation/landing against pair#739's actual status. No real drain smoke; pair#722's watched
   live run after this landing supplies live proof.
-- [ ] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
+- [x] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
   to hub and pair:5 before its watched live run. Follow the TL decision on the pair#739 landing dependency.
 
 ## Log
@@ -220,6 +220,18 @@ steward need the rules.
 - Close round 1 was not finalized, so the binary explicitly requires another full close for BR-1
   disposition after this fix; no finalized close generation is being bypassed. Fresh recorded suite
   on the corrected pushed head is next. Earlier passing suite remains attributed to its original head.
+
+### 2026-10-22 — corrected-head review overlaps the queued suite
+
+- Fresh recorded suite on 452d20e0dc40 is retained as lease-1208786352 (attempt
+  d26c2327b97e6c200e84d6be09cef61e); it is queued, not yet passing. Earlier suite proof stays on 745b0f7d.
+- Current tl-worker PERMISSIONS explicitly permits a close review to overlap a queued recorded suite,
+  provided a final-head pass precedes landing and code fixes requeue the check on the final head.
+  Using that existing allowance for BR-1 disposition; targeted queue/TL controls already passed.
+- The final checkbox records entry into the acceptance/landing sequence, not a claim that this queued
+  suite passed or that landing finished. No merge integration or publication until its required proof
+  is complete; if this review changes executable code, the queued check will be replaced through its
+  supported owner-scoped control. No runner duplication or queue reordering.
 
 ## Revisions
 
