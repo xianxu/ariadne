@@ -1,13 +1,13 @@
 ---
 id: 000550
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '44ae48f71e5b3ac2aab550cf2e2a3598c205592d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '544987f988973e0779f9514cff6ebef0a8495880' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T07:53:27-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "b3e89876", done: "68b71c82"}
+actual_hours: 0.73
 ---
 
 # merge runner waits forever when its head lacks the required local-check record; run it or exit with the next action
