@@ -1,6 +1,6 @@
 ---
 id: 000549
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
@@ -8,7 +8,7 @@ updated: 2026-10-22
 estimate_hours: 0.882
 severity: medium
 collaboration-mode: collaboration
-card_mirror: '5c165b45be1d0b989736ec6d2e7fc47eec622738' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e1c9dba0e192d6c05bd2fa9f43b00f6a75419ed3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T13:51:39-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 0.99
 ---
 
 # Lint inherited temp roots used for Unix socket fixtures
