@@ -1,13 +1,21 @@
 ---
 id: 000534
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '4935375c2eacf639e4c33686caca8defe6352c45' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e2a022303e8e88e90e15a171c6698c12e9732801' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-21T17:14:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # CI compiler metadata pipeline intermittently exits with SIGPIPE
@@ -38,7 +46,11 @@ the change through weave; do not patch each generated workflow manually.
 
 ## Plan
 
-- [ ]
+- [ ] Reproduce the exact metadata pipelines under pipefail; add repeated actual-block coverage for the incident's three-line input and larger metadata, plus mismatch/dirty/missing-field controls.
+- [ ] Replace both metadata quiet-consumer pipelines in the shared build template with full-input checks. Add a scoped mechanical shell-source guard and verify its negative controls; enumerate metadata consumers in source and harness.
+- [ ] Run portable-ci identity/PATH controls, focused lint/script checks, and the recorded suite. Close and publish a reviewable PR explicitly requiring the operator's local-gates-verified label; notify the hub, never apply the label.
+
+Quick-flow scope: shared workflow source and its normal tests; consumers derive via weave, no consumer patching. ARCH-DRY retains the one generated build.sh rule used by both compiler slots and tests its extracted checks. ARCH-PURE keeps lexical detection in the existing shelllint pure core; the Go AST-only golint catalog cannot inspect YAML run blocks, so enforce this shell mistake in shelllint's Go-suite repository guard. No new runtime state or durable format. CI batch cost is two linear full-input reads of metadata; test repetition is bounded, with no network or real compiler builds in the existing stateful harness.
 
 ## Log
 
@@ -50,3 +62,5 @@ to 63d6bfd86509d97649e10d7a5dd1e9a06db17d21, and two-space build vcs.modified=fa
 1000 fresh Bash subprocesses returned {0: 999, 141: 1}. This is a scheduling
 race rather than an OS-specific contract. Echo TL authorized upstream filing
 and logged reruns; no template modification was made in echo.
+
+- Claimed and started from main after #528 completed. Dispatch requires operator verification for the protected workflow change; PR will name the label requirement. Source enumeration: two metadata printf-to-quiet-grep checks in .github/workflows/merge-check.yml, shared by both pinned compiler slots; portable-ci.test.sh executes that generated block and has no independent metadata-check pipeline. File-input greps and unrelated non-metadata checks are outside this fix.
