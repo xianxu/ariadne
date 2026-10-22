@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "99cb419f", done: "c22599ea"}
 ---
 
 # local-check: bootstrap a repo with no declaration on main (managed default suite), so first-declaration PRs don't need a direct make test
