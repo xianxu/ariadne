@@ -170,6 +170,14 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   reviewed fe9a4c9e; Git confirmed only issue/review records changed afterward. Keep that binary available
   for its consumer until the canonical landing and fleet rebuild, then remove the private clone.
 
+- #506 landed as PR390; its retained runner exited successfully and returned the canonical checkout
+  cleanly to unchanged main-slot5. Imported this pushed branch into canonical ariadne:5 at
+  bd18639007961226a81456be93c15b32c330ce05 and opened PR397. The branch suite remains in its original
+  clone, with no cancellation or duplicate runner. Grants and landing lines are per-checkout: the
+  clone cannot see the canonical grant. The hub applied #553's grant separately in both checkouts
+  (receipts 51de1d34-a1e0-4b31-975e-9b6b9adb3756 and a8af588d-9401-49b2-a26c-a9b6743fb66c), moving
+  the retained suite to next-to-run. This issue still lands only from the canonical checkout.
+
 ## Revisions
 
 ### 2026-10-22 — structural integration plan
