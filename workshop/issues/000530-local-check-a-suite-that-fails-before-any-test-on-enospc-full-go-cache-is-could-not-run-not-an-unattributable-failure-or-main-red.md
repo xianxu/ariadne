@@ -322,6 +322,15 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   after the conflict refusal. Wait for its pass, then narrow re-close with the
   actual --full-suite proof, push the new close generation and re-enter merge.
 
+- Integrated-code suite passed on 0181ef043a90f5807118d663c26e437bb46cf687:
+  attempt 767c1bb9ca999987696c7fbbda27762a, all eight shards, 2,061 SDLC tests
+  and 75 other packages, zero failures, wall 695.2s after 3,032s FIFO wait.
+  Recorded as sdlc-local/suite; retained log is the common Git directory's
+  sdlc/local-checks/0181ef043a90f5807118d663c26e437bb46cf687/suite.log,
+  reported digest prefix eb60fbe9a49d. This runner survived the later Couch
+  restart too; no rerun or duplicate was needed. Proceed to the prescribed
+  narrow conflict-resolution review with this full-suite proof.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
