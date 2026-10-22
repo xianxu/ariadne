@@ -70,6 +70,10 @@ Sources supplied read-only by pair:6: pair .git/sdlc/test-stats/attempts/f5e3203
 
 A read-only subagent audit confirms no context leak: the repo-lock wrapper skips manual commands and restores its context after each scope. Stage's target flock is nonblocking, and stage/move destinations alone honor it. Removing stage's broad lock would expose build/switch races with landing and move sources. Reuse existing exclusion (ARCH-DRY/ARCH-ORDER), add coverage through buildRoot/NewMergeCmd rather than synthetic manual flags (ARCH-PURPOSE). TL approved this test-only direction in delivery68c0cfbe-1299-4a61-99ec-cbd24b029ef3.
 
+### 2026-10-22 — durable source capture and implementation admission
+
+Read the owner-named recorded suite receipt and landing identity directly; captured the relevant fields and evidence limits in [incident evidence](../plans/000555-lock-incident-evidence.md). The test-only design entered change-code successfully (quick inferred, no production additions planned). Implement the approved command-path regression matrix; do not narrow production locks.
+
 ## Revisions
 
 ### 2026-10-22 — correct the reported duration and retain the existing lock design
