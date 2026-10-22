@@ -22,16 +22,18 @@ Prefer explicit `sdlc issue migrate --repair-completions --issue N` over overloa
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| Legacy completion provenance on `issue.Completion` | `cmd/sdlc/internal/issue/handoff.go` | modified |
+| `issue.LegacyAdoption` in the existing tracker envelope | new `cmd/sdlc/internal/issue/legacyadoption.go`, `handoff.go` | new/modified |
 | `LegacyCloseEvidence` and validated binding selection | `cmd/sdlc/internal/tracker/legacycompletion.go` | new |
 | Legacy import and repair transformation/digest | `cmd/sdlc/internal/tracker/migration.go`, `legacycompletion.go` | modified/new |
 | Proven windowless-close temporal decision | `cmd/sdlc/actualexclusion.go` | new |
 
-Completion remains one exact close generation per card, with the original reviewed head/evidence commit and existing repository identity. Add optional comparable string fields `legacy_window` (`retained` or `windowless`) and `legacy_archive` (full archive OID for archived done imports). Modern completions omit them. Do not store an independently mutable close timestamp: read it from the verified close object. No copied snapshot or parallel measurement ledger; original `ActualInputs` remain authoritative at the original evidence commit.
+Completion remains one exact close generation per card, with the original reviewed head/evidence commit and existing repository identity. Preserve its structure. Add one optional `tracker.legacy_adoption` record for the imported numeric generation: repository, pinned pre-cutover source main, source path/blob, terminal archive/done commit, optional exact completion token, and window class (`retained`, `windowless-close`, `windowless-terminal`). Known IDs/path/enum/types stay strict; nested unknown fields survive every setter. The source blob pins adopted actual/started/identity; validate them against the current card. Derive end time from the verified close object or terminal object, never from an independently mutable timestamp.
+
+A completion-only design cannot represent a born-archived record without fabricating a close. The single optional LegacyAdoption record covers both cases: original completion binding is set only for a proven close; terminal-only provenance leaves it absent and visibly unbound. No copied snapshot or parallel measurement ledger; original `ActualInputs` remain authoritative at the original evidence commit. A new close clears legacy provenance, and readers also reject a mismatched completion token/generation, protecting older-reader rewrites that preserve unknown fields.
 
 `LegacyCloseEvidence` holds immutable close/archive/path/issue/actual/started/review/ledger observations gathered by the shell. Pure selection checks consistency and returns a binding or a concrete refusal. Reuse it for both consumers (ARCH-DRY). Existing active codecomplete import rules stay intact, sharing verification where their evidence model matches; they need no fabricated archive.
 
-The temporal function receives a proven windowless legacy end bound and earliest candidate engagement. Return disjoint only for a nonzero close bound strictly before candidate `Snapshot.Since`; equality, overlap, missing bounds and unknown proof remain missing-window. Feed this into existing `classifyAdopted`, preserving all slot/replay behavior.
+The temporal function receives a proven windowless legacy close/terminal end bound and earliest candidate engagement. Return disjoint only for a nonzero close/terminal bound strictly before candidate `Snapshot.Since`; equality, overlap, missing bounds and unknown proof remain missing-window. Feed this into existing `classifyAdopted`, preserving all slot/replay behavior.
 
 | Integration point | Lives in | Status | Wraps |
 |---|---|---|---|
@@ -46,9 +48,9 @@ The Git seam is the existing contextual runner/TrunkFile. Reuse private bare-rep
 
 1. Pin source main before cutover. For repair, resolve the actual cutover commit and its parent from the marker's tracker root; prove it is the unique cutover for this repository. Read the imported card at that immutable root, not a current checkout's historic-looking details.
 2. For the selected archived generation, traverse the active and archive paths within that pinned history. Require a real archive transition and issue identity/started/actual agreement. A filename or commit subject alone is insufficient. Respect renamed paths and configured roots; do not infer an ID solely from arbitrary history.
-3. Resolve the latest review-bearing successful close of the final archived generation. Validate SHIP, unique Review-Window trailers, full resolved reviewed OID/ancestry and boundary ledger agreement using existing review-window/ledger helpers. A subsequent metadata edit retaining codecomplete is not a close. Multiple legitimate re-closes are supported by ordering within one final generation; incomparable closes, reopen/ID-reuse ambiguity or mismatched final actual refuse.
-4. Keep the original evidence commit. If its retained measurement is valid, mark retained and let `completedMeasurementSnapshot` discover it. If retained inputs genuinely do not exist, mark windowless; absent old ledger is distinct from malformed/ambiguous ledger. Bad saved inputs, foreign repository, wrong issue/head or failed reads refuse, never downgrade to windowless.
-5. At exclusion time, retained inputs and validated corrections have priority. Only explicit, revalidated windowless legacy provenance can use the close object's committer time as a conservative end bound. Prove the bound belongs to this archived adopted generation and is reachable in pinned code history. Compare against the earliest admitted engagement, covering park/reclaim history. Missing modern completion is never legacy by inference or token prefix.
+3. When close evidence exists, resolve the latest review-bearing successful close of the final archived generation. Validate SHIP, unique Review-Window trailers, full resolved reviewed OID/ancestry and boundary ledger agreement using existing review-window/ledger helpers. A subsequent metadata edit retaining codecomplete is not a close. Multiple legitimate re-closes are supported by ordering within one final generation; incomparable closes, reopen/ID-reuse ambiguity or mismatched final actual refuse.
+4. Keep the original evidence commit. If its retained measurement is valid, mark retained and let `completedMeasurementSnapshot` discover it. If retained inputs genuinely do not exist, mark windowless; absent old ledger is distinct from malformed/ambiguous ledger. Bad saved inputs, foreign repository, wrong issue/head or failed reads refuse, never downgrade to windowless. If no review-bearing close ever existed, retain the import unbound with an explicit warning and `windowless-terminal` provenance only when the terminal Git commit and source archived generation are positively proven. A record born archived/done uses that actual done commit; a genuine archive uses its archive transition. Do not turn mere history absence or truncation into terminal proof. Repair of an unprovable close refuses; terminal-only imports are handled by migration provenance rather than a fake completion.
+5. At exclusion time, retained inputs and validated corrections have priority. Only explicit, revalidated windowless legacy provenance can use the close or terminal object's committer time as a conservative end bound, according to its class. Prove the bound belongs to this archived adopted generation and is reachable in pinned code history. Compare against the earliest admitted engagement, covering park/reclaim history. Missing modern completion is never legacy by inference or token prefix.
 
 ## Repair authority and visible states
 
@@ -57,11 +59,12 @@ Actions: inspect dry run, apply exact digest, rerun inspection after uncertainty
 | Internal state / failure | Visible state | Recovery | Possible loss |
 |---|---|---|---|
 | Imported done card lacks binding; exact legacy proof exists | repairable, close/window class/digest shown | apply printed exact command | none; original actual preserved |
+| Born-archived/done with no close but proven terminal generation | unbound legacy, terminal bound shown, warning | continue migration; later actual skips only if strictly earlier | no close or window is fabricated |
 | Valid exact completion already present | already complete; no write | no action | none |
 | Root/status/actual/generation differs, correction exists, or proof is ambiguous/damaged | refused with named evidence | owner resolves evidence then reruns dry run | none; no write |
 | Tracker card changed after dry run | stale plan/card; refused | rerun dry run | none; concurrent edit preserved |
 | Push reply unknown | outcome unknown, exact retry command | rerun inspection/repair; observe remote binding first | remote may already contain repair; no duplicate semantic effect |
-| Windowless close strictly predates earliest engagement | disjoint legacy adoption | continue actual | none; no guessed subtraction |
+| Windowless close or unbound terminal strictly predates earliest engagement | disjoint legacy adoption | continue actual | none; no guessed subtraction |
 | Windowless close overlaps/equal/unknown | trustworthy window unavailable | restore retained evidence or resolve with owner | measurement unavailable; numeric history preserved |
 
 Eligibility requires membership at the marker's tracker root, root completion absent, current done/actual/started still the same imported generation, no correction and no intervening reopen/re-close adoption generation in complete tracker history. Existing completion is preserved, never replaced. Title/owner/body/unknown metadata survive. Apply re-reads and validates the exact expected card blob, then one CAS write provides the fence against a concurrent lifecycle change. No absence-by-PID or checkout scan authorizes a write.
@@ -80,7 +83,7 @@ No durable family is introduced: provenance adds a bounded number of scalars to 
 
 | Function | Adversarial strategy and independent guard |
 |---|---|
-| `issue.Completion.validate` / `SetCardCompletion` | Generate malformed/newer envelope structures; strict type/duplicate validation and existing unknown-field round trips must reject invalid records and preserve future data. |
+| `issue.LegacyAdoption.validate` / `SetCardLegacyAdoption` / `SetCardCompletion` | Generate malformed/newer envelope structures; strict type/duplicate validation and existing unknown-field round trips must reject invalid records and preserve future data. |
 | `tracker.SelectLegacyClose` | Permute conflicting generation/review/archive observations; pure property tests prove selection invariant under input order and a missing-evidence control cannot produce proof. |
 | `resolveLegacyCompletion` | Replay actual immutable Git close/archive histories through the contextual runner; production fixtures and verifier-removal mutations prove metadata edits cannot manufacture a reviewed close. |
 | `tracker.PlanLegacyCompletionRepair` | Model stale or changed imported generations; pure transformation tests assert no output outside eligibility and byte preservation for unrelated fields. |
@@ -91,9 +94,9 @@ No durable family is introduced: provenance adds a bounded number of scalars to 
 
 ### 1. Import proof and format
 
-Files: `internal/issue/handoff.go` and codec tests; new `internal/tracker/legacycompletion.go` and tests; `internal/tracker/migration.go`, `issuemigrate.go`; new `legacycompletion.go` and real-Git tests.
+Files: `internal/issue/handoff.go` and codec tests; new `internal/issue/legacyadoption.go` and tests; new `internal/tracker/legacycompletion.go` and tests; `internal/tracker/migration.go`, `issuemigrate.go`; new `legacycompletion.go` and real-Git tests.
 
-- [ ] Write named pure/codec regressions above and a production close → archive → migration → issue-show → later-actual regression; observe red before import wiring.
+- [ ] Write named pure/codec regressions above and production close → archive → migration → issue-show → later-actual and born-archived unbound → later-actual regressions; observe red before import wiring.
 - [ ] Implement shared proof and archived import, retaining existing active codecomplete controls and original snapshot references. Run targeted tests and mutation guards.
 
 ### 2. Atomic repair and retries
@@ -135,3 +138,7 @@ TL approved the shared verifier, explicit digest-reviewed single-card repair, va
 ### 2026-10-22 — plan-quality test contract (PQ-1)
 
 Named the selection, repair eligibility/digest, temporal, validation and effect functions; replaced prose case inventories with one adversarial strategy/mechanical guard per risky function, retaining real production-flow objectives. No mechanism change. Existing migration fixtures also contain born-archived done records with no historical close at all; proposed compatibility clarification: initial migration retains such unbound cards with an explicit warning, never fabricating proof, while malformed/contradictory evidence and repair of an unprovable close refuse. Their overlapping actual exclusion remains strict. Awaiting TL confirmation of that narrow distinction before code.
+
+### 2026-10-22 — terminal-only legacy evidence (TL requirement)
+
+TL delivery 82679d7d-74d5-4320-9051-4232bdd6f97f requires unbound born-archived imports also to stop blocking later measurement when their proven archive/done commit strictly predates the earliest admitted engagement. Replanned the simplest representation: one additive LegacyAdoption envelope member for both close-backed and terminal-only generations; Completion remains unchanged and absent for unbound records. Terminal-only provenance is explicit and revalidated, not inference from missing modern completion. Added production migration/later-actual conformance for unbound imports; overlap remains strict. This supersedes the completion-scalar proposal without weakening its authority boundary.

@@ -45,6 +45,8 @@ close predates the candidate's engagement as disjoint (skip), not refuse.
 
 ## Done when
 
+- A born-archived legacy import with no close remains visibly unbound and warns; proven archive/done provenance strictly before the earliest new engagement permits later actual measurement, while overlap remains strict (test).
+
 - Migrating a legacy fixture with a closed issue keeps its completion record; `sdlc issue show` shows the close (test).
 - In an already-migrated fixture, the repair restores it, and a later issue's `sdlc actual` measures (test).
 - A legacy-closed issue with no recoverable window, closed before the candidate's claim, doesn't block measurement
@@ -72,3 +74,9 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - TL approved the plan and exact repair command; ops-echo:0 owns the real Echo dry-run/apply/repeat/actual3 conformance in a temporary worktree. Entering change-code, no implementation yet. Approval deliveries d46eb30c-7e6c-4da2-9368-129e6b4cdb7c and 904d435d-de8b-446e-8fea-489c1c90ddbe.
 
 - Plan-quality round1 PQ-1 requests named function-level test strategies and compressed prose inventories. Refined that contract without changing approved mechanisms. Existing born-archived fixture records have no actual historical close; sent the hub the narrow compatibility distinction before code.
+
+## Revisions
+
+### 2026-10-22 — unbound terminal imports
+
+TL delivery 82679d7d-74d5-4320-9051-4232bdd6f97f extends the same strictly-earlier rule to unbound legacy imports using a proven archive/done commit. Preserve absence of a close, never fabricate review/window evidence, and keep overlapping cases strict. The plan now uses one LegacyAdoption envelope record across close-backed and terminal-only imports.
