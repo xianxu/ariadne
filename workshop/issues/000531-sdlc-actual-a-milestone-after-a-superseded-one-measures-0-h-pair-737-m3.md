@@ -1,13 +1,13 @@
 ---
 id: 000531
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.38
 collaboration-mode: collaboration
-card_mirror: '7aad8d75d3016078e9df3aead092cf3fda7fc1e0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ddcd7cefeb09c04524491f7e487bccc86dc599e1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T06:11:42-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.72
 ---
 
 # sdlc actual: a milestone after a superseded one measures 0 h (pair#737 M3)
