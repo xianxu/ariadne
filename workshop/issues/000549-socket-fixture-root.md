@@ -17,6 +17,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9802344c", done: "a64e72e1"}
 ---
 
 # Lint inherited temp roots used for Unix socket fixtures
