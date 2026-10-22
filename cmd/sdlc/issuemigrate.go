@@ -201,34 +201,6 @@ func publicationBranchTips(env *migrateEnv, main string) ([]migrationBranchRef, 
 	return refs, nil
 }
 
-// migrationBranchRefs applies only migration's existing semantic exclusions.
-// Initialization consumes publicationBranchTips directly: no branch name proves
-// absence of issue evidence (#543 BR-2).
-func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, error) {
-	refs, err := publicationBranchTips(env, main)
-	if err != nil {
-		return nil, err
-	}
-	remote := env.target.Remote
-	mainRef := gitx.RemoteTrackingRef(remote, "main")
-	skip := map[string]bool{
-		"refs/heads/main": true, "refs/heads/" + env.resting: true,
-		mainRef: true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
-		"refs/heads/" + vocab.Issue().Discovery().Tracker:                 true,
-		gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
-	}
-
-	filtered := refs[:0]
-	for _, ref := range refs {
-		if !skip[ref.Name] {
-			filtered = append(filtered, ref)
-		}
-	}
-	return filtered, nil
-}
-
-// branchIssueEdits lists the issue files ref changed relative to its merge base
-// with main, with their bytes at ref (nil when ref deleted the file).
 // legacyCloseAnchors finds, on each ref carrying the issue file, the legacy
 // close commit (the one that recorded codecomplete) and whether code followed.
 func legacyCloseAnchors(env *migrateEnv, main string, branches []migrationBranchRef, issuePath string) ([]tracker.MigrationAnchor, error) {

@@ -1431,3 +1431,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #546 PQ-1: use exact production function names in plan strategy tables and
   one adversarial class plus independent guard per function. Keep finite test
   input enumerations in executable tests rather than duplicating them in prose.
+
+- #546 recorded suite: a stricter, intended preflight can make an unrelated
+  regression fail in fixture setup before reaching its original guard. Align
+  prerequisite evidence with the new contract while preserving the exact old
+  refusal and no-mutation oracle; do not weaken production policy or label a
+  reproducible fixture failure a flake. Exercise helper tests through the live
+  consumer path instead of retaining unused compatibility code solely for tests.

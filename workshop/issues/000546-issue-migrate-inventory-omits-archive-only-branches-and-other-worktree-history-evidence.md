@@ -106,6 +106,14 @@ Final required private production CLI conformance passed at 345fdc36883e03cca3b9
 
 Recorded suite is queued on the accepted implementation head, run lease-2685531763, attempt 1a507cf3e73d3dd4381dd4ada1284890. Never infer PASS from targeted review/conformance; preserve that runner/FIFO position through PR and landing preparation. No private Go cache was created.
 
+### 2026-10-22 — recorded suite fixture failure and bounded correction
+
+Recorded attempt `1a507cf3e73d3dd4381dd4ada1284890` on 345fdc368 failed after 11m44s: 2,159 cmd/sdlc tests and 76 other packages ran; only `TestAssetMigrateReconcileRefusesConversionBeforeMerge` failed (plus its package failure event). Saved log hash prefix `56a45adc9312`. This is a deterministic fixture incompatibility, not infrastructure or a flake: targeted RED reproduced it in 1.659s. The fixture forked an older archive body before main added its evidence reference, so the new approved archive-bytes rule correctly refused before the intended asset-conversion guard.
+
+Corrected setup publishes the common archive reference before the fork, while the asset bytes/attributes still arrive only on main for the conversion case. Both asset-reconcile tests passed (9.962s), preserving their exact conversion/content-name refusal and no-mutation oracles. No production policy was relaxed. Since the failed suite requires a fresh head anyway, also addressed the review's Minor obsolete-production-paths class: removed the unused dirty wrapper and filtered branch helper, retained one live dirty observer, and moved old helper tests to the actual complete observer. The combined asset/inventory/ref-category target group passed (124.191s).
+
+Next: fresh recorded suite on this committed correction, plus narrow fixed-then-ship review. The earlier full-suite failure remains recorded as failure; it is not resumed, republished as pass or registered as a flake.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.

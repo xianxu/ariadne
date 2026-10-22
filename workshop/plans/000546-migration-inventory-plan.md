@@ -146,3 +146,7 @@ Plan-quality round 1 accepted the architecture and scope, but requested exact ri
 ### 2026-10-22 — bounded verification corrections
 
 Preserved literal POSIX backslashes accepted by the existing filename grammar, with behavioral RED/GREEN and native unusual-filename regressions. Canonicalized the legacy path-with-spaces fixture without weakening its byte-exact quoting oracle. Native growth and uncertainty guards passed; documentation now maps the approved rules. Issue checklist rows describe implemented outcomes while binary suite/review/landing remain explicit outstanding gates. No authority, state or scope change.
+
+### 2026-10-22 — post-close fixture correction and Minor cleanup
+
+A recorded suite exposed an asset-conversion fixture whose stale archive copy now correctly triggers the approved earlier inventory refusal. Publish identical archive-reference bytes before the fixture fork, retain main-only asset/attribute arrival, and preserve the existing conversion/no-mutation assertion. Remove the two unused compatibility paths from BR-1 and point their tests at the complete observer. No scope, state, authority or policy changes; targeted RED/GREEN and the 124.191s regression group verify the bounded correction. Fresh suite and narrow re-close are required on the new head.

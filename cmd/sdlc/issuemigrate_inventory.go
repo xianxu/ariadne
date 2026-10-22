@@ -91,7 +91,7 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 		}
 		anchorRefs = append(anchorRefs, ref)
 	}
-	if in.DirtyIssuePaths, err = dirtyIssuePathsObserved(env, roots, observation.Worktrees); err != nil {
+	if in.DirtyIssuePaths, err = dirtyIssuePaths(env, roots, observation.Worktrees); err != nil {
 		return in, err
 	}
 	for _, f := range in.Active {
@@ -170,21 +170,9 @@ func branchIssueEdits(env *migrateEnv, ref migrationBranchRef, main, home string
 	return result, nil
 }
 
-// dirtyIssuePaths is retained for existing callers; migrate itself reuses the
-// already observed worktree list so a second list cannot change its scope.
-func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
-	raw, err := inventoryGit(env, "worktree", "list", "--porcelain", "-z")
-	if err != nil {
-		return nil, err
-	}
-	worktrees, err := gitx.ParseWorktrees(raw)
-	if err != nil {
-		return nil, err
-	}
-	return dirtyIssuePathsObserved(env, []string{home}, worktrees)
-}
-
-func dirtyIssuePathsObserved(env *migrateEnv, roots []string, worktrees []gitx.Worktree) ([]string, error) {
+// dirtyIssuePaths consumes the already pinned worktree list; relisting would
+// create a second observation scope inside the same migration inventory.
+func dirtyIssuePaths(env *migrateEnv, roots []string, worktrees []gitx.Worktree) ([]string, error) {
 	dirty := map[string]bool{}
 	for _, wt := range worktrees {
 		if wt.Bare || wt.Prunable != nil {
