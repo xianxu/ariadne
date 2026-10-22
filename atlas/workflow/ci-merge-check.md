@@ -385,6 +385,12 @@ Where it counts (#473 M2):
 - **Train cars:** a car's CI gate accepts `affected` in place of `suite` (`StandIn`), on the head or on a docs-only
   ancestor. That is how a branch that is docs-only from main boards (pair#723). Merge without a train still requires
   `suite` on the integrated head, and runs it there once.
+  A train waiter missing either accepted record now stops with its exact
+  local-check command and merge retry action (#550), including while server
+  CI is pending or failing. Its readiness pass remains read-only. Keep any
+  already queued check intact and retry after its pass; refusal gives up only
+  the merge ticket's position. Admitted serial/granted merges retain the
+  existing automatic check execution.
 - **Flakes:** `affected` is a test run (`isTestCheck`). It gets the known-flake rerun. The success guard refuses a
   pass of either check over an unexplained failure of either on the same head. An affected pass is a subset
   (`flakes.Attempt.Subset`), so it never confirms a fail→pass.

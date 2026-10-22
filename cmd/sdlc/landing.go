@@ -410,7 +410,7 @@ func runDurableMergeAttempt(stdout, stderr io.Writer, f *mergeFlags, t landingTa
 	var turn *landingTurn
 	var sched func() landingline.Schedule
 	gates := productionCarGates(r, ghClient, t, f)
-	readiness := func(ctx context.Context) (landingline.Readiness, bool) {
+	readiness := func(ctx context.Context) (landingline.Readiness, bool, error) {
 		return carReadiness(ctx, r, gh, t, branch, gates, landingNow())
 	}
 	landedByTrain := false

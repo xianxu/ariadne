@@ -122,16 +122,16 @@ func TestLandingWaitReadinessJoinAndLateFailure(t *testing.T) {
 				t.Fatal(err)
 			}
 			var callbackErr error
-			readiness := func(vctx context.Context) (landingline.Readiness, bool) {
+			readiness := func(vctx context.Context) (landingline.Readiness, bool, error) {
 				if mode == "settled" {
 					_, waiting, e := line.Status()
 					if e != nil || len(waiting) != 1 {
 						callbackErr = fmt.Errorf("waiting=%+v err=%v", waiting, e)
-						return landingline.Readiness{}, true
+						return landingline.Readiness{}, true, nil
 					}
 					callbackErr = line.Settle(waiting[0].Seq, landingline.Outcome{Train: held.Ticket().Seq, Kind: landingline.OutcomeRefused, Reason: "fixture refusal"})
 					if callbackErr != nil {
-						return landingline.Readiness{}, true
+						return landingline.Readiness{}, true, nil
 					}
 					<-vctx.Done()
 				}
@@ -143,7 +143,7 @@ func TestLandingWaitReadinessJoinAndLateFailure(t *testing.T) {
 					}
 				}
 				clock.Add(int64(time.Minute))
-				return landingline.Readiness{}, mode != "settled"
+				return landingline.Readiness{}, mode != "settled", nil
 			}
 			stderr := watchWriter{want: "no-match-for-this-fixture", seen: make(chan struct{})}
 			turn, err := enterLandingLine(ctx, mergeRunner, landingTarget{Root: root, RepoIdentity: "github.com/test/repo"}, "000547-test", func() landingline.Schedule { return landingline.Schedule{Interval: time.Hour, MaxCars: 8} }, readiness, &stderr)
