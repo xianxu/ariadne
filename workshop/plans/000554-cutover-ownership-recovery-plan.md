@@ -75,3 +75,17 @@ Authenticated hub receipt `9d48a9c0-5144-4084-bb86-dd422b2a0800` approves strict
 Authenticated hub receipt `0efb89bd-348b-4815-8190-b50f00369f34` narrows the gap-event oracle to the attribution invariant: no credited segment or phase intersects the unowned cutover-to-claim window. Existing continuity arithmetic stays unchanged; a pre-claim event may shape continuity inside ownership. Add a test comment naming that effect. This supersedes the earlier assertions that injected gap events cannot increase the suffix or that total measured hours must stay equal across changed source evidence. Equal-hours assertions still defend immutable historical replay. Check actual credited intersections, not broad phase labels with no credited activity.
 
 Supervisor drain arrived before this test correction. Preserve the partial implementation and known failing lifecycle assertion; resume from the detailed issue Log only after an authenticated lift. No new checks, review, stage or landing work started during drain.
+
+### 2026-10-22 — approved first-claim suite queue boundary
+
+Live Echo follow-up (authenticated hub receipt `d9d4fbbf-adb2-43fa-b2a6-90d60e75c6b0`) reached a second consumer of the same first-ownership boundary: suite attempt `21fd6681014fb81d65bb1ff403b31d51` queued before claim and acquired after it. The hybrid attachment path resets queue selection to cutover, so its selected queue interval includes unowned time and the unchanged strict selector refuses with zero full matching engagements. Modern inputs already begin at ownership; this is the hybrid left-edge mismatch, not evidence of retroactive ownership.
+
+Hub approval `4f847ff8-9947-4df2-a754-f5ff80f98819`: bound hybrid queue selection at max(cutover, first proven ownership start). Preserve exact raw endpoints/duration, immutable tested-head attribution, and strict release/reclaim-crossing refusals. The existing cutover→claim warning labels the unowned prefix; no guessed time, earlier owner, new stored field or retrospective hours rewrite. ARCH-DRY/ORDER: use the existing pinned engagements and queue-window clipping at the attachment seam; the selector's ownership policy stays unchanged.
+
+Revision Plan:
+
+- [ ] Add the unchanged real Echo suite capture and a native Claude/Codex real migration→reconcile→claim fixture. Observe the straddling attempt fail under the old attachment edge, then prove only claim→pinned-right-edge wait is selected; retain raw duration and excluded-gap warning.
+- [ ] Apply the bounded attachment-edge fix and preserve release/reclaim, foreign/unknown head, malformed evidence and immutable replay controls.
+- [ ] Verify corrected head, publish, queue its recorded suite and re-close with the fixed-then-ship review. Retain the owner-run Echo live-proof hold before landing.
+
+The original queued suite `lease-3451749813` on the superseded source head was cancelled through `sdlc local-check cancel --run lease-3451749813` before code changes; the CLI confirmed cancellation. Do not revive or duplicate that obsolete run. Copied the live JSON read-only from Echo's common Git evidence into `cmd/sdlc/testdata/actual/echo5-claim-straddling-suite.json`; SHA256 `830e2848c584132315e093e2b4699a8667891ed7ce03ee257fdd342a1ff53b5e`. It records exact queued/acquired endpoints, raw queue 5204.94009 seconds and passing outcome. No peer card, tracker, attempt or checkout was changed.
