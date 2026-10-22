@@ -332,3 +332,81 @@ dispose:
 7. **Plan revision recommendations:** None. Existing revisions describe the implementation corrections accurately.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"15c23c50-1d3f-4a0e-860a-81d0234dcf9a","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5cfc37e60d716dab","reviewed_head":"f64e748c5510c35bd99d6b5ba1ef403117c17246","slot":"ariadne:1","requested_at":"2026-10-22T04:09:27.641983Z"},"phase":"finished","pid":10223,"started_at":"2026-10-22T04:09:27.787648Z","finished_at":"2026-10-22T04:11:33.422458Z","session_id":"01a161cc-b55b-7271-b90c-12f7636505f3","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T21:55:10-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 540 — tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure |
+| repo | ariadne |
+| issue file | workshop/issues/000540-tl-lead-sdlc-surface-external-service-outages-to-the-operator-immediately-classify-git-network-failures-as-infrastructure.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d2c7a015f631896fdff770f72ef0e89ff406aab8..cb46c379614209911fbebf8281d39297e415a295 |
+| command | sdlc close --issue 540 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T21:55:10-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the revised Spec and Plan. Git classification stays pure, diagnostic probes are bounded and explicitly invoked, and publication uncertainty remains intact. All three prior fixes have verified regression evidence. No new blocking findings emerged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The real native-Git loopback-refusal regression passes at head and fails with the pre-fix classifier supplied through a temporary Go overlay.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Production cancellation regressions pass at head. Restoring the pre-fix bounded runner through an overlay reproduces the unwanted network classification after cancellation.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Captured macOS resolver output and IPv6-only adapter regressions pass at head; both fail with the pre-fix probe implementation.
+```
+
+1. **Strengths**
+
+   - Shared classification preserves original error identities and publication sentinels across runner boundaries.
+   - `cmd/sdlc/internal/netcheck/check.go:124` bounds concurrency, preserves independent observations, and joins effects before returning.
+   - Private TLS and real CLI signal tests exercise certificate validation, cancellation, and descendant cleanup.
+   - README, atlas, and rendered TL/worker instructions cover the new command and incident workflow.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed targeted Git/network/CLI regressions, full netcheck tests, TL/worker packages, Go and shell lint catalogs, touched-package vet, selected publication/lifetime controls, and race checks. Each prior correction was independently tested red using its pre-fix implementation. Temporary overlays were removed; the checkout remains unchanged. The complete repository suite and staged live conformance were not repeated during this review.
+
+6. **Architectural notes**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass — shared classifier and host validation serve the changed consumers. |
+   | ARCH-PURE | Pass — classification and rendering remain separate from native effects. |
+   | ARCH-PURPOSE | Pass — transport runners, diagnostic command, incident rules, and discovery docs are covered. |
+   | ARCH-MOCK | Pass — injected probes, stateful publication schedules, and native fixtures exercise production seams. |
+   | ARCH-CONSTRAINTS | Pass — time, output, concurrency, and address-sampling limits are enforced. |
+   | ARCH-SECURE | Pass — validated hosts/IPs, verified TLS, fixed error classes, and credential-free probes. |
+   | ARCH-ORDER | Pass — final cancellation precedes classification; uncertainty and process ownership are preserved. |
+   | ARCH-FUNERAL | Pass — command-owned processes and connections terminate; no new durable runtime artifacts. |
+   | ARCH-EVOLVE | Pass — no persisted-format changes; existing error identities remain discoverable. |
+
+7. **Plan revision recommendations:** None. Existing revisions describe the final implementation accurately.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7bf90837-6062-44a1-a718-b7ac5415f4ca","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5bbde5d87471ab78","reviewed_head":"cb46c379614209911fbebf8281d39297e415a295","slot":"ariadne:1","requested_at":"2026-10-22T04:52:54.31291Z"},"phase":"finished","pid":93573,"started_at":"2026-10-22T04:52:54.431609Z","finished_at":"2026-10-22T04:55:10.348736Z","session_id":"01a161f4-7b4a-7dd1-bf35-6e79a0e03d7c","outcome":"returned"}] -->

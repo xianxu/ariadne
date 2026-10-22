@@ -624,6 +624,182 @@ rounds:
       isolation: fenced
       reviewed: f64e748c5510c35bd99d6b5ba1ef403117c17246
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 7bf90837-6062-44a1-a718-b7ac5415f4ca
+            repository: github.com/xianxu/ariadne
+            issue_id: "000540"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/5bbde5d87471ab78
+            reviewed_head: cb46c379614209911fbebf8281d39297e415a295
+            slot: ariadne:1
+            requested_at: "2026-10-22T04:52:54.31291Z"
+          phase: finished
+          pid: 93573
+          started_at: "2026-10-22T04:52:54.431609Z"
+          finished_at: "2026-10-22T04:55:10.348736Z"
+          session_id: 01a161f4-7b4a-7dd1-bf35-6e79a0e03d7c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: cb46c379614209911fbebf8281d39297e415a295
+        tracker_head: c044e9033bd1cd9fd2a8733255b07a2f2d7a26a9
+        branch_point: d2c7a015f631896fdff770f72ef0e89ff406aab8
+        since: "2026-10-21T20:12:17-07:00"
+        until: "2026-10-21T21:52:11-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T20:12:17-07:00"
+              end: "2026-10-21T21:52:11-07:00"
+              began: "2026-10-21T20:12:17-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 5936178c45a2e25f16b129518da7e3a07e30b38e55cff44e6a05a6f9b2f94c54
+              started: "2026-10-20T01:22:09.69Z"
+              spawned: false
+              bytes: 58145669
+              windows:
+                - start: "2026-10-21T20:12:17-07:00"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a16198-dfd2-7e51-b203-78a6c727a5a0
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: 4da803af25e24b24e5e473803cba87ab9def2011254673c69a15e5e3634fdbbb
+              started: "2026-10-22T03:12:51.342Z"
+              spawned: true
+              bytes: 518761
+              windows:
+                - start: "2026-10-22T03:12:51.342Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a1619e-1b2a-7433-bd4f-759515fc5331
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 0efb1e7e6893bce737836d34c09ff7fb3c5cbd6ddb00246c81943103a4ba184c
+              started: "2026-10-22T03:18:34.533Z"
+              spawned: false
+              bytes: 591616
+              windows:
+                - start: "2026-10-22T03:18:34.533Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a1619f-b959-7ec2-8197-3d094d728cb6
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: ebfb0d0aff8645571824bf5b29a7658730d6b03af27afe36dd6f47c55e92e904
+              started: "2026-10-22T03:20:20.493Z"
+              spawned: false
+              bytes: 463235
+              windows:
+                - start: "2026-10-22T03:20:20.493Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a161a0-f963-7761-a38b-3d9423e96e16
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c4f5de65c6a8415ece70feecbd96152118be4dda458f8cbee5d3dc3356649eec
+              started: "2026-10-22T03:21:42.484Z"
+              spawned: false
+              bytes: 449750
+              windows:
+                - start: "2026-10-22T03:21:42.484Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a161a1-6ba6-7490-b5ac-e6c898495122
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 1fbfed750a94c54efd816bc1dc30842554ccc3a187561f272d3d65d14f1e6473
+              started: "2026-10-22T03:22:11.615Z"
+              spawned: false
+              bytes: 397147
+              windows:
+                - start: "2026-10-22T03:22:11.615Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a161a2-3b52-7641-b272-8adfbfa35005
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: f565e71f2a8d9adc2debac82c513931c02fabf89a23df46d2d0010d34c50b50f
+              started: "2026-10-22T03:23:04.497Z"
+              spawned: true
+              bytes: 1502986
+              windows:
+                - start: "2026-10-22T03:23:04.497Z"
+                  end: "2026-10-21T21:52:11-07:00"
+            - harness: codex
+              id: 01a161a2-78f9-7e41-b635-b9295f78342b
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: a844235bbd3f658e7bbc7d4842c93222547e423dd9cfd960c4a2d2eff3ce2227
+              started: "2026-10-22T03:23:20.276Z"
+              spawned: true
+              bytes: 728296
+              windows:
+                - start: "2026-10-22T03:23:20.276Z"
+                  end: "2026-10-21T21:52:11-07:00"
+        queue_waits:
+            - attempt_id: b3a8540a6bc7e66d97a6de96b4966385
+              slot: ariadne:1
+              record_digest: aea9bbc24951b410eeaa5a0a47e09bd019905cf59660a7c3c63cc7ea9f7440c0
+              start: "2026-10-22T04:09:11.467477Z"
+              end: "2026-10-22T04:36:44.998052Z"
+              queue_seconds: 1653.530575
+              raw_seconds: 1653.530575
+              exact: true
+        cuts:
+            - dispatched: "2026-10-21T20:39:13-07:00"
+              finalized: "2026-10-21T20:41:50-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T20:48:51-07:00"
+              finalized: "2026-10-21T20:51:30-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T21:01:19-07:00"
+              finalized: "2026-10-21T21:03:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T21:09:27-07:00"
+              finalized: "2026-10-21T21:11:34-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-21T21:55:11-07:00"
+      dispatched: "2026-10-21T21:52:54-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The real native-Git loopback-refusal regression passes at head and fails with the pre-fix classifier supplied through a temporary Go overlay.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Production cancellation regressions pass at head. Restoring the pre-fix bounded runner through an overlay reproduces the unwanted network classification after cancellation.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: Captured macOS resolver output and IPv6-only adapter regressions pass at head; both fail with the pre-fix probe implementation.
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: cb46c379614209911fbebf8281d39297e415a295
+      blocked: false
 ---
 
 # Gate ledger — ariadne#540 (boundary-review)
@@ -665,6 +841,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-3 — addressed — probe.go:87 accepts both native macOS address fields. TestParseAddressesNativeFormats and TestNativeDarwinFormatsEligibleForHTTPS cover IPv6-only and mixed answers; both failed under a temporary overlay removing the fix and pass on HEAD. A read-only native localhost lookup independently matched the recorded fixture.
+
+## Round 5 — 2026-10-21T21:55:11-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The real native-Git loopback-refusal regression passes at head and fails with the pre-fix classifier supplied through a temporary Go overlay.
+- BR-2 — addressed — Production cancellation regressions pass at head. Restoring the pre-fix bounded runner through an overlay reproduces the unwanted network classification after cancellation.
+- BR-3 — addressed — Captured macOS resolver output and IPv6-only adapter regressions pass at head; both fail with the pre-fix probe implementation.
 
 ## Open findings
 
