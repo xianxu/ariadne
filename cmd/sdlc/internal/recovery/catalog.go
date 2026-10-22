@@ -256,9 +256,9 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"stage"},
 		Class:         ConvergentRetry,
-		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear fetches and pins origin/main, refuses dirty or ahead/diverged rest, restores and fast-forwards the resting branch, verifies assets, drops the record, and rebuilds binaries against the pin; clear dry-run fetches lag only, reporting unverified on fetch failure.",
+		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear fetches and pins origin/main, refuses dirty or ahead/diverged rest, restores and fast-forwards the resting branch, verifies assets, drops the record, and rebuilds binaries against the pin; clear dry-run fetches lag and performs the same landed-holder proof without effects, reporting unverified on fetch failure.",
 		Evidence:      "`sdlc fleet` (the target's hold `staged`) and `git -C <target> rev-parse HEAD`.",
-		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged; its lease free or held by this issue (another holder refuses stage, --clear and a move into it; `--clear --abandoned HOLDER` frees an abandoned one).",
+		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged; its lease free or held by this issue. After landing, clear alone also admits the recorded original slot on its own rest with the current done binding, exact merged PR carrying the staged commit and archive pinning that same done completion; caller, target, lease and completion must remain unchanged before effects. Unknown proof refuses; repair/reconcile and retry clear from the original resting slot. Another holder still refuses stage and move; `--clear --abandoned HOLDER` retains the exact-holder acknowledgment.",
 		Repeat:        "the same HEAD again is already staged: nothing switches, and the record is rewritten; a new HEAD replaces the staged one.",
 		LostResponse:  "rerun: the lease is written before the switch, so the target stays held by this issue; a switch whose commit was not recorded leaves the target at a commit this slot's branch contains, which the rerun accepts and records.",
 		Ends:          "a later stage, `sdlc stage --clear` or a move into the target replaces it; landing never needs it.",
@@ -267,6 +267,7 @@ var Catalog = []Contract{
 			{"refusals change nothing", []string{"TestStageRefusalsChangeNothing"}},
 			{"a move replaces a staged slot", []string{"TestMoveReplacesAStagedSlot"}},
 			{"one stage at a time: another holder refuses; --abandoned frees", []string{"TestStageLeaseOneStageAtATime", "TestStageLeaseEdges", "TestStageLeaseSwitchFailureRestores"}},
+			{"landed original slot clears only with current generation proof", []string{"TestStageClearAfterDurableLanding", "TestStageClearLandedHolderRefusesUnverifiedEvidence", "TestStageClearLandedProofOrdering"}},
 		},
 	},
 	{

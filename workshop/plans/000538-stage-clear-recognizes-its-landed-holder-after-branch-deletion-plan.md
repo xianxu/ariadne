@@ -83,17 +83,17 @@ This is an operator-started bounded command, not a hot loop. One fresh main fetc
 
 **Files:** `cmd/sdlc/stageplan.go`, new `cmd/sdlc/stagelanded.go`, new `cmd/sdlc/stagelanded_test.go`, `cmd/sdlc/stage.go`.
 
-- [ ] Write the native landed-holder regression and observe the original stage-lease refusal before implementation.
-- [ ] Implement the pure predicate and proof strategies above, retaining meaningful red evidence for unsafe cases.
-- [ ] Add the narrow proof route and final identity/lease revalidation under the existing lock. Reuse the single fetched main pin and strict existing proof helpers.
-- [ ] Run focused new tests plus stage lease, freshness/build, archive-generation and workspace controls; commit code and issue Log.
+- [x] Write the native landed-holder regression and observe the original stage-lease refusal before implementation.
+- [x] Implement the pure predicate and proof strategies above, retaining meaningful red evidence for unsafe cases.
+- [x] Add the narrow proof route and final identity/lease revalidation under the existing lock. Reuse the single fetched main pin and strict existing proof helpers.
+- [x] Run focused new tests plus stage lease, freshness/build, archive-generation and workspace controls; commit code and issue Log.
 
 ## Task 2: Document and close
 
 **Files:** `cmd/sdlc/helptext/stage.md`, `README.md`, `atlas/workflow/sdlc-binary.md`, issue Log.
 
-- [ ] Explain original-slot/rest and confirmed landing/archive requirements, unknown-proof refusal and exact recovery commands. Keep label/deploy ownership unchanged.
-- [ ] Run compiled help, targeted Go/lint/recovery-catalog checks and git diff --check. Propose isolated native production-path proof as the live gate; no :0 or operator stage touch without hub approval.
+- [x] Explain original-slot/rest and confirmed landing/archive requirements, unknown-proof refusal and exact recovery commands. Keep label/deploy ownership unchanged.
+- [x] Run compiled help, targeted Go/lint/recovery-catalog checks and git diff --check. Propose isolated native production-path proof as the live gate; no :0 or operator stage touch without hub approval.
 - [ ] Push the implementation; retain a recorded suite on its exact head to completion. Log its real result, then complete plan ticks and run sdlc close.
 
 On SHIP promptly enter sdlc merge --yes; retain integration verification, confirm archive and clean resting state, and report one outcome to the hub. No manual main chase.

@@ -36,8 +36,8 @@ Allow the original holder slot to clear its landed stage after normal branch del
 
 ## Plan
 
-- [ ] Add a proof-backed original-slot/resting-caller route to clear a landed issue's retained stage, sharing the existing main pin and archive authority.
-- [ ] Replay the branch-deleted landing regression plus independent identity/generation/lease/cancellation refusals; preserve ordinary and explicit abandoned clears.
+- [x] Add a proof-backed original-slot/resting-caller route to clear a landed issue's retained stage, sharing the existing main pin and archive authority.
+- [x] Replay the branch-deleted landing regression plus independent identity/generation/lease/cancellation refusals; preserve ordinary and explicit abandoned clears.
 - [ ] Document, verify, close and land. Detailed design: [implementation plan](../plans/000538-stage-clear-recognizes-its-landed-holder-after-branch-deletion-plan.md).
 
 ## Log
@@ -52,6 +52,12 @@ Allow the original holder slot to clear its landed stage after normal branch del
 - Proof trap found before code: landingArchiveComplete treats an empty issue selection as success. Recovery must explicitly select the held issue's current done completion/generation before using archive confirmation. Missing/reopened/replaced bindings cannot become issue-free success. Durable plan prepared for hub review; no implementation or tests changed.
 
 - 2026-10-22 03:00 PDT — Hub approved the committed full-flow plan and isolated native production-path proof (receipt 6ad82555-6756-417d-9954-ffba37f12d76). Confirmed original canonical resting slot, current done binding/merged PR/staged commit and explicit nonempty archive selection under existing stage lock/main pin, with final caller/lease/generation re-observation. Do not touch the live pair:0 stages. The existing explicit abandoned acknowledgment remains the interim operator path.
+
+- 2026-10-22 03:08 PDT — change-code admitted full flow after clean plan-quality round 2 and INFO estimate-quality. Estimate allowances separate production wiring/tests from adapting the existing durable-slot landing fixture and cross-boundary ordering controls; no new API discovery. Compiled help, native proof, recorded suite execution and landing observation are included in active verification; idle queue time is excluded. Fixture estimate remains optimistic and provisional, as the reviewer noted.
+
+- 2026-10-22 03:23 PDT — TDD: original durable-landing regression RED on the existing holder refusal, then GREEN with a real make/build stamp at fresh main (8.579s). Broader first matrix found a genuine replaced-token false acceptance through an unmirrored legacy archive; added stage-only requirement that the archive's done-card mirror pins the full current completion, leaving shared legacy archive behavior unchanged. Corrected two adversarial fixture setters to corrupt raw input rather than fail during setup. Read-only sanity review also found target movement during proof: native target-hook regression RED (16.042s), then added final target fact re-observation under the existing lock. The focused target/post-archive replacement and replaced-token/wrong-repository/unreachable/unmirrored controls now PASS (50.467s). Original slot, caller, lease, target and fresh generation are all checked before effects; unknown raw PR merge objects use existing head reachability fallback. No live :0 stage touched.
+
+- 2026-10-22 — Targeted regressions PASS (77.474s): original-slot clear with exact-pin rebuild, squash/rebase, missing/unrelated/unknown raw merge objects, generic archive, pure candidate table, existing stage leases, freshness and move controls, and recovery proof catalog. Focused refusal/order checks PASS (50.467s). Go/shell lint packages PASS. Newly compiled stage help displays the new route; its non-fleet-binary warning is expected for go run and no tool slot was modified. Added the existing recovery catalog's new authority/proof binding and final target observation uses the existing bounded Git seam via interface-typed readers. Full recorded suite remains pending on pushed branch.
 
 ## Revisions
 

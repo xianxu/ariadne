@@ -6,6 +6,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // stageFacts is everything checkStage decides on (#344): the slot staging its
@@ -108,4 +109,16 @@ func checkClearLease(held fleet.StageLease, me, abandoned, target string) error 
 		return fmt.Errorf("--abandoned %s: %s is held by %q, not %s; nothing was cleared", abandoned, target, held.Holder, got)
 	}
 	return nil
+}
+
+// landedStageCaller selects a proof candidate, never authority. In particular,
+// a matching slot on a different issue cannot borrow the old holder's landing.
+func landedStageCaller(held fleet.StageLease, caller moveSide) bool {
+	a, err := workspace.ParseAddress(held.Slot)
+	if err != nil || a.Repo == "" || a.String() != held.Slot || held.Slot != caller.Address ||
+		caller.Resting == "" || caller.Branch != caller.Resting || !landingOIDValid(held.Commit) {
+		return false
+	}
+	id, _, ok := issue.ParseFilename(held.Branch + ".md")
+	return ok && held.Holder == "#"+issue.CLIRef(id)
 }

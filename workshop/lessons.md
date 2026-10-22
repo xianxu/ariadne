@@ -1421,3 +1421,11 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
+
+- #538: an archive helper's successful legacy byte-preserving move is not proof
+  of a current tracker completion generation. A new authorization consumer must
+  require the archived done-card mirror to pin the current full binding; empty
+  ownership and unmirrored archives grant nothing. Re-observe target checkout
+  facts as well as caller, lease and generation after remote proof and before
+  effects. Native replaced-token, target-movement and post-archive replacement
+  regressions defend these semantic contracts; lexical lint cannot prove them.
