@@ -79,6 +79,10 @@ Close round1 returned REWORK on BR-1 (Critical, subprocess-cancellation-ownershi
 
 The approved supervised mode now keeps provider descendants in the external Go-owned helper group; standalone queries still own detached groups, and the existing SIGTERM-unwind handler covers both standalone commands. The actual-inspector cancel/deadline/completion/provider-timeout regression and broader Go suite/queue/helper selection PASS77.260s. Python ownership/core/resource/evidence23 tests PASS0.689s; pause18 tests PASS4.222s. New review required to dispose BR-1; no close finalized yet. Old queued suite is fully retired, terminal63074 exited1 as intentional cancellation before execution. Next: clean build and conformance refresh, push fixed checkpoint, start one fresh recorded suite, then repeat close review with that suite queued.
 
+### 2026-10-22 — fixed clean binary conformance refresh
+
+Clean build c66fa30e12d1d12dd3897446f20266f71d444322 (modified=false) passed read-only live status again, now using explicit supervision. The same two private real helper/provider conformance cases passed9.283s. Current raw build/status and source pins are retained in [supervised inspection evidence](../plans/000560-supervised-inspection-evidence.md); this supersedes the earlier runtime capture after BR-1. golint PASS1.694s. Both short conformance terminals completed normally across the Couch restart. Next: push this fixed checkpoint, queue one fresh recorded suite, and rerun close review while it waits. Old suite lease1847011191 remains intentionally cancelled, not passing evidence.
+
 ## Revisions
 
 ### 2026-10-22 — approved aging policy and60-minute threshold
