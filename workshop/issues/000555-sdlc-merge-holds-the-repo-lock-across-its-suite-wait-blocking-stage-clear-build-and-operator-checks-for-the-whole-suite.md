@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "90342873", done: "175081be"}
 ---
 
 # sdlc merge holds the repo lock across its suite wait, blocking stage --clear/--build (and operator checks) for the whole suite
