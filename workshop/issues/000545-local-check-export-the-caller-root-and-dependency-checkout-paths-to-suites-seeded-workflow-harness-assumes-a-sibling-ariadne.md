@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "b19164e0", done: "0abe5136"}
 ---
 
 # local-check: export the caller root and dependency checkout paths to suites (seeded workflow harness assumes a sibling ../ariadne)
