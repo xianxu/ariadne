@@ -52,6 +52,7 @@ Filed unclaimed by pair:5 while its corrected pair#778 suite/review run. No acti
 
 
 ### 2026-10-22 — claim and bounded design investigation
+- 2026-10-22: closed — Approved visibility revision implemented: bounded held-ticket start/bind/end, source-bound descriptive coverage only, unchanged hours/status/methods and saved replay; pair#778 limitation documented, pair#800 filed. Focused tests and combined race checks pass (cmd/sdlc 11.208s; landingline 1.351s; gatestate 1.286s), existing ownership/queue/head regressions pass 49.607s. Recorded suite lease-22710097 remains queued on unchanged implementation; tl-worker permits review overlap, and green suite is required before landing.; review verdict: SHIP
 
 - #507 cleanup completed before this claim: PR376 merged at4660dda0751d1d2dffeee40c68bd2ff4784ea62e, clean resting slot restored and owned temporary build caches removed. Claimed #547 and entered start-plan from main; #548 remains a pending landing dependency, read-only comparison used its accepted branch eb0e3d8a8396adb9cb7af9dba44987daef66ed3d. No stacked development or production code changes.
 - #548 establishes immutable tested-head issue membership before existing own-slot queue selection. Its MainBaseline skip and owner-slot guard correctly remain; relaxing them would not prove a retained car's waiting. Current landing cleanup removes ticket/readiness/outcome identity, and conductor logging records terminal car outcomes but not a durable boarding/lifetime proof.
