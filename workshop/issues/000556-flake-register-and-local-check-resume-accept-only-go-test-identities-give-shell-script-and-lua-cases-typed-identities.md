@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 6.18
 collaboration-mode: collaboration
-card_mirror: '22cbaefd627f7eb539d377bc10dfd7ec62823c10' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5012db0f94a1090d2588e0ce77aa69ce1b1254d1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T13:11:41-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # flake register and local-check resume accept only Go test identities; give shell-script and Lua cases typed identities
@@ -60,6 +61,32 @@ Durable design: [typed identities plan](../plans/000556-typed-flake-identities-p
 
 The Lua case is Plenary and the canonical harness selects whole spec files, so rerun the owning file and require the exact named case plus whole-file success. Script identity covers the script only. Neither case permits manufacturing a Go name or treating diagnostic text/exit zero as named-case proof. The proposed runner/producer contract and compatibility barriers are detailed in the durable plan; no implementation is authorized yet.
 
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. The calibration source is flagged stale by `sdlc estimate-source`; values are provisional. Scope is one Ariadne change plus private native conformance and adoption documentation; occupied peer branches and live gate declarations are outside this implementation.
+
+Decomposition: issue/spec shaping; typed identities; runner declaration/wrapper; unit evidence; log projection; attempt schema; saved-proof consumer integration; focused Lua producer; private CLI/provider acceptance; lint guard; docs; one close review; native runner discovery. Code design values use the thorough-spec ×0.2 discount, implementation values are already scaled to 40% of the v2 ranges, familiarity is 1.0, and design buffer is 15%. Library availability: the existing managed-process/strict cleanup helper halves runner design from 0.20 to 0.10; JSON/CUE/tracker and provider seams are reused. No existing library supplies our bound unit-proof protocol. Plenary's existing completed result table removes the need for a new assertion runner. The integration and Lua rows use the upper implementation range for real native and process-death conformance.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.80 impl=0.08
+item: smaller-go-module design=0.05 impl=0.20
+item: greenfield-go-module design=0.10 impl=0.32
+item: greenfield-go-module design=0.30 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: lua-neovim design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: smaller-go-module design=0.06 impl=0.12
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+design-buffer: 0.15
+total: 6.18
+```
+
 ## Log
 
 ### 2026-10-22
@@ -81,3 +108,7 @@ ops:0 approved the full plan: unchanged Go identities, script path and Lua spec/
 Baseline `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -count=1` passed. Preserved the pre-change binary at `/Volumes/TestScratch/tmp/ariadne-slot3/ariadne-556-prechange.DRxOiQ/sdlc`; `go version -m` verifies revision `a3f81c32ae131786fb4aedc9eb3c080dc0a6330f` and `vcs.modified=false`.
 
 The full-flow gate blocked on PQ-1 (nested process ownership) and PQ-2 (function-level test strategies), with PQ-3 (native conformance cadence) Minor. Verified PQ-1 against `runManagedCommandBatch` and `processgroup.Configure`: nested reuse would indeed create a separate group. Revised the plan so only the outer helper creates/joins the group; the unit child inherits it, and typed-capable checks use the existing strict group-cleanup path. The wrapper requires managed invocation, with a normal direct-runner recipe fallback outside local-checks. Added synchronized wrapper-death coverage and a planned lint rule. Function-named strategies and native conformance repeat ownership address PQ-2/PQ-3. No production code edited; ownership delta sent to TL before rerunning admission.
+
+ops:0 approved the ownership clarification, existing StrictGroupCleanup, wrapper-death test and lint rule (delivery `dee4f241-4334-488e-bbed-ab6a0232dc2b`); rerunning change-code.
+
+Round 2 plan-quality returned CLEAN, disposing PQ-1/PQ-2/PQ-3 as addressed, with no new findings. The remaining admission gate requires the derived estimate above and card setter; no production edits yet.

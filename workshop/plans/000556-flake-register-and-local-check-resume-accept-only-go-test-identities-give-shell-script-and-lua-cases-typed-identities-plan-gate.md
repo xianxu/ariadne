@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 9dd3aae4-74ac-46cd-a20f-7e9c9a1fee99
+        repository: github.com/xianxu/ariadne
+        issue_id: "000556"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        reviewed_head: d08194892307492a36e6a61e1805c38f6a884ad9
+        slot: ariadne:3
+        requested_at: "2026-10-22T20:36:37.795997Z"
+      phase: finished
+      pid: 75610
+      started_at: "2026-10-22T20:36:38.259314Z"
+      finished_at: "2026-10-22T20:37:18.63407Z"
+      session_id: 01a16554-80c4-7241-8a61-38c69fe096d9
+      outcome: returned
 gate: plan-quality
 issue: 556
 id_prefix: PQ
@@ -47,6 +67,83 @@ rounds:
           family: external-conformance-cadence
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: d59b6139-283f-4427-b37f-f4726e0c63f6
+            repository: github.com/xianxu/ariadne
+            issue_id: "000556"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: d08194892307492a36e6a61e1805c38f6a884ad9
+            slot: ariadne:3
+            requested_at: "2026-10-22T20:33:52.700487Z"
+          phase: finished
+          pid: 87585
+          started_at: "2026-10-22T20:33:52.879803Z"
+          finished_at: "2026-10-22T20:34:23.345927Z"
+          session_id: 01a16551-f979-7fa3-ac0c-51d8dcae9374
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-22T13:34:23-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Sole outer group ownership, inherited child membership, strict cleanup and synchronized production-path wrapper-death coverage resolve the ownership gap.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Function-named adversarial strategies and mechanical guards cover runner projection, evidence transitions, log attribution and saved-proof eligibility.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Producer/protocol and supported runtime updates require owner-run native conformance before landing; adopting peers repeat the native adapter fixture on every landing.
+          round: 2
+      blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 9f9fc174-ce9d-4f48-9f70-06f01803d149
+            repository: github.com/xianxu/ariadne
+            issue_id: "000556"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+            reviewed_head: d08194892307492a36e6a61e1805c38f6a884ad9
+            slot: ariadne:3
+            requested_at: "2026-10-22T20:36:00.197891Z"
+          phase: finished
+          pid: 57697
+          started_at: "2026-10-22T20:36:00.488627Z"
+          finished_at: "2026-10-22T20:36:28.710443Z"
+          session_id: 01a16553-ed37-7112-966f-bf4812180f38
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-22T13:36:29-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Outer helper exclusively owns the process group; inherited children, strict cleanup and synchronized wrapper-death verification are explicit.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Risky functions have named adversarial strategies and mechanical guards.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: Native conformance has explicit owners, change triggers and adoption landing cadence.
+          round: 3
+      blocked: false
+content_hash: 454943b072b25c34f1a1d705e7d6c450dbfc510a96834e7b7ba1ba04cd742fca
 ---
 
 # Gate ledger — ariadne#556 (plan-quality)
@@ -65,8 +162,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-3** [Minor] `external-conformance-cadence` Name when native runner conformance is repeated
   ARCH-MOCK: The plan requires real shell and Neovim/Plenary conformance during implementation but does not identify an ongoing cadence or rerun trigger. Name the owner and repeat policy so changes in the external runner are checked against the persisted fake model.
 
+## Round 2 — 2026-10-22T13:34:23-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Sole outer group ownership, inherited child membership, strict cleanup and synchronized production-path wrapper-death coverage resolve the ownership gap.
+- PQ-2 — addressed — Function-named adversarial strategies and mechanical guards cover runner projection, evidence transitions, log attribution and saved-proof eligibility.
+- PQ-3 — addressed — Producer/protocol and supported runtime updates require owner-run native conformance before landing; adopting peers repeat the native adapter fixture on every landing.
+
+## Round 3 — 2026-10-22T13:36:29-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Outer helper exclusively owns the process group; inherited children, strict cleanup and synchronized wrapper-death verification are explicit.
+- PQ-2 — addressed — Risky functions have named adversarial strategies and mechanical guards.
+- PQ-3 — addressed — Native conformance has explicit owners, change triggers and adoption landing cadence.
+
 ## Open findings
 
-- **PQ-1** [Important] `nested-process-ownership` Resolve subprocess ownership across wrapper death before reusing the managed helper
-- **PQ-2** [Important] `function-level-test-strategy` Replace test-case inventories with function-named adversarial strategies
-- **PQ-3** [Minor] `external-conformance-cadence` Name when native runner conformance is repeated
+(none — every finding has been disposed)
