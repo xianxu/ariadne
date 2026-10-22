@@ -132,6 +132,11 @@ Recorded attempt a100f3e29cc43b3710f507575726fcfb passed on 8797b4a4a7e57b60ff83
 
 The existing landing runner reached admission after the priority hold, then refused its main integration with conflicts in the extracted migration inventory and atlas. The automatic attempt left a clean branch. Following its named recovery, manually merged origin/main and resolved the overlap: retained #546's complete observer/main-only input collection and carried main's legacy-completion proof collection into the extracted function after anchors. Both atlas sections are retained. This preserves #544's completion authority; no inventory policy changes. Targeted regression sweep, fresh recorded full suite, then fixed-then-ship conflict review are required before re-entering landing.
 
+
+### 2026-10-22 — integrated-head targeted and private acceptance
+
+Resolved merge 80ef4a3775e9caa6d73758a0741d7ababb84b0a7 passed the migration, complete-inventory, asset-reconcile, legacy-completion and adoption native sweep (231.416s). Refreshed private production CLI conformance passed all 13 required assertions; `/Volumes/TestScratch/ariadne-546-cli-integrated.xiuZbm/result.json` retains the exact source revision, commands and preservation snapshots. Fresh recorded suite on that head is queued as lease-2286696126, attempt 0989fc68a11aeb757ffb06998bbccffb. After its PASS, run the named fixed-then-ship conflict review with full-suite evidence, then re-enter landing. Hub checkpoint receipt fd02c9db-2457-45d0-80b9-4425ca263c91 submitted.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.
