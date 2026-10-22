@@ -1378,3 +1378,7 @@ Unknown descendant completion protects every input and output together: checkout
 - #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
 
 - #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.
+
+- #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
+  help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
+  ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.

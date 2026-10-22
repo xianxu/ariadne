@@ -130,3 +130,16 @@ declarations changed (names and fields, never credential-bearing URLs). Document
   `.git/sdlc/local-checks/c04d7afed5768941f083205ddf95a17bd15ed7a7/suite.log`, SHA256 prefix 13a615c98585.
 - All Done when criteria have executable evidence above; invoking the binary-owned close review next.
   Plan's final checkbox records verification and entry into that boundary, not a claimed review verdict.
+
+### 2026-10-22 — BR-1 documentation correction
+
+- Round 1 returned FIX-THEN-SHIP (high confidence) with BR-1 Important, family user-facing-recovery-docs:
+  README still repeated the vague “reconcile separately” procedure. The gate kept close unfinalized and
+  explicitly requires another close to dispose this open ledger item; this is not an accepted close generation.
+- Verified README's stale declaration-drift paragraph, replaced it with the same clean/behind prerequisite,
+  fast-forward/setup/retry steps and divergent qualification, linking the setup atlas's canonical recovery.
+  Swept README, atlas and shipped weave Markdown for declaration-reconcile wording; this was its only stale
+  declaration-drift consumer. Added the prevention rule to lessons. Prose-only fix: inspected the before/after
+  and referenced production/test behavior; no test of wording and no repeated suite for unchanged code.
+- Reviewer independently passed selected refresh/CLI tests, ParseRows controls and pinned-range diff check;
+  architecture DRY/PURE/PURPOSE/EVOLVE all pass, no code defects. Re-running close for BR-1 disposition next.

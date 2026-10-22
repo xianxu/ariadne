@@ -370,10 +370,14 @@ or composition failure. A later remote advance waits for the next refresh.
 
 Refresh updates substrate repositories, not data-mount repositories. Missing
 checkouts require ordinary setup first. A target that changes parsed dependency
-declarations refuses before branch updates: reconcile that declaration change
-separately so every update stays inside the preflighted graph. Ordinary compile
-preserves existing Git revisions, and claiming an issue never invokes refresh.
-See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
+declarations refuses before branch updates and names the changed declarations
+and fields without source URLs. In the named checkout, if its clean branch is
+behind origin/main, run `git merge --ff-only origin/main`, then `./bootstrap.sh`,
+then retry the original refresh command from its original checkout. An ahead or
+divergent branch needs reconciliation first; run ordinary setup after adopting
+the declarations. See [declaration-change recovery](atlas/workflow/setup-and-replication.md#recover-a-refresh-blocked-by-declaration-changes).
+Ordinary compile preserves existing Git revisions, and claiming an issue never
+invokes refresh. See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
 
 ## Standalone consumers and maintainer setup
 
