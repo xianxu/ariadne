@@ -1,13 +1,13 @@
 ---
 id: 000551
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 2.37
 collaboration-mode: collaboration
-card_mirror: '0048dd0d5a57ccd9c595e730379c6b54d70ad51c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b9fd7b3fcd9545bd46160ce2f11391834d66f850' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T05:22:03-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.38
 ---
 
 # review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable)
