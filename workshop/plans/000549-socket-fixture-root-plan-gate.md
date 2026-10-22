@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: a0c9a399-afd0-4281-8633-ff83c9bcd32d
+        repository: github.com/xianxu/ariadne
+        issue_id: "000549"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        reviewed_head: dbc59825c834a3744b894feb301a9907ba783f89
+        slot: ariadne:5
+        requested_at: "2026-10-22T21:04:42.890689Z"
+      phase: finished
+      pid: 80386
+      started_at: "2026-10-22T21:04:43.050819Z"
+      finished_at: "2026-10-22T21:05:12.71905Z"
+      session_id: 01a1656e-33d9-7091-8b81-5f329965ee2e
+      outcome: returned
 gate: plan-quality
 issue: 549
 id_prefix: PQ
@@ -75,7 +95,32 @@ rounds:
           note: Step 1 references named function strategies and the supported-analysis contract; executable tests own the concrete inventory.
           round: 2
       blocked: false
-content_hash: f7807189a9dfd272bba0f46d280fa90c7902c4bdf181fd5f72f8a11321600d2b
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 11c847d6-f775-404f-8cd5-206d22190894
+            repository: github.com/xianxu/ariadne
+            issue_id: "000549"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: dbc59825c834a3744b894feb301a9907ba783f89
+            slot: ariadne:5
+            requested_at: "2026-10-22T21:03:49.31618Z"
+          phase: finished
+          pid: 56548
+          started_at: "2026-10-22T21:03:49.612528Z"
+          finished_at: "2026-10-22T21:04:39.756072Z"
+          session_id: 01a1656d-6400-7a00-8f94-942f722b558c
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-22T14:04:40-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      blocked: false
+content_hash: 4bd1f61f95b31bf68b46151a9932448fa8b28eff92c816331a32813cff9c7ddb
 ---
 
 # Gate ledger — ariadne#549 (plan-quality)
@@ -98,6 +143,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — Recognizes the actual isolation-root setting, excludes hashed namespace inputs, and requires the bounded-parent negative control.
 - PQ-2 — addressed — Step 1 references named function strategies and the supported-analysis contract; executable tests own the concrete inventory.
+
+## Round 3 — 2026-10-22T14:04:40-07:00 (codex) — passed
 
 ## Open findings
 
