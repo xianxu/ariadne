@@ -86,6 +86,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - Final narrowed-gate verification: broad init/migration/transition/hint/recovery set PASS (135.319s); Go lint/recovery package checks PASS (1.630s/0.139s). Strengthened the existing process-count fixture to use distinct branch-tip OIDs; PASS (5.138s), with unrelated files 8/16 = 100/100 Git processes and unique branches 8/16 = 148/196. Production code is unchanged since the passing private CLI. Ready to requeue the recorded suite and submit close round 3; no passing recorded suite or SHIP claimed yet.
 
+- Close round 3 REWORK: original archive refusals verified RED->GREEN, but BR-2 not-addressed because init inherited migration's reserved-name branch exclusions. Reviewer reproduced archived evidence solely on a local issue-tracker branch, missed by the filtered list. Canceled queued lease-268950849, no executed suite/pass. Reported and held under the recorded stop condition. TL authorized the bounded implementation correction (Couch a3dd77da-61e5-425e-a901-1c54708447e4): complete observation has no name exclusions; only migrate applies its existing filter. Test formerly excluded categories across all three roots. Clarifying only the already-approved verified partial/completed tracker retry exceptions against the requested tracker-already-initialized message; complete-observation correction proceeds independently.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary

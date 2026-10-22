@@ -172,3 +172,82 @@ findings:
    Append a `## Revisions` entry defining authoritative inventory as the active/archive-root × repository-scope enumeration, identifying conservative handling of unsupported archive evidence and the regressions that enforce it. Current acceptance claims should remain incomplete until that rule is implemented and verified.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"bdf2e958-9634-4fd9-976d-f534634ba6c2","repository":"github.com/xianxu/ariadne","issue_id":"000543","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/e12132d265e05549","reviewed_head":"96e8ff1cfaf539a80c5c174ce4ba7bbf83992bae","slot":"ariadne:3","requested_at":"2026-10-22T06:33:05.574907Z"},"phase":"finished","pid":31549,"started_at":"2026-10-22T06:33:05.67848Z","finished_at":"2026-10-22T06:36:00.662126Z","session_id":"01a16250-34c1-72d0-aa44-d6d2b0f4d510","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T00:03:32-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 543 — new repositories start on the legacy issue path: initial setup should create the issue tracker (non-brain repos) |
+| repo | ariadne |
+| issue file | workshop/issues/000543-new-repositories-start-on-the-legacy-issue-path-initial-setup-should-create-the-issue-tracker-non-brain-repos.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a4600f5050712a27c7979cfd035cccd8b5a1ceca..e344c6cec0332b0d8316be96dce73dd04f18280c |
+| command | sdlc close --issue 543 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T00:03:32-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The presence-only initializer fixes the original archive cases, and the targeted tests pass. However, its branch inventory still excludes evidence by branch name: archived issues held only on a local `issue-tracker` branch do not prevent empty initialization. BR-2 remains blocking.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      The original archive regressions pass and fail when the presence guard is removed. However, issueinit_inventory.go:47 inherits migrationBranchRefs's unconditional exclusion of refs/heads/issue-tracker at issu emigrate.go:242 (path spelling: cmd/sdlc/issuemigrate.go). A disposable pinned-head regression placed workshop/history/issues/000001-old.md only on that unchecked-out local branch; issue init succeeded, changed published main, and created the remote tracker. Removing that exclusion made the regression pass. The complete-inventory rule remains unenforced (ARCH-PURPOSE, ARCH-SECURE). This is the third demonstrated instance in family authoritative-inventory-completeness; sweep every branch exclusion and require evidence for exemptions rather than fixing only this branch name.
+```
+
+1. **Strengths**
+
+   - The opaque `InitState` and `InitTransition` enforce publication ordering and preserve confirmed identities.
+   - Recovery tests inject failures before and after production effects, including lost acknowledgments and competing initialization.
+   - The presence matrix covers three roots across branch, detached-worktree, index, ignored, and untracked evidence.
+   - README, atlas, command help, and TL setup instructions document the explicit initialization step.
+
+2. **Critical findings**
+
+   - **BR-2 remains open:** [issuemigrate.go:239](/Volumes/TestScratch/review-checkouts/35117b907c7222b3/cmd/sdlc/issuemigrate.go:239) supplies migration-specific exclusions to [initializationEvidence:47](/Volumes/TestScratch/review-checkouts/35117b907c7222b3/cmd/sdlc/issueinit_inventory.go:47). Initialization must enumerate all relevant tips; a reserved name alone cannot prove that a branch contains no legacy issues. Separate complete observation from consumer-specific filtering and test all exemptions across the three roots.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Targeted tracker, SDLC initialization/migration/recovery/hint, and TL tests passed; SDLC tests completed in 61.298s.
+   - Removing the presence guard made both selected archive regressions fail.
+   - The additional local `issue-tracker` branch regression failed on pinned head and passed after removing its exclusion.
+   - `git diff --check` passed. Disposable files were removed; the reviewed checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared path predicate and existing publication helpers.
+   - **ARCH-PURE — pass:** pure transition policy with an injected effect dispatcher.
+   - **ARCH-PURPOSE — flag:** BR-2’s complete-inventory contract remains incomplete.
+   - **ARCH-MOCK — pass:** portable real-Git fixtures and controllable effect barriers exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** batch-only execution, bounded snapshot readers, and process-growth coverage.
+   - **ARCH-SECURE — flag:** a branch name substitutes for evidence of absence.
+   - **ARCH-ORDER — pass:** explicit transitions, uncertainty stops, and retry reconstruction.
+   - **ARCH-FUNERAL — pass:** existing Git artifact lifecycles are reused.
+   - **ARCH-EVOLVE — pass:** no persisted-format change introduced.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry specifying that initialization observes every local/publication branch tip before applying any evidence-based exemption. Extend the root × scope tests to cover every excluded ref category.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"90652019-eff1-43e7-bb5a-d2f07cdf733d","repository":"github.com/xianxu/ariadne","issue_id":"000543","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/35117b907c7222b3","reviewed_head":"e344c6cec0332b0d8316be96dce73dd04f18280c","slot":"ariadne:3","requested_at":"2026-10-22T06:59:55.296901Z"},"phase":"finished","pid":71430,"started_at":"2026-10-22T06:59:55.393406Z","finished_at":"2026-10-22T07:03:31.601395Z","session_id":"01a16268-c486-7801-a520-277fda24906c","outcome":"returned"}] -->
