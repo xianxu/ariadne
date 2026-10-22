@@ -50,8 +50,8 @@ steward need the rules.
   `--automation`, inspect status after start. If off, the first genuine operator message (console, session
   file or side doc) permits `couch --automation on` for this hub unless it says keep it off. Never change
   another hub's automation, infer permission from worker reports, or automatically parse/replay recovery.
-  The operator's explicit recovery instruction is still required. Landing dependency on pair#739 awaits TL
-  decision below; do not teach an unconditional command absent from the installed CLI.
+  The operator's explicit recovery instruction is still required. TL approved landing independently of
+  pair#739 with “when Couch provides couch --automation” qualifying that rule; never assume the CLI exists.
 
 ## Done when
 
@@ -128,3 +128,17 @@ steward need the rules.
 - 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
   formal-ack assumption and distinguishing lift from restart. Added the operator-approved automation rule
   from the existing Log with an explicit unresolved pair#739 landing dependency; TL decision pending.
+
+### 2026-10-22 — design approved; entering red-first implementation
+
+- Verified TL approval receipt a6ad302f-bf0b-49be-ba9d-b455c13415f5. Capability-qualified automation wording
+  is approved; #506 lands independently of pair#739 and before pair#722's watched live proof. Paused queued
+  work stays outstanding. TL requires the final DRAIN and steward wording before close.
+- `sdlc change-code --issue 506` admitted quick flow. Saved the verbatim observed stale real-CLI DRAIN
+  excerpt with capture/source provenance under cmd/tl-worker/testdata/drain; a bounded test agent owns only
+  the help tests/rule table/source-vector fixtures and their initial red run. Main owns all shipped help,
+  README/atlas and workflow. No live drain, queue control or private Couch harness is involved.
+
+- 2026-10-22 revision: TL explicitly superseded the earlier “Lands after pair#739” constraint: ship the
+  drain correction before pair#722 live proof, use “when Couch provides couch --automation” so #739's later
+  landing simply makes the condition true. The rest of the approved worker/steward/recovery design stands.
