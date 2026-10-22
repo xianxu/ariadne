@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 3.74
+actual_hours: 4.09
 tracker:
     version: 1
     completion:
-        token: close-abd670333c80
+        token: close-e08910fc0004
         repository: github.com/xianxu/ariadne
-        reviewed_head: a887eb11140108b188dd37dd2abaebdb8144a18a
-        evidence_commit: 2c70911bc3ea27acf6c60c47f04bb54fc0699ed7
+        reviewed_head: 45e47313662ffd2415d6ad58ffce1ca8a6fc1fe1
+        evidence_commit: 429425dbb61896e285434ed1d42baf1ff4b2ad42
 ---
 
 # landing: drop one car from a composed train before merge (no per-car hold today)
