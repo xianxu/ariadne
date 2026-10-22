@@ -541,12 +541,12 @@ func TestIssueLintIDsJudgesTheMarkerAtHead(t *testing.T) {
 func TestIssueMigrateNamesADirtyPathWithASpace(t *testing.T) {
 	r := legacyRepo(t)
 	writeRepoFile(t, r.root, "workshop/issues/000001-one.md", "---\nid: x\n---\n\n# edited\n")
-	writeRepoFile(t, r.root, "workshop/issues/scratch notes.md", "notes\n")
+	writeRepoFile(t, r.root, "workshop/issues/000099-scratch notes.md", "notes\n")
 	_, out, err := migrateDryRun(t)
 	if err == nil {
 		t.Fatalf("uncommitted issue edits must refuse the cutover:\n%s", out)
 	}
-	for _, p := range []string{": workshop/issues/000001-one.md\n", ": workshop/issues/scratch notes.md\n"} {
+	for _, p := range []string{": workshop/issues/000001-one.md\n", ": workshop/issues/000099-scratch notes.md\n"} {
 		if !strings.Contains(out, p) {
 			t.Errorf("refusal does not name %q:\n%s", strings.TrimSpace(p), out)
 		}

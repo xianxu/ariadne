@@ -50,7 +50,7 @@ func MigrationEvidenceRefusals(published []MigrationObservedFile, tips []Migrati
 	}
 	valid := func(f MigrationObservedFile) bool {
 		id, _, ok := issue.ParseFilename(path.Base(f.Path))
-		return fs.ValidPath(f.Path) && !strings.ContainsAny(f.Path, "\\\x00") && ok && id == f.ID &&
+		return fs.ValidPath(f.Path) && !strings.ContainsRune(f.Path, '\x00') && ok && id == f.ID &&
 			(f.Role == issue.InventoryActive || f.Role == issue.InventoryArchive) &&
 			(f.Mode == "100644" || f.Mode == "100755") && validReceiptOID(f.OID)
 	}

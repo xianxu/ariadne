@@ -21,7 +21,7 @@ func TestIssueInventoryPath(t *testing.T) {
 		{"workshop/issues/00001-one.md", "", ""},
 		{"workshop/issues/readme.md", "", ""},
 		{"workshop/issues/000001-one.md\x00", "", ""},
-		{"workshop/issues/000001-one\\x.md", "", ""},
+		{"workshop/issues/000001-one\\x.md", "000001", InventoryActive},
 	} {
 		t.Run(tc.p, func(t *testing.T) {
 			id, role, ok := IssueInventoryPath(tc.p, roots)

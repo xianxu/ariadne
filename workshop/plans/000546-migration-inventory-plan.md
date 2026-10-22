@@ -103,10 +103,10 @@ Files: create `cmd/sdlc/internal/tracker/migration_inventory.go` and `_test.go`;
 
 Files: create `cmd/sdlc/issueinventory.go`, `cmd/sdlc/issuemigrate_inventory.go` and targeted tests; modify `issuemigrate.go` and `issueinit_inventory.go`. Extend existing inventory/init tests where helper extraction changes names, preserving their behavioral oracles.
 
-- [ ] Add real-Git failing regressions for both reviewer reproductions and exercise the complete observation strategies below. Assert the resulting imported population reserves the published IDs.
-- [ ] Exercise `dirtyIssuePaths` against adversarial native worktree/index/filesystem state, including a normalization-aware clean control. Keep the finite root × scope inventory in executable tests rather than repeating it in this plan.
-- [ ] Run `go test ./cmd/sdlc -run 'TestIssueMigrate|TestMigrationInventory|TestIssueInit' -count=1 -timeout 20m` to establish intended failures, then implement the shared observer and adapter, bulk active-delta reads and complete worktree dirty checks. No repository edits while this root-package test process runs.
-- [ ] Rerun targeted tests green. Preserve the existing remote-refresh/main-pin/close-pin/rename/reconcile/bootstrap retry tests. Commit.
+- [x] Add real-Git failing regressions for both reviewer reproductions and exercise the complete observation strategies below. Assert the resulting imported population reserves the published IDs.
+- [x] Exercise `dirtyIssuePaths` against adversarial native worktree/index/filesystem state, including a normalization-aware clean control. Keep the finite root × scope inventory in executable tests rather than repeating it in this plan.
+- [x] Run `go test ./cmd/sdlc -run 'TestIssueMigrate|TestMigrationInventory|TestIssueInit' -count=1 -timeout 20m` to establish intended failures, then implement the shared observer and adapter, bulk active-delta reads and complete worktree dirty checks. No repository edits while this root-package test process runs.
+- [x] Rerun targeted tests green. Preserve the existing remote-refresh/main-pin/close-pin/rename/reconcile/bootstrap retry tests. Commit.
 
 ### 3. Cost, integration contract, documentation and acceptance
 
@@ -142,3 +142,7 @@ No implementation before TL approval of this plan and `sdlc change-code` plan-qu
 ### 2026-10-22 — PQ-1 function-level test strategy
 
 Plan-quality round 1 accepted the architecture and scope, but requested exact risky-function names and compressed test prose. Named the shared classifier, complete observer, active-delta reader and dirty observer, then replaced redundant case inventories with one adversarial strategy and independent guard per function. No behavior, authority, state or scope changed. Detailed input enumeration belongs in executable tests.
+
+### 2026-10-22 — bounded verification corrections
+
+Preserved literal POSIX backslashes accepted by the existing filename grammar, with behavioral RED/GREEN and native unusual-filename regressions. Canonicalized the legacy path-with-spaces fixture without weakening its byte-exact quoting oracle. Native growth and uncertainty guards passed; documentation now maps the approved rules. Issue checklist rows describe implemented outcomes while binary suite/review/landing remain explicit outstanding gates. No authority, state or scope change.

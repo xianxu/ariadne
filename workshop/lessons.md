@@ -1421,3 +1421,13 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
+
+- #546: inventory completeness and import authority are separate. Observe all
+  current carriers first; keep archive evidence out of active rename inputs,
+  and preserve related-branch merge-base semantics. A stricter path classifier
+  must not silently hide filename bytes accepted by ParseFilename. Pure matching
+  tests and native root × scope/preservation regressions guard this semantic
+  contract; helper-name lint cannot establish publication completeness.
+- #546 PQ-1: use exact production function names in plan strategy tables and
+  one adversarial class plus independent guard per function. Keep finite test
+  input enumerations in executable tests rather than duplicating them in prose.

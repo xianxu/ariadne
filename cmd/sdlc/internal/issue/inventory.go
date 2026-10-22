@@ -17,7 +17,7 @@ const (
 // roots[0] is active; later roots are archives.
 func IssueInventoryPath(p string, roots []string) (id string, role InventoryRole, ok bool) {
 	canonical := func(p string) bool {
-		return p != "" && p != "." && !path.IsAbs(p) && path.Clean(p) == p && p != ".." && !strings.HasPrefix(p, "../") && !strings.ContainsAny(p, "\\\x00")
+		return p != "" && p != "." && !path.IsAbs(p) && path.Clean(p) == p && p != ".." && !strings.HasPrefix(p, "../") && !strings.ContainsRune(p, '\x00')
 	}
 	if !canonical(p) {
 		return "", "", false

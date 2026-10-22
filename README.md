@@ -128,7 +128,8 @@ cards, so after this lands, update ariadne:0 and run `weave refresh` in every
 :1+ slot.
 
 A legacy repository cuts over
-once with `sdlc issue migrate` — see
+once with `sdlc issue migrate`, which imports main’s active and archived
+issues after checking all branch tips and live worktrees — see
 [issue tracker migration](atlas/workflow/issue-tracker-migration.md); until then
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 `issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits

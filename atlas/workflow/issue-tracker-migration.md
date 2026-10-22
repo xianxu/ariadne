@@ -31,6 +31,51 @@ derivation in `internal/issue/migrate.go`.
   `{version, tracker_root}` beside the details conversion. The marker is what
   makes the era explicit to the binary.
 
+## Complete inventory before cutover
+
+The inventory imports cards **only from pinned publication main**. Its path rule
+comes from `issue.IDDirs` and `issue.IssueInventoryPath`: direct-child issue
+filenames under the active root, flat legacy history, and `history/issues`.
+Nested plans, side bundles and assets do not become issues. Both archive layouts
+reserve their IDs; archived bytes are never rewritten.
+
+One shared observer, `observeIssueInventory` in `cmd/sdlc/issueinventory.go`,
+reuses `publicationBranchTips` to fetch every current publication-remote head
+independently of configured fetch filters, then pins all local/remote names and
+OIDs. A moved main or failed observation refuses. The explicit fetch may update
+and prune that remote-tracking heads mapping; it publishes nothing, touches no
+tags or other remotes, and preserves FETCH_HEAD. Live worktrees contribute their
+pinned HEADs, including detached or unrelated histories. Bare/prunable entries
+hold no live checkout and are skipped. Branch names grant no inventory exemption.
+
+The pure `tracker.MigrationEvidenceRefusals` compares observed records with main:
+
+| Non-main evidence | Required publication proof |
+|---|---|
+| Related active record | ID represented on main; actual merge-base changes retain existing card-field reconciliation and rename/archive rules. Detail prose may differ. |
+| Archive record | Same filename ID and blob bytes as a published archive; a path move is allowed. |
+| Unrelated active record | Same filename ID and blob bytes as a published active record; no ancestry is inferred. |
+
+Unrepresented evidence refuses with its carrier, path and legacy recovery action;
+it is never imported from a branch or worktree. An older branch with differing
+archive bytes also refuses: align, land or drop that evidence before cutover.
+Missing archive copies on an old tip do not manufacture deletions. Archive
+observations stay separate from active rename/reconcile inputs.
+
+Every live worktree's index, tracked/untracked status and direct filesystem
+entries are checked across all three roots. Ignored issue documents remain
+visible. Conflicts and issue entries with assume-unchanged/skip-worktree flags
+refuse; resolve the conflict or clear the flags before retrying. Git's content
+normalization remains authoritative for ordinary tracked changes. Unreadable,
+malformed, non-directory and unsupported file-kind observations are errors, not
+empty results. Bounded reads refuse excessive input rather than truncating it.
+
+The operator freeze below remains essential: this is a current-tip snapshot,
+not a distributed lock or a scan of unreachable history. Other machines and
+other publication sources cannot be observed from this clone. Apply recollects
+the inventory before accepting the reviewed digest, then uses the unchanged
+tracker-root/main CAS and exact retry proofs.
+
 ## Legacy mode
 
 Until a repository cuts over, the #252 binary runs its pre-#252 workflow
@@ -63,9 +108,10 @@ details in a cut-over repository refuse the legacy close/change-code paths
    participating repository's composed `AGENTS.md`/`CLAUDE.md`,
    `Makefile.workflow` and scripts carry the tracker-era guidance.
 2. **Inventory, read-only.** In each participating repository (never a brain),
-   from a clone that has fetched every slot's branches, run
-   `sdlc issue migrate`. It lists cards, inferences, duplicates and refusals and
-   prints a digest; it changes nothing. Clones on other machines run it too:
+   from each clone holding local branches or worktrees, run
+   `sdlc issue migrate`. It refreshes/pins the publication-remote heads, lists
+   cards, inferences, duplicates and refusals, and prints a digest. It makes no
+   tracker/main publication or checkout/index changes. Clones on other machines run it too:
    their local-only branches and dirty worktrees are invisible elsewhere.
 3. **Freeze that repository's writers.** Stop agent sessions, aliases,
    scripts and cron entries that run `sdlc` or the workflow Makefile in it and
@@ -121,3 +167,10 @@ product-owned consumers that need changes get issues in their owning repositorie
   branch-only issue cannot land; backing out a cutover (with the prune).
 - `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints, Makefile fallbacks, and
   `lint-ids` refusing cardless details.
+
+- `cmd/sdlc/issuemigrate_completeness_test.go`: native root × scope and dirty
+  worktree evidence, archive byte matching, main-only imports/ID reservation,
+  refusal preservation and changed-evidence apply rejection (#546).
+- `internal/tracker/migration_inventory_test.go` and
+  `internal/issue/inventory_test.go`: pure role/ID/blob matching, deterministic
+  carriers, filename grammar and defensive init eligibility.

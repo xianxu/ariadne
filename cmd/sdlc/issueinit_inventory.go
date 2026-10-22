@@ -95,9 +95,8 @@ func initializationEvidence(env *migrateEnv, main string, roots []string) (strin
 	return "", nil
 }
 
-// Only metadata is selected. Returning false avoids reading any issue body and
-// keeps process count independent of file count. Pins also cover unrelated or
-// inherited histories: no merge-base/difference rule can erase present evidence.
+// The shared direct-child metadata reader avoids all issue body reads. Pins
+// cover unrelated and inherited histories: no difference rule erases presence.
 func initializationTipEvidence(env *migrateEnv, tip string, roots []string) (string, error) {
 	files, err := issueSnapshotFiles(env, tip, roots)
 	if err != nil {

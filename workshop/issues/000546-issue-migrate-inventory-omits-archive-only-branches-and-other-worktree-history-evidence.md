@@ -56,9 +56,9 @@ The operator's existing freeze of all legacy SDLC writers remains a precondition
 
 Durable plan: [complete migration inventory](../plans/000546-migration-inventory-plan.md). Full flow, one atomic close boundary.
 
-- [ ] Implement typed evidence and pure matching while preserving related active reconciliation and close proofs.
-- [ ] Reuse the complete observer across init/migrate; cover all roots, tips and live worktree evidence with main-only imports.
-- [ ] Verify counted growth, private production CLI/native Git conformance and unchanged migration recovery; document, suite, close and land.
+- [x] Implement typed evidence and pure matching while preserving related active reconciliation and close proofs.
+- [x] Reuse the complete observer across init/migrate; cover all roots, tips and live worktree evidence with main-only imports.
+- [x] Establish counted growth, private production CLI/native Git conformance, unchanged migration recovery and current documentation. The recorded suite, close and landing remain binary-owned acceptance gates.
 
 ## Log
 
@@ -83,6 +83,18 @@ TL approved the durable plan (Couch c377850d-b344-4086-9dfc-3587e136bee2). First
 Full-flow change-code admitted the plan after PQ-1 correction; estimate-quality INFO accepted the derivation while noting optimistic verification budgets. Four module units include their adversarial tests, the native discovery unit covers production CLI acceptance, and the review unit carries close/landing coordination; recorded suite/integration duration remains a calibration risk rather than excluded active time.
 
 Pure issue and tracker packages passed in full (0.371s / 65.192s), including unchanged migration/close contracts. Gitx bounded-reader and NUL stage/flag parser targeted tests passed after RED. Native completeness regressions first failed behaviorally on the old adapter (48.413s), including both reviewer reproductions, inherited/unrelated/detached omissions, name exemptions, flat-main import, ignored/index-hidden dirtiness and changed-evidence apply. After shared observation, complete main imports and worktree adapter wiring, the same new native regression group passed (34.009s). No test failure classified as infrastructure or flake. Next: old migration/init regression sweep, growth/error guards, private CLI conformance, atlas, recorded suite and binary close review.
+
+### 2026-10-22 — acceptance and compatibility sweep
+
+Private production CLI conformance passed on committed implementation 956c1869c58d69fc097621d9a3a006893ab31e1b. Artifact `/Volumes/TestScratch/ariadne-546-cli.odlwjZ/result.json` links exact commands/results, executable harness and preservation snapshots. Both original reproductions refused without changing origin refs, caller/worktree HEAD, raw index, status/diffs or issue bytes. Legacy Git publication resolved evidence; apply imported both archive roots, repeated apply was idempotent, and normal issue new allocated #43 then claim succeeded.
+
+The broader migration/init native sweep (265.258s) found only the existing path-with-spaces fixture used a noncanonical scratch filename; updated it to `000099-scratch notes.md` so its original byte-exact path oracle remains under the approved filename grammar. A self-audit caught a separate false-absence bug in the new classifier: literal POSIX backslashes are accepted by ParseFilename, so they must stay visible. Behavioral RED then GREEN corrected the classifier and metadata validator without a design change; pure related/unrelated/role matching cases now defend it. Added native unusual-filename, resource-growth and uncertainty tests before final acceptance. No recorded suite has run yet.
+
+### 2026-10-22 — final targeted acceptance
+
+Additional native growth/uncertainty/filename tests and the corrected legacy space fixture passed together (53.381s). Git process / blob-batch counts: documents 8/16 = 44/44 and 4/4; distinct tips 8/16 = 147/267 and 3/3; duplicate refs 8/16 = 42/42 and 3/3; live worktrees 0/8/16 = 27/43/59 and 3/3/3; nested assets 8/16 = 27/27 and 3/3. All three roots were exercised for unsupported root/document kinds, unreadability and unusual filename bytes; cancellation refused. Go lint/recovery tests passed (0.754s / 0.135s), diff check clean. Atlas and README now describe the complete observation and conservative refusal rules.
+
+Implementation Plan checkboxes now describe demonstrated implementation/targeted acceptance outcomes; recorded suite, mandatory binary review and landing are still outstanding gates, not falsely completed checklist actions. Next exact step: push final committed implementation, queue its recorded suite, refresh private CLI proof on that head, then binary close/merge. No stage per TL.
 
 ## Estimate
 

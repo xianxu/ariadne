@@ -111,3 +111,21 @@ func TestMigrationEvidenceMalformedMetadata(t *testing.T) {
 		t.Fatal("empty unknown tip accepted")
 	}
 }
+
+// Git and the repository filename grammar treat a POSIX backslash as a literal
+// filename byte. It cannot hide an issue or invalidate exact published evidence.
+func TestMigrationEvidencePOSIXBackslash(t *testing.T) {
+	for _, role := range []issue.InventoryRole{issue.InventoryActive, issue.InventoryArchive} {
+		f := observed("000001", role, oidA)
+		f.Path = strings.TrimSuffix(f.Path, ".md") + "\\literal.md"
+		for _, ancestry := range []MigrationAncestry{MigrationRelated, MigrationUnrelated} {
+			tip := MigrationTipEvidence{Tip: oidP, Ancestry: ancestry, Files: []MigrationObservedFile{f}}
+			if got := MigrationEvidenceRefusals([]MigrationObservedFile{f}, []MigrationTipEvidence{tip}); len(got) != 0 {
+				t.Errorf("%s/%s matching literal backslash evidence refused: %+v", role, ancestry, got)
+			}
+			if got := MigrationEvidenceRefusals(nil, []MigrationTipEvidence{tip}); len(got) == 0 {
+				t.Errorf("%s/%s unpublished literal backslash evidence omitted", role, ancestry)
+			}
+		}
+	}
+}
