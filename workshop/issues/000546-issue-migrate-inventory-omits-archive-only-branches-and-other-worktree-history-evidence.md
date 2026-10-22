@@ -53,7 +53,11 @@ The operator's existing freeze of all legacy SDLC writers remains a precondition
 
 ## Plan
 
-- [ ]
+Durable plan: [complete migration inventory](../plans/000546-migration-inventory-plan.md). Full flow, one atomic close boundary.
+
+- [ ] Implement typed evidence and pure matching while preserving related active reconciliation and close proofs.
+- [ ] Reuse the complete observer across init/migrate; cover all roots, tips and live worktree evidence with main-only imports.
+- [ ] Verify counted growth, private production CLI/native Git conformance and unchanged migration recovery; document, suite, close and land.
 
 ## Log
 
@@ -64,3 +68,7 @@ Filed unclaimed per TL direction, Couch 5119a959-0128-4420-89ee-9a91fb0b08d9. Re
 Claimed and started on a fresh main-based issue branch after #543's confirmed landing/cleanup. Read the current importer and real-Git regression contracts. Main's archive scan omits the flat root; branch deltas omit archive and inherited/unrelated presence; worktree dirtiness omits both archive roots and detached committed evidence. A bounded read-only survey independently confirmed these gaps and the active rename trap.
 
 Alternatives: (A, recommended) complete observation, main-only imports and conservative refusal of unrepresented non-main evidence; (B) import/merge records from every carrier, rejected because it needs new authority and conflict-selection rules; (C) patch the two reproduced scan sites, rejected because inherited/detached/name-excluded evidence remains invisible. ARCH-PURPOSE requires the root × scope class; ARCH-DRY keeps one path/root observer and separate init/migrate policy; ARCH-PURE keeps archive/presence decisions in the existing pure migration planner. No implementation begun; spec sent to TL for approval before the detailed plan.
+
+### 2026-10-22 — spec approved; durable plan frozen for review
+
+TL approved the complete root-by-scope spec and private production CLI/native bare-Git conformance with no stage (Couch 0fc506bf-9240-416e-b647-898eb9f309a1). A wording check explicitly preserved related-active merge-base/card-field reconciliation and allowed prose differences; byte matching applies to archive evidence and unrelated active snapshots only (7a42fef5-cd44-4876-b333-aff944ce8657). Detailed plan now names pure entities, shared observation extraction, finite refusal/recovery table, the exact preserved authority boundary, counted growth and adversarial guards. No implementation or recorded tests started. Await TL plan approval before change-code.
