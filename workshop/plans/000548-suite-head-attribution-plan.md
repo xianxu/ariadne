@@ -10,7 +10,7 @@ A suite's immutable tested head determines which issue may use its queue wait. S
 |---|---|---|---|
 | QueueHeadMembership | cmd/sdlc/actualqueue_head.go | new | Known local issue set or unknown, pinned to exact OID. Local lead refs reuse issueref.LeadLocalNums, not a second numeric regex; citations and foreign qualifiers never confer membership. |
 | selectQueueHeadMembership | same | new | Neutral integration/metadata commits inherit only their first-parent issue lineage; a definite different lead stops traversal. Real sibling branches and merged main controls reject reachability-as-ownership. Missing/truncated/ambiguous proof is unknown, never foreign. |
-| filterIssueQueueAttempts | same | new | Drop positively foreign heads before endpoint/engagement checks. Relevant or unknown heads keep strict evidence requirements; permutation and duplicate/head bindings cannot transfer credit. |
+| filterIssueQueueAttempts | cmd/sdlc/actualqueue_filter.go | new | Drop positively foreign heads before endpoint/engagement checks. Relevant or unknown heads keep strict evidence requirements; permutation and duplicate/head bindings cannot transfer credit. |
 | selectOwnedQueueAttempts | cmd/sdlc/actualqueue.go | unchanged contract | Existing owned interval clipping remains the final authority. Same-slot two-claim fixture reproduces the exact old refusal before filtering; own malformed evidence still refuses. |
 
 | Integration | Location | Change | Boundary and proof |
@@ -80,7 +80,7 @@ Named function contracts for the admitted implementation:
 | `parseQueueHeadObject`, `parseQueueHead` | PURE, `actualqueue_head.go` | Parse immutable raw headers/message, reuse issue lead grammar, mutate parent/trailer/subject identities and citations. Direct, neutral and purported-train cases must not fall through to unrelated authority. |
 | `selectQueueHeadMembership` | PURE reducer, `actualqueue_head.go` | Explicit parent-step/result values prove first-parent neutrality and same-train prefix union only, with16-car cap and unknown/malformed controls. No Git callback or mutable ref is an input. |
 | `readQueueHeadMemberships` | INTEGRATION, `actualqueue_head_git.go` | Stateful graph reader and real-Git fixtures cover missing/cancelled/overflow results. Count unique fact reads and reducer resolutions at N/2N, including shared parent tails. |
-| `filterIssueQueueAttempts` | PURE, `actualqueue_head.go` | Permute own/foreign/unknown results; foreign skips before owned-evidence validation, while relevant unknown and duplicate identity stay strict. Existing owned queue selector supplies independent endpoint/engagement controls. |
+| `filterIssueQueueAttempts` | PURE, `actualqueue_filter.go` | Permute own/foreign/unknown results; foreign skips before owned-evidence validation, while relevant unknown and duplicate identity stay strict. Existing owned queue selector supplies independent endpoint/engagement controls. |
 | `attachOwnedQueueEvidence` | INTEGRATION, existing `actualinputs.go` | Real two-claims/same-slot fixture records A's failed suite then measures B; the old0-matching-engagement symptom must go red before wiring. Own wait, prefix clipping and historical replay controls retain existing measurement authority. |
 
 ### 2026-10-22 — plan-quality immutable authority and resource envelope
@@ -94,3 +94,7 @@ PQ-3 (`concise-function-test-strategies`): the verification checklist now points
 ### 2026-10-22 — implementation proof details
 
 The command checks the lineage ceiling during discovery before requesting deeper unseen parents, and again over memoized dependency depths before returning membership. Neutral descendants share immutable issue sets; only train union allocates. This keeps derived membership storage proportional to parsed direct leads plus bounded train nodes, rather than multiplying a large lead list by every descendant. A conservative per-attempt probe reuses the existing owned selector only to rule out disjoint evidence; warnings/errors from that probe are deferred until immutable membership is known. Duplicate IDs are validated before foreign exclusion. The attachment receives the canonical issue ID explicitly. Adversarial resource regressions went red before these fixes.
+
+### 2026-10-22 — filter module location (BR-1)
+
+The pure attempt relevance probe and final membership filter live together in `cmd/sdlc/actualqueue_filter.go`, separate from raw commit parsing and membership reduction in `actualqueue_head.go`. Corrected both function-location tables to the implemented split; the pure/IO contract and approved behavior are unchanged. Audited all table locations against definitions, not only the first mismatched row.
