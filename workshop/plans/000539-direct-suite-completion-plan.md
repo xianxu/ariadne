@@ -29,9 +29,9 @@ Darwin's NOTE_EXITSTATUS supplies a wait status to an authorized nonparent obser
 | Name | Lives in | Status |
 |---|---|---|
 | DirectCompletionEvidence | scripts/test-lock.py | new |
-| DirectRetirementDecision | scripts/test-lock.py | new |
+| direct_retirement_decision(evidence, cancellation) | scripts/test-lock.py | new |
 
-Evidence names the exact owner binding, observed exit time, known wait status or unknown status, private group binding, group observation (empty / survivors / unknown), and cancellation state. One operation owns one evidence value. The decision is the sole authority for selecting normal retirement versus unresolved retirement; it does no IO. Keep explicit tagged outcomes rather than independent booleans whose combinations silently imply success. Future platforms can supply the same evidence without changing retirement policy. Unit tests in `scripts/test/test-lock-exit.test.py` enumerate the outcome matrix without subprocess mocks.
+Evidence names the exact owner binding, observed exit time, known wait status or unknown status, private group binding, group observation (empty / survivors / unknown), and cancellation state. One operation owns one evidence value. The decision is the sole authority for selecting normal retirement versus unresolved retirement; it does no IO. Keep explicit tagged outcomes rather than independent booleans whose combinations silently imply success. Future platforms can supply the same evidence without changing retirement policy. Unit tests in `scripts/test/test-lock-exit.test.py` execute the production decision without IO mocks.
 
 ### Integration points
 
@@ -76,6 +76,18 @@ This is batch teardown, not a per-keystroke path. Preserve the current 100-ms ca
 
 Measure scan call counts at N and 2N fake process entries: one enumeration, linear filtering, no per-process subprocess and no scan on idle watcher ticks. Existing 4096-operation/1-MiB registry bounds remain. Network is N/A: no network dependency or credential. Co-tenancy matters: use native metadata or a single bounded snapshot command, never repeated ps invocations per PID. Native process-list errors must remain visible. If a command is necessary, route it through the typed snapshot seam, with bounded output and timeout and a stateful fake.
 
+## Risky functions and executable test strategies
+
+| Production function | Adversarial strategy and independent mechanical guard |
+|---|---|
+| `direct_retirement_decision(evidence, cancellation)` | Generate the finite evidence-state product and event sequences; assert the independent invariant that only exact observed zero plus confirmed empty private group with no cancellation can finish. |
+| `decode_exit_evidence(fields)` | Seed a generative malformed/partial JSON corpus from the real incidents; strict rejection and raw unknown-field round trips guard against fabricated completion. |
+| `OwnerExitObserver.register()` / `.poll()` / `.close()` | Stateful owner/incarnation/event double with controlled timing plus real sibling-process conformance; a barrier proves registration before target release and independent parent wait checks status. |
+| `process_group_snapshot(pgid, owner)` | Stateful complete/partial native snapshots with counted N/2N entry filtering plus real private-group conformance; uncertainty must never equal emptiness and actual surviving children are independent witnesses. |
+| `start_owner_watcher(gate, watch)` | Inject failure at handshake boundaries and compare against real fork/session behavior; acquired output is forbidden before readiness and private FD/child cleanup is observed externally. |
+| `QueueGate.retire(evidence)` | Stateful filesystem crash/cancel interleavings through existing mutex; a fresh Go observer and independent physical-slot acquisition check durable terminal versus unknown behavior. |
+| `append_completion_audit(root, operation, evidence)` | Inject torn writes, size violations and fsync failures; strict whole-line reads and the operation's retained lifetime prove failed durability cannot announce normal completion. |
+
 ## Implementation and verification
 
 ### Task 1: Preserve incident evidence and reproduce normal completion
@@ -90,17 +102,17 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 
 **Files:** modify `scripts/test-lock.py`; test `scripts/test/test-lock-exit.test.py`.
 
-- [ ] Add pure decision tests for every table row: zero/empty, survivor, nonzero, signal, missing status flag, wrong incarnation, shared group, partial or failed snapshot, cancellation and malformed evidence. Test stateful ordering of cancellation before/after completion.
+- [ ] Write decision and evidence-parser tests using the strategies above and the state-transition table as the contract; run them red before implementation.
 - [ ] Register native exit observation in the forked watcher, detach its session, and acknowledge readiness through a bounded pipe handshake before returning acquired. Capture group/incarnation before registration, verify afterward, and fail conservatively on mismatch. Remove or reuse the currently unused `wait_for_exit` instead of leaving a second exit implementation.
-- [ ] Add real sibling-observer conformance tests for zero, nonzero and signal exit; verify the observer is not the target's parent. Exercise release immediately after acknowledgment to expose registration races. Add a process-group snapshot seam with complete/unknown outcomes and its real conformance test.
-- [ ] Feed exact exit and group observations into the pure decision. Keep managed borrowing and fenced cancellation unchanged. Exercise survivor-background-child and shared-shell-group controls; they must retain uncertainty and name survivors. No group killing or guessed descendant cleanup.
+- [ ] Implement `OwnerExitObserver` and `process_group_snapshot` through the named seams; execute their stateful and real-process conformance strategies above.
+- [ ] Feed exact exit and group observations into `direct_retirement_decision`; preserve managed borrowing and fenced cancellation. Apply its independent completion invariant through the actual watcher path.
 - [ ] Run the new file and `python3 scripts/test/test-lock-pause.test.py -v`; keep existing recycled-PID, surviving-child, mutex-reopen, cancellation, nested and managed controls.
 
 ### Task 3: Persist diagnostic evidence and cover crashes
 
 **Files:** modify `scripts/test-lock.py`; tests in `scripts/test/test-lock-exit.test.py`, `cmd/sdlc/internal/queuegate/codec_test.go`, `cmd/sdlc/queue_runtime_test.go`.
 
-- [ ] Write exit evidence on unknown outcomes and a compact diagnostic audit line for confirmed completion. Serialize final cancellation/binding validation and writes using `control.lock`. Preserve all additive raw fields. Test malformed evidence, duplicate keys, nested unknown numbers, truncated survivor lists and audit line size limits, torn append and fsync failures.
+- [ ] Write exit evidence on unknown outcomes and a compact diagnostic audit line for confirmed completion. Serialize final cancellation/binding validation and writes using `control.lock`. Preserve all additive raw fields. Apply the named parser, retirement and audit adversarial strategies above.
 - [ ] Inject failures before audit, before/after finished-phase persistence, and before/after unlink. A fresh Go observer must retain unknown before the committed terminal transition and remove terminal residue after it; no record from the three incidents is retroactively treated as finished.
 - [ ] Kill the watcher mid-run in a private fixture; verify unknown remains and no fabricated exit timestamp/status appears. Model a Couch/supervisor exit while the independent watcher survives; release the recipe and verify normal completion. Make clear that losing the watcher is different from restarting Couch. Test that late cancellation cannot rewrite a committed finished outcome.
 - [ ] Verify current Go strict decoding and rewriting preserve new evidence through `Extra`, and `detail` makes exit observations/survivors visible in a real private queue-status invocation. Add the new Python file to the existing Go helper integration runner so the recorded suite actually runs it.
@@ -129,3 +141,5 @@ Measure scan call counts at N and 2N fake process entries: one enumeration, line
 ## Revisions
 
 - 2026-10-21: TL approved the plan in receipt c86c6fec-3912-4277-9ea1-f519c2aa7f25, cutting the proposed 256-file diagnostic receipt store. Replaced it with one compact completion audit line beside reconciliation, with no receipt registry or sweeper. Kept the separate log because existing reconciliation readers require original unknown-operation records. Corrected the earlier outgoing checkpoint message: actual plan commit is `35fb28672`, not its accidental placeholder; the correction was also sent immediately through Couch.
+
+- 2026-10-21: PQ-1 refined the test contract: named the production decision, validation, observer, snapshot, handshake, retirement and audit functions, each with one adversarial strategy and independent mechanical guard; compressed prose input inventories into this table. Behavioral state table and approved scope are unchanged.
