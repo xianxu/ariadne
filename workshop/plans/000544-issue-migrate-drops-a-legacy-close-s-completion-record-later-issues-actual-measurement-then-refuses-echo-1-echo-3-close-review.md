@@ -191,3 +191,76 @@ findings:
    - Reconcile the documented tracker-history limit with the enforced value.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d04bacdd-c7d2-452b-8634-57cf67811bb9","repository":"github.com/xianxu/ariadne","issue_id":"000544","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/96a5c3de1f0b85d6","reviewed_head":"761da41c42be5520b570b0d18ce5f9d58c7990af","slot":"ariadne:1","requested_at":"2026-10-22T09:36:51.295773Z"},"phase":"finished","pid":18393,"started_at":"2026-10-22T09:36:51.501296Z","finished_at":"2026-10-22T09:42:56.588208Z","session_id":"01a162f8-7302-7910-8d47-feb6cbb9f08e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T03:09:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 544 — issue migrate drops a legacy close's completion record; later issues' actual measurement then refuses (echo#1 → echo#3) |
+| repo | ariadne |
+| issue file | workshop/issues/000544-issue-migrate-drops-a-legacy-close-s-completion-record-later-issues-actual-measurement-then-refuses-echo-1-echo-3.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2dd8537609f7442797016b44bdf1e957de342ba5..c90b0bd43d24d8b3e06c02d65c2569d08169eddc |
+| command | sdlc close --issue 544 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T03:09:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the issue’s revised migration, repair, exclusion, and cutover-measurement contracts. Both open findings are addressed with supporting evidence; no new blocking findings surfaced. This review does not establish the separately required final-head full-suite PASS.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Shared codecs retain unknown members throughout measurement records across JSON/YAML rewrites. The preservation matrix and production ledger rewrite pass; temporarily disabling retention makes all 40 matrix cases and the production rewrite regression fail.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The atlas history-bound passage and plan Revisions now specify 10,000 entries plus an overflow sentinel, matching legacyCompletionHistoryLimit and legacyGenerationHistory.
+```
+
+1. **Strengths**
+
+   - Migration, repair, and exclusion share immutable evidence verification and generation-continuity checks.
+   - Repair validates every publication base, including retries. Tests exercise restored authority, unrelated-card movement, cancellation, and uncertain publication.
+   - Hybrid measurements preserve distinct prefix/suffix evidence and replay after transcript appends.
+   - The frozen older decoder exactly matches the pinned base; compatibility tests confirm explicit hybrid refusal.
+   - README, help, and atlas document the new repair command and measurement behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed the gatestate, issue, tracker, and observe packages; selected command-level regressions passed in 126.150 seconds. Golint, shelllint, touched-package vet, and range whitespace checks passed. Mutation checks confirmed BR-3’s tests fail without retention. Temporary overlays were removed; the checkout remains clean. Echo conformance and the full recorded suite were not independently rerun here.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared codecs, evidence verifier, generation validator, and source-retention helper.
+   - **ARCH-PURE — pass:** selection, repair planning, temporal decisions, codecs, and result joining remain independently testable without IO.
+   - **ARCH-PURPOSE — pass:** import, existing-import repair, terminal recovery, and cutover-spanning replay are implemented.
+   - **ARCH-MOCK — pass:** existing seams support isolated Git repositories and controlled publication failures.
+   - **ARCH-CONSTRAINTS — pass:** history, snapshot, source-count, and nesting bounds have refusal paths and coverage.
+   - **ARCH-SECURE — pass:** persisted evidence receives strict validation; missing or contradictory authority refuses visibly.
+   - **ARCH-ORDER — pass:** continuity checks and conditional publication protect retries; deterministic schedules exercise relevant races.
+   - **ARCH-FUNERAL — pass:** bounded metadata uses existing artifact families; confirmed repair retries add no commits.
+   - **ARCH-EVOLVE — pass:** unknown members survive rewrites; incompatible hybrid interpretation has an explicit version/method boundary.
+
+7. **Plan revision recommendations:** None required. Existing Revisions describe the delivered compatibility and publication-fence corrections.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1f7baefa-4f22-4429-b540-3b5df657a955","repository":"github.com/xianxu/ariadne","issue_id":"000544","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/7fd41feeb807828e","reviewed_head":"c90b0bd43d24d8b3e06c02d65c2569d08169eddc","slot":"ariadne:1","requested_at":"2026-10-22T10:06:05.891901Z"},"phase":"finished","pid":59743,"started_at":"2026-10-22T10:06:05.986698Z","finished_at":"2026-10-22T10:09:30.758234Z","session_id":"01a16313-37a8-7af1-82a5-788fd7064deb","outcome":"returned"}] -->
