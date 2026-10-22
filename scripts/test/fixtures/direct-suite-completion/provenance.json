@@ -1,0 +1,25 @@
+{
+  "source": "/Users/xianxu/.local/state/ariadne/queue/reconcile.jsonl",
+  "source_member": "original (base64 decoded without JSON normalization)",
+  "timestamps": "reconciled_at is audit reconciliation time, not watched-process exit time; originals have no exit status or timestamp",
+  "records": [
+    {
+      "id": "65dbdc31d6444c45a8692456d1e0a595",
+      "sha256": "1ca996749fca4c752f74e1802b465ccbc11ff79567a04cbbc5f96c32782250c6",
+      "source_line": 2,
+      "reconciled_at": "2026-10-22T01:25:41.720585Z"
+    },
+    {
+      "id": "f70ce4520db34fdaa8208eb03bf778c0",
+      "sha256": "7dbdcd3470524c1e2150fc99d31898c0ce597c64ad81ca26b44593fda40f82b7",
+      "source_line": 3,
+      "reconciled_at": "2026-10-22T02:50:08.407156Z"
+    },
+    {
+      "id": "b54088501a804c8eab8d7bab2de27e79",
+      "sha256": "e61db6374cc1a79edcafa53eb1b6d8bd127afaf1b28f5669c01c656e25f0923a",
+      "source_line": 4,
+      "reconciled_at": "2026-10-22T04:27:31.974581Z"
+    }
+  ]
+}
