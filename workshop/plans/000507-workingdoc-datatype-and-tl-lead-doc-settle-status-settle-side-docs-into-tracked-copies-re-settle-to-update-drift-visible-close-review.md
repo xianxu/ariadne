@@ -249,3 +249,113 @@ findings:
    - An authoritative settlement transition/effect contract replacing the currently unenforced claim at plan line 49.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"af5eed74-e535-412b-9833-04db67d9f721","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5bfd30daaf9753de","reviewed_head":"925290911ba2a36408fdbf416ee06922ad5eee0a","slot":"ariadne:4","requested_at":"2026-10-22T01:59:43.319496Z"},"phase":"finished","pid":16075,"started_at":"2026-10-22T01:59:43.479128Z","finished_at":"2026-10-22T02:04:40.239309Z","session_id":"01a16155-ee04-7892-ba23-4bea4502c786","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T21:03:19-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 507 — workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible |
+| repo | ariadne |
+| issue file | workshop/issues/000507-workingdoc-datatype-and-tl-lead-doc-settle-status-settle-side-docs-into-tracked-copies-re-settle-to-update-drift-visible.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 510aab6ff3a55bfdf5472e45eedf5512f6d04420..98e25bfe17f3fe372fc59d10c5a40fdeb871a4b4 |
+| command | sdlc close --issue 507 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T21:03:19-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-5 and BR-6 are addressed, with independently confirmed failing regression tests when their fixes are removed. Existing package and publication tests pass. One additional correctness defect blocks shipping: settlement silently rewrites literal code examples, publishes the altered copy, and stamps the source as successfully settled.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Pointer generation reparses its output and checks exact equality; adversarial path and byte-preservation regressions pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      First settlement supplies --expect-absent, enforced inside every publication CAS callback; ownership regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Production coordinator tests cover lost acknowledgments, pre-write failure, late locks, unavailable readback, source edits and retries; the full package passes.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Operating fixtures provide an isolated sdlc agent-id executable and assert its trailer; operating publication tests pass.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Literal masks derive from actual Goldmark code nodes. Restoring the previous scanner makes all four block-boundary scanner and no-effects coordinator regressions fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Publication and stamping require model permissions before execution, and failure/unconfirmed outcomes retire permissions. Removing the production authorization guard makes both forbidden-effect regressions fail.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: markdown-literal-preservation
+    title: |
+      Settlement publishes rewritten code examples
+    detail: |
+      cmd/tl-lead/doc_project.go:28 delegates to sidedoc.RebaseLinks, whose line-based literal detection misses multiline code spans, indented code, and fences nested in lists or blockquotes. Disposable-checkout probes through projectWorkingdoc and the production settleWorkingdoc coordinator reproduced all four cases: literal [example](../README.md) became [example](../../README.md), with Published=true and Stamped=true. This violates the plan's line 29 preservation contract (ARCH-PURPOSE); the scanner and rebaser also apply inconsistent Markdown literal rules (ARCH-DRY). Establish one shared rule for actual Markdown code contexts and sweep all projection rewrites, with pure preservation tests and coordinator regressions covering these four contexts plus ordinary-link controls.
+```
+
+1. **Strengths**
+
+   - Exact published-blob readback precedes source stamping, with whole-file CAS protecting newer source edits ([doc_settle.go:386](/Volumes/TestScratch/review-checkouts/32605a8eb9a9ff96/cmd/tl-lead/doc_settle.go:386)).
+   - Publication reuses the existing trunk transaction and enforces first-settlement ownership on every CAS attempt.
+   - Stateful fixtures exercise partial publication, lost acknowledgments, locks and retry identity.
+   - README and atlas updates document the new commands, publication semantics and recovery behavior.
+
+2. **Critical findings**
+
+   - **Literal-code preservation:** [doc_project.go:28](/Volumes/TestScratch/review-checkouts/32605a8eb9a9ff96/cmd/tl-lead/doc_project.go:28) publishes altered examples. Fix the shared rebasing boundary so only actual Markdown links are rewritten; preserve code-node bytes across every supported container.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Passed: full `cmd/tl-lead` and `cmd/datatype` tests.
+   - Passed: `cmd/sdlc` tests matching `TestWorkingdocTrunk|TestTrunkPublish`.
+   - Passed: pinned-range `git diff --check`.
+   - Independently confirmed BR-5/BR-6 mutation failures.
+   - Four additional literal-preservation probes failed through both projection and the production coordinator.
+   - Disposable checkouts were removed; the reviewed checkout remains unchanged. The full repository suite and live Couch conformance were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — flag:** scanner and rebaser disagree about literal Markdown contexts.
+   - **ARCH-PURE — pass:** parsing, projection and classification remain directly testable through supplied inputs.
+   - **ARCH-PURPOSE — flag:** published copies do not preserve authored code examples.
+   - **ARCH-MOCK — pass:** stateful Couch/repository fixtures and portable bare remotes exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** bounded documents, batched baseline reads and scoped subprocesses enforce the declared envelope.
+   - **ARCH-SECURE — pass:** inspected paths, pointers and publication receipts receive explicit validation.
+   - **ARCH-ORDER — pass:** production publication/stamping consume model permissions and stop on uncertain outcomes.
+   - **ARCH-FUNERAL — pass:** temporary resources have cleanup; durable copies and the constant-size lock have documented lifecycles.
+   - **ARCH-EVOLVE — pass:** managed pointer edits preserve unknown metadata bytes, including nested members.
+
+7. **Plan revision recommendations**
+
+   Add a `## Revisions` entry naming the complete literal-preservation rule and its regression matrix: multiline spans, indented blocks, list/blockquote fences, ordinary fences and ordinary links. Retain the existing preservation requirement; the implementation needs to satisfy it.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7a6bb200-38d0-4645-b21d-b37d87f6e6dc","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/32605a8eb9a9ff96","reviewed_head":"98e25bfe17f3fe372fc59d10c5a40fdeb871a4b4","slot":"ariadne:4","requested_at":"2026-10-22T04:00:03.646849Z"},"phase":"finished","pid":47681,"started_at":"2026-10-22T04:00:03.778922Z","finished_at":"2026-10-22T04:03:18.813413Z","session_id":"01a161c4-1a0d-7001-ba85-c0de1ca5673b","outcome":"returned"}] -->

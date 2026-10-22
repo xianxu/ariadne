@@ -85,6 +85,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Post-BR-5/6 recorded suite PASS on 4886a014ea52f498d3475603ebc1e59fff7ca2a2: 8 shards, 1,960 SDLC tests and 75 other packages, zero failures, wall 908.7s; recorded sdlc-local/suite, log SHA256 prefix 4fb0c18091a0. Retained lease-2210632118 completed after its FIFO wait. Re-closing now per TL hourly sweep; any new mechanism-level review gap will be reported before further implementation.
 
+- Close round 3 disposed BR-5/6 and returned REWORK with new Critical BR-7 (markdown-literal-preservation): the shared sidedoc.RebaseLinks still uses older line-based literal detection, so multiline spans, indented code and list/blockquote fences can have example links rewritten before successful publication/stamping. Reviewer reproduced four pure/coordinator probes. Per TL instruction, stopped before implementing another mechanism-level correction and reported the concrete shared-boundary proposal to hub. No stage or live effect occurred; awaiting TL decision.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
