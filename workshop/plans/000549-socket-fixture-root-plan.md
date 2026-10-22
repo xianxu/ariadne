@@ -25,6 +25,7 @@ All named functions below are proposed implementation names, not claims they alr
 | Pure entity / risky function | Lives in | Status | Adversarial strategy and independent guard |
 |---|---|---|---|
 | socketFixtureRoots | pkg/golint/socket_root.go | new | Replay recorded unsafe/corrected source through actual Check and CheckSources; assert finding locations, not only counts. Catalog registration and TestAtlasNamesEveryRule enforce discovery. |
+| analyzeSocketRoots | pkg/golint/socket_root.go | new | Actual AST-to-graph analysis entry used by the rule and counted N/2N tests; graph propagation and sink controls exercise it directly. |
 | socketRootGraph / propagateInheritedRoots | pkg/golint/socket_root.go | new | Aliases, multi-result MkdirTemp, branch writes, shadowing and cycles; explicit graph visit counters at N and 2N reject repeated whole-graph rescans. |
 | socketRootSink | pkg/golint/socket_root.go | new | Exact import identity, renamed imports, unrelated same-name methods, TCP controls and independent isolation parent/hashed namespace; API matrix tests pin actual length-sensitive argument selection. |
 | Catalog | pkg/golint/rules.go | modified | Shared production catalog rejects original misuse; existing tmp-literal ordinary-file controls remain unchanged. |
@@ -68,25 +69,25 @@ There is no durable runtime state, user cancellation protocol or external event 
 
 Files: create pkg/golint/socket_root_test.go and testdata/socket-root source/evidence fixtures.
 
-- [ ] Obtain/record provenance of Pair's original failure and corrected source. Reproduce the original source shape in the normal Check path; expect a finding at its isolation-root/namespace sink, initially absent under the old catalog.
-- [ ] Add adversarial tests from the pure-function strategy table and supported-analysis contract; executable tests own the concrete cases and finding locations.
-- [ ] Run `go test ./pkg/golint -run 'TestSocketFixtureRoot' -count=1 -v`; retain meaningful RED before implementation.
+- [x] Obtain/record provenance of Pair's original failure and corrected source. Reproduce the original source shape in the normal Check path; expect a finding at its isolation-root/namespace sink, initially absent under the old catalog.
+- [x] Add adversarial tests from the pure-function strategy table and supported-analysis contract; executable tests own the concrete cases and finding locations.
+- [x] Run `go test ./pkg/golint -run 'TestSocketFixtureRoot' -count=1 -v`; retain meaningful RED before implementation.
 
 ### 2. Pure rule and catalog integration
 
 Files: create pkg/golint/socket_root.go; modify pkg/golint/rules.go.
 
-- [ ] Implement source/API indexing, path dependency graph and one-way worklist propagation; report only recognized sink nodes with proven inherited input. Reuse the existing lint parser and suppression engine.
-- [ ] Run the red selection to GREEN; exercise both Check and CheckSources and all supported cases. Add counted growth tests through the actual analyzer and verify N/2N bounds, shared fan-out and cycles.
-- [ ] Mutation check: remove producer recognition or a required propagation edge and confirm the recorded positive regression fails; add a broad function-level taint and confirm corrected/unrelated-temp negative controls fail. Restore code before committing.
+- [x] Implement source/API indexing, path dependency graph and one-way worklist propagation; report only recognized sink nodes with proven inherited input. Reuse the existing lint parser and suppression engine.
+- [x] Run the red selection to GREEN; exercise both Check and CheckSources and all supported cases. Add counted growth tests through the actual analyzer and verify N/2N bounds, shared fan-out and cycles.
+- [x] Mutation check: remove producer recognition or a required propagation edge and confirm the recorded positive regression fails; add a broad function-level taint and confirm corrected/unrelated-temp negative controls fail. Restore code before committing.
 
 ### 3. Native proof, documentation and close
 
 Files: pkg/golint/socket_root_test.go; atlas/workflow/sdlc-binary.md; workshop/lessons.md; README.md only if its existing lint discovery pointer needs changing.
 
-- [ ] Add the private native listener regression under a real long TMPDIR, selecting a canonical short TestScratch root when available or explicitly short /tmp otherwise, immediate cleanup, successful connect/accept and verified root removal. Test selection/fallback logic independently without changing machine mounts or settings. Retain existing 103-byte socket bounds; no transport/timeout changes.
-- [ ] Run `go test ./pkg/golint -count=1` and the targeted native test with `-race`. Run Pair's existing corrected resource RPC test read-only as cross-repo conformance when its checkout is safe and available; do not edit Pair or use live Couch. Ask the hub if unavailable rather than silently substituting a live fleet test.
-- [ ] Document the rule, exact recognized APIs, conservative write join, unsupported helper boundary and short-root/tmp-literal rationale. Check the existing README lint discovery pointer; update atlas's derived catalog coverage and lessons.
+- [x] Add the private native listener regression under a real long TMPDIR, selecting a canonical short TestScratch root when available or explicitly short /tmp otherwise, immediate cleanup, successful connect/accept and verified root removal. Test selection/fallback logic independently without changing machine mounts or settings. Retain existing 103-byte socket bounds; no transport/timeout changes.
+- [x] Run `go test ./pkg/golint -count=1` and the targeted native test with `-race`. Under TL's native-private-listener-only smoke decision, cross-repo coverage is the recorded original/corrected Pair source replay; do not execute Pair or use live Couch.
+- [x] Document the rule, exact recognized APIs, conservative write join, unsupported helper boundary and short-root/tmp-literal rationale. Check the existing README lint discovery pointer; update atlas's derived catalog coverage and lessons.
 - [ ] Commit/push final code, run `sdlc local-check run --name suite`, record evidence, close with SDLC's mandatory review, enter managed merge and report the outcome. No separate review agent or live :0 stage is proposed for a pure source lint plus native private-resource tests; TL decides smoke.
 
 ## Architecture lenses
@@ -96,3 +97,7 @@ ARCH-DRY: one catalog rule and provenance graph, reuse parsing/import/suppressio
 ## Revisions
 
 2026-10-22 14:01 PDT — PQ-1: correct the sink-contract class by recognizing actual path parents, not hash inputs. Remove the unconditional Pair namespace sink, retain inherited isolation-root Setenv and generic Unix path sinks, and require a bounded-parent/long-namespace negative control. All other analysis bounds and private-native verification remain as approved. PQ-2: compress repeated implementation test inventory into the function strategy/contract references. Await TL confirmation of this correction before code.
+
+2026-10-22 14:04 PDT — TL confirmed PQ-1 correction and native-only smoke. Plan-quality CLEAN with prior findings addressed, estimate recorded and change-code passed. Implementation names the single graph-construction entry analyzeSocketRoots, now included in Core concepts; no design or scope change.
+
+2026-10-22 — Verification follows TL's approved native-private-listener-only smoke: exact original/corrected Pair Git blobs run through the source lint, while the owned native listener proves path length and cleanup. The optional read-only Pair RPC run is superseded by this explicit smoke decision, not claimed as executed.

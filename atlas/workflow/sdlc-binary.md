@@ -2472,6 +2472,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
+`test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
@@ -2486,6 +2487,29 @@ a second over about 1,140 files). A finding that doesn't apply is suppressed on 
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
+
+`test-socket-fixture-root` is a test-only, syntax-only provenance check. It follows
+`os.TempDir`, empty/inherited-parent `os.MkdirTemp` and visible testing
+`T`/`B`/`F`/`TB.TempDir` through local bindings, aliases, concatenation,
+`filepath.Join`/`Clean`/`Abs`/`EvalSymlinks` and `net.UnixAddr.Name`. Findings occur
+at literal-Unix-network `net.Listen`, `ListenPacket`, `Dial`, `ResolveUnixAddr`,
+`ListenUnix`, `ListenUnixgram` and `DialUnix`, or literal `COUCH_ISOLATED_ROOT`
+settings via `os.Setenv` or a visible testing receiver. Imported aliases resolve
+by exact import path; shadowed qualifiers do not count as imports. Pair's
+`SocketPath` namespace is hashed, so a long namespace alone is not a finding:
+the isolation-root setting selects its length-sensitive parent. Unrelated
+temporary data and `TMPDIR` settings remain allowed.
+
+The rule conservatively joins all visible writes to a binding, including writes
+after a sink; it does not infer branch execution or overwrite ordering. Opaque
+helpers, function-value aliases, dynamic network/environment keys, dot imports,
+interface dispatch and arbitrary container mutations are outside its boundary;
+no finding is not a safety proof. The graph indexes syntax once and propagates
+each inherited node/edge once, with counted growth tests. Keep ordinary files on
+TMPDIR. For a socket fixture, use a short canonical private root, prefer usable
+TestScratch, register cleanup immediately, and retain a reasoned `tmp-literal`
+exception when needed. Suppress this rule only where the actual flow is proven
+bounded, explaining the proof on the sink line or the line above.
 
 Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
 comment when it receives JSON from a peer binary, agent or toolchain that may

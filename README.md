@@ -16,6 +16,10 @@ peer-message type; version-pinned local stores should remain unmarked. See the
 [wire-message lint convention](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407)
 for the covered decoder chain and reasoned exceptions.
 
+Unix-socket test fixtures need short private roots even when ordinary temporary
+files follow a long `TMPDIR`. The shared catalog traces inherited temp roots to
+socket sinks; see the [socket-fixture lint boundary and exceptions](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407).
+
 For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).

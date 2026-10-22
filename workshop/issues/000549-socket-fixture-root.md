@@ -67,8 +67,8 @@ total: 0.882
 
 ## Plan
 
-- [ ] Red-first recorded source replay and source-to-socket flow controls.
-- [ ] Implement the shared catalog rule and counted local provenance analysis.
+- [x] Red-first recorded source replay and source-to-socket flow controls.
+- [x] Implement the shared catalog rule and counted local provenance analysis.
 - [ ] Verify short-root Unix sockets under long TMPDIR, document the boundary, run recorded suite and close review.
 
 Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.md). Awaiting TL approval before code.
@@ -82,6 +82,12 @@ Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.
 2026-10-22: TL approved the design and native-private-listener-only smoke; no live fleet or :0 stage. Plan-quality round 1 found PQ-1 (Important): the proposed unconditional Pair namespace sink is a false positive because the namespace is hashed. Verified against transport.go:36-66. Corrected the plan to report inherited COUCH_ISOLATED_ROOT setting, keep generic actual Unix path sinks, and require long inherited namespace + bounded parent to remain clean. This preserves rejection of the original fixture at its isolation-root setting. PQ-2 (Minor) prose inventory compressed. Await TL confirmation of this design delta; implementation has not started.
 
 2026-10-22: Plan-quality round 2 CLEAN, both PQ-1/PQ-2 addressed and no new findings. Derived the full-flow estimate only after this result, against the printed stale/provisional calibration; 0.882h itemized above. TL confirmation of the semantic correction remains pending; no implementation yet.
+
+2026-10-22: TL confirmed PQ-1 correction via authenticated receipt 1f2465f0-878f-4cb3-9bca-e839477262fe. Full-flow change-code passed (plan-quality CLEAN, no blockers; estimate-quality INFO noted optimistic verification budget). Implemented only after these gates. Exact original/corrected Pair source blobs were retained from commits printed by Git, with provenance README distinguishing source capture from the issue-reported diagnostic.
+
+2026-10-22: RED: TestSocketFixtureRootRecordedPairSource/unsafe produced no expected finding under the old catalog; every supported positive flow likewise failed while the corrected/unrelated-data controls passed. GREEN: shared test-only rule recognizes actual isolation-root/Unix path sinks and preserves hashed namespaces. Focused source/API/engine tests pass; full pkg/golint PASS 1.793s, focused race run PASS 1.199s. N64 counters AST1633/nodes650/edges648/propagated581/sinks128; N128 AST3233/nodes1290/edges1288/propagated1157/sinks256, within one-pass bounds including fan-out and cycle. Native listener opened an 82-byte socket under TestScratch despite 254-byte inherited TMPDIR; owned listener/root closed and removed. Preference/fallback selector covered without machine changes. No live fleet, :0 stage or Pair checkout edits.
+
+2026-10-22: Independent Go overlay mutations: removing empty-parent MkdirTemp recognition made the original unsafe source regression fail (missing finding); widening sink taint to any inherited value made the corrected Pair source regression fail (false positive at isolation-root setting). Both failed for the intended behavioral assertion; overlays removed automatically, production source untouched. README discovery and atlas rule/boundary guidance updated. Recorded full suite and close review remain outstanding.
 
 ## Revisions
 
