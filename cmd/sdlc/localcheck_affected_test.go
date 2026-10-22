@@ -254,22 +254,24 @@ func TestDeclaredCheckResolvesAffected(t *testing.T) {
 		switch args[0] {
 		case "fetch":
 			return "", nil
+		case "rev-parse":
+			return strings.Repeat("a", 40), nil
 		case "ls-tree":
 			if _, ok := files[args[len(args)-1]]; ok {
 				return args[len(args)-1] + "\n", nil
 			}
 			return "", nil
 		case "show":
-			return files[strings.TrimPrefix(args[1], "origin/main:")], nil
+			return files[strings.TrimPrefix(args[1], strings.Repeat("a", 40)+":")], nil
 		}
 		return "", fmt.Errorf("unexpected git %v", args)
 	}
-	c, err := declaredCheck(context.Background(), git, affectedCheckName)
+	c, err := declaredCheck(context.Background(), git, affectedCheckName, strings.Repeat("b", 40))
 	if err != nil || c.Name != affectedCheckName || strings.Join(c.Command, " ") != "make test-affected" || c.Weight != 2 || c.KnownFlakes != "accept" {
 		t.Fatalf("%+v %v", c, err)
 	}
 	delete(files, affectedConfigPath)
-	if _, err := declaredCheck(context.Background(), git, affectedCheckName); err == nil || !strings.Contains(err.Error(), affectedConfigPath) {
+	if _, err := declaredCheck(context.Background(), git, affectedCheckName, strings.Repeat("b", 40)); err == nil || !strings.Contains(err.Error(), affectedConfigPath) {
 		t.Fatalf("no affected.json: %v", err)
 	}
 }

@@ -103,18 +103,48 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
-ENVIRONMENT FAILURE (#477)
+COMMAND ENVIRONMENT (#545)
+
+  Every managed command receives SDLC_CALLER_ROOT, the initiating checkout
+  (also for train trees), while cwd remains the exact tested checkout.
+  Its construct/deps supplies SDLC_DEP_SUBSTRATE and SDLC_DEP_DATA: absolute
+  paths resolved against the caller, substrate via layergraph's existing
+  primary-checkout fallback, data via its mount. No transitive exports.
+  Identical same-kind paths dedupe; conflicting paths name both rows and
+  refuse before execution. Missing declarations export only caller identity;
+  invalid/unreadable declarations refuse. Inherited reserved values are cleared.
+  Absent declared paths stay visible; repair dependencies and retry as needed.
+  These are read-only inputs: suites must never write to dependency checkouts.
+
+ENVIRONMENT FAILURE (#477, #530)
 
   A completed failed suite whose entire output proves Go could not create
-  its work directory is a could-not-run error naming GOTMPDIR/TMPDIR.
+  its work directory, write its cache/build output (ENOSPC or quota), or find
+  its toolchain is a could-not-run error naming the resource and reported path.
+  The first Go command also qualifies if typed launch evidence proves its
+  executable/interpreter was missing and no process started. A later command
+  or an unrelated missing executable does not establish startup-only failure.
   Its raw output is retained separately as <sha>/<name>.environment.log
   (latest per check/head, within the existing newest-20-head retention).
   It posts no code-failure status/comment and saves no code-suite attempt.
-  Repair temp-directory access and rerun the check or merge on the same head.
+  Repair the environment and rerun the check or merge on the same head.
   This cannot erase a previous genuine failed attempt. Mixed, quoted, unknown,
   truncated or timed-out output stays under the ordinary failure rules.
   A main baseline that could not run leaves main's health unknown, including
   on a landing train; it neither declares main red nor blames/splits cars.
+
+  To correct an already recorded startup infrastructure failure:
+    sdlc local-check reclassify --attempt ID --reason 'cache storage repaired'
+  Only its recorded owner or this repository's :0 may act. The immutable log
+  must match its recorded hash and the same complete startup-only grammar.
+  Empty historical logs, mixed/test-started/truncated evidence, passes and
+  timeouts refuse. A reason alone never waives a failure.
+  The original bytes, actor, UTC time, reason and diagnosis are audited before
+  an atomic nonpassing v3 disposition replaces authority. Repeat the exact ID
+  after interruption. No GitHub status is rewritten and no old pass is promoted;
+  record a genuine run after correction. Audit and attempt share retention.
+  #524-era readers refuse only the corrected subject with upgrade guidance;
+  older readers may refuse more broadly. No reader may interpret it as a pass.
 
 SUITE QUEUE PRIORITY (#452)
 
@@ -133,6 +163,21 @@ THE SUITE (#332)
   its recorded pass. A repository that declares none gets its `make test`, at
   the weight its Makefile gives (WF_TEST_WEIGHT): both read from main, so a
   branch cannot drop or lighten the suite it owes. Run it before close:
+
+  Bootstrap (#536): only when main has no declaration and no test target,
+  the exact pushed head may supply the default required make test and weight.
+  The run and landing gate label it bootstrap and record sdlc-local/suite on
+  that head through the ordinary managed queue. The head's first declaration
+  supplies no commands, custom checks or CI substitutes until it lands on main;
+  --all still runs only the default. A present valid empty main declaration
+  prevents bootstrap. Unknown or failed probes refuse rather than mean absent.
+  If neither tree has a target, add make test, push, then run
+  sdlc local-check run --name suite. A declaration change still requires the
+  operator's local-gates-verified label; agents never apply it themselves.
+  Republish and resume re-read current main policy with the saved/original
+  commit, so moving the caller's HEAD does not change bootstrap recovery.
+  Trains derive this policy for each actual prefix and after reintegration:
+  a prefix without a target cannot borrow a later prefix's run or pass virtually.
 
   A declared suite overrides command, timeout and weight, but is always
   required, even when its required field is omitted or false.
@@ -211,6 +256,43 @@ THE AFFECTED SUITE (#473)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
+RESUME A SAVED SUITE FAILURE (#463)
+
+  sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA
+
+  Explicitly select an ordinary completed failed suite on its original pushed
+  commit. Current main policy and open flake registrations must explain every
+  failure. The command runs one exact-package batch of whole top-level tests,
+  under one weight-1 suite lease and aggregate timeout. Even policy accept
+  requires actual package-bound JSON PASS proof here. The original record,
+  log and full-suite duration remain unchanged; status names parent/child IDs
+  and the registered issues. Repeat resume or republish validates current proof
+  without execution. A changed registry, policy or raw log refuses success.
+
+  An immutable link is published before launch. Pending, failed or interrupted
+  links block every same-head suite/affected success, including a later full
+  green suite. Cancellation uses local-check cancel; uncertain completion does
+  not permit another launch. After a crash, wait for the owner to stop and have
+  the operator or :0 steward verify that all descendants stopped, then use the
+  exact raw link digest printed by the refusal:
+
+  sdlc local-check reconcile --attempt ID --link-digest SHA256 --note TEXT
+
+  This checks the original owner PID incarnation under the parent lock and
+  saves an immutable terminal interrupted receipt. Descendant discovery is not
+  automatic: --note is the operator's attestation. It never posts a pass, deletes
+  a link or invents an attempt. It never removes scratch, checkout, registration
+  or owner markers, and never unlocks or retries cleanup. Repeating the same
+  reconciliation returns the same audit receipt with zero destructive effects.
+  The original live owner gets one cleanup pass; any failure, crash or first-pass
+  inconsistency reports needs-reconcile and preserves surviving files and Git
+  locks. Already completed unlinks cannot be restored. Pending/interrupted bundles
+  and every terminal/orphan receipt remain pinned regardless of lock visibility.
+  Retained logs, checkout and scratch consume disk indefinitely; no automatic
+  reclamation is promised. Completed-child successful-cleanup GC is unchanged.
+  Fix/advance code and run a suite on a new head. An independently unknown queue
+  operation still requires its own queue reconciliation.
+
 REPUBLISH (#431)
 
   A run saves its attempt (outcome, duration, log and its sha256, under
@@ -267,3 +349,4 @@ USAGE
   sdlc local-check cancel --run <lease-id>  # stop one owned run, retaining siblings
   sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result
+  sdlc local-check reclassify --attempt ID --reason 'cache repaired'

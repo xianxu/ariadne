@@ -67,6 +67,9 @@ drain-idle	own	end the turn and stay idle
 drain-no-report	own	Do not send a separate drained report
 drain-suites	own	full suites through `sdlc local-check run --name suite`
 drain-targeted	own	targeted tests through `go test -run`
+verify-every-agent	own	every agent kind in its tests and in any live check
+live-bug-replay	own	replayed in the normal suite
+live-disposable-couch	own	shared disposable-Couch harness (cmd/internal/testcouch,
 check-checkpoint-timing	own	Checkpoint before queuing a long recorded check, or after it finishes.
 check-restart-prohibit	own	Do not checkpoint a continuation or restart
 check-restart-own	own	while your own recorded check is
@@ -77,3 +80,5 @@ check-restart-decision	own	let it decide whether to wait or
 check-restart-verify	own	After any restart, verify retained checks
 check-restart-head	own	on the exact head before assuming it survived
 check-restart-cancel	own	cancel and requeue.
+
+external-outage-540	own	Report an external dependency outage to the hub immediately as an incident

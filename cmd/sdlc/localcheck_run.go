@@ -33,9 +33,12 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
-	GH   ghCaller
-	Repo string // owner/name
-	Root string // the checkout's top level; Makefile.workflow resolves from here
+	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
+	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
+	StrictGroupCleanup bool               // resume retains its suite capacity but confirms descendant cleanup
+	GH                 ghCaller
+	Repo               string // owner/name
+	Root               string // the checkout's top level; Makefile.workflow resolves from here
 	// WorkflowAnchor is the checkout Root was made from, when Root is a
 	// disposable tree whose relative Makefile.workflow link does not resolve
 	// where it sits (a landing train's, #486); "" when Root is that checkout.
@@ -109,8 +112,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
 			subject = suitePrioritySubject{CommonDir: d.Root}
 		}
+		if d.PriorityIssues != nil {
+			subject.Issue, subject.Issues = 0, d.PriorityIssues(sha)
+		}
 		if !isTestCheck(c.Name) || d.SkipRecord {
-			subject.Issue = 0
+			subject.Issue, subject.Issues = 0, nil
 		}
 	}
 	logDir, err := localCheckLogDir(d)
@@ -171,6 +177,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
+		var startup *suiteEnvironmentError
+		if errors.As(err, &startup) {
+			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, startup.Diagnosis)
+			publishing = path == rec.LogPath
+			rec.LogPath = path
+			return rec, envErr
+		}
 		var uncertain *runnerCleanupUnconfirmed
 		if errors.As(err, &uncertain) {
 			publishing = true
@@ -193,11 +206,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Missing/oversized output proves nothing about the environment.
 	facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
 	if log, readErr := readLocalCheckLog(rec.LogPath); readErr == nil {
-		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
-			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath)
-			publishing = path == rec.LogPath // preserve raw inflight log if retention failed
-			rec.LogPath = path
-			return rec, envErr
+		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut {
+			if diagnosis, startup := diagnoseSuiteStartup(string(log)); startup {
+				path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, diagnosis)
+				publishing = path == rec.LogPath // preserve raw inflight log if retention failed
+				rec.LogPath = path
+				return rec, envErr
+			}
 		}
 		facts = parseSuiteLogFacts(string(log))
 		for _, warning := range facts.Warnings {
@@ -265,6 +280,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 			}
 			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
+			if c.Name == suiteCheckName && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
+				fmt.Fprintf(d.Stderr, "    after registering every named flake: sdlc local-check resume --name suite --attempt %s --rev %s\n", writer.ID, sha)
+			}
 			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
 				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)
 			}
@@ -332,7 +350,11 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			return suiteSlotRun{Exit: -1}, errors.New("empty managed command")
 		}
 	}
-	if resource == "runner" && d.runnerLifetime == nil {
+	env, err := localCheckEnvironment(d.callerRoot(), wt)
+	if err != nil {
+		return suiteSlotRun{Exit: -1}, fmt.Errorf("local check dependency environment: %w", err)
+	}
+	if (resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
 	run = suiteSlotRun{Exit: -1}
@@ -440,7 +462,6 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	defer logf.Close()
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
-	env := os.Environ()
 	if resource == "runner" {
 		env = withoutSuiteAuthority(env)
 	}
@@ -454,6 +475,12 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		return run, err
 	}
 	defer func() {
+		if d.StrictGroupCleanup {
+			// ownedCtx is intentionally canceled by stopSignals on normal completion.
+			// Cleanup still requires the original caller to remain uncancelled.
+			err = finishResumeScratch(ctx, d, run, scratch, err)
+			return
+		}
 		if d.runnerLifetime.mayRetire() {
 			scratch.Cleanup()
 			if resource == "runner" {
@@ -461,9 +488,17 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			}
 		}
 	}()
-	if resource == "runner" {
+	if resource == "runner" || d.StrictGroupCleanup {
 		if err := attachRunnerArtifactOwner(scratch.Dir, wt); err != nil {
 			return run, fmt.Errorf("protect runner scratch: %w", err)
+		}
+		if d.StrictGroupCleanup {
+			if err := syncResumeDirectory(scratch.Dir); err != nil {
+				return run, err
+			}
+			if err := syncResumeDirectory(filepath.Dir(scratch.Dir)); err != nil {
+				return run, err
+			}
 		}
 	}
 	env = append(env, scratch.Env...)
@@ -520,6 +555,11 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	case errors.As(runErr, &exitErr):
 		run.Exit = exitErr.ExitCode()
 	default:
+		var startup *suiteEnvironmentError
+		if errors.As(runErr, &startup) {
+			startup.Head = sha
+			return run, startup
+		}
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
 	return run, nil
@@ -528,7 +568,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 // runManagedCommandBatch joins each command's process group before continuing.
 // The caller supplies one context deadline and shared resources for every group.
 func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check string, commands [][]string, env []string, out io.Writer, resource string) (runErr, cleanupErr error) {
-	for _, argv := range commands {
+	for index, argv := range commands {
 		if err := ctx.Err(); err != nil {
 			return err, nil
 		}
@@ -540,7 +580,7 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 		cmd.Dir, cmd.Env, cmd.WaitDelay = wt, env, 5*time.Second
 		cmd.Stdout, cmd.Stderr = out, out
 		var joinRunner func() error
-		if resource == "runner" {
+		if resource == "runner" || d.StrictGroupCleanup {
 			if d.runnerCleanup != nil {
 				joinRunner = d.runnerCleanup(cmd)
 			} else {
@@ -564,6 +604,15 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 			d.runnerLifetime.retirable = true
 		}
 		if runErr != nil {
+			// Process nil proves this command never ran. Only the first Go
+			// command establishes absence of earlier test activity; an empty
+			// historical log alone cannot establish this fact.
+			if index == 0 && isTestCheck(check) && filepath.Base(argv[0]) == "go" && cmd.Process == nil &&
+				(errors.Is(runErr, exec.ErrNotFound) || errors.Is(runErr, os.ErrNotExist)) {
+				return &suiteEnvironmentError{Check: check, Cause: runErr, Diagnosis: suiteStartupDiagnosis{
+					Resource: "Go toolchain", Path: argv[0], Reason: "missing executable or interpreter",
+				}}, nil
+			}
 			return runErr, nil
 		}
 	}
@@ -831,15 +880,15 @@ func readLocalCheckLog(path string) ([]byte, error) {
 
 // retainSuiteEnvironment moves execution evidence out of the acceptance store.
 // A failed move keeps the owned raw log and names the retention error explicitly.
-func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
+func retainSuiteEnvironment(logDir, sha, check, raw string, diagnosis suiteStartupDiagnosis) (string, *suiteEnvironmentError) {
 	path := filepath.Join(logDir, sha, check+".environment.log")
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
 	if err == nil {
 		err = os.Rename(raw, path)
 	}
 	if err != nil {
-		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
+		return raw, &suiteEnvironmentError{Check: check, Head: sha, LogPath: raw, Diagnosis: diagnosis, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
-	return path, &suiteEnvironmentError{Check: check, LogPath: path}
+	return path, &suiteEnvironmentError{Check: check, Head: sha, LogPath: path, Diagnosis: diagnosis}
 }

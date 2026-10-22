@@ -15,18 +15,29 @@ type UnsupportedProof struct {
 	Version                             int
 	ID, Repo, SHA, Check, RerunOf, Path string
 	Raw                                 []byte
+	Problem                             string // a supported correction whose proof could not be verified
 }
 
 type proofSubject struct{ Repo, SHA, Check, ID string }
 
 type SuiteEvidenceSnapshot struct {
-	Attempts    []SuiteAttempt
-	Unsupported []UnsupportedProof
-	Warnings    []string // identity cannot be established, or the read was incomplete
-	byID        map[string]UnsupportedProof
-	bySubject   map[string]UnsupportedProof
-	byUnlinked  map[string]UnsupportedProof
-	byParent    map[string]UnsupportedProof
+	Attempts        []SuiteAttempt
+	Resumes         []ResumeLink
+	Reconciliations []ResumeReconciliation
+	recordDigests   map[string]string
+	recordBytes     int64
+	resumeParents   map[string]ResumeLink
+	resumeIDs       map[string]ResumeLink
+	resumeSubjects  map[string]string
+	receiptParents  map[string]ResumeReconciliation
+	attemptIDs      map[string]SuiteAttempt
+	rerunParents    map[string][]SuiteAttempt
+	Unsupported     []UnsupportedProof
+	Warnings        []string // identity cannot be established, or the read was incomplete
+	byID            map[string]UnsupportedProof
+	bySubject       map[string]UnsupportedProof
+	byUnlinked      map[string]UnsupportedProof
+	byParent        map[string]UnsupportedProof
 }
 
 func proofKey(repo, sha, check string) string { return repo + "\x00" + sha + "\x00" + check }
@@ -75,6 +86,9 @@ func (s *SuiteEvidenceSnapshot) indexLinkedParents() {
 type needsNewerSDLCError struct{ Proof UnsupportedProof }
 
 func (e *needsNewerSDLCError) Error() string {
+	if e.Proof.Problem != "" {
+		return fmt.Sprintf("attempt %s (%s on %s, %s): unverified reclassification: %s; inspect %s", e.Proof.ID, e.Proof.Check, abbrevSHA(e.Proof.SHA), e.Proof.Repo, e.Proof.Problem, e.Proof.Path)
+	}
 	return fmt.Sprintf("attempt %s (%s on %s, %s): needs a newer sdlc to read evidence version %d; record %s", e.Proof.ID, e.Proof.Check, abbrevSHA(e.Proof.SHA), e.Proof.Repo, e.Proof.Version, e.Proof.Path)
 }
 
@@ -91,7 +105,7 @@ func unsupportedProofBlocks(p UnsupportedProof, s proofSubject) bool {
 	return p.Check == s.Check || isTestCheck(s.Check) && (isTestCheck(p.Check) || p.Check == suiteRerunCheck)
 }
 
-func (s SuiteEvidenceSnapshot) proofError(subject proofSubject) error {
+func (s SuiteEvidenceSnapshot) unsupportedProofError(subject proofSubject) error {
 	if subject.ID != "" {
 		if p, ok := s.byID[subject.ID]; ok {
 			return &needsNewerSDLCError{p}
@@ -116,6 +130,80 @@ func (s SuiteEvidenceSnapshot) proofError(subject proofSubject) error {
 	return nil
 }
 
+type resumeProofUnavailable struct{ Parent, Detail string }
+
+func (e *resumeProofUnavailable) Error() string {
+	return fmt.Sprintf("resume proof for parent %s is unavailable: %s", e.Parent, e.Detail)
+}
+
+func (s *SuiteEvidenceSnapshot) indexResumeEvidence() {
+	s.resumeParents = make(map[string]ResumeLink, len(s.Resumes))
+	s.resumeIDs = make(map[string]ResumeLink, len(s.Resumes))
+	s.resumeSubjects = make(map[string]string, len(s.Resumes))
+	s.receiptParents = make(map[string]ResumeReconciliation, len(s.Reconciliations))
+	s.attemptIDs = make(map[string]SuiteAttempt, len(s.Attempts))
+	s.rerunParents = make(map[string][]SuiteAttempt)
+	for _, a := range s.Attempts {
+		s.attemptIDs[a.ID] = a
+		if a.RerunOf != "" {
+			key := proofKey(a.Repo, a.SHA, a.RerunOf)
+			s.rerunParents[key] = append(s.rerunParents[key], a)
+		}
+	}
+	children := make(map[string]string, len(s.Resumes))
+	for _, l := range s.Resumes {
+		key := proofKey(l.Repo, l.SHA, l.RerunOf)
+		if _, ok := s.resumeParents[key]; ok {
+			s.Warnings = append(s.Warnings, "conflicting resume links for parent "+l.RerunOf)
+		}
+		if old, ok := children[l.ChildID]; ok && old != l.ID {
+			s.Warnings = append(s.Warnings, "child reserved by conflicting resume links: "+l.ChildID)
+		}
+		children[l.ChildID] = l.ID
+		s.resumeParents[key] = l
+		s.resumeIDs[l.ID] = l
+		s.resumeSubjects[proofKey(l.Repo, l.SHA, l.Check)] = l.RerunOf
+	}
+	for _, r := range s.Reconciliations {
+		key := proofKey(r.Repo, r.SHA, r.RerunOf)
+		if _, ok := s.receiptParents[key]; ok {
+			s.Warnings = append(s.Warnings, "conflicting resume reconciliation for parent "+r.RerunOf)
+		}
+		s.receiptParents[key] = r
+		s.resumeSubjects[proofKey(r.Repo, r.SHA, r.Check)] = r.RerunOf
+	}
+}
+
+// Until a caller validates a complete linked proof, recognizing its kind is
+// insufficient authority. M1 introduces no CLI writer or automatic activation.
+func (s SuiteEvidenceSnapshot) proofError(subject proofSubject) error {
+	if err := s.unsupportedProofError(subject); err != nil {
+		return err
+	}
+	if subject.ID != "" {
+		if l, ok := s.resumeIDs[subject.ID]; ok {
+			return &resumeProofUnavailable{l.RerunOf, "immutable execution fence requires validation"}
+		}
+		if l, ok := s.resumeParents[proofKey(subject.Repo, subject.SHA, subject.ID)]; ok {
+			return &resumeProofUnavailable{l.RerunOf, "immutable execution fence requires validation"}
+		}
+		if r, ok := s.receiptParents[proofKey(subject.Repo, subject.SHA, subject.ID)]; ok {
+			return &resumeProofUnavailable{r.RerunOf, "terminal interrupted reconciliation"}
+		}
+		return nil
+	}
+	checks := []string{subject.Check}
+	if isTestCheck(subject.Check) {
+		checks = []string{suiteCheckName, affectedCheckName, suiteRerunCheck}
+	}
+	for _, check := range checks {
+		if id, ok := s.resumeSubjects[proofKey(subject.Repo, subject.SHA, check)]; ok {
+			return &resumeProofUnavailable{id, "linked proof requires validation"}
+		}
+	}
+	return nil
+}
+
 // flakeAttempts excludes unavailable authority without discarding unrelated
 // real measurements. All lookups are indexed; projecting N attempts is O(N).
 func (s SuiteEvidenceSnapshot) flakeAttempts() []SuiteAttempt {
@@ -132,6 +220,12 @@ func (s SuiteEvidenceSnapshot) flakeAttempts() []SuiteAttempt {
 // an unavailable versioned suite record.
 func (s SuiteEvidenceSnapshot) knownSuiteHeads() map[string]bool {
 	out := make(map[string]bool)
+	for _, l := range s.Resumes {
+		out[l.SHA] = true
+	}
+	for _, r := range s.Reconciliations {
+		out[r.SHA] = true
+	}
 	for _, a := range s.Attempts {
 		if isSuiteRun(a) {
 			out[a.SHA] = true
@@ -185,7 +279,7 @@ func decodeUnsupportedProof(data []byte, filename string) (UnsupportedProof, err
 		return p, err
 	}
 	validID := func(id string) bool { return len(id) >= 2 && len(id) <= 64 && suiteHex.MatchString(id) }
-	if wire.Version <= suiteAttemptVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
+	if wire.Version <= suiteAttemptReadVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
 		return p, errors.New("invalid unsupported evidence identity")
 	}
 	if wire.RerunOf != "" && (!validID(wire.RerunOf) || wire.RerunOf == wire.ID) {

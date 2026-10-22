@@ -1,4 +1,67 @@
+- #532: archive planning and completion proof must agree about the entire owned
+  family. A broad `.side` family reader plus a canonical-only mover can publish
+  the parent and strand a noncanonical `.md.side` bundle. Validate names before
+  close and pinned-head landing, and reuse that policy in archive planning.
+  Keep old incomplete proof strict after explicit byte-preserving repairs;
+  scope future landings to their own families. Runtime path validation and
+  production Git fixtures enforce this naming/provenance property.
+
 # Lessons
+
+- #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
+
+- #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
+- #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
+  per risky boundary. Task checkboxes reference that strategy instead of repeating
+  its case list; executable tests own the concrete inventory. The plan-quality
+  reviewer enforces this semantic authoring rule; source-name lint cannot prove it.
+
+- #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
+
+- #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
+  utility's field grammar. Replay recorded native output through the production
+  adapter and cover both address families before relying on parser fuzz seeds;
+  macOS uses distinct ip_address/ipv6_address fields. Native format coverage
+  belongs in capture-backed parser/adapter tests, not a lexical lint rule.
+
+- #540 BR-2: testing a classifier with an already-cancelled cause misses an
+  adapter that classifies first and joins cancellation later. Keep execution
+  raw until the final context owner completes cleanup and samples its outcome,
+  then classify once. Preserve injected cancelled-success controls and add
+  real subprocess barriers after diagnostic emission. This semantic ordering
+  needs production-boundary tests rather than a lexical error-string lint.
+
+- #540 BR-1: a classifier's supported transports must match its host parser's
+  accepted transports. Enumerate HTTP(S), SSH/scp and native Git, and capture
+  real transport failures through the production runner; HTTP-shaped fake
+  diagnostics alone cannot defend native Git's paired header/errno format.
+  Transport provenance and negative hook/local controls belong in executable
+  classification/property tests, not a lexical lint over arbitrary prose.
+
+- #540: classify transport failures at the shared Git seams without probing or
+  retrying there. Diagnostics belong in an explicit bounded command; preserve
+  original error identity and uncertain publication outcomes. A command that
+  promises cancellation must enter the real CLI signal owner, with a native
+  child-group regression and a missing-owner mutation. Resolver disagreement
+  is an observation, not proof of an upstream outage. Stateful transport and
+  parser/property controls enforce this semantic contract; a lexical lint
+  cannot infer network provenance from arbitrary error prose.
+
+- #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
+
+- #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.
+
+- #463 BR-3 re-review: an absent entry on retry does not prove its removal was durably synced. Lost remove replies and failed directory syncs must retain and discharge the original namespace-sync obligation, including owner-marker release. Reproduce all remove/sync/retry pairs through the production cleanup seam; a happy retry that returns nil is insufficient evidence. Further implementation is stopped for operator review under the approved lifecycle re-plan condition.
+
+- #463 BR-3: a completed-result publisher must not erase the only cleanup reference before locked inputs retire. Order the whole lifecycle: fence before protection, durable owner before lock, confirmed group/scratch/checkout/registration retirement before result commit, reference release last. Test every crash window through real process barriers; GC must preserve unreadable cleanup authority. Deferred cleanup cannot establish crash safety.
+
+- #463 M2: terminal repost is a valid same-state transition when it carries an explicit effect. Test the real repeated CLI operation, not only pure state changes. Before every status retry, re-resolve current linked proof and bind the posted parent/child identity; a lost network reply is not authority to reuse a stale registry decision. Retained-input cleanup must re-read its owner marker after reverse-pointer validation and before deletion. Stateful publication and mutation-barrier tests enforce these temporal contracts.
+
+- #463 plan review: multi-file retirement must preserve its authority fence until the selectable parent is durably gone, and retain the terminal witness until fence removal is durable. A lock serializes live callers but cannot repair a crash between unlinks. Fault-injected production-pruner sequence tests enforce this semantic ordering; lexical lint cannot prove it. Name risky functions and concise adversarial test strategies in plans; keep case inventories in executable tests.
+
+- #463 lifetime review: a protected-member snapshot cannot authorize later deletion while a publisher can introduce new links. Serialize one snapshot and all pruning with publication on the existing directory inode. When publication takes parent→directory, pruning may take directory→parent only with a strict try-and-skip; a real subprocess negative control must fail if it becomes blocking. This is a cross-function lifetime invariant, defended by those interleavings rather than source-name lint.
+
+- #463 M1 BR-1/BR-2: exercise every publication variant through its real seam, not just its decoder. A passing-reader guard may reject the state required to publish recovery evidence. Every temporary-file prefix also needs a crash collector; a shared publication/GC mutex can prove a staging file unowned without guessing PID or age. Receipt reachability and killed-publisher regressions enforce these semantic contracts.
 
 Compact guidance for Ariadne's SDLC, generated contracts, and base-layer work.
 Detailed incidents remain in their owning issue or review artifact.
@@ -1293,3 +1356,83 @@ Unknown descendant completion protects every input and output together: checkout
 - #507 BR-5/BR-6: literal-code recognition must respect actual Markdown block boundaries; unmatched backticks in separate paragraphs or containers cannot hide a human question. Reuse the actual parser and state complexity ownership honestly. A phase model that records effects afterward does not authorize them: require its permission at each production effect seam and consume failure/uncertainty outcomes. Real parser/coordinator fixtures plus guard-removal mutation defend these semantic grammar and ordering classes; lexical lint cannot prove them.
 
 - #507 BR-7: replacing a literal detector in one consumer leaves semantic drift if a predecessor survives in another. Move the shared owner to the lowest common boundary and retire old scanners; sweep mutation, discovery and projection callers, testing code examples plus ordinary live controls. Shared parser regressions and full publication/retry fixtures enforce byte preservation; lexical lint cannot establish Markdown context identity.
+- #526 handoff: releasing a conductor's lifetime head capability before its fresh retry ticket is synchronously vouched lets a ready survivor depart alone. Retain that capability across old queue retirement, release after the normal enqueue/vouch, and scope fallback release over every early return. The real three-car drop-self/drop-middle regressions and actual-lock retry lifetime tests defend this interleaving; lexical lint cannot establish cross-attempt ownership.
+- #526 cleanup: a content lease pins a ref's SHA, not the repository behind a mutable remote alias. Revalidate effective fetch/push destinations against the pinned repository under the destructive-effect lock. Distinguish a pushed ref from attempted PR creation with a fence immediately before Create; otherwise an accepted drop either creates an obsolete PR or retains a fictitious unknown-publication obligation. Stateful transport and retargeted real-bare-repository regressions defend these semantic contracts.
+
+- #526 BR-1: polling for a control request before computing a completion does not fence its later commit. Apply the accepted-drop check under the same line lock to every completion, including membership reductions and terminal aborts; keep the old in-memory train until that commit succeeds, then run effects. Remove redundant terminal writes after an already sealed drop. Deterministic two-order storage tests, shell outcome audits and an effects-before-fence mutation defend this semantic ordering class; lexical source lint cannot establish cross-process precedence.
+
+- #526 BR-2: codec round trips cannot prove unknown-field preservation through state changes. When refreshing a nested persisted snapshot, retain its existing unknown metadata separately from the known values copied from another object. Exercise the real request and completion writers with metadata unique to that nested snapshot; generation replacement must remain an explicit semantic retirement, not accidental erasure. This semantic persistence contract is defended by request-driven regression rather than a lexical assignment rule.
+- #508 BR-1: a help refinement that first names a usable test command creates
+  a README discovery obligation even when the command belongs to a peer repo.
+  Scope its working directory explicitly and link the existing atlas map.
+  Documentation review owns this semantic coverage; a Go lint rule cannot
+  establish whether the reader can discover and run an external command.
+- #530 PQ-1 reinforces #524 PQ-1: a pure-entity table naming concepts/files is
+  insufficient. Name actual risky functions, each adversarial strategy and its
+  independent mechanical guard; keep input-case inventories in executable tests.
+- #530 BR-1/BR-2: before close, cross-check every plan entity's actual definition
+  location, not only its concept name. Recovery advice must carry the executed
+  check and revision through retention and wrappers; test a caller whose HEAD has
+  advanced, including affected reruns and diagnostic baselines. The Core concepts
+  review and native subject-regression fixtures defend these semantic contracts.
+- #530 suite: every new mutating CLI verb needs its existing recovery-catalog
+  contract and proof bindings before the expensive suite. Run
+  TestRecoveryContractsAreProven in the targeted iteration; its command-tree
+  derivation is already the mechanical tripwire, so add no duplicate lint rule.
+
+- #527 BR-1: classify a helper by the IO it performs, even when it composes pure algorithms. List Git/worktree/process helpers as INTEGRATION and test them through real isolated resources; reserve PURE for the graph/classifier/reducer core. The plan review enforces this semantic description, which source lint cannot infer from an artifact table.
+
+- #528 BR-1: an agent-facing help procedure still needs a README discovery pointer. Enumerate every entry mode (here same-slot force switch and fresh hub session), link the authoritative help and atlas, and avoid duplicating the instructions. README/documentation review enforces this prose coverage; a Go source lint cannot infer the intended recovery modes.
+- #463 BR-4: a successful cleanup IO call can cancel its context before returning nil. Route every live-owner resume cleanup effect, including managed scratch removal/sync and final owner release, through resumeCleanupEffect(ctx, authorize, effect). The resume-cleanup-effect Go lint rule rejects direct effects in those cleanup paths; real private-resource boundary walks prove cancellation stops subsequent mutation. Signal-context teardown deliberately cancels on normal completion, so cleanup authority uses the original caller context and confirmed managed outcome.
+
+- #537: a verified binary stamp proves the selected commit, not that the selected resting commit is current. Clear must fetch and pin main before rebuilding, and reuse that pin for ancestry, checkout and build checks in both detached and resting-retry paths. Real private bare-remote regressions defend freshness and refusal ordering; this semantic invariant cannot be established by a lexical helper-name lint.
+- #534: under pipefail, a quiet grep in a compiler-metadata pipeline can close its input before printf finishes and turn a valid identity match into SIGPIPE. Drain the full input and redirect matched output instead. MetadataPipeFindings in pkg/shelllint guards literal VCS metadata quiet pipes in tracked workflows/scripts; this shell-source rule belongs there rather than the Go-AST-only catalog. The repeated actual workflow checks and a large-input quiet-consumer control defend the behavior.
+- #526 integration: an automatic code merge can leave a strict adjacent-state codec rejecting a newly landed phase. Re-run the actual completion/storage path after integrating main, and move a race regression to the new production event that performs its original membership change; retain a separate check for the intermediate phase rather than weakening the original oracle to a phase-only completion. This is a semantic lifecycle compatibility check, not a lexical lint rule.
+
+- #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
+
+- #544 BR-1: an additive evidence field needs a new method/version boundary when ignoring it changes a retained measurement's value. Exercise the actual previous decoder, not only the new codec, and require old readers to reject the new interpretation. Cross-version fixtures defend this semantic compatibility contract; a lexical field-presence rule cannot establish whether omission changes accounting.
+- #544 BR-2: repair must share the consumer's complete generation validator. Restoring original bytes after removing authority does not restore continuity; test repair → removal/replacement → repair → actual, including positive no-op repair, rather than only endpoint equality. The shared validator and production sequence regressions defend this semantic authority contract without a duplicate lexical lint.
+- #544 BR-2 publication: checking history during prepare does not bind a later card-blob CAS to that history. Validate each actual publication base with the same generation rule; a failed conditional push must repeat validation on its new base. Real command schedules for changed/restored bytes, retry, unrelated-card movement and cancellation defend the lifecycle contract without a second validator or lexical lint.
+- #544 BR-3: accepting future metadata creates a preservation obligation across the entire persisted record family and every format, including nested lists and cross-format numeric precision. Decode exact known keys separately from opaque extensions, reject duplicate/unrepresentable values explicitly, and test the real ledger rewrite as well as path-by-type round trips. These semantic codec contracts are guarded by executable matrices rather than a lexical lint rule.
+- #543 plan review: a new mutating command must name its pure phase owner and
+  controllable effect boundary before implementation, and join the derived
+  recovery catalog/help/proof contract. Reuse durable authority instead of
+  inventing phase files. Keep plans at named function/adversarial-strategy level;
+  individual prerequisite and crash cases belong in executable sequence tests.
+  TestRecoveryContractsAreProven mechanically catches missing command recovery.
+
+### #543 BR-1 — cached remote refs cannot prove complete inventory
+
+An authoritative migration/init inventory must explicitly observe the current
+publication-remote heads, independent of the clone's configured fetch filters.
+Pin diagnostic names and object IDs together for every subsequent evidence
+consumer, and reject a main snapshot mismatch. Two-clone created/advanced-branch
+regressions defend this shared boundary; tests also pin the fetch write set so
+user tag-pruning/refmap preferences cannot expand a read's effects.
+
+### #543 BR-2 — initialization needs presence, not an importer
+
+A new-repository command needs only conservative absence proof. Do not enlarge
+an existing importer to answer that simpler question. Use one roots/path rule
+across every pinned tip, live worktree HEAD, index and filesystem scope, and
+refuse any issue presence without interpreting its body or differences. Test
+the roots × scopes enumeration; put pre-existing importer completeness work on
+its own issue (#546), as directed by the TL after the repeated family.
+
+### #543 BR-2 continued — complete observation precedes consumer filters
+
+An absence proof cannot consume another workflow's filtered branch list. Keep
+publicationBranchTips complete and apply migration's semantic exemptions only
+inside its consumer. The ref-category × root regression proves every previous
+exemption remains visible to init, while the migration policy remains unchanged.
+Do not confuse a pre-existing reserved branch with a verified partial bootstrap;
+keep exact-root retry proof and completed-marker idempotence explicit.
+- #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
+
+- #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.
+
+- #536 integration review: changing suite derivation requires carrying the exact subject through execution, admission and every saved-proof policy reader. Recovery cannot use current HEAD, and an absent baseline is unverified rather than main-red evidence. Native original-SHA republish/resume and missing-baseline regressions defend this semantic authority contract; a lexical helper-name lint cannot establish the provenance.
+- #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
+  help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
+  ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.

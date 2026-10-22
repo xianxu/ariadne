@@ -98,7 +98,7 @@ func productionCarGates(r gitRunner, ci ghCaller, t landingTarget, f *mergeFlags
 			if f.NoJudge {
 				return nil
 			}
-			return runLandingPublishGate(ctx, pr, f.IssuesDir, io.Discard)
+			return runLandingPublishGate(ctx, pr, f.IssuesDir, f.PlansDir, io.Discard)
 		},
 		ci: func(ctx context.Context, pr landingPR) error {
 			if f.NoCI {

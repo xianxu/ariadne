@@ -40,6 +40,14 @@ It verifies the binary's VCS revision and clean source metadata, then prepends
 its private directory to PATH before bootstrap. Acquisition or identity failure
 stops the job rather than selecting a formula or an existing PATH binary.
 
+Both VCS metadata checks in the shared compiler build block drain the full
+input (`grep -E` with output redirected) rather than using quiet grep, whose
+early exit can SIGPIPE `printf` under pipefail (#534). The actual-block test
+`scripts/test/portable-ci.test.sh` repeats the incident input and a larger valid
+metadata record, and retains mismatch, dirty-source and missing-field refusals.
+`pkg/shelllint/metadata.go` guards literal compiler-metadata quiet pipes in
+tracked shell scripts and workflow sources; file-input greps remain valid.
+
 Ariadne's source workflow keeps its candidate compiler separate. It declares
 one or two supported full compiler SHAs in `.sdlc/weave-compiler-refs` and checks
 each against candidate vocabulary on every PR and main push. The initial source
@@ -272,6 +280,15 @@ first-class evidence, recorded on the commit it ran on:
   suite. A declared `suite` overrides execution settings but is always required,
   even when `required` is omitted or false. Agents run it before close with
   `sdlc local-check run --name suite`.
+  - **Bootstrap (#536):** `localchecks_bootstrap.go` shares main-first
+    derivation between CLI and CI facts. Only absent main declaration plus a
+    successful negative main probe allows default `make test` and weight from
+    the exact pushed subject. No head declaration is read. Valid empty main
+    policy prevents bootstrap, and failed/canceled probes remain errors. The
+    managed run records the ordinary status; server failures still block.
+    Conductor `deriveSuite` runs per exact prefix and changed base. Missing
+    targets refuse unverified, and failed bootstrap suites cannot fabricate a
+    baseline on main. Native fixtures replay the captured echo#1 refusal.
   - A record on a first-parent ancestor counts when the difference since is
     docs-only (`publishGateHasCodeSurface`, the publish gate's line). Close's
     own commits don't force a rerun.

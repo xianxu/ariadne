@@ -68,6 +68,20 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 	}
 	env, envErr := openTrackerAt(ctx, root)
 	if envErr == nil {
+		// Ordinary modern completions do not pay for legacy history recovery.
+		if !rs.Stale && in.CardErr == nil {
+			if rec, ok, cerr := rs.Require(id); ok && cerr == nil && rec.Card != nil && rec.Status() == "done" {
+				_, hasCompletion, completionErr := issue.CardCompletion(rec.Card.Raw)
+				_, hasLegacy, legacyErr := issue.CardLegacyAdoption(rec.Card.Raw)
+				if !hasCompletion && completionErr == nil && !hasLegacy && legacyErr == nil {
+					legacy, found, rerr := recoverUnboundLegacyAdoption(ctx, root, rs.Ref, rec, env.target.Repository, plansDir())
+					in.LegacyRecoveryErr = rerr
+					if found && rerr == nil {
+						in.RecoveredLegacy = &legacy
+					}
+				}
+			}
+		}
 		if me, err := claimantIdentity(env); err == nil {
 			in.Me = &me
 		} else {

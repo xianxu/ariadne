@@ -154,7 +154,11 @@ func RunWithOptions(ctx context.Context, root string, c acquire.Client, options 
 		if e != nil {
 			blockers = append(blockers, fmt.Errorf("%s: %w", s.path, e))
 		} else if !reflect.DeepEqual(rows, s.rows) {
-			blockers = append(blockers, fmt.Errorf("%s: target dependency declarations changed; reconcile that change separately", s.path))
+			recovery := "reconcile this branch first; after adopting origin/main declarations, run ./bootstrap.sh in this checkout, then retry the original refresh command"
+			if isAncestor {
+				recovery = "in this clean checkout, run git merge --ff-only origin/main, then ./bootstrap.sh, then retry the original refresh command"
+			}
+			blockers = append(blockers, fmt.Errorf("%s: dependency declarations change between HEAD and origin/main (construct/deps: %s); %s", s.path, declarationChanges(s.rows, rows), recovery))
 		}
 		if e := ignoredCollisions(ctx, c.Git, *s, rebase); e != nil {
 			blockers = append(blockers, fmt.Errorf("%s: %w", s.path, e))

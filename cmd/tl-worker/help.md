@@ -37,6 +37,15 @@ PERMISSIONS
   and a review that changes code requeues the suite on the final head.
 
 TESTS
+  Verify an agent-facing change against
+  every agent kind in its tests and in any live check:
+  Claude and Codex; Qoder when it has credits.
+  A bug found live lands with a recorded fixture of the real capture
+  (terminal bytes, agent screen, tool reply), replayed in the normal suite.
+  Live tests use the shared disposable-Couch harness (cmd/internal/testcouch,
+  `make test-couch-fleet` in Pair),
+  never the live fleet. Reuse that harness rather than building private Couch fixtures.
+
   Run the required recorded pre-close suite on the pushed issue branch. Once
   it passes, close that tested branch without chasing newer main with manual
   integrations and repeated pre-close suites. Branch code fixes still need
@@ -120,6 +129,12 @@ REVIEW REQUESTS
   operator's lock.
 
 REPORTS
+  Report an external dependency outage to the hub immediately as an incident
+  (Git host/DNS, GitHub API, model API, or tunnel), naming the affected
+  operation and observed evidence. Treat it as infrastructure, not a code or
+  test failure. Use the printed `sdlc net check` command for bounded diagnosis;
+  preserve the runner and its recovery state, and do not blindly retry an
+  uncertain remote write. Report verified recovery to the hub as well.
   A report naming a SHA, PR number, test count, or other fact goes out
   only after the call that prints that fact has returned.
   Never send the report in the same parallel batch as that call.

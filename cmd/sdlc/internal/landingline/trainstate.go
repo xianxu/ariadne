@@ -18,10 +18,11 @@ const (
 	PhaseIntegrating   Phase = "integrating"   // building the train branch
 	PhaseTesting       Phase = "testing"       // a suite on the full train
 	PhaseBisecting     Phase = "bisecting"     // suites on prefixes, finding a culprit
+	PhaseAttributing   Phase = "attributing"   // fresh failure attribution before suite blame
 	PhaseReintegrating Phase = "reintegrating" // main moved: merging it into the train
 	PhaseChecking      Phase = "checking"      // final prefix landing checks after its suite
 	PhaseLanding       Phase = "landing"       // waiting for CI on the train PR
-	PhaseMerging       Phase = "merging"       // the train PR's merge was sent
+	PhaseMerging       Phase = "merging"       // the merge operation started, before API submission
 	PhaseLanded        Phase = "landed"        // terminal: prefix 1..Land is on main
 	PhaseAbandoned     Phase = "abandoned"     // terminal: nothing landed, PR closed
 	PhaseRefused       Phase = "refused"       // terminal: the train's cars refused
@@ -55,10 +56,13 @@ const (
 type Train struct {
 	ID    int64 // the conductor's ticket
 	Phase Phase
-	Cars  []Car // in admission order; prefix k is Cars[:k]
+	// MergeStarted is irreversible across reintegration and probes.
+	MergeStarted bool
+	Cars         []Car // in admission order; prefix k is Cars[:k]
 	// Testing is the prefix whose suite is running; Land the prefix that will
 	// land once CI is green.
-	Testing, Land int
+	Testing, Land      int
+	AssessLo, AssessHi int // exact adjacent pair awaiting attribution
 	// Published is the prefix the train PR's head is at (0: not pushed).
 	Published    int
 	Results      map[int]bool
@@ -88,6 +92,11 @@ type (
 		Prefix  int
 		Outcome SuiteOutcome
 	}
+	// SplitAssessed carries fresh attribution for the requested adjacent pair.
+	SplitAssessed struct {
+		Lo, Hi  int
+		Verdict SplitAttribution
+	}
 	// LandingChecksDone is the selected final-prefix checks' observed result.
 	LandingChecksDone struct {
 		Prefix int
@@ -114,11 +123,13 @@ type (
 	// Aborted: the conductor hit an error it cannot carry on from (an IO
 	// failure, a reintegration conflict). Every car still riding goes back
 	// to wait, ready; a merge that may have landed is each car's to see.
-	Aborted struct{ Reason string }
+	Aborted     struct{ Reason string }
+	CarsDropped struct{ Drops []TrainDrop }
 )
 
 func (Boarded) trainEvent()           {}
 func (Built) trainEvent()             {}
+func (SplitAssessed) trainEvent()     {}
 func (SuiteDone) trainEvent()         {}
 func (LandingChecksDone) trainEvent() {}
 func (CIDone) trainEvent()            {}
@@ -128,11 +139,13 @@ func (Merged) trainEvent()            {}
 func (MergeUnknown) trainEvent()      {}
 func (Probed) trainEvent()            {}
 func (Aborted) trainEvent()           {}
+func (CarsDropped) trainEvent()       {}
 
 // Effect is work the conductor executes; its outcome comes back as an Event.
 type Effect interface{ trainEffect() }
 
 type (
+	AssessSplit      struct{ Lo, Hi int } // validate exact failure, registry and candidate impact
 	Build            struct{ Cars []Car } // merge main, then each car's head, in order
 	Publish          struct{ Prefix int } // push the train branch at prefix, open or update its PR
 	RunLandingChecks struct{ Prefix int } // selected final-prefix checks, never probes
@@ -154,6 +167,7 @@ type (
 	ClosePR  struct{}               // close the train PR and delete its branch
 )
 
+func (AssessSplit) trainEffect()      {}
 func (Build) trainEffect()            {}
 func (Publish) trainEffect()          {}
 func (RunLandingChecks) trainEffect() {}
@@ -183,6 +197,37 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 	n.Cars = slices.Clone(t.Cars)
 	n.Released = slices.Clone(t.Released)
 	switch e := ev.(type) {
+	case CarsDropped:
+		if t.MergeStarted || t.Phase == PhaseMerging || t.Phase == PhaseForming || len(e.Drops) == 0 {
+			break
+		}
+		members := make(map[int64]Car, len(t.Cars))
+		for _, c := range t.Cars {
+			if _, duplicate := members[c.Seq]; duplicate {
+				return t, nil, fmt.Errorf("train %d: drop cannot resolve an ambiguous riding identity", t.ID)
+			}
+			members[c.Seq] = c
+		}
+		bySeq := make(map[int64]TrainDrop, len(e.Drops))
+		for _, d := range e.Drops {
+			member, riding := members[d.Member.Seq]
+			if d.Train != t.ID || d.Reason == "" || bySeq[d.Member.Seq].Train != 0 || !riding || member != d.Member.Car() {
+				return t, nil, fmt.Errorf("train %d: drop does not pin a unique riding car", t.ID)
+			}
+			bySeq[d.Member.Seq] = d
+		}
+		var survivors []Car
+		var holds []Effect
+		for _, c := range t.Cars {
+			if d, ok := bySeq[c.Seq]; ok {
+				holds = append(holds, Hold{Seq: c.Seq, Reason: d.Reason})
+			} else {
+				survivors = append(survivors, c)
+			}
+		}
+		n.Cars = survivors
+		n, effects, err := Transition(n, Aborted{Reason: "composed cars dropped"})
+		return n, append(holds, effects...), err
 	case Aborted:
 		if t.Phase == PhaseForming {
 			n.Phase = PhaseAbandoned
@@ -243,13 +288,36 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			n.Phase, n.Land = PhaseChecking, e.Prefix
 			return n, append(n.publish(e.Prefix), RunLandingChecks{Prefix: e.Prefix}), nil
 		}
+		// Testing after a reintegration is reached only for a code advance.
+		// The IO shell rebuilt the final head, not the smaller prefixes;
+		// none is current-base passing evidence for a split. Stop rather than
+		// blame main's delta or merge an untested integration of an old prefix.
+		if t.Phase == PhaseTesting && t.Reintegrated > 0 && len(t.Cars) > 1 {
+			n.Phase = PhaseRefused
+			return n, []Effect{Refuse{Seqs: carSeqs(n.Cars), Reason: "unverified: splitting after main's code advance needs freshly composed prefix evidence"}, ClosePR{}}, nil
+		}
 		next, culprit, lo, done := Bisect(len(n.Cars), n.Results)
 		if !done {
 			n.Phase, n.Testing = PhaseBisecting, next
 			n.Splits++
 			return n, []Effect{RunSuite{Prefix: next}}, nil
 		}
-		return split(n, culprit, lo)
+		n.Phase, n.AssessLo, n.AssessHi = PhaseAttributing, lo, culprit
+		return n, []Effect{AssessSplit{Lo: lo, Hi: culprit}}, nil
+	case SplitAssessed:
+		if t.Phase != PhaseAttributing || e.Lo != t.AssessLo || e.Hi != t.AssessHi || e.Verdict.Reason == "" {
+			break
+		}
+		switch e.Verdict.Kind {
+		case AttributionAttributable:
+			return split(n, e.Hi, e.Lo, e.Verdict.Reason)
+		case AttributionUnattributed, AttributionUnverified:
+			// Stop unresolved cars; Release would silently retrain them.
+			effects := []Effect{Refuse{Seqs: carSeqs(n.Cars[e.Lo:]), Reason: e.Verdict.Reason}}
+			return finishSplit(n, e.Lo, effects)
+		default:
+			break
+		}
 	case LandingChecksDone:
 		if t.Phase != PhaseChecking || e.Prefix != t.Land {
 			break
@@ -269,6 +337,7 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 			return n, []Effect{Refuse{Seqs: carSeqs(n.Cars[:n.Land]), Reason: "the train's CI is red: " + e.Detail}, ClosePR{}}, nil
 		}
 		n.Phase = PhaseMerging
+		n.MergeStarted = true
 		return n, []Effect{Merge{Prefix: n.Land}}, nil
 	case MainMoved:
 		if t.Phase != PhaseLanding && t.Phase != PhaseMerging {
@@ -330,14 +399,18 @@ func Transition(t Train, ev TrainEvent) (Train, []Effect, error) {
 
 // split ends a bisect: hold the culprit, release the cars behind it to the
 // next train (at once), and land the good prefix, or abandon when it's empty.
-func split(n Train, culprit, lo int) (Train, []Effect, error) {
+func split(n Train, culprit, lo int, reason string) (Train, []Effect, error) {
 	c := n.Cars[culprit-1]
 	n.Culprit = c.Seq
-	effects := []Effect{Hold{Seq: c.Seq, Reason: fmt.Sprintf("the train's suite fails from car %d (#%d) on; the cars before it pass", culprit, c.Issue)}}
+	effects := []Effect{Hold{Seq: c.Seq, Reason: reason}}
 	if rest := carSeqs(n.Cars[culprit:]); len(rest) > 0 {
 		n.Released = append(n.Released, rest...)
 		effects = append(effects, Release{Seqs: rest})
 	}
+	return finishSplit(n, lo, effects)
+}
+
+func finishSplit(n Train, lo int, effects []Effect) (Train, []Effect, error) {
 	if lo == 0 {
 		n.Phase = PhaseAbandoned
 		n.Cars = nil

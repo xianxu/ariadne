@@ -38,7 +38,10 @@ commit, runs `make build` plus targets declared as `# stage-build: <target>` in
 Go commands' `.skip-make-build` files, and refuses missing, modified or
 wrong-revision `bin/*` binaries. The target must be a simple Make target name,
 not an option or variable assignment. `sdlc stage --clear` returns the target
-to its resting branch, then rebuilds and checks its binaries at that HEAD.
+to its resting branch, fast-forwards it to freshly fetched origin/main, then
+rebuilds and checks its binaries at that exact pin. Dirty, ahead/diverged or
+failed-fetch states refuse before building. Clear dry-run fetches and reports
+behind/ahead counts without checkout or build changes; failed fetch says unverified.
 If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
@@ -130,6 +133,11 @@ once with `sdlc issue migrate` — see
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 `issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits
 (legacy repositories only).
+
+Migration preserves verified legacy close evidence and reports each adoption's
+measurement class. For an older cutover missing a close binding, inspect
+`sdlc issue migrate --repair-completions --issue N`, then apply its reviewed
+digest. See [legacy completion recovery](atlas/workflow/issue-tracker-migration.md#legacy-completion-recovery).
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
@@ -230,6 +238,36 @@ into a sibling directory and record the source; local links record the checkout'
 origin when available. Matching existing checkouts, including dirty ones, are
 reused without pulling or resetting them.
 
+### New repository default
+
+For a new non-brain work repository, finish the setup procedure with tracker
+initialization. After linking/compiling the base (or running `./bootstrap.sh`),
+commit the initial source and setup files, configure the publication remote,
+and push `main`. Then run:
+
+```sh
+sdlc issue init
+```
+
+This is the final new-repo step for operators and TLs. It publishes the empty
+`issue-tracker` branch and main's `workshop/issue-tracker.json`, then safely
+fast-forwards the clean main checkout. The first `sdlc issue new` publishes
+without writing the checkout; `sdlc start-plan` creates its own issue branch.
+Keep other legacy SDLC writers quiescent until initialization finishes.
+
+Brains identified by `.brain/config.md` and absent/declined issue scaffolds are
+skipped. Opt-out uses the ordinary adoption/compile path without invoking init.
+Existing repositories with issues use the reviewed `sdlc issue migrate` flow;
+`issue new` and `start-plan` give init or migrate guidance from the observed local
+inventory. Unreadable inventory is never called empty. Normal link, compile,
+refresh, CI and repeated bootstrap do not publish anything implicitly.
+
+If setup lacks a commit, pushed main or publication upstream, or the checkout is
+dirty/non-main, init refuses before writing. After fixing that prerequisite,
+rerun `sdlc issue init`. A retry verifies an existing root/marker and finishes
+partial publication without deleting the tracker, resetting work or replacing
+source edits.
+
 Dependencies are declared in `construct/deps`:
 
 ```text
@@ -282,6 +320,15 @@ into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
 `datatype`, `vocabulary`, `doc-review`, `tl-worker`, and `tl-lead` (the TL skill
 binaries: run `tl-worker --help` or `tl-lead --help`); it does not rebuild the
 distributed weave gateway as part of `tools`.
+
+After a same-slot force switch or in a fresh hub session, follow TAKEOVER in
+`tl-lead --help`. The [TL tooling map](atlas/workflow/tl-skills.md) points to
+the ordered recovery procedure and its rendered-help guards.
+
+Worker live verification uses Pair's shared disposable-Couch harness,
+`cmd/internal/testcouch`; run `make test-couch-fleet` from the Pair repository.
+Reuse it for isolated live tests instead of the live fleet or private fixtures.
+See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
 
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
@@ -358,10 +405,14 @@ or composition failure. A later remote advance waits for the next refresh.
 
 Refresh updates substrate repositories, not data-mount repositories. Missing
 checkouts require ordinary setup first. A target that changes parsed dependency
-declarations refuses before branch updates: reconcile that declaration change
-separately so every update stays inside the preflighted graph. Ordinary compile
-preserves existing Git revisions, and claiming an issue never invokes refresh.
-See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
+declarations refuses before branch updates and names the changed declarations
+and fields without source URLs. In the named checkout, if its clean branch is
+behind origin/main, run `git merge --ff-only origin/main`, then `./bootstrap.sh`,
+then retry the original refresh command from its original checkout. An ahead or
+divergent branch needs reconciliation first; run ordinary setup after adopting
+the declarations. See [declaration-change recovery](atlas/workflow/setup-and-replication.md#recover-a-refresh-blocked-by-declaration-changes).
+Ordinary compile preserves existing Git revisions, and claiming an issue never
+invokes refresh. See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
 
 ## Standalone consumers and maintainer setup
 
@@ -416,6 +467,8 @@ their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-b
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
+When creating a new work repository, continue through the
+[new repository default](#new-repository-default) and finish with `sdlc issue init`.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
 running generated helpers. Consumer CI builds its gateway from the exact full
@@ -424,6 +477,8 @@ Go toolchain, and puts the private binary first on PATH before bootstrap. The
 pin is not weave-managed: new consumers must explicitly create it from an
 approved supported ref. A missing or malformed pin, fetch/build failure or
 mismatched binary provenance stops CI; there is no floating compiler fallback.
+Compiler metadata checks consume the full input, so a successful match cannot
+turn into a producer SIGPIPE under `pipefail`.
 Ariadne source CI builds the candidate separately and checks its vocabulary
 exports against every supported compiler in `.sdlc/weave-compiler-refs`.
 See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
@@ -479,6 +534,28 @@ To publish a reviewed commit (first done for `weave-v0.1.0` in #241):
    `brew audit --strict --online --formula xianxu/ariadne/weave`. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
+## Network incidents
+
+Git resolver and connection failures report `infrastructure: network` with
+the observed host and an exact diagnostic command. Run:
+
+```sh
+sdlc net check --host github.com
+sdlc net check --remote origin
+```
+
+With no flags, `sdlc net check` uses the configured publication remote. It
+compares native system DNS with direct DNS through the configured server,
+then reports HTTPS through each path using one sampled address, verified TLS,
+and no proxy or credentials. The read-only check has an eight-second budget;
+missing tools and partial observations remain visible. See `sdlc net --help`
+and the [SDLC map](atlas/workflow/sdlc-binary.md#network-incidents).
+
+Workers report external dependency outages immediately to the hub. The TL
+notifies the operator immediately and on verified recovery; the authoritative
+rule is `tl-lead --help`. Preserve any uncertain write's existing recovery
+state rather than treating a network fault as test evidence or blindly retrying.
+
 ## Workspace identity
 
 Resolve the current checkout or a numbered workspace from Git topology:
@@ -508,6 +585,12 @@ or an explicit resting-branch refresh, follow
 These ordinary Git procedures preserve the chosen baseline and sibling dependencies;
 prepare the issue branch before SDLC planning checkpoints.
 
+Side documents for `plan.md` belong in `plan.side/`. Close and landing preflight
+refuse `plan.md.side/` before publication: rename it to `plan.side/`, retain its
+contents and update links, then retry. Existing parent-only archives require an
+explicit owner-coordinated Git repair; a manual repair does not rewrite the old
+archive's proof. See [SDLC archive behavior](atlas/workflow/sdlc-binary.md).
+
 After review, `sdlc pr` and `sdlc merge --yes` land :0 and :N through the resting
 branch's configured remote/main. They archive the PR's completed records remotely,
 return to unchanged `main` or `main-slotN`, and remove only the completed local
@@ -531,7 +614,9 @@ next admission without interrupting a running landing or waiving any gate.
 While any valid grant exists, normal admissions wait even before the granted
 issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
-releases the hold; a successful landing ends its grant.
+releases the hold; a successful landing ends its grant. A train's queued integration
+suite inherits any active grant on a car in its exact tested prefix; later grants,
+revocation and expiry update its queue class without restarting it.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
@@ -588,6 +673,16 @@ machine's suite slots. It is one file per machine beside the suite lock:
 - **Recovery:** a car that finds its own PR merged, with no word from its train,
   finishes as a resume.
 
+A composed car can be held before merge starts with
+`sdlc landing drop --issue N [--reason WHY] [--repo DIR]`, run by its owner or
+the repository's :0 steward. The obsolete train stops and its survivors re-form;
+the dropped runner exits with its reason and exact branch retry command. It stays
+out until its owner explicitly retries. Once the Merge effect starts after green
+CI, drop refuses with the current state. `sdlc landing status` names accepted
+drops and any pending old-train cleanup; resume the printed conductor command
+if that cleanup needs recovery. Older conductors without control support refuse
+the command rather than promise a drop.
+
 `sdlc landing status` shows the setting, the next departure, each waiting
 merge's readiness, and the last trains: result, cars, train PR, split suites
 and culprit.
@@ -611,6 +706,10 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /
+`SDLC_DEP_DATA` from the tested tree's `construct/deps`, while running in their
+detached checkout. Dependency paths are read-only inputs; see the environment
+contract in `sdlc local-check --help`, including duplicate-row refusals.
 Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
 and `resource: "runner"` for checks whose runner owns independent capacity.
 A landing entry must explicitly declare `required` and `resource`; runner checks
@@ -645,6 +744,17 @@ command for the existing run; both keep their FIFO places until explicitly
 cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
+
+Go startup failures caused by unavailable temp space, a full cache/build output,
+quota exhaustion or a missing toolchain count as could-not-run when complete
+evidence proves no tests started. For an already recorded failure, its owner or
+repository `:0` can run `sdlc local-check reclassify --attempt ID --reason TEXT`.
+This preserves the original record in an audit and records a nonpassing v3
+disposition. It changes no GitHub status and requires a genuine rerun after
+repair; mixed, test-started, truncated or unprovable evidence refuses.
+`sh scripts/verify-524-reader.sh` checks actual correction bytes against the pinned
+historical reader in a private checkout. It prints its retained scratch path;
+the invoker owns removing that directory after inspection.
 
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
@@ -760,6 +870,23 @@ it. The suite's `known_flakes`
 key in `.sdlc/local-checks.json` (`rerun`, the default; `accept`, which posts the
 pass with the issue link and no rerun; `off`) is the operator's policy.
 
+An already saved suite failure can be resumed after its failures are registered:
+`sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA` runs only
+the exact package tests on that pushed commit. It preserves the original suite
+record and duration. Repeating it validates and reposts completed proof without
+executing tests. A pending or interrupted resume blocks later success on the
+same commit. After a crash, the operator or :0 steward verifies all descendants
+stopped, then runs the exact `local-check reconcile --attempt ID --link-digest
+SHA256 --note TEXT` printed by the refusal. That records terminal interruption;
+fix/advance the code and run a suite on a new head. Cleanup has one pass in the
+original live owner. Any cleanup failure or crash reports needs-reconcile and
+preserves surviving files and Git locks. Reconciliation only records the audit;
+it never cleans, unlocks or retries cleanup, including on repeated calls.
+Interrupted bundles and terminal/orphan receipts remain indefinitely, independent
+of lock visibility; their retained checkout, scratch and logs consume disk space.
+Completed-child cleanup/retention keeps its existing policy. Descendants are not
+discovered automatically, and reconciliation never grants a pass or execution.
+
 Run `sdlc local-check run --name suite` on the pushed issue head before close.
 After it passes, close that tested branch without manually integrating each
 newer main and repeating pre-close suites. Branch code fixes still require fresh
@@ -768,7 +895,13 @@ verification, and close's noon freshness gate still applies. On SHIP, enter
 authoritative suite when the integrated code needs it. Merge requires this suite's recorded pass: a declaration named `suite` overrides its
 command, timeout and `weight`, but cannot make it optional. Without a declared
 suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
-test target. The optional declaration `weight` (default 1) reserves that many
+test target. Only when main has neither a declaration nor a test target, the
+exact pushed head supplies a **bootstrap** default `make test` and weight, with
+ordinary managed `sdlc-local/suite` evidence. Its first declaration's custom
+checks and CI substitutions take effect after landing on main; bootstrap never
+stands in for server CI. See `sdlc local-check run --help` and the
+[CI gate map](atlas/workflow/ci-merge-check.md).
+The optional declaration `weight` (default 1) reserves that many
 machine-wide suite slots. A passing record on an ancestor remains valid through
 docs-only changes such as close's bookkeeping or main prose publication. Code,
 tests, configuration and embedded help invalidate reuse and require another run.

@@ -63,6 +63,32 @@ AGENTS §15, test-budget rules in §5, and messaging mechanics in
 
 **The lead prose** is the TL's current procedure: the order of play, stewardship and the operator's two design rules, the status file, grooming trains, dispatch, watching, landing and the `sdlc stage` smoke loop, attention and load, and fleet traps. It holds rules only. Incident history stays in ops learnings, and a new kink lands as a rule change here (`cmd/tl-lead/main_test.go` refuses kink numbers, dated stories, bare `#N` refs and "until X lands" interims). It cites `tl-worker --help` for the worker's rules: `pkg/tlrules` parses the shared rule table, and the lead's test refuses any worker-owned phrase.
 
+**Hub takeover (ariadne#528).** TAKEOVER in `cmd/tl-lead/help.md` orders recovery
+after a forced switch or fresh hub session. The session's Threads stamp bounds
+any transcript gap; live slots, landing/queue state and project files establish
+the current picture before a status-writer refresh and one-line operator notice.
+`cmd/tl-lead/takeover_help_test.go` guards both rendered entry points and keeps
+each instruction inside its ordered step.
+
+**External dependency incidents (ariadne#540).** TALKING TO THE OPERATOR in
+`cmd/tl-lead/help.md` owns immediate escalation: the incident goes first in
+Needs you with one desktop notification before diagnosis, a known operator
+remedy includes its exact command, and verified recovery gets a second notice
+and affected-slot checks. This is an explicit exception to the ask-only
+Needs-you rule. Worker REPORTS owns reporting the incident to the hub while
+preserving operation recovery state. Both help contracts are tested across
+the shared rendered instruction surface. Diagnostic observations come from
+[`sdlc net check`](sdlc-binary.md#network-incidents); no automated outage
+watcher or remote-write retry is introduced.
+
+**Worker verification (ariadne#508).** TESTS in `cmd/tl-worker/help.md` owns
+verification across every agent kind in tests and live checks, recorded real
+capture fixtures replayed in the normal suite with their live bug fixes, and
+reuse of the shared disposable-Couch harness (pair#744) instead of the live
+fleet or private fixtures. Rendered-section and shared rule-table tests pin
+the worker surface; the lead continues citing it. Pair#744's landed harness is
+`cmd/internal/testcouch`, exercised with `make test-couch-fleet` in Pair.
+
 **Project shaping (ariadne#518).** SHAPING in `cmd/tl-lead/help.md` precedes
 issue-level execution: six operator-reviewed steps cover users/moments, flows,
 the clickable mock, visual design, components and slices. It assigns the driver

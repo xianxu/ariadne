@@ -269,12 +269,20 @@ func TestPruneSuiteAttemptsPairsExpiredRecordsAndOrphans(t *testing.T) {
 	root := t.TempDir()
 	old := time.Now().Add(-32 * 24 * time.Hour)
 	id := "abc123"
+	validOld, err := json.Marshal(storedAttemptFixture(id))
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range []string{filepath.Join("attempts", id+".json"), filepath.Join("failed", id+".log")} {
 		p := filepath.Join(root, name)
 		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(p, []byte("old"), 0o600); err != nil {
+		content := []byte("old")
+		if strings.HasSuffix(name, ".json") {
+			content = validOld
+		}
+		if err := os.WriteFile(p, content, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Chtimes(p, old, old); err != nil {

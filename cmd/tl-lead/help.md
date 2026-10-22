@@ -16,6 +16,23 @@ Already stated elsewhere, and binding here; not repeated:
     `--session-sync` verbs with their refusals.
   - `sdlc --help`: the gates. A TL never routes around one.
 
+TAKEOVER (after a forced hub agent switch)
+  Use this procedure for a same-slot force switch or a fresh hub session.
+  1. Read the contract. Run `tl-lead --help` and follow it.
+  2. Read the session. Read `session.md` and `session.side/`. The Threads
+     section's `_updated YYYY-MM-DD HH:MM_` stamp says how current it is.
+     The operator uses the session as an ephemeral scratch pad and deletes
+     handled items: it is not a complete history; tolerate some loss.
+  3. Fill only the gap. If the gap since that stamp matters, read the
+     previous agent's terminal transcript from that time onward:
+         couch --peek <hub> --previous --all
+     or the agent's transcript on disk. Read only for the gap.
+  4. Re-establish. Peek working slots, check `sdlc landing status` and
+     `sdlc queue status`, and open project files. Then refresh Threads through
+     `tl-lead status` (status commands below), which writes its fresh stamp.
+  5. Give the takeover notice. Tell the operator in one line that takeover is
+     done and what, if anything, may have been lost.
+
 ROLES
   - The product lead (today the operator) owns scope; escalate scope to them.
   - The TL owns execution: dispatch, design stewardship, scope escalation and
@@ -56,8 +73,14 @@ TEAMS (ariadne#456: one team per ops repo)
         tl-lead team new PATH --claim C [--claim C]...
     which writes .hub and team.md (rerunnable; it refuses a file that
     differs) and never commits, pushes or creates the remote: fill in
-    team.md, commit, create and push the repo, and add it to Couch's command
-    line (an operator restart). Retire a team by removing its hub from Couch's
+    team.md. For a new non-brain work repo, run
+        weave link github.com/xianxu/ariadne
+        weave compile
+    commit the setup, configure the remote and push main, then finish with
+        sdlc issue init
+    Existing legacy repos use reviewed sdlc issue migrate; brains and declined
+    issue scaffolds skip init. Add the repo to Couch's command line (an operator
+    restart). Retire a team by removing its hub from Couch's
     command line and archiving the repo.
   - Resuming the fleet is one verb the operator asks for ("resume the
     fleet"), never run at startup:
@@ -253,6 +276,23 @@ TALKING TO THE OPERATOR
     `couch --notify [--title T] MESSAGE` (pair#540; hub-only, and slots' own
     terminal notifications are swallowed, so the hub is the one voice).
     Everything else waits in the status file.
+  - The moment you learn that an external dependency is unavailable
+    (Git host/DNS, GitHub API, model API, or tunnel),
+    put the incident first in Needs you and send one `couch --notify`
+    immediately; do not wait for root-cause diagnosis. Name the service/host,
+    affected work, and whether evidence points to a local, upstream, or still
+    unknown cause. Say what the operator can do now, or explicitly that this
+    is awareness-only. When the known remedy requires the operator,
+    include the exact command for them to run. Update the same incident
+    rather than repeating notifications for each blocked slot. Run
+    `sdlc net check` for bounded system/direct DNS and HTTPS observations;
+    preserve uncertainty about the cause and any remote write outcome.
+    On verified recovery, send a recovery notification, remove the active
+    incident, and check/resume affected slots through their existing recovery
+    paths. An outage report is infrastructure evidence, never a test verdict.
+    If the same outage recurs after the operator's remedy,
+    report it as recurring and look for the cause behind it
+    before repeating the remedy.
   - A `submitted: PATH` delivery for a markdown document other than the status
     file (a design doc, a plan) is a review request: answer it with the
     `xx-universal-review` skill, which reads the document's instruction and writes a Couch-tracked
@@ -322,8 +362,9 @@ TALKING TO THE OPERATOR
   - Its sections, in order:
     0. `## Operator instructions`: the operator's (see below).
     1. `## Needs you`: only asks, a decision or an action the operator must
-       take, each with your recommendation. No status here; status goes to
-       Threads. Queue several in order; never bury one in a thread. Remove an
+       take, each with your recommendation, plus immediate external-dependency
+       incidents as specified above. Other status goes to Threads. Queue
+       several in order; never bury one in a thread. Remove an
        item the moment it is done.
     2. `## Quota`: one line per coding agent with whatever its meter shows and
        when it was read (Claude's weekly % and reset, Codex's credits or

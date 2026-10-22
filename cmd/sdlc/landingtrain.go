@@ -57,7 +57,8 @@ type conductor struct {
 	stderr io.Writer
 	sched  landingline.Schedule
 	id     int64
-	self   int64 // the conductor's own ticket: its car is the first
+	self   int64               // the conductor's own ticket: its car is the first
+	handle *landingline.Handle // lifetime capability for shared train control
 
 	departed   time.Time
 	wt         string   // the train's detached worktree
@@ -69,10 +70,14 @@ type conductor struct {
 	local      localRunDeps
 	run        localCheckRunner
 	suite      localCheck
+	suiteDecl  *localCheckDecl // immutable main policy; derive again for each tested prefix
+	bootstrap  bool            // the selected suite exists only on the subject
 	landing    landingCheckOwner
 	carHeads   []string // admitted originals, aligned with kept prefixes
+	carIssues  []int    // same successfully composed prefix order; no rejected car inherits priority
 	suiteReady map[int]bool
-	baseline   *bool // main's baseline verdict, run once on the first failure
+	evidence   map[int]localRunRecord // exact prefix attempts, including diagnostic main at zero
+	baseline   *bool                  // main's baseline verdict, run once on the first failure
 	settled    map[int64]bool
 	selfEnd    landingline.OutcomeKind
 	selfWhy    string
@@ -105,30 +110,19 @@ func (c *conductor) fetchMain() (main string, err error) {
 func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err error) {
 	c.settled = map[int64]bool{}
 	tr := landingline.NewTrain(c.id)
+	if err = c.beginTrainControl(cars); err != nil {
+		return err
+	}
+	stopWatch := c.watchTrainDrops()
+	defer stopWatch()
 	defer func() {
+		stopWatch()
 		// An error mid-train is the machine's Aborted: every car still
 		// riding goes back to wait, ready, and the train PR is closed. The
 		// abort's effects are side effects only; their own failures are
 		// reported, never retried here.
 		if err != nil && !tr.Phase.Terminal() {
-			why := "the train stopped: " + firstLine(err.Error())
-			next, effects, terr := landingline.Transition(tr, landingline.Aborted{Reason: why})
-			if terr == nil {
-				tr = next
-				for _, e := range effects {
-					if rel, ok := e.(landingline.Release); ok {
-						for _, s := range rel.Seqs {
-							c.settle(carBySeq(cars, s), landingline.OutcomeReleased, why)
-						}
-					} else {
-						_, _ = c.execute(e, cars)
-					}
-				}
-			}
-			// Cars the machine no longer rides (none, normally) still get a word.
-			for _, car := range cars {
-				c.settle(car, landingline.OutcomeReleased, why)
-			}
+			err = c.abortTrain(&tr, cars, stopWatch, err)
 		}
 		if tr.Phase == landingline.PhaseLanded {
 			c.deleteTrainBranch()
@@ -140,22 +134,44 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 	if err != nil {
 		return err
 	}
+	if _, err = c.line.UpdateTrain(c.handle, tr); err != nil {
+		return err
+	}
 	for _, car := range cars[1:] {
 		c.settle(car, landingline.OutcomeBoarded, fmt.Sprintf("train %d, car %d of %d", c.id, indexOf(cars, car.Seq)+1, len(cars)))
 	}
 	for len(effects) > 0 {
+		pending, controlErr := c.trainDropsPending()
+		if controlErr != nil {
+			return controlErr
+		}
+		if pending {
+			return c.applyTrainDrops(&tr, cars, stopWatch)
+		}
 		e := effects[0]
 		effects = effects[1:]
-		ev, err := c.execute(e, cars)
-		if err != nil {
-			return err
+		ev, effectErr := c.execute(e, cars)
+		// The synchronous effect has joined before its completion competes with a
+		// drop. Never feed a canceled, obsolete completion back into Transition.
+		pending, controlErr = c.trainDropsPending()
+		if controlErr != nil {
+			return controlErr
+		}
+		if pending {
+			return c.applyTrainDrops(&tr, cars, stopWatch)
+		}
+		if effectErr != nil {
+			return effectErr
 		}
 		if ev == nil {
 			continue
 		}
-		var more []landingline.Effect
-		if tr, more, err = landingline.Transition(tr, ev); err != nil {
-			return err
+		next, more, transitionErr := landingline.Transition(tr, ev)
+		if transitionErr != nil {
+			return transitionErr
+		}
+		if controlErr = c.commitTrainCompletion(&tr, next, cars, stopWatch); controlErr != nil {
+			return controlErr
 		}
 		if _, built := ev.(landingline.Built); built {
 			printTrainMembership(c.stderr, c.id, "composed", tr.Cars)
@@ -186,6 +202,12 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 		return nil, c.publish(e.Prefix)
 	case landingline.RunSuite:
 		return c.runSuite(e.Prefix)
+	case landingline.AssessSplit:
+		done := c.assessSplit(e)
+		if c.ctx.Err() != nil {
+			return nil, c.ctx.Err()
+		}
+		return done, nil
 	case landingline.RunLandingChecks:
 		err := c.landing.run(c.ctx, c.git, c.base, c.heads[e.Prefix-1], c.carHeads[:e.Prefix], c.suiteReady[e.Prefix], c.run, func(ctx context.Context, check localCheck, head string) (localRunRecord, error) {
 			return runLocalCheck(ctx, c.local, check, head)
@@ -259,19 +281,14 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		return nil, err
 	}
 	c.local.Root = dir
+	c.local.PriorityIssues = c.priorityIssues
 	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
-	if enabledLandingChecks(decl) {
-		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// Keep execution native even when main has no declaration: each exact
+	// prefix may introduce the bootstrap target. A later prefix's target or
+	// weight must never authorize an earlier prefix.
+	c.suiteDecl = &decl
+	c.run = newLocalCheckRunner(c.local)
 	c.suiteReady = map[int]bool{}
-	if suite, ok := decl.check(suiteCheckName); ok {
-		c.suite, c.run = suite, newLocalCheckRunner(c.local)
-	} else {
-		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
-	}
 	built := landingline.Built{Conflicts: map[int64]string{}}
 	for _, car := range cars {
 		ref := fmt.Sprintf("refs/sdlc/train/%d/%d", c.id, car.Seq)
@@ -313,6 +330,7 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		built.Kept = append(built.Kept, car.Seq)
 		c.heads = append(c.heads, head)
 		c.carHeads = append(c.carHeads, car.Head)
+		c.carIssues = append(c.carIssues, car.Issue)
 	}
 	return built, nil
 }
@@ -343,6 +361,12 @@ func (c *conductor) gatePrefixAt(base, head string) string {
 func (c *conductor) publish(k int) error {
 	head := c.heads[k-1]
 	branch := trainBranch(c.id)
+	if _, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+		Started: c.opened, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+		ExpectedTip: head, PreviousTip: c.pushed, PR: c.pr.Number, RecoveryBranch: c.handle.Ticket().Branch,
+	}); err != nil {
+		return err
+	}
 	if err := c.locked(func() error {
 		_, err := c.git("push", "--quiet", "--force-with-lease=refs/heads/"+branch+":"+c.pushed, c.t.Remote, head+":refs/heads/"+branch)
 		return err
@@ -351,6 +375,14 @@ func (c *conductor) publish(k int) error {
 	}
 	c.pushed = head
 	if !c.opened {
+		// The push identity is already durable. Fence PR creation separately:
+		// a drop during the push can prove no PR create was ever attempted.
+		if _, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+			Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+			ExpectedTip: head, PreviousTip: head, RecoveryBranch: c.handle.Ticket().Branch,
+		}); err != nil {
+			return err
+		}
 		title, body := c.prText()
 		if err := c.gh.CreateTrainPR(c.ctx, c.t.Repo, branch, title, body); err != nil {
 			return fmt.Errorf("open the train PR: %w", err)
@@ -368,7 +400,11 @@ func (c *conductor) publish(k int) error {
 			if p.State == "OPEN" && p.HeadOID == head {
 				c.pr = p
 				c.local.PR = p.Number
-				return nil
+				_, err := c.line.UpdateTrainPublication(c.handle, landingline.TrainPublication{
+					Started: true, Repository: c.t.Repo, Remote: c.t.Remote, Branch: branch,
+					ExpectedTip: head, PreviousTip: c.pushed, PR: p.Number, RecoveryBranch: c.handle.Ticket().Branch,
+				})
+				return err
 			}
 		}
 		select {
@@ -385,15 +421,63 @@ func (c *conductor) prText() (string, string) {
 	return title, body
 }
 
+// priorityIssues binds priority only to the currently composed, tested prefix.
+// Recomposition replaces heads; split runs cannot borrow a later car's grant.
+func (c *conductor) priorityIssues(sha string) []int {
+	for i, head := range c.heads {
+		if head != "" && head == sha && i < len(c.carIssues) {
+			return append([]int(nil), c.carIssues[:i+1]...)
+		}
+	}
+	return nil
+}
+
+// deriveSuite selects policy for one exact composed subject. Explicit main
+// declarations may intentionally omit a suite; proven undeclared absence may
+// not stand in for a passing bootstrap run.
+func (c *conductor) deriveSuite(head string) error {
+	decl, bootstrap, err := withSubjectDefaultSuiteContext(c.ctx, c.git, c.base, head, *c.suiteDecl)
+	if err != nil {
+		return err
+	}
+	suite, ok := decl.check(suiteCheckName)
+	if !ok && c.suiteDecl.Version == 0 {
+		return fmt.Errorf("unverified: train prefix %s has no bootstrap make test target; add the target, push and retry sdlc merge", shortSHA(head))
+	}
+	c.suite, c.bootstrap = suite, bootstrap
+	if bootstrap {
+		fmt.Fprintf(c.stderr, "bootstrap suite: make test from train prefix %s (main has no declaration or test target)\n", shortSHA(head))
+	}
+	return nil
+}
+
 // runSuite runs the recorded suite on prefix k. A failure of the full train
 // is compared once with main's baseline: main failing the same way is no
 // car's fault.
 func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
-	rec, err := c.run(c.ctx, c.suite, head)
+	if head == "" {
+		return nil, fmt.Errorf("unverified: prefix %d needs recomposition after main's code advance", k)
+	}
+	if c.suiteDecl != nil {
+		if err := c.deriveSuite(head); err != nil {
+			return nil, err
+		}
+	}
+	var rec localRunRecord
+	var err error
+	if c.suiteDecl != nil && len(c.suite.Command) == 0 {
+		rec = localRunRecord{Exit: 0} // an explicit main policy intentionally has no suite
+	} else {
+		rec, err = c.run(c.ctx, c.suite, head)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("the train suite on %s could not run: %w", shortSHA(head), err)
 	}
+	if c.evidence == nil {
+		c.evidence = map[int]localRunRecord{}
+	}
+	c.evidence[k] = rec
 	done := landingline.SuiteDone{Prefix: k, Outcome: landingline.SuitePass}
 	if rec.passed() {
 		if c.suiteReady == nil {
@@ -403,6 +487,11 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 		return done, nil
 	}
 	done.Outcome = landingline.SuiteFail
+	if c.bootstrap {
+		// Main has no target to run. Leave its baseline evidence absent so
+		// split attribution reports unverified rather than inventing main-red.
+		return done, nil
+	}
 	if c.baseline == nil {
 		red, err := c.mainIsRed(rec)
 		if err != nil {
@@ -429,6 +518,7 @@ func (c *conductor) mainIsRed(failed localRunRecord) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("train baseline on main could not run: %w", err)
 	}
+	c.evidence[0] = baseline
 	if baseline.passed() {
 		return false, nil
 	}
@@ -582,23 +672,21 @@ func (c *conductor) reintegrate(k int) (landingline.TrainEvent, error) {
 	c.heads[k-1], c.base = head, main
 	needSuite := publishGateHasCodeSurface(splitNUL(diff))
 	if needSuite {
+		// Smaller prefix commits still contain the old base. The reducer
+		// refuses a later split instead of treating them as current evidence.
+		clear(c.heads[:k-1])
+		c.evidence = nil
+		c.baseline = nil
 		c.suiteReady = map[int]bool{}
 	}
 	decl, err := readLocalChecks(c.git, main)
 	if err != nil {
 		return nil, err
 	}
-	if enabledLandingChecks(decl) {
-		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if suite, ok := decl.check(suiteCheckName); ok {
-		c.suite, c.run = suite, newLocalCheckRunner(c.local)
-	} else {
-		c.suite = localCheck{}
-		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return localRunRecord{Exit: 0}, nil }
+	c.suiteDecl = &decl
+	c.run = newLocalCheckRunner(c.local)
+	if err := c.deriveSuite(head); err != nil {
+		return nil, err
 	}
 	return landingline.Reintegrated{NeedSuite: needSuite}, nil
 }
@@ -619,6 +707,8 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 		}
 		if kind == landingline.OutcomeHeld {
 			reportTrainHeld(c.stderr, c.id, car.Issue, car.Branch, why)
+		} else if kind == landingline.OutcomeRefused {
+			reportTrainUnattributed(c.stderr, c.id, car.Issue, car.Branch, why)
 		}
 		return
 	}
@@ -633,6 +723,16 @@ func (c *conductor) settle(car landingline.Car, kind landingline.OutcomeKind, wh
 func reportTrainHeld(stderr io.Writer, train int64, issue int, branch, reason string) {
 	fmt.Fprintf(stderr, "landing train %d: #%d held: %s\n", train, issue, reason)
 	fmt.Fprintf(stderr, "Recovery: fix the reported problem, integrate main, re-close, then run sdlc merge --branch %s --yes\n", branch)
+}
+
+// reportTrainUnattributed stops explicitly; it never suggests that a car caused
+// the failure or that an immediate automatic retry can create passing evidence.
+func reportTrainUnattributed(stderr io.Writer, train int64, issue int, branch, reason string) {
+	if !strings.HasPrefix(reason, "unattributed:") && !strings.HasPrefix(reason, "unverified:") {
+		return
+	}
+	fmt.Fprintf(stderr, "landing train %d: #%d stopped: %s\n", train, issue, reason)
+	fmt.Fprintf(stderr, "Recovery: inspect the named evidence and obtain valid verification, then run sdlc merge --branch %s --yes\n", branch)
 }
 
 func printTrainMembership(stderr io.Writer, train int64, label string, cars []landingline.Car) {
@@ -821,7 +921,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	}
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
 	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
-	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, departed: now}
+	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, handle: turn.handle, departed: now}
 	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 	printTrainMembership(stderr, c.id, "candidates", cars)
 	if err := conductTrain(c, cars, b.LeftReady); err != nil {

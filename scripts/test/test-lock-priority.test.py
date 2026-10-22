@@ -59,12 +59,15 @@ class SuiteQueuePriority(unittest.TestCase):
         self.children.append(p)
         return p
 
-    def start(self, name, issue=0, weight=1):
+    def start(self, name, issue=0, weight=1, issues=None):
         owner = self.owner()
         out = (self.root / (name + '.out')).open('w')
         err = (self.root / (name + '.err')).open('w')
         self.streams.extend([out, err])
-        env = dict(self.env, WF_TEST_PRIORITY_SUBJECT=json.dumps(dict(common_dir=str(self.common), issue=issue)))
+        subject = dict(common_dir=str(self.common), issue=issue)
+        if issues is not None:
+            subject['issues'] = issues
+        env = dict(self.env, WF_TEST_PRIORITY_SUBJECT=json.dumps(subject))
         helper = subprocess.Popen(['python3', str(HELPER), 'acquire', '--watch', str(owner.pid), '--slots', str(weight)],
                                   env=env, stdout=out, stderr=err)
         self.children.append(helper)
@@ -98,6 +101,42 @@ class SuiteQueuePriority(unittest.TestCase):
         b, _ = self.start('holder-b')
         self.await_(lambda: self.acquired('holder-b'), 'second holder failed')
         return a, b
+
+    def test_train_late_grant(self):
+        self.train_grant_lifecycle('keep')
+
+    def test_train_late_revoke(self):
+        self.train_grant_lifecycle('revoke')
+
+    def test_train_clock_expiry(self):
+        self.train_grant_lifecycle('expire')
+
+    def train_grant_lifecycle(self, ending):
+        a, b = self.fill()
+        normal, _ = self.start('normal', 1)
+        self.wait_queued('normal')
+        train, _ = self.start('train', issues=[2, 3])
+        self.wait_queued('train')
+        self.grant(99)
+        self.assertFalse(self.acquired('train'))
+        self.grant(3, expires=time.time() + (3 if ending == 'expire' else 300))
+        self.await_(lambda: 'fleet-blocking' in self.contents('train', '.err'), 'later car grant not observed')
+        if ending == 'revoke':
+            self.grant(3, revoked=True)
+        if ending != 'keep':
+            self.await_(lambda: self.contents('train', '.err').count('normal FIFO') >= 2,
+                        'train did not lose priority')
+        self.release(a)
+        first = 'train' if ending == 'keep' else 'normal'
+        other = 'normal' if ending == 'keep' else 'train'
+        self.await_(lambda: self.acquired(first) or self.acquired(other), 'no next admission')
+        self.assertTrue(self.acquired(first), 'wrong admission after train grant change')
+        self.assertFalse(self.acquired(other), 'both admitted into one free slot')
+        self.release(train if ending == 'keep' else normal)
+        self.await_(lambda: self.acquired(other), 'remaining waiter starved')
+        self.release(normal if ending == 'keep' else train)
+        self.release(b)
+
 
     def test_priority_takes_next_free_slot(self):
         self.grant(2)
@@ -336,7 +375,9 @@ class GrantEvidenceUnit(unittest.TestCase):
             {'common_dir': '/tmp/../repo', 'issue': 1},
             {'common_dir': '/tmp/repo', 'issue': True},
             {'common_dir': '/tmp/repo', 'issue': -1},
-            {'common_dir': 3, 'issue': 1}, {}, [], 'bad',
+            {'common_dir': 3, 'issue': 1},
+            *[{'common_dir': '/tmp/repo', 'issue': 0, 'issues': v}
+              for v in (None, '2', [True], [-1], [0], [1.5], [2, '3'])], {}, [], 'bad',
         ]
         for subject in subjects:
             paths, warnings = [], []
@@ -359,12 +400,39 @@ class GrantEvidenceUnit(unittest.TestCase):
     def test_stable_partition_and_expiry(self):
         for n in range(1, 64):
             records = self.records(n)
-            deadlines = {module.subject_key(rec): 101 if i % 3 else 99 for i, rec in records}
+            deadlines = {module.subject_keys(rec)[0]: 101 if i % 3 else 99 for i, rec in records}
             got = module.effective_order(records, deadlines, 100)
-            expected = [x for x in records if deadlines[module.subject_key(x[1])] > 100]
-            expected += [x for x in records if deadlines[module.subject_key(x[1])] <= 100]
+            expected = [x for x in records if deadlines[module.subject_keys(x[1])[0]] > 100]
+            expected += [x for x in records if deadlines[module.subject_keys(x[1])[0]] <= 100]
             self.assertEqual(got, expected)
             self.assertEqual(module.effective_order(records, deadlines, 102), records)
+
+    def test_train_projection_and_counted_growth(self):
+        for n in (8, 16):
+            records = [(i, {'subject': {'common_dir': '/tmp/repo', 'issue': 0,
+                        'issues': [i * 2 + 1, i * 2 + 2]}}) for i in range(n)]
+            calls, stats = [], []
+            def query(provider, request):
+                calls.append(request)
+                return {'sources': [{'common_dir': '/tmp/repo',
+                        'deadlines': {str(n * 2): 103}, 'refresh_at': 103}]}
+            def stat(path):
+                stats.append(path)
+                return SimpleNamespace(st_ino=1, st_mtime_ns=1, st_size=1)
+            evidence = module.GrantEvidence('provider', query=query, stat=stat)
+            ends = evidence.deadlines(records, 100)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(stats), 1)
+            self.assertEqual(len(calls[0]['subjects']), n * 2)
+            self.assertEqual(module.effective_order(records, ends, 100)[0], records[-1])
+            self.assertEqual(module.effective_order(records, ends, 103), records)
+            evidence.deadlines(records, 101)
+            self.assertEqual(len(calls), 1, 'unchanged train membership bypassed cache')
+        record = {'subject': {'common_dir': '/tmp/repo', 'issue': 0, 'issues': [2, 3]}}
+        other_repo = {'subject': {'common_dir': '/tmp/other', 'issue': 0, 'issues': [2, 3]}}
+        ends = {('/tmp/repo', 2): 101, ('/tmp/repo', 3): 105}
+        self.assertEqual(module.effective_order([(1, other_repo), (2, record)], ends, 102)[0][0], 2)
+        self.assertEqual(module.effective_order([(1, other_repo), (2, record)], ends, 105)[0][0], 1)
 
     def test_source_and_clock_boundaries_with_counted_growth(self):
         for n in (20, 40):
