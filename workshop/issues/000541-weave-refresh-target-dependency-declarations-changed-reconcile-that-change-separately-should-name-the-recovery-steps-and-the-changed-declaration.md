@@ -1,13 +1,13 @@
 ---
 id: 000541
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0b22861c6ce7548c524e350dff06136f1d6627d5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '279f295b327631d2807e0dd61f0640a2dadbf78e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T00:31:21-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "1a665a97", done: "02bf4c2c"}
+actual_hours: 0.41
 ---
 
 # weave refresh: 'target dependency declarations changed; reconcile that change separately' should name the recovery steps and the changed declaration
