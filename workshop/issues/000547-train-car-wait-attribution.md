@@ -38,9 +38,9 @@ Investigate active-time-v3 engagement/queue attribution for a train car waiting 
 
 ## Plan
 
-- [ ] Prove the train-car poll inflation and add exact producer-owned waiter identity/lifetime evidence at existing landing resources.
-- [ ] Bind validated car waits into fresh measurement while preserving #548, solo-suite ownership, concurrent work and saved measurement replay.
-- [ ] Record the pair#778 correction or explicit historical limitation, update provenance docs, and verify/review the final implementation.
+- [x] Prove the train-car poll inflation and add exact producer-owned waiter identity/lifetime evidence at existing landing resources (delivered under the visibility revision).
+- [x] Bind validated car waits into fresh measurement while preserving #548, solo-suite ownership, concurrent work and saved measurement replay (descriptive coverage; no subtraction).
+- [x] Record the pair#778 historical limitation, update provenance docs, and verify implementation; mandatory close review follows through sdlc.
 
 Durable plan: [train car wait attribution](../plans/000547-train-car-wait-attribution-plan.md). Full flow, one close boundary, TL approved on 2026-10-22; no implementation started. The approval and current next action are recorded below.
 
@@ -69,6 +69,8 @@ Fresh actual attachment reads the retained audit once, uses #548 immutable-head 
 Verification: focused car selection/audit/attachment/native engine/replay tests PASS (2.388s latest); preceding existing owned-actual/solo-queue/head controls PASS (cmd/sdlc 49.607s); combined focused race checks PASS (cmd/sdlc 11.208s, landingline 1.351s, gatestate 1.286s). Claude/Codex substantive activity remains counted, N/2N descriptive coverage extends exactly, and saved replay requires no live audit. Producer glue controls cover start/end IO failures and terminal/readiness races; full gatestate codec tests pass. Qoder live runtime was not exercised. README/help/atlas document duration and limits.
 
 pair#778 limitation: train261 enqueue/refusal and conductor-suite records lack the new exact owner return and invocation identity. They establish the previously recorded 186m41.571101s envelope, not a supported complete waiter receipt. No replacement or automatic rewrite of its adopted 4.41h is justified or performed. Future structural idle proof is separate low-priority unclaimed pair#800. Next: push final implementation, record the full suite, then mandatory close review; no suite or live landing result claimed yet.
+
+Recorded suite retained as lease-22710097 on implementation cac298148870ea8e8accea752148c807404c1890, attempt c426025cac3d8b12307e7c5496684c7d. Initial machine admission position 4; shared default GOCACHE confirmed. Per tl-worker's explicit overlap rule, start mandatory close review while this suite remains queued; the final code still requires a recorded suite pass before landing. Do not restart or duplicate this runner. Coverage visibility is implemented; actual idle subtraction remains outside this issue.
 
 ## Revisions
 
