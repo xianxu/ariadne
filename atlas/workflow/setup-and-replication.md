@@ -93,6 +93,27 @@ for humans to add to PATH explicitly. It never edits a shell rc. Compile dry-run
 skips builds, package installation, generators, and writes; generator output and
 retirement are not previewed.
 
+## Recover a refresh blocked by declaration changes
+
+`weave refresh` refuses before updating branches when fetched `origin/main`
+changes a checkout's `construct/deps`. Its error names that checkout, the changed
+substrate path or data mount, and the changed fields. Source values and URL-like
+labels are omitted. Row numbers refer to parsed declarations, excluding comments
+and blank lines; additions, removals and reordering are reported too.
+
+For the named checkout on a **clean branch behind origin/main**, run there:
+
+```sh
+git merge --ff-only origin/main
+./bootstrap.sh
+```
+
+Then retry the original refresh command from its original checkout. Ordinary
+setup adopts the new dependency declarations; refresh deliberately does not
+perform that reconciliation. If the branch is ahead or divergent, reconcile
+that branch first, then run ordinary setup after adopting the declarations.
+Keep local work; the fast-forward instruction is not a reset or a rebase recipe.
+
 ## Linked worktrees
 
 A relative `substrate` row resolves beside the declaring checkout first. When
