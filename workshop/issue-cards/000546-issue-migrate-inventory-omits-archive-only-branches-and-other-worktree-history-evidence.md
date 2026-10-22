@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.71
+actual_hours: 3.04
 tracker:
     version: 1
     completion:
-        token: close-e22b64009e6f
+        token: close-b12f1952be1c
         repository: github.com/xianxu/ariadne
-        reviewed_head: 8797b4a4a7e57b60ff83e29f56a245c40926d4d3
-        evidence_commit: 80b7572250018928acb80bd54a154cf6da121619
+        reviewed_head: eaad89ade92b1faa464ae407615a6e803cdcda06
+        evidence_commit: 692b1b01cfe0bc66034202b18813f463d4c950f6
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
