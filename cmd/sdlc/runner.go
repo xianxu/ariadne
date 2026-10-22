@@ -50,13 +50,21 @@ func (execGitRunner) GitInDir(dir string, args ...string) ([]byte, error) {
 // stream, a SHA) never carries stderr warnings (#259); on failure it returns
 // stdout followed by stderr, so error messages keep git's diagnostics.
 func runGitCmd(cmd *exec.Cmd) ([]byte, error) {
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, diagnostic, err := runGitCmdRaw(cmd)
 	if err != nil {
-		return append(out, stderr.Bytes()...), gitx.ClassifyNetworkFailure(cmd.Args[1:], stderr.Bytes(), err)
+		return append(out, diagnostic...), gitx.ClassifyNetworkFailure(cmd.Args[1:], diagnostic, err)
 	}
 	return out, nil
+}
+
+// Contextual owners must finalize process cleanup and context errors before
+// classification; keep execution raw so cancellation cannot retain a diagnosis
+// made against an incomplete result.
+func runGitCmdRaw(cmd *exec.Cmd) (stdout, diagnostic []byte, err error) {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdout, err = cmd.Output()
+	return stdout, stderr.Bytes(), err
 }
 
 func (execGitRunner) MkdirAll(path string) error { return os.MkdirAll(path, 0o755) }

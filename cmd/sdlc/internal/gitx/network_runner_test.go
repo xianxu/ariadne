@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -146,5 +147,66 @@ func TestNetworkNativeGitFakeDNSAndTimeoutBoundaries(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestNetworkOuterContextFinalizesBeforeClassification(t *testing.T) {
+	for _, boundary := range []string{"public", "trunk"} {
+		for _, mode := range []string{"cancel-failure", "cancel-success", "network", "success"} {
+			t.Run(boundary+"/"+mode, func(t *testing.T) {
+				dir := t.TempDir()
+				status := "128"
+				if strings.Contains(mode, "success") {
+					status = "0"
+				}
+				script := "#!/bin/sh\nprintf 'parsed-output'\nprintf '%s\\n' 'ssh: Could not resolve hostname git.example: Temporary failure in name resolution' >&2\nexit " + status + "\n"
+				if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0755); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				original := runGitInContext
+				t.Cleanup(func() { runGitInContext = original })
+				runGitInContext = func(ctx context.Context, dir string, env []string, args ...string) ([]byte, []byte, error) {
+					out, diag, err := original(ctx, dir, env, args...)
+					// Deterministically expose the outer context check after a lower runner
+					// has returned its completed process result, rather than racing a clock.
+					if strings.HasPrefix(mode, "cancel-") {
+						cancel()
+					}
+					return out, diag, err
+				}
+				var out []byte
+				var err error
+				if boundary == "public" {
+					out, _, err = RunGitInContext(ctx, dir, nil, "fetch", "origin")
+				} else {
+					tf, _ := NewTrunkFileContext(ctx, dir, "origin", "main")
+					out, _, err = tf.runIn(ctx, nil, "fetch", "origin")
+				}
+				var network *GitNetworkFailure
+				if strings.HasPrefix(mode, "cancel-") {
+					if !errors.Is(err, context.Canceled) || errors.As(err, &network) {
+						t.Fatalf("outer cancellation did not precede classification: %v", err)
+					}
+					if mode == "cancel-failure" {
+						var exit *exec.ExitError
+						if !errors.As(err, &exit) {
+							t.Fatalf("lost exit identity: %v", err)
+						}
+					}
+				} else if mode == "network" {
+					if !errors.As(err, &network) {
+						t.Fatalf("transport no longer classified: %v", err)
+					}
+				} else if err != nil {
+					t.Fatal(err)
+				}
+				if string(out) != "parsed-output" {
+					t.Fatalf("stdout changed: %q", out)
+				}
+			})
+		}
 	}
 }

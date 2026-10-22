@@ -46,9 +46,9 @@ func runGitBoundedInputContext(ctx context.Context, dir string, env []string, in
 	diag := &boundedOutput{limit: diagnosticOutputLimit, cancel: cancel}
 	err := executeGitInputContext(child, dir, env, input, out, diag, args...)
 	if ctx.Err() != nil {
-		err = ctx.Err()
+		err = errors.Join(ctx.Err(), err)
 	} else if out.exceeded || diag.exceeded {
 		err = ErrOutputLimit
 	}
-	return out.Bytes(), diag.Bytes(), err
+	return out.Bytes(), diag.Bytes(), ClassifyNetworkFailure(args, diag.Bytes(), err)
 }

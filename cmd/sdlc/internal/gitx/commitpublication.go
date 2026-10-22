@@ -192,7 +192,7 @@ func (t *TrunkFile) sourceApplied(source, base string) (bool, error) {
 	if err != nil || ancestor {
 		return ancestor, err
 	}
-	out, diag, err := runGitInContext(ctx, t.dir, nil, "log", "--fixed-strings", "--grep=Source-Commit: "+source, "--format=%(trailers:key=Source-Commit,valueonly)", base, "--")
+	out, diag, err := RunGitInContext(ctx, t.dir, nil, "log", "--fixed-strings", "--grep=Source-Commit: "+source, "--format=%(trailers:key=Source-Commit,valueonly)", base, "--")
 	if err != nil {
 		return false, fmt.Errorf("publication provenance query: %v\n%s", err, diag)
 	}
@@ -204,7 +204,7 @@ func (t *TrunkFile) sourceApplied(source, base string) (bool, error) {
 	return false, nil
 }
 func (t *TrunkFile) ancestor(ctx context.Context, source, base string) (bool, error) {
-	_, diag, err := runGitInContext(ctx, t.dir, nil, "merge-base", "--is-ancestor", source, base)
+	_, diag, err := RunGitInContext(ctx, t.dir, nil, "merge-base", "--is-ancestor", source, base)
 	if err == nil {
 		return true, nil
 	}

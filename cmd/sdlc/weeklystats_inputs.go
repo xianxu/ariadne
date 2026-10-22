@@ -161,7 +161,7 @@ func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error)
 	err := cmd.Run()
 	_ = processgroup.Terminate(cmd, true)
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, errors.Join(ctx.Err(), err)
 	}
 	if out.exceeded || stderr.exceeded {
 		return nil, fmt.Errorf("weekly Git output exceeds 8 MiB")

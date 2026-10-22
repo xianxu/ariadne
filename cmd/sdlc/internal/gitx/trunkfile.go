@@ -61,10 +61,11 @@ import (
 // .Output() semantics, and folding stderr into strings they parse would break
 // them silently.
 var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
-	return runGitInContext(context.Background(), dir, env, args...)
+	return RunGitInContext(context.Background(), dir, env, args...)
 }
 
-// runGitInContext is the cancellable Git boundary shared by bounded history queries.
+// runGitInContext is the raw injectable process seam. Its contextual callers
+// sample their final context outcome before classifying transport diagnostics.
 var runGitInContext = func(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
 	return runGitInputContext(ctx, dir, env, nil, args...)
 }
@@ -85,9 +86,11 @@ func RunGitInContext(ctx context.Context, dir string, env []string, args ...stri
 	if ctx.Err() != nil {
 		err = errors.Join(ctx.Err(), err)
 	}
+	err = ClassifyNetworkFailure(args, stderr, err)
 	return
 }
 
+// runGitInputContext returns raw process results for the final contextual owner.
 var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
 	var out, errBuf bytes.Buffer
 	err = executeGitInputContext(ctx, dir, env, input, &out, &errBuf, args...)
@@ -99,15 +102,8 @@ func executeGitInputContext(ctx context.Context, dir string, env []string, input
 	defer cancel()
 	cmd.Dir = dir
 	cmd.Stdin = input
-	var diagnostic bytes.Buffer
-	cmd.Stdout = stdout
-	if stderr == nil {
-		cmd.Stderr = &diagnostic
-	} else {
-		cmd.Stderr = io.MultiWriter(stderr, &diagnostic)
-	}
-	err := finishGitCommand(cmd, child, cmd.Run())
-	return ClassifyNetworkFailure(args, diagnostic.Bytes(), err)
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	return finishGitCommand(cmd, child, cmd.Run())
 }
 
 // A git query that can legitimately answer "absent" has THREE outcomes, and this
@@ -232,9 +228,9 @@ func (t *TrunkFile) runIn(ctx context.Context, env []string, args ...string) ([]
 	}
 	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
 	if ctx.Err() != nil {
-		return out, diag, errors.Join(ctx.Err(), err)
+		err = errors.Join(ctx.Err(), err)
 	}
-	return out, diag, err
+	return out, diag, ClassifyNetworkFailure(args, diag, err)
 }
 
 // localRef is the local BRANCH, fully qualified.
