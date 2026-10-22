@@ -1,6 +1,6 @@
 ---
 id: 000551
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 2.37
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 52ecd86363930418c4f78ec6bf8d8dec8fce0d52
         evidence_commit: 35f8635c7846a1b12dae4c72204ea7d92dabd7f9
+        landed_commit: b4937883e485413c5ce13c1a45e579a544c69ff1
 ---
 
 # review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable)
