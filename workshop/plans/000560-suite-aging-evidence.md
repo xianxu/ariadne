@@ -1,6 +1,6 @@
 # #560 suite-aging conformance
 
-Captured 2026-10-22 PDT. This is host evidence for the approved read-only live queue observation and disposable private queue cohort. No live grants or tickets were edited, no running suite was interrupted, and no stage/cutover was initiated. Existing helpers continue their original algorithm until next start; unknown legacy ages in this observation are conservatively projected as protected.
+Captured 2026-10-22 PDT; trailing whitespace normalized. This is host evidence for the approved read-only live queue observation and disposable private queue cohort. No live grants or tickets were edited, no running suite was interrupted, and no stage/cutover was initiated. Existing helpers continue their original algorithm until next start; unknown legacy ages in this observation are conservatively projected as protected.
 
 Source pins (HEAD, then helper/observer/queuecmd blob IDs):
 
@@ -16,7 +16,7 @@ Clean build (`make sdlc-build`, then `go version -m bin/sdlc`):
 ```text
 bin/sdlc: go1.27.1
 	path	github.com/xianxu/ariadne/cmd/sdlc
-	mod	github.com/xianxu/ariadne	v0.0.0-20261022223257-d7136fdce210	
+	mod	github.com/xianxu/ariadne	v0.0.0-20261022223257-d7136fdce210
 	dep	github.com/spf13/cobra	v1.10.2	h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=
 	dep	github.com/spf13/pflag	v1.0.9	h1:9exaQaMOCwffKiiiYk6/BndUBv+iRViNW+4lEMi0PvY=
 	dep	github.com/yuin/goldmark	v1.7.13	h1:GPddIs617DnBLFFVJFgpo1aBfe/4xcvMc3SB5t/D0pA=
@@ -85,4 +85,3 @@ OK
 ```
 
 The first case independently observes weighted slot acquisition: an aged ordinary heavy head precedes renewed young issue/train grants without partial slots or preempting existing holders. It compares read-only inspection to that effective order. The second observes final watcher-owned slot bytes, including exact enqueue age and unknown nested metadata. These cases use private queue roots and flock-owner subprocesses; their actual assertion code is in the pinned source commit.
-
