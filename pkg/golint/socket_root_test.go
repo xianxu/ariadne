@@ -45,6 +45,20 @@ func TestSocketFixtureRootImportAndEngineBoundary(t *testing.T) {
 		want         int
 	}{
 		{"aliases", `package p; import(o "os"; n "net"; p "path/filepath"; tt "testing"); func f(t *tt.T){n.Listen("unix",p.Join(o.TempDir(),"rpc")); t.Setenv("COUCH_ISOLATED_ROOT",t.TempDir())}`, 2},
+		{"parenthesized assignment", socketHeader + `var root string; ((root))=t.TempDir(); net.Listen("unix",root)` + "\n}", 1},
+		{"parenthesized tuple", socketHeader + `root,err:=((os.MkdirTemp("","s-"))); _=err; net.Listen("unix",root)` + "\n}", 1},
+		{"parenthesized tuple var", socketHeader + `var root,err=((filepath.Abs(t.TempDir()))); _=err; net.Listen("unix",root)` + "\n}", 1},
+		{"parenthesized tuple error", socketHeader + `root,err:=((os.MkdirTemp("","s-"))); _=root; net.Listen("unix",err)` + "\n}", 0},
+		{"parenthesized receiver", socketHeader + `(t).Setenv(("COUCH_ISOLATED_ROOT"),((t).TempDir)())` + "\n}", 1},
+		{"parenthesized imported function", socketHeader + `(net.Listen)(("unix"),(os.TempDir)())` + "\n}", 1},
+		{"parenthesized mkdir parent", socketHeader + `root,_:=(os.MkdirTemp((""),"s-")); net.Listen("unix",root)` + "\n}", 1},
+		{"typed local TempDir", socketHeader + `var tt *testing.T=t; net.Listen("unix",tt.TempDir())` + "\n}", 1},
+		{"typed local Setenv", socketHeader + `var tt *testing.T=t; tt.Setenv("COUCH_ISOLATED_ROOT",os.TempDir())` + "\n}", 1},
+		{"typed local TB", socketHeader + `var tt testing.TB=t; net.Listen("unix",tt.TempDir())` + "\n}", 1},
+		{"typed local value", socketHeader + `var tt testing.T; net.Listen("unix",tt.TempDir())` + "\n}", 1},
+		{"typed local parenthesized type", socketHeader + `var tt (*(testing.T))=t; (tt.Setenv)("COUCH_ISOLATED_ROOT",tt.TempDir())` + "\n}", 1},
+		{"typed unrelated receiver", socketHeader + `var tt Other=t; tt.Setenv("COUCH_ISOLATED_ROOT",os.TempDir()); net.Listen("unix",tt.TempDir())` + "\n}", 0},
+		{"inferred receiver boundary", socketHeader + `tt:=t; tt.Setenv("COUCH_ISOLATED_ROOT",tt.TempDir()); net.Listen("unix",tt.TempDir())` + "\n}", 0},
 		{"wrong package", `package p; import(n "example.net/net"; "os"); func f(){n.Listen("unix",os.TempDir())}`, 0},
 		{"wrong testing", `package p; import("net"; tt "example.net/testing"); func f(t *tt.T){net.Listen("unix",t.TempDir())}`, 0},
 		{"TB", `package p; import("net"; "testing"); func f(t testing.TB){net.Listen("unix",t.TempDir())}`, 1},
@@ -115,10 +129,30 @@ func TestSocketFixtureRootLineVisits(t *testing.T) {
 		if len(got) != 2*n {
 			t.Fatalf("N%d findings%d", n, len(got))
 		}
-		if c.AST > 80*n || c.Nodes > 60*n || c.Edges > 60*n || c.PropagatedNodes > c.Nodes || c.PropagatedEdges > c.Edges || c.Sinks != 2*n {
+		if c.AST > 80*n || c.Nodes > 60*n || c.Edges > 60*n || c.PropagatedNodes > c.Nodes || c.PropagatedEdges > c.Edges || c.Sinks != 2*n || c.Normalized > c.AST {
 			t.Fatalf("N%d exceeded one-pass node/edge/sink budgets: %+v", n, c)
 		}
 		t.Logf("N%d: %+v", n, c)
+	}
+}
+
+func TestSocketFixtureRootSharedTypeNormalization(t *testing.T) {
+	for _, n := range []int{64, 128} {
+		var src strings.Builder
+		fmt.Fprintf(&src, "package p; import(\"testing\";\"net\"); func f(t *%stesting.T%s){\n", strings.Repeat("(", n), strings.Repeat(")", n))
+		for i := 0; i < n; i++ {
+			src.WriteString("net.Listen(\"unix\",(t).TempDir())\n")
+		}
+		src.WriteString("}")
+		f, err := parser.ParseFile(token.NewFileSet(), "fixture_test.go", src.String(), 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, c := analyzeSocketRoots(f)
+		if len(got) != n || c.Normalized > c.AST {
+			t.Fatalf("N%d repeated shared-type normalization: findings%d counts%+v", n, len(got), c)
+		}
+		t.Logf("N%d shared type: %+v", n, c)
 	}
 }
 

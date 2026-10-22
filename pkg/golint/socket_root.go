@@ -19,13 +19,37 @@ type socketRootNode struct {
 }
 
 type socketRootCounts struct {
-	AST, Nodes, Edges, PropagatedNodes, PropagatedEdges, Sinks int
+	AST, Nodes, Edges, PropagatedNodes, PropagatedEdges, Sinks, Normalized int
 }
 
 type socketRootGraph struct {
 	nodes  map[any]*socketRootNode
+	parens map[ast.Expr]ast.Expr
 	queue  []*socketRootNode
 	counts socketRootCounts
+}
+
+// Cache transparent normalization in the same per-file graph. A deeply wrapped
+// receiver type shared by many calls must not be walked once per call.
+func (g *socketRootGraph) unparen(expr ast.Expr) ast.Expr {
+	var pending []ast.Expr
+	for expr != nil {
+		if normalized, ok := g.parens[expr]; ok {
+			expr = normalized
+			break
+		}
+		g.counts.Normalized++
+		pending = append(pending, expr)
+		p, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = p.X
+	}
+	for _, p := range pending {
+		g.parens[p] = expr
+	}
+	return expr
 }
 
 func (g *socketRootGraph) node(key any) *socketRootNode {
@@ -61,33 +85,39 @@ func (g *socketRootGraph) propagateInheritedRoots() {
 	}
 }
 
-type socketRootAPIs struct{ os, net, filepath, testing string }
+type socketRootAPIs struct {
+	os, net, filepath, testing string
+	unparen                    func(ast.Expr) ast.Expr
+}
 
 func (a socketRootAPIs) imported(expr ast.Expr, pkg, name string) bool {
-	sel, ok := expr.(*ast.SelectorExpr)
+	sel, ok := a.unparen(expr).(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != name || pkg == "" || pkg == "." || pkg == "_" {
 		return false
 	}
-	id, ok := sel.X.(*ast.Ident)
+	id, ok := a.unparen(sel.X).(*ast.Ident)
 	return ok && id.Obj == nil && id.Name == pkg
 }
 
 func (a socketRootAPIs) testingMethod(expr ast.Expr, name string) bool {
-	sel, ok := expr.(*ast.SelectorExpr)
+	sel, ok := a.unparen(expr).(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != name {
 		return false
 	}
-	id, ok := sel.X.(*ast.Ident)
+	id, ok := a.unparen(sel.X).(*ast.Ident)
 	if !ok || id.Obj == nil {
 		return false
 	}
-	field, ok := id.Obj.Decl.(*ast.Field)
-	if !ok {
-		return false
+	var typ ast.Expr
+	switch decl := id.Obj.Decl.(type) {
+	case *ast.Field:
+		typ = decl.Type
+	case *ast.ValueSpec:
+		typ = decl.Type
 	}
-	typ := field.Type
+	typ = a.unparen(typ)
 	if p, ok := typ.(*ast.StarExpr); ok {
-		typ = p.X
+		typ = a.unparen(p.X)
 	}
 	for _, name := range []string{"T", "B", "F", "TB"} {
 		if a.imported(typ, a.testing, name) {
@@ -107,7 +137,7 @@ func socketRootSink(c *ast.CallExpr, a socketRootAPIs) []ast.Expr {
 	if len(c.Args) < 2 {
 		return nil
 	}
-	key, literal := stringLit(c.Args[0])
+	key, literal := stringLit(a.unparen(c.Args[0]))
 	if !literal {
 		return nil
 	}
@@ -129,8 +159,8 @@ func socketRootSink(c *ast.CallExpr, a socketRootAPIs) []ast.Expr {
 }
 
 func analyzeSocketRoots(f *ast.File) ([]ast.Node, socketRootCounts) {
-	a := socketRootAPIs{localName(f, "os"), localName(f, "net"), localName(f, "path/filepath"), localName(f, "testing")}
-	g := socketRootGraph{nodes: map[any]*socketRootNode{}}
+	g := socketRootGraph{nodes: map[any]*socketRootNode{}, parens: map[ast.Expr]ast.Expr{}}
+	a := socketRootAPIs{localName(f, "os"), localName(f, "net"), localName(f, "path/filepath"), localName(f, "testing"), g.unparen}
 	type sink struct {
 		call *ast.CallExpr
 		args []ast.Expr
@@ -140,14 +170,14 @@ func analyzeSocketRoots(f *ast.File) ([]ast.Node, socketRootCounts) {
 	// handles forward references, branching writes, shared aliases and cycles.
 	bind := func(names []ast.Expr, values []ast.Expr) {
 		for i, lhs := range names {
-			id, ok := lhs.(*ast.Ident)
+			id, ok := g.unparen(lhs).(*ast.Ident)
 			if !ok || id.Obj == nil || id.Name == "_" {
 				continue
 			}
 			if len(names) == len(values) {
 				g.edge(values[i], id.Obj)
 			} else if i == 0 && len(values) == 1 {
-				if call, ok := values[0].(*ast.CallExpr); ok && a.firstPathResult(call) {
+				if call, ok := g.unparen(values[0]).(*ast.CallExpr); ok && a.firstPathResult(call) {
 					g.edge(call, id.Obj)
 				}
 			}
@@ -199,7 +229,7 @@ func analyzeSocketRoots(f *ast.File) ([]ast.Node, socketRootCounts) {
 				g.mark(g.node(x))
 			}
 			if a.imported(x.Fun, a.os, "MkdirTemp") && len(x.Args) == 2 {
-				if parent, ok := stringLit(x.Args[0]); ok && parent == "" {
+				if parent, ok := stringLit(g.unparen(x.Args[0])); ok && parent == "" {
 					g.mark(g.node(x))
 				}
 				g.edge(x.Args[0], x)

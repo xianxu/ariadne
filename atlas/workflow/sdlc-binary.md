@@ -2500,10 +2500,15 @@ by exact import path; shadowed qualifiers do not count as imports. Pair's
 the isolation-root setting selects its length-sensitive parent. Unrelated
 temporary data and `TMPDIR` settings remain allowed.
 
+Testing receivers may have a directly declared testing type on a parameter or
+local `var`; inferred receiver aliases and named type aliases are not resolved.
+Transparent parentheses are normalized at assignment, first-result call,
+receiver, API selector and literal-key boundaries, using one per-file cache.
+
 The rule conservatively joins all visible writes to a binding, including writes
 after a sink; it does not infer branch execution or overwrite ordering. Opaque
 helpers, function-value aliases, dynamic network/environment keys, dot imports,
-interface dispatch and arbitrary container mutations are outside its boundary;
+interface dispatch beyond visible testing types and arbitrary container mutations are outside its boundary;
 no finding is not a safety proof. The graph indexes syntax once and propagates
 each inherited node/edge once, with counted growth tests. Keep ordinary files on
 TMPDIR. For a socket fixture, use a short canonical private root, prefer usable

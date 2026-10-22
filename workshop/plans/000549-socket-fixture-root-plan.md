@@ -26,7 +26,7 @@ All named functions below are proposed implementation names, not claims they alr
 |---|---|---|---|
 | socketFixtureRoots | pkg/golint/socket_root.go | new | Replay recorded unsafe/corrected source through actual Check and CheckSources; assert finding locations, not only counts. Catalog registration and TestAtlasNamesEveryRule enforce discovery. |
 | analyzeSocketRoots | pkg/golint/socket_root.go | new | Actual AST-to-graph analysis entry used by the rule and counted N/2N tests; graph propagation and sink controls exercise it directly. |
-| socketRootGraph / propagateInheritedRoots | pkg/golint/socket_root.go | new | Aliases, multi-result MkdirTemp, branch writes, shadowing and cycles; explicit graph visit counters at N and 2N reject repeated whole-graph rescans. |
+| socketRootGraph / propagateInheritedRoots / unparen | pkg/golint/socket_root.go | new | Aliases, multi-result MkdirTemp, branch writes, shadowing and cycles; explicit graph and shared-type normalization counters at N and 2N reject repeated whole-graph or parenthesis rescans. |
 | socketRootSink | pkg/golint/socket_root.go | new | Exact import identity, renamed imports, unrelated same-name methods, TCP controls and independent isolation parent/hashed namespace; API matrix tests pin actual length-sensitive argument selection. |
 | Catalog | pkg/golint/rules.go | modified | Shared production catalog rejects original misuse; existing tmp-literal ordinary-file controls remain unchanged. |
 
@@ -101,3 +101,5 @@ ARCH-DRY: one catalog rule and provenance graph, reuse parsing/import/suppressio
 2026-10-22 14:04 PDT — TL confirmed PQ-1 correction and native-only smoke. Plan-quality CLEAN with prior findings addressed, estimate recorded and change-code passed. Implementation names the single graph-construction entry analyzeSocketRoots, now included in Core concepts; no design or scope change.
 
 2026-10-22 — Verification follows TL's approved native-private-listener-only smoke: exact original/corrected Pair Git blobs run through the source lint, while the owned native listener proves path length and cleanup. The optional read-only Pair RPC run is superseded by this explicit smoke decision, not claimed as executed.
+
+2026-10-22 14:48 PDT — Close BR-1/BR-2: normalize transparent parentheses consistently at binding, first-result, selector/receiver/type and literal-key recognition boundaries. The same per-file graph owns normalization memoization, with a counted shared deeply wrapped receiver type at N/2N. Recognize explicit testing receiver types from parameter fields and local var declarations; inferred receiver aliases and named type aliases remain outside the documented syntax-only boundary. This corrects promised coverage rather than adding interprocedural inference or changing sink policy. Original queued suite was owner-cancelled before execution because corrected code needs a new recorded head.

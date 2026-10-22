@@ -8,6 +8,14 @@
 
 # Lessons
 
+- #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
+  every recognition boundary, including assignment targets and tuple-return
+  calls, rather than only expression propagation. Recognize directly declared
+  receiver types on both parameters and local var declarations; state inferred
+  aliases as a separate limit. Check/CheckSources regressions guard the class,
+  and counted shared-type normalization prevents repeated deep walks. This is
+  the existing mechanical lint's own behavioral contract, not a second lint.
+
 - #549 / pair#792: Unix-socket length depends on the actual path parent, not
   every input called a namespace. Pair hashes SocketPath's namespace, while
   COUCH_ISOLATED_ROOT supplies its parent. Trace inherited temp roots only into
