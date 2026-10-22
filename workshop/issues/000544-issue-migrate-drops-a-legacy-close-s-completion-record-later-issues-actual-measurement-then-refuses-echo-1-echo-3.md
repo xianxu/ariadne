@@ -66,9 +66,11 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - [x] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
 - [x] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
 - [x] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
-- [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
+- [x] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
 
 ## Log
+
+- 2026-10-22: Close round1 returned REWORK, not closed: BR-1 reproduced older decoders silently discarding hybrid prefix fields; BR-2 reproduced repair accepting removed completion/provenance history that actual then refuses. TL approved an explicit hybrid method/version boundary and one shared monotone generation validator (delivery24b0ff95-3691-4347-82fa-aed92f08a7b0). Added durable plan Revisions and assigned independent bounded corrections with red-first regressions. Re-run the suite on the fixed pushed head before re-close; the prior suite remains an exact old-head pass, not approval of these fixes. #548 remains next after landing.
 
 ### 2026-10-21
 
@@ -100,6 +102,8 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - Final audit reproduced another evidence-retention boundary: a positive prefix plus known-zero owned suffix measured correctly but saved no suffix sources, so replay became a telemetry gap. Hybrid-only exact empty-source retention fixes it without accepting missing telemetry; fresh/replay/missing-file controls passed18.073s and the focused race test4.728s. New refusal/replay controls passed6.569s. Full production root prefix/replay/authority and repair race controls passed29.815s. The broader combined matrix printed PASS for all behavioral cases (346.395s), then the real-repository hermeticity guard correctly failed because the authorized audit changed two tracked source paths concurrently. That run is not claimed as a passing check: repeat the stable matrix after all edits stop, then queue the recorded full suite. This is an implementation scheduling error, not registered flake evidence.
 
 - Stable verification on Git-verified31a60351a84c70c88695af48556f634bbbbbf338 completed with no concurrent source edits: migration/legacy/repair/exclusion/cutover matrix passed248.586s; owned measurement/replay/queue matrix passed92.540s. Both include the normal real-repository hermeticity guard. Prefix refusal/replay final controls passed6.569s; tracked-file lint and codec package passed; vet returned0. Raw logs and native/live evidence are persisted under common Git sdlc/test-stats/evidence/000544 with SHA256SUMS. Checkpointing this result before queuing the recorded full suite; no further implementation edit is planned.
+
+- Recorded branch suite completed on Git-verified912d87634143d023fab266ded7e212c53082db70: all8 SDLC shards and76 other packages passed,2149 SDLC tests,0 failures,808.9s wall after135s FIFO wait. Lease712010329 survived the capacity interruption; no duplicate or requeue. The exact-head sdlc-local/suite status is recorded. Saved log: common Git sdlc/local-checks/912d87634143d023fab266ded7e212c53082db70/suite.log. TL accepted the result and directed close/land, then #548 code (deliveryc4635b43-eb9c-41eb-9592-c4174b66fe93).
 
 ## Revisions
 
