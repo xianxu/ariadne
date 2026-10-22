@@ -8,6 +8,37 @@
 
 # Lessons
 
+- #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
+
+- #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
+  utility's field grammar. Replay recorded native output through the production
+  adapter and cover both address families before relying on parser fuzz seeds;
+  macOS uses distinct ip_address/ipv6_address fields. Native format coverage
+  belongs in capture-backed parser/adapter tests, not a lexical lint rule.
+
+- #540 BR-2: testing a classifier with an already-cancelled cause misses an
+  adapter that classifies first and joins cancellation later. Keep execution
+  raw until the final context owner completes cleanup and samples its outcome,
+  then classify once. Preserve injected cancelled-success controls and add
+  real subprocess barriers after diagnostic emission. This semantic ordering
+  needs production-boundary tests rather than a lexical error-string lint.
+
+- #540 BR-1: a classifier's supported transports must match its host parser's
+  accepted transports. Enumerate HTTP(S), SSH/scp and native Git, and capture
+  real transport failures through the production runner; HTTP-shaped fake
+  diagnostics alone cannot defend native Git's paired header/errno format.
+  Transport provenance and negative hook/local controls belong in executable
+  classification/property tests, not a lexical lint over arbitrary prose.
+
+- #540: classify transport failures at the shared Git seams without probing or
+  retrying there. Diagnostics belong in an explicit bounded command; preserve
+  original error identity and uncertain publication outcomes. A command that
+  promises cancellation must enter the real CLI signal owner, with a native
+  child-group regression and a missing-owner mutation. Resolver disagreement
+  is an observation, not proof of an upstream outage. Stateful transport and
+  parser/property controls enforce this semantic contract; a lexical lint
+  cannot infer network provenance from arbitrary error prose.
+
 - #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
 
 - #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.

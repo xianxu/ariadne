@@ -135,16 +135,16 @@ func (t *TrunkFile) updateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 		// THIS write won. An identical peer can construct the same commit, so
 		// reachability is evidence only, never ownership after an unknown push.
 		if observedPush(pushErr, out) == pushUnknown {
-			return fmt.Errorf("%w: candidate %s; inspect %s/%s before retrying: %v\n%s", ErrPublicationUncertain, candidate, t.remote, t.branch, pushErr, out)
+			return fmt.Errorf("%w: candidate %s; inspect %s/%s before retrying: %w\n%s", ErrPublicationUncertain, candidate, t.remote, t.branch, pushErr, networkDiagnostic(pushErr, out))
 		}
 		now, err := t.refreshTip()
 		switch publicationStep(observedPush(pushErr, out), observedConfirmation(base, now, false, err)) {
 		case publicationSucceeded:
 			return nil
 		case publicationUncertain:
-			return fmt.Errorf("%w: candidate %s, remote %s: push %v; confirmation %v\n%s", ErrPublicationUncertain, candidate, now, pushErr, err, out)
+			return fmt.Errorf("%w: candidate %s, remote %s: push/confirmation %w\n%s", ErrPublicationUncertain, candidate, now, errors.Join(pushErr, err), networkDiagnostic(errors.Join(pushErr, err), out))
 		case publicationRefuse:
-			return fmt.Errorf("publish set: %v\n%s", pushErr, out)
+			return fmt.Errorf("publish set: %w\n%s", pushErr, networkDiagnostic(pushErr, out))
 		case publicationRetry: // fetch pinned the new base; rerun prepare
 		}
 

@@ -45,5 +45,14 @@ func boundedGitOutput(ctx context.Context, env []string, name string, args ...st
 	cmd, child, cancel := boundedGitCommand(ctx, env, name, args...)
 	defer cancel()
 	out, err := cmd.Output()
-	return out, finishGitCommand(cmd, child, err)
+	err = finishGitCommand(cmd, child, err)
+	var diagnostic []byte
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		diagnostic = exit.Stderr
+	}
+	if name == "git" {
+		err = ClassifyNetworkFailure(args, diagnostic, err)
+	}
+	return out, err
 }

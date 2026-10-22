@@ -97,7 +97,7 @@ func (t *TrunkFile) PushCandidate(c Candidate) (PushOutcome, error) {
 	case pushRejected:
 		return PushRejected, nil
 	}
-	return PushUnknown, fmt.Errorf("%w: candidate %s: %v\n%s", ErrPublicationUncertain, c.OID, err, out)
+	return PushUnknown, fmt.Errorf("%w: candidate %s: %w\n%s", ErrPublicationUncertain, c.OID, err, networkDiagnostic(err, out))
 }
 
 // ProbeCandidate observes the fresh destination tip. It performs no mutation.
