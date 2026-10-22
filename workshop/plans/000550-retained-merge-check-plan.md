@@ -26,6 +26,7 @@ No timer guesses that a record will never arrive. Confirmed missing evidence is 
 | --- | --- | --- |
 | `ciVerdict` | `cmd/sdlc/cigate.go` | modified |
 | `ciGateError` | `cmd/sdlc/cigate_wait.go` | modified |
+| `localCheckCommand` | `cmd/sdlc/cigate.go` | new |
 
 `ciVerdict.LocalNeeded` already names unsatisfied head-scoped local checks. Preserve that fact even when server CI determines the aggregate reason, including no-check/workflow registration. Its existing refusal formatter remains the single owner of canonical check commands. `ciGateError` gains copied missing-check names so `errors.As` can recover them through wrappers. This is in-process data only, with no persisted schema or new lifecycle. One verdict/error contains zero or more check names; future classifier reasons retain this same structured evidence rather than adding string matching.
 
@@ -114,3 +115,7 @@ Agent-facing assertions cover the same CLI result under Claude/Codex-labelled fi
 ### 2026-10-22 — approved exit text and no stage
 
 Ops:0 approves this design (`4cec01c2-b2f4-4df2-9346-718e9a3e4c55`) with the additional required sentence: `merge stopped: run <exact command>, then re-enter sdlc merge`. Compose it from the same typed missing-check names as the canonical CI commands, never parse the existing message. For multiple commands, name each required action. Fixture plus real-lock verification is approved in place of a live stage. No code or effect-owner changes beyond the existing plan.
+
+### 2026-10-22 — canonical command owner
+
+The shared formatter is named `localCheckCommand` in `cigate.go`; both the existing CI refusal and the terminal readiness message derive commands from it. This small extraction implements the approved single-owner command wording without a second command grammar. The callback's third error result also reaches `maybeConductTrain` in `landingtrain.go`; after admission it remains a readiness summary for choosing serial versus train, while fresh landing gates continue to own effects.

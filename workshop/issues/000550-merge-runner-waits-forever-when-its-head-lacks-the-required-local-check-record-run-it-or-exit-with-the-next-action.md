@@ -44,9 +44,9 @@ it doesn't loop silently.
 
 ## Plan
 
-- [ ] Preserve missing-local-check facts independently of the aggregate CI verdict.
-- [ ] End retained train waits with the exact local-check action, joining readiness and releasing the ticket.
-- [ ] Cover the original pair#779 capture, mixed CI verdicts, satisfied records, and interrupted wait orderings.
+- [x] Preserve missing-local-check facts independently of the aggregate CI verdict.
+- [x] End retained train waits with the exact local-check action, joining readiness and releasing the ticket.
+- [x] Cover the original pair#779 capture, mixed CI verdicts, satisfied records, and interrupted wait orderings.
 - [ ] Update help/README/atlas, run the recorded suite, close and land.
 
 Durable design: [retained merge check refusal](../plans/000550-retained-merge-check-plan.md).
@@ -59,6 +59,14 @@ Durable design: [retained merge check refusal](../plans/000550-retained-merge-ch
 - Existing readiness controls pass: `go test ./cmd/sdlc -run '^(TestCarReadiness|TestEnterLandingLineVouchesWhileWaiting)$' -count=1` (5.588s). This is baseline evidence, not a fixed regression.
 - Design exploration also found missing local records can be masked by pending/red/unknown server CI, no registered checks, or a missing required guard. Preserve structured missing-check evidence instead of matching the displayed aggregate reason (ARCH-DRY/ARCH-PURE).
 - Authenticated pair:4 supplied `/tmp/pair779-original-readiness-capture.txt`; locally verified SHA256 `f45200e875895acaead21dc387cb79da83c83590fbb6c387b68c5efac6b501d7`. Original tool output at 02:06:34Z and 04:34:02Z on October 22 shows pending → missing affected/fallback → held on the same missing record. Historical DNS diagnostics are capture context, not a current incident. Copy this bounded text to the test fixture during implementation.
+
+### 2026-10-22 — implementation and focused evidence
+
+Change-code admitted the inferred quick flow. Implemented independent `ciGateError.LocalNeeded`, shared canonical command formatting, the third readiness result and scoped cancel-cause propagation. Successful admission/observed settlement/caller cancellation retain their authority, and a survivor refuses before releasing the old conductor. No automatic check runner or durable state added. Help, README and both atlas descriptions distinguish pre-admission refusal from admitted automatic execution.
+
+Red: the original waiter called readiness twice then returned `context canceled`, instead of the actionable refusal, for both Claude/Codex labels. CI metadata tests independently failed across the masked-verdict inventory. Green: focused CI classifier/gate controls PASS1.474s; production readiness matrix PASS23.718s; full `runMerge` entry with a held ticket PASS2.565s; new regression/production/race controls PASS35.452s, and full merge-entry race control PASS4.322s after replacing its shared buffer with the existing synchronized writer. Tracked-file Go lint PASS1.059s.
+
+The first combined broad run's assertions passed, but its hermeticity guard correctly rejected concurrent agent edits to two docs and a test file (174.212s); this is contaminated verification, not a suite pass or product/flake evidence. Freeze edits for its replacement focused run. A retry fixture also initially reused its missing-record second-poll cancellation guard after the gate passed: removed that artificial scheduling assumption from the retry path; the refusal still asserts exactly one observation. No production timing budget was changed.
 
 ## Revisions
 

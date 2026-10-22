@@ -544,6 +544,16 @@ trains on:
   car directly; the affected stand-in is an alternative. The missing-record
   message names affected or its full-suite fallback and explains conditionally
   to wait if affected fell back (#513), without asserting a queued run exists.
+  Missing local evidence ends the retained wait (#550): `ciVerdict.LocalNeeded`
+  survives aggregate pending/red/unknown/unregistered/guard refusals through
+  `ciGateError.LocalNeeded`. `carReadiness` returns a separate terminal error
+  with canonical commands; `vouchWhileWaiting` signals the cancellation owner
+  once, then `enterLandingLine` joins it, ends wait evidence and releases the
+  ticket. Successful admission, observed settlement and caller cancellation
+  retain precedence over late errors. The pane says `merge stopped: run <exact
+  command>, then re-enter sdlc merge`. A separately queued check stays intact;
+  retry after its pass, or run the named check through the normal queue first.
+  Serial/granted admission retains automatic missing-check execution.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - Candidate and composed membership have distinct banners (#521); the terminal

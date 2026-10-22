@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #550: a readiness prerequisite cannot depend on an effect available only
+  after that readiness admits its owner. Preserve actionable prerequisite
+  facts separately from aggregate status precedence, and exit with the full
+  next command when the read-only waiter cannot perform the effect. Test mixed
+  verdicts and late observations through real held tickets; typed temporal
+  authority is defended by these regressions rather than lexical lint.
+
 - #548 BR-1: when splitting a function into its own module, update every core-concepts/function-contract location and append the file-split revision before close. Check table locations against definitions; the boundary reviewer enforces semantic traceability, without prose-presence tests.
 
 - #548: shared-slot and overlapping-clock evidence cannot establish an issue's suite ownership. Classify the immutable tested head first, then apply pinned engagement rules; unknown proof stays strict. Disable replacement refs at the immutable Git reader itself. Safety limits must stop discovery before IO grows past them, and neutral graph nodes must share immutable membership rather than multiply derived storage. Counted graph and real Git/tracker fixtures defend these semantic invariants.

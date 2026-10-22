@@ -871,7 +871,7 @@ func carBySeq(cars []landingline.Car, seq int64) landingline.Car {
 // open PR still sit at the vouched head. With no other car, it records the
 // departure and returns to today's single landing. Otherwise it conducts,
 // and on success returns its own PR as GitHub shows it merged.
-func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCaller, t landingTarget, f *mergeFlags, turn *landingTurn, branch, head string, pr landingPR, s landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool), stderr io.Writer) (landingPR, bool, error) {
+func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCaller, t landingTarget, f *mergeFlags, turn *landingTurn, branch, head string, pr landingPR, s landingline.Schedule, readiness func(context.Context) (landingline.Readiness, bool, error), stderr io.Writer) (landingPR, bool, error) {
 	if s.Off() {
 		return pr, false, nil
 	}
@@ -894,7 +894,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	if _, granted := grants[tk.Issue]; granted {
 		return serial("fleet-blocking: lands alone, outside the train", 0)
 	}
-	self, _ := readiness(ctx)
+	self, _, _ := readiness(ctx) // already admitted: fresh landing gates own any effects
 	if !self.Ready || self.Head != head || self.PR != pr.Number {
 		return serial("this merge's own gates do not hold: "+self.Reason, 0)
 	}

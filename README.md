@@ -691,6 +691,14 @@ the command rather than promise a drop.
 merge's readiness, and the last trains: result, cars, train PR, split suites
 and culprit.
 
+A train waiter missing a required local-check record exits with
+`merge stopped: run <exact command>, then re-enter sdlc merge`.
+Run the named check under its normal queue; if it is already queued or running,
+retain that check and retry merge after it passes. The refusal releases this
+merge's ticket and position. Readiness stays read-only, including while server
+CI is pending or failing; missing checks still run automatically after
+serial/granted admission.
+
 Merge refuses red CI on the PR head. Durable workspaces wait up to 20 minutes
 for pending CI, integrate a moved main locally, and recheck main before landing
 (up to three code integrations); conflicts abort with the paths to resolve.
@@ -707,7 +715,7 @@ checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
 runs one on a pushed head (under the machine-wide suite lock by default) and records it as
 the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
 a CI job that never got a runner (never one that ran and failed), requires it
-for checks declared `required`, and runs a missing one itself, unless a saved
+for checks declared `required`, and after admission runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
 Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /

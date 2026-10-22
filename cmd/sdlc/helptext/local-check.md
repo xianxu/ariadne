@@ -334,6 +334,12 @@ CANCEL (#400, #510)
 
 HOW MERGE USES IT
 
+  Train readiness is read-only. Before admission, a missing required local
+  record stops the merge with the exact check command and merge retry action.
+  Retain an already queued/running check and retry after its pass; otherwise
+  run the command normally. Refusal releases only this merge ticket/position.
+  After serial/granted admission, checks run automatically as described below.
+
   A CI job that GitHub cancelled before any runner took it (no runner, zero
   steps) passes the CI gate when its declared substitute has a recorded pass
   on the PR head. A job that ran and failed or was cancelled still blocks. A
