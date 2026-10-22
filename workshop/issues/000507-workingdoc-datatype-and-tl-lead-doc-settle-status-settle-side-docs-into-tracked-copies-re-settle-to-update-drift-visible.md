@@ -99,6 +99,10 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Round-four close returned SHIP: all seven findings disposed, no new findings; measured actual adopted 2.87h. Final close head 25c656f4eec004ea6ecd1bca71536c10a9115946 staged on ariadne:0 through sdlc stage --build. All seven built binaries, including tl-lead and sdlc, verified vcs.revision=25c656f4eec004ea6ecd1bca71536c10a9115946 and vcs.modified=false. Stage report sent to hub; holding for TL/operator disposable live check and ordered fixture-replay evidence before clearing/merge. No worker writes to live hub documents.
 
+- Live evidence from TL/operator, receipt 50abaed0-9e59-43fb-be48-56760cb195ff, staged revision 25c656f4eec004ea6ecd1bca71536c10a9115946: disposable ops source session.side/2026-10-22-99-settle-check.md first settled to workshop/workingdoc/settle-check.md at ee1469af978ddc9fc023983daffd6a8ea0724885 (Git-verified). Parent ../session.md became ../../session.md; expected warning named session.md as a live, non-durable dependency. After a session-sync edit adding a literal code-span link, status showed drift plus three other unsettled pages. Re-settle without --to reused the target at 3a38903949fda7d42377bf3a5809267277e22fdd (Git-verified), preserving `[x](../session.md)` inside code. Adding an unanswered question refused at line 16/column 15 with no commit. Live rows 1-4 PASS. TL removed the tracked copy in an ops cleanup commit and deleted the disposable source.
+- Operator-lock refusal was NOT exercised live: TL cannot acquire the operator's lock. TL explicitly accepted the existing lock fixture for that row. Ordered stateful replay against the exact two ops Git payloads PASS (TestWorkingdocLive20261022Replay, 0.158s): first publication/warning, source edit, drift plus three unsettled pages, re-settle, literal preservation, exact marker location/no effects. Supplemental modeled lock refusal also caused no effects. Replay was a temporary validation probe using the existing production coordinator/fakes, retained outside the checkout; no production or tracked test code changed after SHIP. Probe SHA256 9ad5cbed636f7f93d1e4d166a992a0168682cbab5b77b81f10a8a5ce4402930b; captured-payload JSON SHA256 0661034f7952a5d16c805604984c331faa98e86c904aa2d7ecf921512c47f435. Datatype lint also PASS (11 types with collaboration defaults).
+- Stage cleared successfully through sdlc stage --clear: ariadne:0 restored to main and all seven binaries verified at 23ffbc7a2bdd7cf913e331cdede798267b275344 with vcs.modified=false. TL authorized merge after the live evidence. Publishing this docs-only evidence and entering the normal landing line; integration and remaining landing gates belong to sdlc merge.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
@@ -126,3 +130,7 @@ item: real-api-discovery design=0.00 impl=0.16
 design-buffer: 0.15
 total: 2.93
 ```
+
+### 2026-10-22 — live-lock verification provenance
+
+TL/operator live check passed rows 1-4 and cleanup completed. The operator-lock row remains fixture-only, explicitly accepted by TL because TL cannot take the operator lock. This changes verification provenance rather than weakening the refusal contract: the ordered replay and existing lock/late-lock fixtures still require no effects while locked. No worker manipulates live hub files.
