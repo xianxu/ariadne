@@ -121,6 +121,7 @@ func missingHelperOptions(help string, required []string) []string {
 type helperHelpCapture struct {
 	sync.Mutex
 	bytes    int
+	limit    int // zero retains the capability-probe budget
 	exceeded bool
 	cancel   context.CancelFunc
 }
@@ -133,7 +134,11 @@ type helperHelpWriter struct {
 func (w *helperHelpWriter) Write(p []byte) (int, error) {
 	w.capture.Lock()
 	defer w.capture.Unlock()
-	if len(p) > helperHelpLimit-w.capture.bytes {
+	limit := w.capture.limit
+	if limit == 0 {
+		limit = helperHelpLimit
+	}
+	if len(p) > limit-w.capture.bytes {
 		w.capture.exceeded = true
 		w.capture.cancel()
 		return 0, errHelperHelpLimit

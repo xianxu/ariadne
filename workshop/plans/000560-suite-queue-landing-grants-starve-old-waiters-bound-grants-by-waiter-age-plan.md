@@ -86,28 +86,28 @@ Inspection is a human status read: cap4096 ticket records,64KiB per existing rec
 
 Files: scripts/test-lock.py; scripts/test/test-lock-priority.test.py.
 
-- [ ] Write and run the failing pure-order regression, then implement TicketAge/SuiteOrder and route effective_order through the shared projection. Verify using the function-level strategies below.
-- [ ] Commit the verified pure core.
+- [x] Write and run the failing pure-order regression, then implement TicketAge/SuiteOrder and route effective_order through the shared projection. Verify using the function-level strategies below.
+- [x] Commit the verified pure core.
 
 ### 2. Ticket lifecycle and actual admission
 
 Files: scripts/test-lock.py; scripts/test/test-lock-priority.test.py; scripts/test/test-lock-pause.test.py; existing Go helper harness tests.
 
-- [ ] Add the lifecycle/admission regressions, observe red, then stamp enqueue time under alloc and propagate the immutable record through election and acquisition.
-- [ ] Verify through the existing real helper/provider harness using the function-level strategies below; capture a waiting diagnostic and commit.
+- [x] Add the lifecycle/admission regressions, observe red, then stamp enqueue time under alloc and propagate the immutable record through election and acquisition.
+- [x] Verify through the existing real helper/provider harness using the function-level strategies below; capture a waiting diagnostic and commit.
 
 ### 3. Shared inspection and queue status
 
 Files: scripts/test-lock.py; cmd/sdlc/queue_suite_status.go; cmd/sdlc/queue_suite_status_test.go; cmd/sdlc/queuecmd.go; cmd/sdlc/queuecmd_test.go.
 
-- [ ] Add inspection/status regressions and observe red, then implement the bounded read-only inspection and inject its contextual observer into queueCommandDeps.
-- [ ] Render the shared projection in text status, verify with the function-level strategies below, and commit.
+- [x] Add inspection/status regressions and observe red, then implement the bounded read-only inspection and inject its contextual observer into queueCommandDeps.
+- [x] Render the shared projection in text status, verify with the function-level strategies below, and commit.
 
 ### 4. Docs, conformance and landing
 
 Files: atlas/workflow/sdlc-binary.md; README.md if its queue entry needs the new policy; issue Log and plan.
 
-- [ ] Document the60-minute overtaking bound, unknown-age protection, running-heavy-head limit and current-helper rollout scope. Keep Go grant validity / landing queue contracts unchanged.
+- [x] Document the60-minute overtaking bound, unknown-age protection, running-heavy-head limit and current-helper rollout scope. Keep Go grant validity / landing queue contracts unchanged.
 - [ ] Run targeted Python/Go suites through the existing real-provider harness. Propose a built-binary read-only queue status plus private controlled mixed-weight admission as live conformance; no real grant edits, ticket rewrites, cancellations or fleet stage without hub authorization.
 - [ ] Push/checkpoint; run the recorded suite, mandatory boundary review and sdlc merge. Report landing and clear any authorized stage. No implementation before full-plan approval.
 

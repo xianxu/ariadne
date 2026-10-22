@@ -1515,3 +1515,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   production seam and prevent another instance of this message-dependent class.
 
 - #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
+
+- #560 plan review: name each risky production function in the test strategy table, with one adversarial input class and independent mechanical guard; keep case inventories in executable tests. Distinguish existing read ceilings from writer enforcement when stating bounds.
+
+- #560 implementation review: when admission publishes a record and a watcher later rewrites it, retain the admitted record as the source for that final write. A direct election test misses erasure at the watcher boundary; a real acquired-slot assertion must check the immutable field and unknown nested metadata after the holder is installed. Successful-parent cleanup also needs an independent descendant test, since cancellation-only tests cannot defend post-Run cleanup.

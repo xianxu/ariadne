@@ -43,8 +43,8 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 ## Plan
 
 - [x] Approve the durable plan: [bounded grant aging](../plans/000560-suite-queue-landing-grants-starve-old-waiters-bound-grants-by-waiter-age-plan.md).
-- [ ] Implement and verify pure protected-prefix ordering and immutable ticket age.
-- [ ] Add shared read-only queue inspection/status with actual admission and compatibility coverage.
+- [x] Implement and verify pure protected-prefix ordering and immutable ticket age.
+- [x] Add shared read-only queue inspection/status with actual admission and compatibility coverage.
 - [ ] Complete conformance, recorded suite, review and landing.
 
 ## Log
@@ -58,6 +58,14 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 ### 2026-10-22 — full plan approved; rollout on next helper start
 
 TL approved the complete plan (delivery b7226f49-4802-4e84-a68e-dd94c93e60c5): one named setting/projection; text ages, limit and override; frozen JSON unchanged; additive monotonic member with unknown ages protected; no new durable history, hot reload or forced cutover. Running helpers pick up the new behavior at their next process start; the operator's planned full shutdown tonight restarts them. This issue does not initiate that shutdown. Enter full-flow change-code before implementation because the scheduler, bounded observer and status integration exceed the quick-flow code shell.
+
+### 2026-10-22 — change-code admitted; red-first implementation
+
+Plan-quality CLEAN disposed PQ-1/PQ-2; full-flow change-code exited0 after estimate-quality INFO. The estimate is optimistic about verification: implementation primitives include their targeted/private conformance runs and the review primitive includes close/landing attention; recorded-suite elapsed time remains an acknowledged unallocated estimate risk. No accounting overrides. Python policy/inspection and Go observer/rendering are isolated file ownership. Old grant-first regression failed with actual order[2,1] versus protected[1,2] at the60-minute boundary. New Go observer tests initially fail to compile because the observer API does not yet exist. Keep Go test runs after concurrent checkout edits stop, per the hermeticity guard.
+
+### 2026-10-22 — targeted verification and ad-hoc review
+
+Python and Go implementations are complete. New final-watcher lifecycle regression first failed because acquired slot metadata lost enqueue_monotonic; restoring the admitted record also preserves unknown nested members. The Go successful-parent descendant test failed under a deliberate cleanup-removal mutation (pid still running), then passed with cleanup restored. Main verification: Go queue/suite/helper targeted selection PASS101.305s; independent golint package PASS1.145s; Python age/resources/evidence22 tests PASS0.676s; pause18 tests PASS4.310s. The Go selection includes the real Python helper/production Go provider harness. Fresh-eyes review found no blocking production defect and asked for fixture joining plus successful-parent descendant coverage, both now added. Supplementary inspection rejects persisted nonfinite JSON explicitly rather than emitting invalid JSON; it does not rewrite that record. No machine queue or grant was altered. Next: clean built-binary read-only status and private cohort conformance, then pushed-head recorded suite and mandatory close review.
 
 ## Revisions
 
