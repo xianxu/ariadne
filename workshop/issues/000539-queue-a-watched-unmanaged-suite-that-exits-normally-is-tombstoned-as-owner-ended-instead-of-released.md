@@ -1,13 +1,13 @@
 ---
 id: 000539
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.13
 collaboration-mode: collaboration
-card_mirror: 'f31bcb7f607c9da5036ff0e3e7bd70b8b69331c3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '80c79eadb938dde9acd118ca10fc11adea0de27d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T21:43:50-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 0.88
 ---
 
 # queue: a watched unmanaged suite that exits normally is tombstoned as 'owner ended' instead of released
