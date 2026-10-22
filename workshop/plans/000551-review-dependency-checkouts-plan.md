@@ -121,3 +121,7 @@ PQ-1: name the contextual Create/Reset and BeforeRetryContext seams explicitly; 
 ### 2026-10-22 — implementation traceability and no-fetch conformance
 
 The shared pure environment projection is extracted to pkg/layergraph/environment.go so both the existing main wrapper and judge/reviewbox consume one owner. Runtime descriptors travel as DispatchOptions.Dependencies (rather than a second environment-string representation); Confinement projects them once with that shared owner. Observational Git and dependency materialization suppress lazy fetching; observational commands deny every transport, while only the explicit local clone permits file transport. A real missing-promisor-object regression exposed implicit Git fetches and source-config writes before this guard, and passes afterward. These complete the approved no-fetch and naming contracts without new persisted state or acquisition.
+
+### 2026-10-22 — README completion from boundary review
+
+BR-1 adds the user-facing dependency/preparation contract to README alongside its existing boundary setup instructions, linking the detailed atlas. No runtime behavior or interface changed. Keep the in-flight recorded suite and original clean binary; close round 2 disposes this documentation finding before publication.

@@ -109,3 +109,8 @@ Ad-hoc bounded audit found one Important gap: Git ls-tree may lazily fetch promi
 
 
 Final combined checks passed on this implementation: judge 14.352s, reviewbox 21.398s, layergraph 4.891s and golint 1.308s. Boundary/dependency/local-check controls plus real OS-fence conformance passed together in 46.492s. Checkpointing the tested code next, then building a clean branch binary for Echo #10 and queuing the required recorded suite.
+
+
+### 2026-10-22 — close review round 1
+
+Mandatory boundary review found no runtime correctness blocker and returned one Important BR-1, user-surface-documentation: README omitted the new reviewer/preparation environment contract while atlas documented it. Added README guidance for bindings, exact last-fetched pins, no fetch, repair/retry, modes, freshness and lifecycle, with an atlas link. Existing local-check environment guidance still applies to local checks. The recorded suite remains running on unchanged implementation code; only documentation and review records change for the next close. Reviewer could not nest the live OS fence in its own sandbox; the owner-run disposable fence conformance had already passed outside that nesting, with the exact test command/results logged above.
