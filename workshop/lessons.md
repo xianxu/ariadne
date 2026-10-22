@@ -1519,3 +1519,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   name the owner and repeat trigger for external native conformance.
 
 - #556: A shared strict process cleanup path does not imply shared evidence-marker authority. Keep the original resume owner's marker until its existing terminalization boundary; ordinary-run marker cleanup needs explicit ownership from its caller. Exercise that distinction through production CLI resume, not only helper tests.
+
+- #556 BR-1: Preserve execution scope in every evidence projection. Exact case/unit success does not turn a targeted child into a complete-suite confirmation; test the real saved-check projection as well as the pure parser, and retain explicit legacy behavior for Go.
+- #556 BR-2/BR-3: Before close, reconcile the entire Core concepts inventory with delivered symbols, paths and PURE/INTEGRATION boundaries, and map new commands/config/adoption in README as well as help/atlas. Do not leave design placeholder helpers in the acceptance inventory.
+- Cross-repo filing (ops:0, 2026-10-22): Use a temporary worktree off origin/main for issue creation; never borrow another slot's working checkout, even when the verb promises no checkout writes. A staged :0 stays detached for the operator.

@@ -26,28 +26,36 @@ collaboration-mode: discussion
 
 ### Pure entities
 
-| Name | Lives in | Status |
-|------|----------|--------|
-| `Identity` (`ParseIdentity`, canonical string, kind, unit, optional case) | `cmd/sdlc/internal/flakes/identity.go` | new |
-| Type-aware `Covers`, `Leaves`, `Nearest`, `BuildRegistry`, `topOf` | `cmd/sdlc/internal/flakes/registry.go`, `classify.go` | modified |
-| `ParseUnitRunners`, `UnitRunner.Project` | `cmd/sdlc/internal/flakes/unit_runner.go` | new |
-| `UnitEvidence.Apply`, `UnitEvidence.Finish`, `RequiredUnitProof` | `cmd/sdlc/internal/flakes/unit_evidence.go` | new |
-| `RerunPlan`, `RerunMissingJSON` | `cmd/sdlc/internal/flakes/rerun.go` | modified |
-| `parseSuiteLogFacts`, `unattributedFailures` | `cmd/sdlc/teststats_parse.go` | modified |
-| `typedAttemptCapability`, `decodeSuiteAttempt`, `resolveResumeProof`, `resumeSameFailures` | `cmd/sdlc/teststats_store.go`, `localcheck_resume_evidence.go` | modified |
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `Identity` (`ParseIdentity`, canonical string, kind, unit, optional case) | PURE | `cmd/sdlc/internal/flakes/identity.go` | new |
+| `ValidTest`, `Covers`, `Leaves` | PURE | `cmd/sdlc/internal/flakes/registry.go` | modified |
+| `ParseUnitRunners`, `UnitRunner.Project` | PURE | `cmd/sdlc/internal/flakes/unit_runner.go` | new |
+| `UnitEvidence.Apply`, `UnitEvidence.Finish`, `RequiredUnitProof` | PURE | `cmd/sdlc/internal/flakes/unit_evidence.go` | new |
+| `RerunPlan`, `RerunMissingProof` | PURE | `cmd/sdlc/internal/flakes/rerun_typed.go` | new |
+| `Confirmed`, `SameHeadFailPass`, typed pass coverage | PURE | `cmd/sdlc/internal/flakes/evidence.go` | modified |
+| `parseSuiteLogFacts`, `unattributedFailures` | PURE | `cmd/sdlc/teststats_parse.go` | modified |
+| `suiteTypedIdentity`, `suiteAttemptImmutable` | PURE | `cmd/sdlc/teststats_store.go` | new |
+| `decodeSuiteAttempt` | PURE | `cmd/sdlc/teststats_store.go` | modified |
+| `resolveResumeProof` | PURE | `cmd/sdlc/localcheck_resume_evidence.go` | modified |
+| `parseLocalChecks`, `parseLocalChecksV2` | PURE | `cmd/sdlc/localchecks.go`, `cmd/sdlc/localchecks_v2.go` | modified |
+| `parseModernLocalChecks`, `parseLocalChecksV3` | PURE | `cmd/sdlc/localchecks_v2.go`, `cmd/sdlc/localchecks_v3.go` | new |
 
-Each row gets colocated tests without IO mocks. Identity owns syntax and coverage; no consumer reparses strings with its own delimiters. Evidence owns transitions; IO submits events and cannot directly mark a unit successful. A registry entry has exactly one identity and one owning issue; many selected case identities can share one execution unit. An attempt contains many units, and each unit many case results. These are the natural extension points for another runner kind, not a generic plugin framework.
+Each PURE row gets colocated tests without IO mocks. Existing registry `Nearest`/`BuildRegistry`, classifier `topOf`, issue `validateTestListNode` and resume `resumeSameFailures` retain their source and consume the shared typed semantics; they are not claimed as modified helpers. The vocabulary comment is updated, without a lifecycle/schema-shape change. Identity owns syntax and coverage; no consumer reparses strings with its own delimiters. Evidence owns transitions; IO submits events and cannot directly mark a unit successful. A registry entry has exactly one identity and one owning issue; many selected case identities can share one execution unit. An attempt contains many units, and each unit many case results. These are the natural extension points for another runner kind, not a generic plugin framework.
 
 ### Integration points
 
+Every row below is INTEGRATION; its pure verifiers are listed above.
+
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| Trusted runner declarations | `cmd/sdlc/localchecks.go`, `localchecks_v2.go`, new `localchecks_v3.go` | modified | declaration read from trusted main and exact tested commit |
 | `sdlc flake run --unit KIND:PATH` | new `cmd/sdlc/flake_run.go` | new | one declared argv, scoped process lifetime, structured unit output |
 | Plenary result producer | new `scripts/sdlc-plenary-events.lua` | new | existing Plenary results after normal hooks/assertions; distribution follows #558 |
-| Registry setters/evidence | `cmd/sdlc/flake_cmd.go`, `internal/issue/card.go`, `construct/vocabulary/issue.cue` | modified | fresh tracker CAS and retained attempt/log reads |
+| Registry setters/evidence | `cmd/sdlc/flake_cmd.go` | modified | fresh tracker CAS and retained attempt/log reads |
 | Recorded and resumed reruns | `cmd/sdlc/localcheck_flakes.go`, `localcheck_resume.go`, `localcheck_run.go` | modified | existing helper, queue, process group and immutable attempt store |
-| Saved pass and retention consumers | `cmd/sdlc/localcheck_resume_evidence.go`, `localcheck_resume_saved.go`, `localcheck_resume_retention.go`, `localcheck_republish.go`, `teststats_evidence.go` | modified | exact saved bytes, locks, current registry/policy and status provider |
+| `bindTypedCheck`, typed managed environment/attempt binding | `cmd/sdlc/localcheck_run.go` | new | trusted declaration plus exact-head Git reads before execution |
+| `currentTypedSuite`, `resolveTypedSavedRecords` | `cmd/sdlc/localcheck_typed_saved.go` | new | current contract/policy, bounded immutable log reads and shared pure proof |
+| Saved pass and retention IO consumers | `cmd/sdlc/localcheck_resume_saved.go`, `localcheck_resume_retention.go`, `localcheck_republish.go` | modified | exact saved bytes, locks, current registry/policy and status provider |
 
 Reuse the existing Git/status provider seams and private Git fixture pattern. Stateful fake unit runners persist invocation count, unit, result and case events in their fixture directory: first invocation fails, second passes; variants skip cases, fail siblings, hang, exit before summary or emit diagnostic impostors. Production and conformance tests use the same `flake run` and managed-helper paths. A real shell program and real Neovim/Plenary tiny spec validate the producer contract; neither fixture accesses the operator's editor, tracker or status contexts.
 
@@ -121,11 +129,12 @@ Typed-capable checks use the existing `StrictGroupCleanup` path on the outer hel
 | `Covers`, `Leaves`, `Nearest`, `BuildRegistry` | Generate cross-kind paths and opaque labels; assert exact-only non-Go coverage and unchanged Go ancestor algebra with an independent set oracle. |
 | `ParseUnitRunners`, `UnitRunner.Project` | Fuzz nested JSON and argv substitutions; strict known-field/duplicate checks, unknown-member round trip and literal argv equality forbid inferred shell authority. |
 | `UnitEvidence.Apply`, `UnitEvidence.Finish` | Generate event permutations with dropped/repeated/conflicting terminals; an independent completion oracle and sticky unusable state forbid late promotion. Count visits at N/2N. |
-| `RequiredUnitProof`, `RerunPlan`, `RerunMissingJSON` | Generate mixed selected-unit/case sets and unrelated output; exact required-set equality and a stateful executed-command inventory reject missing coverage or broadened execution. |
+| `RequiredUnitProof`, `RerunPlan`, `RerunMissingProof` | Generate mixed selected-unit/case sets and unrelated output; exact required-set equality and a stateful executed-command inventory reject missing coverage or broadened execution. |
 | `parseSuiteLogFacts`, `unattributedFailures` | Fuzz diagnostic nesting and malformed control frames, seeded with captured failures; bounded single-pass scanning and replayed native producer output are independent attribution guards. |
-| `typedAttemptCapability`, `decodeSuiteAttempt` | Mutate version, fields and nested extras across old/new records; frozen older binary plus byte-preservation checks guard unsafe reinterpretation. |
+| `suiteTypedIdentity`, `decodeSuiteAttempt`, `suiteAttemptImmutable` | Mutate version, fields and nested extras across old/new records; frozen older binary plus byte-preservation checks guard unsafe reinterpretation. |
 | `resolveResumeProof`, `resumeSameFailures` | Generate mismatched parent/child/contract evidence and interrupted sequences; production CLI status guard must refuse unless exact required proof and existing authority both hold. |
-| `flakeEvidence`, `shortTestNames` | Generate mixed-kind same-head histories; independently retained positive unit/case evidence guards registration while rendering round-trips preserve identity. |
+| `Confirmed`, `SameHeadFailPass`, `flakeEvidence`, `shortTestNames` | Generate mixed-kind same-head histories, including production suite-rerun and affected projections; independently retained positive unit/case evidence plus a complete-suite scope guards typed registration. Preserve legacy Go targeted-confirmation behavior and identity rendering. |
+| `bindTypedCheck`, `currentTypedSuite`, `resolveTypedSavedRecords` (IO seams) | Stateful exact-head/current-declaration readers and private immutable stores reject changed contracts, malformed raw facts and mismatched or rejected children before status reuse. |
 | `runFlakeUnit` (IO seam) | Stateful runner controls process barriers and result-channel writes; synchronized wrapper death proves inherited group ownership and exact outer cleanup. |
 | Plenary producer `install` (IO seam) | Tiny real native specs compared with adapter disabled/enabled; identical hook/assertion/exit outcomes and a separate-channel oracle guard adapter transparency. |
 
@@ -191,3 +200,9 @@ Plan-quality round 1 correctly found that nested use of the managed helper would
 ### 2026-10-22 — TL-directed distribution split
 
 `construct/base.manifest` is a local-gates-protected path. ops:0 directs #556 to ship without editing it and places the single producer symlink row in unclaimed ariadne#558, depending on #556, for operator-held verification (delivery `8556cb2f-b354-48e4-ad56-4a99963da64e`). This supersedes the original manifest file list. Producer source, native/private adoption conformance and all typed registry/resume implementation stay here; actual peer adoption follows #558. No live gate configuration changes are included.
+
+### 2026-10-22 — BR-1/BR-2/BR-3 review corrections
+
+The first whole-issue review found that suite-rerun lost its execution scope in the shared confirmation projection. Preserve that scope and enforce the already-approved complete-suite requirement for typed confirmation while leaving legacy Go confirmation unchanged. Add regressions for both script/Lua registration and whole-attempt confirmation. This corrects implementation of contract item 6; it changes no design authority.
+
+Correct the Core concepts inventory to actual delivered paths/statuses: RerunPlan and RerunMissingProof are new PURE helpers in rerun_typed.go, the legacy Go rerun.go stays unchanged, and the nonexistent typedAttemptCapability is replaced by the real schema helpers and separate INTEGRATION binding/saved-proof seams. Registry Nearest/BuildRegistry and classifier topOf consume shared semantics without source edits and are no longer claimed as modified. Update associated function-level strategies and add the missing README user-surface/adoption map. No acceptance criterion or retirement mechanism changes.

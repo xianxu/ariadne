@@ -253,7 +253,7 @@ func flakeAttempt(a SuiteAttempt) flakes.Attempt {
 	}
 	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: passed, Baseline: a.MainBaseline,
 		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a),
-		Subset: a.Check == affectedCheckName, TypedFacts: a.TypedFacts, RunnerContractSHA256: a.RunnerContractSHA256}
+		Subset: a.Check == affectedCheckName, Targeted: a.Check == suiteRerunCheck, TypedFacts: a.TypedFacts, RunnerContractSHA256: a.RunnerContractSHA256}
 }
 
 func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {

@@ -49,6 +49,7 @@ func TestTypedEvidenceRequiresExactRawProof(t *testing.T) {
 				{"different contract", func(a, b *Attempt) { b.RunnerContractSHA256 = strings.Repeat("b", 64) }, false},
 				{"different head", func(a, b *Attempt) { b.SHA = "other" }, false},
 				{"subset pass", func(a, b *Attempt) { b.Subset = true }, false},
+				{"targeted pass", func(a, b *Attempt) { b.Targeted = true }, false},
 				{"baseline pass", func(a, b *Attempt) { b.Baseline = true }, false},
 				{"legacy pass", func(a, b *Attempt) { b.Legacy = true }, false},
 				{"rejected pass", func(a, b *Attempt) { b.Passed = false }, false},
@@ -120,5 +121,32 @@ func TestTypedEvidencePassingRecordCannotHideAnotherRawFailure(t *testing.T) {
 	}
 	if _, ok := Confirmed([]Attempt{failed, passed}, 0); ok {
 		t.Fatal("raw failing suite confirmed whole attempt")
+	}
+}
+
+// A mixed failure still supports legacy Go registration from a targeted pass,
+// but typed names and whole-attempt confirmation wait for a complete suite.
+func TestTypedEvidenceTargetedPassPreservesGoAndSkipsToFullSuite(t *testing.T) {
+	const typed = "script:tests/check.sh"
+	failed, targeted := typedEvidencePair(typed)
+	failed.Failures = append(failed.Failures, tA)
+	targeted.Targeted = true
+	if _, _, ok := SameHeadFailPass([]Attempt{failed, targeted}, typed); ok {
+		t.Fatal("targeted pass confirmed typed registration")
+	}
+	if _, _, ok := SameHeadFailPass([]Attempt{failed, targeted}, tA); !ok {
+		t.Fatal("legacy Go targeted confirmation changed")
+	}
+	if _, ok := Confirmed([]Attempt{failed, targeted}, 0); ok {
+		t.Fatal("targeted pass confirmed mixed whole attempt")
+	}
+	complete := targeted
+	complete.ID, complete.Targeted, complete.FinishedAt = "c", false, targeted.FinishedAt.Add(time.Second)
+	order := []Attempt{failed, targeted, complete}
+	if _, p, ok := SameHeadFailPass(order, typed); !ok || p != complete.ID {
+		t.Fatalf("typed confirmation did not skip targeted child: pass=%q ok=%v", p, ok)
+	}
+	if p, ok := Confirmed(order, 0); !ok || p != complete.ID {
+		t.Fatalf("whole confirmation did not skip targeted child: pass=%q ok=%v", p, ok)
 	}
 }

@@ -64,6 +64,10 @@ After the close verdict, the recorded suite must pass before landing; any review
 
 The Lua case is Plenary and the canonical harness selects whole spec files, so rerun the owning file and require the exact named case plus whole-file success. Script identity covers the script only. Neither case permits manufacturing a Go name or treating diagnostic text/exit zero as named-case proof. The proposed runner/producer contract and compatibility barriers are detailed in the durable plan; no implementation is authorized yet.
 
+### 2026-10-22 — review corrections and adoption bookkeeping
+
+Retain the approved complete-suite requirement for typed registration; BR-1 corrects its lost targeted-check scope without changing Go confirmation. BR-2 reconciles the durable Core concepts inventory with delivered symbols and their actual PURE/INTEGRATION boundaries; BR-3 adds README user-surface and adoption guidance. The final issue Plan row records preparation/queueing and entry to review; its post-verdict recorded-pass/landing/report obligations remain explicit. The TL-directed #558 distribution split is unchanged; unclaimed pair#816 and parley.nvim#415 now capture the separate adoptions, each depending on #556 and #558.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. The calibration source is flagged stale by `sdlc estimate-source`; values are provisional. Scope is one Ariadne change plus private native conformance and adoption documentation; occupied peer branches and live gate declarations are outside this implementation.
@@ -151,3 +155,11 @@ The required recorded suite is queued through `sdlc local-check run --name suite
 ### 2026-10-22 — close checklist clarification
 
 The final issue Plan row records preparation/queueing and entry to the close boundary; the existing post-verdict suite/landing/report work is stated immediately afterward. This avoids claiming a future landing or verdict was completed merely to satisfy the pre-close unchecked-item gate. No acceptance, gate or scope changed.
+
+### 2026-10-22 — close round 1 and bounded corrections
+
+The boundary review returned REWORK with BR-1 (Critical, typed targeted-child confirmation), BR-2 (Critical, inaccurate Core concepts inventory) and BR-3 (Important, README coverage). Verified BR-1 through the production SuiteAttempt projection: script and Lua suite-rerun children incorrectly confirmed registration, whole-attempt history and aggregate stats. The new reader-only Targeted projection now reaches the single typed confirmation predicate; affected passes remain excluded and existing Go targeted confirmation remains unchanged. Pure RED/GREEN and root `go test ./cmd/sdlc -run 'TestTypedConfirmation|TestTypedFactsHydration|TestFlake|TestSuiteStats' -count=1 -timeout 10m` passed (33.762s). BR-2/BR-3 corrections are documented in the plan Revisions and README; existing unmodified helpers are no longer claimed as source changes. No finding is disputed or self-cleared; the next boundary review owns disposition.
+
+Canceled queued suite lease-641560774 through the supported exact-run command because BR-1 changes code and needs a new checked head. The queued attempt never ran a suite; its controller ended with context-canceled admission. There is no duplicate recorded runner. Next: native complete-suite registration/resume smoke on this correction, push the verified checkpoint, requeue the required suite and repeat the full close gate.
+
+At ops:0's request, filed pair#816 and parley.nvim#415 unclaimed on origin with both dependencies, exact adoption steps and the new typed-capable same-head fail/pass requirement. Both peer checkouts were left unchanged. Pair :0 was detached for operator staging, so filing used its existing :7 branch; ops:0 subsequently instructed all future cross-repo filings to use a temporary worktree off origin/main. Confirmed :7's status before/after filing matched its three pre-existing edits, then a fresh read showed it clean; confirmation receipt 5d336684-0694-411a-ab89-ef1c78b7daf6 is submitted. No activation or local-gates label was applied.

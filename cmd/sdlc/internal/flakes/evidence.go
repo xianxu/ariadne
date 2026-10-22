@@ -26,6 +26,9 @@ type Attempt struct {
 	// #473): its failures need explaining like any run's, but its pass proves
 	// nothing about a test it may not have run, so it never confirms.
 	Subset bool
+	// Targeted marks a flake rerun. Its pass retains legacy Go confirmation,
+	// while typed registration requires a later complete-suite pass.
+	Targeted bool
 	// TypedFacts are ephemeral facts from the attempt's bounded, digest-verified
 	// saved log. They are never inferred from a passing exit or persisted as a
 	// case inventory. Nil means the typed execution has not been proved.
@@ -39,8 +42,8 @@ type Attempt struct {
 // evidence: a later non-baseline attempt on the same SHA passed (#390's
 // intermittency proof), and was not a subset run (#473). It is the one rule both test-stats and registration
 // use. Typed failures additionally need exact saved-log failure and pass proof
-// under the same declared runner contract; every typed failure in the row
-// must be covered by the returned passing attempt.
+// under the same declared runner contract from a complete-suite pass (never
+// a targeted flake child); every typed failure in the row must be covered.
 //
 // order must be in Sort's order; i is the failed attempt's index in it.
 // "Later" is that order (finish time, then ID), which test-stats also uses.
@@ -75,10 +78,11 @@ func needsTypedProof(name string) bool {
 	return strings.HasPrefix(name, "script:") || strings.HasPrefix(name, "lua:")
 }
 
-// passCoversTyped requires both observed exact failure and positive execution
-// proof. A bare suite pass never proves that a script or Lua case ran.
+// passCoversTyped requires an observed exact failure and positive execution
+// proof from a complete-suite pass. A targeted child's exact proof supports
+// resume, but cannot establish typed registration's full-suite intermittency.
 func passCoversTyped(failed, passed Attempt, name string) bool {
-	if failed.TypedFacts == nil || passed.TypedFacts == nil || failed.RunnerContractSHA256 == "" || failed.RunnerContractSHA256 != passed.RunnerContractSHA256 {
+	if passed.Targeted || failed.TypedFacts == nil || passed.TypedFacts == nil || failed.RunnerContractSHA256 == "" || failed.RunnerContractSHA256 != passed.RunnerContractSHA256 {
 		return false
 	}
 	if len(failed.TypedFacts.Unattributed) != 0 || len(passed.TypedFacts.Failures) != 0 || !slices.Contains(failed.TypedFacts.Failures, name) {
