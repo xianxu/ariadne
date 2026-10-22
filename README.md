@@ -233,6 +233,36 @@ into a sibling directory and record the source; local links record the checkout'
 origin when available. Matching existing checkouts, including dirty ones, are
 reused without pulling or resetting them.
 
+### New repository default
+
+For a new non-brain work repository, finish the setup procedure with tracker
+initialization. After linking/compiling the base (or running `./bootstrap.sh`),
+commit the initial source and setup files, configure the publication remote,
+and push `main`. Then run:
+
+```sh
+sdlc issue init
+```
+
+This is the final new-repo step for operators and TLs. It publishes the empty
+`issue-tracker` branch and main's `workshop/issue-tracker.json`, then safely
+fast-forwards the clean main checkout. The first `sdlc issue new` publishes
+without writing the checkout; `sdlc start-plan` creates its own issue branch.
+Keep other legacy SDLC writers quiescent until initialization finishes.
+
+Brains identified by `.brain/config.md` and absent/declined issue scaffolds are
+skipped. Opt-out uses the ordinary adoption/compile path without invoking init.
+Existing repositories with issues use the reviewed `sdlc issue migrate` flow;
+`issue new` and `start-plan` give init or migrate guidance from the observed local
+inventory. Unreadable inventory is never called empty. Normal link, compile,
+refresh, CI and repeated bootstrap do not publish anything implicitly.
+
+If setup lacks a commit, pushed main or publication upstream, or the checkout is
+dirty/non-main, init refuses before writing. After fixing that prerequisite,
+rerun `sdlc issue init`. A retry verifies an existing root/marker and finishes
+partial publication without deleting the tracker, resetting work or replacing
+source edits.
+
 Dependencies are declared in `construct/deps`:
 
 ```text
@@ -370,10 +400,14 @@ or composition failure. A later remote advance waits for the next refresh.
 
 Refresh updates substrate repositories, not data-mount repositories. Missing
 checkouts require ordinary setup first. A target that changes parsed dependency
-declarations refuses before branch updates: reconcile that declaration change
-separately so every update stays inside the preflighted graph. Ordinary compile
-preserves existing Git revisions, and claiming an issue never invokes refresh.
-See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
+declarations refuses before branch updates and names the changed declarations
+and fields without source URLs. In the named checkout, if its clean branch is
+behind origin/main, run `git merge --ff-only origin/main`, then `./bootstrap.sh`,
+then retry the original refresh command from its original checkout. An ahead or
+divergent branch needs reconciliation first; run ordinary setup after adopting
+the declarations. See [declaration-change recovery](atlas/workflow/setup-and-replication.md#recover-a-refresh-blocked-by-declaration-changes).
+Ordinary compile preserves existing Git revisions, and claiming an issue never
+invokes refresh. See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
 
 ## Standalone consumers and maintainer setup
 
@@ -428,6 +462,8 @@ their existing behavior. See the [test gate documentation](atlas/workflow/sdlc-b
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
+When creating a new work repository, continue through the
+[new repository default](#new-repository-default) and finish with `sdlc issue init`.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
 running generated helpers. Consumer CI builds its gateway from the exact full

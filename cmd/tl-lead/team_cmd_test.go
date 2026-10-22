@@ -212,3 +212,23 @@ func TestRepoIssuesLive(t *testing.T) {
 		t.Fatalf("%d issues, err %v", len(issues), err)
 	}
 }
+
+// #543: the delivered operator/TL setup procedure must end with explicit init.
+// Merely documenting the command in sdlc help leaves new team repos legacy.
+func TestTeamNewSetupEndsWithExplicitTrackerInit(t *testing.T) {
+	var out bytes.Buffer
+	root := filepath.Join(t.TempDir(), "ops-new")
+	if err := teamNew(&out, root, []string{"product"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, procedure := range []string{out.String(), strings.Join(strings.Fields(helpOutput(t, "--help")), " ")} {
+		link, compile := strings.Index(procedure, "weave link github.com/xianxu/ariadne"), strings.Index(procedure, "weave compile")
+		push, init := strings.Index(procedure, "push main"), strings.Index(procedure, "sdlc issue init")
+		if link < 0 || compile <= link || push <= compile || init <= push {
+			t.Fatalf("new-team setup needs ordered base setup, pushed main, then explicit init: %s", procedure)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "workshop/issue-tracker.json")); !os.IsNotExist(err) {
+		t.Fatalf("team new must only instruct initialization, marker error=%v", err)
+	}
+}

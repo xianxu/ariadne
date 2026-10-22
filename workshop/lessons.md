@@ -1380,8 +1380,44 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
 
+- #543 plan review: a new mutating command must name its pure phase owner and
+  controllable effect boundary before implementation, and join the derived
+  recovery catalog/help/proof contract. Reuse durable authority instead of
+  inventing phase files. Keep plans at named function/adversarial-strategy level;
+  individual prerequisite and crash cases belong in executable sequence tests.
+  TestRecoveryContractsAreProven mechanically catches missing command recovery.
+
+### #543 BR-1 — cached remote refs cannot prove complete inventory
+
+An authoritative migration/init inventory must explicitly observe the current
+publication-remote heads, independent of the clone's configured fetch filters.
+Pin diagnostic names and object IDs together for every subsequent evidence
+consumer, and reject a main snapshot mismatch. Two-clone created/advanced-branch
+regressions defend this shared boundary; tests also pin the fetch write set so
+user tag-pruning/refmap preferences cannot expand a read's effects.
+
+### #543 BR-2 — initialization needs presence, not an importer
+
+A new-repository command needs only conservative absence proof. Do not enlarge
+an existing importer to answer that simpler question. Use one roots/path rule
+across every pinned tip, live worktree HEAD, index and filesystem scope, and
+refuse any issue presence without interpreting its body or differences. Test
+the roots × scopes enumeration; put pre-existing importer completeness work on
+its own issue (#546), as directed by the TL after the repeated family.
+
+### #543 BR-2 continued — complete observation precedes consumer filters
+
+An absence proof cannot consume another workflow's filtered branch list. Keep
+publicationBranchTips complete and apply migration's semantic exemptions only
+inside its consumer. The ref-category × root regression proves every previous
+exemption remains visible to init, while the migration policy remains unchanged.
+Do not confuse a pre-existing reserved branch with a verified partial bootstrap;
+keep exact-root retry proof and completed-marker idempotence explicit.
 - #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
 
 - #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.
 
 - #536 integration review: changing suite derivation requires carrying the exact subject through execution, admission and every saved-proof policy reader. Recovery cannot use current HEAD, and an absent baseline is unverified rather than main-red evidence. Native original-SHA republish/resume and missing-baseline regressions defend this semantic authority contract; a lexical helper-name lint cannot establish the provenance.
+- #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
+  help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
+  ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.

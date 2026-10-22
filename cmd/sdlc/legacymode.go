@@ -469,3 +469,20 @@ func syncLegacyIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 			"      preserve the local commit and use the explicit publication retry above", err))
 	}
 }
+
+// legacySetupAdvice is local and advisory: actual initialization inventories
+// every branch before publishing. Missing/unreadable roots never prove empty.
+func legacySetupAdvice(w io.Writer, issuesDir, historyDir string) {
+	dirs, err := resolveIDDirs(issuesDir, historyDir)
+	if err != nil || gitx.IsBrainRepo(dirs.Top) {
+		return
+	}
+	// History alone does not opt a declined issue scaffold back into setup.
+	if info, err := os.Lstat(dirs.Abs[0]); err != nil || !info.IsDir() {
+		return
+	}
+	byID, found, err := issue.LocalPathsByID(dirs.Abs)
+	if hint := tracker.LegacySetupHint(err == nil && found > 0, len(byID) > 0); hint != "" {
+		cinfo(w, hint)
+	}
+}
