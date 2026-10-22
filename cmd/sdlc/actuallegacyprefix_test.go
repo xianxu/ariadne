@@ -277,7 +277,7 @@ func TestActualAcrossLegacyCutoverQueueRetainsHybridMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := attachOwnedQueueEvidence(t.Context(), ownerRoot, repo, cardPath, "github.com/xianxu/ariadne", inputs, actualCloseCandidate); err != nil {
+	if err := attachOwnedQueueEvidence(t.Context(), ownerRoot, repo, cardPath, "github.com/xianxu/ariadne", 335, inputs, actualCloseCandidate); err != nil {
 		t.Fatal(err)
 	}
 	measured := computeOwnedActualFor(t.Context(), ownerRoot, "335", "", inputs)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -152,7 +153,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 					return nil, err
 				}
 				out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
-				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
 					return nil, err
 				}
 				out.Replay = false
@@ -267,7 +268,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
 	}
 	out.Snapshot.Cuts = ownedMeasurementCuts(ledger)
-	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, out, purpose); err != nil {
+	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -346,7 +347,10 @@ func completedMeasurementSnapshot(ctx context.Context, root string, rec tracker.
 	return nil, ledger, "", nil
 }
 
-func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, out *ownedActualInputs, purpose actualInputPurpose) error {
+func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose) error {
+	if issueID <= 0 {
+		return fmt.Errorf("queue evidence requires a canonical issue ID")
+	}
 	until, err := time.Parse(time.RFC3339Nano, out.Snapshot.Until)
 	if err != nil {
 		return err
@@ -392,6 +396,29 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		if err != nil {
 			return err
 		}
+	}
+	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)
+	if err != nil {
+		return err
+	}
+	var heads []string
+	for _, a := range attempts {
+		heads = append(heads, a.SHA)
+	}
+	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop))
+	if err != nil {
+		var blockers []string
+		for _, a := range attempts {
+			blockers = append(blockers, fmt.Sprintf("suite attempt %s SHA %s: %v; restore immutable commit evidence and retry sdlc actual --issue %d", a.ID, a.SHA, err, issueID))
+		}
+		if len(blockers) == 0 {
+			return err
+		}
+		return &queueEvidenceError{Blockers: blockers}
+	}
+	attempts, err = filterIssueQueueAttempts(attempts, memberships, issueID)
+	if err != nil {
+		return err
 	}
 	waits, notes, err := selectOwnedQueueAttempts(attempts, engagements, repository, since, until)
 	if err != nil {
