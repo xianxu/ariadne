@@ -1,6 +1,6 @@
 ---
 id: 000546
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 2.11
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: eaad89ade92b1faa464ae407615a6e803cdcda06
         evidence_commit: 692b1b01cfe0bc66034202b18813f463d4c950f6
+        landed_commit: e6934a71ab74439a5149bac73b34ecd45db84600
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
