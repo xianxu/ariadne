@@ -70,3 +70,5 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - ARCH-DRY/PURE: use one immutable legacy-evidence resolver for cutover and repair, then feed proven earlier windowless closes into the existing windowDisjoint decision. Candidate cutoff is Snapshot.Since, the earliest admitted engagement, never the latest claim or mutable started card field. ARCH-EVOLVE: add explicit legacy provenance; malformed modern records and damaged saved inputs remain strict. Plan is awaiting TL approval; no code or Echo state changed.
 
 - TL approved the plan and exact repair command; ops-echo:0 owns the real Echo dry-run/apply/repeat/actual3 conformance in a temporary worktree. Entering change-code, no implementation yet. Approval deliveries d46eb30c-7e6c-4da2-9368-129e6b4cdb7c and 904d435d-de8b-446e-8fea-489c1c90ddbe.
+
+- Plan-quality round1 PQ-1 requests named function-level test strategies and compressed prose inventories. Refined that contract without changing approved mechanisms. Existing born-archived fixture records have no actual historical close; sent the hub the narrow compatibility distinction before code.

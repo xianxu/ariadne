@@ -76,38 +76,47 @@ No durable family is introduced: provenance adds a bounded number of scalars to 
 
 ## Implementation and verification
 
+### Named risky functions and test strategies
+
+| Function | Adversarial strategy and independent guard |
+|---|---|
+| `issue.Completion.validate` / `SetCardCompletion` | Generate malformed/newer envelope structures; strict type/duplicate validation and existing unknown-field round trips must reject invalid records and preserve future data. |
+| `tracker.SelectLegacyClose` | Permute conflicting generation/review/archive observations; pure property tests prove selection invariant under input order and a missing-evidence control cannot produce proof. |
+| `resolveLegacyCompletion` | Replay actual immutable Git close/archive histories through the contextual runner; production fixtures and verifier-removal mutations prove metadata edits cannot manufacture a reviewed close. |
+| `tracker.PlanLegacyCompletionRepair` | Model stale or changed imported generations; pure transformation tests assert no output outside eligibility and byte preservation for unrelated fields. |
+| `tracker.LegacyCompletionRepairDigest` | Mutate each authority/input/replacement component independently; every semantic plan change must alter the digest, reordered canonical inputs must not. |
+| `applyLegacyCompletionRepair` | Stateful publication schedules race CAS and lose replies; ref/card snapshots prove refusal preserves concurrent work and repeated confirmation adds no commit. |
+| `legacyWindowDisjoint` | Property/table tests over timestamp order and missing proof; only strict earlier proven windowless closes may skip, independent of zone representation. |
+| `loadAdoptedExclusions` | Run actual measurement over retained and windowless imported generations with pinned engagement history; park/reclaim and provenance mutations must preserve strict refusals and valid replay subtraction. |
+
 ### 1. Import proof and format
 
-Files: `internal/issue/handoff.go`, its validation/unknown-field tests; new `internal/tracker/legacycompletion.go` and tests; `internal/tracker/migration.go`, `issuemigrate.go`, new `legacycompletion.go` and tests.
+Files: `internal/issue/handoff.go` and codec tests; new `internal/tracker/legacycompletion.go` and tests; `internal/tracker/migration.go`, `issuemigrate.go`; new `legacycompletion.go` and real-Git tests.
 
-- [ ] Write red pure tests for consistent latest-generation selection, proper re-close ordering, invalid/ambiguous provenance and strict discriminator types. Extend existing unknown-field round-trip tests with nested future completion data through setters, repair and re-close.
-- [ ] Write real-Git regression: close with exact retained inputs, merge/archive, initial migration, `issue show` close and a later same-slot actual succeeds. Include the Echo-shaped windowless case. Run targeted tests and observe loss before adding the resolver/import wiring.
-- [ ] Implement shared proof and archived import. Preserve existing active codecomplete controls. Re-run mutation controls with archived binding omitted and prior-close selection substituted; the regression must fail.
+- [ ] Write named pure/codec regressions above and a production close → archive → migration → issue-show → later-actual regression; observe red before import wiring.
+- [ ] Implement shared proof and archived import, retaining existing active codecomplete controls and original snapshot references. Run targeted tests and mutation guards.
 
 ### 2. Atomic repair and retries
 
-Files: new `issuemigrate_repair.go` and tests; `issuemigrate.go` command flags; existing tracker CAS adapters reused.
+Files: new `issuemigrate_repair.go` and tests, `issuemigrate.go` flags; existing tracker CAS adapter reused.
 
-- [ ] Write real already-migrated fixture with missing binding; dry run has zero effects, exact apply restores it, repeat is no-op, later actual succeeds. Assert branch/index/worktree/archives/status/actual/owner/future fields unchanged.
-- [ ] Add concurrent-card-change and lost-push-reply stateful schedules, cancellation before write, wrong digest/root/repository/generation, existing correction/completion and unreachable/ambiguous archive controls. Snapshot state before refusal and assert no mutations. Restore each violated fence in a mutation check to prove the oracle.
-- [ ] Implement single-card digest/CAS repair and explicit recovery output without broadening branch `--reconcile`.
+- [ ] Write already-migrated missing-binding production regression through dry-run/apply/repeat/later-actual and stateful publication schedules; observe red before repair wiring.
+- [ ] Implement single-card eligibility/digest/CAS repair and recovery output, with the named guards proving no checkout/archive/numeric rewrite or duplicate retry effect.
 
 ### 3. Conservative exclusion and observation
 
-Files: `actualexclusion.go`, `actualexclusion_test.go`, `actualinputs.go` where helper reuse is needed, issue-show observation code/tests.
+Files: `actualexclusion.go` and tests; reuse helpers from `actualinputs.go`; issue-show observation rendering/tests.
 
-- [ ] Write red table/property cases for before/equal/after/missing bounds and zone-equivalent times, plus legacy proof × temporal × slot decisions.
-- [ ] Write production actual fixtures: earlier same-day legacy close with unknown slot skips; candidate claimed before close, parked and reclaimed after still refuses; valid retained overlapping adoption still replays/subtracts; unavailable modern or malformed retained proof never skips. Tests enter the actual measurement path, without mocking its exclusion loader.
-- [ ] Implement explicit legacy ordering before slot/replay requirements. Print original close and retained/windowless legacy class in observations; do not report a fabricated saved window.
+- [ ] Write named temporal properties and actual-measurement production regressions; observe red for the Echo-shaped windowless close.
+- [ ] Implement explicit validated legacy ordering before slot/replay requirements. Print original close and retained/windowless class without reporting a fabricated window. Run existing decision-table and retained-replay controls.
 
 ### 4. Documentation and conformance
 
-Files: `cmd/sdlc/helptext/issue.md` or extracted migration help, `README.md`, `atlas/workflow/sdlc-binary.md` and tracker/actual map as appropriate, `workshop/lessons.md`.
+Files: `cmd/sdlc/helptext/issue.md` or extracted migration help, `README.md`, `atlas/workflow/sdlc-binary.md` and tracker/actual map, `workshop/lessons.md`.
 
-- [ ] Document dry-run/apply/retry and exact refusal recovery, and the narrow legacy disjointness rule. Add a lesson with executable evidence; evaluate mechanical lint only if an enumerable misuse pattern exists (this historical-provenance contract primarily needs semantic fixtures).
-- [ ] Run targeted migration/issue/tracker/actual suites, race where relevant, lint after tracking new files and touched-package vet. Commit and push; queue one recorded full suite. SDLC owns close review (no separate mandatory ad-hoc review).
-- [ ] Hub-approved live conformance: stage/build if requested; with Echo owner coordinate a fresh dry run, review exact issue1 change/digest, apply only through the binary, repeat and verify no extra commit, then read-only `sdlc actual --issue 3`. No Echo working-tree edits or manual card writes. Preserve raw output on SSD issue evidence and record exact Git pins. If current Echo evidence moved, report before mutation.
-- [ ] Passing final-head suite precedes landing. Close with measured actual/no-project, then `sdlc merge --yes`; let its runner own current-main integration and any authoritative suite. Report the landed PR and Echo result to the hub.
+- [ ] Document command/recovery and conservative disjointness, add lesson, run targeted migration/issue/tracker/actual tests, relevant race, tracked-file lint and touched-package vet. Commit/push and queue one full recorded suite. SDLC owns close review.
+- [ ] Give ops-echo:0 the exact built binary and Git source for their owner-run dry-run/apply/no-op-repeat/actual3 conformance; preserve returned raw output on SSD and record the pins. If they choose post-landing conformance, record that authorized timing and report any failure immediately.
+- [ ] Passing final-head suite precedes landing. Close with measured actual/no-project, then run `sdlc merge --yes`; its runner owns integration and the authoritative suite. Report landed PR and Echo outcome to hub.
 
 ## Architectural check
 
@@ -122,3 +131,7 @@ Pending TL review of plan, repair command shape and Echo live-conformance author
 ### 2026-10-22 — TL approval and Echo owner
 
 TL approved the shared verifier, explicit digest-reviewed single-card repair, validated windowless provenance and strict earliest-engagement ordering (delivery d46eb30c-7e6c-4da2-9368-129e6b4cdb7c). Live conformance is owned by ops-echo:0: they run dry run/apply/no-op repeat and actual3 in their temporary origin/main worktree and return output (delivery 904d435d-de8b-446e-8fea-489c1c90ddbe). Hand off an exact built binary before landing when ready, or notify after main contains it. No repair in Echo from this slot.
+
+### 2026-10-22 — plan-quality test contract (PQ-1)
+
+Named the selection, repair eligibility/digest, temporal, validation and effect functions; replaced prose case inventories with one adversarial strategy/mechanical guard per risky function, retaining real production-flow objectives. No mechanism change. Existing migration fixtures also contain born-archived done records with no historical close at all; proposed compatibility clarification: initial migration retains such unbound cards with an explicit warning, never fabricating proof, while malformed/contradictory evidence and repair of an unprovable close refuse. Their overlapping actual exclusion remains strict. Awaiting TL confirmation of that narrow distinction before code.

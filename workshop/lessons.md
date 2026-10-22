@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
+
 - #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
 
 - #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
