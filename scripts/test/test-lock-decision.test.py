@@ -189,6 +189,9 @@ class Observation(unittest.TestCase):
                         self.assertEqual(raw['phase'], 'unknown')
                         self.assertEqual(raw['exit_status'], 0)
                         self.assertEqual(raw['exit_observed_at'], evidence['exit_observed_at'])
+                        self.assertEqual(raw['group_observation'], 'empty', 'audit failure erased a confirmed group observation')
+                        if mode == 'audit-failure':
+                            self.assertIn('completion audit failed', raw['detail'])
                         self.assertFalse((Path(root) / 'completion.jsonl').exists())
                     finally:
                         gate.close()

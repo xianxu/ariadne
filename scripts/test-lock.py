@@ -570,18 +570,19 @@ class QueueGate:
                     reason, cancellation = None, True
                 if op['pid'] != self.watch:
                     raise ValueError('watched owner binding changed')
+                audit_error = ''
                 if direct_retirement_decision(evidence, cancellation, self.watch) == 'finished':
                     try:
                         append_completion_audit(self.root, op, evidence)
-                    except (OSError, ValueError):
-                        evidence = dict(evidence, group_observation='unknown')
+                    except (OSError, ValueError) as error:
+                        audit_error = '; completion audit failed: ' + str(error)[:256]
                     else:
                         self.rewrite(fields, phase='finished', **evidence)
                         os.unlink(self.path)
                         os.close(self.fd)
                         self.fd = None
                         return
-                detail = 'unmanaged operation ' + self.id + ' in ' + self.top + ': watched owner ended; descendants require operator reconciliation'
+                detail = 'unmanaged operation ' + self.id + ' in ' + self.top + ': watched owner ended; descendants require operator reconciliation' + audit_error
                 if evidence:
                     detail += '; exit observed ' + evidence.get('exit_observed_at', 'unavailable')
                     detail += '; status ' + str(evidence.get('exit_status', 'unavailable'))
