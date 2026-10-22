@@ -72,7 +72,7 @@ func (t *TrunkFile) Bootstrap(files map[string][]byte, message string, beforePus
 		return result, ErrBootstrapExists
 	}
 	if gitExitCode(err) != 2 || len(out) != 0 {
-		return result, fmt.Errorf("inspect bootstrap destination: %w\n%s", err, diag)
+		return result, fmt.Errorf("inspect bootstrap destination: %w\n%s", err, networkDiagnostic(err, diag))
 	}
 	result.Candidate, err = t.bootstrapCommit(paths, snapshot, message)
 	if err != nil {
@@ -97,10 +97,10 @@ func (t *TrunkFile) Bootstrap(files map[string][]byte, message string, beforePus
 		return result, nil
 	case pushRejected:
 		result.Outcome = BootstrapRejected
-		return result, fmt.Errorf("%w: %v\n%s%s", ErrBootstrapRejected, err, out, diag)
+		return result, fmt.Errorf("%w: %w\n%s%s", ErrBootstrapRejected, err, networkDiagnostic(err, out), networkDiagnostic(err, diag))
 	default:
 		result.Outcome = BootstrapUncertain
-		return result, fmt.Errorf("%w: bootstrap candidate %s: %v\n%s%s", ErrPublicationUncertain, result.Candidate, err, out, diag)
+		return result, fmt.Errorf("%w: bootstrap candidate %s: %w\n%s%s", ErrPublicationUncertain, result.Candidate, err, networkDiagnostic(err, out), networkDiagnostic(err, diag))
 	}
 }
 

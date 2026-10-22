@@ -67,6 +67,23 @@ func TestQueueRealHelperPause(t *testing.T) {
 	}
 }
 
+func TestQueueRealHelperCompletion(t *testing.T) {
+	for _, script := range []string{"test-lock-exit.test.py", "test-lock-decision.test.py"} {
+		t.Run(script, func(t *testing.T) {
+			private := t.TempDir()
+			t.Setenv("WF_SDLC_QUEUE_ROOT", filepath.Join(private, "queue"))
+			t.Setenv("WF_TEST_LOCK_FILE", filepath.Join(private, "capacity"))
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "python3", filepath.Join("../../scripts/test", script))
+			cmd.WaitDelay = time.Second
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("private completion helper: %v\n%s", err, out)
+			}
+		})
+	}
+}
+
 func TestQueueRuntimeRetiresAfterCallerCancellation(t *testing.T) {
 	t.Setenv("WF_SDLC_QUEUE_ROOT", t.TempDir())
 	parent, cancel := context.WithCancel(context.Background())

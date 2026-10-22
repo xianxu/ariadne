@@ -276,6 +276,23 @@ TALKING TO THE OPERATOR
     `couch --notify [--title T] MESSAGE` (pair#540; hub-only, and slots' own
     terminal notifications are swallowed, so the hub is the one voice).
     Everything else waits in the status file.
+  - The moment you learn that an external dependency is unavailable
+    (Git host/DNS, GitHub API, model API, or tunnel),
+    put the incident first in Needs you and send one `couch --notify`
+    immediately; do not wait for root-cause diagnosis. Name the service/host,
+    affected work, and whether evidence points to a local, upstream, or still
+    unknown cause. Say what the operator can do now, or explicitly that this
+    is awareness-only. When the known remedy requires the operator,
+    include the exact command for them to run. Update the same incident
+    rather than repeating notifications for each blocked slot. Run
+    `sdlc net check` for bounded system/direct DNS and HTTPS observations;
+    preserve uncertainty about the cause and any remote write outcome.
+    On verified recovery, send a recovery notification, remove the active
+    incident, and check/resume affected slots through their existing recovery
+    paths. An outage report is infrastructure evidence, never a test verdict.
+    If the same outage recurs after the operator's remedy,
+    report it as recurring and look for the cause behind it
+    before repeating the remedy.
   - A `submitted: PATH` delivery for a markdown document other than the status
     file (a design doc, a plan) is a review request: answer it with the
     `xx-universal-review` skill, which reads the document's instruction and writes a Couch-tracked
@@ -345,8 +362,9 @@ TALKING TO THE OPERATOR
   - Its sections, in order:
     0. `## Operator instructions`: the operator's (see below).
     1. `## Needs you`: only asks, a decision or an action the operator must
-       take, each with your recommendation. No status here; status goes to
-       Threads. Queue several in order; never bury one in a thread. Remove an
+       take, each with your recommendation, plus immediate external-dependency
+       incidents as specified above. Other status goes to Threads. Queue
+       several in order; never bury one in a thread. Remove an
        item the moment it is done.
     2. `## Quota`: one line per coding agent with whatever its meter shows and
        when it was read (Claude's weekly % and reset, Codex's credits or

@@ -8,6 +8,37 @@
 
 # Lessons
 
+- #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
+
+- #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
+  utility's field grammar. Replay recorded native output through the production
+  adapter and cover both address families before relying on parser fuzz seeds;
+  macOS uses distinct ip_address/ipv6_address fields. Native format coverage
+  belongs in capture-backed parser/adapter tests, not a lexical lint rule.
+
+- #540 BR-2: testing a classifier with an already-cancelled cause misses an
+  adapter that classifies first and joins cancellation later. Keep execution
+  raw until the final context owner completes cleanup and samples its outcome,
+  then classify once. Preserve injected cancelled-success controls and add
+  real subprocess barriers after diagnostic emission. This semantic ordering
+  needs production-boundary tests rather than a lexical error-string lint.
+
+- #540 BR-1: a classifier's supported transports must match its host parser's
+  accepted transports. Enumerate HTTP(S), SSH/scp and native Git, and capture
+  real transport failures through the production runner; HTTP-shaped fake
+  diagnostics alone cannot defend native Git's paired header/errno format.
+  Transport provenance and negative hook/local controls belong in executable
+  classification/property tests, not a lexical lint over arbitrary prose.
+
+- #540: classify transport failures at the shared Git seams without probing or
+  retrying there. Diagnostics belong in an explicit bounded command; preserve
+  original error identity and uncertain publication outcomes. A command that
+  promises cancellation must enter the real CLI signal owner, with a native
+  child-group regression and a missing-owner mutation. Resolver disagreement
+  is an observation, not proof of an upstream outage. Stateful transport and
+  parser/property controls enforce this semantic contract; a lexical lint
+  cannot infer network provenance from arbitrary error prose.
+
 - #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
 
 - #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.
@@ -1338,6 +1369,7 @@ Unknown descendant completion protects every input and output together: checkout
 - #528 BR-1: an agent-facing help procedure still needs a README discovery pointer. Enumerate every entry mode (here same-slot force switch and fresh hub session), link the authoritative help and atlas, and avoid duplicating the instructions. README/documentation review enforces this prose coverage; a Go source lint cannot infer the intended recovery modes.
 - #463 BR-4: a successful cleanup IO call can cancel its context before returning nil. Route every live-owner resume cleanup effect, including managed scratch removal/sync and final owner release, through resumeCleanupEffect(ctx, authorize, effect). The resume-cleanup-effect Go lint rule rejects direct effects in those cleanup paths; real private-resource boundary walks prove cancellation stops subsequent mutation. Signal-context teardown deliberately cancels on normal completion, so cleanup authority uses the original caller context and confirmed managed outcome.
 
+- #537: a verified binary stamp proves the selected commit, not that the selected resting commit is current. Clear must fetch and pin main before rebuilding, and reuse that pin for ancestry, checkout and build checks in both detached and resting-retry paths. Real private bare-remote regressions defend freshness and refusal ordering; this semantic invariant cannot be established by a lexical helper-name lint.
 - #534: under pipefail, a quiet grep in a compiler-metadata pipeline can close its input before printf finishes and turn a valid identity match into SIGPIPE. Drain the full input and redirect matched output instead. MetadataPipeFindings in pkg/shelllint guards literal VCS metadata quiet pipes in tracked workflows/scripts; this shell-source rule belongs there rather than the Go-AST-only catalog. The repeated actual workflow checks and a large-input quiet-consumer control defend the behavior.
 - #526 integration: an automatic code merge can leave a strict adjacent-state codec rejecting a newly landed phase. Re-run the actual completion/storage path after integrating main, and move a race regression to the new production event that performs its original membership change; retain a separate check for the intermediate phase rather than weakening the original oracle to a phase-only completion. This is a semantic lifecycle compatibility check, not a lexical lint rule.
 
@@ -1376,3 +1408,6 @@ inside its consumer. The ref-category × root regression proves every previous
 exemption remains visible to init, while the migration policy remains unchanged.
 Do not confuse a pre-existing reserved branch with a verified partial bootstrap;
 keep exact-root retry proof and completed-marker idempotence explicit.
+- #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
+
+- #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.

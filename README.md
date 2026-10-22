@@ -38,7 +38,10 @@ commit, runs `make build` plus targets declared as `# stage-build: <target>` in
 Go commands' `.skip-make-build` files, and refuses missing, modified or
 wrong-revision `bin/*` binaries. The target must be a simple Make target name,
 not an option or variable assignment. `sdlc stage --clear` returns the target
-to its resting branch, then rebuilds and checks its binaries at that HEAD.
+to its resting branch, fast-forwards it to freshly fetched origin/main, then
+rebuilds and checks its binaries at that exact pin. Dirty, ahead/diverged or
+failed-fetch states refuse before building. Clear dry-run fetches and reports
+behind/ahead counts without checkout or build changes; failed fetch says unverified.
 If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
@@ -522,6 +525,28 @@ To publish a reviewed commit (first done for `weave-v0.1.0` in #241):
    `brew audit --strict --online --formula xianxu/ariadne/weave`. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
+## Network incidents
+
+Git resolver and connection failures report `infrastructure: network` with
+the observed host and an exact diagnostic command. Run:
+
+```sh
+sdlc net check --host github.com
+sdlc net check --remote origin
+```
+
+With no flags, `sdlc net check` uses the configured publication remote. It
+compares native system DNS with direct DNS through the configured server,
+then reports HTTPS through each path using one sampled address, verified TLS,
+and no proxy or credentials. The read-only check has an eight-second budget;
+missing tools and partial observations remain visible. See `sdlc net --help`
+and the [SDLC map](atlas/workflow/sdlc-binary.md#network-incidents).
+
+Workers report external dependency outages immediately to the hub. The TL
+notifies the operator immediately and on verified recovery; the authoritative
+rule is `tl-lead --help`. Preserve any uncertain write's existing recovery
+state rather than treating a network fault as test evidence or blindly retrying.
+
 ## Workspace identity
 
 Resolve the current checkout or a numbered workspace from Git topology:
@@ -672,6 +697,10 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /
+`SDLC_DEP_DATA` from the tested tree's `construct/deps`, while running in their
+detached checkout. Dependency paths are read-only inputs; see the environment
+contract in `sdlc local-check --help`, including duplicate-row refusals.
 Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
 and `resource: "runner"` for checks whose runner owns independent capacity.
 A landing entry must explicitly declare `required` and `resource`; runner checks
