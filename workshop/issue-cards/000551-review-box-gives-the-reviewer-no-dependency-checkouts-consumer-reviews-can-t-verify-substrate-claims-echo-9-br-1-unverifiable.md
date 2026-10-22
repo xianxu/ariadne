@@ -1,6 +1,6 @@
 ---
 id: 000551
-status: working
+status: codecomplete
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 2.37
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.38
+tracker:
+    version: 1
+    completion:
+        token: close-2ea375fa7a40
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 09357c3bb13f8a2ea6999213102adac2ec8478c3
+        evidence_commit: 7fbc1fbcc8fffb9f61cf60a09ba4325f2a57d50c
 ---
 
 # review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable)
