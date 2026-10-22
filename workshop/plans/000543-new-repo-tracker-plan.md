@@ -125,7 +125,7 @@ Files: cmd/sdlc/legacymode.go, cmd/sdlc/issue.go, cmd/sdlc/startplan.go and thei
 
 ### 3. Acceptance and landing (one whole-issue boundary)
 
-- [ ] Run private production CLI conformance against a disposable bare remote (TL approved, no stage), then the recorded pushed-head suite and close review.
+- [x] Run private production CLI conformance against a disposable bare remote (TL approved, no stage), then the recorded pushed-head suite and close review.
 - [ ] On SHIP and completed branch pass enter sdlc merge --yes, retain its integration run, verify merge/card/archive and report to hub. TL owns project updates and natural fleet follow-through.
 
 | Risky function | Adversarial strategy / mechanical guard |
@@ -216,3 +216,7 @@ publicationBranchTips now observes all names/OIDs; migrationBranchRefs alone app
 | verifyInitializationEmpty and metadata/index/filesystem readers | INTEGRATION | cmd/sdlc/issueinit_inventory.go | new |
 | publicationBranchTips | INTEGRATION | cmd/sdlc/issuemigrate.go | extracted complete observer |
 | migrationBranchRefs | INTEGRATION | cmd/sdlc/issuemigrate.go | existing filter over complete observation |
+
+### 2026-10-22 — acceptance gates passed; landing entry
+
+Close round 4 SHIP disposed BR-1 and BR-2, no open findings. Recorded final-code suite passed 2106 cmd/sdlc tests and 75 other packages with zero failures in 12m48s. No production delta after that tested/reviewed head. The remaining checkbox is the binary-owned merge/archive/report action, entered immediately after this evidence-only checkpoint; its authoritative outcome is recorded by sdlc on the issue card and archive.

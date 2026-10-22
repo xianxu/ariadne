@@ -96,6 +96,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - Broad final-correction init/migration/transition/hint/recovery set PASS (165.077s); Go lint/recovery package checks PASS (0.997s/0.135s). Complete observation and unchanged migrate filtering are covered separately across every former ref exemption and all three issue roots. Final private production CLI recovery/refusal evidence is recorded above. No further code change since those passes; requeue suite and submit close round 4 next. No recorded-suite pass or SHIP claimed yet.
 
+- Close round 4 SHIP, BR-1/BR-2 addressed and no open findings; codecomplete bound to evidence commit 45bf72942a70e2ebcf530a46e3f932c45c0f9180. Recorded final-code suite on 8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb PASS: 2106 cmd/sdlc tests plus 75 other packages, zero failures, 12m48s; log sha256 prefix 14a6a2cae81f. Entry conditions satisfied; enter sdlc merge --yes next and retain its integration/landing result. No code changes after the tested/reviewed head; this is evidence bookkeeping only.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
