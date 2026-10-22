@@ -92,6 +92,7 @@ steward need the rules.
   hub's automation off as a soft stop when the operator asks; it never changes another hub's. Lands after pair#739.
 
 ### 2026-10-22 — claim, peer contract and quick-flow proposal
+- 2026-10-22: closed — BR-1 consistency sweep RED→GREEN on both real-root queue-help entry points, with zero store/authority/live-inspection calls; frozen protocol, authority and root render controls PASS 0.474s; TL drain/automation/ownership guards PASS; real queue CLI exit0 shows authoritative owner pointers. TL-approved worker/steward wording unchanged; README/atlases synchronized. Earlier suite745b PASS 8 shards/2135 tests/76 packages; corrected-head452d suite lease-1208786352 is QUEUED, not claimed passing. Current tl-worker PERMISSIONS allows close overlap; final-head recorded pass still required before landing, and code fixes require a final-head rerun. No live drain, queue pause/resume or stage.; review verdict: SHIP
 
 - TL assigned this after #541; #541 landed PR387 before this claim/start-plan. No stacked development.
 - Captured current real `tl-worker --help`: its DRAIN section explicitly directs
