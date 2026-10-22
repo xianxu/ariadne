@@ -1,13 +1,13 @@
 ---
 id: 000544
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 3.57
 collaboration-mode: collaboration
-card_mirror: '585491c70ccd512790479fee5890879e2748a20a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '92704e34785ec562f6430875862c54c7e7220668' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T00:02:32-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 4.75
 ---
 
 # issue migrate drops a legacy close's completion record; later issues' actual measurement then refuses (echo#1 → echo#3)
