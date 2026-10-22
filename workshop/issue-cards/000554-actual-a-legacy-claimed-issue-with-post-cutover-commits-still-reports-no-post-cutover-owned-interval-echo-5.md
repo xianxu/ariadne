@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.30
+actual_hours: 2.52
 tracker:
     version: 1
     completion:
-        token: close-03a8213cc8d1
+        token: close-d8689d90e6c4
         repository: github.com/xianxu/ariadne
-        reviewed_head: 1b6c0480fcba1f208dd088203bc4ca40fd0324eb
-        evidence_commit: bb31782cd295b8e9f14dc09b95a273db65352f25
+        reviewed_head: e01e95a065207a21c29d8e74465f5e7aa69f0448
+        evidence_commit: 87f3b4850b5c1dec8ef67b9e852e93b2ba9182a8
 ---
 
 # actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5)
