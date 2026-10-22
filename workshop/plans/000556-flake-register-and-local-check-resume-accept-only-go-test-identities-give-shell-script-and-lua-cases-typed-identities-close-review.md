@@ -96,3 +96,98 @@ findings:
    Append a dated `## Revisions` entry correcting the Core concepts paths, statuses, missing helper name, and associated verification strategies. Retain and enforce the documented complete-suite requirement for typed registration.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0bf5421d-be3c-4afd-b999-a81535afaa9d","repository":"github.com/xianxu/ariadne","issue_id":"000556","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/04d23021471cfcdd","reviewed_head":"337a9cb6f5eb0cfd07430333b1d961f90f58084e","slot":"ariadne:3","requested_at":"2026-10-22T21:45:33.061585Z"},"phase":"finished","pid":21188,"started_at":"2026-10-22T21:45:33.26658Z","finished_at":"2026-10-22T21:49:26.319171Z","session_id":"01a16593-979b-7120-a1b5-9f2499081837","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T15:04:39-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 556 — flake register and local-check resume accept only Go test identities; give shell-script and Lua cases typed identities |
+| repo | ariadne |
+| issue file | workshop/issues/000556-flake-register-and-local-check-resume-accept-only-go-test-identities-give-shell-script-and-lua-cases-typed-identities.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ffd859eb5d7298b0844bc1c6876edad9b7574fd2..36357d9e02a152854a5eab4ed647454e565a96c0 |
+| command | sdlc close --issue 556 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T15:04:39-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The typed registration, execution, resume, and compatibility paths passed focused and native conformance checks. All three prior findings are addressed. One Important gap remains: weekly snapshots omit typed log-proof hydration and therefore misclassify confirmed script/Lua flakes.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      teststats.go preserves Targeted scope and evidence.go rejects targeted typed confirmation. TestTypedConfirmationRequiresCompleteSuiteScope passes; removing the scope projection through a temporary overlay makes script and Lua registration, Confirmed, and stats assertions fail.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan lines 31–58 now identify the delivered symbols, paths, statuses, and PURE/INTEGRATION seams. RerunPlan/RerunMissingProof exist in rerun_typed.go; schema and IO helpers replace typedAttemptCapability. The correction is recorded under Revisions at line 204.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:880 documents typed syntax, complete-suite confirmation, flake run --unit, version-3 flake_runners, v4 attempts, and fleet/adoption prerequisites, linking the atlas contract. These passages agree with the runner, evidence, and declaration implementation.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: typed-evidence-consumer-parity
+    title: |
+      Weekly snapshots never hydrate typed confirmation evidence
+    detail: |
+      cmd/sdlc/teststats_cmd.go:155 hydrates typed facts for interactive reporting, but weeklystats_inputs.go:224 still passes raw snapshot.Attempts to the weekly aggregator. Because evidence.go:85 requires TypedFacts, valid v4 script/Lua fail→complete-suite-pass histories always lose confirmation there. A temporary production-reader regression reproduced interactive confirmed=1 versus weekly confirmed=0 and failed_tests.kind=unknown for both kinds. ARCH-PURPOSE: finish the plan's reporting-consumer sweep by applying shared digest-verified hydration at the weekly IO boundary and adding persisted-log regressions for both kinds.
+```
+
+1. **Strengths**
+
+   - Typed identities preserve opaque Lua labels and enforce exact non-Go coverage.
+   - Runner argv comes from verified declarations; Lua proof uses a private channel.
+   - Wrapper-death tests exercise inherited process-group ownership and controlled cleanup.
+   - Private CLI conformance validates mixed Go/script/Lua registration, resume, omitted-case refusal, and interrupted recovery.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   The weekly reporting gap above needs shared hydration and regression coverage before crossing the boundary.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed flakes and golint packages; focused typed, flake, declaration, resume, and weekly tests; real Plenary producer conformance; private production CLI conformance; and frozen older-reader compatibility checks. BR-1’s mutation test failed as required. The new weekly reproduction failed for both kinds. Temporary overlays were removed; tracked files remain unchanged. A full recorded suite was not run during this review.
+
+6. **Architectural notes**
+
+   | Marker | Result |
+   |---|---|
+   | ARCH-DRY | Pass: shared identity, coverage, and proof helpers. |
+   | ARCH-PURE | Pass: parsing and decisions remain separate from IO. |
+   | ARCH-PURPOSE | Flag: weekly reporting remains an unwired evidence consumer. |
+   | ARCH-MOCK | Pass: private filesystem/provider fixtures and native conformance. |
+   | ARCH-CONSTRAINTS | Pass: bounded channels, cases, argv, and serial retries. |
+   | ARCH-SECURE | Pass: typed input validation and declaration-owned execution authority. |
+   | ARCH-ORDER | Pass: sticky invalid evidence and controlled process-death coverage. |
+   | ARCH-FUNERAL | Pass: scratch cleanup and existing retention ownership are reused. |
+   | ARCH-EVOLVE | Pass: justified capability barriers, preserved declaration extras, immutable historical records. |
+
+7. **Plan revision recommendations**
+
+   Append a dated `## Revisions` entry recording the reporting-consumer rule: every confirmation-reporting IO reader must supply shared verified typed facts. Add weekly reader wiring and script/Lua persisted-log parity tests to Task 3’s consumer inventory.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"564304dc-0c55-49ca-99e4-d35065113b41","repository":"github.com/xianxu/ariadne","issue_id":"000556","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/abbd556a87f9b7e6","reviewed_head":"36357d9e02a152854a5eab4ed647454e565a96c0","slot":"ariadne:3","requested_at":"2026-10-22T22:00:40.407763Z"},"phase":"finished","pid":3696,"started_at":"2026-10-22T22:00:40.591624Z","finished_at":"2026-10-22T22:04:38.059389Z","session_id":"01a165a1-6f4a-79c3-a011-84892416d47a","outcome":"returned"}] -->

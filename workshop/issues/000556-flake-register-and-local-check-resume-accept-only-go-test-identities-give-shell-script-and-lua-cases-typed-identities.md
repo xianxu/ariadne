@@ -96,6 +96,14 @@ total: 6.18
 
 ## Log
 
+### 2026-10-22 — close round two and weekly reporting correction
+
+Round two disposed BR-1/BR-2/BR-3 as addressed and found BR-4 (Important, typed-evidence-consumer-parity): weekly snapshots omitted the verified raw-log hydration already used by interactive stats. The boundary returned FIX-THEN-SHIP but did not finalize while the finding remained open. The queued suite lease-895131081 was canceled through the supported local-check verb before launch, since this correction changes code.
+
+Persisted real-Git script/Lua regression fixtures reproduced weekly confirmed=0/unknown versus interactive confirmed=1. The weekly IO boundary now reuses `withSuiteTypedFacts` and `storeTypedFacts`; pure aggregation remains free of IO. Exact logs agree across both reports; missing or tampered failure/pass logs cannot confirm. Registration, daily list, interactive stats and weekly stats are the complete confirmation-reporting consumer inventory; the other three already hydrate shared verified evidence. Focused weekly/stats/typed tests passed in the bounded implementation run (2.937s) and parent verification (5.928s). Revisions and lessons record the reporting seam rule; no state, authority, Go contract or lifecycle mechanism changes.
+
+Next: push corrected code, queue its recorded suite, and rerun ordinary close to dispose BR-4 (the prior close was not finalized). Require a recorded pass for the final code before PR landing. No full-suite pass has yet been recorded for #556.
+
 ### 2026-10-22 — review correction checkpoint
 
 BR-1's shared complete-suite scope regression passed in the targeted registration/stats suite (33.762s). The private real production CLI mixed Go/script/Plenary pass scenario then passed with the installed native library (23.442s), including complete-suite registration and exact resume. BR-2's implementation-task file lists now also name the delivered conformance/capture tests and explicitly distinguish unchanged shared consumers. BR-3's README guidance is present. Round-one findings remain for the next close review to dispose; no manual ledger clearing.
