@@ -58,6 +58,21 @@ Stages stay prose; the binary refuses transitions that lack required
 evidence. Subcommands are added incrementally when the same drift
 recurs at a stage (not by formalizing the SDLC as a state machine).
 
+## Stage clear after landing
+
+`runUnstage` (`stage.go`) holds the target's stage lock through proof, restore
+and rebuild. Ordinary holder and exact `--abandoned` authorization remain in
+`stageplan.go`. For a branch-deleted landing, `landedStageCaller` selects only
+the recorded canonical original slot on its own rest; `proveLandedStageHolder`
+(`stagelanded.go`) then requires the current done completion, matching merged
+PR carrying the staged commit and nonempty archive ownership/proof. It reuses
+the fresh-main pin already used for fast-forward and build. The caller, lease
+and completion are re-observed before effects. Unknown or changed evidence
+preserves the stage: finish/reconcile landing or repair evidence, then rerun
+`sdlc stage --clear` from the original resting slot. This exception grants no
+staging or move rights. See `sdlc stage --help` and the
+[slot procedure](workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
+
 ## Verb surface
 
 | Verb              | Replaces (Make target)      | Defends |
