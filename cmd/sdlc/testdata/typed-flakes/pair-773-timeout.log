@@ -1,0 +1,6 @@
+bash tests/nvim-route-poke-admission-test.sh
+run_headless: TIMEOUT after 30s — nvim did not exit.
+run_headless: likely a driver that failed to quit (e.g. 'qall' on a
+run_headless: modified buffer → E37); see issue #60. nvim output:
+make[1]: *** [test-lua] Error 124
+make: *** [test] Error 2

@@ -115,6 +115,17 @@ func TestFlakeRunRefusesContractOrHeadMismatchBeforeExecution(t *testing.T) {
 	}
 }
 
+func TestFlakeRunRefusesChangedCheckoutHead(t *testing.T) {
+	d, _ := typedUnitFixture(t, "script", "tests/x.sh", "touch executed\n")
+	git(t, d.Root, "commit", "--allow-empty", "-qm", "different checkout head")
+	if log, err := executeFlakeUnit(t, "script:tests/x.sh"); err == nil || strings.Contains(log, `"event":"start"`) {
+		t.Fatalf("changed head executed: %v %s", err, log)
+	}
+	if _, err := os.Stat(filepath.Join(d.Root, "executed")); !os.IsNotExist(err) {
+		t.Fatalf("runner executed on changed head: %v", err)
+	}
+}
+
 func TestFlakeUnitSummaryRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target, link := filepath.Join(dir, "outside-channel"), filepath.Join(dir, "results")

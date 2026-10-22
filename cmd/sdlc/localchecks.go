@@ -328,7 +328,10 @@ func (r localRunRecord) knownFlakeOutcome() flakes.Outcome {
 }
 
 func (r localRunRecord) passed() bool {
-	return r.Exit == 0 && !r.TimedOut || r.Outcome == flakes.KnownFlakePassed || r.Outcome == flakes.KnownFlakeAccept
+	if r.Outcome != "" && r.Outcome != flakes.Passed {
+		return r.Outcome == flakes.KnownFlakePassed || r.Outcome == flakes.KnownFlakeAccept
+	}
+	return r.Exit == 0 && !r.TimedOut
 }
 
 func (r localRunRecord) state() string {

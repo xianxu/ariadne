@@ -1517,3 +1517,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #556 PQ-2: plans name each risky function and one adversarial-input strategy
   plus mechanical guard. Keep concrete case inventories in executable tests;
   name the owner and repeat trigger for external native conformance.
+
+- #556: A shared strict process cleanup path does not imply shared evidence-marker authority. Keep the original resume owner's marker until its existing terminalization boundary; ordinary-run marker cleanup needs explicit ownership from its caller. Exercise that distinction through production CLI resume, not only helper tests.

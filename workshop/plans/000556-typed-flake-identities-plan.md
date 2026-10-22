@@ -4,7 +4,7 @@ collaboration-mode: discussion
 
 # Typed flake identities implementation plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Register and resume script-unit and named Lua/Plenary flakes with the same exact-head evidence and one-resume authority as Go flakes.
 
@@ -148,32 +148,32 @@ Typed-capable checks use the existing `StrictGroupCleanup` path on the outer hel
 
 Files: new `internal/flakes/identity.go`/`identity_test.go`; modify `registry.go`, `classify.go`, `evidence.go`, `flake_cmd.go`, `flake_fixed.go`, `internal/issue/card.go`, vocabulary comment and their tests.
 
-- [ ] Add red property/fuzz tests for the identity/coverage and card validation functions using the function-level strategies above. Run `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -run 'Identity|Registry|Flake' -count=1`; new behavior fails first.
-- [ ] Implement the discriminated model and make every polymorphic coverage/display/registration consumer derive from it. Keep Go-specific package parsing only at explicit Go branches. Re-run those tests and commit with #556 and Agent trailers.
+- [x] Add red property/fuzz tests for the identity/coverage and card validation functions using the function-level strategies above. Run `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -run 'Identity|Registry|Flake' -count=1`; new behavior fails first.
+- [x] Implement the discriminated model and make every polymorphic coverage/display/registration consumer derive from it. Keep Go-specific package parsing only at explicit Go branches. Re-run those tests and commit with #556 and Agent trailers.
 
 ### Task 2: Trusted unit execution and producer evidence
 
 Files: new `internal/flakes/unit_runner.go`, `unit_evidence.go` and tests; new `localchecks_v3.go`, `flake_run.go` and tests; new `scripts/sdlc-plenary-events.lua`; modify declaration parser and command wiring. The single base-manifest distribution row is separately owned by ariadne#558.
 
-- [ ] Add red tests for runner declaration/projection and unit-evidence functions using the function-level strategies above, plus the synchronized wrapper-death ownership test.
-- [ ] Implement pure runner/evidence models, thin wrapper and Plenary result producer. Reuse existing scoped process execution without another queue acquisition. Child diagnostics never become control events. Add counted 8/16-case growth tests and enforce writer-side bounds.
-- [ ] Execute a real shell exit124 fixture and tiny real Plenary file through the production wrapper; assert native assertions/hooks and exit semantics are unchanged, false case text in stdout is ignored, absent adapter cannot pass and all children are observed. Run targeted `go test ./cmd/sdlc -run 'TypedUnit|FlakeRun|LocalChecksV3' -count=1 -timeout 10m`; commit only after evidence passes.
+- [x] Add red tests for runner declaration/projection and unit-evidence functions using the function-level strategies above, plus the synchronized wrapper-death ownership test.
+- [x] Implement pure runner/evidence models, thin wrapper and Plenary result producer. Reuse existing scoped process execution without another queue acquisition. Child diagnostics never become control events. Add counted 8/16-case growth tests and enforce writer-side bounds.
+- [x] Execute a real shell exit124 fixture and tiny real Plenary file through the production wrapper; assert native assertions/hooks and exit semantics are unchanged, false case text in stdout is ignored, absent adapter cannot pass and all children are observed. Run targeted `go test ./cmd/sdlc -run 'TypedUnit|FlakeRun|LocalChecksV3' -count=1 -timeout 10m`; commit only after evidence passes.
 
 ### Task 3: Attempt compatibility, live classification and saved proof
 
 Files: `teststats.go`, `teststats_parse.go`, `teststats_store.go`, `teststats_evidence.go`, `localcheck_flakes.go`, `localcheck_resume.go`, `localcheck_resume_evidence.go`, `localcheck_resume_retention.go`, `localcheck_republish.go`, `flake_cmd.go`, `landingtrain_attribution.go`, `suitebaseline.go` and colocated tests.
 
-- [ ] Add red v4 fixtures and capability/registration/resume proof tests using the function-level strategies above and independent saved status consumers. Preserve interrupted/could-not-run and legacy-Go fixtures.
-- [ ] Connect shared typed facts/plans/proof to automatic known-flake reruns and explicit resume, version publication and all enumerated readers. Reuse current lock/link/process/cleanup ordering. Make train attribution explicitly conservative for non-Go failures. Run targeted root tests sequentially with a stable HEAD/porcelain; do not edit while TestMain owns the worktree.
-- [ ] Run frozen pre-change production binary against v4 subject evidence and unrelated check, plus new binary against old Go proof. Assert no saved rewrite and no false success. Commit the verified slice.
+- [x] Add red v4 fixtures and capability/registration/resume proof tests using the function-level strategies above and independent saved status consumers. Preserve interrupted/could-not-run and legacy-Go fixtures.
+- [x] Connect shared typed facts/plans/proof to automatic known-flake reruns and explicit resume, version publication and all enumerated readers. Reuse current lock/link/process/cleanup ordering. Make train attribution explicitly conservative for non-Go failures. Run targeted root tests sequentially with a stable HEAD/porcelain; do not edit while TestMain owns the worktree.
+- [x] Run frozen pre-change production binary against v4 subject evidence and unrelated check, plus new binary against old Go proof. Assert no saved rewrite and no false success. Commit the verified slice.
 
 ### Task 4: Production acceptance, adoption instructions and close
 
 Files: new `cmd/sdlc/flake_typed_cli_test.go` (private real-Git provider fixture); `cmd/sdlc/helptext/local-check.md`, `helptext/test-stats.md`, flake help, `atlas/workflow/sdlc-binary.md`, `atlas/index.md` if a page is added; issue Log and lessons for actual findings.
 
-- [ ] Private production CLI acceptance for both kinds: original whole suite failure, controlled same-head complete pass for registration evidence, registration onto open issue, a fresh failure, one exact saved resume, known-flake child, status post, guard accepts and saved republish. Repeat with mixed Go/script/Lua; assert command inventory and no full-suite execution on resume. Also cover crash mid-resume then existing reconcile; duplicate resume never launches twice. Provider and tracker writes stay in the private fixture.
+- [x] Private production CLI acceptance for both kinds: original whole suite failure, controlled same-head complete pass for registration evidence, registration onto open issue, a fresh failure, one exact saved resume, known-flake child, status post, guard accepts and saved republish. Repeat with mixed Go/script/Lua; assert command inventory and no full-suite execution on resume. Also cover crash mid-resume then existing reconcile; duplicate resume never launches twice. Provider and tracker writes stay in the private fixture.
 - [ ] Record the real captures as replay fixtures (Pair script timeout and Parley full label). Document exact producer installation in the actual Plenary child, suite wrapper call sites, v3 declaration activation, old-record limitation and required fleet upgrade. Send ops:0 the peer adoption edits needed; do not edit their occupied branches or apply operator labels.
-- [ ] Ask TL to accept private production-CLI + real shell/Neovim/Plenary conformance as the live gate, with no staging, before running the final acceptance. If staging is required, use the normal stage workflow only after TL direction.
+- [x] Ask TL to accept private production-CLI + real shell/Neovim/Plenary conformance as the live gate, with no staging, before running the final acceptance. If staging is required, use the normal stage workflow only after TL direction.
 - [ ] Push the implementation checkpoint; run the declared recorded affected/suite check on that head through `sdlc local-check run`. Complete one `sdlc close --issue 556 --verified '…'` review; fix blockers or dispute with measurements, without a second redundant review dispatch. On SHIP run `sdlc merge --yes` and report PR/outcome to hub. No live `.sdlc` change is included in this implementation PR.
 
 ## Log

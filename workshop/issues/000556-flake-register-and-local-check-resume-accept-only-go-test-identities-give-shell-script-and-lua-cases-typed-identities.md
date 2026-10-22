@@ -49,11 +49,11 @@ Same evidence rules as Go flakes: a saved same-head fail-then-pass.
 
 Durable design: [typed identities plan](../plans/000556-typed-flake-identities-plan.md).
 
-- [ ] Freeze the identity, runner/producer and compatibility contract with ops:0 before code.
-- [ ] Implement one type-aware identity and coverage model across registry and evidence consumers.
-- [ ] Add trusted unit runner declarations and positive script/Lua completion evidence.
-- [ ] Connect recorded failures, exact-unit retries, saved resume, republish and guards; preserve legacy Go proof.
-- [ ] Prove both motivating shapes with private production CLI, real shell and Plenary conformance; document adoption.
+- [x] Freeze the identity, runner/producer and compatibility contract with ops:0 before code.
+- [x] Implement one type-aware identity and coverage model across registry and evidence consumers.
+- [x] Add trusted unit runner declarations and positive script/Lua completion evidence.
+- [x] Connect recorded failures, exact-unit retries, saved resume, republish and guards; preserve legacy Go proof.
+- [x] Prove both motivating shapes with private production CLI, real shell and Plenary conformance; document adoption.
 - [ ] Recorded verification, issue-close review, land and report to hub.
 
 ## Revisions
@@ -127,3 +127,15 @@ Outstanding: bind the outer managed run's trusted contract/environment and stric
 ops:0 directed the split (delivery `8556cb2f-b354-48e4-ad56-4a99963da64e`). Filed unclaimed ariadne#558 on origin, depending on #556, for the one `scripts/sdlc-plenary-events.lua` symlink row and operator-held local-gates verification. #556's Done-when now records that peer adoption follows #558; this branch leaves `construct/base.manifest` unchanged.
 
 Checkpoint verification also includes the pure mixed-kind rerun planner/proof dispatcher and the curated `unit-child-process-group` lint rule, including single-command wrapper aliases. `go test ./pkg/golint -count=1` passed after atlas catalog documentation; fresh pure flakes/issue and explicit installed-Plenary tests passed. No full/recorded suite or close review has run yet. All delegated bounded files are stable, and no own test process remains running at this checkpoint.
+
+### 2026-10-22 — typed live and saved proof integrated; native conformance passed
+
+V4 reads/writes now bind typed-capable runs to their verified runner declaration; legacy Go checks keep v2. The outer runner strips stale unit authority, verifies the exact subject declaration, shares strict descendant cleanup/lifetime and protects ordinary/automatic-child inputs with existing checkout markers. The synchronized wrapper-death test proves one inherited group and no retirement before join. Typed log facts, exact-unit batches, registration/list/stats hydration, manual resume, automatic-child saved proof, republish and status guards now share the typed model. Archive retention checks compatible v4 parent/child contracts; no retirement ordering, locks, links, receipt authority or automatic retry policy changed. Train package-impact attribution stays unverified for typed failures, while baseline diagnosis uses shared facts.
+
+Observed RED before fixes: saved loaders trusted malformed/zero-exit typed passes; automatic uncertain cleanup deleted child inflight output; mismatched typed parent/child contracts could retire evidence; a rejected outer-zero attempt's log could be overwritten by a later pass. Their focused regressions now pass. Native production CLI acceptance also exposed ordinary marker release incorrectly running for manual resume; only the ordinary caller now grants that release, leaving manual resume's existing owner marker for its own terminal boundary. This is an ownership-wiring correction, not a change to option A. Ordinary markers are released only after group/scratch absence is confirmed; subsequent canceled ordinary residue follows the existing temporary/inflight collector boundary. Linked/interrupted resume graphs retain the existing indefinite pinning policy.
+
+Fresh pure flakes/issue tests passed. Root combined verification passed the typed parser, identity evidence, binding, schema, saved proof, resume core/legacy controls, wrapper death and future-scoping tests; native/frozen follow-up passed in 100.413s with SDLC_PRIVATE_TYPED_CONFORMANCE=1, the installed SDLC_PLENARY_DIR and SDLC_PRE_TYPED_BIN pointing to the previously verified frozen binary. Native variants execute mixed Go, a real script timeout (observed 124) and native Plenary hooks/assertions; register all three from exact-head fail/pass; resume only the selected package/files; reject an omitted Lua case; repeat without launching; and crash after the existing lock effect, then reconcile without destructive effects or success. Old production binary refuses the related v4 suite without a status, permits unrelated lint, and preserves raw bytes. The first old-reader fixture attempts lacked the CLI's repository identity/duration; those fixture errors were corrected before the passing measurement.
+
+`go test ./pkg/golint ./pkg/vocab ./scripts/test -count=1` passed; scripts/test completed in 43.385s. Actual motivating diagnostic excerpts are retained under cmd/sdlc/testdata/typed-flakes; a normal replay test ensures historical text cannot manufacture typed authority. Help/atlas document explicit declaration/producer adoption and the #558 boundary. No construct/base.manifest, live .sdlc or seeded workflow changes. #558 report receipt b82dadae-4705-42b3-a799-ea1f05ab28fa was verified submitted; the later Couch restart requires no resend.
+
+Checkpoint next step: run the existing private legacy-Go resume conformance on this new reader, then push and run the declared recorded affected/suite check. No own recorded check is queued/running yet. Complete the issue-close review, fix/dispute blockers, then PR/land and report the outcome to ops:0. All bounded agents are stable; no own test process remains running.

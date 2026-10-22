@@ -210,15 +210,16 @@ func suiteStoreDir() (string, error) {
 
 // flakeDeps are the IO seams the verbs use; tests replace them.
 type flakeDeps struct {
-	now      func() time.Time
-	attempts func() ([]SuiteAttempt, []string, error) // this clone's test-stats store
-	logPath  func(SuiteAttempt) string                // where an attempt's log is kept
-	subtests func(SuiteAttempt) ([]string, error)     // the failing subtests its saved log names (#466)
-	repo     func() (string, error)
-	registry func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
-	listView func(ctx context.Context) (flakeListView, error)
-	contains func(ctx context.Context, ancestor, head string) (bool, error)
-	addTests func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
+	now        func() time.Time
+	attempts   func() ([]SuiteAttempt, []string, error)     // this clone's test-stats store
+	logPath    func(SuiteAttempt) string                    // where an attempt's log is kept
+	typedFacts func(SuiteAttempt) (flakes.UnitFacts, error) // digest-verified typed log evidence
+	subtests   func(SuiteAttempt) ([]string, error)         // the failing subtests its saved log names (#466)
+	repo       func() (string, error)
+	registry   func(ctx context.Context) (flakes.Registry, []flakes.Card, error)
+	listView   func(ctx context.Context) (flakeListView, error)
+	contains   func(ctx context.Context, ancestor, head string) (bool, error)
+	addTests   func(ctx context.Context, stdout, stderr io.Writer, id int, add []string) error // merges onto the card's current tests
 	// editTests applies an owner-only edit (unregister, narrow) to the card's
 	// current tests, compare-and-swap; a repeat writes nothing.
 	editTests func(ctx context.Context, stdout, stderr io.Writer, id int, what string, edit func(id, status string, have []string) ([]string, error)) error
@@ -250,6 +251,13 @@ func defaultFlakeDeps(issuesDir string) flakeDeps {
 				return nil, err
 			}
 			return storeSubtests(store)(a)
+		},
+		typedFacts: func(a SuiteAttempt) (flakes.UnitFacts, error) {
+			store, err := suiteStoreDir()
+			if err != nil {
+				return flakes.UnitFacts{}, err
+			}
+			return storeTypedFacts(store)(a)
 		},
 		repo: detectRepo,
 		registry: func(ctx context.Context) (flakes.Registry, []flakes.Card, error) {
@@ -296,6 +304,12 @@ integration suite) fails only on known flakes, it reruns just those tests on
 the same head; a pass there is landing evidence, linked to the issue. Any other
 failure blocks. Closing the issue unregisters its tests.
 
+Typed identities: script:tests/check.sh and lua:tests/native_spec.lua#full case
+label. They match exactly; scripts rerun whole, Lua reruns the whole spec and
+requires the exact case plus file pass. Version-3 suite runner declarations
+and the managed flake run adapter supply proof; stdout does not supply Lua
+case results. Upgrade binaries before adoption; distribution follows #558.
+
   sdlc flake register --test PKG.TestX[/sub…] [--issue N] [--evidence TEXT]
   sdlc flake unregister --issue N --test NAME
   sdlc flake narrow --issue N --test OLD --to OLD/sub…
@@ -312,7 +326,7 @@ known_flakes names a subtest, so its success guard fails closed.`,
 	}
 	f := flakeRegisterFlags{}
 	register := markMutatingCommand(&cobra.Command{
-		Use:   "register --test PKG.TestName[/sub…]... [--issue N]",
+		Use:   "register --test IDENTITY... [--issue N]",
 		Short: "Register a test as a known flake, given same-head fail→pass evidence",
 		Long: `Register tests as known flakes on a flake issue's card (flake_tests).
 
@@ -340,7 +354,7 @@ failure blocks) until one issue drops it.`,
 		},
 	})
 	register.Flags().IntVar(&f.Issue, "issue", 0, "the flake issue to register on (default: file a new unclaimed one)")
-	register.Flags().StringArrayVar(&f.Tests, "test", nil, "an exact test or subtest name, <import path>.<TestName>[/<sub>…] (repeatable)")
+	register.Flags().StringArrayVar(&f.Tests, "test", nil, "Go test[/sub], script:PATH.sh, or lua:PATH.lua#full case label (repeatable)")
 	register.Flags().StringVar(&f.Evidence, "evidence", "", "evidence from outside this machine's test-stats store (a CI run)")
 	var verbose bool
 	list := &cobra.Command{
@@ -439,7 +453,7 @@ func wrapErr(verb string, err error) error {
 // failed attempt's saved log showing a failing subtest the name covers:
 // records keep top-level failures, so the log is where the subtest is. A
 // missing or unreadable log is no evidence.
-func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string, subtestsOf func(SuiteAttempt) ([]string, error)) (proof map[string][2]string, missing []string) {
+func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string, subtestsOf func(SuiteAttempt) ([]string, error), typedLoaders ...func(SuiteAttempt) (flakes.UnitFacts, error)) (proof map[string][2]string, missing []string) {
 	var mine []SuiteAttempt
 	for _, a := range attempts {
 		if a.Repo == repo && isFlakeEvidence(a) {
@@ -447,11 +461,23 @@ func flakeEvidence(attempts []SuiteAttempt, repo string, tests []string, subtest
 		}
 	}
 	all := flakeAttempts(mine)
+	if len(typedLoaders) > 0 {
+		all = withTypedLogFacts(all, mine, typedLoaders[0])
+	}
 	proof = map[string][2]string{}
 	for _, t := range tests {
-		n, _ := flakes.ParseName(t)
-		f, p, ok := flakes.SameHeadFailPass(all, n.Top())
-		if ok && n.Sub != "" {
+		identity, err := flakes.ParseIdentity(t)
+		if err != nil {
+			missing = append(missing, t)
+			continue
+		}
+		target := t
+		n, isGo := identity.GoName()
+		if isGo {
+			target = n.Top()
+		}
+		f, p, ok := flakes.SameHeadFailPass(all, target)
+		if ok && isGo && n.Sub != "" {
 			ok = subtestFailedIn(mine, f, t, subtestsOf)
 		}
 		if ok {
@@ -506,7 +532,7 @@ func runFlakeRegister(ctx context.Context, stdout, stderr io.Writer, f flakeRegi
 	for _, w := range warnings {
 		cwarn(stderr, "test-stats: "+w)
 	}
-	proof, missing := flakeEvidence(attempts, repo, tests, d.subtests)
+	proof, missing := flakeEvidence(attempts, repo, tests, d.subtests, d.typedFacts)
 	if len(missing) > 0 && f.Evidence == "" {
 		return fmt.Errorf("flake register: no same-head fail→pass evidence in this machine's test-stats for %s.\n"+
 			"  A flake is registered only once the same commit failed on it and then passed (#390).\n"+
@@ -628,7 +654,7 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 			logs[a.ID] = a
 		}
 	}
-	order := flakes.Sort(withLogSubtests(flakeAttempts(mine), mine, d.subtests))
+	order := flakes.Sort(withTypedLogFacts(withLogSubtests(flakeAttempts(mine), mine, d.subtests), mine, d.typedFacts))
 	var unregistered, unexplained, fixedRows []string
 	containsCache := map[string]struct {
 		yes bool

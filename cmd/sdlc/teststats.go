@@ -44,6 +44,10 @@ type SuiteAttempt struct {
 	// Version 3 binds the nonpassing disposition to immutable recovery proof.
 	ReclassificationSHA256 string    `json:"reclassification_sha256,omitempty"`
 	ReclassifiedAt         time.Time `json:"-"` // reader projection of the verified audit, never an independent authority
+	// Version 4 binds typed runner identities to the declared runner contract.
+	RunnerContractSHA256 string `json:"runner_contract_sha256,omitempty"`
+	// Reader-only projection of digest-verified raw evidence; never persisted.
+	TypedFacts *flakes.UnitFacts `json:"-"`
 }
 
 type SuiteQuantiles struct {
@@ -243,9 +247,13 @@ func flakeAttempt(a SuiteAttempt) flakes.Attempt {
 	if a.ReclassificationSHA256 != "" {
 		return flakes.Attempt{ID: a.ID, SHA: a.SHA, Kind: flakes.CouldNotRun, FinishedAt: suiteAttemptCompletedAt(a)}
 	}
-	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: a.Exit == 0 && !a.TimedOut, Baseline: a.MainBaseline,
+	passed := a.Exit == 0 && !a.TimedOut
+	if a.Version == 4 && a.Outcome != "" && !flakes.Kind(a.Outcome).Lands() {
+		passed = false
+	}
+	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: passed, Baseline: a.MainBaseline,
 		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a),
-		Subset: a.Check == affectedCheckName}
+		Subset: a.Check == affectedCheckName, TypedFacts: a.TypedFacts, RunnerContractSHA256: a.RunnerContractSHA256}
 }
 
 func flakeAttempts(as []SuiteAttempt) []flakes.Attempt {
@@ -291,5 +299,62 @@ func storeSubtests(store string) func(SuiteAttempt) ([]string, error) {
 			return nil, err
 		}
 		return parseSuiteLogFacts(string(data)).Subtests, nil
+	}
+}
+
+// withTypedLogFacts hydrates only supported typed attempts. A failed read or
+// digest check leaves proof unavailable; exit status cannot replace it.
+func withTypedLogFacts(out []flakes.Attempt, rows []SuiteAttempt, load func(SuiteAttempt) (flakes.UnitFacts, error)) []flakes.Attempt {
+	byID := make(map[string]SuiteAttempt, len(rows))
+	for _, a := range rows {
+		byID[a.ID] = a
+	}
+	for i := range out {
+		a, ok := byID[out[i].ID]
+		if !ok || a.Version != 4 {
+			continue
+		}
+		out[i].TypedFacts = nil
+		if load != nil {
+			if facts, err := load(a); err == nil {
+				out[i].TypedFacts = &facts
+			}
+		}
+	}
+	return out
+}
+
+// withSuiteTypedFacts feeds the same reader-only facts to the stats projection.
+func withSuiteTypedFacts(rows []SuiteAttempt, load func(SuiteAttempt) (flakes.UnitFacts, error)) []SuiteAttempt {
+	out := append([]SuiteAttempt(nil), rows...)
+	for i := range out {
+		if out[i].Version != 4 {
+			continue
+		}
+		out[i].TypedFacts = nil
+		if load != nil {
+			if facts, err := load(out[i]); err == nil {
+				out[i].TypedFacts = &facts
+			}
+		}
+	}
+	return out
+}
+
+// storeTypedFacts reads bounded regular-file logs and verifies the immutable
+// attempt digest before interpreting any unit/case event.
+func storeTypedFacts(store string) func(SuiteAttempt) (flakes.UnitFacts, error) {
+	return func(a SuiteAttempt) (flakes.UnitFacts, error) {
+		if a.Version != 4 {
+			return flakes.UnitFacts{}, fmt.Errorf("attempt %s has no typed evidence", a.ID)
+		}
+		data, err := readResumeStoredLog(store, a)
+		if err != nil {
+			return flakes.UnitFacts{}, err
+		}
+		if a.LogSHA256 == "" || resumeRecordDigest(data) != a.LogSHA256 {
+			return flakes.UnitFacts{}, fmt.Errorf("attempt %s log digest mismatch", a.ID)
+		}
+		return flakes.ParseUnitEvidence(string(data)), nil
 	}
 }

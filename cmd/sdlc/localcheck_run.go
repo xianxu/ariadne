@@ -58,9 +58,101 @@ type localRunDeps struct {
 	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
 	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.
-	minute         time.Duration
-	runnerLifetime *runnerArtifactLifetime
-	runnerCleanup  func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
+	minute             time.Duration
+	flakeSHA           string // verified subject, never inherited from the invoking environment
+	flakeContract      string // exact trusted/subject runner contract
+	ordinaryTypedOwner bool   // only the ordinary run owner releases its transient log marker
+	runnerLifetime     *runnerArtifactLifetime
+	runnerCleanup      func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
+}
+
+// bindTypedCheck verifies runner authority before allocating any execution
+// resources. An affected check inherits the trusted suite's runner metadata;
+// every typed execution still reads the suite contract from the tested tree.
+func bindTypedCheck(d localRunDeps, c localCheck, sha string) (localRunDeps, error) {
+	d.flakeSHA, d.flakeContract = "", ""
+	contract := c.FlakeRunners.ContractDigest()
+	if contract == "" {
+		return d, nil
+	}
+	if !isTestCheck(c.Name) && c.Name != suiteRerunCheck {
+		return d, errors.New("typed runners require a suite or affected check")
+	}
+	decl, err := readLocalChecks(d.Git, sha)
+	if err != nil {
+		return d, fmt.Errorf("verify typed runner contract: %w", err)
+	}
+	suite, exists := decl.check(suiteCheckName)
+	if !exists || decl.Version != 3 || suite.FlakeRunners.ContractDigest() != contract {
+		return d, errors.New("typed runner contract differs between the trusted check and tested head; repair and rerun")
+	}
+	d.flakeSHA, d.flakeContract = sha, contract
+	d.StrictGroupCleanup = true
+	if d.runnerLifetime == nil {
+		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
+	}
+	return d, nil
+}
+
+// typedUnitEnvironment strips all inherited unit authority, including the
+// producer's private channel. Only this run's verified contract is delegated.
+func (d localRunDeps) typedUnitEnvironment(env []string) []string {
+	out := make([]string, 0, len(env)+2)
+	for _, value := range env {
+		key, _, _ := strings.Cut(value, "=")
+		switch key {
+		case flakeUnitSHAEnv, flakeUnitContractEnv, flakeUnitNameEnv, flakeUnitResultsEnv:
+			continue
+		}
+		out = append(out, value)
+	}
+	if d.flakeContract != "" {
+		out = append(out, flakeUnitSHAEnv+"="+d.flakeSHA, flakeUnitContractEnv+"="+d.flakeContract)
+	}
+	return out
+}
+
+// An outer recipe may ignore an adapter's nonzero exit. Typed proof failures
+// remain failures without rewriting the actual exit observed by the owner.
+func (d localRunDeps) applyTypedRunFacts(rec *localRunRecord, facts SuiteLogFacts) {
+	if d.flakeContract != "" && (facts.Failed || len(facts.Unattributed) != 0 || len(facts.Warnings) != 0) {
+		rec.Outcome = flakes.Unattributable
+	}
+}
+
+func (d localRunDeps) bindSuiteAttempt(a *SuiteAttempt) {
+	if d.flakeContract != "" && (isTestCheck(a.Check) || a.Check == suiteRerunCheck) {
+		a.Version, a.RunnerContractSHA256 = 4, d.flakeContract
+	}
+}
+
+// releaseTypedAttemptOwner is ordinary-run bookkeeping. Binding a typed
+// contract grants no authority to remove a manual resume's ownership marker:
+// that marker belongs to the existing completed-resume retirement boundary.
+func (d localRunDeps) releaseTypedAttemptOwner(ctx context.Context, logPath string) error {
+	if !d.ordinaryTypedOwner || d.flakeContract == "" {
+		return nil
+	}
+	authorize := func() error {
+		if !d.runnerLifetime.mayRetire() {
+			return errors.New("typed managed process cleanup is not confirmed")
+		}
+		return nil
+	}
+	err := resumeCleanupEffect(ctx, authorize, func() error {
+		removeErr := os.Remove(filepath.Join(filepath.Dir(logPath), runnerArtifactOwnerFile))
+		if os.IsNotExist(removeErr) {
+			return nil
+		}
+		return removeErr
+	})
+	if err != nil {
+		if d.runnerLifetime != nil {
+			d.runnerLifetime.retirable = false
+		}
+		return errors.Join(err, &runnerCleanupUnconfirmed{Detail: "typed owner release unconfirmed; inputs retained"})
+	}
+	return nil
 }
 
 // callerRoot names the initiating checkout, independently of suite contents.
@@ -92,7 +184,13 @@ var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1, Scope: c.Scope}
 	rec.Host = hostName()
-	if c.Resource == "runner" {
+	var bindingErr error
+	d, bindingErr = bindTypedCheck(d, c, sha)
+	if bindingErr != nil {
+		return rec, bindingErr
+	}
+	d.ordinaryTypedOwner = d.flakeContract != ""
+	if (c.Resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
 	if d.minute == 0 {
@@ -145,7 +243,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}
 	}()
 
-	if c.Resource == "runner" {
+	if c.Resource == "runner" || d.flakeContract != "" {
 		if _, err := d.Git("worktree", "lock", "--reason", "managed runner; retain until cleanup is confirmed", wt); err != nil {
 			return rec, fmt.Errorf("lock runner checkout: %w", err)
 		}
@@ -155,7 +253,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	writer, err := beginSuiteAttempt(storeRoot)
 	publishing := false
 	if err != nil {
-		if c.Resource == "runner" {
+		if c.Resource == "runner" || d.flakeContract != "" {
 			return rec, fmt.Errorf("runner check %s requires an attempt writer; repair storage and rerun: %w", c.Name, err)
 		}
 		fmt.Fprintf(d.Stderr, "[!] local check %s: attempt log unavailable; using legacy log path: %v\n", c.Name, err)
@@ -169,7 +267,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}()
 		rec.LogPath = writer.LogPath
 	}
-	if c.Resource == "runner" {
+	if c.Resource == "runner" || d.flakeContract != "" {
 		if err := attachRunnerArtifactOwner(filepath.Dir(rec.LogPath), wt); err != nil {
 			return rec, fmt.Errorf("protect runner log: %w", err)
 		}
@@ -221,6 +319,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	} else {
 		fmt.Fprintf(d.Stderr, "[!] local check %s: log too large or unreadable for timing/failure parser; raw log retained: %v\n", c.Name, readErr)
 	}
+	d.applyTypedRunFacts(&rec, facts)
 	if writer == nil {
 		legacy := filepath.Join(logDir, sha, c.Name+".log")
 		if err := os.Rename(rec.LogPath, legacy); err != nil {
@@ -236,7 +335,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
 			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
 			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
-			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256}
+			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256, Outcome: string(rec.Outcome)}
+		d.bindSuiteAttempt(&attempt)
 		if identity, idErr := workspace.Resolve(execGitRunner{}, d.callerRoot(), ""); idErr == nil && identity.Address != nil {
 			attempt.Slot = *identity.Address
 		}
@@ -274,7 +374,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			fmt.Fprintf(d.Stderr, "[!] local check %s: attempt result was not fully saved: %v\n", c.Name, saveErr)
 		} else {
 			saved = true
-			if attempt.Exit != 0 || attempt.TimedOut { // where publishSuiteAttempt kept it
+			if suiteAttemptImmutable(attempt) { // where publishSuiteAttempt kept it
 				rec.LogPath = filepath.Join(storeRoot, "failed", writer.ID+".log")
 			} else {
 				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
@@ -479,6 +579,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			// ownedCtx is intentionally canceled by stopSignals on normal completion.
 			// Cleanup still requires the original caller to remain uncancelled.
 			err = finishResumeScratch(ctx, d, run, scratch, err)
+			if err == nil {
+				err = d.releaseTypedAttemptOwner(ctx, logPath)
+			}
 			return
 		}
 		if d.runnerLifetime.mayRetire() {
@@ -501,7 +604,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			}
 		}
 	}
-	env = append(env, scratch.Env...)
+	env = d.typedUnitEnvironment(append(env, scratch.Env...))
 	var ssdBefore map[string]bool
 	if scratch.OnScratch {
 		ssdBefore = listTemp(ssdTempDirs())
