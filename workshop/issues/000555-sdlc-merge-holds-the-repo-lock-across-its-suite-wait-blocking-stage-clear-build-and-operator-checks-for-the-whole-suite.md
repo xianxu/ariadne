@@ -84,6 +84,10 @@ Oracle mutation: temporary whole-command automatic locking in the test root made
 
 Final parent verification: go test ./cmd/sdlc -run '^(TestMergeCommand|TestLandingReleasesRepoLockDuringSuite|TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck|TestLandingRegistrationPollingDoesNotHoldRepoLock|TestLandingReacquiresLockAndRefusesHeadDriftAfterSuite|TestStageLeaseEdges|TestStageClearLandedProofOrdering|TestStageClearBuildUsesPinDespiteLaterRemoteAdvance)' -count=1 -timeout=8m passed205.371s. Tracked-file go test ./pkg/golint -count=1 passed1.195s. git diff --check clean. Outcome remains not reproduced; regressions pinned. Queue the recorded suite on the pushed tested head, then close through the mandatory review.
 
+### 2026-10-22 — recorded suite passed; entering landing
+
+Retained suite lease-327667749 completed on 7b0850353f09b7c24f98b4d498762d467552d4c8 with exit0: all eight shards, 2280 cmd/sdlc tests and76 other packages, wall1372.8s after6735s admission wait. Log .git/sdlc/local-checks/7b0850353f09b7c24f98b4d498762d467552d4c8/suite.log; reported SHA256 prefix cf436573b63d. No retry, cancellation or known-flake acceptance. Scratch telemetry reported zero attributable SSD temp folders/bytes (19 unattributed other-process entries). Mandatory close review is SHIP with no findings. Publish this evidence-only successor and enter sdlc merge; its landing turn owns current-main integration and authoritative checks. No manual chase of main.
+
 ## Revisions
 
 ### 2026-10-22 — correct the reported duration and retain the existing lock design
