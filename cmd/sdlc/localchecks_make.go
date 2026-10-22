@@ -1,7 +1,7 @@
 // localchecks_make.go — facts about a repository's make test, for the default
 // suite (#332): whether a test target exists and the suite's weight, both read
-// from main's Makefile (never the branch under test, so a branch cannot drop
-// or lighten the suite it owes).
+// from the selected policy tree. Existing suites remain main-authoritative;
+// localchecks_bootstrap.go permits an exact-subject default only on proven absence.
 package main
 
 import (

@@ -155,17 +155,36 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: pin origin/main: %w", err)
 	}
 	mainHead = strings.TrimSpace(mainHead)
+	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
+	if err != nil {
+		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
+	}
+	sha := strings.TrimSpace(out)
+	tips, err := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/")
+	if err != nil {
+		return fmt.Errorf("local-check run: read pushed tips: %w", err)
+	}
+	if strings.TrimSpace(tips) == "" {
+		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
+	}
 	decl, err := readLocalChecks(git, mainHead)
 	if err != nil {
 		return err
 	}
 	// #332: the default suite is runnable by name, so `sdlc local-check run
 	// --name suite` is the close suite.
-	if decl, err = withDefaultSuiteContext(ctx, git, mainHead, decl); err != nil {
+	var bootstrap bool
+	if decl, bootstrap, err = withSubjectDefaultSuiteContext(ctx, git, mainHead, sha, decl); err != nil {
 		return err
 	}
 	if len(decl.Checks) == 0 {
-		return fmt.Errorf("local-check run: origin/main declares no local checks (%s)", localChecksPath)
+		if decl.Version != 0 {
+			return fmt.Errorf("local-check run: origin/main declares no local checks (%s); bootstrap requires no declaration on main; establish its suite on main, then run sdlc local-check run --name suite", localChecksPath)
+		}
+		return fmt.Errorf("local-check run: origin/main declares no local checks (%s), and the pushed subject has no bootstrap test target; add a make test target, push, then run sdlc local-check run --name suite", localChecksPath)
+	}
+	if bootstrap {
+		fmt.Fprintf(stderr, "local-check: bootstrap suite on %s: required make test; head declarations stay inactive until on main\n", abbrevSHA(sha))
 	}
 	// The affected suite (#473) is declared in its own file and runs through
 	// its planner; every other name is a declared check.
@@ -190,16 +209,8 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		}
 		affectedCfg = cfg
 	}
-	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
-	if err != nil {
-		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
-	}
-	sha := strings.TrimSpace(out)
 	if err := validateManualLandingTarget(checks, sha, mainHead); err != nil {
 		return err
-	}
-	if tips, _ := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/"); strings.TrimSpace(tips) == "" {
-		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
 	}
 	repo, err := detectRepo()
 	if err != nil {
@@ -273,7 +284,7 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	if rec.ResumeParent == "" && (rec.Outcome == flakes.KnownFlakePassed || rec.Outcome == flakes.KnownFlakeAccept) {
 		// #394: a saved known-flake pass still needs its flake issue open and
 		// the operator's policy on main to allow it.
-		c, err := declaredCheck(ctx, git, f.Name)
+		c, err := declaredCheck(ctx, git, f.Name, sha)
 		if err != nil {
 			return fmt.Errorf("local-check republish: %w", err)
 		}
@@ -304,24 +315,34 @@ func currentBranchPR(git func(args ...string) (string, error), repo string) int 
 	return pr
 }
 
-// declaredCheck is check name as origin/main declares it (with the default
-// suite), for a decision that depends on the operator's current declaration.
-func declaredCheck(ctx context.Context, git func(args ...string) (string, error), name string) (localCheck, error) {
+// declaredCheck reads current main policy for one original saved subject.
+// Only its default bootstrap target may come from that exact subject; the
+// current checkout and the subject's declaration have no policy authority.
+func declaredCheck(ctx context.Context, git func(args ...string) (string, error), name, subject string) (localCheck, error) {
 	if out, err := git("fetch", "--quiet", "origin"); err != nil {
 		return localCheck{}, fmt.Errorf("git fetch origin: %w\n%s", err, out)
 	}
-	decl, err := readLocalChecks(git, "origin/main")
+	out, err := git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return localCheck{}, fmt.Errorf("pin current origin/main: %w", err)
+	}
+	base := strings.TrimSpace(out)
+	if base == "" {
+		return localCheck{}, fmt.Errorf("pin current origin/main: git returned no commit")
+	}
+	decl, err := readLocalChecks(git, base)
 	if err != nil {
 		return localCheck{}, err
 	}
-	if decl, err = withDefaultSuiteContext(ctx, git, "origin/main", decl); err != nil {
+	decl, _, err = withSubjectDefaultSuiteContext(ctx, git, base, subject, decl)
+	if err != nil {
 		return localCheck{}, err
 	}
 	if name == affectedCheckName {
 		// #473 M2 BR-9: affected is declared in its own file, with the suite's
 		// known-flake policy; resolving it here keeps a saved affected pass
 		// republishable.
-		cfg, ok, err := readAffectedConfig(git, "origin/main")
+		cfg, ok, err := readAffectedConfig(git, base)
 		if err != nil {
 			return localCheck{}, err
 		}

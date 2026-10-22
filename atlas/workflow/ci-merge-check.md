@@ -280,6 +280,15 @@ first-class evidence, recorded on the commit it ran on:
   suite. A declared `suite` overrides execution settings but is always required,
   even when `required` is omitted or false. Agents run it before close with
   `sdlc local-check run --name suite`.
+  - **Bootstrap (#536):** `localchecks_bootstrap.go` shares main-first
+    derivation between CLI and CI facts. Only absent main declaration plus a
+    successful negative main probe allows default `make test` and weight from
+    the exact pushed subject. No head declaration is read. Valid empty main
+    policy prevents bootstrap, and failed/canceled probes remain errors. The
+    managed run records the ordinary status; server failures still block.
+    Conductor `deriveSuite` runs per exact prefix and changed base. Missing
+    targets refuse unverified, and failed bootstrap suites cannot fabricate a
+    baseline on main. Native fixtures replay the captured echo#1 refusal.
   - A record on a first-parent ancestor counts when the difference since is
     docs-only (`publishGateHasCodeSurface`, the publish gate's line). Close's
     own commits don't force a rerun.

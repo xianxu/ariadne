@@ -41,7 +41,7 @@ func resumeInputs(ctx context.Context, d localRunDeps, store string, p SuiteAtte
 		in.Policy, err = d.CurrentSuitePolicy(ctx)
 	} else {
 		var c localCheck
-		c, err = declaredCheck(ctx, d.Git, suiteCheckName)
+		c, err = declaredCheck(ctx, d.Git, suiteCheckName, p.SHA)
 		in.Policy = c.knownFlakePolicy()
 	}
 	if err != nil {

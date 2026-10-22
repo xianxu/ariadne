@@ -21,6 +21,7 @@ func (e *ciGateError) Error() string { return e.Message }
 // GitHub poll (the default suite probe materializes a detached worktree).
 type ciGateFacts struct {
 	decl         localCheckDecl
+	bootstrap    bool
 	hasWorkflows bool
 	required     []string
 	standIn      map[string]string // a required check → the check whose record also satisfies it (#473)
@@ -35,7 +36,7 @@ func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string,
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w\n  → fix the declaration on main (it is under the local-gates guard)", err)
 	}
-	decl, err = withDefaultSuiteContext(ctx, git, base, decl)
+	decl, bootstrap, err := withSubjectDefaultSuiteContext(ctx, git, base, head, decl)
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w", err)
 	}
@@ -43,7 +44,7 @@ func prepareCIGateFactsContext(ctx context.Context, git func(...string) (string,
 	if err != nil {
 		return nil, fmt.Errorf("CI gate: %w", err)
 	}
-	return &ciGateFacts{decl: headLocalChecks(decl), hasWorkflows: hasWF, required: required}, nil
+	return &ciGateFacts{decl: headLocalChecks(decl), hasWorkflows: hasWF, required: required, bootstrap: bootstrap}, nil
 }
 
 const ciWaitLimit = 20 * time.Minute

@@ -2924,3 +2924,15 @@ and strict scratch defer, including effect aliases and multiple effects under
 one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
 the authority behavior. Completed proof GC and unused pre-link preparation keep
 their existing lifecycles.
+
+### Bootstrap suite derivation (#536)
+
+`localchecks_bootstrap.go` composes existing default-suite constructors and
+bounded native make probes. Main remains authoritative; only proven absent
+declaration and target permit the exact subject's default. `runLocalCheckCmd`
+verifies the pushed subject before fallback. CI facts cache that same policy
+within one wait budget. Conductor `deriveSuite` re-derives per tested prefix and
+reintegration, so a later target/weight never authorizes an earlier prefix.
+The captured echo#1 inputs and native command/train regressions live in
+`testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
+See [the CI gate map](ci-merge-check.md) for evidence and authority rules.

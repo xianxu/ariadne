@@ -68,8 +68,8 @@ total: 1.27
 
 ## Plan
 
-- [ ] Reproduce the incident and share subject-aware main-first policy between CLI and CI facts, preserving exact pushed-head and cancellation controls.
-- [ ] Cover ordinary/immutable landing and train prefixes/reintegration with the same derivation, no weakened gate or fabricated baseline evidence.
+- [x] Reproduce the incident and share subject-aware main-first policy between CLI and CI facts, preserving exact pushed-head and cancellation controls.
+- [x] Cover ordinary/immutable landing and train prefixes/reintegration with the same derivation, no weakened gate or fabricated baseline evidence.
 - [ ] Document the contract, complete focused/recorded verification and prepare close. Detailed steps: [bootstrap suite plan](../plans/000536-bootstrap-suite-plan.md).
 
 ## Log
@@ -84,6 +84,13 @@ total: 1.27
 - Native read-only incident probe: materialized the exact historical Makefile bytes in private scratch, used the production make database/weight goal with WF_TEST_LOCK=off (never a test goal). Planning-era main exited 0 with has_test=false, weight=1; the tested echo head exited 0 with has_test=true, weight=1. This confirms the incident is the approved absent-main-target case, not merely a missing-declaration assumption.
 - Hub approved the committed full-flow plan and isolated real CLI/landing fixtures as sufficient live proof, no :0 touch. Initial unpinned change-code inferred quick from design size; corrected with the hub-approved --flow full before implementation. Plan-quality accepted with no blocking findings in rounds 1 and 2; PQ-1 Minor requested function-named test strategies and no duplicate case inventories. Compressed those mechanically under the plan's Revisions; no scope/behavior delta. Estimate 1.27h derived only after plan-quality acceptance, set via the card verb and accepted by estimate-quality with advisory optimism. Module allowances include writing/debugging regressions and active verification; queue waits alone are excluded. Full flow is now recorded and implementation admitted.
 
+- 2026-10-22 01:49 PDT — TDD: captured byte-preserving echo#1 inputs; native CLI regression failed with the original origin/main-declares-no-local-checks refusal. Native CI controls failed on missing bootstrap default and ignored broken head probe. Train regressions failed on empty policy and attempted empty main baseline. Shared derivation, pushed-subject-first CLI, CI facts and per-prefix train selection implemented. Focused bootstrap/default/probe controls passed (cmd/sdlc, 16.015s), including native managed execution/status, fallback cancellation and unverified bootstrap baseline. Broader verification follows. ARCH-DRY keeps constructors/probes/record machinery shared; no head custom policy or server-CI waiver.
+
+- Implementation verification: broad landing/train/CI controls ran to completion (457.446s); only immutable-probe count expectations and a canceled-fallback seam failed. Updated the count to one main plus one subject probe cached across polling, and added the between-probe context guard. Native immutable failure reproduced false main-red diagnosis before the fix; now it preserves the original failure and reports unavailable/unverified baseline. Recovery red confirmed main-only suite refusal for native known-flake republish and original-SHA resume; fixed every current-policy reader through one shared derivation. The fixture was corrected to emit structured Go evidence, preserving resume's completeness guard.
+- Final targeted bootstrap/default/train/probe/baseline/resume controls passed (cmd/sdlc, 35.246s); golint passed (0.894s), shelllint passed (0.259s). Compiled local-check help inspected. Isolated native CLI, exact-head status, train and recovery fixtures satisfy the hub-approved live gate, with no :0 touch. Full recorded suite follows on the pushed implementation head.
+
 ## Revisions
 
 - 2026-10-22 01:21 PDT — Hub selected the default-suite alternative in the original Spec: only absent declaration plus absent main test permits exact pushed-head default bootstrap. Head-declared custom checks wait until that declaration is on main; no head policy replaces/lightens the default or stands in for CI. Added explicit acceptance controls and the requested echo incident replay.
+
+- 2026-10-22 01:49 PDT — Hub confirmed existing republish/resume readers belong to this same mechanism: use saved/original SHA with shared main-first policy, never current HEAD/head declarations. No new state, command or authority. Integration review also found immutable baseline diagnosis must retain bootstrap provenance rather than call absent-target main red.

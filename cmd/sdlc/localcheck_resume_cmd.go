@@ -37,10 +37,6 @@ func newLocalCheckResumeCmd() *cobra.Command {
 		if out, err := d.Git("fetch", "--quiet", "--prune", "origin"); err != nil {
 			return fmt.Errorf("resume refresh origin: %w: %s", err, out)
 		}
-		check, err := declaredCheck(c.Context(), d.Git, suiteCheckName)
-		if err != nil {
-			return err
-		}
 		rev, err := d.Git("rev-parse", "--verify", f.Rev+"^{commit}")
 		if err != nil {
 			return err
@@ -52,6 +48,10 @@ func newLocalCheckResumeCmd() *cobra.Command {
 		}
 		if strings.TrimSpace(refs) == "" {
 			return errors.New("local-check resume: original commit must remain pushed on origin")
+		}
+		check, err := declaredCheck(c.Context(), d.Git, suiteCheckName, sha)
+		if err != nil {
+			return err
 		}
 		rec, err := resumeSavedSuite(commandContext(c.Context()), d, check, sha, f.Attempt)
 		if err != nil {
