@@ -56,6 +56,7 @@ Implementation plan: [review dependency checkouts](../plans/000551-review-depend
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — Boundary/command environment regressions, full judge/reviewbox/layergraph, golint, promisor no-fetch and real OS-fence conformance pass. Host fence raw output and immutable source identity are committed at workshop/plans/000551-host-fence-evidence.md; BR-2 dispute supplies the exact measured result for explicit reviewer disposition. BR-1 README documentation is addressed. Recorded suite lease-3344910554 still runs on equivalent implementation 0ae0016dbbe6634bfbf59132045e683bfa76862a; subsequent changes are docs/evidence only. Echo #10 live review is coordinated. --no-plan-check acknowledges pending suite/live/close/landing release steps under the allowed review overlap; both proofs precede landing. --no-project: hub owns project updates.; review verdict: SHIP
 
 
 ## Revisions

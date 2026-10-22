@@ -175,3 +175,79 @@ findings:
    None. Attach the missing conformance evidence to the existing verification item.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"429bdc0f-ef80-458d-ace1-942344e84ca8","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/ab6625d403cb6bb6","reviewed_head":"80e095147c447abf1a3c41799029a050eca5817f","slot":"ariadne:1","requested_at":"2026-10-22T13:12:26.269452Z"},"phase":"finished","pid":10699,"started_at":"2026-10-22T13:12:26.439918Z","finished_at":"2026-10-22T13:14:11.234551Z","session_id":"01a163bd-d22b-7150-91b7-3c87affaf86a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T06:20:01-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 551 — review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable) |
+| repo | ariadne |
+| issue file | workshop/issues/000551-review-box-gives-the-reviewer-no-dependency-checkouts-consumer-reviews-can-t-verify-substrate-claims-echo-9-br-1-unverifiable.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | cce05bc3f48f61cb63d010060ad2cb79e5ebd1c2..09357c3bb13f8a2ea6999213102adac2ec8478c3 |
+| command | sdlc close --issue 551 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T06:20:01-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the revised Spec and Plan: boundary reviews receive disposable dependencies at fixed local `origin/main` pins, with consistent prompt and environment bindings, bounded setup, retry restoration, and cleanup. No new blocking defects found. Host evidence resolves the fence-verification dispute despite this review environment’s nested-sandbox restriction.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md now documents dependency bindings, pins, modes, recovery and lifecycle, consistent with reviewdependencies.go, reviewisolation.go and the atlas.
+  - id: BR-2
+    disposition: withdrawn
+    note: |
+      Re-running the exact live-fence command failed here with sandbox_apply: Operation not permitted. The committed host evidence records exit 0 and PASS; all six recorded source blob IDs match the pinned head, and cmd/ plus pkg/ are unchanged since the tested commit. The fixture exercises production isolation and asserts dependency clone/source/common-dir write denial while retaining primary-clone write access.
+```
+
+1. **Strengths**
+
+   - Shared `layergraph.DependencyEnvironment` keeps local-check and reviewer binding rules consistent.
+   - Dependency ownership reuses existing locks, reset, close and dead-owner sweep behavior.
+   - Production-boundary tests read actual pinned fixture bytes through exported paths, including a dirty caller declaration and newer unpublished dependency content.
+   - Promisor regression verifies that dependency inspection neither fetches missing objects nor modifies the source.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+   - Full `reviewbox`, `judge` and `layergraph` package tests.
+   - Targeted dependency lifecycle, production-boundary, freshness and environment tests.
+
+   The live fence test cannot nest in this sandbox; verified host evidence supplies that measurement. BR-1 is a prose correction, and BR-2 adds verification evidence, so neither requires reverting an executable fix.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared resolution and environment projection; existing checkout lifecycle reused.
+   - **ARCH-PURE — pass:** Manifest, budget and environment policies remain pure; Git effects stay at integration boundaries. Core-concept locations and classifications match the code.
+   - **ARCH-PURPOSE — pass:** Shared whole-issue and milestone dispatch delivers dependency context to prompts, preparation and reviewer commands.
+   - **ARCH-MOCK — pass:** Portable Git fixtures exercise the production seam; controlled process fixtures cover cancellation, with live fence conformance separately evidenced.
+   - **ARCH-CONSTRAINTS — pass:** Row, metadata, entry, blob and deadline limits are enforced.
+   - **ARCH-SECURE — pass:** Literal pins, canonical protection paths, bounded parsing and suppressed acquisition/configuration side effects.
+   - **ARCH-ORDER — pass:** Ownership validation, fixed retry pins and cancellation tests cover relevant lifecycle transitions.
+   - **ARCH-FUNERAL — pass:** Children retain individual locks and participate in close and sweep cleanup.
+   - **ARCH-EVOLVE — pass:** No persisted format changes introduced.
+
+7. **Plan revision recommendations:** None. README and atlas updates cover the introduced surface.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"76bd4bc4-3b03-4e80-a6f2-09d0ad6f88d1","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/577d555fe9b0d28f","reviewed_head":"09357c3bb13f8a2ea6999213102adac2ec8478c3","slot":"ariadne:1","requested_at":"2026-10-22T13:18:30.335014Z"},"phase":"finished","pid":73047,"started_at":"2026-10-22T13:18:30.430788Z","finished_at":"2026-10-22T13:20:00.730979Z","session_id":"01a163c3-5f85-72e1-8138-aeb9620f2db9","outcome":"returned"}] -->
