@@ -96,6 +96,12 @@ total: 6.18
 
 ## Log
 
+### 2026-10-22 — review correction checkpoint
+
+BR-1's shared complete-suite scope regression passed in the targeted registration/stats suite (33.762s). The private real production CLI mixed Go/script/Plenary pass scenario then passed with the installed native library (23.442s), including complete-suite registration and exact resume. BR-2's implementation-task file lists now also name the delivered conformance/capture tests and explicitly distinguish unchanged shared consumers. BR-3's README guidance is present. Round-one findings remain for the next close review to dispose; no manual ledger clearing.
+
+The old queued recorded suite was canceled through `sdlc local-check cancel --run lease-641560774` before launch because the correction changes code. No full-suite result is claimed. Next: push this checkpoint, queue a fresh recorded suite on it, rerun close review under the approved queue overlap, require the final-code recorded pass before landing. Pair:7's working tree was verified clean after the adoption filing and reported to ops:0; future cross-repo filings use a temporary origin/main worktree as directed.
+
 ### 2026-10-22
 
 Claimed and entered planning on the issue branch. Read tl-worker/SDLC contracts, brainstorming and writing-plans skills, the issue vocabulary, registry/classifier/rerun and saved-resume consumers. Read-only delegated surveys recovered the actual peer evidence and the persisted-format consumer inventory.
