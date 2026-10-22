@@ -164,12 +164,12 @@ func TestGitShimChecksGitDirEnv(t *testing.T) {
 
 func TestConfineInsideCheckout(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
-	co, err := Create(t.TempDir(), src, h2, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer co.Close()
-	c, err := Confine(co.Dir, true)
+	c, err := Confine(t.Context(), co.Dir, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestConfineInsideCheckout(t *testing.T) {
 		t.Errorf("env lacks CLAUDE_ENV_FILE:\n%s", env)
 	}
 	// A retry resets the checkout, which deletes the base; Prepare restores it.
-	if err := co.Reset(); err != nil {
+	if err := co.ResetContext(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.Prepare(); err != nil {
@@ -215,7 +215,7 @@ func TestConfineFailsWhenTempDirCannotBeCreated(t *testing.T) {
 	}
 	defer os.Chmod(parent, 0o700)
 	t.Setenv("TMPDIR", parent)
-	c, err := Confine(t.TempDir(), false)
+	c, err := Confine(t.Context(), t.TempDir(), false)
 	if err == nil {
 		c.Close()
 		t.Fatal("Confine succeeded with an unwritable temp parent")
@@ -235,7 +235,7 @@ func TestConfineCheckCatchesOutsideWrites(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(work, "repo"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Confine(filepath.Join(work, "repo"), false)
+	c, err := Confine(t.Context(), filepath.Join(work, "repo"), false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,5 @@
+Echo #10 owner-run boundary review, reported by ops-echo:0 for ariadne#551.
+Binary revision: 0ae0016dbbe6634bfbf59132045e683bfa76862a (clean).
+Reviewer: Claude. Every command, including echo ok, failed before execution.
+Captured command-shell diagnostic:
+zsh:2: bad substitution

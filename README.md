@@ -147,6 +147,22 @@ Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
 edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
 
+Boundary reviewers and their preparation commands receive `SDLC_DEP_SUBSTRATE`
+and `SDLC_DEP_DATA` paths for the reviewed commit's direct `construct/deps`
+dependencies. Each path names a disposable clone pinned once to that local
+dependency's last-fetched `origin/main`; setup never fetches or copies dirty
+source files. The prompt names each path, exact SHA, fetch-age evidence (or
+`unknown`) and isolation mode. Missing sources/refs or invalid/conflicting
+declarations stop setup: repair or refresh the local dependency outside the
+review, then rerun the original close command.
+
+An available OS fence makes dependency clones and source Git directories
+read-only. Without the fence, the prompt identifies writable disposable clones
+whose edits are discarded. Retries rebuild the same paths at the same pins;
+normal cleanup and dead-owner sweeps remove them with the review checkout.
+See [boundary review dependency inspection](atlas/workflow/sdlc-binary.md)
+for size/time bounds and freshness limitations.
+
 Boundary reviews can prepare generated assets inside their disposable checkout.
 Commit a regular `.sdlc/review-prepare.json` file at the reviewed HEAD:
 
