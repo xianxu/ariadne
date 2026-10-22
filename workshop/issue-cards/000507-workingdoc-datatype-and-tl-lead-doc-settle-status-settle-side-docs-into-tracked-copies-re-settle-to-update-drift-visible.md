@@ -1,6 +1,6 @@
 ---
 id: 000507
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-22
 estimate_hours: 2.93
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0d41e87788e51ba8bd7af58c052bf11042500ebc
         evidence_commit: b37a90bb58cd866ef37b6d30bbe008f4aabf4fc7
+        landed_commit: 4660dda0751d1d2dffeee40c68bd2ff4784ea62e
 ---
 
 # workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible
