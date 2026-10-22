@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 1.27
 collaboration-mode: collaboration
-card_mirror: 'bafb101e25b0cf8ddf9037ba3b68d5f134ffa633' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '97c37eebd3541dcba599e990a4475d535a4f1c09' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T01:19:13-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "99cb419f", done: "c22599ea"}
+flow: {kind: full, provenance: operator}
 ---
 
 # local-check: bootstrap a repo with no declaration on main (managed default suite), so first-declaration PRs don't need a direct make test
@@ -44,6 +44,27 @@ as bootstrap. Never weaker than the default; refuse only when there is no Makefi
 - Bootstrap is allowed only when main has neither a declaration nor a test target and the exact pushed subject has a test target. It is visibly labelled and runs the required default `make test`; head declarations cannot replace/lighten it or supply CI substitutes/custom checks.
 - Existing main declarations (including valid empty), default command/weight, server CI and unknown/invalid probe results remain authoritative and strict. All landing subjects use the same policy; a prefix without a test target cannot virtual-pass.
 - A committed regression replays echo#1's verified 2026-10-21 main/head Makefile and declaration state, reproduces the refusal before the fix and passes through managed execution/admission afterwards.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is marked stale by estimate-source, so its rates are provisional.
+
+Decomposition: shared subject-policy helper and per-prefix train selection are two smaller Go extensions; CLI/CI subject/policy wiring is one cross-cutting refactor; issue shaping, documentation and the one close review are separate primitives. Existing constructors, bounded make/Git probes, managed runners and native/stateful fixtures cover the stack: no greenfield library/API discovery. Thorough approved plan applies design ×0.2 and +15% buffer; familiar stack applies impl ×1.0. Impl values below already apply v3.1's 40% scale to the v2 table, exactly once.
+
+Raw table picks: issue-spec D0.50/I0.10; each smaller-go-module D0.20/I0.50; cross-cutting-refactor D0.50/I0.50; atlas-docs D0.10/I0.15; milestone-review D0.10/I0.50. Discounted design subtotal 0.32, scaled implementation subtotal 0.90: 0.32 ×1.15 +0.90 =1.268, rounded 1.27h. Suite capacity waits remain excluded by measured actuals.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.10 impl=0.04
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 1.27
+```
 
 ## Plan
 
