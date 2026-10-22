@@ -2200,9 +2200,8 @@ growth per direct completion). It is not suite-pass or admission evidence.
 Old tombstones lacking exit evidence remain unknown; there is no retroactive
 promotion. A Couch restart does not end the independent watcher, whereas loss
 of the watcher before its durable terminal transition requires reconciliation.
-The
-supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+`couch --skill` owns authenticated supervisor notices and receipts;
+`tl-worker --help` owns checkpoint and idle discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained
 check verification; the continuation prototype points workers to that rule.
 
