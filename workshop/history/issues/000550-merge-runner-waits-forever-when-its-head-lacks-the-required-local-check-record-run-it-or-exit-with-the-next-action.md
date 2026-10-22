@@ -73,6 +73,14 @@ Red: the original waiter called readiness twice then returned `context canceled`
 
 The first combined broad run's assertions passed, but its hermeticity guard correctly rejected concurrent agent edits to two docs and a test file (174.212s); this is contaminated verification, not a suite pass or product/flake evidence. Freeze edits for its replacement focused run. A retry fixture also initially reused its missing-record second-poll cancellation guard after the gate passed: removed that artificial scheduling assumption from the retry path; the refusal still asserts exactly one observation. No production timing budget was changed.
 
+### 2026-10-22 — landed and verified
+
+PR398 merged at 17:51:30Z as Git-verified `68830ccc014ebf6b64e5564ede78f5f5691b3350`. Close round1 was SHIP with no blocking findings, evidence `f8f79d58d98c7bff32b0d5482020ef045cd27428`; measured actual0.73h. One Minor advisory names the blank line outside the captured terminal output; the capture stays verbatim, with no runtime finding or code change. Ops:0 approved fixture plus real-lock verification without staging in receipt `4cec01c2-b2f4-4df2-9346-718e9a3e4c55`.
+
+The retained branch suite on `789b21c045282b828ee70d702ff286b717afab11` passed:2258 cmd/sdlc tests,76 other packages,8 shards,1420.2s, all zero failures; log SHA256 prefix `6671eebb7898`. After landing-line admission the retained merge integrated main to Git-verified `47f7e264a0fa887226078adeb0966dbff1ce272a`; its authoritative suite passed:2267 cmd/sdlc tests,76 packages,8 shards,1044.3s, all zero failures, log prefix `54d0d601256f`. All4 PR CI checks were green before merge. No retries, bypasses or stage were needed. Both original runners exited0.
+
+The card is done and the issue/plan archived. SDLC deleted the completed issue branch and returned this slot to its unchanged `main-slot4`; the clean resting branch was then explicitly fast-forwarded to captured main `d9c9499e0ac5e3f873b8bab5933b364119a29179`. No temporary worktree or private Go cache was created manually. All remaining lifecycle steps from the archived plan are fulfilled; this Log records their completion after its close-time snapshot.
+
 ## Revisions
 
 ### 2026-10-22 — proposed exit policy; awaiting hub approval
