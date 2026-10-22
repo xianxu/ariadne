@@ -66,9 +66,11 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - [x] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
 - [x] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
 - [x] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
-- [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
+- [x] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; ready for close and landing.
 
 ## Log
+
+- 2026-10-22: Fixed-head recorded suite passed on Git-verifiedf425ec39fe8a7becbaf15a491526ee7e7df0cb89: all8 shards and76 other packages,2151 SDLC tests,0 failures,777.0s wall after254s FIFO wait. Lease285754682 completed normally; exact-head sdlc-local/suite success recorded, log sha256 prefix1ae4a50f672e. Raw log copied to persistent evidence/000544/recorded-fixed-suite.log. The earlier overlap attempt stopped at the unchecked Plan guard before dispatching review; no waiver or duplicate reviewer was used. Verification checklist now complete; close round2 and landing remain the release gates.
 
 - 2026-10-22: Final fixed-source verification passed: repair authority and correction trust race matrix40.278s; cutover/replay/queue race matrix11.742s; tracked-file golint1.020s, shelllint0.352s and gatestate0.179s. git diff --cached --check is clean. No concurrent source edits during these checks. Checkpointing and pushing the fixes before recording the required new-head suite.
 
