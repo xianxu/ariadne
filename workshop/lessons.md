@@ -1,3 +1,11 @@
+- #532: archive planning and completion proof must agree about the entire owned
+  family. A broad `.side` family reader plus a canonical-only mover can publish
+  the parent and strand a noncanonical `.md.side` bundle. Validate names before
+  close and pinned-head landing, and reuse that policy in archive planning.
+  Keep old incomplete proof strict after explicit byte-preserving repairs;
+  scope future landings to their own families. Runtime path validation and
+  production Git fixtures enforce this naming/provenance property.
+
 # Lessons
 
 - #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
