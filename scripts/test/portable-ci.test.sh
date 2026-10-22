@@ -22,6 +22,31 @@ assert workflow.index('Select candidate toolchain') > workflow.index('Build seco
 assert 'contents: read' in workflow
 assert '${{' not in ''.join(step[1] for step in steps), 'event values reach scripts only through env'
 assert 'brew tap' not in workflow and 'BOOTSTRAP_CLONE_ONLY' not in workflow
+# Exercise the exact template pipelines under pipefail, without paying for a
+# compiler build per iteration. The large valid input forces an early reader
+# exit to race a writer even when the three-line incident happens to pass.
+metadata_checks='\n'.join(line.strip() for line in workflow.splitlines()
+                          if 'grep ' in line and ('vcs.revision=' in line or 'vcs.modified=' in line))
+assert len(metadata_checks.splitlines())==2,metadata_checks
+metadata=f'binary: go1.26.3\n  build vcs.revision={pin}\n  build vcs.modified=false'
+# Env carries fixture data into Bash; the real workflow assigns a local variable.
+metadata_prelude='set -euo pipefail\nexport -n metadata\n'
+for name,count in [('incident',1000),('large',20)]:
+    # Expand inside Bash to exceed pipe buffers without hitting env/argv limits.
+    padding="metadata+=$(printf '\\n  build irrelevant=%1048576s\\n' x)\n" if name=='large' else ''
+    loop=metadata_prelude+padding+'for ((iteration=0; iteration<'+str(count)+'; iteration++)); do\n'+metadata_checks+'\ndone\n'
+    result=subprocess.run(['bash','-c',loop],env=dict(os.environ,metadata=metadata,PIN_REF=pin),
+                          text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60)
+    assert result.returncode==0,('metadata loop',name,result.returncode,result.stdout)
+for name,value in [('wrong revision',metadata.replace(pin,other)),
+                   ('dirty source',metadata.replace('modified=false','modified=true')),
+                   ('missing revision','binary: go1.26.3\n  build vcs.modified=false'),
+                   ('missing modified',f'binary: go1.26.3\n  build vcs.revision={pin}'),
+                   ('empty','')]:
+    result=subprocess.run(['bash','-c',metadata_prelude+metadata_checks],
+                          env=dict(os.environ,metadata=value,PIN_REF=pin),
+                          text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=10)
+    assert result.returncode==1,('metadata refusal',name,result.returncode,result.stdout)
 with tempfile.TemporaryDirectory(prefix='portable ci ') as tmp:
     root=pathlib.Path(tmp).resolve(); leaf=root/'leaf'; leaf.mkdir(); commands=root/'commands'; commands.mkdir(); runner=root/'runner temp'
     realgit=shutil.which('git')

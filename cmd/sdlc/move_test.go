@@ -15,7 +15,8 @@ import (
 // 000001-procedure, one commit ahead (a tracked file "feature").
 func moveFixture(t *testing.T) (roots []string, selected string) {
 	t.Helper()
-	roots, _ = procedureFixture(t)
+	roots, remote := procedureFixture(t)
+	testfix.Git(t, roots[0], "remote", "add", "origin", remote)
 	testfix.Git(t, roots[1], "switch", "-q", "-c", "000001-procedure")
 	procedureWrite(t, roots[1], "feature", "selected branch\n")
 	testfix.Git(t, roots[1], "add", "feature")

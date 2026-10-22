@@ -43,9 +43,9 @@ func NewStageCmd() *cobra.Command {
 		},
 	})
 	cmd.Flags().BoolVar(&build, "build", false, "build and verify the target's Go binaries against the staged commit")
-	cmd.Flags().BoolVar(&clear, "clear", false, "return the target to its resting branch, then rebuild and verify its Go binaries")
+	cmd.Flags().BoolVar(&clear, "clear", false, "fetch main, fast-forward the resting branch, then rebuild and verify its Go binaries")
 	cmd.Flags().StringVar(&abandoned, "abandoned", "", "with --clear: free the stage lease HOLDER left behind (its issue, as the refusal names it)")
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "check both slots and print the stage; change nothing")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview without checkout or build changes (clear fetches main to report lag)")
 	return cmd
 }
 
@@ -175,42 +175,52 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	if err != nil {
 		return err
 	}
-	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
-	if !staged {
-		if err := checkTargetClean(to); err != nil {
-			return err
-		}
-		if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.Head), issuesDir); err != nil {
-			return err
-		}
-		if dryRun && held.Holder != "" {
-			fmt.Fprintf(stdout, "Would release %s's stage lease on %s (already on its resting branch %s)\n", held.Holder, to.Address, to.Resting)
+	if err := checkTargetClean(to); err != nil {
+		return err
+	}
+	pin, err := assets.main.Snapshot()
+	if err != nil {
+		if dryRun {
+			fmt.Fprintf(stdout, "%s freshness unverified: fetch origin/main failed: %v; no checkout, lease or build changes\n", to.Address, err)
 			return nil
 		}
-		if !dryRun {
-			if held.Holder != "" {
-				removeStaged(r, to.Root)
-			}
-			if err := rebuildRestingStage(ctx, to.Root, to.Head, stdout, stderr); err != nil {
-				return fmt.Errorf("%s is on %s at %s, but binary rebuild failed: %w; rerun sdlc stage --clear %s", to.Address, to.Resting, shortOID(to.Head), err, to.Address)
-			}
-			if held.Holder != "" {
-				cok(stderr, fmt.Sprintf("%s is on its resting branch %s; released %s's stage lease", to.Address, to.Resting, held.Holder))
-				return nil
-			}
-		}
-		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
-		return nil
+		return fmt.Errorf("fetch origin/main before clearing %s: %w; no rebuild; repair the remote and rerun sdlc stage --clear %s", to.Address, err, to.Address)
 	}
-	if err := verifyAssetTransition(assets, to.RestHead, issuesDir); err != nil {
+	git := checkoutGit(ctx, to.Root)
+	counts, err := git("rev-list", "--left-right", "--count", to.RestHead+"..."+pin.Ref())
+	if err != nil {
+		return fmt.Errorf("compare %s with fetched main: %w; no rebuild", to.Resting, err)
+	}
+	var ahead, behind int
+	if n, err := fmt.Sscanf(string(counts), "%d %d", &ahead, &behind); err != nil || n != 2 {
+		return fmt.Errorf("invalid resting/main comparison %q; no rebuild", counts)
+	}
+	fmt.Fprintf(stdout, "%s: %s is %d behind, %d ahead of origin/main at %s\n", to.Address, to.Resting, behind, ahead, pin.Ref())
+	if ahead > 0 {
+		return fmt.Errorf("%s resting branch %s is ahead or diverged from origin/main (%d local commits); no rebuild; reconcile %s without discarding work, then rerun sdlc stage --clear %s", to.Address, to.Resting, ahead, to.Resting, to.Address)
+	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	for _, target := range []string{to.RestHead, pin.Ref()} {
+		if err := verifyAssetTransition(assets, target, issuesDir); err != nil {
+			return err
+		}
+	}
+	// Clear switches through rest before merging; its attributes also govern
+	// assets that exist only in the freshly fetched tree.
+	if err := verifyAssetMaterialization(ctx, to.Root, pin, issuesDir, to.RestHead); err != nil {
 		return err
 	}
 	if dryRun {
-		fmt.Fprintf(stdout, "Would return %s from %s to %s\n", to.Address, shortOID(to.Head), to.Resting)
+		if held.Holder != "" && !staged {
+			fmt.Fprintf(stdout, "Would release %s's stage lease on %s (already on its resting branch %s)\n", held.Holder, to.Address, to.Resting)
+		}
+		fmt.Fprintf(stdout, "Would return %s to %s, fast-forward to %s and rebuild\n", to.Address, to.Resting, pin.Ref())
 		return nil
 	}
-	if out, err := r.GitInDir(to.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", to.Resting); err != nil {
-		return fmt.Errorf("switch %s to %s: %v\n%s", to.Address, to.Resting, err, out)
+	if staged {
+		if out, err := git("-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", to.Resting); err != nil {
+			return fmt.Errorf("switch %s to %s: %v\n%s", to.Address, to.Resting, err, out)
+		}
 	}
 	if err := verifySlot(r, to.Root, to.Resting, to.RestHead); err != nil {
 		return err
@@ -218,11 +228,26 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	if err := verifyMaterializedAssets(to.Root, assets.main.ViewOf(to.RestHead), issuesDir); err != nil {
 		return err
 	}
-	removeStaged(r, to.Root)
-	if err := rebuildRestingStage(ctx, to.Root, to.RestHead, stdout, stderr); err != nil {
-		return fmt.Errorf("%s is back on %s at %s, but binary rebuild failed: %w; rerun sdlc stage --clear %s", to.Address, to.Resting, shortOID(to.RestHead), err, to.Address)
+	if out, err := git("-c", "submodule.recurse=false", "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", pin.Ref()); err != nil {
+		return fmt.Errorf("%s is on %s but fast-forward to %s failed: %w\n%s; no rebuild; inspect the checkout then rerun sdlc stage --clear %s", to.Address, to.Resting, pin.Ref(), err, out, to.Address)
 	}
-	fmt.Fprintf(stdout, "%s is back on %s (was staged at %s)\n", to.Address, to.Resting, shortOID(to.Head))
+	if err := verifySlot(r, to.Root, to.Resting, pin.Ref()); err != nil {
+		return err
+	}
+	if err := verifyMaterializedAssets(to.Root, pin, issuesDir); err != nil {
+		return err
+	}
+	removeStaged(r, to.Root)
+	if err := rebuildRestingStage(ctx, to.Root, pin.Ref(), stdout, stderr); err != nil {
+		return fmt.Errorf("%s is back on %s at %s, but binary rebuild failed: %w; rerun sdlc stage --clear %s", to.Address, to.Resting, shortOID(pin.Ref()), err, to.Address)
+	}
+	if staged {
+		fmt.Fprintf(stdout, "%s is back on %s (was staged at %s)\n", to.Address, to.Resting, shortOID(to.Head))
+	} else if held.Holder != "" {
+		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; released %s's stage lease", to.Address, to.Resting, held.Holder))
+	} else {
+		cok(stderr, fmt.Sprintf("%s is on its resting branch %s; nothing staged", to.Address, to.Resting))
+	}
 	return nil
 }
 

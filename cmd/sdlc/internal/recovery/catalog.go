@@ -9,6 +9,22 @@ const observeEvidence = "`sdlc issue show N --json`"
 // does not exist.
 var Catalog = []Contract{
 	{
+		Verbs:         []string{"local-check reclassify"},
+		Class:         ConvergentRetry,
+		Effects:       "retains original attempt bytes and immutable log identity in an actor/time/reason/diagnosis audit, then atomically publishes a nonpassing v3 could-not-run disposition. No GitHub status rewrite or old-pass promotion.",
+		Evidence:      "test-stats/attempts/ID.json, test-stats/reclassified/ID.json and the original immutable failed/ID.log beneath the Git common directory's sdlc evidence store.",
+		Preconditions: "exact failed completed suite/affected attempt in this repository; verified recorded owner or repository :0; nonempty reason; complete immutable log with matching SHA256 proving startup-only infrastructure failure. Passes, timeouts, empty/mixed/test-started/truncated logs and changed proof refuse.",
+		Repeat:        "a completed verified correction is a no-op after rechecking authority; an interrupted audit-first publication reuses its original bytes and audit. A different raw original digest refuses, including a whitespace-only rewrite.",
+		LostResponse:  "repeat local-check reclassify with the same exact attempt ID and a reason. The retained audit is reused; no second audit or status is published. Missing or mismatched proof refuses for inspection.",
+		Ends:          "repair the environment and record a genuine exact-head/check rerun after correction. Attempt and audit share 30-day retention; orphan committed audits have the same grace, private partial files use existing dead-owner cleanup.",
+		Proofs: []Proof{
+			{"completed correction is nonpassing, audited and repeat-safe", []string{"TestSuiteReclassificationPublication"}},
+			{"interrupted publication converges without losing original authority", []string{"TestSuiteReclassificationInterruptedPublication", "TestSuiteReclassificationRetryBindsOriginalRawDigest"}},
+			{"unverified proof refuses and genuine rerun is required", []string{"TestSuiteReclassificationProofMutations", "TestSuiteReclassificationRequiresGenuineRerun", "TestLocalCheckReclassifyPrivateRepository"}},
+			{"retention completes after pruning interruption and publication races", []string{"TestSuiteReclassificationPruneInterruptionReclaimsAudit", "TestSuiteReclassificationPruneDuringPublicationPreservesProof"}},
+		},
+	},
+	{
 		Verbs:         []string{"issue correct-actual"},
 		Class:         ConvergentRetry,
 		Effects:       "measures a completed close generation, publishes corrected actual and bounded input provenance on its tracker card, appends an exact-target calibration correction, then publishes its active or archived details mirror. --exclude records N/A and invalidates the proven bad sample without inventing hours; --dry-run previews without publication.",
@@ -240,7 +256,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"stage"},
 		Class:         ConvergentRetry,
-		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear returns the target to its resting branch and drops the record.",
+		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear fetches and pins origin/main, refuses dirty or ahead/diverged rest, restores and fast-forwards the resting branch, verifies assets, drops the record, and rebuilds binaries against the pin; clear dry-run fetches lag only, reporting unverified on fetch failure.",
 		Evidence:      "`sdlc fleet` (the target's hold `staged`) and `git -C <target> rev-parse HEAD`.",
 		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged; its lease free or held by this issue (another holder refuses stage, --clear and a move into it; `--clear --abandoned HOLDER` frees an abandoned one).",
 		Repeat:        "the same HEAD again is already staged: nothing switches, and the record is rewritten; a new HEAD replaces the staged one.",

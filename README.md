@@ -38,7 +38,10 @@ commit, runs `make build` plus targets declared as `# stage-build: <target>` in
 Go commands' `.skip-make-build` files, and refuses missing, modified or
 wrong-revision `bin/*` binaries. The target must be a simple Make target name,
 not an option or variable assignment. `sdlc stage --clear` returns the target
-to its resting branch, then rebuilds and checks its binaries at that HEAD.
+to its resting branch, fast-forwards it to freshly fetched origin/main, then
+rebuilds and checks its binaries at that exact pin. Dirty, ahead/diverged or
+failed-fetch states refuse before building. Clear dry-run fetches and reports
+behind/ahead counts without checkout or build changes; failed fetch says unverified.
 If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
@@ -433,6 +436,8 @@ Go toolchain, and puts the private binary first on PATH before bootstrap. The
 pin is not weave-managed: new consumers must explicitly create it from an
 approved supported ref. A missing or malformed pin, fetch/build failure or
 mismatched binary provenance stops CI; there is no floating compiler fallback.
+Compiler metadata checks consume the full input, so a successful match cannot
+turn into a producer SIGPIPE under `pipefail`.
 Ariadne source CI builds the candidate separately and checks its vocabulary
 exports against every supported compiler in `.sdlc/weave-compiler-refs`.
 See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
@@ -568,7 +573,9 @@ next admission without interrupting a running landing or waiving any gate.
 While any valid grant exists, normal admissions wait even before the granted
 issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
-releases the hold; a successful landing ends its grant.
+releases the hold; a successful landing ends its grant. A train's queued integration
+suite inherits any active grant on a car in its exact tested prefix; later grants,
+revocation and expiry update its queue class without restarting it.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
@@ -692,6 +699,17 @@ command for the existing run; both keep their FIFO places until explicitly
 cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
+
+Go startup failures caused by unavailable temp space, a full cache/build output,
+quota exhaustion or a missing toolchain count as could-not-run when complete
+evidence proves no tests started. For an already recorded failure, its owner or
+repository `:0` can run `sdlc local-check reclassify --attempt ID --reason TEXT`.
+This preserves the original record in an audit and records a nonpassing v3
+disposition. It changes no GitHub status and requires a genuine rerun after
+repair; mixed, test-started, truncated or unprovable evidence refuses.
+`sh scripts/verify-524-reader.sh` checks actual correction bytes against the pinned
+historical reader in a private checkout. It prints its retained scratch path;
+the invoker owns removing that directory after inspection.
 
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue

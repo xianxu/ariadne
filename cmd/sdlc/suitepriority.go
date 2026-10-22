@@ -20,6 +20,7 @@ const suitePriorityProtocolLimit = 64 << 10
 type suitePrioritySubject struct {
 	CommonDir string `json:"common_dir"`
 	Issue     int    `json:"issue"`
+	Issues    []int  `json:"issues,omitempty"` // exact train prefix; older helpers see issue zero (FIFO)
 }
 
 type suitePrioritySource struct {
