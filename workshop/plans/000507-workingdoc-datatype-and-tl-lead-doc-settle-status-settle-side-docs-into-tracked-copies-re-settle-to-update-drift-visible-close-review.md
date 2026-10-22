@@ -359,3 +359,101 @@ findings:
    Add a `## Revisions` entry naming the complete literal-preservation rule and its regression matrix: multiline spans, indented blocks, list/blockquote fences, ordinary fences and ordinary links. Retain the existing preservation requirement; the implementation needs to satisfy it.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7a6bb200-38d0-4645-b21d-b37d87f6e6dc","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/32605a8eb9a9ff96","reviewed_head":"98e25bfe17f3fe372fc59d10c5a40fdeb871a4b4","slot":"ariadne:4","requested_at":"2026-10-22T04:00:03.646849Z"},"phase":"finished","pid":47681,"started_at":"2026-10-22T04:00:03.778922Z","finished_at":"2026-10-22T04:03:18.813413Z","session_id":"01a161c4-1a0d-7001-ba85-c0de1ca5673b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T03:02:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 507 — workingdoc datatype and tl-lead doc settle/status: settle side docs into tracked copies, re-settle to update, drift visible |
+| repo | ariadne |
+| issue file | workshop/issues/000507-workingdoc-datatype-and-tl-lead-doc-settle-status-settle-side-docs-into-tracked-copies-re-settle-to-update-drift-visible.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 510aab6ff3a55bfdf5472e45eedf5512f6d04420..0d41e87788e51ba8bd7af58c052bf11042500ebc |
+| command | sdlc close --issue 507 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T03:02:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the settlement contract, and BR-7 is addressed with meaningful regression evidence. The shared Markdown literal rule protects published examples while ordinary links still rebase. No new blocking findings were identified. The plan’s live hub smoke remains explicitly scheduled after SHIP.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Pointer generation reparses the completed document before effects; adversarial-path and byte-preservation regressions pass in doc_model_test.go.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      First settlement supplies --expect-absent, enforced inside every publication CAS attempt; ownership and racing-destination regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Coordinator tests exercise failed writes, lost acknowledgments, late locks, unavailable readback and newer source work through retry.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Ops publication fixtures provide the agent-id executable dependency; the complete tl-lead package passes.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Marker scanning consumes actual Goldmark code contexts; pure and coordinator tests cover paragraph, heading, list and blockquote boundaries.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Publication and stamping pass runSettlementEffect before execution; transition permissions and forbidden-effect regressions pass.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      pkg/sidedoc/literals.go supplies the shared code-context mask to scanning, rebasing and discovery. Pure projection and production-coordinator regressions cover all four reported contexts plus ordinary fence/inline controls. Disabling the rebasing mask in a disposable pinned-head checkout failed all twelve preservation subtests; the checkout was removed afterward.
+```
+
+1. **Strengths**
+
+   - One Markdown literal owner replaces the competing scanners: `pkg/sidedoc/literals.go:15`.
+   - Settlement verifies exact published bytes before authorizing source stamping: `cmd/tl-lead/doc_settle.go:384`.
+   - Stateful fixtures test retained publication, source preservation and retry without duplicate commits.
+   - README, atlas, command help and the workingdoc prototype document the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./pkg/sidedoc ./cmd/tl-lead ./cmd/datatype`
+   - `go test ./cmd/sdlc -run 'TestWorkingdocTrunk|TestTrunk' -count=1`
+   - Pinned-range `git diff --check`
+
+   BR-7 mutation testing confirmed the regressions fail without the fix. The full repository suite and live hub smoke were not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** literal detection and projection have shared owners.
+   - **ARCH-PURE — pass:** metadata, markers, projection and transitions remain separate from repository/Couch effects.
+   - **ARCH-PURPOSE — pass:** scanning, link rebasing and side-link discovery consume the shared literal rule; index rebasing edits structured metadata only.
+   - **ARCH-MOCK — pass:** stateful doubles and isolated Git remotes exercise production seams; live Couch conformance remains explicitly assigned.
+   - **ARCH-CONSTRAINTS — pass:** bounded documents, batched baseline reads, cancellation and counted traversal have coverage.
+   - **ARCH-SECURE — pass:** paths, YAML, pointers, Git frames and publication receipts are validated before use.
+   - **ARCH-ORDER — pass:** model permissions gate publication/stamping; uncertain outcomes preserve progress and stop further effects.
+   - **ARCH-FUNERAL — pass:** temporary resources have cleanup; durable copies have an explicit repository-edit lifecycle; the retained lock inode has constant cost.
+   - **ARCH-EVOLVE — pass:** managed edits preserve unknown metadata bytes, including nested content, while rejecting ambiguous known fields.
+
+7. **Plan revision recommendations:** None. Existing revisions describe the delivered mechanism and distinguish post-SHIP work.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"feafd331-8c06-4d6e-b9f4-03f55b893387","repository":"github.com/xianxu/ariadne","issue_id":"000507","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/3de02616dd1bd58c","reviewed_head":"0d41e87788e51ba8bd7af58c052bf11042500ebc","slot":"ariadne:4","requested_at":"2026-10-22T10:00:03.954647Z"},"phase":"finished","pid":8277,"started_at":"2026-10-22T10:00:04.101846Z","finished_at":"2026-10-22T10:02:41.047908Z","session_id":"01a1630d-b27b-7182-934f-371541b51ff9","outcome":"returned"}] -->
