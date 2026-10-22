@@ -1,6 +1,6 @@
 ---
 id: 000526
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.79
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 45e47313662ffd2415d6ad58ffce1ca8a6fc1fe1
         evidence_commit: 429425dbb61896e285434ed1d42baf1ff4b2ad42
+        landed_commit: dcf6994a92c66fe548b1a66fbbc6d32c8940ed85
 ---
 
 # landing: drop one car from a composed train before merge (no per-car hold today)
