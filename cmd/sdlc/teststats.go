@@ -41,6 +41,9 @@ type SuiteAttempt struct {
 	KnownFlakes []flakes.Entry `json:"known_flakes,omitempty"`
 	RerunOf     string         `json:"rerun_of,omitempty"`
 	Legacy      bool           `json:"-"`
+	// Version 3 binds the nonpassing disposition to immutable recovery proof.
+	ReclassificationSHA256 string    `json:"reclassification_sha256,omitempty"`
+	ReclassifiedAt         time.Time `json:"-"` // reader projection of the verified audit, never an independent authority
 }
 
 type SuiteQuantiles struct {
@@ -109,6 +112,9 @@ func isTestCheck(name string) bool { return name == suiteCheckName || name == af
 // where they had failed). Every reader of fail→pass evidence uses this one
 // predicate, so a rerun's proof survives its parent's outcome being revised.
 func isFlakeEvidence(a SuiteAttempt) bool {
+	if a.ReclassificationSHA256 != "" {
+		return false
+	}
 	return isTestCheck(a.Check) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut
 }
 
@@ -234,6 +240,9 @@ func suiteAttemptCompletedAt(a SuiteAttempt) time.Time {
 
 // flakeAttempt is a recorded attempt as the known-flake rules read it (#394).
 func flakeAttempt(a SuiteAttempt) flakes.Attempt {
+	if a.ReclassificationSHA256 != "" {
+		return flakes.Attempt{ID: a.ID, SHA: a.SHA, Kind: flakes.CouldNotRun, FinishedAt: suiteAttemptCompletedAt(a)}
+	}
 	return flakes.Attempt{ID: a.ID, SHA: a.SHA, Passed: a.Exit == 0 && !a.TimedOut, Baseline: a.MainBaseline,
 		Legacy: a.Legacy, Failures: a.Failures, Kind: flakes.Kind(a.Outcome), FinishedAt: suiteAttemptCompletedAt(a),
 		Subset: a.Check == affectedCheckName}

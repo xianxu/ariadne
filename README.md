@@ -433,6 +433,8 @@ Go toolchain, and puts the private binary first on PATH before bootstrap. The
 pin is not weave-managed: new consumers must explicitly create it from an
 approved supported ref. A missing or malformed pin, fetch/build failure or
 mismatched binary provenance stops CI; there is no floating compiler fallback.
+Compiler metadata checks consume the full input, so a successful match cannot
+turn into a producer SIGPIPE under `pipefail`.
 Ariadne source CI builds the candidate separately and checks its vocabulary
 exports against every supported compiler in `.sdlc/weave-compiler-refs`.
 See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)
@@ -605,6 +607,16 @@ machine's suite slots. It is one file per machine beside the suite lock:
 - **Recovery:** a car that finds its own PR merged, with no word from its train,
   finishes as a resume.
 
+A composed car can be held before merge starts with
+`sdlc landing drop --issue N [--reason WHY] [--repo DIR]`, run by its owner or
+the repository's :0 steward. The obsolete train stops and its survivors re-form;
+the dropped runner exits with its reason and exact branch retry command. It stays
+out until its owner explicitly retries. Once the Merge effect starts after green
+CI, drop refuses with the current state. `sdlc landing status` names accepted
+drops and any pending old-train cleanup; resume the printed conductor command
+if that cleanup needs recovery. Older conductors without control support refuse
+the command rather than promise a drop.
+
 `sdlc landing status` shows the setting, the next departure, each waiting
 merge's readiness, and the last trains: result, cars, train PR, split suites
 and culprit.
@@ -662,6 +674,17 @@ command for the existing run; both keep their FIFO places until explicitly
 cancelled. Never stop one by a PID picked from `ps`. When a finished
 check's status post can't reach GitHub, `sdlc local-check republish --name X`
 posts the saved result later, with no rerun.
+
+Go startup failures caused by unavailable temp space, a full cache/build output,
+quota exhaustion or a missing toolchain count as could-not-run when complete
+evidence proves no tests started. For an already recorded failure, its owner or
+repository `:0` can run `sdlc local-check reclassify --attempt ID --reason TEXT`.
+This preserves the original record in an audit and records a nonpassing v3
+disposition. It changes no GitHub status and requires a genuine rerun after
+repair; mixed, test-started, truncated or unprovable evidence refuses.
+`sh scripts/verify-524-reader.sh` checks actual correction bytes against the pinned
+historical reader in a private checkout. It prints its retained scratch path;
+the invoker owns removing that directory after inspection.
 
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue

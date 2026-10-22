@@ -45,12 +45,17 @@ var suiteAttemptJSONFields = map[string]bool{
 	"queue_seconds": true, "wall_seconds": true, "exit": true, "timed_out": true,
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
 	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
+	"reclassification_sha256": true,
 }
 
 // suiteAttemptVersion is the version the writer records. Version 2 (#394)
 // adds the gate's outcome, its known flakes and a rerun's link; a v1 record
 // cannot carry them, so a v1 history stays readable and unambiguous.
 const suiteAttemptVersion = 2
+
+// Ordinary runs remain v2 for older fleet readers. Only an audited nonpassing
+// correction requires v3 semantics and therefore the newer reader.
+const suiteAttemptReadVersion = 3
 
 var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
 
@@ -148,7 +153,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return a, errors.New("trailing JSON")
 	}
-	if a.Version != 1 && a.Version != 2 {
+	if a.Version != 1 && a.Version != 2 && a.Version != 3 {
 		return a, fmt.Errorf("unsupported version %d", a.Version)
 	}
 	if a.Version == 1 {
@@ -158,7 +163,15 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 			}
 		}
 	}
-	if a.Outcome != "" && !suiteOutcomes[flakes.Kind(a.Outcome)] {
+	if a.Version == 3 {
+		if len(a.ReclassificationSHA256) != 64 || !suiteHex.MatchString(a.ReclassificationSHA256) ||
+			a.Outcome != "could-not-run" || !isTestCheck(a.Check) || a.Exit <= 0 || a.TimedOut || len(a.Failures) != 0 || len(a.Units) != 0 {
+			return a, errors.New("invalid nonpassing reclassification envelope")
+		}
+	} else if keys["reclassification_sha256"] {
+		return a, errors.New("reclassification requires version 3")
+	}
+	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && !suiteOutcomes[flakes.Kind(a.Outcome)] {
 		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
 	}
 	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
@@ -544,6 +557,21 @@ func readSuiteEvidenceWithOpen(root string, limit int, maxBytes int64, open func
 				}
 				continue
 			}
+			if a.Version == 3 {
+				remaining := maxBytes - bytesRead
+				var proofErr error
+				a.ReclassifiedAt, proofErr = readSuiteReclassificationProof(root, a, b, &remaining, open)
+				bytesRead = maxBytes - remaining
+				if proofErr != nil {
+					if errors.Is(proofErr, errReclassificationSubject) {
+						// Neither conflicting identity can prove which subject is
+						// absent. Preserve the existing incomplete-read refusal.
+						snapshot.Warnings = append(snapshot.Warnings, p+": "+proofErr.Error())
+					}
+					snapshot.addUnsupported(UnsupportedProof{Version: a.Version, ID: a.ID, Repo: a.Repo, SHA: a.SHA, Check: a.Check, Path: p, Raw: b, Problem: proofErr.Error()})
+					continue
+				}
+			}
 			snapshot.Attempts = append(snapshot.Attempts, a)
 			if snapshot.recordDigests == nil {
 				snapshot.recordDigests = make(map[string]string)
@@ -562,6 +590,14 @@ func pruneSuiteAttempts(root string, now time.Time) error {
 }
 
 func pruneSuiteAttemptsWithHook(root string, now time.Time, afterSnapshot func()) error {
+	return pruneSuiteAttemptsWithEffects(root, now, os.Remove, afterSnapshot)
+}
+
+func pruneSuiteAttemptsWithRemove(root string, now time.Time, remove func(string) error) error {
+	return pruneSuiteAttemptsWithEffects(root, now, remove, nil)
+}
+
+func pruneSuiteAttemptsWithEffects(root string, now time.Time, remove func(string) error, afterSnapshot func()) error {
 	directory, err := tryLockResumeDirectory(root)
 	if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
 		return nil
@@ -644,9 +680,16 @@ func pruneSuiteAttemptsWithHook(root string, now time.Time, afterSnapshot func()
 			parent.Close()
 			return errors.New("legacy prune parent identity changed")
 		}
-		_ = os.Remove(filepath.Join(root, "attempts", e.Name()))
-		_ = os.Remove(filepath.Join(root, "failed", id+".log"))
+		for _, path := range []string{filepath.Join(root, "attempts", e.Name()), filepath.Join(root, "failed", id+".log"), filepath.Join(root, "reclassified", id+".json")} {
+			if err := remove(path); err != nil && !os.IsNotExist(err) {
+				parent.Close()
+				return err // Never remove proof while its authority could remain.
+			}
+		}
 		parent.Close()
+	}
+	if err := pruneSuiteReclassificationAudits(root, now, remove); err != nil {
+		return err
 	}
 	// An active writer owns its in-flight directory even if its clock or run
 	// duration exceeds the stale threshold. Uncertain liveness retains it.

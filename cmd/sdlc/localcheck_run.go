@@ -177,6 +177,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
 	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	if err != nil {
+		var startup *suiteEnvironmentError
+		if errors.As(err, &startup) {
+			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, startup.Diagnosis)
+			publishing = path == rec.LogPath
+			rec.LogPath = path
+			return rec, envErr
+		}
 		var uncertain *runnerCleanupUnconfirmed
 		if errors.As(err, &uncertain) {
 			publishing = true
@@ -199,11 +206,13 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	// Missing/oversized output proves nothing about the environment.
 	facts := SuiteLogFacts{Unattributed: []string{"the suite log could not be parsed"}}
 	if log, readErr := readLocalCheckLog(rec.LogPath); readErr == nil {
-		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut && suiteEnvironmentLog(string(log)) {
-			path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath)
-			publishing = path == rec.LogPath // preserve raw inflight log if retention failed
-			rec.LogPath = path
-			return rec, envErr
+		if isTestCheck(c.Name) && rec.Exit > 0 && !rec.TimedOut {
+			if diagnosis, startup := diagnoseSuiteStartup(string(log)); startup {
+				path, envErr := retainSuiteEnvironment(logDir, sha, c.Name, rec.LogPath, diagnosis)
+				publishing = path == rec.LogPath // preserve raw inflight log if retention failed
+				rec.LogPath = path
+				return rec, envErr
+			}
 		}
 		facts = parseSuiteLogFacts(string(log))
 		for _, warning := range facts.Warnings {
@@ -543,6 +552,11 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	case errors.As(runErr, &exitErr):
 		run.Exit = exitErr.ExitCode()
 	default:
+		var startup *suiteEnvironmentError
+		if errors.As(runErr, &startup) {
+			startup.Head = sha
+			return run, startup
+		}
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
 	return run, nil
@@ -551,7 +565,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 // runManagedCommandBatch joins each command's process group before continuing.
 // The caller supplies one context deadline and shared resources for every group.
 func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check string, commands [][]string, env []string, out io.Writer, resource string) (runErr, cleanupErr error) {
-	for _, argv := range commands {
+	for index, argv := range commands {
 		if err := ctx.Err(); err != nil {
 			return err, nil
 		}
@@ -587,6 +601,15 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 			d.runnerLifetime.retirable = true
 		}
 		if runErr != nil {
+			// Process nil proves this command never ran. Only the first Go
+			// command establishes absence of earlier test activity; an empty
+			// historical log alone cannot establish this fact.
+			if index == 0 && isTestCheck(check) && filepath.Base(argv[0]) == "go" && cmd.Process == nil &&
+				(errors.Is(runErr, exec.ErrNotFound) || errors.Is(runErr, os.ErrNotExist)) {
+				return &suiteEnvironmentError{Check: check, Cause: runErr, Diagnosis: suiteStartupDiagnosis{
+					Resource: "Go toolchain", Path: argv[0], Reason: "missing executable or interpreter",
+				}}, nil
+			}
 			return runErr, nil
 		}
 	}
@@ -854,15 +877,15 @@ func readLocalCheckLog(path string) ([]byte, error) {
 
 // retainSuiteEnvironment moves execution evidence out of the acceptance store.
 // A failed move keeps the owned raw log and names the retention error explicitly.
-func retainSuiteEnvironment(logDir, sha, check, raw string) (string, error) {
+func retainSuiteEnvironment(logDir, sha, check, raw string, diagnosis suiteStartupDiagnosis) (string, *suiteEnvironmentError) {
 	path := filepath.Join(logDir, sha, check+".environment.log")
 	err := os.MkdirAll(filepath.Dir(path), 0o755)
 	if err == nil {
 		err = os.Rename(raw, path)
 	}
 	if err != nil {
-		return raw, &suiteEnvironmentError{Check: check, LogPath: raw, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
+		return raw, &suiteEnvironmentError{Check: check, Head: sha, LogPath: raw, Diagnosis: diagnosis, Cause: fmt.Errorf("retain environment diagnostic: %w", err)}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
-	return path, &suiteEnvironmentError{Check: check, LogPath: path}
+	return path, &suiteEnvironmentError{Check: check, Head: sha, LogPath: path, Diagnosis: diagnosis}
 }

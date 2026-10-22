@@ -1308,13 +1308,37 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #502: Closing while a recorded branch suite is still queued can leave merge with no completed equivalence proof, so entering merge may queue a second suite for close-only bookkeeping. Verify the two heads' changed paths before treating a second run as redundant; if only issue/review records changed, cancel only that new queued run by its exact run ID, retain the original FIFO position, and resume landing after its result. Never cancel by check name or claim an uncompleted check passed.
 - #523 fixture completion: a buffered Wait result consumed by an assertion cannot also signal teardown unless its producer closes the channel or teardown tracks consumption. Close after publishing the real error; register a whole-fixture wall-time guard before child cleanups so successful assertions cannot conceal repeated fallback waits. The real native cancellation regression enforces this semantic lifecycle contract; lexical lint cannot establish channel ownership and consumers.
+
+- #526 handoff: releasing a conductor's lifetime head capability before its fresh retry ticket is synchronously vouched lets a ready survivor depart alone. Retain that capability across old queue retirement, release after the normal enqueue/vouch, and scope fallback release over every early return. The real three-car drop-self/drop-middle regressions and actual-lock retry lifetime tests defend this interleaving; lexical lint cannot establish cross-attempt ownership.
+- #526 cleanup: a content lease pins a ref's SHA, not the repository behind a mutable remote alias. Revalidate effective fetch/push destinations against the pinned repository under the destructive-effect lock. Distinguish a pushed ref from attempted PR creation with a fence immediately before Create; otherwise an accepted drop either creates an obsolete PR or retains a fictitious unknown-publication obligation. Stateful transport and retargeted real-bare-repository regressions defend these semantic contracts.
+
+- #526 BR-1: polling for a control request before computing a completion does not fence its later commit. Apply the accepted-drop check under the same line lock to every completion, including membership reductions and terminal aborts; keep the old in-memory train until that commit succeeds, then run effects. Remove redundant terminal writes after an already sealed drop. Deterministic two-order storage tests, shell outcome audits and an effects-before-fence mutation defend this semantic ordering class; lexical source lint cannot establish cross-process precedence.
+
+- #526 BR-2: codec round trips cannot prove unknown-field preservation through state changes. When refreshing a nested persisted snapshot, retain its existing unknown metadata separately from the known values copied from another object. Exercise the real request and completion writers with metadata unique to that nested snapshot; generation replacement must remain an explicit semantic retirement, not accidental erasure. This semantic persistence contract is defended by request-driven regression rather than a lexical assignment rule.
 - #508 BR-1: a help refinement that first names a usable test command creates
   a README discovery obligation even when the command belongs to a peer repo.
   Scope its working directory explicitly and link the existing atlas map.
   Documentation review owns this semantic coverage; a Go lint rule cannot
   establish whether the reader can discover and run an external command.
+- #530 PQ-1 reinforces #524 PQ-1: a pure-entity table naming concepts/files is
+  insufficient. Name actual risky functions, each adversarial strategy and its
+  independent mechanical guard; keep input-case inventories in executable tests.
+- #530 BR-1/BR-2: before close, cross-check every plan entity's actual definition
+  location, not only its concept name. Recovery advice must carry the executed
+  check and revision through retention and wrappers; test a caller whose HEAD has
+  advanced, including affected reruns and diagnostic baselines. The Core concepts
+  review and native subject-regression fixtures defend these semantic contracts.
+- #530 suite: every new mutating CLI verb needs its existing recovery-catalog
+  contract and proof bindings before the expensive suite. Run
+  TestRecoveryContractsAreProven in the targeted iteration; its command-tree
+  derivation is already the mechanical tripwire, so add no duplicate lint rule.
 
 - #527 BR-1: classify a helper by the IO it performs, even when it composes pure algorithms. List Git/worktree/process helpers as INTEGRATION and test them through real isolated resources; reserve PURE for the graph/classifier/reducer core. The plan review enforces this semantic description, which source lint cannot infer from an artifact table.
 
 - #528 BR-1: an agent-facing help procedure still needs a README discovery pointer. Enumerate every entry mode (here same-slot force switch and fresh hub session), link the authoritative help and atlas, and avoid duplicating the instructions. README/documentation review enforces this prose coverage; a Go source lint cannot infer the intended recovery modes.
 - #463 BR-4: a successful cleanup IO call can cancel its context before returning nil. Route every live-owner resume cleanup effect, including managed scratch removal/sync and final owner release, through resumeCleanupEffect(ctx, authorize, effect). The resume-cleanup-effect Go lint rule rejects direct effects in those cleanup paths; real private-resource boundary walks prove cancellation stops subsequent mutation. Signal-context teardown deliberately cancels on normal completion, so cleanup authority uses the original caller context and confirmed managed outcome.
+
+- #534: under pipefail, a quiet grep in a compiler-metadata pipeline can close its input before printf finishes and turn a valid identity match into SIGPIPE. Drain the full input and redirect matched output instead. MetadataPipeFindings in pkg/shelllint guards literal VCS metadata quiet pipes in tracked workflows/scripts; this shell-source rule belongs there rather than the Go-AST-only catalog. The repeated actual workflow checks and a large-input quiet-consumer control defend the behavior.
+- #526 integration: an automatic code merge can leave a strict adjacent-state codec rejecting a newly landed phase. Re-run the actual completion/storage path after integrating main, and move a race regression to the new production event that performs its original membership change; retain a separate check for the intermediate phase rather than weakening the original oracle to a phase-only completion. This is a semantic lifecycle compatibility check, not a lexical lint rule.
+
+- #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.

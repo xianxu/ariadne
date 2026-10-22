@@ -1,0 +1,57 @@
+package main
+
+import (
+    "bytes"
+    "context"
+    "encoding/json"
+    "os"
+    "path/filepath"
+    "strings"
+    "testing"
+)
+
+// Compiled exclusively against immutable landed #524 source. Its input is the
+// actual #530 encoder output, not a synthetic future envelope or a new decoder.
+func Test524ReaderReclassifiedAttemptCompatibility(t *testing.T) {
+    raw,err:=os.ReadFile("testdata/reclassified-v3.json")
+    if err!=nil {t.Fatal(err)}
+    var wire struct {Version int; ID, Repo, SHA, Check string}
+    if err:=json.Unmarshal(raw,&wire);err!=nil {t.Fatal(err)}
+    if wire.Version!=3 {t.Fatalf("expected actual v3 bytes: %s",raw)}
+    if _,err:=decodeSuiteAttempt(raw);err==nil {t.Fatal("historical reader interpreted new authority")}
+    d,unrelated,gh,_:=localRunRepo(t,"skipped")
+    d.Repo=wire.Repo
+    logDir,err:=localCheckLogDir(d)
+    if err!=nil {t.Fatal(err)}
+    store:=suiteStoreRoot(logDir)
+    pass:=func(sha string) string {
+        t.Helper()
+        w,err:=beginSuiteAttempt(store);if err!=nil {t.Fatal(err)}
+        log:=[]byte("ok  example.test/pkg 1.0s\n")
+        if err:=os.WriteFile(w.LogPath,log,0600);err!=nil {t.Fatal(err)}
+        a:=storedAttemptFixture(w.ID)
+        a.Repo,a.SHA,a.Check,a.Exit=wire.Repo,sha,wire.Check,0
+        a.Failures=nil
+        wall:=1.0
+        a.WallSeconds,a.LogSHA256=&wall,hashBytes(log)
+        if _,err:=publishSuiteAttempt(store,w,a);err!=nil {t.Fatal(err)}
+        return w.ID
+    }
+    same:=pass(wire.SHA)
+    pass(unrelated)
+    path:=filepath.Join(store,"attempts",wire.ID+".json")
+    if err:=os.WriteFile(path,raw,0600);err!=nil {t.Fatal(err)}
+    snapshot,err:=readSuiteEvidence(store,100)
+    if err!=nil||len(snapshot.Unsupported)!=1||len(snapshot.Warnings)!=0 {t.Fatalf("not scoped: %+v %v",snapshot,err)}
+    for _,id:=range []string{"",same,wire.ID} {
+        if _,_,err:=loadSavedAttempt(store,d.Repo,wire.SHA,wire.Check,id,"host");err==nil||!strings.Contains(err.Error(),"needs a newer sdlc") {t.Fatalf("same subject %q not refused: %v",id,err)}
+    }
+    if err:=guardSuitePass(context.Background(),d,wire.Check,wire.SHA);err==nil {t.Fatal("same subject success guard passed")}
+    if _,handled,err:=republishSavedPass(context.Background(),d,localCheck{Name:wire.Check},wire.SHA);!handled||err==nil {t.Fatalf("unsupported authority fell back to rerun: handled=%v err=%v",handled,err)}
+    if err:=postLocalCheckRecord(context.Background(),d,localRunRecord{Name:wire.Check,SHA:wire.SHA,Exit:0});err==nil||gh.statuses[wire.SHA][localStatusContext(wire.Check)]=="success" {t.Fatalf("same subject posted success: %v",err)}
+    rec,newest,err:=loadSavedAttempt(store,d.Repo,unrelated,wire.Check,"","host")
+    if err!=nil||!newest||!rec.passed() {t.Fatalf("unrelated proof poisoned: %+v newest=%v err=%v",rec,newest,err)}
+    if err:=postLocalCheckRecord(context.Background(),d,rec);err!=nil||gh.statuses[unrelated][localStatusContext(wire.Check)]!="success" {t.Fatalf("unrelated success refused: %v",err)}
+    after,err:=os.ReadFile(path)
+    if err!=nil||!bytes.Equal(raw,after) {t.Fatalf("old reader changed opaque bytes: %v",err)}
+}

@@ -340,7 +340,15 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stde
 	cleanupBranchConfig(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, branch, stderr)
 	return nil
 }
-func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
+func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
+	return retryTrainReformation(commandContext(f.Context), stderr, func(ctx context.Context) error {
+		attempt := *f
+		attempt.Context = ctx
+		return runDurableMergeAttempt(stdout, stderr, &attempt, t)
+	})
+}
+
+func runDurableMergeAttempt(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
 	ctx := commandContext(f.Context)
 	r := boundedLandingGit(ctx, mergeRunner)
 	branch, current, err := landingIssueBranch(r, t, f.Branch)
@@ -424,7 +432,17 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (
 			}
 			landedByTrain = true
 		} else {
-			defer func() { turn.leave(err) }()
+			defer func() {
+				var reform *trainReformError
+				if errors.As(err, &reform) {
+					reform.turn = turn
+				} else {
+					turn.leave(err)
+				}
+			}()
+			if err = reconcileDroppedTrain(ctx, turn, t, r, gh, f); err != nil {
+				return err
+			}
 		}
 	}
 	if turn == nil {
