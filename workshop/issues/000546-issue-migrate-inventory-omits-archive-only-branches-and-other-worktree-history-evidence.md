@@ -98,6 +98,14 @@ Additional native growth/uncertainty/filename tests and the corrected legacy spa
 
 Implementation Plan checkboxes now describe demonstrated implementation/targeted acceptance outcomes; recorded suite, mandatory binary review and landing are still outstanding gates, not falsely completed checklist actions. Next exact step: push final committed implementation, queue its recorded suite, refresh private CLI proof on that head, then binary close/merge. No stage per TL.
 
+### 2026-10-22 — close SHIP; final-head private proof
+
+Close review round 1 returned SHIP with no Critical/Important findings and independently reran the full targeted migration/init/inventory group (256.929s), existing pure migration cases, lint and recovery tests successfully. One Minor advisory (obsolete-production-paths) records unused compatibility helpers; retained in the ledger rather than changing accepted code and abandoning the queued exact-head suite. The card is codecomplete, bound to close evidence; landing still requires the recorded suite.
+
+Final required private production CLI conformance passed at 345fdc36883e03cca3b98d68586010ce77926e03: `/Volumes/TestScratch/ariadne-546-cli-final.oGwUNw/result.json` with exact commands, executable harness and preservation snapshots. All 13 required assertions passed. A separate supplemental main archive with a literal backslash was observed correctly but its derived card path was refused by the existing bootstrap writer validator; main was unchanged and tracker absent. This is not import support or a passing supplementary case. Evidence: `/Volumes/TestScratch/ariadne-546-cli-refresh.OULaB4/supplemental-ref-preservation.json`; resolve unsupported writer filenames under the legacy workflow before retrying.
+
+Recorded suite is queued on the accepted implementation head, run lease-2685531763, attempt 1a507cf3e73d3dd4381dd4ada1284890. Never infer PASS from targeted review/conformance; preserve that runner/FIFO position through PR and landing preparation. No private Go cache was created.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.
