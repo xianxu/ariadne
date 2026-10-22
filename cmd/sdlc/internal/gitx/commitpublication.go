@@ -173,9 +173,9 @@ func (t *TrunkFile) PublishCommitChecked(selected SelectedCommit, check func(bas
 			return result, nil
 		case publicationUncertain:
 			result.Outcome = CommitUncertain
-			return result, fmt.Errorf("%w: source %s candidate %s; inspect %s/%s: push %v; confirmation %v\n%s", ErrPublicationUncertain, selected.Source, candidate, t.remote, t.branch, pushErr, err, pushOut)
+			return result, fmt.Errorf("%w: source %s candidate %s; inspect %s/%s: push/confirmation %w\n%s", ErrPublicationUncertain, selected.Source, candidate, t.remote, t.branch, errors.Join(pushErr, err), networkDiagnostic(errors.Join(pushErr, err), pushOut))
 		case publicationRefuse:
-			return result, fmt.Errorf("publish selected commit: %v\n%s", pushErr, pushOut)
+			return result, fmt.Errorf("publish selected commit: %w\n%s", pushErr, networkDiagnostic(pushErr, pushOut))
 		case publicationRetry: // remerge the selected patch against the new tip
 		}
 

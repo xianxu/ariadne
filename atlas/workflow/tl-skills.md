@@ -34,6 +34,17 @@ the current picture before a status-writer refresh and one-line operator notice.
 `cmd/tl-lead/takeover_help_test.go` guards both rendered entry points and keeps
 each instruction inside its ordered step.
 
+**External dependency incidents (ariadne#540).** TALKING TO THE OPERATOR in
+`cmd/tl-lead/help.md` owns immediate escalation: the incident goes first in
+Needs you with one desktop notification before diagnosis, a known operator
+remedy includes its exact command, and verified recovery gets a second notice
+and affected-slot checks. This is an explicit exception to the ask-only
+Needs-you rule. Worker REPORTS owns reporting the incident to the hub while
+preserving operation recovery state. Both help contracts are tested across
+the shared rendered instruction surface. Diagnostic observations come from
+[`sdlc net check`](sdlc-binary.md#network-incidents); no automated outage
+watcher or remote-write retry is introduced.
+
 **Worker verification (ariadne#508).** TESTS in `cmd/tl-worker/help.md` owns
 verification across every agent kind in tests and live checks, recorded real
 capture fixtures replayed in the normal suite with their live bug fixes, and

@@ -50,8 +50,8 @@ Two parts:
 
 Durable plan: [network outage implementation](../plans/000540-network-outage-plan.md).
 
-- [ ] Add shared pure Git transport classification and production-runner regressions.
-- [ ] Add bounded system/direct DNS and HTTPS net check with fake-backed and native conformance controls.
+- [x] Add shared pure Git transport classification and production-runner regressions.
+- [x] Add bounded system/direct DNS and HTTPS net check with fake-backed and native conformance controls.
 - [ ] Add approved TL/worker incident rule, docs, live check, recorded suite, close review and landing.
 
 ## Revisions
@@ -67,6 +67,10 @@ TL approval delivery `047b5c29-ca18-4ce0-9dba-841fbfc49d8a` revises the Spec sen
 - Claimed and entered planning from fresh main after #526 landed. Read current worker/SDLC contracts and lessons. Read-only delegated seam audit found the main Git runner, internal contextual/legacy runners and weekly transport runner; one shared pure classifier will serve them (ARCH-DRY/PURE). Preserve exit/error identity and uncertain publication outcomes; no automatic network retries.
 - Compared automatic DNS-on-error against a pure classifier plus explicit bounded probe. TL approved the latter and reviewed incident wording. The durable plan records bounded native resolver/direct DNS/HTTPS seams, unknown/unavailable states, secret-safe output, and test/live-check scope. Implementation has not started; plan-quality gate follows this checkpoint.
 - Plan-quality round 1 identified missing real CLI signal ownership and function-level test strategies. The revised plan names both SIGINT/SIGTERM admission and process-group conformance, and compresses inventories into named adversarial/property tests. Round 2 CLEAN disposed PQ-1/PQ-2 addressed, no new findings. Hub confirmed staged read-only github.com conformance; no forced outage/system change. Implementation admission is waiting only on the derived estimate.
+- Full change-code admission subsequently passed. Estimate-quality INFO called the allocations optimistic; module rows include fixtures, fuzz, TLS and signal controls, and the review/discovery rows absorb targeted verification/staging/landing orchestration. Discovery distinguishes native resolver utility behavior from the pinned HTTPS/TLS lifecycle. Recorded suite execution may increase actual ship time; no tests or gates are waived to fit the estimate.
+- Implemented one pure typed transport classifier across the four shared runners, preserving original exit/context and publication uncertainty identities. Fake production fetch failures reproduced ordinary exit-128 errors before the fix; isolated real local fetch success remains unchanged. gitx full package passed (99.044s), selected publication/lifetime controls passed, classifier and credential fuzz controls passed. Raw logs and summaries live on SSD under the primary Git common dir's `sdlc/test-stats/evidence/000540/`.
+- Added bounded net-check with system/direct DNS and independent pinned-IP verified HTTPS, fixed safe reason classes, explicit partial/unavailable observations, and no mutation/retry. Native TLS is synchronously owned so cancellation cannot strand a transport dial. Private TLS/process controls, stateful probe sequencing and parser fuzz passed; late-cancellation and partial-A/failed-AAAA regressions observed red then green.
+- Main CLI/remote/preparation/signal controls passed, then race controls passed (5.300s). The local-check preparation regression asserts no test-stat/local-check record or GH test status on failed fetch. A missing-signal-owner overlay fails both real CLI SIGINT and SIGTERM controls, while production passes; evidence `net-signal-mutation-red.log`. TL/worker packages passed (39.493s/0.271s), golint/shelllint passed (2.117s/0.691s), and vet passed for all touched Go packages. Approved incident wording and discovery docs are implemented. Next: commit and stage the approved live check, then recorded suite and close.
 
 ## Estimate
 

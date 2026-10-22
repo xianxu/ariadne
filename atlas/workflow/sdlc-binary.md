@@ -1039,6 +1039,34 @@ ref fake at that same boundary and real bare-Git fixtures in normal test runs,
 including receive-pack races, remote rewinds, lost acknowledgments, identical
 candidate commits, conflicts and retries after later edits or reverts.
 
+## Network incidents
+
+`sdlc net check` (`cmd/sdlc/net.go`, `internal/netcheck`) compares native system
+DNS with direct DNS through dig's configured server, and attempts HTTPS to the
+Git host from one address on each path. TLS hostname verification remains on;
+no redirects, credentials, proxies, cache edits or remote Git mutations occur.
+An HTTP response establishes reachability, not application service health.
+The configured publication remote selects the default effective fetch host;
+`--remote` selects another remote, and `--host` works outside a repository.
+Distinct push hosts receive a separate check hint. github.com includes
+api.github.com DNS; `--api-host` selects another explicit DNS-only observation.
+
+The command owns an eight-second total budget, at most four path jobs,
+two-second native utility bounds and three-second HTTPS bounds. SIGINT/SIGTERM
+use executeCLI's signal owner and each utility's process group; all work joins
+before return. Missing utilities, partial failures and timeouts remain
+observations rather than inferred upstream outages. Private TLS/subprocess
+controls and a stateful probe fake cover address provenance and shutdown.
+
+`gitx.ClassifyNetworkFailure` is a pure shared adapter for the main Git runner,
+internal contextual and legacy runners, and weekly inputs. Recognized
+transport diagnostics become `infrastructure: network` with a safe host and
+exact net-check command, retaining original error identity and publication
+uncertainty. Ordinary auth/ref/hook/local failures and user cancellation are
+unchanged. No probes or retries run inside failed Git paths, and local-check
+preparation failures do not produce test verdicts. TL/worker help owns prompt
+incident escalation and recovery notices; see [TL tooling](tl-skills.md).
+
 ## Drift checks (`sdlc state`)
 
 `state` gates nothing — it reports. `detectDrift` (state.go) surfaces warn-only

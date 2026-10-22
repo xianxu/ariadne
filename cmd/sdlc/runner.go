@@ -14,6 +14,8 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // gitRunner indirects the git invocations + filesystem mutations done by
@@ -52,7 +54,7 @@ func runGitCmd(cmd *exec.Cmd) ([]byte, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return append(out, stderr.Bytes()...), err
+		return append(out, stderr.Bytes()...), gitx.ClassifyNetworkFailure(cmd.Args[1:], stderr.Bytes(), err)
 	}
 	return out, nil
 }

@@ -99,8 +99,15 @@ func executeGitInputContext(ctx context.Context, dir string, env []string, input
 	defer cancel()
 	cmd.Dir = dir
 	cmd.Stdin = input
-	cmd.Stdout, cmd.Stderr = stdout, stderr
-	return finishGitCommand(cmd, child, cmd.Run())
+	var diagnostic bytes.Buffer
+	cmd.Stdout = stdout
+	if stderr == nil {
+		cmd.Stderr = &diagnostic
+	} else {
+		cmd.Stderr = io.MultiWriter(stderr, &diagnostic)
+	}
+	err := finishGitCommand(cmd, child, cmd.Run())
+	return ClassifyNetworkFailure(args, diagnostic.Bytes(), err)
 }
 
 // A git query that can legitimately answer "absent" has THREE outcomes, and this
@@ -225,7 +232,7 @@ func (t *TrunkFile) runIn(ctx context.Context, env []string, args ...string) ([]
 	}
 	out, diag, err := runGitInContext(ctx, t.dir, env, args...)
 	if ctx.Err() != nil {
-		return out, diag, ctx.Err()
+		return out, diag, errors.Join(ctx.Err(), err)
 	}
 	return out, diag, err
 }
@@ -280,6 +287,10 @@ func (t *TrunkFile) Read(path string) ([]byte, error) {
 func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	var warn string
 	if out, err := t.fetch(); err != nil {
+		var network *GitNetworkFailure
+		if errors.As(err, &network) {
+			out = []byte(err.Error())
+		}
 		warn = fmt.Sprintf(
 			"could not fetch from %s — %q read from the stale %s, which may be behind "+
 				"anything published since the last fetch (git says: %s)",
@@ -330,6 +341,10 @@ func (t *TrunkFile) resolveOpt(ref string) (string, error) {
 // first line is the observation; the offline case is offered as a possibility,
 // not a diagnosis.
 func offlineError(remote string, err error, out []byte) error {
+	var network *GitNetworkFailure
+	if errors.As(err, &network) {
+		return err
+	}
 	return fmt.Errorf("could not fetch from %s (offline, auth, or a bad ref — git says): %w\n%s",
 		remote, err, FirstLine(string(out)))
 }

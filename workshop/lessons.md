@@ -8,6 +8,15 @@
 
 # Lessons
 
+- #540: classify transport failures at the shared Git seams without probing or
+  retrying there. Diagnostics belong in an explicit bounded command; preserve
+  original error identity and uncertain publication outcomes. A command that
+  promises cancellation must enter the real CLI signal owner, with a native
+  child-group regression and a missing-owner mutation. Resolver disagreement
+  is an observation, not proof of an upstream outage. Stateful transport and
+  parser/property controls enforce this semantic contract; a lexical lint
+  cannot infer network provenance from arbitrary error prose.
+
 - #463 M3 BR-4: an effect returning nil does not establish that its caller still has uncancelled authority. Test successful remove/sync callbacks that cancel the context before returning; assert no next mutation, including final owner-marker release. Error-only fault matrices miss this temporal case. This ordering property needs effect-boundary tests, not a source-name lint. Current cleanup implementation is held at the required TL/operator escalation.
 
 - #463 M3 operator policy: when recovery is deliberately evidence-only, remove every destructive adapter and replay path rather than retaining dormant cleanup capability. Prove zero effects with stateful filesystem/Git snapshots on both first and repeated reconcile, and pin interrupted graphs independently of mutable lock visibility. One original-owner cleanup pass stops at its first error; managed uncertainty must not fall through a successful-cleanup defer.

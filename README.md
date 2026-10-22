@@ -488,6 +488,28 @@ To publish a reviewed commit (first done for `weave-v0.1.0` in #241):
    `brew audit --strict --online --formula xianxu/ariadne/weave`. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
+## Network incidents
+
+Git resolver and connection failures report `infrastructure: network` with
+the observed host and an exact diagnostic command. Run:
+
+```sh
+sdlc net check --host github.com
+sdlc net check --remote origin
+```
+
+With no flags, `sdlc net check` uses the configured publication remote. It
+compares native system DNS with direct DNS through the configured server,
+then reports HTTPS through each path using one sampled address, verified TLS,
+and no proxy or credentials. The read-only check has an eight-second budget;
+missing tools and partial observations remain visible. See `sdlc net --help`
+and the [SDLC map](atlas/workflow/sdlc-binary.md#network-incidents).
+
+Workers report external dependency outages immediately to the hub. The TL
+notifies the operator immediately and on verified recovery; the authoritative
+rule is `tl-lead --help`. Preserve any uncertain write's existing recovery
+state rather than treating a network fault as test evidence or blindly retrying.
+
 ## Workspace identity
 
 Resolve the current checkout or a numbered workspace from Git topology:

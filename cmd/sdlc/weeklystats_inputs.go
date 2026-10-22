@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
@@ -166,6 +167,10 @@ func weeklyGit(ctx context.Context, root string, args ...string) ([]byte, error)
 		return nil, fmt.Errorf("weekly Git output exceeds 8 MiB")
 	}
 	if err != nil {
+		classified := gitx.ClassifyNetworkFailure(args, stderr.Bytes(), err)
+		if classified != err {
+			return nil, fmt.Errorf("git %s: %w", args[0], classified)
+		}
 		return nil, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
 	}
 	return out.Bytes(), nil

@@ -29,14 +29,14 @@ Adjust the existing Needs-you section's “only asks/no status” rule to admit 
 | Name | Lives in | Status |
 |------|----------|--------|
 | GitNetworkFailure | `cmd/sdlc/internal/gitx/network.go` | new |
-| NetworkTarget | `cmd/sdlc/internal/netcheck/target.go` | new |
-| ProbeReport | `cmd/sdlc/internal/netcheck/report.go` | new |
+| NetworkHost validation / remote extraction | `cmd/sdlc/internal/gitx/network.go` | new |
+| Report | `cmd/sdlc/internal/netcheck/check.go` | new |
 
 `GitNetworkFailure` classifies only transport-specific resolver, refused-connection and connect/transport-timeout diagnostics from fetch/push/pull/clone/ls-remote. Its Error starts `infrastructure: network`, names a validated host when observed, and gives the exact `sdlc net check --host HOST` command (plain `sdlc net check` when host unknown). `Unwrap` retains the original exit/context cause; repeated wrapping is idempotent. A cancellation or bare process deadline is not evidence of a network fault. Auth, ref/lease rejections, hooks, local IO and local-command timeout prose remain ordinary errors. It never asserts that an uncertain push failed remotely or prescribes an automatic retry.
 
-`NetworkTarget` parses only a host from HTTPS/SSH/scp-style remote URLs or recognized transport diagnostics. URL credentials, path, query and fragment never enter new output. Handle IPv4, IPv6 and SSH aliases explicitly; local paths and helper transports cannot manufacture a host. A proxy resolver failure identifies a proxy observation rather than pretending it proves the Git origin unavailable.
+`NormalizeNetworkHost` and `RemoteNetworkHost` parse only a host from explicit input, HTTPS/SSH/scp-style remote URLs or recognized transport diagnostics. URL credentials, path, query and fragment never enter new output. Handle IPv4, IPv6 and SSH aliases explicitly; local paths and helper transports cannot manufacture a host. A proxy resolver failure identifies a proxy observation rather than pretending it proves the Git origin unavailable.
 
-`ProbeReport` renders per-path observations, including unknown/unavailable/timeout, without collapsing them into “upstream down.” System failure with direct success is evidence of a resolver-path difference, not proof of a particular cache fault. HTTP responses, including 401/403/5xx, prove HTTPS reachability only and retain the status code.
+`Report` renders per-path observations, including unknown/unavailable/timeout, without collapsing them into “upstream down.” System failure with direct success is evidence of a resolver-path difference, not proof of a particular cache fault. HTTP responses, including 401/403/5xx, prove HTTPS reachability only and retain the status code.
 
 ### INTEGRATION
 
@@ -111,3 +111,7 @@ No new durable incident state machine: the existing TL status file is the incide
 ### 2026-10-21 — plan-quality PQ-1/PQ-2
 
 PQ-1: explicitly connect net-check to executeCLI's existing signal owner and require real CLI SIGINT/SIGTERM process-lifetime proof, covering the whole utility family rather than only injected cancellation. PQ-2: replace prose case inventories with named risky functions and adversarial/property strategies; executable fixtures will own individual cases. No scope or user-visible contract change. Hub additionally confirmed the staged read-only github.com conformance in delivery `25352ce0-3206-4fc0-90a1-1070b29317c5`.
+
+### 2026-10-21 — implementation organization
+
+Shared host validation lives alongside the pure Git classifier in gitx, so both error formatting and net-check derive the same validated host without a package cycle. Report and bounded orchestration share `internal/netcheck/check.go`; native effects live in `probe.go`. `Report.WriteTo` uses the standard `io.WriterTo` signature `(int64, error)`, as required by go vet, rather than a lookalike signature. These are naming/file-layout refinements; no new mechanism, scope or persisted state. Native HTTPS completes its pinned TLS dial synchronously before HTTP framing and closes the owned socket explicitly, avoiding net/http's detached-dial cancellation lifetime.
