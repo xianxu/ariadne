@@ -1,18 +1,28 @@
 ---
 id: 000544
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-21
-updated: 2026-10-21
+updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ad22d4bbac415e2cb9525355d53f88a9234657f7' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9cdf509175715c8768fbf00884a640e65c56be42' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T00:02:32-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issue migrate drops a legacy close's completion record; later issues' actual measurement then refuses (echo#1 → echo#3)
 
 ## Problem
+
+Tracker cutover preserves adopted numbers on archived issues but drops the evidence that bounds them. The conservative exclusion reader consequently blocks later issues, including echo#3.
 
 ## Spec
 
@@ -42,8 +52,19 @@ close predates the candidate's engagement as disjoint (skip), not refuse.
 
 ## Plan
 
-- [ ]
+Durable plan: [legacy completion preservation and repair](../plans/000544-legacy-completion-plan.md).
+
+- [ ] Recover and import verified legacy close bindings, retaining exact saved measurement inputs or explicit windowless provenance.
+- [ ] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
+- [ ] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
+- [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
 
 ## Log
 
 ### 2026-10-21
+
+### 2026-10-22
+
+- Claimed and started planning from fresh main after #540 landed. Read current worker/SDLC contracts and issue vocabulary. Parallel read-only investigations confirmed migrationInventory and PlanTrackerMigration bind only active codecomplete records; archived done uses ArchivedCard without completion. Existing --reconcile converts branch details and does not repair this loss.
+- Inspected the issue-referenced Echo evidence read-only after AGENTS.local.md (no MEMORY.md present). Git verified latest close 476b6b12e39e87ed1febcda2a4b7ef94c8f4ec73, archive 112fd43, cutover 6f0fe498956349b2c3318000f524bf93920b3b98 and tracker root 601c7b41a7d40e2adaaea4fa1d70b8798aedfa70. The imported #1 card is done with actual0.80 and no completion. The close has SHIP/Review-Window trailers and an issue1 ledger whose final reviewed head agrees; it contains no retained ActualInputs. This is a real windowless legacy case, not permission to synthesize a measurement window. Echo checkout contains unrelated feature/untracked work; none was changed.
+- ARCH-DRY/PURE: use one immutable legacy-evidence resolver for cutover and repair, then feed proven earlier windowless closes into the existing windowDisjoint decision. Candidate cutoff is Snapshot.Since, the earliest admitted engagement, never the latest claim or mutable started card field. ARCH-EVOLVE: add explicit legacy provenance; malformed modern records and damaged saved inputs remain strict. Plan is awaiting TL approval; no code or Echo state changed.
