@@ -1,13 +1,21 @@
 ---
 id: 000560
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '3f6f1e389a95dbabab5c0e658929ae5b0bb5deb9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd9935d964eb1a764436a68f5dcab305ac13ec8cb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T15:10:08-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Suite queue: landing grants starve old waiters; bound grants by waiter age
@@ -33,8 +41,21 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 
 ## Plan
 
-- [ ]
+- [ ] Approve the durable plan: [bounded grant aging](../plans/000560-suite-queue-landing-grants-starve-old-waiters-bound-grants-by-waiter-age-plan.md).
+- [ ] Implement and verify pure protected-prefix ordering and immutable ticket age.
+- [ ] Add shared read-only queue inspection/status with actual admission and compatibility coverage.
+- [ ] Complete conformance, recorded suite, review and landing.
 
 ## Log
 
 ### 2026-10-22
+
+### 2026-10-22 — claimed, design checkpoint
+
+#555's retained merge runner completed successfully before this item began; workspace returned to main-slot1. Claimed #560 and ran start-plan, now on its independent issue branch from main. Read current suite helper, grant provider, queue status and private helper/provider tests. Current effective_order is unconditional grant-first stable partition, which explains repeated-grant starvation; existing started is naive wall time from before identity lookup and is unsuitable for elapsed queue age. Keep fairness in Python admission, leaving Go grant validity and repository landing GrantHold unchanged (ARCH-DRY). A read-only subagent audited the same seams and recommended a protected prefix to avoid malformed-age inversions. No code changed. TL approved the policy/60-minute threshold; complete plan is now ready for approval, including shared status projection and bounded private conformance.
+
+## Revisions
+
+### 2026-10-22 — approved aging policy and60-minute threshold
+
+TL approved immutable monotonic enqueue age under the allocation lock, FIFO prefix protected through the last at-bound/older ticket, and current grant ordering only in the younger suffix. Renewal never resets age; missing or invalid age protects its prefix. The threshold is60minutes, selected because the machine routinely runs an hour deep;30minutes would suppress nearly all useful priority. Preserve running holders and weighted all-or-none admission. The durable plan proposes one named Python policy setting shared by admission/inspection, with queue text status rendered from that observer; frozen --json remains unchanged. Full-plan approval precedes code.
