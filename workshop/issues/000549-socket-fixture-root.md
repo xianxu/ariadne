@@ -98,6 +98,8 @@ Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.
 
 2026-10-22: Corrected full pkg/golint PASS 1.588s; focused socket tests with race PASS 1.226s. Go overlay mutations separately restore the binding-parenthesis hole and local receiver omission, making their new real-engine regression fail; disabling normalization cache makes the counted shared-type bound fail. All overlays are private and automatically removed. No other issue's runner or resources changed.
 
+2026-10-22 15:10 PDT: Close round2 SHIP, BR-1/BR-2 addressed and zero open findings, accepted evidence40535f3d15e0d8a56be3289e97645a31ddb5b036. Corrected recorded suite remains outstanding on executable headc677d1f53ba04b9fcbed79490981f9a0e0d7abfa: lease-3953551684, attempt15fe86ae8c6cddc0f314b7ab9dea1737, retained tool session4029, detached tree /Volumes/TestScratch/local-checks/sdlc-local-1746181496. Authenticated Couch restart at15:09 did not lose it; readback FIFO15, queue complete=true, no requeue. PR402 has only issue/review bookkeeping after the tested code. Next: retain this waiter, read its actual result, record a genuine pass and finish the verification row; then enter sdlc merge --yes. Do not create a second suite for close-only bookkeeping while this attempt is pending. This is a normal issue Log checkpoint, not a continuation or agent restart.
+
 ## Revisions
 
 2026-10-22: Added the concrete implementation plan and analysis boundary without changing the requested acceptance criteria. Use the shared catalog with source-level API recognition; do not add a consumer runtime dependency or a general interprocedural analyzer.
