@@ -31,6 +31,37 @@ derivation in `internal/issue/migrate.go`.
   `{version, tracker_root}` beside the details conversion. The marker is what
   makes the era explicit to the binary.
 
+## Legacy completion recovery
+
+Numeric adopted actuals on imported done issues carry `tracker.legacy_adoption`
+provenance. `legacycompletion.go` resolves immutable source history and delegates
+generation selection to `tracker.SelectLegacyClose`; both migration and repair
+use this verifier. A proven close retains its original completion evidence and
+saved measurement inputs. The adoption class shown by `sdlc issue show` is
+`retained`, `windowless-close`, or `windowless-terminal`. Terminal-only records
+remain unbound and warn, preserving the absence of a close.
+
+For older cutovers, run `sdlc issue migrate --repair-completions --issue N`
+and review its source close, class and digest, then apply with
+`--apply --expect DIGEST`. `issuemigrate_repair.go` verifies the actual cutover
+parent/root, selected imported generation and complete card history, then uses
+the existing tracker CAS to update that exact card. It preserves the numeric
+actual, status, owner, unknown metadata, main, checkout and archived documents.
+An already confirmed repair makes no change. A changed card needs a fresh dry
+run; conflicting generations or damaged evidence refuse. After an uncertain
+push, inspect again before retrying. Terminal-only records cannot acquire a fake
+completion through repair. Branch `--reconcile` retains its existing meaning.
+
+Actual exclusion keeps retained snapshots authoritative. A verified windowless
+end bound only establishes disjointness when strictly before the earliest
+admitted candidate engagement. Old unmarked born-archived root cards can recover
+terminal provenance read-only through the same verifier; their card stays
+unchanged. Overlap/equality, damaged snapshots and ordinary modern missing
+records remain strict. No source sessions or measurement window are invented.
+Source history and complete tracker generation history each have a 10,000-commit
+bound with an overflow sentinel. Incomplete reads
+cannot provide authority.
+
 ## Legacy mode
 
 Until a repository cuts over, the #252 binary runs its pre-#252 workflow
@@ -121,3 +152,9 @@ product-owned consumers that need changes get issues in their owning repositorie
   branch-only issue cannot land; backing out a cutover (with the prune).
 - `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints, Makefile fallbacks, and
   `lint-ids` refusing cardless details.
+
+## Measuring work across the cutover
+
+An imported active issue may have real development before the tracker existed. `sdlc actual` keeps that interval under the existing, explicitly labelled repository-plus-brain heuristic; it does not invent a workspace owner. The immutable pre-cutover source supplies its legacy started/working-transition/first-commit anchor, and the marker commit ends the prefix. Verified tracker intervals are clipped after that boundary, with their original dispatch provenance retained. One final phase split covers both attributed populations.
+
+`cmd/sdlc/actuallegacyprefix.go` owns immutable timing and replay authority; `_sources.go` discovers caller/verified primary-checkout plus brain sources once; `_measurement.go` reuses the active-time engine and joins disjoint results. The measurement snapshot retains a single bounded legacy-v1 child and cutover pin, including source-prefix digests. Hybrid roots use an explicit new version and method so older readers refuse instead of silently discarding the prefix; ordinary nonhybrid snapshots retain their existing format. Preview output names the legacy interval and tracker interval plainly. Missing or contradictory prefix evidence refuses the total rather than silently adopting only post-migration hours. Root-absent modern issues and terminal imports gain no prefix. The claimed-before/migrated/closed-after production fixture in `actuallegacyprefix_test.go` pins measurement and retained replay.

@@ -14,18 +14,38 @@ import (
 )
 
 const (
-	MeasurementInputsVersion      = 1
-	MeasurementMethodEngagementV1 = "active-time-v3-engagement-v1"
-	MeasurementMethodQueueV1      = "active-time-v3-engagement-queue-v1"
-	MeasurementMethodLegacyV1     = "legacy-v1"
-	SnapshotLimitSources          = 128
-	SnapshotLimitBytes            = 64 * 1024
+	MeasurementInputsVersion       = 1
+	MeasurementHybridInputsVersion = 2
+	MeasurementMethodHybridV1      = "active-time-v3-engagement-legacy-prefix-v1"
+	MeasurementMethodHybridQueueV1 = "active-time-v3-engagement-queue-legacy-prefix-v1"
+	MeasurementMethodEngagementV1  = "active-time-v3-engagement-v1"
+	MeasurementMethodQueueV1       = "active-time-v3-engagement-queue-v1"
+	MeasurementMethodLegacyV1      = "legacy-v1"
+	SnapshotLimitSources           = 128
+	SnapshotLimitBytes             = 64 * 1024
 )
+
+// IsEngagementMethod includes the versioned hybrid methods, whose suffix uses
+// the same verified ownership semantics as ordinary engagement measurements.
+func IsEngagementMethod(method string) bool {
+	return method == MeasurementMethodEngagementV1 || method == MeasurementMethodQueueV1 || IsHybridMethod(method)
+}
+
+// IsQueueMethod reports whether a method retains suite queue evidence.
+func IsQueueMethod(method string) bool {
+	return method == MeasurementMethodQueueV1 || method == MeasurementMethodHybridQueueV1
+}
+
+// IsHybridMethod identifies methods whose interpretation requires both parts.
+func IsHybridMethod(method string) bool {
+	return method == MeasurementMethodHybridV1 || method == MeasurementMethodHybridQueueV1
+}
 
 // MeasurementInputs retains the exact authority and evidence prefixes used to
 // adopt an actual. It holds no transcript bytes and performs no IO (ARCH-PURE).
 // Validate before persistence; ParseSidecar also validates retained evidence.
 type MeasurementInputs struct {
+	extra                 measurementUnknown      `json:"-" yaml:"-"`
 	Version               int                     `json:"version" yaml:"version"`
 	Method                string                  `json:"method" yaml:"method"`
 	Repository            string                  `json:"repository" yaml:"repository"`
@@ -40,26 +60,33 @@ type MeasurementInputs struct {
 	IncludeAssistant      bool                    `json:"include_assistant" yaml:"include_assistant"`
 	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
 	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
+	CarWaits              []MeasurementCarWait    `json:"car_waits,omitempty" yaml:"car_waits,omitempty"`
+	CarWaitNotes          []string                `json:"car_wait_notes,omitempty" yaml:"car_wait_notes,omitempty"`
 	QueueWaits            []MeasurementQueueWait  `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
 	Protected             []MeasurementCredit     `json:"protected,omitempty" yaml:"protected,omitempty"`
 	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
 	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
 	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
+	LegacyPrefix          *MeasurementInputs      `json:"legacy_prefix,omitempty" yaml:"legacy_prefix,omitempty"`
+	LegacyCutover         string                  `json:"legacy_cutover,omitempty" yaml:"legacy_cutover,omitempty"`
 }
 
 type MeasurementEngagement struct {
-	Start string   `json:"start" yaml:"start"`
-	End   string   `json:"end" yaml:"end"`
-	Began string   `json:"began" yaml:"began"`
-	Roots []string `json:"roots" yaml:"roots"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
+	Began string             `json:"began" yaml:"began"`
+	Roots []string           `json:"roots" yaml:"roots"`
 }
 
 type MeasurementInterval struct {
-	Start string `json:"start" yaml:"start"`
-	End   string `json:"end" yaml:"end"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
 }
 
 type MeasurementSource struct {
+	extra    measurementUnknown    `json:"-" yaml:"-"`
 	Harness  string                `json:"harness" yaml:"harness"`
 	ID       string                `json:"id" yaml:"id"`
 	Slot     string                `json:"slot,omitempty" yaml:"slot,omitempty"`
@@ -73,32 +100,35 @@ type MeasurementSource struct {
 }
 
 type MeasurementCut struct {
-	Boundary   string `json:"boundary,omitempty" yaml:"boundary,omitempty"`
-	Dispatched string `json:"dispatched,omitempty" yaml:"dispatched,omitempty"`
-	Finalized  string `json:"finalized" yaml:"finalized"`
-	Finalizing bool   `json:"finalizing" yaml:"finalizing"`
+	extra      measurementUnknown `json:"-" yaml:"-"`
+	Boundary   string             `json:"boundary,omitempty" yaml:"boundary,omitempty"`
+	Dispatched string             `json:"dispatched,omitempty" yaml:"dispatched,omitempty"`
+	Finalized  string             `json:"finalized" yaml:"finalized"`
+	Finalizing bool               `json:"finalizing" yaml:"finalizing"`
 }
 
 // MeasurementQueueWait pins selected, validated suite queue evidence. The
 // transcript sources in the same snapshot bind each wait during computation.
 type MeasurementQueueWait struct {
-	AttemptID    string  `json:"attempt_id" yaml:"attempt_id"`
-	Slot         string  `json:"slot" yaml:"slot"`
-	RecordDigest string  `json:"record_digest" yaml:"record_digest"`
-	Start        string  `json:"start" yaml:"start"`
-	End          string  `json:"end" yaml:"end"`
-	QueueSeconds float64 `json:"queue_seconds" yaml:"queue_seconds"`
-	RawSeconds   float64 `json:"raw_seconds" yaml:"raw_seconds"`
-	Exact        bool    `json:"exact" yaml:"exact"`
+	extra        measurementUnknown `json:"-" yaml:"-"`
+	AttemptID    string             `json:"attempt_id" yaml:"attempt_id"`
+	Slot         string             `json:"slot" yaml:"slot"`
+	RecordDigest string             `json:"record_digest" yaml:"record_digest"`
+	Start        string             `json:"start" yaml:"start"`
+	End          string             `json:"end" yaml:"end"`
+	QueueSeconds float64            `json:"queue_seconds" yaml:"queue_seconds"`
+	RawSeconds   float64            `json:"raw_seconds" yaml:"raw_seconds"`
+	Exact        bool               `json:"exact" yaml:"exact"`
 }
 
 // MeasurementCredit pins an exclusion adopted from another issue. The normal
 // snapshot byte limit bounds the whole collection; old snapshots omit it.
 type MeasurementCredit struct {
-	Issue string `json:"issue" yaml:"issue"`
-	Slot  string `json:"slot" yaml:"slot"`
-	Start string `json:"start" yaml:"start"`
-	End   string `json:"end" yaml:"end"`
+	extra measurementUnknown `json:"-" yaml:"-"`
+	Issue string             `json:"issue" yaml:"issue"`
+	Slot  string             `json:"slot" yaml:"slot"`
+	Start string             `json:"start" yaml:"start"`
+	End   string             `json:"end" yaml:"end"`
 }
 
 func (q MeasurementQueueWait) Validate() error {
@@ -133,11 +163,21 @@ func ValidateMeasurementInputs(m *MeasurementInputs) error {
 // sessions and children dispatched before relocation may start before Since;
 // only contributing source windows must lie inside the sampled interval.
 func (m MeasurementInputs) Validate() error {
-	if m.Version != MeasurementInputsVersion {
+	// Check depth before any recursive validation or marshaling, including cycles
+	// constructed in memory. The retained prefix is exactly one legacy interval.
+	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
+		return fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
+	}
+	if m.Version != MeasurementInputsVersion && m.Version != MeasurementHybridInputsVersion {
 		return fmt.Errorf("measurement version %d is unsupported", m.Version)
 	}
-	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodQueueV1 && m.Method != MeasurementMethodLegacyV1 {
+	if !IsEngagementMethod(m.Method) && m.Method != MeasurementMethodLegacyV1 {
 		return fmt.Errorf("measurement method %q is unsupported", m.Method)
+	}
+	// A hybrid is a distinct schema and interpretation. Old readers must refuse
+	// it rather than ignore its mandatory prefix, while plain v1 stays unchanged.
+	if IsHybridMethod(m.Method) != (m.Version == MeasurementHybridInputsVersion) || IsHybridMethod(m.Method) != (m.LegacyPrefix != nil) {
+		return fmt.Errorf("measurement hybrid method requires version %d and legacy_prefix; plain methods require version %d without legacy_prefix", MeasurementHybridInputsVersion, MeasurementInputsVersion)
 	}
 	if strings.TrimSpace(m.Repository) == "" || strings.ContainsAny(m.Repository, "\x00\r\n\t ") {
 		return fmt.Errorf("measurement repository must be a canonical identity")
@@ -148,7 +188,7 @@ func (m MeasurementInputs) Validate() error {
 	if m.TrackerHead != "" && !measurementHex(m.TrackerHead, 40, 64) {
 		return fmt.Errorf("measurement tracker_head must be a Git OID")
 	}
-	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && m.TrackerHead == "" {
+	if IsEngagementMethod(m.Method) && m.TrackerHead == "" {
 		return fmt.Errorf("measurement tracker_head is required for engagement method")
 	}
 	if m.BranchPoint != "" && !measurementHex(m.BranchPoint, 40, 64) {
@@ -165,6 +205,10 @@ func (m MeasurementInputs) Validate() error {
 	if until.Before(since) {
 		return fmt.Errorf("measurement until precedes since")
 	}
+	contributionSince, err := m.validateLegacyPrefix(since, until)
+	if err != nil {
+		return err
+	}
 	if m.BrainRoot != "" && !filepath.IsAbs(m.BrainRoot) {
 		return fmt.Errorf("measurement brain_root must be absolute")
 	}
@@ -177,10 +221,10 @@ func (m MeasurementInputs) Validate() error {
 	if m.CommitWeight < 0 || math.IsNaN(m.CommitWeight) || math.IsInf(m.CommitWeight, 0) {
 		return fmt.Errorf("measurement commit_weight must be finite and nonnegative")
 	}
-	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && len(m.Engagements) == 0 {
+	if IsEngagementMethod(m.Method) && len(m.Engagements) == 0 {
 		return fmt.Errorf("measurement engagements are required for engagement method")
 	}
-	if m.Method != MeasurementMethodQueueV1 && len(m.QueueWaits) != 0 {
+	if !IsQueueMethod(m.Method) && len(m.QueueWaits) != 0 {
 		return fmt.Errorf("measurement queue waits require queue-aware method")
 	}
 	seenWaits := map[string]bool{}
@@ -194,7 +238,7 @@ func (m MeasurementInputs) Validate() error {
 		seenWaits[q.AttemptID] = true
 		start, _ := time.Parse(time.RFC3339Nano, q.Start)
 		end, _ := time.Parse(time.RFC3339Nano, q.End)
-		if start.Before(since) || end.After(until) {
+		if start.Before(contributionSince) || end.After(until) {
 			return fmt.Errorf("measurement queue_waits[%d] outside sample window", i)
 		}
 	}
@@ -215,11 +259,18 @@ func (m MeasurementInputs) Validate() error {
 		if err != nil {
 			return err
 		}
-		if !end.After(start) || start.Before(since) || end.After(until) {
+		if !end.After(start) || start.Before(contributionSince) || end.After(until) {
 			return fmt.Errorf("measurement protected[%d] must be ordered and within since/until", i)
 		}
 	}
-	if len(m.Sources) > SnapshotLimitSources {
+	if err := m.ValidateCarWaitCoverage(); err != nil {
+		return err
+	}
+	sourceCount := len(m.Sources)
+	if m.LegacyPrefix != nil {
+		sourceCount += len(m.LegacyPrefix.Sources)
+	}
+	if sourceCount > SnapshotLimitSources {
 		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)
 	}
 	data, err := json.Marshal(m)
@@ -245,6 +296,9 @@ func (m MeasurementInputs) Validate() error {
 		}
 		if !end.After(start) {
 			return fmt.Errorf("measurement %s end must follow start", field)
+		}
+		if m.LegacyPrefix != nil && start.Before(contributionSince) {
+			return fmt.Errorf("measurement %s overlaps legacy_prefix", field)
 		}
 		if began.After(start) {
 			return fmt.Errorf("measurement %s began must not follow start", field)
@@ -301,7 +355,7 @@ func (m MeasurementInputs) Validate() error {
 			if err != nil {
 				return err
 			}
-			if end.Before(start) || start.Before(since) || end.After(until) {
+			if end.Before(start) || start.Before(contributionSince) || end.After(until) {
 				return fmt.Errorf("measurement %s must be ordered and within since/until", interval)
 			}
 		}
@@ -323,6 +377,36 @@ func (m MeasurementInputs) Validate() error {
 		}
 	}
 	return nil
+}
+
+// validateLegacyPrefix keeps the pre-cutover authority distinct from modern
+// tracker engagement. IO callers prove the pinned cutover and source ancestry.
+func (m MeasurementInputs) validateLegacyPrefix(since, until time.Time) (time.Time, error) {
+	prefix := m.LegacyPrefix
+	if prefix == nil {
+		if m.LegacyCutover != "" {
+			return time.Time{}, fmt.Errorf("measurement legacy_cutover requires legacy_prefix")
+		}
+		return since, nil
+	}
+	if !IsHybridMethod(m.Method) {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix requires engagement method")
+	}
+	if !measurementHex(m.LegacyCutover, 40, 64) {
+		return time.Time{}, fmt.Errorf("measurement legacy_cutover must be a Git OID")
+	}
+	if prefix.Method != MeasurementMethodLegacyV1 || prefix.Repository != m.Repository || prefix.TrackerHead != "" || prefix.BranchPoint != "" || len(prefix.Engagements) != 0 || len(prefix.QueueWaits) != 0 || len(prefix.Protected) != 0 || len(prefix.Cuts) != 0 {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix must be an unowned legacy-v1 interval in the same repository")
+	}
+	if err := prefix.Validate(); err != nil {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix: %w", err)
+	}
+	prefixSince, _ := time.Parse(time.RFC3339Nano, prefix.Since)
+	prefixUntil, _ := time.Parse(time.RFC3339Nano, prefix.Until)
+	if !prefixSince.Equal(since) || !prefixUntil.After(since) || prefixUntil.After(until) {
+		return time.Time{}, fmt.Errorf("measurement legacy_prefix must start at since and end after since within until")
+	}
+	return prefixUntil, nil
 }
 
 func measurementHex(value string, lengths ...int) bool {

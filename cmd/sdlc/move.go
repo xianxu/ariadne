@@ -289,7 +289,7 @@ func observeMove(dir, address string) (moveFacts, error) {
 	return f, nil
 }
 
-func observeMoveSide(r execGitRunner, id workspace.Identity) (moveSide, error) {
+func observeMoveSide(r gitRunner, id workspace.Identity) (moveSide, error) {
 	s := moveSide{Root: id.WorktreeRoot, Address: workspaceText(id.Address, ""), Branch: workspaceText(id.Branch, ""),
 		Resting: workspaceText(id.RestingBranch, ""), Head: workspaceText(id.Head, "")}
 	if s.Resting != "" {

@@ -46,7 +46,11 @@ If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
 `sdlc move` into that slot refuses and names the holder. When the holder is
-done it clears its stage; an abandoned one is freed with
+done it clears its stage. After landing deletes its issue branch, the recorded
+original slot can clear from its own resting branch with confirmed current
+completion, merged PR and archive evidence. Unknown proof preserves the stage;
+finish/reconcile landing or repair the evidence and retry from that slot on rest.
+An abandoned one is freed with
 `sdlc stage --clear :0 --abandoned <holder>`. See [stage and clear](atlas/workflow/workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
 
 In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
@@ -70,10 +74,10 @@ metadata automatically when config is writable. See
 For a non-issue workshop note edited while an issue branch is active, run
 `sdlc trunk publish --path workshop/parley/note.md`. It publishes one unstaged,
 uncommitted Markdown file under `workshop/parley/`, `pensive/`, `targets/` or
-`projects/`, or `workshop/lessons.md`, directly to main. If main changed that
+`projects/`, `workingdoc/`, or `workshop/lessons.md`, directly to main. If main changed that
 path since the branch base, reconcile the edit first; the command refuses to
 overwrite it. If a push response is uncertain, rerun the same command with the
-local file intact. Publication leaves the local file untouched. Once this
+local file intact. For first publication, `--expect-absent` requires the remote path to be absent or already identical on every CAS attempt; settlement supplies this guard automatically when the source has no prior pointer. Publication leaves the local file untouched. Once this
 branch has merged main, run the printed `git restore -- ':(literal)<path>'`
 command to discard a tracked local copy, or run it before a merge that would
 otherwise conflict. For an untracked note, run the printed targeted
@@ -133,6 +137,11 @@ once with `sdlc issue migrate` — see
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 `issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits
 (legacy repositories only).
+
+Migration preserves verified legacy close evidence and reports each adoption's
+measurement class. For an older cutover missing a close binding, inspect
+`sdlc issue migrate --repair-completions --issue N`, then apply its reviewed
+digest. See [legacy completion recovery](atlas/workflow/issue-tracker-migration.md#legacy-completion-recovery).
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
@@ -893,7 +902,13 @@ verification, and close's noon freshness gate still applies. On SHIP, enter
 authoritative suite when the integrated code needs it. Merge requires this suite's recorded pass: a declaration named `suite` overrides its
 command, timeout and `weight`, but cannot make it optional. Without a declared
 suite, main's `Makefile` supplies `make test` and `WF_TEST_WEIGHT` when it has a
-test target. The optional declaration `weight` (default 1) reserves that many
+test target. Only when main has neither a declaration nor a test target, the
+exact pushed head supplies a **bootstrap** default `make test` and weight, with
+ordinary managed `sdlc-local/suite` evidence. Its first declaration's custom
+checks and CI substitutions take effect after landing on main; bootstrap never
+stands in for server CI. See `sdlc local-check run --help` and the
+[CI gate map](atlas/workflow/ci-merge-check.md).
+The optional declaration `weight` (default 1) reserves that many
 machine-wide suite slots. A passing record on an ancestor remains valid through
 docs-only changes such as close's bookkeeping or main prose publication. Code,
 tests, configuration and embedded help invalidate reuse and require another run.
@@ -1049,6 +1064,8 @@ sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
+Retained train waits appear as counted **unverified coverage** beside hours;
+the diagnostic describes a bound waiter invocation and makes no idle subtraction.
 `sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
 repair of a completed sample. If legacy rows are ambiguous, its diagnostic names
 the ledger and eligible raw-row hashes. Have the TL/operator select the row by
@@ -1061,6 +1078,15 @@ See `sdlc actual --help` for provenance and recovery.
 
 MIT — see [LICENSE](LICENSE).
 
+
+`tl-lead doc settle SIDE-DOC [--to PATH]` publishes a resolved side document to
+`workshop/workingdoc/YYYY-MM-DD-topic.md` or an eligible project prose path,
+then records its path and commit in the live source. Re-settling updates that
+copy; Git preserves earlier editions. Resolve review questions and proposals
+before settling, and use a quiet editing window. `tl-lead doc status` shows
+unsettled pages and content drift from the recorded edition. The
+[workingdoc prototype](construct/datatype/workingdoc.md) describes the page;
+[TL skill binaries](atlas/workflow/tl-skills.md) maps publication and recovery.
 
 `tl-lead status` uses the hub repo's gitignored `session.md` and
 `session.side/`; FILE is optional on all status commands. Existing explicit

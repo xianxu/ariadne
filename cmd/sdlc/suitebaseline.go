@@ -18,6 +18,9 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 	if !errors.As(gateErr, &failed) || failed.Check.Name != suiteCheckName {
 		return gateErr
 	}
+	if failed.Bootstrap {
+		return fmt.Errorf("%w\n  suite comparison unverified: bootstrap main has no test target; no main baseline was run", gateErr)
+	}
 	// The baseline run prunes old local-check logs. Capture the failed head's
 	// log first so a busy clone cannot evict the evidence under comparison.
 	mergedLog, err := os.ReadFile(failed.Run.LogPath)

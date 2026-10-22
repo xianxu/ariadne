@@ -171,7 +171,7 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 			err = errors.New("no current suite policy reader")
 		} else {
 			var c localCheck
-			c, err = declaredCheck(ctx, d.Git, suiteCheckName)
+			c, err = declaredCheck(ctx, d.Git, suiteCheckName, sha)
 			if err == nil {
 				policy = c.knownFlakePolicy()
 			}

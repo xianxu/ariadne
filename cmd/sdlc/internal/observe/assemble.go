@@ -25,6 +25,11 @@ type Inputs struct {
 	CardPath string
 	CardBlob string
 
+	// RecoveredLegacy is read-only provenance proved against the original
+	// tracker root and immutable pre-cutover archive; it is not a completion.
+	RecoveredLegacy   *issue.LegacyAdoption
+	LegacyRecoveryErr error
+
 	// Me is the queried checkout's identity — what "this workspace" means.
 	Me    *issue.Claimant
 	MeErr error
@@ -190,6 +195,20 @@ func assembleCompletion(in Inputs, c Card) Completion {
 	out := Completion{Authority: AuthorityTracker, Read: c.Read}
 	if !cardHasValue(c) {
 		return out
+	}
+	legacy, hasLegacy, legacyErr := issue.CardLegacyAdoption(in.Card)
+	if legacyErr != nil {
+		out.Read = Read{State: Unknown, Source: c.Source, Error: "unreadable legacy adoption: " + legacyErr.Error()}
+		return out
+	}
+	if hasLegacy {
+		out.LegacyWindowClass, out.LegacyTerminalCommit = legacy.WindowClass, legacy.TerminalCommit
+	} else if in.RecoveredLegacy != nil {
+		out.LegacyWindowClass, out.LegacyTerminalCommit = in.RecoveredLegacy.WindowClass, in.RecoveredLegacy.TerminalCommit
+		out.LegacyRecovered = true
+	}
+	if in.LegacyRecoveryErr != nil {
+		out.LegacyRecoveryError = in.LegacyRecoveryErr.Error()
 	}
 	b, ok, err := issue.CardCompletion(in.Card)
 	switch {

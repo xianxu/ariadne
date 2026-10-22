@@ -47,6 +47,16 @@ func RenderText(w io.Writer, o Observation) {
 	} else {
 		fmt.Fprintf(w, "  completion:  %s\n", strings.TrimSpace("no close recorded"+map[bool]string{true: "", false: quality(c.Read)}[c.State == Absent]))
 	}
+	if c.LegacyWindowClass != "" {
+		recovery := ""
+		if c.LegacyRecovered {
+			recovery = "; recovered read-only from pre-cutover archive"
+		}
+		fmt.Fprintf(w, "  legacy:      %s (terminal evidence %s%s)\n", c.LegacyWindowClass, short(c.LegacyTerminalCommit), recovery)
+	}
+	if c.LegacyRecoveryError != "" {
+		fmt.Fprintf(w, "  legacy:      unknown: %s\n", c.LegacyRecoveryError)
+	}
 	l := o.Landing
 	landing := string(l.Outcome)
 	if l.LandedCommit != "" {

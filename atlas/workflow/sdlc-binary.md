@@ -58,6 +58,21 @@ Stages stay prose; the binary refuses transitions that lack required
 evidence. Subcommands are added incrementally when the same drift
 recurs at a stage (not by formalizing the SDLC as a state machine).
 
+## Stage clear after landing
+
+`runUnstage` (`stage.go`) holds the target's stage lock through proof, restore
+and rebuild. Ordinary holder and exact `--abandoned` authorization remain in
+`stageplan.go`. For a branch-deleted landing, `landedStageCaller` selects only
+the recorded canonical original slot on its own rest; `proveLandedStageHolder`
+(`stagelanded.go`) then requires the current done completion, matching merged
+PR carrying the staged commit and nonempty archive ownership/proof. It reuses
+the fresh-main pin already used for fast-forward and build. The caller, lease
+and completion are re-observed before effects. Unknown or changed evidence
+preserves the stage: finish/reconcile landing or repair evidence, then rerun
+`sdlc stage --clear` from the original resting slot. This exception grants no
+staging or move rights. See `sdlc stage --help` and the
+[slot procedure](workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
+
 ## Verb surface
 
 | Verb              | Replaces (Make target)      | Defends |
@@ -127,7 +142,17 @@ for the operator workflow and recovery contract.
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
 | `issue publish --commit SHA` | Legacy repositories: the selected non-merge commit's entire eligible Markdown change set |
-| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+| `trunk publish --path P` | One uncommitted prose file under `workshop/parley/`, `pensive/`, `targets/`, `projects/`, `workingdoc/`, or `workshop/lessons.md` to main; never an issue-branch commit |
+
+Workingdoc settlement (#507) adds optional trunk-publish guards:
+`--expect-absent` requires an absent or already-identical remote path on every CAS attempt; first settlement supplies it, while ordinary trunk publication keeps its existing defaults.
+`--expected-commit SHA` compares only the selected path with its pinned baseline,
+including on each CAS retry; omission retains the merge-base behavior.
+`--expected-content-sha256 HASH` binds the one bounded captured read to the
+validated projection before publication. `--json` returns
+`{schema_version: 1, path, commit}` only after exact remote readback; an unknown
+response or a different blob cannot produce a receipt. The original branch and
+index guards and local-copy preservation remain in force.
 
 For product/discussion work in a tracker repository, `issue publish --issue N`
 owns issue details (and issue plans remain on their issue branch). `trunk
@@ -1733,7 +1758,14 @@ local-check recorder stores exact queue start and acquisition instants beside
 cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
-repository, owner slot and engagement. An exact wait crossing the measurement's
+repository, immutable tested-head issue membership, owner slot and engagement
+(#548). Membership reuses local subject leads and follows only recognized
+first-parent metadata/integration commits. Exact same-train composition includes
+admitted cars only; main and held cars contribute nothing. Proven foreign runs
+are excluded before ownership errors can block another issue. Unknown or missing
+head proof refuses with the attempt, SHA and restore/retry guidance. Reads disable
+Git replacement refs and bound command-wide objects/content plus ancestry depth;
+retained historical snapshots replay unchanged. An exact wait crossing the measurement's
 last issue commit is clipped there before ownership is checked; only the part
 inside the measured window needs one pinned owner (#430). It then retains the selected intervals,
 record digests and source slots in the bounded measurement snapshot. The native
@@ -1753,6 +1785,28 @@ can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
+
+Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
+owns versioned start/bind/end facts under the existing ticket/head lifetime and
+pure `ReduceWaitEvidence`. `landingqueue.go` records exact owner boundaries and
+`landingtrain.go` binds the verified car to the live conductor. A closed invocation
+with at least one verified binding contributes its whole retained interval,
+including pre-boarding and release/reformation gaps. No per-poll history or
+source-idle claim is made. Non-addressable legacy invocations report unavailable
+coverage while preserving their ordinary landing behavior.
+
+`actualtrainwait_io.go` reads the existing 30-day audit once, bounded to 32 MiB,
+100,000 records and 1 MiB per record; it reuses #548's immutable-head proof.
+`actualtrainwait.go` clips to exact pinned owner/source windows and reports the
+union as `unverified coverage: N min in a retained train wait`. These inputs never
+enter the activity engine's subtraction path. Existing hours, phase splits and
+calibration policy remain unchanged. Malformed/partial/expired evidence produces a
+bounded limitation instead of a guessed duration. Optional preserving snapshot
+facts have a 16-interval/8 KiB budget; candidate-copy validation drops diagnostic
+attachment before it can invalidate the accounting snapshot. A compact limitation
+is pinned when it fits, otherwise replay preserves accounting alone. No past
+actual is automatically rewritten. Structural runtime-job/invocation binding for
+future proven-idle subtraction is deferred to pair#800.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
@@ -2950,3 +3004,15 @@ and strict scratch defer, including effect aliases and multiple effects under
 one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
 the authority behavior. Completed proof GC and unused pre-link preparation keep
 their existing lifecycles.
+
+### Bootstrap suite derivation (#536)
+
+`localchecks_bootstrap.go` composes existing default-suite constructors and
+bounded native make probes. Main remains authoritative; only proven absent
+declaration and target permit the exact subject's default. `runLocalCheckCmd`
+verifies the pushed subject before fallback. CI facts cache that same policy
+within one wait budget. Conductor `deriveSuite` re-derives per tested prefix and
+reintegration, so a later target/weight never authorizes an earlier prefix.
+The captured echo#1 inputs and native command/train regressions live in
+`testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
+See [the CI gate map](ci-merge-check.md) for evidence and authority rules.

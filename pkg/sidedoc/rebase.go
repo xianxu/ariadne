@@ -74,14 +74,18 @@ func RebaseLinks(text, from, to string, moved func(string) (string, bool), exist
 		}
 		return rel + frag
 	}
+	literal, _ := CodeLiteralMask(text)
 	lines := strings.Split(text, "\n")
 	front := frontLines(lines)
-	for i := 1; i < front; i++ {
-		lines[i] = rebaseParent(lines[i], rebase)
+	offset := 0
+	for i, line := range lines {
+		if i > 0 && i < front {
+			lines[i] = rebaseParent(line, rebase)
+		} else if i >= front {
+			lines[i] = rebaseLine(line, literal[offset:offset+len(line)], rebase)
+		}
+		offset += len(line) + 1
 	}
-	forUnfenced(lines[front:], func(j int, line string) {
-		lines[front+j] = rebaseLine(line, rebase)
-	})
 	return strings.Join(lines, "\n"), dangling
 }
 
@@ -126,18 +130,9 @@ func rebaseParent(line string, rebase func(string) string) string {
 	return "parent: " + next + cr
 }
 
-// rebaseLine rewrites the link targets of one unfenced line, outside its code
-// spans.
-func rebaseLine(line string, rebase func(string) string) string {
-	spans := codeSpans(line)
-	inCode := func(at int) bool {
-		for _, s := range spans {
-			if at >= s[0] && at < s[1] {
-				return true
-			}
-		}
-		return false
-	}
+// rebaseLine rewrites link targets outside the shared document code mask.
+func rebaseLine(line string, literal []bool, rebase func(string) string) string {
+	inCode := func(at int) bool { return literal[at] }
 	var b strings.Builder
 	last := 0
 	replace := func(start, end int) {
@@ -164,45 +159,6 @@ func rebaseLine(line string, rebase func(string) string) string {
 	}
 	b.WriteString(line[last:])
 	return b.String()
-}
-
-// codeSpans returns the [start, end) byte ranges of a line's code spans: a
-// backtick run up to the next run of the same length. An unclosed run opens
-// no span.
-func codeSpans(line string) [][2]int {
-	var out [][2]int
-	run := func(i int) int {
-		n := 0
-		for i+n < len(line) && line[i+n] == '`' {
-			n++
-		}
-		return n
-	}
-	for i := 0; i < len(line); {
-		if line[i] != '`' {
-			i++
-			continue
-		}
-		n := run(i)
-		closed := false
-		for j := i + n; j < len(line); {
-			if line[j] != '`' {
-				j++
-				continue
-			}
-			m := run(j)
-			if m == n {
-				out = append(out, [2]int{i, j + m})
-				i, closed = j+m, true
-				break
-			}
-			j += m
-		}
-		if !closed {
-			i += n
-		}
-	}
-	return out
 }
 
 // RelPath is the slash path from directory dir to target, both relative to
