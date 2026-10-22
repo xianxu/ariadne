@@ -45,7 +45,9 @@ The operator/TL chose explicit one-off Git moves for the two existing Pair lefto
 - [x] Add one pure issue-scoped noncanonical-side naming validator in cmd/sdlc/archivepolicy.go, with adversarial table tests; thin close filesystem reader sees tracked/untracked top-level folders without following symlinks. Read each configured root once (O(entries)).
 - [x] Wire close before review/state changes; wire pinned-head landing preflight (including train readiness) before remote merge. Thread configured plan roots as needed. Reuse the validator inside immutable archive planning as defense in depth. Tests enter the real close, publish-gate and planner seams, with no publication on refusal; canonical controls remain valid.
 - [x] Verify a historical parent-only archive followed by an explicit byte-preserving one-off side move still fails old proof, while a separately selected future landing succeeds. Record the boundary and coordinate the two real Pair repairs with ops:0; do not mutate Pair :0 or another slot's tree.
-- [ ] Document policy, targeted regressions and counted N/2N reader budgets; commit/push, run the recorded suite, close through fresh review, then land and report.
+- [x] Document policy, targeted regressions and counted N/2N reader budgets; commit/push, run the recorded suite and close through fresh review.
+
+Landing and reporting follow through the binary after this verified checklist; they are not claimed complete here.
 
 ## Log
 
@@ -79,3 +81,13 @@ The runtime naming validator is the mechanical enforcement at close/preflight/ar
 pair#757 landed via PR532 (https://github.com/xianxu/pair/pull/532), reported GitHub MERGED at 2026-10-21T22:12:21Z with merge commit dfb44839f7a8c4006690e6d05c1a3e994b31194d. Post-merge cleanup refused `active or conflicting archive artifact workshop/plans/000757-mock-to-real-plan.md.side/browser-progress-negative-control.log`. The directory also holds browser-pass.log. Both logs remain unchanged; parent plan is archived at workshop/history/plans/000757-mock-to-real-plan.md. One documented already-merged recovery, `sdlc merge --branch 000757-mock-to-real-app-template-per-screen-real-or-mock-dev-router-refusing-production-build-fixtures-contract-tests-product-shaping --yes`, repeated the exact refusal. Landed branch preserved; canonical slot switched to main-slot4. TL authorized manual movement of the unchanged two-file bundle into canonical history plan.side as a separate repair. No lifecycle/CI/review bypass; all product gates had passed, including the registered pair#778 same-head test rerun. This block records supplied peer evidence; this worker has not independently rerun the old landing or performed the repair.
 
 2026-10-21: Full runCloseWithReview entrypoint regression also passed (14.350s), proving malformed tracked/untracked folders stop before the judge. TL accepted private real-Git production-seam acceptance and explicitly waived stage (6499451a-ee94-4c54-8c7d-9febf6a7ed3f). Recorded full suite is the next check; not yet passing. No cache override or machine change is required.
+
+### 2026-10-21 — recorded branch suite passed
+
+The original lease-1938211911 survived the Couch restart without a replacement runner. It acquired the full-suite slots after 4114s in FIFO and passed on pushed code head d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8: all eight shards, 2045 cmd/sdlc tests and 75 other packages, zero failures; wall 723.6s (12m4s). Saved log: .git/sdlc/local-checks/d6309d22f5cc7bf4911d0eba4f97abc0c7a1a6d8/suite.log; reported digest prefix 37e0c9039557; sdlc-local/suite recorded on that head.
+
+Whole-issue close returned SHIP with no findings and adopted measured 0.25h, evidence eb95a774a2e110fdc66e413d9356ad6992507b24. The reviewer independently passed focused and broader archive/publish regressions. The subsequent required main integration 8823171c88a21e828046174c6c223b4ffb25d02e resolved only the published issue's mirror conflict, retaining the sdlc-generated codecomplete card fields. Its diff from the tested head contains only issue/review bookkeeping. PR378 has green server checks. Landing has not yet occurred; sdlc merge owns current-main integration and any authoritative integrated suite.
+
+### 2026-10-21 — checklist bookkeeping clarification
+
+The original last checkbox also included future landing/reporting. Its verified documentation/test/close portion is now checked after the recorded pass; landing/reporting remain explicit binary-gated follow-through rather than a premature completion claim. No scope, mechanism or acceptance criterion changed.
