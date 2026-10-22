@@ -29,10 +29,14 @@ import (
 //	                 tickets/. Swept once tickets/<seq> is gone.
 //	outcomes/<seq>   what a train did with a waiting car (#449), written by
 //	                 the train's conductor; swept the same way.
+//	train-control.json current generation, pinned exclusions and cleanup
+//	                 obligation; retained across crashes until reconciled.
 //
 // Every flock dies with its process, so a dead waiter's ticket is pruned by
 // the next scan and a dead head frees head.lock: the line keeps no state that
-// a crash can leave inconsistent. A process is either waiting (it holds its
+// a crash can leave inconsistent. The control record additionally retains
+// accepted exclusions and external cleanup obligations until reconciled.
+// A process is either waiting (it holds its
 // ticket) or the head (it holds head.lock and its ticket is gone).
 
 // Options are the line's injected clock, sleep and grants; zero values take
@@ -237,6 +241,15 @@ func (l *Line) tryAdmit(h *Handle) (int, *Ticket, string, error) {
 			if err != nil {
 				return err
 			}
+			live, err = l.reconcileAdmissionDropsLocked(live)
+			if err != nil {
+				return err
+			}
+			// Reconciliation may have delivered this ticket's held outcome.
+			// Wait must consume it before this ticket can acquire head.lock.
+			if o := l.outcomeOf(h.ticket.Seq); o != nil && o.Kind == OutcomeHeld {
+				return nil
+			}
 			if !h.waiting() {
 				return errors.New("landing line: this ticket was released")
 			}
@@ -420,6 +433,13 @@ func (l *Line) Status() (*Ticket, []Ticket, error) {
 	var waiting []Ticket
 	err := l.withMutex(func() error {
 		live, err := l.scan()
+		if err != nil {
+			return err
+		}
+		// Status supplies candidate tickets to Board as well as the CLI.
+		// A retained dropped runner must be absent from both formation and
+		// head admission, even when it has not consumed its held outcome.
+		live, err = l.reconcileAdmissionDropsLocked(live)
 		if err != nil {
 			return err
 		}

@@ -40,6 +40,14 @@ It verifies the binary's VCS revision and clean source metadata, then prepends
 its private directory to PATH before bootstrap. Acquisition or identity failure
 stops the job rather than selecting a formula or an existing PATH binary.
 
+Both VCS metadata checks in the shared compiler build block drain the full
+input (`grep -E` with output redirected) rather than using quiet grep, whose
+early exit can SIGPIPE `printf` under pipefail (#534). The actual-block test
+`scripts/test/portable-ci.test.sh` repeats the incident input and a larger valid
+metadata record, and retains mismatch, dirty-source and missing-field refusals.
+`pkg/shelllint/metadata.go` guards literal compiler-metadata quiet pipes in
+tracked shell scripts and workflow sources; file-input greps remain valid.
+
 Ariadne's source workflow keeps its candidate compiler separate. It declares
 one or two supported full compiler SHAs in `.sdlc/weave-compiler-refs` and checks
 each against candidate vocabulary on every PR and main push. The initial source
