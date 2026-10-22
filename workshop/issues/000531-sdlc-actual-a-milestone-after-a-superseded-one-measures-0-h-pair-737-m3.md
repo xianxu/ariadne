@@ -127,6 +127,12 @@ Close round 2 finalized SHIP with both BR-1/BR-2 addressed and no open findings;
 
 Resolved the single conflict by preserving freshActualRounds / selected measurementCuts and main's attachOwnedQueueEvidence call with the explicit remote-main reference. Targeted requested-authority, retired-boundary, captured replay, ownership, queue evidence and decimal-hint controls PASS (56.990s). Branch patch whitespace check against integrated main PASS; the full cached main advance includes two existing fixture blank-line warnings, not introduced by this resolution. The prior code-head suite lease-1754157053 was retained unchanged through 5605s queued and has now started; it is not integrated-head evidence. Next: record its result, run the required integrated-head suite, fixed-then-ship close with --full-suite evidence, then re-enter sdlc merge --yes. No gate waived.
 
+### 2026-10-22 — integrated full suite PASS
+
+Pre-integration attempt 19f4eadc1d939d3695ef5c3b1eb90283 / lease-1754157053 passed all 2243 SDLC tests and 76 packages, zero failures, 1169.874s execution after 5606.344s queue. Log SHA256 5e25be58ff83091ac6360863e1635044a3b60ab1d2fe2d4cb362a26cef1be8dc.
+
+Integrated attempt 712e42ae443bf037b225322649fc0ea6 / lease-1002473346 passed all eight shards (2286 SDLC tests) and 76 packages, zero failures, 1387.267s execution after 7904.060s queue. Log SHA256 68d6744c9403b76acfa6f5a0f708abb491b37baa5ede267f1f567394c6989749. Both retained runners completed normally; no restart, cancellation, duplicate or flake retry. Next: fixed-then-ship re-close with this integrated full-suite evidence, then re-enter the named merge recovery.
+
 ## Revisions
 
 ### 2026-10-22 — completion bookkeeping
