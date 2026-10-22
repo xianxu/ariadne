@@ -1,6 +1,6 @@
 ---
 id: 000545
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.50
+tracker:
+    version: 1
+    completion:
+        token: close-2b012dc7d471
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 7b1c8d1892a3bf05379ca8aaa58cf0d422b334ff
+        evidence_commit: e83a1366ff30e47c0886333205d6c451555796a9
 ---
 
 # local-check: export the caller root and dependency checkout paths to suites (seeded workflow harness assumes a sibling ../ariadne)
