@@ -135,3 +135,9 @@ Removed context-free compatibility wrappers rather than weakening the existing g
 
 
 Replacement clean binary built at 26b4be05e40542b96adeda844591ddee88fcf366 (vcs.modified=false) and relayed by ops-echo to echo:3 for the owner-run #10 rerun. Re-ran live OS-fence conformance on this clean runtime revision: exit 0, PASS, 1.39s test / 1.910s command. Appended raw output and updated source blob identities to the host-fence artifact. Queue a fresh recorded suite on the evidence-only successor and run the required narrow fix review; preserve the Echo binary while it is in use.
+
+### 2026-10-22 — review scope correction and retained verification
+
+Round 4's narrow review refused with Critical BR-3, post-close-scope-control: printing the existing dependency manifest is observable behavior outside the earlier findings. Its targeted verification passed. Accept the finding and run a full close, rather than disputing it or repeating the narrow review. The plan Revisions supersede the earlier narrow-review instruction. Recorded suite lease-2607030942 remains alive on pushed head 1151135bfd024f4b709f1af158a58ed52f7a2ce9, normal FIFO position 5 at observation; no cancellation, duplicate or restart.
+
+The Echo-owned live review cannot launch until independent #553 fixes attribution of Git-default integrate-main merge heads; both fleet and branch binaries refuse before review. TL assigned #553 to ariadne:5 and revoked #551's grant so other landings proceed. Keep #551 out of the landing head while waiting, then integrate landed #553 from main and rebuild the combined binary for Echo. Answered ariadne:5's attribution question: exact and malformed train handling must precede structural ordinary-merge fallback; never union publication-main issues.

@@ -1451,3 +1451,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #551 live conformance: a Claude env file is sourced by the configured command shell, which can be zsh even when the tool is called Bash. Generate portable shell syntax and test actual Bash/zsh/sh processes, including nonexported stale names and hostile values. Keep live failure bytes as a fixture. Do not infer missing setup from a sidecar that does not persist the input manifest; print the same descriptor manifest for owner evidence.
 - #551 full suite: new compatibility wrappers must respect the existing no-Background context guard. Remove unused internal context-free APIs and propagate the caller through confinement and setup, rather than adding exceptions or hiding a Background allocation behind another helper.
+
+- #551 BR-3: a post-close fix that also adds operator-visible diagnostics exceeds a narrow fix review, even when it reuses an existing projection. Record that addition and run the full close review; do not treat passing targeted tests as permission to bypass scope review.

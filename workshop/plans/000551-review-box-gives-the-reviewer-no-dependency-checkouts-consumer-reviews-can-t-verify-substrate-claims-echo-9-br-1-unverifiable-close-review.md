@@ -251,3 +251,73 @@ dispose:
 7. **Plan revision recommendations:** None. README and atlas updates cover the introduced surface.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"76bd4bc4-3b03-4e80-a6f2-09d0ad6f88d1","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/577d555fe9b0d28f","reviewed_head":"09357c3bb13f8a2ea6999213102adac2ec8478c3","slot":"ariadne:1","requested_at":"2026-10-22T13:18:30.335014Z"},"phase":"finished","pid":73047,"started_at":"2026-10-22T13:18:30.430788Z","finished_at":"2026-10-22T13:20:00.730979Z","session_id":"01a163c3-5f85-72e1-8138-aeb9620f2db9","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T06:35:45-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 551 — review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable) |
+| repo | ariadne |
+| issue file | workshop/issues/000551-review-box-gives-the-reviewer-no-dependency-checkouts-consumer-reviews-can-t-verify-substrate-claims-echo-9-br-1-unverifiable.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d643c4c198c8edd2b3597480813e6465c2bfcb64..1151135bfd024f4b709f1af158a58ed52f7a2ce9 |
+| command | sdlc close --issue 551 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T06:35:45-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The shell restoration and context changes pass the checks run here. However, this interdiff also adds operator-visible dependency-manifest output that no prior finding requested. The fix-review contract explicitly requires a full `sdlc close` for added scope.
+
+```findings
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: post-close-scope-control
+    title: |
+      scope changed after close — run a full `sdlc close`
+    detail: |
+      cmd/sdlc/reviewisolation.go:65-66 adds dependency-manifest output to close diagnostics, and workshop/plans/000551-review-dependency-checkouts-plan.md:129-133 records new post-close runtime work. Neither disposed finding requested this added output: BR-1 concerned README documentation and BR-2 concerned host fence evidence. The narrow review cannot admit this expanded behavior; run a full sdlc close over the resulting implementation.
+```
+
+1. **Strengths**
+
+   - Shell regression exercises actual Bash, zsh and POSIX sh, including hostile values, stale bindings and retry restoration.
+   - Manifest output reuses `DependencyManifest`, keeping its representation consistent with the reviewer prompt.
+   - Context propagation removes unused wrappers without weakening the existing context guard.
+
+2. **Critical findings**
+
+   - Scope expansion at `cmd/sdlc/reviewisolation.go:65` requires a full close review, as detailed above.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed full `reviewbox` and `judge` package tests, targeted boundary/dependency tests, the context guard, and the three-shell regression. Executing the previous expansion under zsh reproduced `bad substitution`. No tracked files were modified.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Existing manifest and contextual Git helpers reused.
+   - **ARCH-PURE — pass:** Changes remain within integration boundaries.
+   - **ARCH-PURPOSE — pass:** Shell restoration covers all supported shell fixtures.
+   - **ARCH-EVOLVE — pass:** No persisted-format changes.
+
+7. **Plan revision recommendations**
+
+   Update the latest revision’s instruction to obtain a “narrow post-close review” to require a full `sdlc close` for the expanded implementation. BR-1 and BR-2 remain disposed; neither is re-raised.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"373c21f3-51a9-4b71-b0db-5907bb64fac3","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2b5e00e85b8ca3cd","reviewed_head":"1151135bfd024f4b709f1af158a58ed52f7a2ce9","slot":"ariadne:1","requested_at":"2026-10-22T13:34:21.738757Z"},"phase":"finished","pid":52595,"started_at":"2026-10-22T13:34:21.943766Z","finished_at":"2026-10-22T13:35:45.251725Z","session_id":"01a163d1-e4e0-7e22-ac5b-6e15fd4c4444","outcome":"returned"}] -->
