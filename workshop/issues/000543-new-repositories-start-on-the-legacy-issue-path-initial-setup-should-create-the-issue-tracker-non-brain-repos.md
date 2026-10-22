@@ -76,6 +76,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - Close round 1 REWORK: BR-1 Critical (authoritative-inventory-completeness). Reviewer reproduced a remote-only legacy issue branch created since the initializer's last fetch, missed by shared migrationBranchRefs's cached refs. Verified the shared scanner does not refresh all heads. Explicitly canceled lease-1773336371 before execution; canceled output confirms no suite result. Appended a bounded correction to the durable plan and sent it to TL; production code held pending approval. Existing code and targeted successes do not dispose BR-1.
 
+- TL approved BR-1 correction (Couch 258bb7aa-6771-4df9-afb1-9784ce0a3803). Implemented shared all-heads observation and one names/OIDs snapshot; both issue and close-anchor consumers read the pins. Main mismatch and failed refresh refuse; no-prune-tags/refmap suppression constrain effects to the intended remote-head cache mapping. All eight before-fix regressions produced intended RED, then passed (11.666s). Broad targeted set passed (106.994s), including branch movement after enumeration, fetch-scope preservation and counted growth checks. Private rebuilt production CLI passed remote-only refusal via init/migrate and fresh init -> no-checkout issue -> repeat init -> claim/start-plan; local evidence /Volumes/TestScratch/ariadne-543-br1-cli-b2g2r2ln/commands.json. BR-1 disposition awaits the next gate review; old suite canceled, fresh suite not yet submitted.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary

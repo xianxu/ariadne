@@ -1349,3 +1349,12 @@ Unknown descendant completion protects every input and output together: checkout
   inventing phase files. Keep plans at named function/adversarial-strategy level;
   individual prerequisite and crash cases belong in executable sequence tests.
   TestRecoveryContractsAreProven mechanically catches missing command recovery.
+
+### #543 BR-1 — cached remote refs cannot prove complete inventory
+
+An authoritative migration/init inventory must explicitly observe the current
+publication-remote heads, independent of the clone's configured fetch filters.
+Pin diagnostic names and object IDs together for every subsequent evidence
+consumer, and reject a main snapshot mismatch. Two-clone created/advanced-branch
+regressions defend this shared boundary; tests also pin the fetch write set so
+user tag-pruning/refmap preferences cannot expand a read's effects.

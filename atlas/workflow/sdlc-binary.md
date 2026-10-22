@@ -18,7 +18,12 @@ inventory, tracker bootstrap CAS and main cutover. The pure invocation-local
 returned effects and stops on failure/cancellation/uncertainty. Retry inspects
 existing Git root/marker evidence, retaining partial publication. Clean main
 checkout completion uses a pinned ff-only commit. Brains/declined scaffolds skip;
-nonempty inventories require reviewed migration. Legacy hints use local-only
+nonempty inventories require reviewed migration. Shared migration inventory first
+refreshes the publication remote's entire heads mapping, then pins names/OIDs for
+both issue and close-anchor reads. Failed refresh or main moving from its pin
+refuses before publication; configured fetch filters cannot hide branches.
+Tags, other remotes and FETCH_HEAD stay outside this explicit fetch's write set.
+Legacy hints use local-only
 `issue.LocalPathsByID` evidence and never authorize publication. See
 [the setup procedure](setup-and-replication.md#new-repository-default).
 

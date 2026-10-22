@@ -350,6 +350,7 @@ var Catalog = []Contract{
 			{"brains and declined issue scaffolds have no tracker effects", []string{"TestIssueInitExcludesBrainAndDeclinedScaffold"}},
 			{"nonempty legacy repositories retain the reviewed migration boundary", []string{"TestIssueInitRefusesExistingLegacyInventory"}},
 			{"uncertain effects, cancellation and competing publication retain durable authorities for retry", []string{"TestIssueInitRecoveryEveryEffectBoundary", "TestIssueInitRecoveryRetainsDirtyCheckout", "TestIssueInitRecoveryCancellationStopsNextEffect", "TestIssueInitRecoveryConcurrentClonePublication"}},
+			{"current remote inventory and pinned reads cannot hide remote-only issue evidence", []string{"TestIssueInitAndMigrateObserveCurrentRemoteInventory", "TestMigrationInventoryRefusesFailedRemoteObservation", "TestMigrationInventoryRefusesMovedMain", "TestMigrationInventoryPinsIssueAndAnchorReads", "TestMigrationInventoryFetchOnlyOwnHeadsMapping"}},
 			{"historical inventory and invalid markers refuse without replacing authority", []string{"TestIssueInitRecoveryRefusesHistoryAndBranchInventory", "TestIssueInitRecoveryRefusesMalformedOrMismatchedMarker"}},
 		},
 	},
