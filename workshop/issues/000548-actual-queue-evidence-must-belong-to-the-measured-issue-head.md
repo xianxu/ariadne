@@ -1,6 +1,6 @@
 ---
 id: 000548
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
@@ -8,7 +8,7 @@ updated: 2026-10-22
 estimate_hours: 1.93
 severity: critical
 collaboration-mode: collaboration
-card_mirror: '167331c577222f4c9e0a65d5fa45e9c54454c42b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7effeaab18994f0514495708c737b1efdba40b2d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T01:34:58-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.54
 ---
 
 # Actual queue evidence must belong to the measured issue head
