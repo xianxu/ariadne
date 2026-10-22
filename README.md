@@ -433,6 +433,8 @@ Go toolchain, and puts the private binary first on PATH before bootstrap. The
 pin is not weave-managed: new consumers must explicitly create it from an
 approved supported ref. A missing or malformed pin, fetch/build failure or
 mismatched binary provenance stops CI; there is no floating compiler fallback.
+Compiler metadata checks consume the full input, so a successful match cannot
+turn into a producer SIGPIPE under `pipefail`.
 Ariadne source CI builds the candidate separately and checks its vocabulary
 exports against every supported compiler in `.sdlc/weave-compiler-refs`.
 See [compiler compatibility](atlas/workflow/ci-merge-check.md#compiler-compatibility-459)

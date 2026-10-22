@@ -86,8 +86,9 @@ jobs:
           go version
           metadata="$(go version -m "$output/weave")"
           printf 'compiler source: %s\n%s\n' "$PIN_REF" "$metadata"
-          printf '%s\n' "$metadata" | grep -Eq "build[[:space:]]+vcs.revision=$PIN_REF$"
-          printf '%s\n' "$metadata" | grep -Eq 'build[[:space:]]+vcs.modified=false$'
+          # Drain printf's full input: quiet grep can SIGPIPE it under pipefail.
+          printf '%s\n' "$metadata" | grep -E "build[[:space:]]+vcs.revision=$PIN_REF$" >/dev/null
+          printf '%s\n' "$metadata" | grep -E 'build[[:space:]]+vcs.modified=false$' >/dev/null
           BUILD
       - name: Select first pinned toolchain
         uses: actions/setup-go@v5
