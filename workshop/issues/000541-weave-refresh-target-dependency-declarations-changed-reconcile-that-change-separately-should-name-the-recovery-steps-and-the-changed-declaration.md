@@ -49,21 +49,21 @@ declarations changed (names and fields, never credential-bearing URLs). Document
 
 ## Plan
 
-- [ ] Red first: extend the existing real bare-remote refresh fixture with an existing substrate whose
+- [x] Red first: extend the existing real bare-remote refresh fixture with an existing substrate whose
   origin/main declaration changes from SSH to HTTPS, matching echo's reported incident. Assert the changed
   declaration and `source` field, clean-checkout recovery commands, unchanged HEAD and zero compilation.
   Use synthetic source strings; record the incident sequence here rather than copying live URLs.
-- [ ] Add a pure declaration-difference formatter beside refresh's existing comparison. Reuse parsed
+- [x] Add a pure declaration-difference formatter beside refresh's existing comparison. Reuse parsed
   `layergraph.Dependency` rows and the existing DeepEqual refusal; compare ordered rows, identifying old/new
   substrate paths or data mounts and changed Kind/Path/Source/Mount fields. Identify rows by declaration
   ordinal too, so additions, removals, reorders and duplicate declarations remain understandable. Never
   print Source values; quote path/mount labels and suppress URL/scp-like labels in favor of the ordinal.
   No additional Git calls, discovery, persistence or declaration parser.
-- [ ] In the existing refusal name `construct/deps`, HEAD and origin/main. For the already-observed
+- [x] In the existing refusal name `construct/deps`, HEAD and origin/main. For the already-observed
   fast-forward case say: in the named checkout, `git merge --ff-only origin/main`, then `./bootstrap.sh`,
   then retry the original refresh command. If ahead/divergent, say reconcile that branch first and use
   ordinary setup after adopting the declarations; preserve the existing divergence refusal.
-- [ ] Table-test the pure formatter for source/path/mount/kind changes, additions/removals, duplicates,
+- [x] Table-test the pure formatter for source/path/mount/kind changes, additions/removals, duplicates,
   reorder, unchanged rows, and synthetic credential/query-bearing URLs (including URL-like labels).
   Add real-Git divergent and substrate-only controls; retain existing malformed/dirty refusal tests.
   Document recovery and its clean/behind prerequisite in `atlas/workflow/setup-and-replication.md`.
@@ -97,3 +97,25 @@ declarations changed (names and fields, never credential-bearing URLs). Document
 
 - 2026-10-22: Made the quick-flow plan executable from the current refresh seam; added explicit safety
   controls for divergent branches and URL-like declaration labels while preserving the original recovery goal.
+
+### 2026-10-22 — red and implementation
+
+- TL approved this plan (Couch receipt 611efdae-ebbd-48a0-90df-ab6a1261e5e9, submitted);
+  `sdlc change-code --issue 541` admitted quick flow.
+- Red evidence: `go test ./cmd/weave/internal/refresh -run '^TestDeclarationTransportRecovery$' -count=1`
+  failed all three original subcases at the intended old refusal, missing construct/deps, named declaration,
+  changed source field and recovery steps. HEAD/no-compilation controls held. An initial fixture attempt
+  used Git insteadOf, which changes remote get-url's observed identity and stopped at origin validation;
+  corrected the fixture's transport seam to keep the actual SSH origin and fetch only from its local bare
+  remote. No real network endpoints or credentials are used.
+- Green: that regression plus `TestDeclarationChanges` passed (6.4s). Formatter omits source values, quotes
+  local path/mount labels, suppresses URL/scp/query-like labels and reports ordered row/field changes.
+  Existing preflight ordering and DeepEqual admission remain unchanged. Added end-to-end synthetic
+  credential-bearing target-source control before full targeted verification.
+
+- Targeted verification passed: all `./cmd/weave/internal/refresh` tests (76.107s), including the four
+  real-Git transport/recovery variants and 12 pure diff cases; `./cmd/weave -run TestRefresh` (17.082s).
+  Existing dirty/malformed/admission and substrate-only controls passed. `git diff --check` clean.
+  Production additions: 56-line formatter plus 5 added integration lines, inside the quick-flow shell.
+  No live fleet mutation or :0 smoke is needed to prove a preflight diagnostic; the incident-shaped private
+  real-Git fixtures and CLI controls exercise the changed path. Recorded suite and close review remain.
