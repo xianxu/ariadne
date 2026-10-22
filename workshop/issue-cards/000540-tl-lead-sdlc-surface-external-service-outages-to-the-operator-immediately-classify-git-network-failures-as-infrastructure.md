@@ -1,8 +1,8 @@
 ---
 id: 000540
-status: codecomplete
+status: done
 created: 2026-10-21
-updated: 2026-10-21
+updated: 2026-10-22
 estimate_hours: 2.7
 github_issue:
 started: 2026-10-21T20:12:17-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: cb46c379614209911fbebf8281d39297e415a295
         evidence_commit: 99f9b2ea93f396edcf0176a709e55ecabee7b362
+        landed_commit: 28ec96236662cf3f16796ca318526a50340d0b90
 ---
 
 # tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure
