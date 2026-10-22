@@ -308,6 +308,13 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+disputes:
+    - id: BR-2
+      rationale: 'The nested reviewer sandbox cannot apply a second OS fence, but the host can. No implementation change is required: committed host evidence includes the exact passing command output and tested HEAD/source blob identities, which remain unchanged in this evidence-only revision.'
+      evidence: 'env WF_LIVE_REVIEW_DEPENDENCIES=1 go test ./cmd/sdlc -run ^TestReviewDependencyLiveFence$ -count=1 -v: exit 0, PASS, test 0.91s / command 1.391s on 80e095147c447abf1a3c41799029a050eca5817f. Raw output and immutable relevant blob IDs: workshop/plans/000551-host-fence-evidence.md. The fixture proves dependency clone/source/common-dir writes and ref updates are denied while the primary clone stays writable.'
+      after: 2
+      timestamp: "2026-10-22T13:17:19Z"
+      by: Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne)
 ---
 
 # Gate ledger — ariadne#551 (boundary-review)
@@ -333,6 +340,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `os-fence-conformance` (kind: unverifiable) Kernel enforcement of dependency write protection could not be verified
   At cmd/sdlc/reviewdependencies_live_test.go:22, WF_LIVE_REVIEW_DEPENDENCIES=1 go test ./cmd/sdlc -run '^TestReviewDependencyLiveFence$' -count=1 failed with exit status 71: sandbox-exec: sandbox_apply: Operation not permitted. ARCH-SECURE requires evidence that dependency clones and source Git directories reject writes while the primary review checkout remains writable. Provide captured passing output for this exact pinned head from a host permitting the OS fence, or rerun review in such an environment; the issue's prose report alone does not establish that measurement.
 
+## Disputes
+
+Findings the implementer declined (`sdlc finding dispute`), each answered by the
+next review round.
+
+- **BR-2** — after round 2 (2026-10-22T13:17:19Z, Xian Xu on Xian’s MacBook Pro at ariadne:1 (/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne))
+  rationale: The nested reviewer sandbox cannot apply a second OS fence, but the host can. No implementation change is required: committed host evidence includes the exact passing command output and tested HEAD/source blob identities, which remain unchanged in this evidence-only revision.
+  evidence: env WF_LIVE_REVIEW_DEPENDENCIES=1 go test ./cmd/sdlc -run ^TestReviewDependencyLiveFence$ -count=1 -v: exit 0, PASS, test 0.91s / command 1.391s on 80e095147c447abf1a3c41799029a050eca5817f. Raw output and immutable relevant blob IDs: workshop/plans/000551-host-fence-evidence.md. The fixture proves dependency clone/source/common-dir writes and ref updates are denied while the primary clone stays writable.
+
 ## Open findings
 
-- **BR-2** [Important] `os-fence-conformance` (kind: unverifiable) Kernel enforcement of dependency write protection could not be verified
+(none — every finding has been disposed)
