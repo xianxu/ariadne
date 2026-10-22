@@ -41,6 +41,41 @@ rounds:
           family: plan-test-strategy-compression
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 3065454e-9868-4a87-8e2b-f6c4c7bfe097
+            repository: github.com/xianxu/ariadne
+            issue_id: "000549"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+            reviewed_head: 85b774470a9f97a9d48cb80029d5e7c034ba1190
+            slot: ariadne:5
+            requested_at: "2026-10-22T21:02:08.193666Z"
+          phase: finished
+          pid: 95196
+          started_at: "2026-10-22T21:02:08.364161Z"
+          finished_at: "2026-10-22T21:02:35.804485Z"
+          session_id: 01a1656b-d8d4-7f62-b4e0-d964ce2b3bff
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-22T14:02:36-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Recognizes the actual isolation-root setting, excludes hashed namespace inputs, and requires the bounded-parent negative control.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Step 1 references named function strategies and the supported-analysis contract; executable tests own the concrete inventory.
+          round: 2
+      blocked: false
+content_hash: f7807189a9dfd272bba0f46d280fa90c7902c4bdf181fd5f72f8a11321600d2b
 ---
 
 # Gate ledger — ariadne#549 (plan-quality)
@@ -57,7 +92,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Minor] `plan-test-strategy-compression` Compress the repeated prose test inventory
   Implementation step 1 at plan line 72 repeats an enumerated test-case inventory. Refer to the named function strategies and supported-analysis contract instead, leaving concrete cases in executable tests.
 
+## Round 2 — 2026-10-22T14:02:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Recognizes the actual isolation-root setting, excludes hashed namespace inputs, and requires the bounded-parent negative control.
+- PQ-2 — addressed — Step 1 references named function strategies and the supported-analysis contract; executable tests own the concrete inventory.
+
 ## Open findings
 
-- **PQ-1** [Important] `sink-contract-accuracy` Recognize Pair's actual socket parent rather than its hashed namespace
-- **PQ-2** [Minor] `plan-test-strategy-compression` Compress the repeated prose test inventory
+(none — every finding has been disposed)

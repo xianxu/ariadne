@@ -5,10 +5,10 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 0.882
 severity: medium
 collaboration-mode: collaboration
-card_mirror: '8133e9838daa23e9df627027d162bd2b5eeec7cb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5c165b45be1d0b989736ec6d2e7fc47eec622738' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T13:51:39-07:00
 claimant:
     operator: Xian Xu
@@ -48,6 +48,23 @@ This is an independent, unclaimed follow-up to pair#792 BR-3. Filing it does not
 - A long-TMPDIR regression verifies that the safe private socket fixture still starts the server, preserves TestScratch preference when usable, and cleans up completely without changing socket or transport bounds.
 - The rule is in the shared catalog or exposed for consumer registration, with an explicit scope and guidance on the short-root exception to tmp-literal.
 
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration is marked stale/provisional by estimate-source.
+
+One greenfield single-concern provenance rule uses the existing stdlib AST/parser and lint engine (no new library or novel runtime). Raw design 1.0h receives the thorough-spec x0.2 discount; raw implementation 0.6h receives the v3.1 x0.4 scaling. Native fixture/catalog integration is one smaller-Go extension: raw design 0.2h x0.2 and implementation 0.4h x0.4. Atlas/lessons use raw design 0.1h x0.2 and implementation 0.1h x0.4. One close review uses raw design 0.1h x0.2 and implementation 0.3h x0.4. Familiarity 1.0 (existing AST/catalog/native Unix stack), thorough-plan design buffer 15%; no cross-repo propagation implementation, only optional read-only conformance.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.20 impl=0.24
+item: smaller-go-module design=0.04 impl=0.16
+item: atlas-docs design=0.02 impl=0.04
+item: milestone-review design=0.02 impl=0.12
+design-buffer: 0.15
+total: 0.882
+```
+
 ## Plan
 
 - [ ] Red-first recorded source replay and source-to-socket flow controls.
@@ -63,6 +80,8 @@ Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.
 2026-10-22: Claimed by ariadne:5 and entered planning after #552 landed. Read the shared AST-only catalog, existing temp-sweep provenance matcher, Pair's corrected resource fixture and actual SocketPath implementation. Important distinction: SocketPath hashes its namespace, while COUCH_ISOLATED_ROOT selects its socket parent; the rule must recognize the isolation-root setting as well as namespace flow. Pair's existing corrected fixture remains clean despite unrelated t.TempDir used to construct long TMPDIR. Source-level API recognition avoids importing Pair runtime packages. No code changed; plan submitted for TL approval. Initial Couch socket was briefly unavailable; subsequent canonical receipt lookup verified the dispatch.
 
 2026-10-22: TL approved the design and native-private-listener-only smoke; no live fleet or :0 stage. Plan-quality round 1 found PQ-1 (Important): the proposed unconditional Pair namespace sink is a false positive because the namespace is hashed. Verified against transport.go:36-66. Corrected the plan to report inherited COUCH_ISOLATED_ROOT setting, keep generic actual Unix path sinks, and require long inherited namespace + bounded parent to remain clean. This preserves rejection of the original fixture at its isolation-root setting. PQ-2 (Minor) prose inventory compressed. Await TL confirmation of this design delta; implementation has not started.
+
+2026-10-22: Plan-quality round 2 CLEAN, both PQ-1/PQ-2 addressed and no new findings. Derived the full-flow estimate only after this result, against the printed stale/provisional calibration; 0.882h itemized above. TL confirmation of the semantic correction remains pending; no implementation yet.
 
 ## Revisions
 
