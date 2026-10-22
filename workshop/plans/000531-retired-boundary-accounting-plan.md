@@ -62,36 +62,50 @@ ARCH-EVOLVE/FUNERAL: creates no new durable family, fields or interpretation of 
 
 ARCH-DRY/PURE: one selector feeds fresh tracker and legacy paths; BuildTimeline and Split remain the pure accounting engine. ARCH-MOCK: use existing native private Git/transcript harnesses, with portable HOME and no real fleet state. ARCH-PURPOSE: cover actual preview, milestone-close/close fresh candidates and historical no-snapshot reconstruction; saved replay/correction retains its original inputs. Tests demonstrate both sides rather than only positive M3 output.
 
+## Function-level verification contracts
+
+| Function | Adversarial strategy and mechanical guard |
+|---|---|
+| selectFreshSplitRounds | Generate arbitrary boundary round order and canonical membership; assert finalized-history preservation, executable-open preservation, retired-only omission and idempotence in pure property tests. |
+| pinnedActualPlan | Supply adversarial private Git trees and mutable checkout state; native pinned-read tests enforce exact generation/identity/unique Plan authority and count a constant observation budget at N/2N ledger sizes. |
+| actualPhaseDiagnostic | Generate selected and blocked/empty phase sets; pure tests require visible effective bounds and no invented contributing-session claim. |
+| resolveOwnedActualInputs | Native tracker/Git fixture changes plan generations around fresh/replay selection; assert new ordinary Cuts, pinned authority and refusal before adoption. |
+| computeActualFor / computeOwnedActualFor | Replay sanitized pair#737 before M3 review using portable transcript fixtures; exact positive M3 totals and credit conservation are the oracle. |
+| resolveOwnedReplay / ownedReplaySources | Save filtered and historical unfiltered Cuts, then mutate later state; assert each replays its own original hours/credits. |
+| printActualMeasurement | Render production measurement results and assert semantic bounds/code pin/source-count diagnostics, including visible unresolved executable boundaries. |
+
 ## Tasks — one atomic review boundary
 
-### 1. Capture the regression and selector contract
+### 1. Capture the failure and pure contract
 
-Files: cmd/sdlc/actualsplit_test.go, new cmd/sdlc/actualplan_test.go; reuse cmd/sdlc/internal/activetime/split_test.go as engine controls.
+Files: cmd/sdlc/actualsplit_test.go, new cmd/sdlc/actualplan_test.go.
 
-- [ ] Add a sanitized deterministic pair#737 replay: finalized M1; four unfinalized M2 rounds; canonical Plan with historical plain M2 and executable M3; activity before M3's first review. Assert positive M3 from M1 finalization, no M1 double count, and exact build/converge/tail totals.
-- [ ] Run go test ./cmd/sdlc -run 'Test.*RetiredBoundary' -count=1. Expect red: M3 zero under current cuts.
-- [ ] Add pure selection matrix from the table, including later finalization, duplicate/out-of-order rounds, whole-issue rounds, fenced fake milestones, historical completed membership and still-open M2 controls.
+- [ ] Write the sanitized pair#737 production-path regression before its first M3 review; run go test ./cmd/sdlc -run 'Test.*RetiredBoundary' -count=1 and observe the existing zero-hour failure.
+- [ ] Add the named pure contracts above as executable property tests; use the state table as the invariant source.
 
-### 2. Resolve pinned membership and share fresh cut selection
+### 2. Select fresh cuts from the pinned Plan
 
 Files: new cmd/sdlc/actualplan.go; cmd/sdlc/actualsplit.go, actualinputs.go, actual.go.
 
-- [ ] Implement the pure selector and minimal pinned Plan IO shell. Keep all usable rounds for any finalized boundary; otherwise preserve unnamed rounds and named executable boundaries, returning excluded names separately.
-- [ ] Wire the selector before ownedMeasurementCuts and the legacy split path, including exact reviewed pin reconstruction without a saved snapshot. Return actionable errors through existing actualError handling.
-- [ ] Native private Git tests: modified working tree ignored, later commit ignored under saved pin, missing/duplicate/wrong-id Plan refusal, archived issue support, custom issue root, no round fast path, cancellation/read failure.
-- [ ] Count one membership resolver observation for N and 2N ledger rows; do not spawn a Git read per round.
-- [ ] Run targeted selector/resolver/compute tests; expect PASS. Commit implementation and regression together after red/green evidence.
+- [ ] Implement selectFreshSplitRounds and pinnedActualPlan with the authority and failure contracts above, reusing existing parsers and Git seams.
+- [ ] Connect both fresh measurement paths and no-snapshot historical reconstruction. Keep saved replay outside fresh selection.
+- [ ] Execute the named native resolver and input-selection strategies; confirm red-to-green production regression and constant resolver observation budget. Commit the coherent implementation with its tests.
 
-### 3. Explain the selected interval and preserve replay
+### 3. Explain and verify the result
 
 Files: cmd/sdlc/actual.go, actualmeasurement.go, actualmeasurement_test.go, actualinputs_test.go, helptext/actual.md, atlas/workflow/sdlc-binary.md.
 
-- [ ] Print effective selected milestone phase start/end alongside the overall code-pinned window, exact code pin, admitted-session count and retired-boundary fallback. Label admitted sessions honestly: not all necessarily contributed to M3. Name a still-open blocking boundary or empty selected interval explicitly.
-- [ ] Replay old retained Cuts unchanged even when today's Plan retires M2. Save/replay a newly filtered snapshot and verify equal hours/credits despite later Plan and ledger changes. Test fresh close candidates versus historical snapshot selection.
-- [ ] Exercise production compute and rendering with disposable Claude and Codex transcript sources (Qoder registry control if available); assert behavioral fields rather than brittle whole help text.
-- [ ] Update authoritative help and atlas for the fallback, diagnostics and retained-history limitation.
-- [ ] Run go test ./cmd/sdlc/internal/activetime ./cmd/sdlc/internal/gatestate -count=1 and targeted cmd/sdlc measurement tests. Push, run sdlc local-check run --name suite, retain its runner to completion, then sdlc close with measured verification and mandatory review. On SHIP, land through sdlc merge --yes.
+- [ ] Implement actualPhaseDiagnostic and expose it through actual/close rendering with the existing provenance diagnostics.
+- [ ] Execute the named compute, replay and rendering contracts using disposable Claude and Codex sources, with the available Qoder registry control.
+- [ ] Document the fallback and retained-history limitation in help and atlas.
+- [ ] Run go test ./cmd/sdlc/internal/activetime ./cmd/sdlc/internal/gatestate -count=1 and targeted cmd/sdlc measurement tests. Push, run sdlc local-check run --name suite and retain the runner through completion. Close with measured verification and mandatory review; on SHIP land through sdlc merge --yes.
 
 ## Proof and review point
 
 Request hub approval of canonical Plan membership as the fresh accounting authority and post-last-finalized fallback, plus isolated production-path replay as the live proof. No pair:0 stage or calibration correction is proposed. If membership proves insufficient to distinguish intended retirement in the production fixtures, stop and return to design rather than adding prose heuristics or a new lifecycle silently.
+
+## Revisions
+
+### 2026-10-22 — PQ-1: executable function contracts
+
+Named every new risky function and the existing production entry points, replacing procedural test-case inventories with one adversarial strategy and mechanical guard per function. The evidence state table remains the accounting contract. No scope or policy change.
