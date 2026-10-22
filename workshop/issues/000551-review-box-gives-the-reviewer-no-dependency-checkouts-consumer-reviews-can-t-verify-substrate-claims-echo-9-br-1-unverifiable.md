@@ -156,3 +156,16 @@ Combined targeted cmd/sdlc tests for queue-head parse/reduction/structural ances
 ### 2026-10-22 — Echo owner-run dependency verification
 
 Ops-echo:0 reported the echo#10 close using clean combined binary f32aaba: measurement succeeded (1.07h); review round 2, window 7cad53e9..83daa1f7, returned FIX-THEN-SHIP and withdrew BR-1 dependency verification. The reviewer inspected the full diff, ran make test with SDLC_DEP_SUBSTRATE unset/set/broken (exit 0/0/2), and passed upstream acceptance with the binding set to the pinned dependency. Echo's close refused only on an unrelated stale issue-Spec documentation finding, now being corrected by its owner. This establishes working dependency inspection; exact manifest path/SHA/fetch-age/mode output is still pending because the first output was truncated. Ops-echo requested capture of the rerun and will forward it. Do not mark the complete live manifest proof finished yet. Retained integrated suite lease-349901671 remains alive, FIFO position 4 at observation.
+
+### 2026-10-22 — complete Echo live conformance passed
+
+Ops-echo:0 supplied the saved echo:3 output from echo#10 close with clean combined binary f32aaba, running inside its ordinary sandbox. Round 3 returned SHIP, window 7cad53e9..2ec35994; Echo PR 3 subsequently landed as 810a175. BR-1 dependency verification had been withdrawn in round 2. The reviewer ran tests/ci-workflow.test.sh with the pinned dependency binding, printed the substrate used, passed full upstream acceptance, and passed substrate.test.sh at head. Measured Echo actual was 1.76h.
+
+Owner-supplied manifest, verbatim (line wrapping preserved as reported):
+
+```text
+Review dependencies (pinned once; no fetch during review): SDLC_DEP_SUBSTRATE="/Volumes/TestScratch/review-checkouts/6c463f532fcd6456"; head: e4bd907ae47d7a94b31b6067df0976f96eee3ade; fetch age: unknown (no single matching origin/main fetch observation); mode: writable disposable clone; all writes are discarded with the review.
+boundary review: write fence unavailable (sandbox-exec unavailable: sandbox-exec: sandbox_apply: Operation not permitted); the reviewer is isolated to a disposable checkout only (isolation: checkout).
+```
+
+Both reported limits match the approved design: fetch age is explicitly unknown without one matching FETCH_HEAD observation, and an unavailable nested OS fence uses a writable disposable dependency clone rather than the live checkout or a refusal. No remedy, fetch or machine change is needed. Live conformance is complete. The integrated recorded suite lease-349901671 is still queued at FIFO position 4; preserve that run and land after it passes.
