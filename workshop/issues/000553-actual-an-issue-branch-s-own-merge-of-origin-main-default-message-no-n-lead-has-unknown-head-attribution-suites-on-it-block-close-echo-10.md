@@ -136,6 +136,10 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   The pure wrapper now applies structural fallback to every unknown authority result; recognized authority
   and malformed trains stay ahead of it. Real-Git cases cover both bookkeeping merges, invalid issue lead,
   their foreign-parent controls, retained single-parent bookkeeping, and definite other-issue authority.
+- Close round 2 addressed BR-1 but returned REWORK for BR-2 Critical in the same family: the reader
+  selected proofs with an empty self-repository name, while the reducer classified with the actual name.
+  Qualified invalid local refs therefore received contradictory authority classifications. Cancelled only
+  queued lease-801177825, stopped code changes, and replanned the seam with the hub.
 
 ## Revisions
 
@@ -150,3 +154,11 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   some message branches. Every unknown ordinary merge can reach it; definite authority and malformed
   train refusal still win. Extend the real-Git matrix across bookkeeping subjects and invalid issue leads,
   preserving single-parent bookkeeping and foreign-parent/definite-authority controls (ARCH-PURPOSE).
+
+### 2026-10-22 — BR-2: one authority context through the reader
+
+- Hub approved (receipt fe3a1a38-cd7f-4aa4-9687-86636c52a7ae): thread selfRepo from the existing classifier
+  parameter into the typed head-reader call on every read, rather than deriving/defaulting repository
+  identity again in the IO shell. Both authority parses consume that one value (ARCH-DRY/PURPOSE).
+  Cover qualified zero and zero-padded zero leads alone and in every lead-list position, across repository
+  names, plus definite local/foreign authority and foreign-parent controls. Existing train precedence stays.
