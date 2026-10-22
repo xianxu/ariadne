@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,5 +38,42 @@ func TestActualOwnershipUnrelatedEvidenceStillNeedsRestore(t *testing.T) {
 	printActual(&out, res, "")
 	if !strings.Contains(out.String(), "restore the named measurement evidence") || strings.Contains(out.String(), "sdlc claim") {
 		t.Fatal(out.String())
+	}
+}
+
+// The captured refusal is evidence of the old presentation, not proof that an
+// owner is absent. Only the pinned tracker facts may authorize claim recovery.
+func TestActualOwnershipCapturedEchoRefusal(t *testing.T) {
+	capture, err := os.ReadFile("testdata/actual/echo5-unowned-close.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(capture)
+	marker := "can't auto-compute ("
+	_, diagnostic, ok := strings.Cut(text, marker)
+	if !ok {
+		t.Fatal("capture lost measurement diagnostic")
+	}
+	diagnostic, _, ok = strings.Cut(diagnostic, ").\n")
+	if !ok {
+		t.Fatal("capture lost diagnostic boundary")
+	}
+	unproven := actualErrorResult("5", errors.New(diagnostic))
+	var before bytes.Buffer
+	explainActual(&before, "5", "issue", "", unproven)
+	if unproven.Recovery != "" || !strings.Contains(before.String(), "restore the named measurement evidence") {
+		t.Fatalf("captured prose invented ownership authority: %s", before.String())
+	}
+	// Real migration/claim fixtures establish the facts that select this error.
+	proven := actualErrorResult("5", &unownedActualError{Issue: "5"})
+	var after bytes.Buffer
+	explainActual(&after, "5", "issue", "", proven)
+	for _, old := range []string{"reconcile and record", "restore the named measurement evidence", "recover the evidence below"} {
+		if !strings.Contains(text, old) || strings.Contains(after.String(), old) {
+			t.Fatalf("captured bad guidance %q was lost or survived recovery: %s", old, after.String())
+		}
+	}
+	if !strings.Contains(after.String(), "run sdlc claim --issue 5 from the slot doing the work") || !strings.Contains(after.String(), "unowned and not counted") {
+		t.Fatal(after.String())
 	}
 }

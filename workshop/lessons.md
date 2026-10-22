@@ -1479,3 +1479,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   typed reader call; do not substitute an empty or independently derived name
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
+
+- #554: code commits and migration reconciliation do not establish tracker ownership. Derive recovery from pinned owner history, never from diagnostic prose or current claimant absence alone. Test the real migrate/reconcile/claim path. For gap exclusion, check credited intersections with the unowned window; a pre-claim event may shape continuity inside ownership without crediting the gap. Equal-hours invariance belongs to immutable historical replay, not changed source evidence.

@@ -46,9 +46,9 @@ pre-existing hold and excludes later work.
 
 ## Plan
 
-- [ ] Distinguish missing tracker ownership from an owned interval outside the pinned measurement window; carry the exact claim action through preview and close diagnostics.
-- [ ] State the unowned cutover-to-claim gap explicitly in refusal and successful hybrid measurement output, including retained replay.
-- [ ] Add the captured Echo refusal and real migration, reconcile, claim, owned-work regression path; preserve historical and correction pins and all attribution arithmetic.
+- [x] Distinguish missing tracker ownership from an owned interval outside the pinned measurement window; carry the exact claim action through preview and close diagnostics.
+- [x] State the unowned cutover-to-claim gap explicitly in refusal and successful hybrid measurement output, including retained replay.
+- [x] Add the captured Echo refusal and real migration, reconcile, claim, owned-work regression path; preserve historical and correction pins and all attribution arithmetic.
 - [ ] Update docs and verify focused/race/recorded checks; obtain ops-echo's owner-run live actual proof before landing.
 
 Implementation design: [explicit ownership recovery](../plans/000554-cutover-ownership-recovery-plan.md).
@@ -85,3 +85,13 @@ Drain checkpoint (authenticated supervisor receipt `8e579609-d86b-4e28-bc7f-3f9e
 Verification so far: the frozen red run observed the old reconcile/restore diagnostic; after the source fix, the focused `TestActualOwnership` run failed only the Claude/Codex lifecycle total-hours invariant (0.2 versus 0.23333333333333334), because the injected pre-claim event extends continuity by two minutes inside ownership. This is the approved test-oracle correction above, not a test pass or flake. No production continuity fix is authorized or needed. Renderer controls passed in that run. No recorded suite, review, PR, stage or merge runner exists; no queued work is outstanding, and all delegated work has finished.
 
 Stopped before changing that test oracle. On an authenticated drain lift, first replace it with an independent no-credit-in-gap check (phase labels alone are not credited activity), retain historical replay equality, and add the continuity comment. Then finish capture-backed and diagnostic eligibility controls, docs and prevention lesson; freeze edits and rerun focused/neighbor/race checks. Only after those pass, commit/push the final build, open the PR and run the recorded suite/close gates. Coordinate owner-run Echo live proof with the hub before landing. This checkpoint deliberately preserves unverified implementation and a known failing test; it is not SHIP.
+
+### 2026-10-22 11:38 PDT — resumed implementation and focused verification
+
+Authenticated hub lift `f028e174-7c34-4966-a802-59f3feb1fa63` ended the drain; resumed from the checkpoint. Completed the approved credit-window oracle: positively allocated segments intersected with counted phases never overlap cutover→claim; their independent credit sum matches adopted hours. The test names pre-claim continuity into owned time, and retained historical replay still requires identical hours and pins. Corrected two newly reached fixture setup errors (title uses its supported setter; real unclaim requires committing the refreshed mirror); no attribution code changed in response.
+
+The preserved Echo terminal capture is consumed by a normal-suite control. Replaying its untyped old diagnostic cannot invent ownership authority; the proven typed failure replaces reconcile/restore guidance in preview and close. Real Claude/Codex migration→reconcile→claim fixtures prove the owner transition, genuine owned work, excluded gap and immutable completion replay. Real later-claim/release controls retain the pinned-right-edge refusal instead of falsely claiming never-owned history. Existing malformed-history, release/reclaim and Qoder controls remain green.
+
+Verified frozen source: `go test ./cmd/sdlc -run '^(TestActualOwnership|TestOwnedActual|TestActualAcrossLegacyCutover|TestLegacyPrefix|TestQoderActualClose|TestClipOwnedAfterCutover)' -count=1` PASS (358.689s); tracker `Test(DeriveEngagements|EngagementHistory)` PASS (4.137s); `go test -race ./cmd/sdlc -run '^TestActualOwnership' -count=1` PASS (45.679s); Go lint catalog/hygiene PASS (1.442s); `git diff --check` clean. Default GOCACHE verified as `/Users/xianxu/Library/Caches/go-build`, with no override. README, actual help, atlas and prevention lesson document strict ownership and visible undercount. No saved schema, owner date, historical number, continuity arithmetic or usage policy changed.
+
+Next: publish the verified branch and run the required recorded suite and fresh close review. Live Echo proof remains a post-close/pre-merge hold coordinated with the hub on the final staged build; no Echo/operator state has been touched. The final Plan row remains open until recorded checks and that live proof finish.

@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -126,15 +129,13 @@ func TestActualOwnershipRealMigrationClaimAndReplay(t *testing.T) {
 			testfix.Git(t, worker, "commit", "--allow-empty", "-qm", "#335: genuine owned implementation")
 			base := computeActualForPurpose(t.Context(), worker, "", "335", "", "workshop/plans", actualCloseCandidate)
 			assertOwnershipGap(t, base)
-			// Add dense events in the ownership gap to both native sources. Neither
-			// the legacy prefix nor the owned suffix may gain any measured time.
+			// Pre-claim events can supply continuity into the owned 20→22 interval;
+			// that existing boundary behavior can change totals. The independent
+			// contract is that no credited activity enters the unowned 10→20 gap.
 			ownershipNativeSource(t, harness, "legacy-prefix", r.root, 2, 4, 6, 11, 13, 15, 17, 19)
 			workerSource := ownershipNativeSource(t, harness, "worker", worker, 11, 13, 15, 17, 19, 22, 25, 30)
 			measured := computeActualForPurpose(t.Context(), worker, "", "335", "", "workshop/plans", actualCloseCandidate)
 			assertOwnershipGap(t, measured)
-			if measured.Hours != base.Hours {
-				t.Fatalf("unowned events changed actual: before=%v after=%v", base.Hours, measured.Hours)
-			}
 			saved := *measured.Inputs
 			if saved.LegacyPrefix == nil || saved.LegacyPrefix.Until != "2026-10-14T00:10:00Z" || len(saved.Engagements) != 1 || saved.Engagements[0].Start != "2026-10-14T00:20:00Z" {
 				t.Fatalf("wrong real migration/claim bounds: %+v", saved)
@@ -151,7 +152,7 @@ func TestActualOwnershipRealMigrationClaimAndReplay(t *testing.T) {
 			})
 			ownedFixtureAt(t, 35)
 			ownedFixtureCard(t, r, cardPath, "rename-after-close", func(raw []byte) ([]byte, error) {
-				return issue.SetCardField(raw, "title", "Later card edit")
+				return issue.SetCardTitle(raw, "Later card edit")
 			})
 			ownedFixtureAt(t, 38)
 			testfix.Git(t, worker, "commit", "--allow-empty", "-qm", "#335: later work outside completed generation")
@@ -193,6 +194,37 @@ func assertOwnershipGap(t *testing.T, result actualResult) {
 	if result.Status != actualMeasured || result.Inputs == nil {
 		t.Fatalf("expected measured recovered ownership: %+v", result)
 	}
+	gapStart := time.Date(2026, 10, 14, 0, 10, 0, 0, time.UTC)
+	gapEnd := gapStart.Add(10 * time.Minute)
+	var creditedMinutes float64
+	// Phases are broad timeline labels, not proof of activity. Intersect each
+	// positively allocated segment with its counted phases to inspect exactly
+	// the intervals that contribute to Hours, excluding any verification tail.
+	for _, segment := range result.Segments {
+		allocated := segment.Alloc["335"]
+		if allocated <= 0 {
+			continue
+		}
+		for _, phase := range result.CountedPhases {
+			start, end := segment.Start, segment.End
+			if phase.Start.After(start) {
+				start = phase.Start
+			}
+			if phase.End.Before(end) {
+				end = phase.End
+			}
+			if !end.After(start) {
+				continue
+			}
+			if start.Before(gapEnd) && end.After(gapStart) {
+				t.Fatalf("credited interval %s→%s overlaps unowned gap %s→%s", start, end, gapStart, gapEnd)
+			}
+			creditedMinutes += allocated * end.Sub(start).Seconds() / segment.End.Sub(segment.Start).Seconds()
+		}
+	}
+	if creditedMinutes <= 0 || math.Abs(creditedMinutes-result.Hours*60) > 1e-9 {
+		t.Fatalf("credit oracle omitted adopted activity: intervals=%v minutes actual=%v hours", creditedMinutes, result.Hours)
+	}
 	var rendered bytes.Buffer
 	printActual(&rendered, result, "")
 	for _, want := range []string{
@@ -201,6 +233,46 @@ func assertOwnershipGap(t *testing.T, result actualResult) {
 	} {
 		if !strings.Contains(rendered.String(), want) {
 			t.Fatalf("missing visible attribution limit %q:\n%s", want, rendered.String())
+		}
+	}
+}
+
+func TestActualOwnershipLaterClaimAndReleaseAreNotNeverOwned(t *testing.T) {
+	r, worker, cardPath := ownershipRecoveryFixture(t)
+	ownedFixtureAt(t, 20)
+	if _, stderr, err := executeSDLCTestCommand("claim", "--issue", "335"); err != nil {
+		t.Fatalf("claim: %v %s", err, stderr)
+	}
+	// Claim refreshes the branch's details mirror. Preserve that real edit
+	// before asking unclaim to publish a clean handoff of this working branch.
+	testfix.Git(t, worker, "add", "workshop/issues/000335-spanning.md")
+	testfix.Git(t, worker, "commit", "-qm", "#335: retain refreshed claim mirror")
+	for _, released := range []bool{false, true} {
+		if released {
+			ownedFixtureAt(t, 21)
+			if _, stderr, err := executeSDLCTestCommand("unclaim", "--issue", "335"); err != nil {
+				t.Fatalf("release: %v %s", err, stderr)
+			}
+		}
+		repo, err := tracker.NewRepository(t.Context(), worker, "origin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := repo.Snapshot()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Even when the selected cutoff precedes all ownership, the complete
+		// pinned history proves this is not an issue that has never had an owner.
+		until := time.Date(2026, 10, 14, 0, 18, 0, 0, time.UTC)
+		owner := hostClaimant(t, worker)
+		_, err = ownershipSourceWindows(t.Context(), repo, snapshot.Ref(), cardPath, owner.Repository, until, "335")
+		var missing *unownedActualError
+		if err == nil || errors.As(err, &missing) || !strings.Contains(err.Error(), "before its pinned right edge") {
+			t.Fatalf("released=%v later ownership misclassified as never-owned: %v", released, err)
+		}
+		if _, has, err := issue.CardClaimant([]byte(r.card(cardPath))); err != nil || has == released {
+			t.Fatalf("released=%v wrong fixture owner state: has=%v err=%v", released, has, err)
 		}
 	}
 }
