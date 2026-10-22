@@ -163,6 +163,12 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   cancel controls. #506's retained runner remains in the canonical checkout (terminal18055); after it
   lands and this suite passes, import this pushed branch there and ask the hub to restore landing priority.
   Do not merge through this clone's separate line. The acceptance checkbox stays open until the suite result.
+- Final owner-run live proof on the accepted clean binary 4948bbf56ac908ffb7670b8def517a41afff4901
+  (modified=false) passed again, bound by receipt 7d02fd88-21c1-4a6f-8cbd-5bdf92a245bc. Echo#10 head
+  83daa1f7d86fa5eb8d9b574bfa83e3b027a2798a measured exit 0, actual 1.07h, with three recorded waits
+  (78.50 raw/70.86 excluded minutes), identically to both earlier runs. This binary's code is exactly
+  reviewed fe9a4c9e; Git confirmed only issue/review records changed afterward. Keep that binary available
+  for its consumer until the canonical landing and fleet rebuild, then remove the private clone.
 
 ## Revisions
 
