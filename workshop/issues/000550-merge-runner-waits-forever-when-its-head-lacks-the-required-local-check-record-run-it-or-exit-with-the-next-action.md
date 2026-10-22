@@ -47,7 +47,9 @@ it doesn't loop silently.
 - [x] Preserve missing-local-check facts independently of the aggregate CI verdict.
 - [x] End retained train waits with the exact local-check action, joining readiness and releasing the ticket.
 - [x] Cover the original pair#779 capture, mixed CI verdicts, satisfied records, and interrupted wait orderings.
-- [ ] Update help/README/atlas, run the recorded suite, close and land.
+- [ ] Update help/README/atlas and complete the recorded suite.
+
+Close and landing follow the verification checkpoint through their existing SDLC verbs.
 
 Durable design: [retained merge check refusal](../plans/000550-retained-merge-check-plan.md).
 
@@ -84,3 +86,11 @@ Additional Done when clauses:
 ### 2026-10-22 — hub approval and actionable exit wording
 
 Authenticated ops:0 receipt `4cec01c2-b2f4-4df2-9346-718e9a3e4c55` approves this plan and fixture plus real-lock verification; no stage. The exit must say plainly `merge stopped: run <exact command>, then re-enter sdlc merge`, so an idle slot's pane gives the TL a single next action. This is an additional Done when requirement; implementation must preserve the canonical commands and all approved cancellation/cleanup semantics.
+
+### 2026-10-22 — clean focused verification
+
+With all repository edits frozen, the combined readiness/missing-check/production-entry/wait-lifecycle/CI controls PASS136.615s; the staged-file Go lint catalog PASS1.077s. This replaces the contaminated broad run. Both targeted race runs passed as recorded above. Default machine cache verified as `/Users/xianxu/Library/Caches/go-build`; no overrides or private cache. Next: push the committed final build, queue the recorded full suite, close and enter merge on SHIP.
+
+### 2026-10-22 — verification checklist wording
+
+The last Plan checkbox originally grouped documentation, suite, close and landing. It now ends at required suite verification; close and landing remain subsequent gated lifecycle steps, so checking implementation complete cannot falsely claim that this issue has already landed. No scope or behavior change.

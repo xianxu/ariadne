@@ -80,9 +80,9 @@ Covered: deterministic missing-local proof, masked verdicts, callback scope, tic
 
 Files: `cmd/sdlc/cigate.go`, `cigate_wait.go`, `cigate_test.go`, `cigate_fake_test.go`.
 
-- [ ] Add red tests for independent missing-local metadata alongside green, pending, red, unknown, workflow/no-check registration and missing guard. Valid-record controls retain existing verdicts.
-- [ ] Run `go test ./cmd/sdlc -run '^(TestDecideCIGate.*|TestRunCIGate.*)$' -count=1`; confirm the new assertions fail on lost metadata.
-- [ ] Implement typed propagation and required-guard preservation; rerun to PASS and commit.
+- [x] Add red tests for independent missing-local metadata alongside green, pending, red, unknown, workflow/no-check registration and missing guard. Valid-record controls retain existing verdicts.
+- [x] Run `go test ./cmd/sdlc -run '^(TestDecideCIGate.*|TestRunCIGate.*)$' -count=1`; confirm the new assertions fail on lost metadata.
+- [x] Implement typed propagation and required-guard preservation; rerun to PASS and commit.
 
 Risky functions: `decideCIGate`/`ciVerdict.refusal` — table-driven reason × record matrix, with unchanged aggregate-verdict controls as independent guard. `runPreparedCIGate` — stateful fake observations, required-guard absence and head-lag/read-error negatives; prove only a coherent exact-head observation carries actionable absence. Executable tests own the case inventory.
 
@@ -90,12 +90,12 @@ Risky functions: `decideCIGate`/`ciVerdict.refusal` — table-driven reason × r
 
 Files: `cmd/sdlc/landingcar.go`, `landingqueue.go`, `landing.go`; tests in `landingcar_test.go` and new `landingcar_missingcheck_test.go`; recorded text at `cmd/sdlc/testdata/landing/pair779-missing-check.txt`.
 
-- [ ] Copy the verified original bounded capture verbatim, retaining provenance and historical DNS context. Add a capture-backed production-flow test reproducing its pending → missing affected/fallback sequence through the stateful gate fixture, asserting full refusal rather than parsing prose to make the decision.
-- [ ] Add red held-line tests for terminal refusal/release and record-satisfied admission; use an existing fake queue/check runner to assert zero automatic check effects and unchanged separate waiter.
-- [ ] Run `go test ./cmd/sdlc -run '^(TestCar.*|TestEnterLandingLine.*|TestVouching.*)$' -count=1`; establish red without shrinking deadlines.
-- [ ] Add the callback error result and cause plumbing, preserving reformation and merged handling; update existing callback fixtures mechanically.
-- [ ] Force cancellation-before-publication, admission-before-terminal, observed-settlement-before-terminal, trains-enabled-midwait and survivor-handoff-error orderings with channels/real handles. Assert readiness joins, ticket release, no effects from late errors and retry success after record arrival.
-- [ ] Rerun focused tests and `go test -race ./cmd/sdlc -run '^(TestCar.*|TestEnterLandingLine.*|TestVouching.*)$' -count=1`, then commit.
+- [x] Copy the verified original bounded capture verbatim, retaining provenance and historical DNS context. Add a capture-backed production-flow test reproducing its pending → missing affected/fallback sequence through the stateful gate fixture, asserting full refusal rather than parsing prose to make the decision.
+- [x] Add red held-line tests for terminal refusal/release and record-satisfied admission; use an existing fake queue/check runner to assert zero automatic check effects and unchanged separate waiter.
+- [x] Run `go test ./cmd/sdlc -run '^(TestCar.*|TestEnterLandingLine.*|TestVouching.*)$' -count=1`; establish red without shrinking deadlines.
+- [x] Add the callback error result and cause plumbing, preserving reformation and merged handling; update existing callback fixtures mechanically.
+- [x] Force cancellation-before-publication, admission-before-terminal, observed-settlement-before-terminal, trains-enabled-midwait and survivor-handoff-error orderings with channels/real handles. Assert readiness joins, ticket release, no effects from late errors and retry success after record arrival.
+- [x] Rerun focused tests and `go test -race ./cmd/sdlc -run '^(TestCar.*|TestEnterLandingLine.*|TestVouching.*)$' -count=1`, then commit.
 
 Risky functions: `carReadiness` — production-gate fixture matrix plus affected/full-suite/ancestor and landing-scoped controls; independent assertion that no run/status/merge effect occurs. `vouchWhileWaiting`/`enterLandingLine` — barrier-controlled interleavings and actual ticket status, with callback-join and fresh retry assertions guarding against an error-only oracle. Count terminal signalling once for 8/16 names; no repeated readiness pass after terminal publication.
 
@@ -103,8 +103,8 @@ Risky functions: `carReadiness` — production-gate fixture matrix plus affected
 
 Files: `cmd/sdlc/helptext/merge.md`, `README.md`, `atlas/workflow/sdlc-binary.md`, `workshop/lessons.md`, this issue/plan.
 
-- [ ] Document read-only train readiness and refusal/retry, versus automatic checks after serial/granted admission. Explain preserving an already queued check rather than starting another blindly. Update the lesson; this is typed temporal policy, not a lexical lint pattern.
-- [ ] Run surrounding landing/CI controls and the tracked-file Go lint catalog after staging; run `git diff --check`.
+- [x] Document read-only train readiness and refusal/retry, versus automatic checks after serial/granted admission. Explain preserving an already queued check rather than starting another blindly. Update the lesson; this is typed temporal policy, not a lexical lint pattern.
+- [x] Run surrounding landing/CI controls and the tracked-file Go lint catalog after staging; run `git diff --check`.
 - [ ] Commit/push the final head with `sdlc pr`, run the recorded `sdlc local-check run --name suite`, then `sdlc close --issue 550 --verified '...'` and address findings. Suite pass and SHIP precede landing.
 - [ ] Enter `sdlc merge --yes` promptly; its integration suite owns current-main verification. Report the Git-verified merge/PR outcome to the hub.
 
