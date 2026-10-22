@@ -235,6 +235,19 @@ steward need the rules.
   is complete; if this review changes executable code, the queued check will be replaced through its
   supported owner-scoped control. No runner duplication or queue reordering.
 
+### 2026-10-22 — corrected-head suite passed; entering managed landing
+
+- Close round 2 returned SHIP/high with BR-1 addressed and zero new/open findings, bound to evidence
+  4b775cbfc2c33c59b913ea6f0413e4d9c3206060. Reviewer independently passed both TL packages, queue controls,
+  all six real CLI help renders and Go overlays restoring old help, which made all three regressions red.
+- Corrected-head suite on 452d20e0dc40355d4069d300b773ef3f1caa0e54 completed PASS: 8/8 shards,
+  2136 cmd/sdlc tests, 76 other packages, zero failures; wall 710.4s (11m51s), after 1710s queue wait.
+  Lease lease-1208786352 completed normally. Saved log `.git/sdlc/local-checks/452d20e0dc40355d4069d300b773ef3f1caa0e54/suite.log`,
+  SHA256 prefix 1d1760b31905. No executable code changed between that tested head and the accepted close.
+- Required review-overlap condition is now fulfilled: the corrected code has a recorded pass before
+  landing. Entering sdlc merge --yes next. TL-owned ops/fleet-drain.md remains for the hub to update after
+  the verified landing report; pair#722's watched live remains held until this item lands.
+
 ## Revisions
 
 - 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
