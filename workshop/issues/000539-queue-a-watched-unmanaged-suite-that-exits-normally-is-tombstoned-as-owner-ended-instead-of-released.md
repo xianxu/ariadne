@@ -54,6 +54,7 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
   unmanaged run never releases.
 
 ### 2026-10-21
+- 2026-10-21: closed — Recorded suite on ce987fd9: all 8 shards, 2079 SDLC tests and 75 other packages passed, zero failures (771.7s); real-make red-green, three original captures, exit/survivor/cancel/crash/handshake/audit controls, old-reader evidence preservation and current-provider priority harness pass. Atlas updated; no live mutation or stage required by the approved private-process proof.; review verdict: SHIP
 
 - Claimed and started planning in ariadne:5. Root cause: `scripts/test-lock.py:QueueGate.retire` unconditionally creates an unresolved tombstone for every admitted unmanaged operation. Its `owner_ended` argument is unused. `watch_queue_owner` observes PID existence only, never an exit status or completion acknowledgment. A Couch restart is unnecessary; the third incident follows directly from this code.
 - Distinguished physical capacity from queue uncertainty: watcher exit closes the actual suite slot flocks; the unresolved record retains a logical unknown lifetime and blocks a clean drain. Do not describe the tombstone alone as proof that the physical slot remains locked.
