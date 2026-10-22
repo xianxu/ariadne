@@ -1497,3 +1497,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #554 live follow-up: when a measurement joins a legacy prefix to an owned suffix, every evidence consumer must share the suffix's left edge. Queue-idle selection clips at max(cutover, first ownership), while retaining raw endpoints; a queue crossing initial claim differs from a queue crossing release/reclaim. Test both through the production attachment path, not only the pure selector with an already-correct bound.
 
 - #554 BR-1: an approved post-close addition to accepted behavior needs a full close review. Reserve fixed-then-ship for the earlier review's fixes and eligible conflict resolutions; approval of scope does not make a fix-only review sufficient. The existing scope-review guard already rejects this workflow mistake.
+
+- #554 suite: every generated --issue hint must render canonical IDs through issue.CLIRef; a padded ID can parse as octal or fail. Run the existing TestIssueHintsRenderDecimalIDs guard alongside formatter tests when adding a hint; the generic Go lint catalog does not replace specialized repository guards.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -75,5 +76,19 @@ func TestActualOwnershipCapturedEchoRefusal(t *testing.T) {
 	}
 	if !strings.Contains(after.String(), "run sdlc claim --issue 5 from the slot doing the work") || !strings.Contains(after.String(), "unowned and not counted") {
 		t.Fatal(after.String())
+	}
+}
+
+func TestActualOwnershipRecoveryUsesDecimalIssueRef(t *testing.T) {
+	for _, id := range []string{"000005", "000008", "000253"} {
+		n, err := strconv.Atoi(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		recovery := (&unownedActualError{Issue: id}).recovery()
+		want := fmt.Sprintf("run sdlc claim --issue %d from the slot doing the work", n)
+		if recovery != want {
+			t.Errorf("padded issue %s: got %q, want %q", id, recovery, want)
+		}
 	}
 }
