@@ -191,3 +191,85 @@ findings:
    Append a dated `## Revisions` entry recording the reporting-consumer rule: every confirmation-reporting IO reader must supply shared verified typed facts. Add weekly reader wiring and script/Lua persisted-log parity tests to Task 3’s consumer inventory.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"564304dc-0c55-49ca-99e4-d35065113b41","repository":"github.com/xianxu/ariadne","issue_id":"000556","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/abbd556a87f9b7e6","reviewed_head":"36357d9e02a152854a5eab4ed647454e565a96c0","slot":"ariadne:3","requested_at":"2026-10-22T22:00:40.407763Z"},"phase":"finished","pid":3696,"started_at":"2026-10-22T22:00:40.591624Z","finished_at":"2026-10-22T22:04:38.059389Z","session_id":"01a165a1-6f4a-79c3-a011-84892416d47a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T15:12:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 556 — flake register and local-check resume accept only Go test identities; give shell-script and Lua cases typed identities |
+| repo | ariadne |
+| issue file | workshop/issues/000556-flake-register-and-local-check-resume-accept-only-go-test-identities-give-shell-script-and-lua-cases-typed-identities.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ffd859eb5d7298b0844bc1c6876edad9b7574fd2..d746d269c29d95856ebaf718bf396d29cf7662a3 |
+| command | sdlc close --issue 556 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T15:12:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the issue’s typed identity, registration, execution, and saved-resume contracts. BR-4 is addressed with a regression that fails when its fix is removed. No new findings remain. Peer activation remains explicitly assigned to #558 and the adoption issues.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      weeklystats_inputs.go:224 now hydrates digest-verified typed facts before aggregation. TestWeeklyTypedConfirmationMatchesInteractive passes for script/Lua and missing/tampered logs. Removing the hydration in a disposable checkout fails both exact-proof cases with weekly confirmed=0 versus interactive confirmed=1; restoring it passes.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      evidence.go:85 rejects targeted typed confirmation. TestTypedConfirmationRequiresCompleteSuiteScope passes for script/Lua while preserving legacy Go targeted confirmation.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The revised Core concepts tables match delivered symbols, paths, and PURE/INTEGRATION boundaries, including rerun_typed.go and the separate saved-proof IO seams.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:880 documents typed identities, complete-suite confirmation, runner declarations, wrapper commands, v4 attempts, and rollout. Its guidance agrees with identity.go, evidence.go, and flake_run.go.
+```
+
+1. **Strengths**
+   - Shared identity and coverage semantics preserve opaque Lua labels and exact non-Go matching.
+   - Private Lua result channels and indented diagnostics prevent stdout from becoming case proof.
+   - Process ownership stays with the outer managed helper, backed by synchronized wrapper-death tests.
+   - Weekly reporting now shares verified evidence hydration with interactive reporting.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Passed flakes, issue, golint, and scripts packages.
+   - Passed targeted typed execution, schema, saved-proof, reporting, and legacy parser/proof tests.
+   - Passed native Plenary and production CLI conformance, including omitted-case and crash scenarios.
+   - Passed frozen-reader compatibility checks.
+   - Confirmed BR-4’s regression fails without its fix; removed the disposable checkout afterward.
+   - Full repository suite was not rerun. The documented final-head recorded-suite obligation remains before landing.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared identity, proof, and hydration helpers serve consumers.
+   - **ARCH-PURE — pass:** deterministic parsing/proof remains separate from IO.
+   - **ARCH-PURPOSE — pass:** both motivating identity kinds reach registration and resume.
+   - **ARCH-MOCK — pass:** private stateful fixtures exercise production seams; native conformance passes.
+   - **ARCH-CONSTRAINTS — pass:** declared bounds and bounded-work tests cover execution and evidence.
+   - **ARCH-SECURE — pass:** strict decoding, literal argv, contract binding, and digest checks protect boundaries.
+   - **ARCH-ORDER — pass:** sticky invalid transitions and controlled interruption tests preserve uncertainty.
+   - **ARCH-FUNERAL — pass:** existing retention and managed cleanup cover attempts and scratch channels.
+   - **ARCH-EVOLVE — pass:** capability barriers prevent unsafe older-reader interpretation; unknown-member preservation is tested.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ebcc615a-d6ec-4e1c-8526-d13f8350e4bd","repository":"github.com/xianxu/ariadne","issue_id":"000556","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/80ca94d206ed4509","reviewed_head":"d746d269c29d95856ebaf718bf396d29cf7662a3","slot":"ariadne:3","requested_at":"2026-10-22T22:10:10.71351Z"},"phase":"finished","pid":43584,"started_at":"2026-10-22T22:10:11.031235Z","finished_at":"2026-10-22T22:12:39.856297Z","session_id":"01a165aa-2362-7c21-920f-1ec3929d644b","outcome":"returned"}] -->

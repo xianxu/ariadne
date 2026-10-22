@@ -97,6 +97,7 @@ total: 6.18
 ## Log
 
 ### 2026-10-22 — close round two and weekly reporting correction
+- 2026-10-22: closed — Private production CLI mixed Go/script/native Plenary complete-suite registration, exact resume, omitted-case refusal and crash/reconcile passed; frozen old-reader and legacy Go conformance passed. BR1-3 verified addressed by close round two. BR4 reporting parity reproduced red for both typed kinds, fixed with shared hash-verified hydration; weekly/stats/typed regression command passed in 5.928s, including missing/tampered logs. Corrected checkpoint pushed and fresh recorded suite queued under permitted overlap; final-code suite pass required before landing. Distribution/adoption remain #558, pair#816 and parley.nvim#415; no local-gates activation.; review verdict: SHIP
 
 Round two disposed BR-1/BR-2/BR-3 as addressed and found BR-4 (Important, typed-evidence-consumer-parity): weekly snapshots omitted the verified raw-log hydration already used by interactive stats. The boundary returned FIX-THEN-SHIP but did not finalize while the finding remained open. The queued suite lease-895131081 was canceled through the supported local-check verb before launch, since this correction changes code.
 
