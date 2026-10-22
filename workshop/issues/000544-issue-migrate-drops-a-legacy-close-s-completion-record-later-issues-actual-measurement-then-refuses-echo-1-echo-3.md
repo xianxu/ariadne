@@ -66,9 +66,13 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - [x] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
 - [x] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
 - [x] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
-- [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; ready for close and landing.
+- [x] Complete implementation, targeted/race controls, approved Echo conformance and documentation; queue the final pushed-head suite for release.
+
+Release requires the final-head recorded suite PASS and a fresh close-review SHIP before landing. The worker contract permits close review to overlap the queued/running suite; review readiness does not assert the suite passed.
 
 ## Log
+
+- 2026-10-22: Final class-fix commit Git-verified66e5cfd03a234e9e027cc30cb5e1112e833cd8b6 pushed to PR388. Recorded suite lease3931910007 is alive, queued normal FIFO position3 for both slots, attemptd7f1ba616d85771e29e1cb2dbb636adb. Review readiness and release checks are now stated separately, using tl-worker's explicit review/suite overlap permission; no gate waiver. The exact-head suite PASS remains mandatory before landing, and any review code fix requires new verification. Source unchanged after queueing; docs-only checklist clarification follows it.
 
 - 2026-10-22: Final stable root race controls passed43.354s: actual publication first-attempt/retry schedules, cutover replay/queue methods, production hybrid ledger rewrite, strict correction subtree extension boundary and all5 calibration-trust methods. New codec/golint/shelllint race run and vet already passed. All agents stopped; no concurrent source changes. Checkpointing final class fixes before push and a fresh recorded suite; no final close or landing yet.
 
