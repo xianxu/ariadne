@@ -57,6 +57,7 @@ Durable design: [retained merge check refusal](../plans/000550-retained-merge-ch
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — Missing-record refusal reproduced red for Claude/Codex; frozen readiness/production merge/wait lifecycle/CI controls PASS136.615s, Go lint PASS1.077s; targeted race PASS35.452s and full merge-entry race PASS4.322s. Original pair779 capture and real held-ticket cleanup/retry verified. Recorded suite lease-832394143 queued on pushed789b21c045282b828ee70d702ff286b717afab11; worker rules permit review overlap; full pass remains mandatory before landing, and any code fix requeues a fresh head. Ops:0 approved no stage in receipt4cec01c2-b2f4-4df2-9346-718e9a3e4c55. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed and started in ariadne:4 from landed main. Source trace confirms the cycle: `productionCarGates` calls `runPreparedCIGate` with no local runner, `carReadiness` turns its typed refusal into a one-line reason, and `vouchWhileWaiting` repeats until admission; admission itself requires a ready vouch. The admitted merge's check runner is unreachable in this state.
 - Existing readiness controls pass: `go test ./cmd/sdlc -run '^(TestCarReadiness|TestEnterLandingLineVouchesWhileWaiting)$' -count=1` (5.588s). This is baseline evidence, not a fixed regression.
