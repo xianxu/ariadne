@@ -541,8 +541,16 @@ func TestTrainDropRequestsPreserveCleanupPublicationUnknownFields(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]json.RawMessage{"future_cleanup_proof": json.RawMessage(`{"confirmed":"future"}`)}
-	got.Cleanup.Publication.Extra = want
+	want := map[string]json.RawMessage{
+		"future_cleanup_proof":    json.RawMessage(`{"confirmed":"future"}`),
+		"future_publication_only": json.RawMessage(`true`),
+	}
+	got.Cleanup.Publication.Extra = map[string]json.RawMessage{"future_cleanup_proof": want["future_cleanup_proof"]}
+	got.Publication.Extra = map[string]json.RawMessage{
+		"future_cleanup_proof":    json.RawMessage(`"publication-specific value"`),
+		"future_publication_only": want["future_publication_only"],
+	}
+	publicationWant := got.Publication.Extra
 	if err := l.withMutex(func() error { return l.writeTrainControlLocked(*got) }); err != nil {
 		t.Fatal(err)
 	}
@@ -568,6 +576,9 @@ func TestTrainDropRequestsPreserveCleanupPublicationUnknownFields(t *testing.T) 
 	got, err = l.ReadTrainControl()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got.Publication.Extra, publicationWant) {
+		t.Fatalf("cleanup rewrite changed publication metadata: %+v", got.Publication.Extra)
 	}
 	if got.Cleanup.Pending || !reflect.DeepEqual(got.Cleanup.Publication.Extra, want) {
 		t.Fatalf("sealing/finishing lost cleanup publication metadata: %+v", got.Cleanup)

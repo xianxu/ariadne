@@ -46,7 +46,7 @@ invalidates. After merge has started, refuse with the exact state.
 
 - [x] Implement and verify the generation-pinned drop protocol and atomic merge fence.
 - [x] Wire authorized command, interruptible conductor and survivor re-formation; verify controlled race/crash and real three-car cases.
-- [x] Update help/README/atlas; run recorded full suite and prepare close evidence.
+- [ ] Update help/README/atlas; run recorded full suite and prepare close evidence.
 
 Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
@@ -96,7 +96,11 @@ Durable design: [implementation plan](../plans/000526-landing-drop-plan.md).
 
 - Post-conflict integrated source Git-verifieda887eb11140108b188dd37dd2abaebdb8144a18a recorded suite PASS: all8shards,2050command tests/75other packages, zero failures, wall817.9s; lease-1574273139 waited2151s, then exited0 and posted sdlc-local/suite. SSD copy evidence/000526/post-conflict-integrated-suite-green.log, sha25644a7ed41cc5e9bbe46ee83802f80ec5cf18599894a8c9c127e66c758bb14bd86. Attributed SSD temp leakage zero; three unattributed folders belong to other processes. Narrow re-close round4 SHIP with no new findings, independently reproduced the missing-phase failure with an overlay and verified the corrected storage/conductor paths. Final plan item complete again; only evidence/docs follow reviewed source. Retry normal merge gate. No registered-flake failure occurred, so local-check resume was not needed.
 
+- During the final integration wait, a temporary Go overlay reproduced the remaining BR-2 collision case without changing the live checkout: publication and cleanup each carried the same unknown key with distinct values; another accepted drop replaced the cleanup-specific value (cleanup-collision-red.log). Stopped only our queued 33036b7b suite with sdlc local-check cancel --run lease-2786454806; its parent merge exited before suite execution/landing and released the turn. Permanent regression reproduces it (cleanup-collision-permanent-red.log). Unknown keys from publication are still copied when absent, but an existing cleanup key now takes precedence in that separate nested object; known publication values still refresh. The regression covers both conflicting and unique keys, both scopes, and acceptance/apply/finish. This completes the same preservation class, with no new schema or mechanism. Core/count guard PASS1.901s; race/lint/vet results retained in cleanup-collision logs. Fresh final suite and narrow review required again; final plan item reopened until pass.
+
 ## Revisions
+
+- 2026-10-21 BR-2 collision correction: unknown metadata belongs to its containing object. Refreshing cleanup from publication must preserve cleanup’s own value even when publication has an identically named unknown key; copy only publication-only unknown keys. Add conflicting-key and both-scope preservation to the existing request-through-finish regression. No change to known fields, authority or state transitions.
 
 - 2026-10-21 main-integration correction: accept the landed attribution phase in the strict control codec; retain membership/drop precedence tests at the new SplitAssessed reduction boundary and test entry to attribution separately. Preserve both atlas additions. This is compatibility with main, not new scope.
 

@@ -188,9 +188,9 @@ func decideTrainDrop(c TrainControl, train int64, member TrainMember, reason str
 	n.Drops = append(slices.Clone(c.Drops), d)
 	n.Cleanup.Pending = true
 	n.Cleanup.Publication = c.Publication
-	// Refresh known publication values without erasing future cleanup-only
-	// metadata recorded by a newer reader in this same train generation.
-	n.Cleanup.Publication.Extra = mergeExtra(c.Cleanup.Publication.Extra, c.Publication.Extra)
+	// Refresh known values and copy new unknown keys, but preserve existing
+	// cleanup metadata even when publication uses the same unknown key.
+	n.Cleanup.Publication.Extra = mergeExtra(c.Publication.Extra, c.Cleanup.Publication.Extra)
 	return n, d, false, nil
 }
 
