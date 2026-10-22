@@ -1440,3 +1440,6 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
+
+- #547 plan review: producer lifetime proves a blocked command, not source idle. If the runtime cannot bind pure observations to that invocation, expose counted unverified coverage rather than infer intent from tool or command text. Define whether coverage means a whole invocation or train membership episodes before implementation.
+- #547 plan review: optional diagnostic facts must be budgeted independently from the accounting snapshot. Validate an attachment candidate, preserve existing evidence on overflow, and retain a bounded limitation only when it fits; descriptive coverage must not create a new accounting failure.

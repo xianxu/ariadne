@@ -148,6 +148,12 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	ticket := landingline.Ticket{Issue: issue.IDFromFilename(branch), Branch: branch, PID: os.Getpid()}
 	if q != nil {
 		ticket.QueueOperationID, ticket.QueuePID, ticket.QueuePIDStarted, ticket.QueueRoot = q.op.ID, q.op.PID, q.op.PIDStarted, q.op.Root
+		if ticket.Issue > 0 && t.RepoIdentity != "" && q.op.Workspace != "" && q.op.Head != "" {
+			ticket.WaitIdentity = &landingline.WaitIdentity{Repo: t.RepoIdentity, Root: q.op.Root, Slot: q.op.Workspace, Head: q.op.Head, OperationID: q.op.ID, PID: q.op.PID, PIDStarted: q.op.PIDStarted, Branch: branch}
+		}
+	}
+	if ticket.WaitIdentity == nil {
+		fmt.Fprintln(stderr, "landing line: retained train wait evidence incomplete: canonical invocation identity unavailable; landing continues")
 	}
 	h, err := line.Enqueue(ticket)
 	if err != nil {
@@ -156,20 +162,36 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	turn := &landingTurn{line: line, handle: h, log: log, stderr: stderr}
 	tk := h.Ticket()
 	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
+	if ticket.WaitIdentity != nil {
+		if err := line.BeginWait(h); err != nil {
+			h.Release()
+			return nil, fmt.Errorf("landing line: cannot record retained wait start: %w", err)
+		}
+	}
+	finishWait := func() {
+		if ticket.WaitIdentity != nil {
+			if evidenceErr := line.EndWait(h); evidenceErr != nil {
+				fmt.Fprintf(stderr, "landing line: retained train wait evidence incomplete: end could not be recorded (%v); landing and cleanup continue\n", evidenceErr)
+			}
+		}
+	}
 	if release, ok := ctx.Value(trainReformReleaseKey{}).(func()); ok {
 		// Publish this survivor's fresh vouch before freeing the old head.
 		// The next conductor then observes both ready surviving tickets.
 		if readiness == nil {
 			err := errors.New("survivor handoff needs readiness")
+			finishWait()
 			turn.leave(err)
 			return nil, err
 		}
 		fresh, _ := readiness(ctx)
 		if err := ctx.Err(); err != nil {
+			finishWait()
 			turn.leave(err)
 			return nil, err
 		}
 		if err := line.Vouch(h, fresh); err != nil {
+			finishWait()
 			turn.leave(err)
 			return nil, err
 		}
@@ -187,6 +209,7 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	if stopVouching != nil {
 		stopVouching()
 	}
+	finishWait()
 	if err != nil && errors.Is(context.Cause(waitCtx), errMergedWhileWaiting) && ctx.Err() == nil {
 		// The PR landed without this merge's turn: it only leaves the line.
 		h.Release()

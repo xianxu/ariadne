@@ -39,6 +39,7 @@ const (
 
 // Event is one line of the audit and pilot log.
 type Event struct {
+	Wait      *WaitFact `json:"wait,omitempty"`
 	Kind      string    `json:"kind"`
 	At        time.Time `json:"at"`
 	Seq       int64     `json:"seq"`
@@ -125,25 +126,28 @@ func Delays(events []Event) []float64 {
 }
 
 func appendLog[T any](l *Line, name string, v T, keep func([]T, time.Time) []bool) error {
+	return l.withMutex(func() error { return appendLogLocked(l, name, v, keep) })
+}
+
+// appendLogLocked requires the existing line mutex, including for wait facts.
+func appendLogLocked[T any](l *Line, name string, v T, keep func([]T, time.Time) []bool) error {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return l.withMutex(func() error {
-		path := filepath.Join(l.dir, name)
-		if err := sweep(l, path, keep); err != nil {
-			return err
-		}
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(append(data, '\n'))
-		if cerr := f.Close(); err == nil {
-			err = cerr
-		}
+	path := filepath.Join(l.dir, name)
+	if err := sweep(l, path, keep); err != nil {
 		return err
-	})
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(append(data, '\n'))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	return err
 }
 
 // sweep rewrites the log with the entries keep marks (retention.go owns that
