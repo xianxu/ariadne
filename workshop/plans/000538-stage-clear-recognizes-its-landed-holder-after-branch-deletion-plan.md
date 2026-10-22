@@ -94,6 +94,6 @@ This is an operator-started bounded command, not a hot loop. One fresh main fetc
 
 - [x] Explain original-slot/rest and confirmed landing/archive requirements, unknown-proof refusal and exact recovery commands. Keep label/deploy ownership unchanged.
 - [x] Run compiled help, targeted Go/lint/recovery-catalog checks and git diff --check. Propose isolated native production-path proof as the live gate; no :0 or operator stage touch without hub approval.
-- [ ] Push the implementation; retain a recorded suite on its exact head to completion. Log its real result, then complete plan ticks and run sdlc close.
+- [x] Push the implementation; retain a recorded suite on its exact head to completion. Log its real result, then complete plan ticks and run sdlc close.
 
 On SHIP promptly enter sdlc merge --yes; retain integration verification, confirm archive and clean resting state, and report one outcome to the hub. No manual main chase.

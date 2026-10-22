@@ -38,7 +38,7 @@ Allow the original holder slot to clear its landed stage after normal branch del
 
 - [x] Add a proof-backed original-slot/resting-caller route to clear a landed issue's retained stage, sharing the existing main pin and archive authority.
 - [x] Replay the branch-deleted landing regression plus independent identity/generation/lease/cancellation refusals; preserve ordinary and explicit abandoned clears.
-- [ ] Document, verify, close and land. Detailed design: [implementation plan](../plans/000538-stage-clear-recognizes-its-landed-holder-after-branch-deletion-plan.md).
+- [x] Document, verify, close and land. Detailed design: [implementation plan](../plans/000538-stage-clear-recognizes-its-landed-holder-after-branch-deletion-plan.md).
 
 ## Log
 
@@ -58,6 +58,8 @@ Allow the original holder slot to clear its landed stage after normal branch del
 - 2026-10-22 03:23 PDT — TDD: original durable-landing regression RED on the existing holder refusal, then GREEN with a real make/build stamp at fresh main (8.579s). Broader first matrix found a genuine replaced-token false acceptance through an unmirrored legacy archive; added stage-only requirement that the archive's done-card mirror pins the full current completion, leaving shared legacy archive behavior unchanged. Corrected two adversarial fixture setters to corrupt raw input rather than fail during setup. Read-only sanity review also found target movement during proof: native target-hook regression RED (16.042s), then added final target fact re-observation under the existing lock. The focused target/post-archive replacement and replaced-token/wrong-repository/unreachable/unmirrored controls now PASS (50.467s). Original slot, caller, lease, target and fresh generation are all checked before effects; unknown raw PR merge objects use existing head reachability fallback. No live :0 stage touched.
 
 - 2026-10-22 — Targeted regressions PASS (77.474s): original-slot clear with exact-pin rebuild, squash/rebase, missing/unrelated/unknown raw merge objects, generic archive, pure candidate table, existing stage leases, freshness and move controls, and recovery proof catalog. Focused refusal/order checks PASS (50.467s). Go/shell lint packages PASS. Newly compiled stage help displays the new route; its non-fleet-binary warning is expected for go run and no tool slot was modified. Added the existing recovery catalog's new authority/proof binding and final target observation uses the existing bounded Git seam via interface-typed readers. Full recorded suite remains pending on pushed branch.
+
+- 2026-10-22 — Required recorded suite PASS on pushed Git head f04efa370aa0c308faddb46ad594e5b41624464c: attempt 2378cbb55929bb96ab54f3583083144b, retained run lease-113685271, 2154 cmd/sdlc tests across eight shards and 76 other packages, zero failures/reruns/waivers. Execution wall 986.1s (16m26s), queue wait 1708s; saved log SHA256 50c13d0a1cc8c98c4ef2525a0dd4dd39cb8fba8f1ac70c9b83e8e80891100d99. CI checks passed. PR #391: https://github.com/xianxu/ariadne/pull/391. Isolated native production-path proof is the approved live gate; no live stage touched. Implementation and verification complete; proceeding to close review and then landing, with no manual main chase.
 
 ## Revisions
 
