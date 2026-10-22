@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 1.83
 collaboration-mode: collaboration
-card_mirror: 'e348742c2a4d429c6e3adc83174cd98b2c2feba0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '07f774ecb2c3167c468e8aa3107b09ac5a64fbb0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T22:43:36-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # new repositories start on the legacy issue path: initial setup should create the issue tracker (non-brain repos)
@@ -69,3 +70,24 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 ### 2026-10-21 — approved default initialization boundary
 
 The default new-repo procedure explicitly finishes with issue init. Legacy issue new/start-plan hint init for an observed empty inventory and migrate for existing issues; brain/declined scaffold skip. Durable plan's revision records the full condition and acceptance. Existing composition/refresh behavior stays unchanged.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The source is tagged stale by sdlc; amounts are provisional. Scope is one repo, including code, real-Git/private CLI verification, docs and one close review; machine queue idle time is excluded by the measured-actual engine.
+
+Decomposition after clean plan-quality: issue/spec work uses the low issue-spec design anchor 0.5h with raw implementation 0.2h; no spec discount on the spec itself. The new pure transition module uses raw design 1.0h with thorough-spec factor 0.2 and raw implementation 0.6h. Existing migration-backed IO uses one smaller-go-module (raw design 0.3h, impl 0.5h), and hint/recovery integration another (0.2h, 0.4h); both design values take the 0.2 thorough-spec factor. Docs use raw design 0.1h/impl 0.15h, review overhead 0.1h/0.3h, again 0.2 on design. All implementation entries below already apply v3.1's 40% once. Familiarity is 1.0 for Go/Cobra/tracker/Git patterns; design buffer is 15% for the approved detailed plan.
+
+Library check: existing migration/trunk APIs already supply CAS, root verification and cutover. The only greenfield module is the issue-specific pure transition policy; no general library supplies that domain decision, and adding a framework would not shorten it. No new API discovery or cross-repo propagation project is required. Total derives from design subtotal 0.84h and implementation subtotal 0.86h: 0.84*1.15 + 0.86 = 1.826h, rounded to 1.83h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.08
+item: greenfield-go-module design=0.20 impl=0.24
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.04 impl=0.16
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.02 impl=0.12
+design-buffer: 0.15
+total: 1.83
+```
