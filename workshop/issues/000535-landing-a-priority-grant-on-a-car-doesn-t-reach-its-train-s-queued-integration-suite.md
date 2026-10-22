@@ -71,6 +71,7 @@ Private conformance proposal: existing real Python helper/process/flock harness 
 ## Log
 
 ### 2026-10-21
+- 2026-10-21: closed — Focused production regressions passed (53.001s); broader train/priority tests passed (322.308s), tracked Go catalog passed (0.766s), diff check clean. Real Go grant provider plus helper/process/flock conformance covers queued late car grant, revoke and clock expiry; exact-prefix conflict/split/reintegration isolation, baseline/non-test FIFO and counted N/2N projection pass. TL approved no stage. Recorded suite on pushed a2cd7f9a89d75fd61505186b991d61ed4dae533f is queued as lease-875822645, NOT yet passing; this close review overlaps it under the worker contract, and no landing until completed pass; code fixes require fresh suite. Last routine suite/close/landing Plan row remains deliberately pending, hence no-plan-check. TL owns project updates, hence no-project.; review verdict: SHIP
 
 - Claimed and entered planning from refreshed main. Root-cause trace: conductor.build uses a detached train worktree; runLocalCheck calls suiteSubject on that tree and tested composed SHA. suiteSubject only assigns one issue for an exact checkout HEAD on an issue branch, so a train has issue zero. The helper currently orders by one (common_dir, issue) key. Existing grant refresh already observes late grant/revoke/expiry; membership is the missing input. No code changed yet.
 
