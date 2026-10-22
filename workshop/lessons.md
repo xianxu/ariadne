@@ -1421,3 +1421,8 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   leave the latter queued and record it outstanding. Neither owner idleness nor a drain flag proves
   restart safety. Rendered-help guards pin the running/queued distinction and keep unrelated test advice
   outside the drain procedure.
+
+- #506 BR-1: retiring a protocol step requires a semantic alias sweep, not only a grep for its literal
+  command. Search acknowledgment/ID and notice/ack descriptions across every shipped help consumer, then
+  replace drift-prone restatements with owner pointers. Render sibling help through its real registration
+  and assert that the read-only path never reaches storage or authority checks.

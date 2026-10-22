@@ -79,7 +79,7 @@ steward need the rules.
   tests and both real CLI help renders; verify the documented queue flags against current CLI help and
   automation activation/landing against pair#739's actual status. No real drain smoke; pair#722's watched
   live run after this landing supplies live proof.
-- [x] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
+- [ ] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
   to hub and pair:5 before its watched live run. Follow the TL decision on the pair#739 landing dependency.
 
 ## Log
@@ -192,6 +192,35 @@ steward need the rules.
   verified suite completion and entry into the binary-owned acceptance/landing sequence, not a claimed
   review verdict or landing. Invoking close next; pair#722's operator-watched live run remains held until landing.
 
+### 2026-10-22 — close BR-1 consistency sweep
+
+- Close round 1 returned FIX-THEN-SHIP with BR-1 Important (drain-contract-consistency), keeping close
+  unfinalized: cmd/sdlc/helptext/queue.md still requires acknowledging an authenticated drain ID, and
+  atlas/workflow/sdlc-binary.md still calls Couch's formatter “notice/ack”. Independently rendered real
+  `go run ./cmd/sdlc queue --help` (exit 0) and confirmed the stale instruction.
+- Enumerated current consumers with a repository-wide acknowledgment/drain grep, excluding history,
+  issue/review evidence and deliberately historical fixtures. The two stale shipped prose sites above
+  are the complete remaining class; current TL help/atlas explicitly reject a formal ack, and test
+  negatives/historical captures remain evidence, not instructions.
+- Correction replaces these two restatements with pointers to authoritative worker/Couch procedures.
+  No worker/steward/automation wording changes and no queue runtime behavior changes. Add rendered queue
+  help checks for both entry points and a zero-store-access guard before changing the shipped help.
+  A fresh exact-head recorded suite and another close are due after this executable help correction.
+
+### 2026-10-22 — BR-1 red/green correction committed
+
+- Independently reproduced `TestQueueHelpUsesNoticeOnlyDrainContract` RED: both queue --help and no-args
+  lacked authoritative pointers and retained acknowledgment instructions; the injected queue store,
+  authority and live-inspection traps were not called. Replaced the queue help and atlas restatements
+  with worker/Couch owner pointers; historical captures remain unchanged.
+- GREEN: queue-help plus frozen protocol, authority and root-render wiring tests passed (0.474s).
+  Worker/lead drain, automation, ownership and narrative guards passed (0.067s/0.085s).
+  Real `go run ./cmd/sdlc queue --help` exited 0 and displays both owner pointers. `git diff --check` clean.
+  Diff confirms no change to the exact TL-approved worker/steward/automation sections.
+- Close round 1 was not finalized, so the binary explicitly requires another full close for BR-1
+  disposition after this fix; no finalized close generation is being bypassed. Fresh recorded suite
+  on the corrected pushed head is next. Earlier passing suite remains attributed to its original head.
+
 ## Revisions
 
 - 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
@@ -204,3 +233,7 @@ steward need the rules.
 
 - 2026-10-22 revision: TL final-wording review narrows graceful waiting to already-running work and keeps
   queued work outstanding in the Log; test-command advice moves into TESTS. Steward and automation stay as approved.
+
+- 2026-10-22 revision: BR-1 completes the approved notice-only contract sweep through the queue help and
+  queue-drain atlas consumer. Remove obsolete restatements in favor of owner pointers; add the missing
+  rendered queue-help guard. The approved worker/steward procedure and all command behavior stay unchanged.
