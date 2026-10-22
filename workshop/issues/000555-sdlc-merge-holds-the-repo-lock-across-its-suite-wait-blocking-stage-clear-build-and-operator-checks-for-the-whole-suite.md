@@ -51,6 +51,7 @@ integration or push.
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — Not reproduced; regressions pinned as TL approved. No production code change: #370 scoped locking retained. Four actual CLI clear/build x admission/execution cases plus actual integration-push serialization and head-drift refusal passed; whole-command-lock mutation failed then restored. Combined targeted cmd/sdlc run passed205.371s and tracked golint passed1.195s. Incident timeline/evidence limits committed. No new architecture; TL owns project. Only recorded suite/close/landing plan tasks remain: suite lease-327667749 queued on exact pushed 7b0850353, review overlaps it per tl-worker, and pass precedes landing.; review verdict: SHIP
 
 ### 2026-10-22 — investigation evidence and approval
 
