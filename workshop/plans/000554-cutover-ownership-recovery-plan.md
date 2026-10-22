@@ -84,8 +84,8 @@ Hub approval `4f847ff8-9947-4df2-a754-f5ff80f98819`: bound hybrid queue selectio
 
 Revision Plan:
 
-- [ ] Add the unchanged real Echo suite capture and a native Claude/Codex real migration→reconcile→claim fixture. Observe the straddling attempt fail under the old attachment edge, then prove only claim→pinned-right-edge wait is selected; retain raw duration and excluded-gap warning.
-- [ ] Apply the bounded attachment-edge fix and preserve release/reclaim, foreign/unknown head, malformed evidence and immutable replay controls.
+- [x] Add the unchanged real Echo suite capture and a native Claude/Codex real migration→reconcile→claim fixture. Observe the straddling attempt fail under the old attachment edge, then prove only claim→pinned-right-edge wait is selected; retain raw duration and excluded-gap warning.
+- [x] Apply the bounded attachment-edge fix and preserve release/reclaim, foreign/unknown head, malformed evidence and immutable replay controls.
 - [ ] Verify corrected head, publish, queue its recorded suite and re-close with the fixed-then-ship review. Retain the owner-run Echo live-proof hold before landing.
 
 The original queued suite `lease-3451749813` on the superseded source head was cancelled through `sdlc local-check cancel --run lease-3451749813` before code changes; the CLI confirmed cancellation. Do not revive or duplicate that obsolete run. Copied the live JSON read-only from Echo's common Git evidence into `cmd/sdlc/testdata/actual/echo5-claim-straddling-suite.json`; SHA256 `830e2848c584132315e093e2b4699a8667891ed7ce03ee257fdd342a1ff53b5e`. It records exact queued/acquired endpoints, raw queue 5204.94009 seconds and passing outcome. No peer card, tracker, attempt or checkout was changed.

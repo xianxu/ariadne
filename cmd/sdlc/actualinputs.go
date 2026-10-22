@@ -408,6 +408,11 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		if err != nil {
 			return err
 		}
+		// The legacy prefix can precede the first owner. Queue idle may
+		// exclude only the owned suffix, even when queuing began earlier.
+		if len(engagements) > 0 && since.Before(engagements[0].Start) {
+			since = engagements[0].Start
+		}
 	}
 	attachCarWaitInputs(ctx, repoTop, common, repository, issueID, engagements, out)
 	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)

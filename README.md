@@ -1077,7 +1077,9 @@ Reconcile does not create ownership. Work between cutover and claim is unowned
 and not counted; successful hybrid measurements and retained replay expose that
 gap beside the legacy prefix and owned suffix. Claim does not retroactively
 credit it. Existing activity continuity may cross claim, but only its portion
-inside ownership can count.
+inside ownership can count. For a suite queued before first ownership,
+hybrid measurement clips queue-idle exclusion to the owned portion, preserving
+its raw endpoints. Waits crossing release/reclaim still refuse.
 
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
