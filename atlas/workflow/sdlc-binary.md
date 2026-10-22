@@ -10,6 +10,18 @@ Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
+## New repository initialization (#543)
+
+The explicit final setup command `sdlc issue init` shares the existing migration
+inventory, tracker bootstrap CAS and main cutover. The pure invocation-local
+`tracker.InitTransition` owns phase changes; `issueinit.go` dispatches only its
+returned effects and stops on failure/cancellation/uncertainty. Retry inspects
+existing Git root/marker evidence, retaining partial publication. Clean main
+checkout completion uses a pinned ff-only commit. Brains/declined scaffolds skip;
+nonempty inventories require reviewed migration. Legacy hints use local-only
+`issue.LocalPathsByID` evidence and never authorize publication. See
+[the setup procedure](setup-and-replication.md#new-repository-default).
+
 ## Executable identity (#461)
 
 `sdlc --version` reports the actual executable path, embedded VCS revision and

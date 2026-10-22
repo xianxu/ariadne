@@ -1342,3 +1342,10 @@ Unknown descendant completion protects every input and output together: checkout
 - #526 integration: an automatic code merge can leave a strict adjacent-state codec rejecting a newly landed phase. Re-run the actual completion/storage path after integrating main, and move a race regression to the new production event that performs its original membership change; retain a separate check for the intermediate phase rather than weakening the original oracle to a phase-only completion. This is a semantic lifecycle compatibility check, not a lexical lint rule.
 
 - #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
+
+- #543 plan review: a new mutating command must name its pure phase owner and
+  controllable effect boundary before implementation, and join the derived
+  recovery catalog/help/proof contract. Reuse durable authority instead of
+  inventing phase files. Keep plans at named function/adversarial-strategy level;
+  individual prerequisite and crash cases belong in executable sequence tests.
+  TestRecoveryContractsAreProven mechanically catches missing command recovery.

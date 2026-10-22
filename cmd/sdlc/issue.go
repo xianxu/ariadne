@@ -43,7 +43,7 @@ func NewIssueCmd() *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	cmd.AddCommand(newIssueNewCmd(), newIssueAttachCmd())
+	cmd.AddCommand(newIssueInitCmd(), newIssueNewCmd(), newIssueAttachCmd())
 	defaultHelp := cmd.HelpFunc()
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		defaultHelp(cmd, args)
@@ -371,6 +371,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 		return err
 	}
 	if !tracked {
+		legacySetupAdvice(stderr, f.IssuesDir, f.HistoryDir)
 		return runLegacyIssueNew(ctx, stdout, stderr, f, args)
 	}
 	title := ""

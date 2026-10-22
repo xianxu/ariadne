@@ -414,6 +414,11 @@ func applyTrackerBootstrap(env *migrateEnv, m tracker.MigrationManifest) (string
 	if err != nil && !errors.Is(err, gitx.ErrBootstrapExists) {
 		return "", fmt.Errorf("bootstrap the issue tracker: %w\n      re-run the same `--apply --expect %s` to resume", err, m.Digest)
 	}
+	return trackerBootstrapRoot(env, m)
+}
+
+// trackerBootstrapRoot verifies the existing root without publishing.
+func trackerBootstrapRoot(env *migrateEnv, m tracker.MigrationManifest) (string, error) {
 	view, err := env.trunk.Snapshot()
 	if err != nil {
 		return "", err
@@ -511,9 +516,9 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	migration, err := env.git("log", "-1", "--format=%H", "--diff-filter=A", mainView.Ref(), "--", tracker.CutoverMarkerPath)
-	if err != nil || migration == "" {
-		return fmt.Errorf("find main's migration commit (the one adding %s): %v", tracker.CutoverMarkerPath, err)
+	migration, err := migrationCommit(env, mainView.Ref())
+	if err != nil {
+		return err
 	}
 	if across, err := env.ancestorOf(migration, "HEAD"); err != nil {
 		return err
@@ -686,4 +691,13 @@ func cardClosed(card []byte) (bool, error) {
 	}
 	status, _ := issue.GetField(parsed.Frontmatter, "status")
 	return vocab.Issue().IsTerminal(status), nil
+}
+
+// migrationCommit pins the commit that introduced the current cutover marker.
+func migrationCommit(env *migrateEnv, main string) (string, error) {
+	commit, err := env.git("log", "-1", "--format=%H", "--diff-filter=A", main, "--", tracker.CutoverMarkerPath)
+	if err != nil || commit == "" {
+		return "", fmt.Errorf("find main's migration commit (adding %s): %v", tracker.CutoverMarkerPath, err)
+	}
+	return commit, nil
 }

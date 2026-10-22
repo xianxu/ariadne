@@ -29,6 +29,36 @@ The substrate source is optional while its local path exists; restoration of a
 missing checkout requires a source, recorded or recovered (below). Data rows declare a source and owner-relative
 mount. Paths and sources cannot contain whitespace or `#` in this format.
 
+## New repository default
+
+For a new non-brain work repository, finish the setup procedure with tracker
+initialization. After linking/compiling the base (or running `./bootstrap.sh`),
+commit the initial source and setup files, configure the publication remote,
+and push `main`. Then run:
+
+```sh
+sdlc issue init
+```
+
+This is the final new-repo step for operators and TLs. It publishes the empty
+`issue-tracker` branch and main's `workshop/issue-tracker.json`, then safely
+fast-forwards the clean main checkout. The first `sdlc issue new` publishes
+without writing the checkout; `sdlc start-plan` creates its own issue branch.
+Keep other legacy SDLC writers quiescent until initialization finishes.
+
+Brains identified by `.brain/config.md` and absent/declined issue scaffolds are
+skipped. Opt-out uses the ordinary adoption/compile path without invoking init.
+Existing repositories with issues use the reviewed `sdlc issue migrate` flow;
+`issue new` and `start-plan` give init or migrate guidance from the observed local
+inventory. Unreadable inventory is never called empty. Normal link, compile,
+refresh, CI and repeated bootstrap do not publish anything implicitly.
+
+If setup lacks a commit, pushed main or publication upstream, or the checkout is
+dirty/non-main, init refuses before writing. After fixing that prerequisite,
+rerun `sdlc issue init`. A retry verifies an existing root/marker and finishes
+partial publication without deleting the tracker, resetting work or replacing
+source edits.
+
 ## Preparation and compilation
 
 `weave dependencies` restores transitive sources and runs each layer's root
@@ -173,7 +203,7 @@ selection or shell configuration. Explicit installation remains an operator acti
 
 The real, seeded `bootstrap.sh` is a small gateway: change to its own repo root,
 reuse a compatible weave on PATH, otherwise install `xianxu/ariadne/weave` with
-Homebrew, then exec `weave compile`. When a legacy source binary shadows the
+Homebrew, then exec `weave compile`. For a new work repository, follow [New repository default](#new-repository-default) after this bootstrap: commit/push initial main, then finish with `sdlc issue init`. When a legacy source binary shadows the
 installation, bootstrap invokes the formula's binary directly. Missing Homebrew
 produces installation guidance; bootstrap does not install Homebrew itself.
 The formula is published in the `xianxu/ariadne` tap (#241, from

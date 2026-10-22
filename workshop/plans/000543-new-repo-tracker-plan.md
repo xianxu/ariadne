@@ -112,16 +112,16 @@ The in-memory machine is one invocation; retries reconstruct observations from e
 
 Files: new cmd/sdlc/issueinit.go, cmd/sdlc/issueinit_test.go, cmd/sdlc/internal/tracker/initialization.go and initialization_test.go; register in cmd/sdlc/issue.go; share only necessary migration helpers from cmd/sdlc/issuemigrate.go.
 
-- [ ] Write pure decision/sequence tests and actual command regression RED, then implement the model and thin effect adapter.
-- [ ] Run the production init -> issue new -> claim/start-plan fixture against a disposable bare remote; commit after GREEN.
+- [x] Write pure decision/sequence tests and actual command regression RED, then implement the model and thin effect adapter.
+- [x] Run the production init -> issue new -> claim/start-plan fixture against a disposable bare remote; commit after GREEN.
 
 ### 2. Wire legacy advice, recovery contract and default setup procedure
 
 Files: cmd/sdlc/legacymode.go, cmd/sdlc/issue.go, cmd/sdlc/startplan.go and their tests; cmd/sdlc/internal/recovery/catalog.go (existing recovery owner), command help; README.md and atlas/workflow/{setup-and-replication,sdlc-binary}.md. Sweep operator/TL-facing setup guidance as required by the approval.
 
-- [ ] Write legacy advice regressions RED, implement one shared advisory helper and the pure text decision, and pass tests.
-- [ ] Add issue init to the recovery catalog, with verified retry semantics, help and proof references; run TestRecoveryContractsAreProven.
-- [ ] Make every new-repository/bootstrap creation procedure end with issue init after pushed initial main; preserve adoption/restore/refresh semantics and document opt-out/brain handling.
+- [x] Write legacy advice regressions RED, implement one shared advisory helper and the pure text decision, and pass tests.
+- [x] Add issue init to the recovery catalog, with verified retry semantics, help and proof references; run TestRecoveryContractsAreProven.
+- [x] Make every new-repository/bootstrap creation procedure end with issue init after pushed initial main; preserve adoption/restore/refresh semantics and document opt-out/brain handling.
 
 ### 3. Acceptance and landing (one whole-issue boundary)
 
@@ -149,3 +149,7 @@ TL approved the explicit command (Couch 87ebe800-5c28-4e19-b11b-5bf5c2c1453a), f
 ### 2026-10-21 — plan-quality round 1 correction
 
 PQ-1: named the opaque InitState/InitEvent/InitEffect model and InitTransition owner, explicit state/event/effect table, stateful effect dispatcher and deterministic publication boundaries. This formalizes the approved phases without changing authority or adding persisted state. PQ-2: replaced procedural case inventories with one named function/adversarial strategy/mechanical guard row per risky function. PQ-3 (Minor): included the required mutating-command recovery catalog/help/proof integration and TestRecoveryContractsAreProven. Advisory hint discovery uses the existing local-only scanner and labels local-empty evidence; authoritative init retains full migration inventory. No code changes before the gate passes.
+
+### 2026-10-21 — implementation checkpoint after approval and change-code
+
+The proposed status above is historical: TL approved the design and the full-flow gate passed after clean plan-quality rounds 2/3 and estimate acceptance. Implementation and targeted/private-CLI acceptance are complete; the recorded suite and whole-issue review remain. The approved procedure sweep also found tl-lead team-new help and its printed operator next steps; both now give base adoption/compile, committed pushed main, then explicit init, with a regression over their order. No new publication authority or mechanism was added.

@@ -73,8 +73,14 @@ TEAMS (ariadne#456: one team per ops repo)
         tl-lead team new PATH --claim C [--claim C]...
     which writes .hub and team.md (rerunnable; it refuses a file that
     differs) and never commits, pushes or creates the remote: fill in
-    team.md, commit, create and push the repo, and add it to Couch's command
-    line (an operator restart). Retire a team by removing its hub from Couch's
+    team.md. For a new non-brain work repo, run
+        weave link github.com/xianxu/ariadne
+        weave compile
+    commit the setup, configure the remote and push main, then finish with
+        sdlc issue init
+    Existing legacy repos use reviewed sdlc issue migrate; brains and declined
+    issue scaffolds skip init. Add the repo to Couch's command line (an operator
+    restart). Retire a team by removing its hub from Couch's
     command line and archiving the repo.
   - Resuming the fleet is one verb the operator asks for ("resume the
     fleet"), never run at startup:
