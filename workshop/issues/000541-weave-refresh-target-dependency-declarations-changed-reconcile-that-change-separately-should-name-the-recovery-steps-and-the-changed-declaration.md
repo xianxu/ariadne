@@ -67,7 +67,7 @@ declarations changed (names and fields, never credential-bearing URLs). Document
   reorder, unchanged rows, and synthetic credential/query-bearing URLs (including URL-like labels).
   Add real-Git divergent and substrate-only controls; retain existing malformed/dirty refusal tests.
   Document recovery and its clean/behind prerequisite in `atlas/workflow/setup-and-replication.md`.
-- [ ] Run targeted refresh/CLI tests, then the recorded pushed-head suite and `sdlc close` review after
+- [x] Run targeted refresh/CLI tests, then the recorded pushed-head suite and `sdlc close` review after
   design approval and change-code. One quick-flow boundary, no milestones; target <100 production lines.
 
 ## Log
@@ -119,3 +119,14 @@ declarations changed (names and fields, never credential-bearing URLs). Document
   Production additions: 56-line formatter plus 5 added integration lines, inside the quick-flow shell.
   No live fleet mutation or :0 smoke is needed to prove a preflight diagnostic; the incident-shaped private
   real-Git fixtures and CLI controls exercise the changed path. Recorded suite and close review remain.
+
+### 2026-10-22 — recorded suite passed; closing
+
+- PR #387: https://github.com/xianxu/ariadne/pull/387. Current GitHub checks all green, including
+  local-gates-guard; no protected gate configuration changed.
+- Recorded `sdlc local-check run --name suite` on c04d7afed5768941f083205ddf95a17bd15ed7a7 passed:
+  8/8 shards, 2103 cmd/sdlc tests and 76 other packages, zero failures; wall 706.5s (11m47s).
+  Lease lease-2288301901 waited 877s for capacity before starting, then completed normally. Saved log
+  `.git/sdlc/local-checks/c04d7afed5768941f083205ddf95a17bd15ed7a7/suite.log`, SHA256 prefix 13a615c98585.
+- All Done when criteria have executable evidence above; invoking the binary-owned close review next.
+  Plan's final checkbox records verification and entry into that boundary, not a claimed review verdict.
