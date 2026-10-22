@@ -87,6 +87,7 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — BR-2 root correction passes the resolver selfRepo through the typed reader call on every read; proof selection and membership classification use that same value, with no second identity derivation/default. New real-Git matrix RED all45 qualified-invalid-ref cases then GREEN across3 repositories/3 zero spellings/5 lead positions; definite local/foreign authority and foreign-parent controls retained. Full targeted queue-head/parser/reducer/owned-actual/Git-object checks PASS13.485s/0.495s. BR-1 prior red/green and recorded Echo fixture retained. Owner live actual10 passed twice on earlier clean source generations, exit0/1.07h/3 waits, receipts87d26f3f-2805-4d32-9414-a265c7361528 and c976681a-a5c8-45a9-b629-d6e4365b4daa; context correction separately covered by native matrix. Latest pushed fe9a4c9e4 suite is queued, not passing. Only unchecked Plan row is acceptance sequence; no-plan-check acknowledges tl-worker-authorized review overlap without concealing that pending obligation. Landing waits for recorded final-code suite, completed row, and canonical-checkout import after506. Atlas/Done-when/revisions/lessons updated; no format/new CLI.; review verdict: SHIP
 
 - Claimed and started in ariadne:5. #506 retains its managed merge runner in the original checkout;
   #553 uses the independent ordinary clone at ariadne-slot5/ariadne-553, based on main e4bd907ae47d.
