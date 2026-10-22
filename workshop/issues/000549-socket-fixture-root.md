@@ -70,9 +70,9 @@ total: 0.882
 
 - [x] Red-first recorded source replay and source-to-socket flow controls.
 - [x] Implement the shared catalog rule and counted local provenance analysis.
-- [ ] Verify short-root Unix sockets under long TMPDIR, document the boundary, run recorded suite and close review.
+- [x] Verify short-root Unix sockets under long TMPDIR, document the boundary, run recorded suite and close review.
 
-Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.md). Awaiting TL approval before code.
+Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.md). TL-approved design implemented and reviewed.
 
 ## Log
 
@@ -101,6 +101,8 @@ Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.
 2026-10-22 15:10 PDT: Close round2 SHIP, BR-1/BR-2 addressed and zero open findings, accepted evidence40535f3d15e0d8a56be3289e97645a31ddb5b036. Corrected recorded suite remains outstanding on executable headc677d1f53ba04b9fcbed79490981f9a0e0d7abfa: lease-3953551684, attempt15fe86ae8c6cddc0f314b7ab9dea1737, retained tool session4029, detached tree /Volumes/TestScratch/local-checks/sdlc-local-1746181496. Authenticated Couch restart at15:09 did not lose it; readback FIFO15, queue complete=true, no requeue. PR402 has only issue/review bookkeeping after the tested code. Next: retain this waiter, read its actual result, record a genuine pass and finish the verification row; then enter sdlc merge --yes. Do not create a second suite for close-only bookkeeping while this attempt is pending. This is a normal issue Log checkpoint, not a continuation or agent restart.
 
 ## Revisions
+
+2026-10-22 16:53 PDT: Corrected branch suite PASS on c677d1f53ba04b9fcbed79490981f9a0e0d7abfa, attempt15fe86ae8c6cddc0f314b7ab9dea1737: eight shards over2290 cmd/sdlc tests and76 other packages, zero failures, wall878.8s. Queued6530.9s; acquired16:37:57 PDT and finished16:52:36 PDT. Saved log SHA25697a59c19621727826cfbb456ec0974f33ac680f18a3e99105b9d60404697a778. Close round2 remains SHIP with no code changes since its anchor. Verification row is now complete; managed merge and its authoritative integration checks are next. Clarify the detailed plan's final row as pre-landing verification, leaving merge/report as subsequent workflow rather than prematurely checking future actions.
 
 2026-10-22: Added the concrete implementation plan and analysis boundary without changing the requested acceptance criteria. Use the shared catalog with source-level API recognition; do not add a consumer runtime dependency or a general interprocedural analyzer.
 

@@ -88,13 +88,17 @@ Files: pkg/golint/socket_root_test.go; atlas/workflow/sdlc-binary.md; workshop/l
 - [x] Add the private native listener regression under a real long TMPDIR, selecting a canonical short TestScratch root when available or explicitly short /tmp otherwise, immediate cleanup, successful connect/accept and verified root removal. Test selection/fallback logic independently without changing machine mounts or settings. Retain existing 103-byte socket bounds; no transport/timeout changes.
 - [x] Run `go test ./pkg/golint -count=1` and the targeted native test with `-race`. Under TL's native-private-listener-only smoke decision, cross-repo coverage is the recorded original/corrected Pair source replay; do not execute Pair or use live Couch.
 - [x] Document the rule, exact recognized APIs, conservative write join, unsupported helper boundary and short-root/tmp-literal rationale. Check the existing README lint discovery pointer; update atlas's derived catalog coverage and lessons.
-- [ ] Commit/push final code, run `sdlc local-check run --name suite`, record evidence, close with SDLC's mandatory review, enter managed merge and report the outcome. No separate review agent or live :0 stage is proposed for a pure source lint plus native private-resource tests; TL decides smoke.
+- [x] Commit/push final code, run `sdlc local-check run --name suite`, record evidence and close with SDLC's mandatory review. Branch suite PASS (attempt15fe86ae8c6cddc0f314b7ab9dea1737); close round2 SHIP.
+
+Following verification, enter managed merge and report its observed outcome. No separate review agent or live :0 stage is proposed for a pure source lint plus native private-resource tests; TL decides smoke.
 
 ## Architecture lenses
 
 ARCH-DRY: one catalog rule and provenance graph, reuse parsing/import/suppression ownership; no Pair runtime dependency or duplicate consumer lint. ARCH-PURE: analyzer is pure, filesystem/listener work is test-only. ARCH-PURPOSE: cover the original isolation parent plus generic sockets, retaining corrected source and bounded-parent hashed-namespace controls. ARCH-MOCK: no new production external dependency; native kernel conformance uses private resources rather than live fleet. ARCH-CONSTRAINTS: O(N+E+S), counted growth, no subprocess per source. ARCH-SECURE: parse bytes without execution; exact imported API identity; private owned native roots only. ARCH-ORDER: no cross-event state; worklist is monotone and cycle-safe, test IO lifetimes explicit. ARCH-FUNERAL: no runtime artifacts; test listener/root cleanup verified, fixture bytes remain bounded version-controlled evidence. ARCH-EVOLVE: no persisted format or configuration changes; additive catalog entry uses existing finding/suppression contracts.
 
 ## Revisions
+
+2026-10-22 16:53 PDT — Branch suite passed all eight shards over2290 SDLC tests and76 other packages in14m39s, zero failures. Close round2 SHIP already accepted. Separate completed pre-landing verification from subsequent merge/report workflow so a checked row does not claim a future landing. No implementation or scope change.
 
 2026-10-22 14:01 PDT — PQ-1: correct the sink-contract class by recognizing actual path parents, not hash inputs. Remove the unconditional Pair namespace sink, retain inherited isolation-root Setenv and generic Unix path sinks, and require a bounded-parent/long-namespace negative control. All other analysis bounds and private-native verification remain as approved. PQ-2: compress repeated implementation test inventory into the function strategy/contract references. Await TL confirmation of this correction before code.
 
