@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3f42d20a", done: "69e11376"}
 ---
 
 # stage --clear rebuilt pair:0 at a stale resting branch (359 behind origin/main); fast-forward before rebuilding
