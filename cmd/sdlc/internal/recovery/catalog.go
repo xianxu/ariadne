@@ -351,6 +351,7 @@ var Catalog = []Contract{
 			{"nonempty legacy repositories retain the reviewed migration boundary", []string{"TestIssueInitRefusesExistingLegacyInventory"}},
 			{"uncertain effects, cancellation and competing publication retain durable authorities for retry", []string{"TestIssueInitRecoveryEveryEffectBoundary", "TestIssueInitRecoveryRetainsDirtyCheckout", "TestIssueInitRecoveryCancellationStopsNextEffect", "TestIssueInitRecoveryConcurrentClonePublication"}},
 			{"current remote inventory and pinned reads cannot hide remote-only issue evidence", []string{"TestIssueInitAndMigrateObserveCurrentRemoteInventory", "TestMigrationInventoryRefusesFailedRemoteObservation", "TestMigrationInventoryRefusesMovedMain", "TestMigrationInventoryPinsIssueAndAnchorReads", "TestMigrationInventoryFetchOnlyOwnHeadsMapping"}},
+			{"complete observation preserves every ref category while unverified reserved branches refuse", []string{"TestIssueInitObservesEveryPublicationRefCategory", "TestIssueInitRefusesPreexistingLocalTrackerBranch", "TestIssueInitRefusesUnverifiedRemoteTrackerBranch"}},
 			{"presence anywhere across active/archive roots refuses without importing", []string{"TestIssueInitPresenceAcrossRootsAndScopes", "TestIssueInitPresenceBeyondChangedActiveFiles", "TestIssueInitPresenceExcludesNonIssueArtifacts"}},
 			{"historical inventory and invalid markers refuse without replacing authority", []string{"TestIssueInitRecoveryRefusesHistoryAndBranchInventory", "TestIssueInitRecoveryRefusesMalformedOrMismatchedMarker"}},
 		},

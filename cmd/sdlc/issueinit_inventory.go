@@ -13,6 +13,8 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
+var errInitTrackerAlreadyInitialized = errors.New("tracker already initialized")
+
 // Initialization is presence-only: it never interprets, imports or merges issue
 // records. Migration's changed-file policy cannot prove a new repository empty.
 func verifyInitializationEmpty(env *migrateEnv, main string) error {
@@ -20,6 +22,9 @@ func verifyInitializationEmpty(env *migrateEnv, main string) error {
 	roots := issue.IDDirs(d.Home, d.Archive)
 	found, err := initializationEvidence(env, main, roots)
 	if err != nil {
+		if errors.Is(err, errInitTrackerAlreadyInitialized) {
+			return fmt.Errorf("%w; use sdlc issue migrate", err)
+		}
 		return fmt.Errorf("cannot verify empty issue history; use sdlc issue migrate after resolving the observation: %w", err)
 	}
 	if found != "" {
@@ -44,9 +49,16 @@ func initializationIssuePath(p string, roots []string) bool {
 }
 
 func initializationEvidence(env *migrateEnv, main string, roots []string) (string, error) {
-	refs, err := migrationBranchRefs(env, main)
+	refs, err := publicationBranchTips(env, main)
 	if err != nil {
 		return "", err
+	}
+	// Init never creates a local reserved branch. Its presence has no bootstrap
+	// provenance; remote verified-empty and completed-marker recovery are separate.
+	for _, ref := range refs {
+		if ref.Name == "refs/heads/"+vocab.Issue().Discovery().Tracker {
+			return "", fmt.Errorf("%w: pre-existing local reserved branch %s", errInitTrackerAlreadyInitialized, ref.Name)
+		}
 	}
 	raw, err := env.gitRaw(nil, "worktree", "list", "--porcelain", "-z")
 	if err != nil {
@@ -74,6 +86,9 @@ func initializationEvidence(env *migrateEnv, main string, roots []string) (strin
 			return "", fmt.Errorf("%s: %w", tip.Name, err)
 		}
 		if found != "" {
+			if tip.Name == gitx.RemoteTrackingRef(env.target.Remote, vocab.Issue().Discovery().Tracker) {
+				return "", fmt.Errorf("%w: %s contains issue history at %s", errInitTrackerAlreadyInitialized, tip.Name, found)
+			}
 			return tip.Name + ": " + found, nil
 		}
 	}

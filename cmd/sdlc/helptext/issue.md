@@ -67,7 +67,9 @@ NEW REPOSITORY SETUP (#543)
 
   Retry the same command after a partial or uncertain publication. It verifies
   the existing root/marker before continuing and never deletes a tracker, resets
-  work, commits source files or creates remotes. Dirty/non-main/unborn/no-origin
+  work, commits source files or creates remotes. An unverified pre-existing
+  tracker branch refuses as "tracker already initialized"; an exact verified
+  empty bootstrap resumes and a completed valid root/marker is a no-op. Dirty/non-main/unborn/no-origin
   prerequisites refuse with guidance; a later clean retry completes setup.
   A legacy issue new/start-plan prints locally qualified guidance: init for an
   empty observed local inventory, migrate for existing issue/history files.

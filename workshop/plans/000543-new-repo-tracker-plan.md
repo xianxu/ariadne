@@ -203,3 +203,16 @@ Implemented only the authorized narrower gate. initializationIssuePath is the pu
 ### 2026-10-22 — BR-2 bounded complete-observation correction
 
 Round 3 verified the archive cases but found a local issue-tracker branch hidden by migrationBranchRefs's name filter. This is an implementation miss against the approved every-tip presence rule, not importer scope. TL a3dd77da-61e5-425e-a901-1c54708447e4 directed separation: publicationBranchTips observes and pins every local/remote tip with no name exemptions; migrationBranchRefs alone filters that complete result for its unchanged importer policy. Init consumes the complete result. Test formerly excluded categories over all three roots. TL requested tracker-already-initialized refusal messaging for a pre-existing tracker branch; confirmed successful and partial exact-root retries were called out for clarification before changing those recovery contracts. No new state or authority. The third queued suite was canceled before execution and is not evidence.
+
+### 2026-10-22 — complete-observation correction verified
+
+TL 7ca0ad18-0fe5-4bf5-99c8-9b5d26749593 confirmed both existing verified recovery cases: exact empty remote bootstrap resumes, and valid completed root/marker is an idempotent success. Only an unverified/pre-existing reserved branch refuses as tracker already initialized. Init never creates a local reserved branch, so local reserved presence is unverified; remote bootstrap recovery retains the existing exact-root/manifest proof.
+
+publicationBranchTips now observes all names/OIDs; migrationBranchRefs alone applies the unchanged importer filter. Before correction, all 18 category/root observation cases failed through a temporary test-only adapter to the unchanged filtered production observer, and four local-reserved CLI cases wrongly initialized; the unverified-remote case lacked the required diagnostic. The adapter was removed before implementation. Focused categories/refusals/recovery/workflow tests passed (76.690s). Private rebuilt production CLI passed all local reserved-branch roots; a real rejected main push retained a published empty bootstrap, then retry reused its root and completed; completed no-op and first issue/claim/start-plan also passed. No new importer rule or state.
+
+| Final additional core concept | Kind | Location | Status |
+|---|---|---|---|
+| initializationIssuePath | PURE | cmd/sdlc/issueinit_inventory.go | new |
+| verifyInitializationEmpty and metadata/index/filesystem readers | INTEGRATION | cmd/sdlc/issueinit_inventory.go | new |
+| publicationBranchTips | INTEGRATION | cmd/sdlc/issuemigrate.go | extracted complete observer |
+| migrationBranchRefs | INTEGRATION | cmd/sdlc/issuemigrate.go | existing filter over complete observation |

@@ -183,14 +183,14 @@ func (g *gitInitializationEffects) Inspect(ctx context.Context) (tracker.InitIns
 	if exists {
 		root, err := trackerBootstrapRoot(env, g.plan)
 		if err != nil {
-			return refuse(err)
+			return refuse(fmt.Errorf("%w: existing branch is not a verified empty init bootstrap: %w", errInitTrackerAlreadyInitialized, err))
 		}
 		view, err := env.trunk.Snapshot()
 		if err != nil {
 			return refuse(err)
 		}
 		if err = sameTrackerFiles(env, view.Ref(), g.plan); err != nil {
-			return refuse(err)
+			return refuse(fmt.Errorf("%w: existing tracker is not a verified empty init bootstrap: %w", errInitTrackerAlreadyInitialized, err))
 		}
 		return tracker.InitInspected{Disposition: tracker.InitTrackerOnly, Root: root}, nil
 	}

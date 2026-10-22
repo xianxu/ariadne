@@ -27,9 +27,13 @@ indexes and filesystem entries (including ignored/untracked). It imports no
 records and applies no difference/merge rules. Unreadable or non-directory roots
 refuse as uncertain. Snapshot scans select metadata only, not issue bodies.
 The shared BR-1 head helper refreshes the entire publication heads mapping and
-pins names/OIDs; failed refresh or main moving from its pin refuses. Tags, other
+pins names/OIDs without name exclusions (`publicationBranchTips`); only migrate
+applies its own branch filter. Failed refresh or main moving from its pin refuses. Tags, other
 remotes and FETCH_HEAD remain outside that explicit fetch's write set. Existing
 migration import policy is separate; its archive/worktree gaps are ariadne#546.
+An unverified/pre-existing reserved tracker branch refuses as `tracker already
+initialized`; exact verified empty-bootstrap recovery and completed valid
+root/marker no-ops remain supported.
 Legacy hints use local-only `issue.LocalPathsByID` evidence and never authorize
 publication. See [the setup procedure](setup-and-replication.md#new-repository-default).
 

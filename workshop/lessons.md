@@ -1367,3 +1367,12 @@ across every pinned tip, live worktree HEAD, index and filesystem scope, and
 refuse any issue presence without interpreting its body or differences. Test
 the roots × scopes enumeration; put pre-existing importer completeness work on
 its own issue (#546), as directed by the TL after the repeated family.
+
+### #543 BR-2 continued — complete observation precedes consumer filters
+
+An absence proof cannot consume another workflow's filtered branch list. Keep
+publicationBranchTips complete and apply migration's semantic exemptions only
+inside its consumer. The ref-category × root regression proves every previous
+exemption remains visible to init, while the migration policy remains unchanged.
+Do not confuse a pre-existing reserved branch with a verified partial bootstrap;
+keep exact-root retry proof and completed-marker idempotence explicit.

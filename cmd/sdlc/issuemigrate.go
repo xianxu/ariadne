@@ -221,11 +221,11 @@ type migrationBranchRef struct {
 	OID  string
 }
 
-// migrationBranchRefs refreshes the publication remote's complete heads mapping,
+// publicationBranchTips refreshes the publication remote's complete heads mapping,
 // independently of configured fetch filters, before pinning local/remote tips.
 // Cached remote refs cannot prove absence (#543 BR-1). Setup still requires
 // legacy writers to stay quiescent; this is a snapshot, not a distributed lock.
-func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, error) {
+func publicationBranchTips(env *migrateEnv, main string) ([]migrationBranchRef, error) {
 	remote := env.target.Remote
 	mapping := "+refs/heads/*:refs/remotes/" + remote + "/*"
 	if _, err := env.git("fetch", "--no-tags", "--no-prune-tags", "--no-recurse-submodules", "--no-write-fetch-head", "--no-auto-maintenance", "--prune", "--refmap=", "--", remote, mapping); err != nil {
@@ -236,12 +236,6 @@ func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, er
 		return nil, err
 	}
 	mainRef := gitx.RemoteTrackingRef(remote, "main")
-	skip := map[string]bool{
-		"refs/heads/main": true, "refs/heads/" + env.resting: true,
-		mainRef: true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
-		"refs/heads/" + vocab.Issue().Discovery().Tracker:                 true,
-		gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
-	}
 	var refs []migrationBranchRef
 	observedMain := ""
 	for _, line := range strings.Split(out, "\n") {
@@ -255,15 +249,39 @@ func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, er
 		if name == mainRef {
 			observedMain = oid
 		}
-		if !skip[name] {
-			refs = append(refs, migrationBranchRef{Name: name, OID: oid})
-		}
+		refs = append(refs, migrationBranchRef{Name: name, OID: oid})
 	}
 	if observedMain != main {
 		return nil, errors.New("publication main moved during inventory; rerun issue init or the migration dry run against current main")
 	}
 	sort.Slice(refs, func(i, j int) bool { return refs[i].Name < refs[j].Name })
 	return refs, nil
+}
+
+// migrationBranchRefs applies only migration's existing semantic exclusions.
+// Initialization consumes publicationBranchTips directly: no branch name proves
+// absence of issue evidence (#543 BR-2).
+func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, error) {
+	refs, err := publicationBranchTips(env, main)
+	if err != nil {
+		return nil, err
+	}
+	remote := env.target.Remote
+	mainRef := gitx.RemoteTrackingRef(remote, "main")
+	skip := map[string]bool{
+		"refs/heads/main": true, "refs/heads/" + env.resting: true,
+		mainRef: true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
+		"refs/heads/" + vocab.Issue().Discovery().Tracker:                 true,
+		gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
+	}
+
+	filtered := refs[:0]
+	for _, ref := range refs {
+		if !skip[ref.Name] {
+			filtered = append(filtered, ref)
+		}
+	}
+	return filtered, nil
 }
 
 // branchIssueEdits lists the issue files ref changed relative to its merge base
