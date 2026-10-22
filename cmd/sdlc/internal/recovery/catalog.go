@@ -335,6 +335,28 @@ var Catalog = []Contract{
 			{"names are validated before any write", []string{"TestFlakeUnregisterAndNarrowVerbs"}},
 		},
 	},
+
+	{
+		Verbs:         []string{"issue init"},
+		Class:         ConvergentRetry,
+		Effects:       "initializes an empty new repository with the existing issue-tracker root and main cutover marker, then fast-forwards its clean main checkout; skips brains and missing or declined issue scaffolds. Never creates a remote, commits source changes, deletes a tracker or resets work.",
+		Evidence:      "workshop/issue-tracker.json names the verified root on the publication remote's issue-tracker branch; the main checkout carries the matching marker. git status stays clean.",
+		Preconditions: "committed clean main with a configured reachable publication upstream and pushed initial main; complete issue inventory empty; other legacy SDLC writers remain quiescent through setup. Nonempty repositories use reviewed issue migrate.",
+		Repeat:        "a valid completed initialization is a no-op; partial publication resumes from the exact empty tracker root or confirmed cutover. Nonmatching roots or uncertain reads refuse without destructive recovery.",
+		LostResponse:  "rerun sdlc issue init. An unconfirmed effect stops this invocation; the next inspects durable Git authorities before any further effect. Checkout completion refuses local edits or divergence and retains remotely published state.",
+		Ends:          "initialization completes; subsequent issue writes use normal tracker verbs. Setup opt-out continues ordinary composition without invoking init.",
+		Proofs: []Proof{
+			{"initial setup permits the first issue and planning branch without a legacy checkout write", []string{"TestIssueInitStartsTrackerWorkflow"}},
+			{"brains and declined issue scaffolds have no tracker effects", []string{"TestIssueInitExcludesBrainAndDeclinedScaffold"}},
+			{"nonempty legacy repositories retain the reviewed migration boundary", []string{"TestIssueInitRefusesExistingLegacyInventory"}},
+			{"uncertain effects, cancellation and competing publication retain durable authorities for retry", []string{"TestIssueInitRecoveryEveryEffectBoundary", "TestIssueInitRecoveryRetainsDirtyCheckout", "TestIssueInitRecoveryCancellationStopsNextEffect", "TestIssueInitRecoveryConcurrentClonePublication"}},
+			{"current remote inventory and pinned reads cannot hide remote-only issue evidence", []string{"TestIssueInitAndMigrateObserveCurrentRemoteInventory", "TestMigrationInventoryRefusesFailedRemoteObservation", "TestMigrationInventoryRefusesMovedMain", "TestMigrationInventoryPinsIssueAndAnchorReads", "TestMigrationInventoryFetchOnlyOwnHeadsMapping"}},
+			{"complete observation preserves every ref category while unverified reserved branches refuse", []string{"TestIssueInitObservesEveryPublicationRefCategory", "TestIssueInitRefusesPreexistingLocalTrackerBranch", "TestIssueInitRefusesUnverifiedRemoteTrackerBranch"}},
+			{"presence anywhere across active/archive roots refuses without importing", []string{"TestIssueInitPresenceAcrossRootsAndScopes", "TestIssueInitPresenceBeyondChangedActiveFiles", "TestIssueInitPresenceExcludesNonIssueArtifacts"}},
+			{"historical inventory and invalid markers refuse without replacing authority", []string{"TestIssueInitRecoveryRefusesHistoryAndBranchInventory", "TestIssueInitRecoveryRefusesMalformedOrMismatchedMarker"}},
+		},
+	},
+
 	{
 		Verbs:         []string{"issue new"},
 		Class:         NonRepeatable,

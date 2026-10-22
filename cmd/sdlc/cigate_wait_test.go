@@ -83,7 +83,7 @@ func TestWaitCIGate(t *testing.T) {
 					t.Fatalf("terminal error retried: polls=%d err=%v", polls, err)
 				}
 			}
-			if probes != 1 {
+			if probes != 2 { // one main probe and one exact-head fallback, cached across polls
 				t.Fatalf("immutable suite facts probed %d times", probes)
 			}
 			if polls > 0 && !strings.Contains(out.String(), "waiting for CI on PR #3") {
@@ -338,7 +338,11 @@ func TestWaitCIGateProbeCleanupAfterExpiry(t *testing.T) {
 			if canceled {
 				want = context.Canceled
 			}
-			if !errors.Is(err, want) || cleanupCalls != 2 {
+			wantCleanup := 4 // synthetic clock expiry is detected after both successful probe seams
+			if canceled {
+				wantCleanup = 2 // cancellation between probes must prevent the fallback
+			}
+			if !errors.Is(err, want) || cleanupCalls != wantCleanup {
 				t.Fatalf("cleanup=%d err=%v", cleanupCalls, err)
 			}
 		})

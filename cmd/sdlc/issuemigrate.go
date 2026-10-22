@@ -199,7 +199,7 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 	if in.Archived, err = readDir(vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues)); err != nil {
 		return in, err
 	}
-	refs, err := migrationBranchRefs(env)
+	refs, err := migrationBranchRefs(env, mainView.Ref())
 	if err != nil {
 		return in, err
 	}
@@ -260,36 +260,80 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 	return in, nil
 }
 
-// migrationBranchRefs lists local branches and the publication remote's
-// branches, except the resting trunks and the tracker itself.
-func migrationBranchRefs(env *migrateEnv) ([]string, error) {
+// migrationBranchRef binds a diagnostic name to the one observed commit.
+// Reads use OID throughout the inventory, including legacy-close evidence.
+type migrationBranchRef struct {
+	Name string
+	OID  string
+}
+
+// publicationBranchTips refreshes the publication remote's complete heads mapping,
+// independently of configured fetch filters, before pinning local/remote tips.
+// Cached remote refs cannot prove absence (#543 BR-1). Setup still requires
+// legacy writers to stay quiescent; this is a snapshot, not a distributed lock.
+func publicationBranchTips(env *migrateEnv, main string) ([]migrationBranchRef, error) {
 	remote := env.target.Remote
-	out, err := env.git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/"+remote)
+	mapping := "+refs/heads/*:refs/remotes/" + remote + "/*"
+	if _, err := env.git("fetch", "--no-tags", "--no-prune-tags", "--no-recurse-submodules", "--no-write-fetch-head", "--no-auto-maintenance", "--prune", "--refmap=", "--", remote, mapping); err != nil {
+		return nil, fmt.Errorf("observe current publication-remote branches before migration or init: %w", err)
+	}
+	out, err := env.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/remotes/"+remote)
 	if err != nil {
 		return nil, err
 	}
+	mainRef := gitx.RemoteTrackingRef(remote, "main")
+	var refs []migrationBranchRef
+	observedMain := ""
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" {
+			continue
+		}
+		name, oid, ok := strings.Cut(line, " ")
+		if !ok || name == "" || oid == "" {
+			return nil, errors.New("malformed branch inventory observation")
+		}
+		if name == mainRef {
+			observedMain = oid
+		}
+		refs = append(refs, migrationBranchRef{Name: name, OID: oid})
+	}
+	if observedMain != main {
+		return nil, errors.New("publication main moved during inventory; rerun issue init or the migration dry run against current main")
+	}
+	sort.Slice(refs, func(i, j int) bool { return refs[i].Name < refs[j].Name })
+	return refs, nil
+}
+
+// migrationBranchRefs applies only migration's existing semantic exclusions.
+// Initialization consumes publicationBranchTips directly: no branch name proves
+// absence of issue evidence (#543 BR-2).
+func migrationBranchRefs(env *migrateEnv, main string) ([]migrationBranchRef, error) {
+	refs, err := publicationBranchTips(env, main)
+	if err != nil {
+		return nil, err
+	}
+	remote := env.target.Remote
+	mainRef := gitx.RemoteTrackingRef(remote, "main")
 	skip := map[string]bool{
 		"refs/heads/main": true, "refs/heads/" + env.resting: true,
-		gitx.RemoteTrackingRef(remote, "main"): true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
-		"refs/heads/" + vocab.Issue().Discovery().Tracker: true, gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
+		mainRef: true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
+		"refs/heads/" + vocab.Issue().Discovery().Tracker:                 true,
+		gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
 	}
-	var refs []string
-	for _, ref := range strings.Fields(out) {
-		if !skip[ref] {
-			refs = append(refs, ref)
+
+	filtered := refs[:0]
+	for _, ref := range refs {
+		if !skip[ref.Name] {
+			filtered = append(filtered, ref)
 		}
 	}
-	sort.Strings(refs)
-	return refs, nil
+	return filtered, nil
 }
 
 // branchIssueEdits lists the issue files ref changed relative to its merge base
 // with main, with their bytes at ref (nil when ref deleted the file).
-func branchIssueEdits(env *migrateEnv, ref, main, home string) ([]tracker.MigrationBranchFile, error) {
-	tip, err := env.git("rev-parse", "--verify", ref+"^{commit}")
-	if err != nil {
-		return nil, err
-	}
+func branchIssueEdits(env *migrateEnv, ref migrationBranchRef, main, home string) ([]tracker.MigrationBranchFile, error) {
+	tip := ref.OID
 	related, err := env.gitTest("merge-base", tip, main)
 	if err != nil {
 		return nil, err
@@ -313,7 +357,7 @@ func branchIssueEdits(env *migrateEnv, ref, main, home string) ([]tracker.Migrat
 		if _, _, ok := issue.ParseFilename(path.Base(p)); !ok {
 			continue
 		}
-		f := tracker.MigrationBranchFile{Branch: strings.TrimPrefix(strings.TrimPrefix(ref, "refs/heads/"), "refs/remotes/"), Path: p}
+		f := tracker.MigrationBranchFile{Branch: strings.TrimPrefix(strings.TrimPrefix(ref.Name, "refs/heads/"), "refs/remotes/"), Path: p}
 		present, err := env.has(tip, p)
 		if err != nil {
 			return nil, err
@@ -363,13 +407,14 @@ func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
 
 // legacyCloseAnchors finds, on each ref carrying the issue file, the legacy
 // close commit (the one that recorded codecomplete) and whether code followed.
-func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePath string) ([]tracker.MigrationAnchor, error) {
+func legacyCloseAnchors(env *migrateEnv, main string, branches []migrationBranchRef, issuePath string) ([]tracker.MigrationAnchor, error) {
 	runGit := func(args ...string) ([]byte, error) {
 		out, err := env.git(args...)
 		return []byte(out), err
 	}
 	var anchors []tracker.MigrationAnchor
-	for _, ref := range append([]string{main}, branches...) {
+	for _, branch := range append([]migrationBranchRef{{Name: main, OID: main}}, branches...) {
+		ref := branch.OID
 		present, err := env.has(ref, issuePath)
 		if err != nil {
 			return nil, err
@@ -415,7 +460,7 @@ func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePa
 			}
 			codeAfter = publishGateHasCodeSurface(paths)
 		}
-		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: codeAfter, OnMain: onMain})
+		anchors = append(anchors, tracker.MigrationAnchor{Ref: branch.Name, Anchor: anchor, Parent: parent, CodeAfter: codeAfter, OnMain: onMain})
 	}
 	return anchors, nil
 }
@@ -460,6 +505,11 @@ func applyTrackerBootstrap(env *migrateEnv, m tracker.MigrationManifest) (string
 	if err != nil && !errors.Is(err, gitx.ErrBootstrapExists) {
 		return "", fmt.Errorf("bootstrap the issue tracker: %w\n      re-run the same `--apply --expect %s` to resume", err, m.Digest)
 	}
+	return trackerBootstrapRoot(env, m)
+}
+
+// trackerBootstrapRoot verifies the existing root without publishing.
+func trackerBootstrapRoot(env *migrateEnv, m tracker.MigrationManifest) (string, error) {
 	view, err := env.trunk.Snapshot()
 	if err != nil {
 		return "", err
@@ -557,9 +607,9 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	migration, err := env.git("log", "-1", "--format=%H", "--diff-filter=A", mainView.Ref(), "--", tracker.CutoverMarkerPath)
-	if err != nil || migration == "" {
-		return fmt.Errorf("find main's migration commit (the one adding %s): %v", tracker.CutoverMarkerPath, err)
+	migration, err := migrationCommit(env, mainView.Ref())
+	if err != nil {
+		return err
 	}
 	if across, err := env.ancestorOf(migration, "HEAD"); err != nil {
 		return err
@@ -732,4 +782,13 @@ func cardClosed(card []byte) (bool, error) {
 	}
 	status, _ := issue.GetField(parsed.Frontmatter, "status")
 	return vocab.Issue().IsTerminal(status), nil
+}
+
+// migrationCommit pins the commit that introduced the current cutover marker.
+func migrationCommit(env *migrateEnv, main string) (string, error) {
+	commit, err := env.git("log", "-1", "--format=%H", "--diff-filter=A", main, "--", tracker.CutoverMarkerPath)
+	if err != nil || commit == "" {
+		return "", fmt.Errorf("find main's migration commit (adding %s): %v", tracker.CutoverMarkerPath, err)
+	}
+	return commit, nil
 }

@@ -405,9 +405,10 @@ type localCheckRunner func(ctx context.Context, c localCheck, sha string) (local
 // be compared with the same check on main. The failed head's status is already
 // recorded; this error does not authorize any landing.
 type localCheckFailure struct {
-	Check localCheck
-	Run   localRunRecord
-	Head  string
+	Bootstrap bool // no main target exists for baseline comparison
+	Check     localCheck
+	Run       localRunRecord
+	Head      string
 }
 
 func (e *localCheckFailure) Error() string {
@@ -607,6 +608,9 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 			return err
 		}
 	}
+	if facts.bootstrap {
+		fmt.Fprintf(stderr, "CI gate: bootstrap suite on %s: required make test; head declarations stay inactive until on main\n", abbrevSHA(head))
+	}
 	decl, hasWF, required := facts.decl, facts.hasWorkflows, facts.required
 	read := func() ([]prCheck, ciVerdict, error) {
 		before, err := gh.PRHeadOID(ctx, repo, number)
@@ -665,7 +669,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 				return fmt.Errorf("CI gate: %w", err)
 			}
 			if !rec.passed() {
-				return &localCheckFailure{Check: c, Run: rec, Head: head}
+				return &localCheckFailure{Check: c, Run: rec, Head: head, Bootstrap: facts.bootstrap}
 			}
 		}
 		// The run took minutes: read again, so a push or a new failure since

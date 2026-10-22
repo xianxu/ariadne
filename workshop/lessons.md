@@ -11,6 +11,10 @@
 - #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
 
 - #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
+- #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
+  per risky boundary. Task checkboxes reference that strategy instead of repeating
+  its case list; executable tests own the concrete inventory. The plan-quality
+  reviewer enforces this semantic authoring rule; source-name lint cannot prove it.
 
 - #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
 
@@ -1383,3 +1387,44 @@ Unknown descendant completion protects every input and output together: checkout
 - #544 BR-2: repair must share the consumer's complete generation validator. Restoring original bytes after removing authority does not restore continuity; test repair → removal/replacement → repair → actual, including positive no-op repair, rather than only endpoint equality. The shared validator and production sequence regressions defend this semantic authority contract without a duplicate lexical lint.
 - #544 BR-2 publication: checking history during prepare does not bind a later card-blob CAS to that history. Validate each actual publication base with the same generation rule; a failed conditional push must repeat validation on its new base. Real command schedules for changed/restored bytes, retry, unrelated-card movement and cancellation defend the lifecycle contract without a second validator or lexical lint.
 - #544 BR-3: accepting future metadata creates a preservation obligation across the entire persisted record family and every format, including nested lists and cross-format numeric precision. Decode exact known keys separately from opaque extensions, reject duplicate/unrepresentable values explicitly, and test the real ledger rewrite as well as path-by-type round trips. These semantic codec contracts are guarded by executable matrices rather than a lexical lint rule.
+- #543 plan review: a new mutating command must name its pure phase owner and
+  controllable effect boundary before implementation, and join the derived
+  recovery catalog/help/proof contract. Reuse durable authority instead of
+  inventing phase files. Keep plans at named function/adversarial-strategy level;
+  individual prerequisite and crash cases belong in executable sequence tests.
+  TestRecoveryContractsAreProven mechanically catches missing command recovery.
+
+### #543 BR-1 — cached remote refs cannot prove complete inventory
+
+An authoritative migration/init inventory must explicitly observe the current
+publication-remote heads, independent of the clone's configured fetch filters.
+Pin diagnostic names and object IDs together for every subsequent evidence
+consumer, and reject a main snapshot mismatch. Two-clone created/advanced-branch
+regressions defend this shared boundary; tests also pin the fetch write set so
+user tag-pruning/refmap preferences cannot expand a read's effects.
+
+### #543 BR-2 — initialization needs presence, not an importer
+
+A new-repository command needs only conservative absence proof. Do not enlarge
+an existing importer to answer that simpler question. Use one roots/path rule
+across every pinned tip, live worktree HEAD, index and filesystem scope, and
+refuse any issue presence without interpreting its body or differences. Test
+the roots × scopes enumeration; put pre-existing importer completeness work on
+its own issue (#546), as directed by the TL after the repeated family.
+
+### #543 BR-2 continued — complete observation precedes consumer filters
+
+An absence proof cannot consume another workflow's filtered branch list. Keep
+publicationBranchTips complete and apply migration's semantic exemptions only
+inside its consumer. The ref-category × root regression proves every previous
+exemption remains visible to init, while the migration policy remains unchanged.
+Do not confuse a pre-existing reserved branch with a verified partial bootstrap;
+keep exact-root retry proof and completed-marker idempotence explicit.
+- #539 plan review: name each risky production function with one adversarial strategy and independent mechanical guard in the plan; keep finite behavior enumeration in the state table and executable tests rather than duplicating prose case inventories. For real helper priority checks, use the existing Go provider harness; an old checkout bin/sdlc can silently fall back to FIFO and invalidate the direct Python run.
+
+- #539: A persistence failure must not erase successful observations. Keep the witnessed exit status and empty-group result, then name the failed completion-audit write separately; unresolved lifetime and unknown process facts are different claims.
+
+- #536 integration review: changing suite derivation requires carrying the exact subject through execution, admission and every saved-proof policy reader. Recovery cannot use current HEAD, and an absent baseline is unverified rather than main-red evidence. Native original-SHA republish/resume and missing-baseline regressions defend this semantic authority contract; a lexical helper-name lint cannot establish the provenance.
+- #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
+  help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
+  ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.

@@ -350,6 +350,10 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 			return suiteSlotRun{Exit: -1}, errors.New("empty managed command")
 		}
 	}
+	env, err := localCheckEnvironment(d.callerRoot(), wt)
+	if err != nil {
+		return suiteSlotRun{Exit: -1}, fmt.Errorf("local check dependency environment: %w", err)
+	}
 	if (resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
@@ -458,7 +462,6 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	defer logf.Close()
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
-	env := os.Environ()
 	if resource == "runner" {
 		env = withoutSuiteAuthority(env)
 	}

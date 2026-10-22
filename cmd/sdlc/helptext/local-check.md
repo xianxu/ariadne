@@ -103,6 +103,19 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
+COMMAND ENVIRONMENT (#545)
+
+  Every managed command receives SDLC_CALLER_ROOT, the initiating checkout
+  (also for train trees), while cwd remains the exact tested checkout.
+  Its construct/deps supplies SDLC_DEP_SUBSTRATE and SDLC_DEP_DATA: absolute
+  paths resolved against the caller, substrate via layergraph's existing
+  primary-checkout fallback, data via its mount. No transitive exports.
+  Identical same-kind paths dedupe; conflicting paths name both rows and
+  refuse before execution. Missing declarations export only caller identity;
+  invalid/unreadable declarations refuse. Inherited reserved values are cleared.
+  Absent declared paths stay visible; repair dependencies and retry as needed.
+  These are read-only inputs: suites must never write to dependency checkouts.
+
 ENVIRONMENT FAILURE (#477, #530)
 
   A completed failed suite whose entire output proves Go could not create
@@ -150,6 +163,21 @@ THE SUITE (#332)
   its recorded pass. A repository that declares none gets its `make test`, at
   the weight its Makefile gives (WF_TEST_WEIGHT): both read from main, so a
   branch cannot drop or lighten the suite it owes. Run it before close:
+
+  Bootstrap (#536): only when main has no declaration and no test target,
+  the exact pushed head may supply the default required make test and weight.
+  The run and landing gate label it bootstrap and record sdlc-local/suite on
+  that head through the ordinary managed queue. The head's first declaration
+  supplies no commands, custom checks or CI substitutes until it lands on main;
+  --all still runs only the default. A present valid empty main declaration
+  prevents bootstrap. Unknown or failed probes refuse rather than mean absent.
+  If neither tree has a target, add make test, push, then run
+  sdlc local-check run --name suite. A declaration change still requires the
+  operator's local-gates-verified label; agents never apply it themselves.
+  Republish and resume re-read current main policy with the saved/original
+  commit, so moving the caller's HEAD does not change bootstrap recovery.
+  Trains derive this policy for each actual prefix and after reintegration:
+  a prefix without a target cannot borrow a later prefix's run or pass virtually.
 
   A declared suite overrides command, timeout and weight, but is always
   required, even when its required field is omitted or false.

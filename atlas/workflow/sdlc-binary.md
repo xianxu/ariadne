@@ -10,6 +10,33 @@ Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
+## New repository initialization (#543)
+
+The explicit final setup command `sdlc issue init` has a conservative presence-only
+inventory and reuses migration's tracker bootstrap CAS and main cutover. Its pure
+invocation-local `tracker.InitTransition` owns phase changes; `issueinit.go`
+dispatches only returned effects and stops on failure/cancellation/uncertainty.
+Retry verifies existing root/marker evidence, retaining partial publication.
+Clean main checkout completion uses a pinned ff-only commit. Brains/declined
+scaffolds skip.
+
+`issueinit_inventory.go` refuses any recognized issue evidence in the active,
+flat legacy history or history/issues roots: pinned main, every current local
+and publication-remote branch tip, live worktree HEADs (including detached),
+indexes and filesystem entries (including ignored/untracked). It imports no
+records and applies no difference/merge rules. Unreadable or non-directory roots
+refuse as uncertain. Snapshot scans select metadata only, not issue bodies.
+The shared BR-1 head helper refreshes the entire publication heads mapping and
+pins names/OIDs without name exclusions (`publicationBranchTips`); only migrate
+applies its own branch filter. Failed refresh or main moving from its pin refuses. Tags, other
+remotes and FETCH_HEAD remain outside that explicit fetch's write set. Existing
+migration import policy is separate; its archive/worktree gaps are ariadne#546.
+An unverified/pre-existing reserved tracker branch refuses as `tracker already
+initialized`; exact verified empty-bootstrap recovery and completed valid
+root/marker no-ops remain supported.
+Legacy hints use local-only `issue.LocalPathsByID` evidence and never authorize
+publication. See [the setup procedure](setup-and-replication.md#new-repository-default).
+
 ## Executable identity (#461)
 
 `sdlc --version` reports the actual executable path, embedded VCS revision and
@@ -2097,9 +2124,29 @@ failure/flake decisions.
 
 Rollout rebuilds central :0, then lets old runners finish/relaunch; legacy
 activity remains named unknown until that boundary is proved. Managed suites
-own cancellation through processgroup cleanup. A direct make watcher alone
-only proves one PID ended, so an unproved descendant boundary stays unknown
-for operator reconciliation. No shared process group is signalled. The
+own cancellation through processgroup cleanup. A direct make watcher registers
+an exact-incarnation exit observer before acknowledging acquisition (#539).
+On Darwin, a positively observed exit status 0 plus an empty private make
+process group (`pgid == make pid`) permits normal retirement. The watcher
+detaches its own session and takes one bounded native group snapshot after
+exit; it never scans process inventories in its polling or admission loop.
+This boundary covers the shell job's group, not descendants that deliberately
+escape into another session. A nonzero or unobserved status, survivor,
+shared/unknown group, failed observation, cancellation or watcher crash keeps
+the lifetime unresolved. Hosts without native nonparent exit-status support
+keep the conservative unresolved behavior. No shared process group is signalled.
+
+Known endings retain `exit_observed_at` (observation time, not a reconstructed
+kernel exit time), known status and bounded survivor PIDs in the tombstone's
+additive fields and status detail. Normal retirement appends and fsyncs one
+diagnostic line to `completion.jsonl` beside the reconciliation audit before
+committing finished phase and deleting the operation. Each completion line is
+bounded to 1 KiB; like reconciliation, it has no expiry (at most 1 KiB lasting
+growth per direct completion). It is not suite-pass or admission evidence.
+Old tombstones lacking exit evidence remain unknown; there is no retroactive
+promotion. A Couch restart does not end the independent watcher, whereas loss
+of the watcher before its durable terminal transition requires reconciliation.
+The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
 the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained
@@ -2167,6 +2214,14 @@ Six shards took 747–820s. These are whole-machine measurements under the
 full-suite gate, not a guaranteed load ceiling. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
+
+Managed checks share `localcheck_dependency_environment.go` at
+`runUnderResourceBatch`: tested `construct/deps` rows become caller-anchored
+`SDLC_DEP_SUBSTRATE` / `SDLC_DEP_DATA`, with `SDLC_CALLER_ROOT` preserving the
+initiating checkout even for train trees. The shared layergraph parser/resolver
+owns substrate fallback. Conflicting same-kind paths refuse before execution;
+inherited reserved variables are cleared, absent declared paths remain visible,
+and dependencies are read-only. See `sdlc local-check --help` for the contract.
 
 Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it
@@ -2896,3 +2951,15 @@ and strict scratch defer, including effect aliases and multiple effects under
 one callback. It is a syntactic tripwire; real cancellation-boundary tests prove
 the authority behavior. Completed proof GC and unused pre-link preparation keep
 their existing lifecycles.
+
+### Bootstrap suite derivation (#536)
+
+`localchecks_bootstrap.go` composes existing default-suite constructors and
+bounded native make probes. Main remains authoritative; only proven absent
+declaration and target permit the exact subject's default. `runLocalCheckCmd`
+verifies the pushed subject before fallback. CI facts cache that same policy
+within one wait budget. Conductor `deriveSuite` re-derives per tested prefix and
+reintegration, so a later target/weight never authorizes an earlier prefix.
+The captured echo#1 inputs and native command/train regressions live in
+`testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
+See [the CI gate map](ci-merge-check.md) for evidence and authority rules.
