@@ -298,6 +298,174 @@ rounds:
       isolation: fenced
       reviewed: bca05a82260d4fcb3d9ee6965af661b82bd5e5d7
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 14988926-aed8-4224-82a2-8482801d5b33
+            repository: github.com/xianxu/ariadne
+            issue_id: "000531"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/3a78d42d5204a4b7
+            reviewed_head: c5a4809156e38af982a919d4a3694bdf68b8e92b
+            slot: ariadne:2
+            requested_at: "2026-10-22T21:40:26.065586Z"
+          phase: finished
+          pid: 86105
+          started_at: "2026-10-22T21:40:26.367408Z"
+          finished_at: "2026-10-22T21:46:05.236718Z"
+          session_id: 01a1658e-e898-77c2-83e9-014be7220e44
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c5a4809156e38af982a919d4a3694bdf68b8e92b
+        tracker_head: cf26cf9227cec304e182763edc62718f1bb478af
+        branch_point: 23104f37d2f381aac3ca70bc7bb7d21350f7d236
+        since: "2026-10-22T06:11:42-07:00"
+        until: "2026-10-22T14:39:15-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-22T06:11:42-07:00"
+              end: "2026-10-22T14:39:15-07:00"
+              began: "2026-10-22T06:11:42-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 505c16ac3ff24a11162b00f238941655551da7ef9b00a2c417c130bbb5d32a18
+              started: "2026-10-20T18:21:54.178Z"
+              spawned: false
+              bytes: 61915361
+              windows:
+                - start: "2026-10-22T06:11:42-07:00"
+                  end: "2026-10-22T14:39:15-07:00"
+            - harness: codex
+              id: 01a163bd-be11-7252-9cbe-e62a9fed13bf
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              parent_id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              digest: 0e9cd3d8235a6291af5f8affb1568c0b1859f97ee18e96b05d99b996c2b9ca00
+              started: "2026-10-22T13:12:21.961Z"
+              spawned: true
+              bytes: 782824
+              windows:
+                - start: "2026-10-22T13:12:21.961Z"
+                  end: "2026-10-22T14:39:15-07:00"
+            - harness: codex
+              id: 01a163c2-3f6f-7202-bd12-605946dc6161
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 89b3e950583cca6f90151c10eabb7fb780153c45969804c56de0c1fbedb9a23e
+              started: "2026-10-22T13:17:17.887Z"
+              spawned: false
+              bytes: 588448
+              windows:
+                - start: "2026-10-22T13:17:17.887Z"
+                  end: "2026-10-22T14:39:15-07:00"
+            - harness: codex
+              id: 01a163c4-0997-7293-9567-4150d0aa7a2b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 07f180f7034355358cd1372da33eeb07f3f4cd2355a27fab46e8dda69dd5a353
+              started: "2026-10-22T13:19:14.648Z"
+              spawned: false
+              bytes: 440898
+              windows:
+                - start: "2026-10-22T13:19:14.648Z"
+                  end: "2026-10-22T14:39:15-07:00"
+            - harness: codex
+              id: 01a163c5-a32e-72d2-8cca-8420db1e2121
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 149de2e2a2a0e55e38b649c9c4650b658a8eecbbfcf4c1fbfa1ba3aa2f3dc581
+              started: "2026-10-22T13:20:59.914Z"
+              spawned: false
+              bytes: 393878
+              windows:
+                - start: "2026-10-22T13:20:59.914Z"
+                  end: "2026-10-22T14:39:15-07:00"
+            - harness: codex
+              id: 01a163c6-13db-7250-b8fc-d997d7c4904b
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 8f88b959cd4d8955b0458cb6924126b2cd933e31a4d2d3111f0650cb255adc72
+              started: "2026-10-22T13:21:28.278Z"
+              spawned: false
+              bytes: 384312
+              windows:
+                - start: "2026-10-22T13:21:28.278Z"
+                  end: "2026-10-22T14:39:15-07:00"
+        queue_waits:
+            - attempt_id: f5e4adb1f14c8d5dd1c3330389679e87
+              slot: ariadne:2
+              record_digest: 7539ab9702724d746ddded5b1bdfa983e5de63c517153ee94eac29a583a3f6d5
+              start: "2026-10-22T13:40:24.139117Z"
+              end: "2026-10-22T14:39:34.814301Z"
+              queue_seconds: 3550.675184
+              raw_seconds: 3550.675184
+              exact: true
+            - attempt_id: 3d171593dcdf291b51b28c47dd4e440b
+              slot: ariadne:2
+              record_digest: b19b1ddc9f6bdcb300ab4b29818eecf1398c961637de28079790fedab97e1414
+              start: "2026-10-22T14:56:18.150905Z"
+              end: "2026-10-22T16:40:43.506555Z"
+              queue_seconds: 6265.35565
+              raw_seconds: 6265.35565
+              exact: true
+            - attempt_id: 19f4eadc1d939d3695ef5c3b1eb90283
+              slot: ariadne:2
+              record_digest: 2cf5bcbaf215a35020d6ef075a40a1880abdca058cc9b04ce0d43bf9a8bb1e44
+              start: "2026-10-22T17:20:59.440173Z"
+              end: "2026-10-22T18:54:25.784579Z"
+              queue_seconds: 5606.344406
+              raw_seconds: 5606.344406
+              exact: true
+            - attempt_id: 712e42ae443bf037b225322649fc0ea6
+              slot: ariadne:2
+              record_digest: d2dd2998beae7ce9a551b4aed42790a3413451084a475cd0042c88ae87aaf23d
+              start: "2026-10-22T18:56:36.009413Z"
+              end: "2026-10-22T21:08:20.069619Z"
+              queue_seconds: 7904.060206
+              raw_seconds: 7904.060206
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 49.55413333333333
+        cuts:
+            - dispatched: "2026-10-22T10:01:26-07:00"
+              finalized: "2026-10-22T10:03:56-07:00"
+              finalizing: false
+            - dispatched: "2026-10-22T10:21:30-07:00"
+              finalized: "2026-10-22T10:23:26-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-22T14:46:06-07:00"
+      dispatched: "2026-10-22T14:40:26-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: actualplan.go:87 independently validates requested unfinalized milestones. Native authority regressions cover empty, whole-issue-only and finalized-only ledgers and passed at the pinned head.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: README.md:1099-1105 documents committed executable Plan authority, retirement without clearing findings or granting SHIP, refusal guidance and unchanged saved replay; these statements match actualplan.go and actualinputs.go.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: c5a4809156e38af982a919d4a3694bdf68b8e92b
+      blocked: false
 ---
 
 # Gate ledger — ariadne#531 (boundary-review)
@@ -320,6 +488,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — addressed — actualplan.go:87 independently requires authority for requested unfinalized milestones. Removing this predicate in a disposable pinned-head copy failed nine authority cases and both production regressions, reproducing unauthorized measurements of 50/60h and 25/60h.
 - BR-2 — addressed — README.md:1070-1076 now documents committed executable Plan authority, retirement without clearing findings or granting SHIP, refusal guidance, and unchanged saved replay. These statements match actualplan.go:79-115 and the retained-replay paths in actualinputs.go.
+
+## Round 3 — 2026-10-22T14:46:06-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — actualplan.go:87 independently validates requested unfinalized milestones. Native authority regressions cover empty, whole-issue-only and finalized-only ledgers and passed at the pinned head.
+- BR-2 — addressed — README.md:1099-1105 documents committed executable Plan authority, retirement without clearing findings or granting SHIP, refusal guidance and unchanged saved replay; these statements match actualplan.go and actualinputs.go.
 
 ## Open findings
 

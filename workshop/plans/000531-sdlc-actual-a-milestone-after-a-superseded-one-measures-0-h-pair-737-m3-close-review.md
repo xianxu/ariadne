@@ -165,3 +165,71 @@ dispose:
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"963e25d8-3eba-45c5-ae26-d222cc38095a","repository":"github.com/xianxu/ariadne","issue_id":"000531","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/90952d50972162c1","reviewed_head":"bca05a82260d4fcb3d9ee6965af661b82bd5e5d7","slot":"ariadne:2","requested_at":"2026-10-22T17:21:30.344967Z"},"phase":"finished","pid":97711,"started_at":"2026-10-22T17:21:30.498898Z","finished_at":"2026-10-22T17:23:25.965558Z","session_id":"01a164a1-d911-71d2-900d-26b04cb32227","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T14:46:06-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 531 — sdlc actual: a milestone after a superseded one measures 0 h (pair#737 M3) |
+| repo | ariadne |
+| issue file | workshop/issues/000531-sdlc-actual-a-milestone-after-a-superseded-one-measures-0-h-pair-737-m3.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8a4284028a80a4277312c57755c8bf967fdd696f..c5a4809156e38af982a919d4a3694bdf68b8e92b |
+| command | sdlc close --issue 531 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T14:46:06-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both sides of the conflict resolution: fresh measurements retain Plan-based cut selection, and queue evidence receives the explicit publication remote’s main reference. Both prior dispositions remain valid. No new defects or scope changes were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      actualplan.go:87 independently validates requested unfinalized milestones. Native authority regressions cover empty, whole-issue-only and finalized-only ledgers and passed at the pinned head.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:1099-1105 documents committed executable Plan authority, retirement without clearing findings or granting SHIP, refusal guidance and unchanged saved replay; these statements match actualplan.go and actualinputs.go.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/actualinputs.go:272-277` preserves shared selection, error propagation and retirement diagnostics before persisting cuts.
+   - `cmd/sdlc/actualinputs.go:278` retains main’s explicit remote-main argument.
+   - Native tests check positive replacement accounting alongside unchanged historical replay.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Authority, retirement, ownership, replay, captured pair#737 and decimal-hint checks passed (296.640s). Queue ancestry, authority and attachment checks passed (19.608s). `git diff --check` passed. The repository-wide suite was not rerun; tracked files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Reuses shared selection and cut conversion.
+   - **ARCH-PURE — pass:** Selection remains separate from repository IO.
+   - **ARCH-PURPOSE — pass:** Conflict resolution preserves retirement accounting and main’s queue authority behavior.
+   - **ARCH-EVOLVE — pass:** No persisted-format change; immutable replay remains covered.
+
+   No new architectural or user-facing surface requires additional atlas or README changes.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"14988926-aed8-4224-82a2-8482801d5b33","repository":"github.com/xianxu/ariadne","issue_id":"000531","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/3a78d42d5204a4b7","reviewed_head":"c5a4809156e38af982a919d4a3694bdf68b8e92b","slot":"ariadne:2","requested_at":"2026-10-22T21:40:26.065586Z"},"phase":"finished","pid":86105,"started_at":"2026-10-22T21:40:26.367408Z","finished_at":"2026-10-22T21:46:05.236718Z","session_id":"01a1658e-e898-77c2-83e9-014be7220e44","outcome":"returned"}] -->
