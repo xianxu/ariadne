@@ -58,6 +58,21 @@ Stages stay prose; the binary refuses transitions that lack required
 evidence. Subcommands are added incrementally when the same drift
 recurs at a stage (not by formalizing the SDLC as a state machine).
 
+## Stage clear after landing
+
+`runUnstage` (`stage.go`) holds the target's stage lock through proof, restore
+and rebuild. Ordinary holder and exact `--abandoned` authorization remain in
+`stageplan.go`. For a branch-deleted landing, `landedStageCaller` selects only
+the recorded canonical original slot on its own rest; `proveLandedStageHolder`
+(`stagelanded.go`) then requires the current done completion, matching merged
+PR carrying the staged commit and nonempty archive ownership/proof. It reuses
+the fresh-main pin already used for fast-forward and build. The caller, lease
+and completion are re-observed before effects. Unknown or changed evidence
+preserves the stage: finish/reconcile landing or repair evidence, then rerun
+`sdlc stage --clear` from the original resting slot. This exception grants no
+staging or move rights. See `sdlc stage --help` and the
+[slot procedure](workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
+
 ## Verb surface
 
 | Verb              | Replaces (Make target)      | Defends |
@@ -1782,8 +1797,15 @@ cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
 repository, immutable tested-head issue membership, owner slot and engagement
-(#548). Membership reuses local subject leads and follows only recognized
-first-parent metadata/integration commits. Exact same-train composition includes
+(#548). Membership reuses local subject leads and recognized first-parent metadata.
+An otherwise unattributed merge also inherits its first parent's membership when every
+other parent is reachable from one pinned publication-main OID (#553), independently
+of the merge message. That command-local ancestry cache has the same node ceiling;
+ref movement cannot change its pin. Proof selection and classification receive the
+same repository context through the reader interface. Structural probes disable replacements, grafts,
+shallow boundaries and lazy fetching; a failed probe is distinct from a non-ancestor.
+Exact train parsing, including malformed-train refusal, runs before this fallback.
+Exact same-train composition includes
 admitted cars only; main and held cars contribute nothing. Proven foreign runs
 are excluded before ownership errors can block another issue. Unknown or missing
 head proof refuses with the attempt, SHA and restore/retry guidance. Reads disable
@@ -1808,6 +1830,28 @@ can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
+
+Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
+owns versioned start/bind/end facts under the existing ticket/head lifetime and
+pure `ReduceWaitEvidence`. `landingqueue.go` records exact owner boundaries and
+`landingtrain.go` binds the verified car to the live conductor. A closed invocation
+with at least one verified binding contributes its whole retained interval,
+including pre-boarding and release/reformation gaps. No per-poll history or
+source-idle claim is made. Non-addressable legacy invocations report unavailable
+coverage while preserving their ordinary landing behavior.
+
+`actualtrainwait_io.go` reads the existing 30-day audit once, bounded to 32 MiB,
+100,000 records and 1 MiB per record; it reuses #548's immutable-head proof.
+`actualtrainwait.go` clips to exact pinned owner/source windows and reports the
+union as `unverified coverage: N min in a retained train wait`. These inputs never
+enter the activity engine's subtraction path. Existing hours, phase splits and
+calibration policy remain unchanged. Malformed/partial/expired evidence produces a
+bounded limitation instead of a guessed duration. Optional preserving snapshot
+facts have a 16-interval/8 KiB budget; candidate-copy validation drops diagnostic
+attachment before it can invalidate the accounting snapshot. A compact limitation
+is pinned when it fits, otherwise replay preserves accounting alone. No past
+actual is automatically rewritten. Structural runtime-job/invocation binding for
+future proven-idle subtraction is deferred to pair#800.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
@@ -2201,9 +2245,8 @@ growth per direct completion). It is not suite-pass or admission evidence.
 Old tombstones lacking exit evidence remain unknown; there is no retroactive
 promotion. A Couch restart does not end the independent watcher, whereas loss
 of the watcher before its durable terminal transition requires reconciliation.
-The
-supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+`couch --skill` owns authenticated supervisor notices and receipts;
+`tl-worker --help` owns checkpoint and idle discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained
 check verification; the continuation prototype points workers to that rule.
 

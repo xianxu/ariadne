@@ -2,19 +2,30 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
-type queueHeadReader func(context.Context, []string) ([]queueHeadFact, error)
+type queueHeadReader func(ctx context.Context, heads []string, selfRepo string) ([]queueHeadFact, error)
 type queueHeadLimits struct{ Nodes, Bytes, Depth, Batch int }
 
 // Safety ceilings, not latency targets: see #548's recorded initial basis.
 var defaultQueueHeadLimits = queueHeadLimits{Nodes: 10000, Bytes: 32 << 20, Depth: 256, Batch: 128}
 
-func gitQueueHeadReader(root string) queueHeadReader {
-	return func(ctx context.Context, heads []string) ([]queueHeadFact, error) {
+func gitQueueHeadReader(root string, mainRefs ...string) queueHeadReader {
+	mainRef := "refs/remotes/origin/main"
+	if len(mainRefs) > 0 {
+		mainRef = mainRefs[0]
+	}
+	main := ""
+	ancestry := map[string]bool{}
+	limit := defaultQueueHeadLimits.Nodes
+	return func(ctx context.Context, heads []string, selfRepo string) ([]queueHeadFact, error) {
 		objects, err := gitx.ReadCommitObjects(ctx, root, heads)
 		if err != nil {
 			return nil, err
@@ -25,10 +36,57 @@ func gitQueueHeadReader(root string) queueHeadReader {
 			if err != nil {
 				return nil, err
 			}
+			// Exact train authority, including malformed trains, takes precedence.
+			if len(fact.Parents) > 1 && parseQueueHead(fact, selfRepo).Kind == queueHeadUnknown {
+				if main == "" {
+					out, diag, err := gitx.RunGitInContext(ctx, root, queueAncestryEnv(), "--no-replace-objects", "rev-parse", "--verify", mainRef+"^{commit}")
+					if err != nil {
+						return nil, fmt.Errorf("queue attribution cannot pin publication main: %w (%s)", err, strings.TrimSpace(string(diag)))
+					}
+					main = strings.TrimSpace(string(out))
+					if !landingOIDValid(main) {
+						return nil, fmt.Errorf("queue attribution has invalid publication main OID")
+					}
+				}
+				fact.MainParents = true
+				for _, parent := range fact.Parents[1:] {
+					onMain, ok := ancestry[parent]
+					if !ok {
+						if len(ancestry) >= limit {
+							return nil, fmt.Errorf("queue main ancestry exceeds node safety budget")
+						}
+						onMain, err = queueMainAncestor(ctx, root, parent, main)
+						if err != nil {
+							return nil, err
+						}
+						ancestry[parent] = onMain
+					}
+					if !onMain {
+						fact.MainParents = false
+						break
+					}
+				}
+			}
 			facts = append(facts, fact)
 		}
 		return facts, nil
 	}
+}
+
+func queueAncestryEnv() []string {
+	return []string{"GIT_NO_LAZY_FETCH=1", "GIT_GRAFT_FILE=" + os.DevNull, "GIT_SHALLOW_FILE=" + os.DevNull}
+}
+
+func queueMainAncestor(ctx context.Context, root, parent, main string) (bool, error) {
+	_, diag, err := gitx.RunGitInContext(ctx, root, queueAncestryEnv(), "--no-replace-objects", "merge-base", "--is-ancestor", parent, main)
+	if err == nil {
+		return true, nil
+	}
+	var exit *exec.ExitError
+	if ctx.Err() == nil && errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, fmt.Errorf("queue main ancestry for %s: %w (%s)", parent, err, strings.TrimSpace(string(diag)))
 }
 
 func readQueueHeadMemberships(ctx context.Context, heads []string, selfRepo string, read queueHeadReader) (map[string]queueHeadMembership, error) {
@@ -88,7 +146,7 @@ func readQueueHeadMembershipsWithLimits(ctx context.Context, heads []string, sel
 			n := min(len(fetch), limits.Batch)
 			batch := append([]string(nil), fetch[:n]...)
 			fetch = fetch[n:]
-			got, err := read(ctx, batch)
+			got, err := read(ctx, batch, selfRepo)
 			if err != nil {
 				return nil, err
 			}

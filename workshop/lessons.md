@@ -1453,3 +1453,34 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #551 full suite: new compatibility wrappers must respect the existing no-Background context guard. Remove unused internal context-free APIs and propagate the caller through confinement and setup, rather than adding exceptions or hiding a Background allocation behind another helper.
 
 - #551 BR-3: a post-close fix that also adds operator-visible diagnostics exceeds a narrow fix review, even when it reuses an existing projection. Record that addition and run the full close review; do not treat passing targeted tests as permission to bypass scope review.
+- #506 TL wording review: a paused admission queue changes what “wait for background work” can mean.
+  Distinguish already-running work from queued, not-started work before instructing an owner to wait;
+  leave the latter queued and record it outstanding. Neither owner idleness nor a drain flag proves
+  restart safety. Rendered-help guards pin the running/queued distinction and keep unrelated test advice
+  outside the drain procedure.
+
+- #506 BR-1: retiring a protocol step requires a semantic alias sweep, not only a grep for its literal
+  command. Search acknowledgment/ID and notice/ack descriptions across every shipped help consumer, then
+  replace drift-prone restatements with owner pointers. Render sibling help through its real registration
+  and assert that the read-only path never reaches storage or authority checks.
+- #547 plan review: producer lifetime proves a blocked command, not source idle. If the runtime cannot bind pure observations to that invocation, expose counted unverified coverage rather than infer intent from tool or command text. Define whether coverage means a whole invocation or train membership episodes before implementation.
+- #547 plan review: optional diagnostic facts must be budgeted independently from the accounting snapshot. Validate an attachment candidate, preserve existing evidence on overflow, and retain a bounded limitation only when it fits; descriptive coverage must not create a new accounting failure.
+- #538: an archive helper's successful legacy byte-preserving move is not proof
+  of a current tracker completion generation. A new authorization consumer must
+  require the archived done-card mirror to pin the current full binding; empty
+  ownership and unmirrored archives grant nothing. Re-observe target checkout
+  facts as well as caller, lease and generation after remote proof and before
+  effects. Native replaced-token, target-movement and post-archive replacement
+  regressions defend these semantic contracts; lexical lint cannot prove them.
+
+- #553 BR-1: a structural fallback placed after selected grammar branches can
+  remain message-dependent through earlier unknown returns. Apply fallback to
+  the authority parser's explicit unknown result; preserve definite authority
+  and malformed-train refusal. Enumerate early-return classes, including invalid
+  leads and bookkeeping merges, in the real-Git controls. This semantic ordering
+  invariant needs behavioral tests rather than a source-name lint.
+- #553 BR-2: sharing a parser does not share authority when callers supply
+  different repository identities. Carry the classifier's context through the
+  typed reader call; do not substitute an empty or independently derived name
+  for proof selection. Cross-repository qualified/ref-list controls exercise the
+  production seam and prevent another instance of this message-dependent class.

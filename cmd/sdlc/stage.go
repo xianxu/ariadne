@@ -168,8 +168,16 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	if err != nil {
 		return err
 	}
+	landedHolder := false
 	if err := checkClearLease(held, stageHolder(moveSide{Branch: workspaceText(me.Branch, ""), Address: workspaceText(me.Address, "")}), abandoned, to.Address); err != nil {
-		return err
+		caller := moveSide{Branch: workspaceText(me.Branch, ""), Address: workspaceText(me.Address, ""), Resting: workspaceText(me.RestingBranch, "")}
+		if abandoned != "" || me.RepoIdentity != id.RepoIdentity || !landedStageCaller(held, caller) {
+			return err
+		}
+		if staged && to.Head != held.Commit {
+			return landedStageRefusal(held, to.Address, errors.New("target is no longer at the recorded staged commit"))
+		}
+		landedHolder = true
 	}
 	assets, err := slotAssetEnvironment(ctx, to.Root)
 	if err != nil {
@@ -185,6 +193,15 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 			return nil
 		}
 		return fmt.Errorf("fetch origin/main before clearing %s: %w; no rebuild; repair the remote and rerun sdlc stage --clear %s", to.Address, err, to.Address)
+	}
+	var proof *landedStageProof
+	if landedHolder {
+		proofCtx, cancel := context.WithTimeout(ctx, landingRecoveryTimeout)
+		defer cancel()
+		proof, err = proveLandedStageHolder(proofCtx, to.Root, pin.Ref(), held)
+		if err != nil {
+			return landedStageRefusal(held, to.Address, err)
+		}
 	}
 	git := checkoutGit(ctx, to.Root)
 	counts, err := git("rev-list", "--left-right", "--count", to.RestHead+"..."+pin.Ref())
@@ -209,6 +226,32 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 	// assets that exist only in the freshly fetched tree.
 	if err := verifyAssetMaterialization(ctx, to.Root, pin, issuesDir, to.RestHead); err != nil {
 		return err
+	}
+	if proof != nil {
+		if err := proof.revalidate(); err != nil {
+			return landedStageRefusal(held, to.Address, err)
+		}
+		now, err := workspace.Resolve(boundedLandingGit(proof.env.ctx, r), dir, "")
+		if err != nil || !reflect.DeepEqual(me, now) {
+			return landedStageRefusal(held, to.Address, fmt.Errorf("caller changed during proof: %v", err))
+		}
+		proofGit := boundedLandingGit(proof.env.ctx, r)
+		targetID, err := workspace.Resolve(proofGit, to.Root, "")
+		if err != nil {
+			return landedStageRefusal(held, to.Address, err)
+		}
+		currentTarget, err := observeMoveSide(proofGit, targetID)
+		if err != nil || !reflect.DeepEqual(to, currentTarget) {
+			return landedStageRefusal(held, to.Address, fmt.Errorf("target changed during proof: %v", err))
+		}
+		current, err := readStageLease(proofGit, to)
+		if err != nil || !reflect.DeepEqual(held, current) {
+			return landedStageRefusal(held, to.Address, fmt.Errorf("stage lease changed during proof: %v", err))
+		}
+		if err := proof.env.ctx.Err(); err != nil {
+			return landedStageRefusal(held, to.Address, err)
+		}
+		fmt.Fprintf(stdout, "Confirmed landed holder %s from %s; archive verified at %s\n", held.Holder, held.Slot, pin.Ref())
 	}
 	if dryRun {
 		if held.Holder != "" && !staged {
@@ -350,7 +393,7 @@ func restoreStageLease(r execGitRunner, root string, held fleet.StageLease) erro
 }
 
 // readStageLease reads to's lease; a damaged one is never read as free.
-func readStageLease(r execGitRunner, to moveSide) (fleet.StageLease, error) {
+func readStageLease(r gitRunner, to moveSide) (fleet.StageLease, error) {
 	held, err := fleet.ReadStageLease(r, to.Root)
 	if err != nil {
 		return fleet.StageLease{}, fmt.Errorf("%s's stage lease is unreadable: %w; check what %s is running, then remove the file by hand", to.Address, err, to.Address)

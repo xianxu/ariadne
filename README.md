@@ -46,7 +46,11 @@ If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
 `sdlc move` into that slot refuses and names the holder. When the holder is
-done it clears its stage; an abandoned one is freed with
+done it clears its stage. After landing deletes its issue branch, the recorded
+original slot can clear from its own resting branch with confirmed current
+completion, merged PR and archive evidence. Unknown proof preserves the stage;
+finish/reconcile landing or repair the evidence and retry from that slot on rest.
+An abandoned one is freed with
 `sdlc stage --clear :0 --abandoned <holder>`. See [stage and clear](atlas/workflow/workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
 
 In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
@@ -793,9 +797,12 @@ to finish without another audit entry. It never resumes holds or restarts work.
 Managed local checks retain their latest raw interruption log per check/head as
 `<git common dir>/sdlc/local-checks/<head>/<check>.interrupted.log`, outside
 accepted suite attempts. The normal newest-20-head log retention applies.
-`tl-worker --help` describes the durable checkpoint and drain acknowledgment,
-continuation/restart timing around owned recorded checks, and verification of
-retained checks after a restart.
+`tl-worker --help` describes notice-only graceful/fast drain checkpoints,
+deferred work messages, continuation/restart timing around owned recorded checks,
+and verification of retained checks after a restart. `tl-lead --help` owns the
+steward's queue controls, restart-safety judgment and explicit operator recovery
+authority, plus capability-qualified hub automation. Flags and quiet screens do
+not prove restart safety. See [drain and hub automation](atlas/workflow/tl-skills.md#drain-and-hub-automation).
 
 A repository can also declare an **affected suite** (#473) in `.sdlc/affected.json`; without the file the mode is off.
 For generated Go graph inputs, that file can include
@@ -1073,6 +1080,8 @@ sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
+Retained train waits appear as counted **unverified coverage** beside hours;
+the diagnostic describes a bound waiter invocation and makes no idle subtraction.
 `sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
 repair of a completed sample. If legacy rows are ambiguous, its diagnostic names
 the ledger and eligible raw-row hashes. Have the TL/operator select the row by

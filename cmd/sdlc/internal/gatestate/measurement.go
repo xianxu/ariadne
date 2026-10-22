@@ -60,6 +60,8 @@ type MeasurementInputs struct {
 	IncludeAssistant      bool                    `json:"include_assistant" yaml:"include_assistant"`
 	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
 	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
+	CarWaits              []MeasurementCarWait    `json:"car_waits,omitempty" yaml:"car_waits,omitempty"`
+	CarWaitNotes          []string                `json:"car_wait_notes,omitempty" yaml:"car_wait_notes,omitempty"`
 	QueueWaits            []MeasurementQueueWait  `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
 	Protected             []MeasurementCredit     `json:"protected,omitempty" yaml:"protected,omitempty"`
 	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
@@ -260,6 +262,9 @@ func (m MeasurementInputs) Validate() error {
 		if !end.After(start) || start.Before(contributionSince) || end.After(until) {
 			return fmt.Errorf("measurement protected[%d] must be ordered and within since/until", i)
 		}
+	}
+	if err := m.ValidateCarWaitCoverage(); err != nil {
+		return err
 	}
 	sourceCount := len(m.Sources)
 	if m.LegacyPrefix != nil {
