@@ -169,3 +169,7 @@ boundary review: write fence unavailable (sandbox-exec unavailable: sandbox-exec
 ```
 
 Both reported limits match the approved design: fetch age is explicitly unknown without one matching FETCH_HEAD observation, and an unavailable nested OS fence uses a writable disposable dependency clone rather than the live checkout or a refusal. No remedy, fetch or machine change is needed. Live conformance is complete. The integrated recorded suite lease-349901671 is still queued at FIFO position 4; preserve that run and land after it passes.
+
+### 2026-10-22 — integrated suite passed, entering landing
+
+Retained integrated recorded run lease-349901671 passed on 3739b629f1e4f6c819a23c6d27df265a3bd852b7: all eight shards exit 0, 2264 cmd/sdlc tests and 76 other packages, wall 1207.8s after 714s admission wait. Log .git/sdlc/local-checks/3739b629f1e4f6c819a23c6d27df265a3bd852b7/suite.log, reported SHA256 prefix 45b521160e92; sdlc-local/suite posted on that exact head. No retry, known-flake acceptance or cancellation. Full close is SHIP and Echo-owned live conformance is complete. Publish the evidence-only successor and enter sdlc merge; its gate owns subsequent main integration and any required authoritative suite. Report landing to the hub for grant revocation.
