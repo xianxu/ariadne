@@ -28,7 +28,9 @@ Alternatives rejected: auto-init during compile/refresh conflates composition wi
 
 | Name | Lives in | Status |
 | --- | --- | --- |
-| Empty-init eligibility | cmd/sdlc/internal/tracker/initialization.go | new |
+| EmptyInitEligible | cmd/sdlc/internal/tracker/initialization.go | new |
+| InitState / InitEvent / InitEffect / InitTransition | cmd/sdlc/internal/tracker/initialization.go | new |
+| LegacySetupHint | cmd/sdlc/internal/tracker/initialization.go | new |
 | MigrationInput / MigrationManifest / PlanTrackerMigration | cmd/sdlc/internal/tracker/migration.go | reused unchanged |
 
 Eligibility accepts only an empty migration input: no active/archived details, branch issue edits, or dirty issue paths and no migration refusals. It cannot bless a nonempty repository by checking only card count. The input belongs to one pinned repository/main inventory; callers supply already observed facts. Unit tests require no IO. Existing completed tracker verification precedes this check, so rerunning initialization after later issue creation is a no-op when local main already carries the matching cutover.
@@ -80,36 +82,70 @@ This is an explicit batch setup command, never per keystroke or ordinary compile
 
 ARCH-DRY/PURE: share migration publication and make only the stricter empty eligibility pure. ARCH-PURPOSE: real setup fixture must proceed from init through issue new and start-plan. ARCH-MOCK: real portable Git/bare remote models actual state transitions and failures. ARCH-CONSTRAINTS: explicit bounded batch action; no compile hot-path cost. ARCH-SECURE: no credentials created/logged; all remote/marker/root reads remain typed and validated, and brains/opt-out are checked before writes. ARCH-ORDER: retain partial publication, test before/after both CAS boundaries and checkout completion; no rollback or inferred absence. ARCH-FUNERAL: reuse existing artifact owners/lifetimes. ARCH-EVOLVE: no existing format change; reused cutover version/root schema and unknown-field preservation stay intact.
 
-## Implementation and tests
+## Enforced transition owner
 
-### 1. Empty initialization and setup sequence
+`tracker.InitTransition(state InitState, event InitEvent) (InitState, InitEffect, error)` is the only phase mutation. InitState's fields and phase enum are package-private; callers construct it through NewInitialization and cannot advance it directly. Events/effects are tagged types. The returned state records confirmed root/commit identity, not just a phase boolean. The shell may only execute returned effects and feed their outcomes back; it never chooses a publication from raw marker observations.
 
-Files: create cmd/sdlc/issueinit.go, cmd/sdlc/issueinit_test.go and cmd/sdlc/internal/tracker/initialization{,_test}.go; minimally share helpers from cmd/sdlc/issuemigrate.go; register in cmd/sdlc/issue.go.
+| State | Event | Next state / returned effect |
+| --- | --- | --- |
+| new | Begin | inspecting / InspectInitialization |
+| inspecting | Inspected(skip or prerequisite/refusal/unknown) | terminal skipped/refused; no mutation |
+| inspecting | Inspected(confirmed complete/current) | done; no mutation |
+| inspecting | Inspected(verified empty/uninitialized) | bootstrapping / BootstrapTracker |
+| inspecting | Inspected(matching tracker-only root) | publishing / PublishCutover(root, expected main) |
+| inspecting | Inspected(matching remote cutover, stale clean checkout) | completing / FastForwardCheckout(commit) |
+| bootstrapping | BootstrapConfirmed(root) | publishing / PublishCutover(root, expected main) |
+| publishing | CutoverConfirmed(commit) | completing / FastForwardCheckout(commit) |
+| completing | CheckoutConfirmed | done; no effect |
+| any active phase | effect failed, canceled or unconfirmed | terminal retry/refused, preserve confirmed identities; no next effect |
+| wrong phase or terminal | duplicate/out-of-order event | reject without effect |
 
-- [ ] Write pure eligibility table tests and production init tests with a local bare remote, then run them RED before implementation.
-- [ ] Implement the narrow empty-init orchestration, preserving existing migration semantics and lock ownership.
-- [ ] Prove immediate setup behavior: marker in checkout/main, tracker branch on remote; issue new writes no checkout; claim/start-plan creates a main-based issue branch through actual verbs.
-- [ ] Cover brains, declined scaffold, missing/unborn/non-Git/no-origin/unpushed-main, dirty/index changes, non-main caller, existing initialized tracker with later cards, malformed marker, unreachable remote and nonempty active/history/branch/dirty inventory.
-- [ ] Cover process/failure windows before/after tracker publication, before/after main cutover and before/after fast-forward; repeated init, concurrent init and a later issue write must preserve authority/cards and local edits.
-- [ ] Run `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc -run 'Test(IssueInit|EmptyTrackerInit)' -count=1 -timeout 10m` and commit the verified implementation.
+The in-memory machine is one invocation; retries reconstruct observations from existing durable root/marker/checkout authority. No new on-disk state is introduced. The IO adapter `initializationEffects` owns Inspect/Bootstrap/Publish/FastForward; its methods wrap existing migration/Git operations. A stateful fake and the real bare-Git adapter use the same effect dispatcher, providing a deterministic barrier before and after each external effect. Lost acknowledgments stop this invocation; a new invocation observes whether publication occurred. Cross-clone CAS races and later card creation are sequenced at these barriers. As with migration, setup requires other legacy SDLC writers to remain quiescent until initialization completes; the command does not claim to fence uncooperative old binaries or ordinary editors in another clone. Pinned-main CAS, exact-root checks, clean-checkout revalidation and the existing local repo lock remain the mechanical guards.
 
-### 2. Legacy hint and canonical setup documentation
+## Advisory legacy inventory
 
-Files: cmd/sdlc/legacymode.go, cmd/sdlc/issue.go, cmd/sdlc/startplan.go; tests in cmd/sdlc/issueinit_test.go / existing command tests; README.md, atlas/workflow/setup-and-replication.md, atlas/workflow/sdlc-binary.md, cmd/sdlc/helptext/issue.md (or existing issue help owner).
+`legacySetupAdvice` resolves configured issue/history roots and uses `issue.LocalPathsByID`; it does not call the migration scanner, fetch or rescan remote state. `tracker.LegacySetupHint` chooses text from known-local-empty, local-nonempty or unknown observations. Empty-local text says issue init and qualifies the evidence: init verifies the complete inventory before publication. Nonempty text says migrate. Unknown reads are never called empty, and missing/declined scaffolds and brains receive no advice. The helper runs before legacy issue creation, and in runStartPlan beside its existing repositoryTracked result so bare start-plan is included. Advice changes neither legacy effects nor issue-new stdout.
 
-- [ ] Write RED tests that genuine legacy issue new and start-plan emit exactly one migrate hint while retaining their current effects; tracked repos and brains emit none. Keep issue-new stdout's created-path contract intact.
-- [ ] Add one shared nonmutating hint helper at both legacy dispatches, without a redundant remote probe or a migration attempt.
-- [ ] Document new-repo setup after weave link/compile, initial source commit and pushed main, finishing with issue init; document brain skip and explicit opt-out. Keep adoption/restore and refresh contracts intact.
-- [ ] Run targeted command/help tests and diff checks; add lessons only for an actual discovered/reviewed mistake class. Semantic init safety is enforced by sequence/real-Git tests; existing lint owns mechanical API misuse.
+## Tasks and verification strategies
 
-### 3. Acceptance and landing (one whole-issue review boundary)
+### 1. Implement initialization through the pure model
 
-- [ ] Run private production CLI setup conformance in a disposable local bare-remote fixture, including rerun and brain skip. Ask TL whether it suffices without stage before live acceptance.
-- [ ] Push through sdlc pr, run the recorded branch suite, and complete close review. No stage or publication outside the approved acceptance path.
-- [ ] On SHIP and passing branch evidence enter sdlc merge --yes, retain its authoritative integration run, verify merge/card/archive and report to hub. TL owns project updates and real fleet use.
+Files: new cmd/sdlc/issueinit.go, cmd/sdlc/issueinit_test.go, cmd/sdlc/internal/tracker/initialization.go and initialization_test.go; register in cmd/sdlc/issue.go; share only necessary migration helpers from cmd/sdlc/issuemigrate.go.
+
+- [ ] Write pure decision/sequence tests and actual command regression RED, then implement the model and thin effect adapter.
+- [ ] Run the production init -> issue new -> claim/start-plan fixture against a disposable bare remote; commit after GREEN.
+
+### 2. Wire legacy advice, recovery contract and default setup procedure
+
+Files: cmd/sdlc/legacymode.go, cmd/sdlc/issue.go, cmd/sdlc/startplan.go and their tests; cmd/sdlc/internal/recovery/catalog.go (existing recovery owner), command help; README.md and atlas/workflow/{setup-and-replication,sdlc-binary}.md. Sweep operator/TL-facing setup guidance as required by the approval.
+
+- [ ] Write legacy advice regressions RED, implement one shared advisory helper and the pure text decision, and pass tests.
+- [ ] Add issue init to the recovery catalog, with verified retry semantics, help and proof references; run TestRecoveryContractsAreProven.
+- [ ] Make every new-repository/bootstrap creation procedure end with issue init after pushed initial main; preserve adoption/restore/refresh semantics and document opt-out/brain handling.
+
+### 3. Acceptance and landing (one whole-issue boundary)
+
+- [ ] Run private production CLI conformance against a disposable bare remote (TL approved, no stage), then the recorded pushed-head suite and close review.
+- [ ] On SHIP and completed branch pass enter sdlc merge --yes, retain its integration run, verify merge/card/archive and report to hub. TL owns project updates and natural fleet follow-through.
+
+| Risky function | Adversarial strategy / mechanical guard |
+| --- | --- |
+| EmptyInitEligible | Table over arbitrary MigrationInput contents and refusals; any nonempty or unknown input cannot authorize init. Pure predicate, no IO. |
+| InitTransition | Generated event sequences with duplicate/out-of-order/cancel/unconfirmed events; opaque state and returned effects prevent skipped publication phases and further effects after uncertainty. |
+| InspectInitialization | Contradictory repo/marker/root observations in a stateful backend; typed observed disposition and existing cutover parser/root verification reject fabricated empty or complete state. |
+| runIssueInit / initializationEffects | Real bare-Git fixture plus controlled before/after-effect failures and concurrent clones; compare refs, card blobs, index/HEAD and working bytes across retries, with remote CAS and ff-only as guards. |
+| LegacySetupHint / legacySetupAdvice | Local discovery fakes/temporary roots with empty, nonempty and unreadable observations; conservative text policy, no remote calls, pre-creation timing and unchanged stdout/effects are asserted through both production verbs. |
+| Initialization inventory cost | Count Git calls at 8/16 unrelated files/branches through the existing runner; retain linear branch scan and fixed metadata reads, reject new per-file processes. |
+| Recovery contract / command help | TestRecoveryContractsAreProven derives the mutating command obligation and validates proof names plus generated help. |
+
+Targeted command: `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc -run 'Test(IssueInit|EmptyTrackerInit|Initialization|LegacySetupHint|RecoveryContractsAreProven)' -count=1 -timeout 10m`. Expected GREEN; each behavior change must first produce its intended RED. The private production-CLI scenario is the full new-repository procedure, followed by the first issue and planning branch, rather than a mocked bootstrap-only call. All individual cases belong in executable tests, not this plan.
 
 ## Revisions
 
 ### 2026-10-21 — TL-approved default setup and inventory-sensitive hints
 
 TL approved the explicit command (Couch 87ebe800-5c28-4e19-b11b-5bf5c2c1453a), full flow, and private production CLI plus real bare-Git conformance with no stage. Ordinary weave link/compile/refresh must not publish. To make initialization the default, every documented new-repo/bootstrap procedure in README and atlas, including operator/TL-facing creation guidance discovered in the implementation sweep, ends with issue init. The legacy hint is inventory-sensitive: empty inventory says issue init, nonempty says issue migrate. Brain/declined scaffold skip unchanged. This replaces Task 2's unconditional migrate wording; tests must prove both hints without changing legacy effects or the issue-new stdout path contract. Reuse one empty-inventory policy for initialization and hint selection; hint evidence is advisory, never publication authority, and unreadable/unknown inventory must not be claimed empty. The first hint observes pre-creation inventory (before legacy issue new creates its first details file).
+
+### 2026-10-21 — plan-quality round 1 correction
+
+PQ-1: named the opaque InitState/InitEvent/InitEffect model and InitTransition owner, explicit state/event/effect table, stateful effect dispatcher and deterministic publication boundaries. This formalizes the approved phases without changing authority or adding persisted state. PQ-2: replaced procedural case inventories with one named function/adversarial strategy/mechanical guard row per risky function. PQ-3 (Minor): included the required mutating-command recovery catalog/help/proof integration and TestRecoveryContractsAreProven. Advisory hint discovery uses the existing local-only scanner and labels local-empty evidence; authoritative init retains full migration inventory. No code changes before the gate passes.

@@ -62,6 +62,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - TL approved explicit issue init, full flow, no implicit weave publication, and private production CLI/bare-Git conformance with no stage (Couch 87ebe800-5c28-4e19-b11b-5bf5c2c1453a). Added the condition that canonical operator/TL new-repo/bootstrap procedures end with init, and empty legacy inventories hint init rather than migrate. No code changed before approval.
 
+- Plan-quality round 1 requested an enforceable named transition owner (PQ-1), function-level test strategy instead of prose inventories (PQ-2), and carried Minor recovery catalog integration (PQ-3). Verified catalog obligation in recovery_contract_test.go. Revised durable plan names opaque InitState, InitEvent, InitEffect and InitTransition, deterministic effect barriers, shared local-only advisory hint selection versus full publication inventory, and recovery proofs. These formalize approved behavior; no implementation started.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
