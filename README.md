@@ -643,6 +643,10 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /
+`SDLC_DEP_DATA` from the tested tree's `construct/deps`, while running in their
+detached checkout. Dependency paths are read-only inputs; see the environment
+contract in `sdlc local-check --help`, including duplicate-row refusals.
 Version2 adds `scope: "landing"`, `paths_file: "tests/conformance-paths.json"`
 and `resource: "runner"` for checks whose runner owns independent capacity.
 A landing entry must explicitly declare `required` and `resource`; runner checks

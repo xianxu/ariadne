@@ -2140,6 +2140,14 @@ full-suite gate, not a guaranteed load ceiling. Plain `go test ./cmd/sdlc/...` s
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
+Managed checks share `localcheck_dependency_environment.go` at
+`runUnderResourceBatch`: tested `construct/deps` rows become caller-anchored
+`SDLC_DEP_SUBSTRATE` / `SDLC_DEP_DATA`, with `SDLC_CALLER_ROOT` preserving the
+initiating checkout even for train trees. The shared layergraph parser/resolver
+owns substrate fallback. Conflicting same-kind paths refuse before execution;
+inherited reserved variables are cleared, absent declared paths remain visible,
+and dependencies are read-only. See `sdlc local-check --help` for the contract.
+
 Suites under `sdlc local-check` (the recorded suite, merge's integration suite,
 known-flake reruns) write their temp files to the TestScratch RAM disk when it
 is mounted and, on Darwin, formatted as APFS (#468, #474): `runUnderSlot` (`localcheck_run.go`) gives each run
