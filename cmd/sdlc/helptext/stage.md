@@ -6,8 +6,8 @@ closes and lands from here as usual. Landing never needs the stage cleared.
   sdlc stage :2               stage on slot 2
   sdlc stage --build          build generic and sentinel Go binaries on :0;
                               refuse any stale or unverifiable Go revision
-  sdlc stage --clear          return :0 to its resting branch, rebuild its
-                              binaries, and verify their resting revision
+  sdlc stage --clear          fetch origin/main, fast-forward :0's resting
+                              branch, rebuild and verify at that exact pin
   sdlc stage --clear --abandoned 418
                               free :0 from issue #418's abandoned stage
   sdlc stage --dry-run        check both slots and print the stage; change nothing
@@ -21,7 +21,16 @@ a branch or remote ref contains, or the one sdlc last staged there (a per-worktr
 record, trusted only when it equals HEAD exactly). Staging again replaces the
 earlier staged commit and says so. A detached commit no ref contains and sdlc did
 not stage refuses, and so do untracked files the commit would overwrite. Nothing
-is stashed, reset or fetched. Both slots share one repository.
+is stashed or reset. Staging does not fetch. Both slots share one repository.
+
+Clear holds the stage lock while it fetches and pins origin/main, restores and
+fast-forwards the resting branch, then rebuilds. Both detached clears and
+already-resting retries use that sequence. Dirty, ahead/diverged or failed-fetch
+states refuse before any build; local work is never reset or automatically
+merged. A failed rebuild names the restored checkout and the clear retry.
+With --clear --dry-run, fetch and report the resting branch's behind/ahead counts
+without switching, releasing the lease or building. A failed dry-run fetch says
+freshness unverified; it does not claim the cached main is current.
 
 One stage at a time (#421): the record is also the stage's lease, naming the
 holder (the issue), its branch, slot and time. Another issue's stage, `--clear`
