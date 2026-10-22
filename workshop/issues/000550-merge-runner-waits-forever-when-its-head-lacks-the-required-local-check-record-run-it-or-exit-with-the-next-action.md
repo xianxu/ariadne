@@ -47,9 +47,10 @@ it doesn't loop silently.
 - [x] Preserve missing-local-check facts independently of the aggregate CI verdict.
 - [x] End retained train waits with the exact local-check action, joining readiness and releasing the ticket.
 - [x] Cover the original pair#779 capture, mixed CI verdicts, satisfied records, and interrupted wait orderings.
-- [ ] Update help/README/atlas and complete the recorded suite.
+- [x] Update help/README/atlas and complete focused verification.
 
 Close and landing follow the verification checkpoint through their existing SDLC verbs.
+The recorded full suite must pass before landing; its retained queue may overlap close review under the worker rules.
 
 Durable design: [retained merge check refusal](../plans/000550-retained-merge-check-plan.md).
 
@@ -94,3 +95,7 @@ With all repository edits frozen, the combined readiness/missing-check/productio
 ### 2026-10-22 — verification checklist wording
 
 The last Plan checkbox originally grouped documentation, suite, close and landing. It now ends at required suite verification; close and landing remain subsequent gated lifecycle steps, so checking implementation complete cannot falsely claim that this issue has already landed. No scope or behavior change.
+
+### 2026-10-22 — retained suite and permitted close overlap
+
+The required recorded suite is queued on pushed `789b21c045282b828ee70d702ff286b717afab11`, PR398: lease `lease-832394143`, attempt `b518b1c09fb83e30ce69c8b8395966f6`, terminal29415, initial normal FIFO position7. Preserve this runner and its place. The source code is unchanged while it runs. The final issue Plan checkbox now names completed focused verification; the still-required full-suite pass remains the explicit pre-landing condition, permitting the documented tl-worker close-review overlap without claiming a pass. No bypass or stage; ops:0 approved the latter. Close may review now, but any code fix needs a fresh recorded head.
