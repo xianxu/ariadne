@@ -10,12 +10,12 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
-// queueHeadFact comes only from the raw immutable commit object, never a ref or
-// replacement-sensitive history query.
+// queueHeadFact retains the raw immutable object and separately proved ancestry.
 type queueHeadFact struct {
 	OID, Message string
 	Bytes        int
 	Parents      []string
+	MainParents  bool // every non-first parent reaches the reader's pinned main
 }
 
 type queueHeadKind uint8
@@ -139,6 +139,21 @@ func queueHeadTrailer(message, key, want string) bool {
 }
 
 func parseQueueHead(f queueHeadFact, selfRepo string) queueHeadStep {
+	step := parseQueueHeadAuthority(f, selfRepo)
+	if step.Kind != queueHeadUnknown || !f.MainParents || len(f.Parents) < 2 {
+		return step
+	}
+	for _, parent := range f.Parents {
+		if !landingOIDValid(parent) || len(parent) != len(f.OID) {
+			return step
+		}
+	}
+	return queueHeadStep{Kind: queueHeadNeutral, NeedParent: f.Parents[0]}
+}
+
+// Definite authority, including malformed train refusal, precedes the structural
+// fallback. All unknown results reach that fallback regardless of message.
+func parseQueueHeadAuthority(f queueHeadFact, selfRepo string) queueHeadStep {
 	subject, _, _ := strings.Cut(f.Message, "\n")
 	unknown := queueHeadStep{Reason: "commit has no definite issue lead or recognized neutral authority"}
 	malformed := queueHeadStep{Kind: queueHeadMalformedTrain, Reason: "malformed landing train authority"}

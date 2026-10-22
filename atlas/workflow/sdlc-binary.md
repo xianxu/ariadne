@@ -1769,8 +1769,15 @@ cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
 repository, immutable tested-head issue membership, owner slot and engagement
-(#548). Membership reuses local subject leads and follows only recognized
-first-parent metadata/integration commits. Exact same-train composition includes
+(#548). Membership reuses local subject leads and recognized first-parent metadata.
+An otherwise unattributed merge also inherits its first parent's membership when every
+other parent is reachable from one pinned publication-main OID (#553), independently
+of the merge message. That command-local ancestry cache has the same node ceiling;
+ref movement cannot change its pin. Proof selection and classification receive the
+same repository context through the reader interface. Structural probes disable replacements, grafts,
+shallow boundaries and lazy fetching; a failed probe is distinct from a non-ancestor.
+Exact train parsing, including malformed-train refusal, runs before this fallback.
+Exact same-train composition includes
 admitted cars only; main and held cars contribute nothing. Proven foreign runs
 are excluded before ownership errors can block another issue. Unknown or missing
 head proof refuses with the attempt, SHA and restore/retry guidance. Reads disable
@@ -2210,9 +2217,8 @@ growth per direct completion). It is not suite-pass or admission evidence.
 Old tombstones lacking exit evidence remain unknown; there is no retroactive
 promotion. A Couch restart does not end the independent watcher, whereas loss
 of the watcher before its durable terminal transition requires reconciliation.
-The
-supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+`couch --skill` owns authenticated supervisor notices and receipts;
+`tl-worker --help` owns checkpoint and idle discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained
 check verification; the continuation prototype points workers to that rule.
 

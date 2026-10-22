@@ -18,7 +18,7 @@ import (
 // Echo#9: another issue's failed suite spans two owned intervals in the same
 // slot. The queue selector must first establish whose tested commit it is.
 func TestOwnedActualQueueUsesTestedIssueBeforeSlotOwnership(t *testing.T) {
-	for _, kind := range []string{"foreign", "own-crossing", "own-exact", "unknown"} {
+	for _, kind := range []string{"foreign", "own-crossing", "own-exact", "own-integration", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			r, cardPath, _, owner, _ := ownedResolverFixture(t)
 			foreignPath, foreignCard, _, _ := seededIssue(t, "000336", "other")
@@ -41,6 +41,13 @@ func TestOwnedActualQueueUsesTestedIssueBeforeSlotOwnership(t *testing.T) {
 			foreignHead := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "HEAD"))
 			ownedFixtureAt(t, 12)
 			testfix.Git(t, r.root, "commit", "--allow-empty", "-qm", "#335: own candidate")
+			if kind == "own-integration" {
+				base := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "HEAD~1"))
+				tree := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "HEAD^{tree}"))
+				main := strings.TrimSpace(testfix.Capture(t, r.root, "commit-tree", tree, "-p", base, "-m", "#999: unrelated main"))
+				testfix.Git(t, r.root, "update-ref", "refs/remotes/origin/main", main)
+				testfix.Git(t, r.root, "merge", "--no-edit", "origin/main")
+			}
 			out, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
 			if err != nil {
 				t.Fatal(err)
@@ -51,7 +58,7 @@ func TestOwnedActualQueueUsesTestedIssueBeforeSlotOwnership(t *testing.T) {
 			switch kind {
 			case "own-crossing":
 				head = out.Snapshot.CodeHead
-			case "own-exact":
+			case "own-exact", "own-integration":
 				head = out.Snapshot.CodeHead
 				queued = queued.Add(4 * time.Minute)
 				acquired = queued.Add(time.Minute)
@@ -90,7 +97,7 @@ func TestOwnedActualQueueUsesTestedIssueBeforeSlotOwnership(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), "0 matching pinned slot engagements") {
 					t.Fatalf("own ambiguous wait must stay strict: %v", err)
 				}
-			case "own-exact":
+			case "own-exact", "own-integration":
 				if err != nil || len(got.Snapshot.QueueWaits) != 1 || got.Snapshot.QueueWaits[0].QueueSeconds != 60 {
 					t.Fatalf("own queue lost: inputs=%+v err=%v", got, err)
 				}

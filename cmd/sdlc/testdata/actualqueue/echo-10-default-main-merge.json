@@ -1,0 +1,15 @@
+{
+  "source": "ops-echo:0 owner capture for ariadne#553",
+  "receipts": ["b863021c-aa6a-4334-81ec-687956b9c649", "87d26f3f-2805-4d32-9414-a265c7361528"],
+  "repository": "xianxu/echo",
+  "merge": {
+    "oid": "885dc171dcfde7aaaae15d79f2b7c3863f207331",
+    "tree": "3cbb212b9ba1756058651756b262705fd98bccc1",
+    "parents": ["c9037fb3d376acf560348365589bae2b1b77d734", "7cad53e9239e9d21b4bf93a1da03bf9ac668d59d"],
+    "timestamp": "1792672146 -0700",
+    "message": "Merge remote-tracking branch 'origin/main' into 000010-ci-workflow-test-find-ariadne-via-sdlc-dep-substrate-then-ariadne-else-skip-loudly\n\n# Conflicts:\n#\tMakefile.local\n"
+  },
+  "pinned_main": "7cad53e9239e9d21b4bf93a1da03bf9ac668d59d",
+  "first_parent_issues": [10],
+  "attempt": {"version":2,"id":"dffca4b701d5264e244d6f019055b21d","repo":"xianxu/echo","sha":"885dc171dcfde7aaaae15d79f2b7c3863f207331","check":"suite","slot":"echo:3","started_at":"2026-10-22T13:17:59.10957Z","queued_at":"2026-10-22T12:39:26.90088Z","acquired_at":"2026-10-22T13:17:59.091588Z","finished_at":"2026-10-22T13:18:18.452468Z","main_baseline":false,"queue_seconds":2312.190708,"wall_seconds":19.342774334,"exit":0,"timed_out":false,"log_sha256":"6406a57326053fdbf42815fbc5be05285d68444f4f452c0d78da57bddec2f438","log_path":"local-checks/885dc171dcfde7aaaae15d79f2b7c3863f207331/suite.log","outcome":"passed"}
+}
