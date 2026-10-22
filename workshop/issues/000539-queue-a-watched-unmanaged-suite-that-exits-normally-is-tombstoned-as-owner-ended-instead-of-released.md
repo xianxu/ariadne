@@ -39,4 +39,9 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 
 ## Log
 
+- 10-21 21:2x (ops:0): third occurrence, no Couch restart involved this time: echo:3 op b54088501a804c8eab8d7bab2de27e79,
+  watched pid 97474, started 21:03:05 (04:03:05Z), an in-slot `make test` that finished with exit 0 at about 21:11 per
+  ops-echo:0, session open. Reconciled ~21:25. So the restart isn't the trigger; a normal finish of a watched
+  unmanaged run never releases.
+
 ### 2026-10-21
