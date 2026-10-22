@@ -603,6 +603,16 @@ machine's suite slots. It is one file per machine beside the suite lock:
 - **Recovery:** a car that finds its own PR merged, with no word from its train,
   finishes as a resume.
 
+A composed car can be held before merge starts with
+`sdlc landing drop --issue N [--reason WHY] [--repo DIR]`, run by its owner or
+the repository's :0 steward. The obsolete train stops and its survivors re-form;
+the dropped runner exits with its reason and exact branch retry command. It stays
+out until its owner explicitly retries. Once the Merge effect starts after green
+CI, drop refuses with the current state. `sdlc landing status` names accepted
+drops and any pending old-train cleanup; resume the printed conductor command
+if that cleanup needs recovery. Older conductors without control support refuse
+the command rather than promise a drop.
+
 `sdlc landing status` shows the setting, the next departure, each waiting
 merge's readiness, and the last trains: result, cars, train PR, split suites
 and culprit.
