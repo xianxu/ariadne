@@ -46,7 +46,11 @@ If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
 `sdlc move` into that slot refuses and names the holder. When the holder is
-done it clears its stage; an abandoned one is freed with
+done it clears its stage. After landing deletes its issue branch, the recorded
+original slot can clear from its own resting branch with confirmed current
+completion, merged PR and archive evidence. Unknown proof preserves the stage;
+finish/reconcile landing or repair the evidence and retry from that slot on rest.
+An abandoned one is freed with
 `sdlc stage --clear :0 --abandoned <holder>`. See [stage and clear](atlas/workflow/workspace-branching.md#stage-this-branch-on-0-for-a-smoke-test).
 
 In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
