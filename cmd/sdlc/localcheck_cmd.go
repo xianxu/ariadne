@@ -72,7 +72,7 @@ func NewLocalCheckCmd() *cobra.Command {
 	republish.Flags().StringVar(&rp.Name, "name", "", "the check whose saved result to post (required)")
 	republish.Flags().StringVar(&rp.Rev, "rev", "HEAD", "the commit the saved attempt ran on")
 	republish.Flags().StringVar(&rp.Attempt, "attempt", "", "a specific attempt id (default: the newest that verifies)")
-	cmd.AddCommand(run, cancel, republish, newLocalCheckResumeCmd(), newLocalCheckReconcileCmd(defaultLandingDeps()))
+	cmd.AddCommand(run, cancel, republish, newLocalCheckReclassifyCmd(), newLocalCheckResumeCmd(), newLocalCheckReconcileCmd(defaultLandingDeps()))
 	return cmd
 }
 

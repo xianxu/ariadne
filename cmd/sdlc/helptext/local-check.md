@@ -103,18 +103,35 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
-ENVIRONMENT FAILURE (#477)
+ENVIRONMENT FAILURE (#477, #530)
 
   A completed failed suite whose entire output proves Go could not create
-  its work directory is a could-not-run error naming GOTMPDIR/TMPDIR.
+  its work directory, write its cache/build output (ENOSPC or quota), or find
+  its toolchain is a could-not-run error naming the resource and reported path.
+  The first Go command also qualifies if typed launch evidence proves its
+  executable/interpreter was missing and no process started. A later command
+  or an unrelated missing executable does not establish startup-only failure.
   Its raw output is retained separately as <sha>/<name>.environment.log
   (latest per check/head, within the existing newest-20-head retention).
   It posts no code-failure status/comment and saves no code-suite attempt.
-  Repair temp-directory access and rerun the check or merge on the same head.
+  Repair the environment and rerun the check or merge on the same head.
   This cannot erase a previous genuine failed attempt. Mixed, quoted, unknown,
   truncated or timed-out output stays under the ordinary failure rules.
   A main baseline that could not run leaves main's health unknown, including
   on a landing train; it neither declares main red nor blames/splits cars.
+
+  To correct an already recorded startup infrastructure failure:
+    sdlc local-check reclassify --attempt ID --reason 'cache storage repaired'
+  Only its recorded owner or this repository's :0 may act. The immutable log
+  must match its recorded hash and the same complete startup-only grammar.
+  Empty historical logs, mixed/test-started/truncated evidence, passes and
+  timeouts refuse. A reason alone never waives a failure.
+  The original bytes, actor, UTC time, reason and diagnosis are audited before
+  an atomic nonpassing v3 disposition replaces authority. Repeat the exact ID
+  after interruption. No GitHub status is rewritten and no old pass is promoted;
+  record a genuine run after correction. Audit and attempt share retention.
+  #524-era readers refuse only the corrected subject with upgrade guidance;
+  older readers may refuse more broadly. No reader may interpret it as a pass.
 
 SUITE QUEUE PRIORITY (#452)
 
@@ -304,3 +321,4 @@ USAGE
   sdlc local-check cancel --run <lease-id>  # stop one owned run, retaining siblings
   sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result
+  sdlc local-check reclassify --attempt ID --reason 'cache repaired'

@@ -71,6 +71,30 @@ LANDING TRAINS (#449)
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
 
+DROP A COMPOSED CAR (#526)
+
+  sdlc landing drop --issue N [--reason WHY] [--repo DIR]
+
+  The car's owning checkout/workspace or the same repository's :0 steward may
+  drop its exact composed car. The actual caller is checked independently of
+  --repo; entering :0 from a worker does not grant steward authority.
+
+  Acceptance durably excludes the pinned car, stops and joins the old train's
+  work, closes its obsolete PR/ref and lets surviving runners re-form. New-head
+  validation runs normally. The dropped runner exits held with the reason and
+  its exact branch recovery; it stays out until explicit owner retry.
+
+  Merge starts when the green-CI result atomically admits the Merge effect,
+  before that effect's final fetch/API. From then on, drop refuses and names the
+  exact phase and irreversible start marker, including unconfirmed outcomes.
+  A refusal does not claim the car could still be removed.
+
+  Status shows accepted drops and cleanup/recomposition pending. Pending cleanup
+  survives a dead conductor and blocks every successor's merge until positive
+  old-PR/ref closure proof; resume the printed original conductor merge command.
+  Missing, malformed or unsupported control refuses without accepting a drop.
+  Conductors started with older binaries do not support this protocol.
+
 THE MACHINE PLAN (#475)
 
   Repositories with trains on share one machine's suite slots. The machine
@@ -116,7 +140,10 @@ SUITE QUEUE PRIORITY (#452)
   at the next sufficient free machine capacity. Running suites continue;
   weight is respected and priority suites are FIFO. Expiry or revocation
   returns a waiting suite to its original normal FIFO position. An expired
-  grant confers nothing. No extra suite grant is needed.
+  grant confers nothing. No extra suite grant is needed. A composed train's
+  suite inherits any active grant on a car in its exact tested prefix, including
+  one granted while queued. Conflicting/removed cars and later split cars confer
+  nothing; revoke and expiry restore normal FIFO.
 
   Recorded suites bind the original checkout's issue branch to the tested
   HEAD; main diagnostics and other checks stay normal. Direct make test uses

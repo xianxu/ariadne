@@ -105,6 +105,71 @@ func TestResumeSavedCurrentComposite(t *testing.T) {
 		t.Fatalf("measurement mutated %+v", s.Attempts)
 	}
 }
+
+func TestResumeSavedReclassificationRequiresGenuineRerun(t *testing.T) {
+	for _, pending := range []bool{false, true} {
+		t.Run(fmt.Sprint("pending=", pending), func(t *testing.T) {
+			d, sha, store, _ := resumeSavedFixture(t, !pending)
+			ctx := context.Background()
+			var cached localRunRecord
+			if !pending {
+				var err error
+				cached, _, err = loadSavedAttemptCurrent(ctx, d, store, sha, "suite", "aa", "h")
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			s, err := readSuiteEvidence(store, testStatsRecordLimit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			startup := s.attemptIDs["aa"]
+			startup.ID, startup.Slot, startup.Check = "dd", "ariadne:5", "affected"
+			startup.Failures, startup.Units, startup.Outcome = nil, nil, string(flakes.Unattributable)
+			startup.StartedAt = startup.FinishedAt.Add(time.Hour)
+			startup.FinishedAt = startup.StartedAt.Add(time.Second)
+			startup.LogPath = "failed/dd.log"
+			log := []byte(recordedCacheFailure(t))
+			startup.LogSHA256 = hashBytes(log)
+			resumeSavedWrite(t, store, startup, log)
+			at := startup.FinishedAt.Add(time.Hour)
+			if err := publishSuiteReclassification(store, startup.ID, d.Repo, "ariadne:5", "repaired cache", at, nil); err != nil {
+				t.Fatal(err)
+			}
+			for _, id := range []string{"", "aa"} {
+				if _, _, err := loadSavedAttemptCurrent(ctx, d, store, sha, "suite", id, "h"); err == nil {
+					t.Errorf("old composite reused after correction: id=%q", id)
+				}
+			}
+			if !pending {
+				if err := postLocalCheckRecord(ctx, d, cached); err == nil {
+					t.Error("cached composite posted after correction")
+				}
+				if _, err := resumeSavedSuite(ctx, d, suiteCheck("false"), sha, "aa"); err == nil {
+					t.Error("completed resume reposted after correction")
+				}
+				if d.GH.(*ciFakeGH).statuses[sha][localStatusContext("suite")] == "success" {
+					t.Error("old composite published success")
+				}
+			}
+			fresh := startup
+			fresh.ID, fresh.Check, fresh.Exit, fresh.Outcome = "ee", "suite", 0, "passed"
+			fresh.StartedAt, fresh.FinishedAt = at.Add(time.Minute), at.Add(2*time.Minute)
+			fresh.LogPath = "failed/ee.log"
+			passLog := []byte("ok  example.org/p 0.01s\n")
+			fresh.LogSHA256 = hashBytes(passLog)
+			resumeSavedWrite(t, store, fresh, passLog)
+			rec, _, err := loadSavedAttemptCurrent(ctx, d, store, sha, "suite", "ee", "h")
+			if pending {
+				if err == nil {
+					t.Error("fresh suite bypassed pending resume fence")
+				}
+			} else if err != nil || !rec.passed() {
+				t.Fatalf("fresh ordinary rerun refused: %+v %v", rec, err)
+			}
+		})
+	}
+}
 func TestResumeSavedPendingRefusesFallback(t *testing.T) {
 	d, sha, store, l := resumeSavedFixture(t, false)
 	ctx := context.Background()

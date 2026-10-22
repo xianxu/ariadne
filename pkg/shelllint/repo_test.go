@@ -15,7 +15,8 @@ import (
 var exempt = map[string]string{}
 
 // TestTrackedScriptsMakeTempDirsFromTMPDIR applies MktempFindings to every
-// tracked shell script (#342), and ArrayFindings to the bash ones (#353). An
+// tracked shell script (#342), and ArrayFindings to the bash ones (#353).
+// MetadataPipeFindings also covers workflow run blocks (#534). An
 // exemption must still have a finding, so it is removed when its issue lands.
 func TestTrackedScriptsMakeTempDirsFromTMPDIR(t *testing.T) {
 	root := moduleRoot(t)
@@ -37,12 +38,18 @@ func TestTrackedScriptsMakeTempDirsFromTMPDIR(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !isShell(rel, src) {
+		shell := isShell(rel, src)
+		workflow := strings.HasPrefix(rel, ".github/workflows/") &&
+			(filepath.Ext(rel) == ".yml" || filepath.Ext(rel) == ".yaml")
+		if !shell && !workflow {
 			continue
 		}
 		scanned++
-		findings := MktempFindings(string(src))
-		if isBash(rel, src) {
+		findings := MetadataPipeFindings(string(src))
+		if shell {
+			findings = append(findings, MktempFindings(string(src))...)
+		}
+		if shell && isBash(rel, src) {
 			findings = append(findings, ArrayFindings(string(src))...)
 		}
 		if issue, ok := exempt[rel]; ok {
