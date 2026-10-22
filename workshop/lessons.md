@@ -1441,6 +1441,8 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
+- #547 plan review: producer lifetime proves a blocked command, not source idle. If the runtime cannot bind pure observations to that invocation, expose counted unverified coverage rather than infer intent from tool or command text. Define whether coverage means a whole invocation or train membership episodes before implementation.
+- #547 plan review: optional diagnostic facts must be budgeted independently from the accounting snapshot. Validate an attachment candidate, preserve existing evidence on overflow, and retain a bounded limitation only when it fits; descriptive coverage must not create a new accounting failure.
 - #538: an archive helper's successful legacy byte-preserving move is not proof
   of a current tracker completion generation. A new authorization consumer must
   require the archived done-card mirror to pin the current full binding; empty

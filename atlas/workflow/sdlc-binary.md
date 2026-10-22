@@ -1786,6 +1786,28 @@ The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
 
+Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
+owns versioned start/bind/end facts under the existing ticket/head lifetime and
+pure `ReduceWaitEvidence`. `landingqueue.go` records exact owner boundaries and
+`landingtrain.go` binds the verified car to the live conductor. A closed invocation
+with at least one verified binding contributes its whole retained interval,
+including pre-boarding and release/reformation gaps. No per-poll history or
+source-idle claim is made. Non-addressable legacy invocations report unavailable
+coverage while preserving their ordinary landing behavior.
+
+`actualtrainwait_io.go` reads the existing 30-day audit once, bounded to 32 MiB,
+100,000 records and 1 MiB per record; it reuses #548's immutable-head proof.
+`actualtrainwait.go` clips to exact pinned owner/source windows and reports the
+union as `unverified coverage: N min in a retained train wait`. These inputs never
+enter the activity engine's subtraction path. Existing hours, phase splits and
+calibration policy remain unchanged. Malformed/partial/expired evidence produces a
+bounded limitation instead of a guessed duration. Optional preserving snapshot
+facts have a 16-interval/8 KiB budget; candidate-copy validation drops diagnostic
+attachment before it can invalidate the accounting snapshot. A compact limitation
+is pinned when it fits, otherwise replay preserves accounting alone. No past
+actual is automatically rewritten. Structural runtime-job/invocation binding for
+future proven-idle subtraction is deferred to pair#800.
+
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
 the #68 loud-fail exit-code contract: **2** = misinvoke (no `--dir`/`--issue`/

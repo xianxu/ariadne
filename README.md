@@ -1061,6 +1061,8 @@ sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
+Retained train waits appear as counted **unverified coverage** beside hours;
+the diagnostic describes a bound waiter invocation and makes no idle subtraction.
 `sdlc issue correct-actual --issue N --reason TEXT --dry-run` previews a measured
 repair of a completed sample. If legacy rows are ambiguous, its diagnostic names
 the ledger and eligible raw-row hashes. Have the TL/operator select the row by
