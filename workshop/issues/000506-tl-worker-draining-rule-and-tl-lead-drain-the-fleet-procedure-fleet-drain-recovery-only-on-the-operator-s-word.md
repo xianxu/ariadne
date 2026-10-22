@@ -248,6 +248,22 @@ steward need the rules.
   landing. Entering sdlc merge --yes next. TL-owned ops/fleet-drain.md remains for the hub to update after
   the verified landing report; pair#722's watched live remains held until this item lands.
 
+### 2026-10-22 — retained landing recovery and independent priority work
+
+- The first retained merge reached admission after #507/#548 but refused because the final documentation-only
+  evidence commit had not been pushed. Updated PR390 through sdlc pr, then re-entered the managed line.
+- A temporary additional worktree briefly occupied main-slot5 while preparing independent ariadne#553,
+  causing the next runner's resting-branch refusal. Removed that clean temporary worktree and followed
+  the printed sdlc merge recovery. The independent task now uses an ordinary clone within ariadne-slot5;
+  this issue's source checkout and executable changes stay intact.
+- Current retained runner is pid44224, terminal18055, waiting since06:35:58 behind #547. No duplicate runner,
+  failed suite or pending operator decision. The hub confirmed keeping it intact (receipt aa81d80b-89b8-49cf-b014-2279db49ed71).
+- Hub explicitly dispatched #553 while this item waits. Its private clone has a separate landing line,
+  so the hub approved completing its suite/close there, then importing its pushed branch here only after
+  #506 lands (receipt 1e45c411-1ba8-4ffc-b17d-ce7fb0d5b577). No separate-line landing or admission bypass.
+  The hub revoked #553's temporary grant so #506 can retain normal admission. #722's watched live proof
+  remains after this landing and the hub's binary pickup.
+
 ## Revisions
 
 - 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
