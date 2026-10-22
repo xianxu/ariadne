@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #548 BR-1: when splitting a function into its own module, update every core-concepts/function-contract location and append the file-split revision before close. Check table locations against definitions; the boundary reviewer enforces semantic traceability, without prose-presence tests.
+
 - #548: shared-slot and overlapping-clock evidence cannot establish an issue's suite ownership. Classify the immutable tested head first, then apply pinned engagement rules; unknown proof stays strict. Disable replacement refs at the immutable Git reader itself. Safety limits must stop discovery before IO grows past them, and neutral graph nodes must share immutable membership rather than multiply derived storage. Counted graph and real Git/tracker fixtures defend these semantic invariants.
 
 - #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
