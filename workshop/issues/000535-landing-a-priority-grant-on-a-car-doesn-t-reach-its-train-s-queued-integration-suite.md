@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "64611f08", done: "a7b66150"}
 ---
 
 # landing: a priority grant on a car doesn't reach its train's queued integration suite
