@@ -1,6 +1,6 @@
 ---
 id: 000538
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.43
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.36
+tracker:
+    version: 1
+    completion:
+        token: close-d3eaccd364c2
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f5818fcb854639cffd0220502a4e6ed5ed93e474
+        evidence_commit: 8db668b518f2f2ef14fffc8c8a1759458aaedbed
 ---
 
 # stage --clear recognizes its landed holder after branch deletion
