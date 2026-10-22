@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 2.11
 collaboration-mode: collaboration
-card_mirror: 'fd7fed45a5dc40fbe906e93ea9c6c70caf094bc6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '128c4c9ac388bb057ba772a3d6c22f96d53c3296' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T03:02:52-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "bc9c1493", done: "4f3b6d1a"}
+flow: {kind: full, provenance: operator}
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
@@ -77,3 +77,27 @@ TL approved the complete root-by-scope spec and private production CLI/native ba
 ### 2026-10-22 — plan-quality round 1
 
 TL approved the durable plan (Couch c377850d-b344-4086-9dfc-3587e136bee2). First change-code inferred quick from design size; reran with the approved full-flow pin before implementation. Full plan-quality review accepted the architecture/scope and raised PQ-1 (Important, function-level-test-strategy): name production functions and compress repeated test inventories. Revised the strategy table/tasks accordingly without a design change; rerunning the same gate. No implementation begun.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.10 impl=0.08
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.03 impl=0.20
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 2.11
+```
+
+### 2026-10-22 — plan quality clean
+
+Round 2 CLEAN: PQ-1 addressed, no new findings. Derived the estimate only after acceptance; no implementation before the estimate/admission gate finishes.
