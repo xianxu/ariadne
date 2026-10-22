@@ -67,6 +67,10 @@ Plan-quality CLEAN disposed PQ-1/PQ-2; full-flow change-code exited0 after estim
 
 Python and Go implementations are complete. New final-watcher lifecycle regression first failed because acquired slot metadata lost enqueue_monotonic; restoring the admitted record also preserves unknown nested members. The Go successful-parent descendant test failed under a deliberate cleanup-removal mutation (pid still running), then passed with cleanup restored. Main verification: Go queue/suite/helper targeted selection PASS101.305s; independent golint package PASS1.145s; Python age/resources/evidence22 tests PASS0.676s; pause18 tests PASS4.310s. The Go selection includes the real Python helper/production Go provider harness. Fresh-eyes review found no blocking production defect and asked for fixture joining plus successful-parent descendant coverage, both now added. Supplementary inspection rejects persisted nonfinite JSON explicitly rather than emitting invalid JSON; it does not rewrite that record. No machine queue or grant was altered. Next: clean built-binary read-only status and private cohort conformance, then pushed-head recorded suite and mandatory close review.
 
+### 2026-10-22 — clean binary conformance passed; suite checkpoint
+
+Built clean d7136fdce2100bff36eb271c9a4f00bd455c6232 (vcs.modified=false). Built-binary read-only queue status exited0, showed GRANT_MAX_WAIT_SECONDS=3600 (60min), sixteen live waiters with unknown legacy ages and their protected FIFO prefix through ticket130. That observation does not retrofit the old waiting helper processes. The private mixed-weight/renewed-grant cohort and final watcher metadata conformance both passed (2 tests,8.314s) using that clean binary as production provider. Raw build/status/completion evidence and source blob pins are committed in [suite aging evidence](../plans/000560-suite-aging-evidence.md). No live mutation, stage or forced cutover. Next: push this checkpoint and queue the recorded suite on its exact head; close/review after the suite, then enter merge on SHIP.
+
 ## Revisions
 
 ### 2026-10-22 — approved aging policy and60-minute threshold

@@ -108,7 +108,7 @@ Files: scripts/test-lock.py; cmd/sdlc/queue_suite_status.go; cmd/sdlc/queue_suit
 Files: atlas/workflow/sdlc-binary.md; README.md if its queue entry needs the new policy; issue Log and plan.
 
 - [x] Document the60-minute overtaking bound, unknown-age protection, running-heavy-head limit and current-helper rollout scope. Keep Go grant validity / landing queue contracts unchanged.
-- [ ] Run targeted Python/Go suites through the existing real-provider harness. Propose a built-binary read-only queue status plus private controlled mixed-weight admission as live conformance; no real grant edits, ticket rewrites, cancellations or fleet stage without hub authorization.
+- [x] Run targeted Python/Go suites through the existing real-provider harness. Propose a built-binary read-only queue status plus private controlled mixed-weight admission as live conformance; no real grant edits, ticket rewrites, cancellations or fleet stage without hub authorization.
 - [ ] Push/checkpoint; run the recorded suite, mandatory boundary review and sdlc merge. Report landing and clear any authorized stage. No implementation before full-plan approval.
 
 ## Risk/function conformance table
