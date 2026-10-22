@@ -3,7 +3,7 @@ id: 000548
 status: working
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 1.93
 github_issue:
 severity: critical
 started: 2026-10-22T01:34:58-07:00
