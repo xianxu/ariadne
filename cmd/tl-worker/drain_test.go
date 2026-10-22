@@ -30,9 +30,11 @@ func TestWorkerDrainMatchesNoticeObligations(t *testing.T) {
 	notices := drainNotices(t)
 	// Keep full source bodies in the fixture; help explains obligations and cites
 	// Couch for message mechanics instead of duplicating the wire notices.
+	// The current TL-approved peer vector narrows the historical graceful
+	// notice: queued work stays outstanding under the pause (see provenance).
 	obligations := []struct{ notice, source, help string }{
 		{"graceful", "finish your current atomic step", "finish only the current atomic step"},
-		{"graceful", "wait for current background work to finish", "wait for current background work"},
+		{"graceful", "wait for background work that is already running to finish", "wait for background work that is already running to finish"},
 		{"fast", "stop now; do not finish the current step", "stop now and preserve unfinished edits"},
 		{"fast", "Promptly stop your own background work via supported controls", "promptly stop your own background work"},
 		{"fast", "supported controls", "supported controls"},
@@ -62,9 +64,21 @@ func TestWorkerDrainMatchesNoticeObligations(t *testing.T) {
 				t.Errorf("tl-worker %v: %s notice obligation missing: %q", args, obligation.notice, obligation.help)
 			}
 		}
+		for _, want := range []string{
+			"leave queued, not-started work queued",
+			"the steward's pause holds it",
+			"note it in the Log as outstanding",
+		} {
+			if !strings.Contains(help, want) {
+				t.Errorf("tl-worker %v: missing queued-work safeguard %q", args, want)
+			}
+		}
+		if strings.Contains(help, "wait for current background work") {
+			t.Errorf("tl-worker %v: broad background-work wait includes queued work held by the steward's pause", args)
+		}
 		checkpoint, idle := strings.Index(help, "commit and push the durable checkpoint"), strings.Index(help, "end the turn and stay idle")
 		next := strings.Index(help, "record the exact next step")
-		wait, stop := strings.Index(help, "wait for current background work"), strings.Index(help, "promptly stop your own background work")
+		wait, stop := strings.Index(help, "wait for background work that is already running to finish"), strings.Index(help, "promptly stop your own background work")
 		if next < 0 || wait < 0 || stop < 0 || checkpoint <= next || checkpoint <= wait || checkpoint <= stop || idle <= checkpoint {
 			t.Errorf("tl-worker %v: drain must order background work, exact next step, durable checkpoint, then idle", args)
 		}
@@ -90,6 +104,42 @@ func TestWorkerDrainRetiresCapturedAckProtocol(t *testing.T) {
 		for _, args := range [][]string{{"--help"}, {}} {
 			if strings.Contains(helpOutput(t, args...), obsolete) {
 				t.Errorf("tl-worker %v retains captured obsolete drain protocol %q", args, obsolete)
+			}
+		}
+	}
+}
+
+// Suite admission belongs to verification. During drain, queued checks must
+// remain outstanding rather than being started to satisfy a generic test rule.
+func TestWorkerDrainKeepsSuiteGuidanceInTests(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {}} {
+		help := normalizedDrainHelp(helpOutput(t, args...))
+		_, tests, ok := strings.Cut(help, "TESTS ")
+		if !ok {
+			t.Fatal("missing TESTS section")
+		}
+		tests, _, ok = strings.Cut(tests, " EVIDENCE")
+		if !ok {
+			t.Fatal("missing EVIDENCE boundary")
+		}
+		_, drain, ok := strings.Cut(help, "DRAIN ")
+		if !ok {
+			t.Fatal("missing DRAIN section")
+		}
+		drain, _, ok = strings.Cut(drain, " LANDING")
+		if !ok {
+			t.Fatal("missing LANDING boundary")
+		}
+		for _, guidance := range []string{
+			"full suites through sdlc local-check run --name suite",
+			"targeted tests through go test -run",
+			"direct full make runs should be rare",
+		} {
+			if !strings.Contains(tests, guidance) {
+				t.Errorf("tl-worker %v: TESTS lacks general verification guidance %q", args, guidance)
+			}
+			if strings.Contains(drain, guidance) {
+				t.Errorf("tl-worker %v: DRAIN retains general verification guidance %q", args, guidance)
 			}
 		}
 	}

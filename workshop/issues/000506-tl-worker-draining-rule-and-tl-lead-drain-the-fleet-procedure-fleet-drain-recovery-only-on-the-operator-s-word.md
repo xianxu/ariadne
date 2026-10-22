@@ -29,8 +29,9 @@ steward need the rules.
 
 ## Spec
 
-- Worker DRAIN follows the authenticated notice-only contract confirmed by pair:5: graceful finishes the
-  current atomic step and waits for current background work; fast promptly stops only its own background
+- Worker DRAIN follows the authenticated notice-only contract confirmed by pair:5 and the TL's clarification:
+  graceful finishes the current atomic step and waits only for background work already running; leave queued,
+  not-started work queued under the steward's pause and note it in the Log as outstanding. Fast promptly stops only its own background
   work through supported controls and preserves unfinished edits. Record where work stopped and the exact
   next step, commit/push the checkpoint, end the turn and remain idle while receiving messages. For new
   work reply once “acknowledge message received, will resume processing after drain is lifted”; defer it,
@@ -56,8 +57,10 @@ steward need the rules.
 ## Done when
 
 - Both rendered help entry points (no args and --help) carry the worker/steward procedures above; tests
-  guard current background-work and checkpoint ordering, deferred-message reply, restart/lift distinction,
-  owner-scoped queue control, and automation versus recovery authority.
+  guard already-running background-work/checkpoint ordering, queued work left queued and logged outstanding,
+  deferred-message reply, restart/lift distinction,
+  owner-scoped queue control, and automation versus recovery authority. General suite/targeted-test commands
+  live in TESTS, outside DRAIN.
 - Worker help and its rule table contain no removed drain-ack instruction; lead does not duplicate
   worker-owned rules. Recorded stale worker-help output and pair#722 source-backed notice vectors retain
   provenance and replay through normal help tests, without sending a live drain or modifying fleet state.
@@ -123,12 +126,6 @@ steward need the rules.
   no runtime artifact; versioned fixtures live and retire with their tests. ARCH-EVOLVE changes no format.
 - Awaiting TL's concrete design/sequencing decision; no implementation, fixtures or test changes yet.
 
-## Revisions
-
-- 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
-  formal-ack assumption and distinguishing lift from restart. Added the operator-approved automation rule
-  from the existing Log with an explicit unresolved pair#739 landing dependency; TL decision pending.
-
 ### 2026-10-22 — design approved; entering red-first implementation
 
 - Verified TL approval receipt a6ad302f-bf0b-49be-ba9d-b455c13415f5. Capability-qualified automation wording
@@ -138,10 +135,6 @@ steward need the rules.
   excerpt with capture/source provenance under cmd/tl-worker/testdata/drain; a bounded test agent owns only
   the help tests/rule table/source-vector fixtures and their initial red run. Main owns all shipped help,
   README/atlas and workflow. No live drain, queue control or private Couch harness is involved.
-
-- 2026-10-22 revision: TL explicitly superseded the earlier “Lands after pair#739” constraint: ship the
-  drain correction before pair#722 live proof, use “when Couch provides couch --automation” so #739's later
-  landing simply makes the condition true. The rest of the approved worker/steward/recovery design stands.
 
 ### 2026-10-22 — red/green and final-wording review
 
@@ -156,3 +149,43 @@ steward need the rules.
   README's stale drain-ack pointer and TL atlas now describe the notice-only contract and its tests.
 - Final worker/steward wording is being sent to the TL as requested before close; recorded suite and
   the binary-owned boundary review remain. No live drain, slot control or queue pause/resume was executed.
+
+### 2026-10-22 — TL final wording correction
+
+- TL reviewed the exact rendered sections at 485ead4d8 (outbound receipt
+  d030a2c1-92e1-4934-82d7-b5fa19e818b4 submitted). Verified reply
+  07154afa-0199-4587-9e03-a3c2b592173e approves steward/automation unchanged and requires two worker edits:
+  graceful waits only for already-running background work, leaves queued work queued and logs it outstanding;
+  general suite/targeted command advice moves from DRAIN into TESTS. Approved proceeding to suite/close after edits.
+- This closes the paused-queue waiting ambiguity without treating queued work as completed or restart-safe.
+  Pair:5 notified via submitted receipt 500c1056-df14-4c64-9a12-e3fe18eb044f. Verified peer reply
+  17f85fca-9b21-45a4-a6f9-476865a0958b: its old “current background” source is ambiguous, not conflicting;
+  peer proposed the same running/queued distinction to the hub before changing its reviewed #722 candidate.
+  Original recorded/source fixtures remain verbatim; clarification gets its own provenance rather than
+  silently rewriting historical evidence. Worker tests are being updated red-first before help changes.
+
+### 2026-10-22 — clarified worker rules verified
+
+- Independently reproduced clarification RED on both help entry points: old help retained the broad wait,
+  lacked queued/outstanding safeguards, and kept general verification guidance in DRAIN instead of TESTS.
+  After the two TL-required edits, focused worker RED→GREEN passed (0.133s). Full TL packages passed again:
+  worker 0.075s, lead 25.207s. The corrected real worker CLI render exited 0; steward/automation is unchanged.
+- Pair:5 supplied the TL-approved revised graceful source vector (verified receipt
+  2d574326-5cb3-41de-99a2-d2fb341fd3e8); current fixtures use it, while the original vectors remain verbatim
+  in notices.before-running-clarification.json. Provenance distinguishes the historical source commit from
+  peer/TL-approved revised text awaiting peer source patch/re-close; no invented new commit identity.
+- Moved later dated evidence back under Log and retained all scope revision paragraphs under Revisions;
+  no historical note content was discarded. Recorded suite is next on the pushed corrected head.
+
+## Revisions
+
+- 2026-10-22: Updated the design to pair#722's authenticated notice-only contract, removing the obsolete
+  formal-ack assumption and distinguishing lift from restart. Added the operator-approved automation rule
+  from the existing Log with an explicit unresolved pair#739 landing dependency; TL decision pending.
+
+- 2026-10-22 revision: TL explicitly superseded the earlier “Lands after pair#739” constraint: ship the
+  drain correction before pair#722 live proof, use “when Couch provides couch --automation” so #739's later
+  landing simply makes the condition true. The rest of the approved worker/steward/recovery design stands.
+
+- 2026-10-22 revision: TL final-wording review narrows graceful waiting to already-running work and keeps
+  queued work outstanding in the Log; test-command advice moves into TESTS. Steward and automation stay as approved.

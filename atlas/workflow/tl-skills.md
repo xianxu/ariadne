@@ -169,7 +169,8 @@ after switching, edits the live root and retries cleanup.
 
 The worker's DRAIN section in `cmd/tl-worker/help.md` owns graceful/fast background
 work, durable checkpoints, deferral of new work messages and continuation after a
-lift. There is no formal drain-ack command or parsed completion reply. Couch owns
+lift. Graceful waits only for work already running; queued work remains queued
+and is logged as outstanding. There is no formal drain-ack command or parsed completion reply. Couch owns
 authenticated notice text and receipts; custom notes are data. Restart-lost flags
 never grant recovery authority.
 

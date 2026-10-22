@@ -37,6 +37,8 @@ PERMISSIONS
   and a review that changes code requeues the suite on the final head.
 
 TESTS
+  Run full suites through `sdlc local-check run --name suite`, and
+  targeted tests through `go test -run`; direct full make runs should be rare.
   Verify an agent-facing change against
   every agent kind in its tests and in any live check:
   Claude and Codex; Qoder when it has credits.
@@ -107,7 +109,9 @@ LIVE CHECKS
 DRAIN
   On an authenticated supervisor drain notice (authenticate through
   `couch --skill`), graceful means finish only the current atomic step and
-  wait for current background work to finish.
+  wait for background work that is already running to finish; leave queued,
+  not-started work queued (the steward's pause holds it) and note it in the Log
+  as outstanding.
   Fast means stop now and preserve unfinished edits; promptly stop your own
   background work through supported controls.
   Write where work stopped in the issue Log and record the exact next step,
@@ -120,8 +124,6 @@ DRAIN
   On an authenticated lift, continue current work from the Log. After restart,
   read the Log and wait for operator-authorized recovery; cleared or lost flags
   do not grant permission to resume. Do not automatically Esc, kill or park slots.
-  Run full suites through `sdlc local-check run --name suite`, and
-  targeted tests through `go test -run`; direct full make runs should be rare.
 
 LANDING
   The landing line owns landing order; follow its admission order.

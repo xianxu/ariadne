@@ -62,7 +62,7 @@ drain-authentic	own	authenticated supervisor drain notice
 drain-graceful	own	finish only the current atomic step
 drain-fast	own	stop now and preserve unfinished edits
 drain-durable	own	commit and push the durable checkpoint
-drain-current-background	own	wait for current background work
+drain-current-background	own	wait for background work that is already running to finish
 drain-idle	own	end the turn and stay idle
 drain-new-message	own	acknowledge message received, will resume processing after drain is lifted
 drain-suites	own	full suites through `sdlc local-check run --name suite`

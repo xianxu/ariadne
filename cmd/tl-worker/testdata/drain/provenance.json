@@ -5,9 +5,23 @@
     "recorded_date": "2026-10-22",
     "capture": "verbatim DRAIN section excerpt from the installed real CLI before #506"
   },
-  "notices": {
+  "graceful_clarification": {
+    "verified_receipt": "07154afa-0199-4587-9e03-a3c2b592173e",
+    "date": "2026-10-22",
+    "provenance": "TL-approved final-wording clarification; original canonical source vectors preserved verbatim in notices.before-running-clarification.json",
+    "help_obligation": "wait for background work that is already running to finish; leave queued, not-started work queued (the steward's pause holds it) and note it in the Log as outstanding."
+  },
+  "historical_notices": {
     "source_commit": "638032c6183d82aa72145d22825c422fcef7651a",
     "source_path": "cmd/internal/couchcore/drain_notice.go",
-    "provenance": "canonical source vectors supplied by pair:5; verified Couch receipt 35f450e9-4333-4b3c-ba15-2b594dd8a007; no live drain sent"
+    "provenance": "canonical source vectors supplied by pair:5; verified Couch receipt 35f450e9-4333-4b3c-ba15-2b594dd8a007; no live drain sent",
+    "fixture": "notices.before-running-clarification.json"
+  },
+  "notices": {
+    "fixture": "notices.json",
+    "date": "2026-10-22",
+    "peer_verified_receipt": "2d574326-5cb3-41de-99a2-d2fb341fd3e8",
+    "tl_verified_receipt": "07154afa-0199-4587-9e03-a3c2b592173e",
+    "provenance": "pair:5 supplied the byte-for-byte TL-approved revised graceful opening; source patch and re-close pending, no new source commit supplied; fast and lift unchanged from historical source vectors; no live drain sent"
   }
 }
