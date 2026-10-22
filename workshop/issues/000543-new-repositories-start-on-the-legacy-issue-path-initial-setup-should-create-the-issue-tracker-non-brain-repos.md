@@ -52,7 +52,7 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - [x] Add an explicit empty-only issue init step reusing tracker migration, with brain/opt-out exclusion, prerequisite refusals, safe retry and checkout completion.
 - [x] Add the shared legacy migrate hint at issue new and start-plan; document the default new-repository sequence separately from adoption/refresh.
-- [ ] Verify pure eligibility and real-Git sequence/failure/concurrency fixtures, private CLI conformance, recorded suite and whole-issue close review; land through sdlc.
+- [x] Verify pure eligibility and real-Git sequence/failure/concurrency fixtures plus private CLI conformance; submit the recorded pushed-head suite and whole-issue close review. Land through sdlc only after a passing suite and SHIP.
 
 
 ## Log
@@ -71,6 +71,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 - Counted inventory guard: 8/16 unrelated files used 94/94 Git processes; 8/16 branches used 126/158, retaining fixed file cost and linear branch scanning.
 - Private built production CLI against a real disposable bare origin passed init -> first issue new (HEAD/index/worktree unchanged) -> repeated init after later issue -> claim -> start-plan, producing 000001-first-real-cli-work. Evidence retained locally at /Volumes/TestScratch/ariadne-543-cli-8gw8_mh5/commands.json. No stage per TL approval.
 - Procedure sweep found TL-facing team creation instructions in cmd/tl-lead/help.md and team_cmd.go; updated their delivered next steps under the approved scope. New ordered-procedure regression failed before the update; TestTeamNew and TestLeadHelp passed afterward (0.628s). README and both setup/bootstrap atlas entry points now finish new-repository setup with explicit init. No other repo-creation procedure was found. Global GOCACHE is the main-SSD default; no private cache created.
+
+- Go lint and recovery package checks passed (1.096s / 0.133s). Implementation committed as 8d0ac0109 and PR385 opened. Recorded suite submitted on that pushed head, run lease-1773336371 / attempt dbec417e9238668ff9df807e468f0597, currently queued (not test evidence yet). Worker policy permits close review to overlap this queue; no landing until the final code has its recorded pass. Plan's acceptance checkbox records submission, not a suite pass or review verdict.
 
 ## Revisions
 
