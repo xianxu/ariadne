@@ -1,13 +1,13 @@
 ---
 id: 000535
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd0c5502b4c6600f6b9b62d9acde9c72e749b745e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e62563420ae75fe0d7f96eb41f6c86a7461dad22' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T19:18:10-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "64611f08", done: "a7b66150"}
+actual_hours: 0.63
 ---
 
 # landing: a priority grant on a car doesn't reach its train's queued integration suite
