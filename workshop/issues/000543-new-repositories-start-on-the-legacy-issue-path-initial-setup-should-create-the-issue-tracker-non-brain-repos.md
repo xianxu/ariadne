@@ -74,6 +74,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - Go lint and recovery package checks passed (1.096s / 0.133s). Implementation committed as 8d0ac0109 and PR385 opened. Recorded suite submitted on that pushed head, run lease-1773336371 / attempt dbec417e9238668ff9df807e468f0597, currently queued (not test evidence yet). Worker policy permits close review to overlap this queue; no landing until the final code has its recorded pass. Plan's acceptance checkbox records submission, not a suite pass or review verdict.
 
+- Close round 1 REWORK: BR-1 Critical (authoritative-inventory-completeness). Reviewer reproduced a remote-only legacy issue branch created since the initializer's last fetch, missed by shared migrationBranchRefs's cached refs. Verified the shared scanner does not refresh all heads. Explicitly canceled lease-1773336371 before execution; canceled output confirms no suite result. Appended a bounded correction to the durable plan and sent it to TL; production code held pending approval. Existing code and targeted successes do not dispose BR-1.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
