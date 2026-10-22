@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #540 BR-2: testing a classifier with an already-cancelled cause misses an
+  adapter that classifies first and joins cancellation later. Keep execution
+  raw until the final context owner completes cleanup and samples its outcome,
+  then classify once. Preserve injected cancelled-success controls and add
+  real subprocess barriers after diagnostic emission. This semantic ordering
+  needs production-boundary tests rather than a lexical error-string lint.
+
 - #540 BR-1: a classifier's supported transports must match its host parser's
   accepted transports. Enumerate HTTP(S), SSH/scp and native Git, and capture
   real transport failures through the production runner; HTTP-shaped fake
