@@ -151,11 +151,11 @@ func prepareLegacyCompletionRepair(env *migrateEnv, id string) (legacyCompletion
 	if !proof.HasCompletion {
 		return plan, fmt.Errorf("issue #%s has no provable legacy close; terminal-only imports cannot fabricate one", issue.CLIRef(id))
 	}
-	unchanged, err := legacyRepairGenerationUnchanged(env, snapshot.Ref(), root, imported, proof)
-	if err != nil {
+	record := tracker.IssueRecord{ID: current.ID, Card: &current}
+	if err := legacyGenerationHistory(env.ctx, env.root, snapshot.Ref(), root, record, proof); err != nil {
 		return plan, err
 	}
-	raw, complete, err := tracker.PlanLegacyCompletionRepair(imported, current, proof.Completion, proof.Adoption, unchanged)
+	raw, complete, err := tracker.PlanLegacyCompletionRepair(imported, current, proof.Completion, proof.Adoption, true)
 	if err != nil {
 		return plan, err
 	}
@@ -212,55 +212,6 @@ func legacyImportedSource(ctx context.Context, root, source, repository string, 
 		}
 	}
 	return tracker.MigrationFile{}, fmt.Errorf("imported issue #%s has no unambiguous source at cutover", issue.CLIRef(imported.ID))
-}
-
-func legacyRepairGenerationUnchanged(env *migrateEnv, pin, root string, imported tracker.Record, proof legacyCompletionProof) (bool, error) {
-	history, err := env.git("--literal-pathspecs", "log", "--format=%H", fmt.Sprintf("--max-count=%d", tracker.ClaimHistoryLimit+1), pin, "--", imported.Path)
-	if err != nil {
-		return false, err
-	}
-	commits := strings.Fields(history)
-	if len(commits) > tracker.ClaimHistoryLimit {
-		return false, fmt.Errorf("legacy repair card history is incomplete")
-	}
-	for _, commit := range commits {
-		raw, err := env.trunk.ReadAt(commit, imported.Path)
-		if err != nil {
-			return false, err
-		}
-		card, err := issue.ParseCard(raw)
-		if err != nil {
-			return false, err
-		}
-		if card.ID != imported.ID {
-			return false, nil
-		}
-		for _, field := range []string{"status", "actual_hours", "started"} {
-			a, err := issue.FieldString(imported.Card.Frontmatter, field)
-			if err != nil {
-				return false, err
-			}
-			b, err := issue.FieldString(card.Frontmatter, field)
-			if err != nil {
-				return false, err
-			}
-			if a != b {
-				return false, nil
-			}
-		}
-		if _, corrected, err := issue.CardActualCorrection(raw); err != nil || corrected {
-			return false, err
-		}
-		if c, ok, err := issue.CardCompletion(raw); err != nil {
-			return false, err
-		} else if ok && c != proof.Completion {
-			return false, nil
-		}
-		if commit == root {
-			return true, nil
-		}
-	}
-	return false, fmt.Errorf("legacy repair history does not reach its imported root")
 }
 
 type legacyRepairPublisher interface {

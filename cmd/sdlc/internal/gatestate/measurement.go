@@ -14,13 +14,32 @@ import (
 )
 
 const (
-	MeasurementInputsVersion      = 1
-	MeasurementMethodEngagementV1 = "active-time-v3-engagement-v1"
-	MeasurementMethodQueueV1      = "active-time-v3-engagement-queue-v1"
-	MeasurementMethodLegacyV1     = "legacy-v1"
-	SnapshotLimitSources          = 128
-	SnapshotLimitBytes            = 64 * 1024
+	MeasurementInputsVersion       = 1
+	MeasurementHybridInputsVersion = 2
+	MeasurementMethodHybridV1      = "active-time-v3-engagement-legacy-prefix-v1"
+	MeasurementMethodHybridQueueV1 = "active-time-v3-engagement-queue-legacy-prefix-v1"
+	MeasurementMethodEngagementV1  = "active-time-v3-engagement-v1"
+	MeasurementMethodQueueV1       = "active-time-v3-engagement-queue-v1"
+	MeasurementMethodLegacyV1      = "legacy-v1"
+	SnapshotLimitSources           = 128
+	SnapshotLimitBytes             = 64 * 1024
 )
+
+// IsEngagementMethod includes the versioned hybrid methods, whose suffix uses
+// the same verified ownership semantics as ordinary engagement measurements.
+func IsEngagementMethod(method string) bool {
+	return method == MeasurementMethodEngagementV1 || method == MeasurementMethodQueueV1 || IsHybridMethod(method)
+}
+
+// IsQueueMethod reports whether a method retains suite queue evidence.
+func IsQueueMethod(method string) bool {
+	return method == MeasurementMethodQueueV1 || method == MeasurementMethodHybridQueueV1
+}
+
+// IsHybridMethod identifies methods whose interpretation requires both parts.
+func IsHybridMethod(method string) bool {
+	return method == MeasurementMethodHybridV1 || method == MeasurementMethodHybridQueueV1
+}
 
 // MeasurementInputs retains the exact authority and evidence prefixes used to
 // adopt an actual. It holds no transcript bytes and performs no IO (ARCH-PURE).
@@ -140,11 +159,16 @@ func (m MeasurementInputs) Validate() error {
 	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
 		return fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
 	}
-	if m.Version != MeasurementInputsVersion {
+	if m.Version != MeasurementInputsVersion && m.Version != MeasurementHybridInputsVersion {
 		return fmt.Errorf("measurement version %d is unsupported", m.Version)
 	}
-	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodQueueV1 && m.Method != MeasurementMethodLegacyV1 {
+	if !IsEngagementMethod(m.Method) && m.Method != MeasurementMethodLegacyV1 {
 		return fmt.Errorf("measurement method %q is unsupported", m.Method)
+	}
+	// A hybrid is a distinct schema and interpretation. Old readers must refuse
+	// it rather than ignore its mandatory prefix, while plain v1 stays unchanged.
+	if IsHybridMethod(m.Method) != (m.Version == MeasurementHybridInputsVersion) || IsHybridMethod(m.Method) != (m.LegacyPrefix != nil) {
+		return fmt.Errorf("measurement hybrid method requires version %d and legacy_prefix; plain methods require version %d without legacy_prefix", MeasurementHybridInputsVersion, MeasurementInputsVersion)
 	}
 	if strings.TrimSpace(m.Repository) == "" || strings.ContainsAny(m.Repository, "\x00\r\n\t ") {
 		return fmt.Errorf("measurement repository must be a canonical identity")
@@ -155,7 +179,7 @@ func (m MeasurementInputs) Validate() error {
 	if m.TrackerHead != "" && !measurementHex(m.TrackerHead, 40, 64) {
 		return fmt.Errorf("measurement tracker_head must be a Git OID")
 	}
-	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && m.TrackerHead == "" {
+	if IsEngagementMethod(m.Method) && m.TrackerHead == "" {
 		return fmt.Errorf("measurement tracker_head is required for engagement method")
 	}
 	if m.BranchPoint != "" && !measurementHex(m.BranchPoint, 40, 64) {
@@ -188,10 +212,10 @@ func (m MeasurementInputs) Validate() error {
 	if m.CommitWeight < 0 || math.IsNaN(m.CommitWeight) || math.IsInf(m.CommitWeight, 0) {
 		return fmt.Errorf("measurement commit_weight must be finite and nonnegative")
 	}
-	if (m.Method == MeasurementMethodEngagementV1 || m.Method == MeasurementMethodQueueV1) && len(m.Engagements) == 0 {
+	if IsEngagementMethod(m.Method) && len(m.Engagements) == 0 {
 		return fmt.Errorf("measurement engagements are required for engagement method")
 	}
-	if m.Method != MeasurementMethodQueueV1 && len(m.QueueWaits) != 0 {
+	if !IsQueueMethod(m.Method) && len(m.QueueWaits) != 0 {
 		return fmt.Errorf("measurement queue waits require queue-aware method")
 	}
 	seenWaits := map[string]bool{}
@@ -353,7 +377,7 @@ func (m MeasurementInputs) validateLegacyPrefix(since, until time.Time) (time.Ti
 		}
 		return since, nil
 	}
-	if m.Method != MeasurementMethodEngagementV1 && m.Method != MeasurementMethodQueueV1 {
+	if !IsHybridMethod(m.Method) {
 		return time.Time{}, fmt.Errorf("measurement legacy_prefix requires engagement method")
 	}
 	if !measurementHex(m.LegacyCutover, 40, 64) {

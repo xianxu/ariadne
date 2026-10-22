@@ -66,9 +66,13 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 - [x] Add a digest-reviewed single-card repair for repositories already migrated, preserving current state and supporting uncertain-push retry.
 - [x] Use proven windowless legacy close ordering for disjointness, with overlapping/unknown evidence still refusing.
 - [x] Preserve measurement across cutover with explicit legacy-prefix and owned-suffix evidence, deterministic replay and a claimed-before/closed-after fixture.
-- [x] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
+- [ ] Verify production-path migration/repair/actual controls, full suite, approved Echo conformance and documentation; close and land.
 
 ## Log
+
+- 2026-10-22: Final fixed-source verification passed: repair authority and correction trust race matrix40.278s; cutover/replay/queue race matrix11.742s; tracked-file golint1.020s, shelllint0.352s and gatestate0.179s. git diff --cached --check is clean. No concurrent source edits during these checks. Checkpointing and pushing the fixes before recording the required new-head suite.
+
+- 2026-10-22: BR-1 red proved the pinned base decoder accepts an old-format hybrid while discarding its prefix. Fixed hybrid roots to version2 with distinct legacy-prefix and queue-legacy-prefix methods; plain version1 inputs remain compatible. Pinned-reader codec matrix passed0.224s, production retained replay and both correction-method controls passed33.398s, actual queue promotion passed3.914s. BR-2 red proved removal/replacement histories could be repaired; deleted the weaker repair check and shared legacyGenerationHistory with both exclusion paths. Stable repair/exclusion matrix passed73.040s, including positive repair-to-actual and four authority mutation modes. Raw red/green evidence is under common Git sdlc/test-stats/evidence/000544. Both agents stopped edits before final checks. Codec race passed2.142s and touched-command vet returned0. New fixed-head suite and round2 close remain required.
 
 - 2026-10-22: Close round1 returned REWORK, not closed: BR-1 reproduced older decoders silently discarding hybrid prefix fields; BR-2 reproduced repair accepting removed completion/provenance history that actual then refuses. TL approved an explicit hybrid method/version boundary and one shared monotone generation validator (delivery24b0ff95-3691-4347-82fa-aed92f08a7b0). Added durable plan Revisions and assigned independent bounded corrections with red-first regressions. Re-run the suite on the fixed pushed head before re-close; the prior suite remains an exact old-head pass, not approval of these fixes. #548 remains next after landing.
 

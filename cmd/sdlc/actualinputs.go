@@ -232,6 +232,8 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	}
 	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementInputsVersion, Method: gatestate.MeasurementMethodEngagementV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
 	if legacyPrefix != nil {
+		snapshot.Version = gatestate.MeasurementHybridInputsVersion
+		snapshot.Method = gatestate.MeasurementMethodHybridV1
 		snapshot.LegacyPrefix, snapshot.LegacyCutover = &legacyPrefix.Snapshot, legacyCutover
 		snapshot.Since = legacyPrefix.Snapshot.Since
 	}
@@ -409,6 +411,9 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	out.Warnings = append(out.Warnings, notes...)
 	if len(waits) > 0 {
 		out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
+		if out.LegacyPrefix != nil {
+			out.Snapshot.Method = gatestate.MeasurementMethodHybridQueueV1
+		}
 		out.Snapshot.QueueWaits = waits
 	}
 	return nil
@@ -600,7 +605,7 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 				return nil, err
 			}
 			var began time.Time
-			if saved.Method == gatestate.MeasurementMethodEngagementV1 || saved.Method == gatestate.MeasurementMethodQueueV1 {
+			if gatestate.IsEngagementMethod(saved.Method) {
 				for _, engagement := range saved.Engagements {
 					left, err := time.Parse(time.RFC3339Nano, engagement.Start)
 					if err != nil {

@@ -398,7 +398,7 @@ func verifyLegacyAdoption(ctx context.Context, root, trackerPin string, rec trac
 	if has != proof.HasCompletion || (has && completion != proof.Completion) {
 		return zero, fmt.Errorf("legacy adoption completion differs from source close generation")
 	}
-	if err := legacyAdoptionHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
+	if err := legacyGenerationHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
 		return zero, err
 	}
 	pin := a.TerminalCommit
@@ -506,7 +506,7 @@ func recoverUnboundLegacyAdoption(ctx context.Context, root, trackerPin string, 
 	if proof.HasCompletion || proof.Adoption.WindowClass != issue.LegacyWindowlessTerminal {
 		return zero, false, nil
 	}
-	if err := legacyAdoptionHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
+	if err := legacyGenerationHistory(ctx, root, trackerPin, trackerRoot, rec, proof); err != nil {
 		return zero, false, err
 	}
 	return proof.Adoption, true, nil
@@ -528,10 +528,11 @@ func recoverLegacyTerminalAdoption(ctx context.Context, root, trackerPin string,
 	return end, nil
 }
 
-// legacyAdoptionHistory proves continuity on the caller's immutable tracker
-// snapshot. Matching endpoints alone cannot distinguish a reopened generation.
+// legacyGenerationHistory is the shared repair and exclusion authority fence.
+// It proves continuity on the caller's immutable tracker snapshot; matching
+// endpoints alone cannot distinguish a reopened generation.
 // Only missing -> exact matching repair metadata may accumulate along the way.
-func legacyAdoptionHistory(ctx context.Context, root, trackerPin, trackerRoot string, rec tracker.IssueRecord, proof legacyCompletionProof) error {
+func legacyGenerationHistory(ctx context.Context, root, trackerPin, trackerRoot string, rec tracker.IssueRecord, proof legacyCompletionProof) error {
 	if !fullLegacyOID(trackerPin) || !fullLegacyOID(trackerRoot) || rec.Card == nil {
 		return fmt.Errorf("legacy adoption requires an immutable tracker snapshot")
 	}

@@ -255,3 +255,95 @@ func TestIssueMigrateRepairsMissingCompletionWithoutCheckoutChanges(t *testing.T
 		t.Fatal("repair changed main/checkout")
 	}
 }
+
+// Repair must use the same monotone authority fence as actual exclusion. An
+// endpoint restored to identical bytes does not undo intervening evidence loss.
+func TestLegacyCompletionRepairRejectsRestoredAuthority(t *testing.T) {
+	for _, mode := range []string{"remove-completion-and-provenance", "remove-provenance", "replace-completion", "replace-provenance"} {
+		t.Run(mode, func(t *testing.T) {
+			r, _ := oldMigratedLegacy(t)
+			env, err := openMigrate(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan, err := prepareLegacyCompletionRepair(env, "000001")
+			if err != nil {
+				t.Fatal(err)
+			}
+			original := append([]byte(nil), plan.Current.Raw...)
+			if err := applyLegacyCompletionRepair(t.Context(), env.tracker, plan, func(string, string) error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			snapshot, err := env.tracker.Snapshot()
+			if err != nil {
+				t.Fatal(err)
+			}
+			repaired, err := snapshot.Require("000001")
+			if err != nil {
+				t.Fatal(err)
+			}
+			end, err := verifyLegacyAdoption(t.Context(), r.root, snapshot.Ref(), tracker.IssueRecord{ID: repaired.ID, Card: &repaired}, env.target.Repository, plansDir())
+			if err != nil || end.IsZero() {
+				t.Fatalf("monotone repair unusable by actual: %v %v", end, err)
+			}
+			var changed []byte
+			switch mode {
+			case "remove-completion-and-provenance":
+				changed = original
+			case "remove-provenance":
+				changed, err = issue.SetCardCompletion(original, plan.Proof.Completion)
+			case "replace-completion":
+				completion := plan.Proof.Completion
+				completion.Token = "different-close"
+				changed, err = issue.SetCardCompletion(repaired.Raw, completion)
+			case "replace-provenance":
+				adoption := plan.Proof.Adoption
+				adoption.SourceBlob = strings.Repeat("1", 40)
+				changed, err = issue.SetCardLegacyAdoption(repaired.Raw, adoption)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := env.tracker.UpdateCard(repaired, changed, "change-authority", func(string, string) error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			// The exact originally-unbound restoration reproduces the review finding;
+			// the other cases restore repaired bytes to exercise hidden history changes.
+			if mode != "remove-completion-and-provenance" {
+				snapshot, err = env.tracker.Snapshot()
+				if err != nil {
+					t.Fatal(err)
+				}
+				current, err := snapshot.Require("000001")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := env.tracker.UpdateCard(current, repaired.Raw, "restore-authority", func(string, string) error { return nil }); err != nil {
+					t.Fatal(err)
+				}
+			}
+			snapshot, err = env.tracker.Snapshot()
+			if err != nil {
+				t.Fatal(err)
+			}
+			current, err := snapshot.Require("000001")
+			if err != nil {
+				t.Fatal(err)
+			}
+			end, err = verifyLegacyAdoption(t.Context(), r.root, snapshot.Ref(), tracker.IssueRecord{ID: current.ID, Card: &current}, env.target.Repository, plansDir())
+			if !end.IsZero() {
+				t.Fatalf("actual granted bound for non-monotone %s history: %v %v", mode, end, err)
+			}
+			if mode != "remove-completion-and-provenance" && (err == nil || !strings.Contains(err.Error(), "tracker history")) {
+				t.Fatalf("actual did not reject restored %s authority: %v", mode, err)
+			}
+			before := r.git("ls-remote", "origin", "refs/heads/issue-tracker")
+			if next, err := prepareLegacyCompletionRepair(env, "000001"); err == nil || !strings.Contains(err.Error(), "tracker history") {
+				t.Fatalf("repair accepted non-monotone %s history (already repaired=%v): %v", mode, next.Complete, err)
+			}
+			if after := r.git("ls-remote", "origin", "refs/heads/issue-tracker"); after != before {
+				t.Fatal("refused repair changed tracker")
+			}
+		})
+	}
+}

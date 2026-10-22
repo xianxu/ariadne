@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	oldmeasurement "github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate/testdata/measurementv1"
 )
 
 func validMeasurementInputs() MeasurementInputs {
@@ -222,6 +224,8 @@ func TestMeasurementInputsMissingVersionIsRetainedError(t *testing.T) {
 
 func validLegacyPrefixInputs() MeasurementInputs {
 	m := validMeasurementInputs()
+	m.Version = MeasurementHybridInputsVersion
+	m.Method = MeasurementMethodHybridV1
 	prefix := validMeasurementInputs()
 	prefix.Method = MeasurementMethodLegacyV1
 	prefix.CodeHead = strings.Repeat("f", 40)
@@ -239,7 +243,7 @@ func validLegacyPrefixInputs() MeasurementInputs {
 }
 
 func TestMeasurementLegacyPrefixRoundTrip(t *testing.T) {
-	for _, method := range []string{MeasurementMethodEngagementV1, MeasurementMethodQueueV1} {
+	for _, method := range []string{MeasurementMethodHybridV1, MeasurementMethodHybridQueueV1} {
 		t.Run(method, func(t *testing.T) {
 			m := validLegacyPrefixInputs()
 			m.Method = method
@@ -278,7 +282,7 @@ func TestMeasurementLegacyPrefixRoundTrip(t *testing.T) {
 		})
 	}
 	m := validLegacyPrefixInputs()
-	m.Method = MeasurementMethodQueueV1
+	m.Method = MeasurementMethodHybridQueueV1
 	m.LegacyCutover = strings.Repeat("e", 64)
 	m.QueueWaits = []MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: m.LegacyPrefix.Until, End: "2026-10-01T02:01:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
 	m.Protected = []MeasurementCredit{{Issue: "1", Slot: "ariadne:1", Start: m.LegacyPrefix.Until, End: "2026-10-01T02:01:00Z"}}
@@ -302,6 +306,12 @@ func TestMeasurementLegacyPrefixRoundTrip(t *testing.T) {
 
 func TestMeasurementLegacyPrefixValidation(t *testing.T) {
 	for name, mutate := range map[string]func(*MeasurementInputs){
+		"downgraded version": func(m *MeasurementInputs) { m.Version = MeasurementInputsVersion },
+		"downgraded method":  func(m *MeasurementInputs) { m.Method = MeasurementMethodEngagementV1 },
+		"downgraded both": func(m *MeasurementInputs) {
+			m.Version = MeasurementInputsVersion
+			m.Method = MeasurementMethodEngagementV1
+		},
 		"cutover absent":           func(m *MeasurementInputs) { m.LegacyCutover = "" },
 		"cutover short":            func(m *MeasurementInputs) { m.LegacyCutover = "abc" },
 		"cutover nonhex":           func(m *MeasurementInputs) { m.LegacyCutover = strings.Repeat("z", 40) },
@@ -326,7 +336,7 @@ func TestMeasurementLegacyPrefixValidation(t *testing.T) {
 		"engagement overlap":       func(m *MeasurementInputs) { m.Engagements[0].Start = "2026-10-01T01:59:59Z" },
 		"source overlap":           func(m *MeasurementInputs) { m.Sources[0].Windows[0].Start = "2026-10-01T01:59:59Z" },
 		"queue overlap": func(m *MeasurementInputs) {
-			m.Method = MeasurementMethodQueueV1
+			m.Method = MeasurementMethodHybridQueueV1
 			m.QueueWaits = []MeasurementQueueWait{{AttemptID: "aabb", Slot: "ariadne:1", RecordDigest: strings.Repeat("d", 64), Start: "2026-10-01T01:59:00Z", End: "2026-10-01T02:00:00Z", QueueSeconds: 60, RawSeconds: 60, Exact: true}}
 		},
 		"protected overlap": func(m *MeasurementInputs) {
@@ -382,10 +392,72 @@ func TestMeasurementLegacyPrefixAggregateLimits(t *testing.T) {
 	root := m
 	root.LegacyPrefix = nil
 	root.LegacyCutover = ""
+	root.Version = MeasurementInputsVersion
+	root.Method = MeasurementMethodEngagementV1
 	if err := root.Validate(); err != nil {
 		t.Fatalf("parent alone: %v", err)
 	}
 	if err := m.Validate(); err == nil || !strings.Contains(err.Error(), "bytes") {
 		t.Fatalf("aggregate JSON cap: %v", err)
+	}
+}
+
+func TestMeasurementHybridRejectsPinnedV1Decoder(t *testing.T) {
+	for _, method := range []string{MeasurementMethodHybridV1, MeasurementMethodHybridQueueV1} {
+		t.Run(method, func(t *testing.T) {
+			m := validLegacyPrefixInputs()
+			m.Method = method
+			for _, discriminator := range []string{"both", "version only", "method only"} {
+				t.Run(discriminator, func(t *testing.T) {
+					sample := m
+					if discriminator == "version only" {
+						sample.Method = MeasurementMethodEngagementV1
+					}
+					if discriminator == "method only" {
+						sample.Version = MeasurementInputsVersion
+					}
+					data, err := json.Marshal(sample)
+					if err != nil {
+						t.Fatal(err)
+					}
+					var old oldmeasurement.MeasurementInputs
+					if err := json.Unmarshal(data, &old); err != nil {
+						t.Fatal(err)
+					}
+					if err := old.Validate(); err == nil {
+						t.Fatalf("pinned v1 decoder silently accepted hybrid without its prefix: %s", data)
+					}
+				})
+			}
+		})
+	}
+	// Unknown optional fields remain accepted by old plain-v1 readers. Refusal
+	// depends on schema/interpretation, not an accidental blanket strict decoder.
+	for _, method := range []string{MeasurementMethodEngagementV1, MeasurementMethodQueueV1, MeasurementMethodLegacyV1} {
+		plain := validMeasurementInputs()
+		plain.Method = method
+		data, err := json.Marshal(plain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(data, &fields); err != nil {
+			t.Fatal(err)
+		}
+		fields["future_optional"] = json.RawMessage(`{"untouched":true}`)
+		data, err = json.Marshal(fields)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var old oldmeasurement.MeasurementInputs
+		if err := json.Unmarshal(data, &old); err != nil {
+			t.Fatal(err)
+		}
+		if err := old.Validate(); err != nil {
+			t.Fatalf("plain v1 compatibility changed for %s: %v", method, err)
+		}
+		if err := plain.Validate(); err != nil {
+			t.Fatalf("current reader rejected plain v1 %s: %v", method, err)
+		}
 	}
 }

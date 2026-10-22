@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -90,6 +91,9 @@ func TestActualAcrossLegacyCutoverRetainsBothPartsAndReplays(t *testing.T) {
 	if inputs.LegacyPrefix == nil || inputs.Snapshot.LegacyPrefix == nil || inputs.Snapshot.Since != "2026-10-14T00:01:00Z" {
 		t.Fatalf("pre-cutover work lost: %+v", inputs)
 	}
+	if inputs.Snapshot.Version != gatestate.MeasurementHybridInputsVersion || inputs.Snapshot.Method != gatestate.MeasurementMethodHybridV1 {
+		t.Fatalf("hybrid lacks explicit schema/interpretation fence: %+v", inputs.Snapshot)
+	}
 	if inputs.LegacyPrefix.Snapshot.Until != "2026-10-14T00:10:00Z" {
 		t.Fatalf("wrong cutover bound: %+v", inputs.LegacyPrefix.Snapshot)
 	}
@@ -101,6 +105,8 @@ func TestActualAcrossLegacyCutoverRetainsBothPartsAndReplays(t *testing.T) {
 	suffix.LegacyPrefix = nil
 	suffix.Snapshot.LegacyPrefix = nil
 	suffix.Snapshot.LegacyCutover = ""
+	suffix.Snapshot.Version = gatestate.MeasurementInputsVersion
+	suffix.Snapshot.Method = gatestate.MeasurementMethodEngagementV1
 	suffix.Snapshot.Since = "2026-10-14T00:11:00Z"
 	suffixResult := computeOwnedActualFor(t.Context(), ownerRoot, "335", "", &suffix)
 	if suffixResult.Status != actualMeasured || result.Hours <= suffixResult.Hours {
@@ -237,5 +243,52 @@ func TestLegacyPrefixOnlyRefusesUntilPostCutoverWork(t *testing.T) {
 	got := computeActualForPurpose(t.Context(), ownerRoot, "", "335", "", "workshop/plans", actualCloseCandidate)
 	if got.Status != actualError || !strings.Contains(got.Detail, "no post-cutover owned interval yet") || !strings.Contains(got.Detail, "before closing") {
 		t.Fatalf("prefix-only preview should explain refusal, not adopt: %+v", got)
+	}
+}
+
+func TestActualAcrossLegacyCutoverQueueRetainsHybridMethod(t *testing.T) {
+	r, ownerRoot, cardPath, _ := legacySpanningFixture(t)
+	inputs, err := resolveOwnedActualInputsFor(t.Context(), ownerRoot, "", "335", "workshop/plans", actualCloseCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued := time.Date(2026, 10, 14, 0, 13, 0, 0, time.UTC)
+	acquired := queued.Add(time.Minute)
+	queue := 60.0
+	a := SuiteAttempt{Version: 1, ID: "aabb", Repo: "xianxu/ariadne", SHA: inputs.Snapshot.CodeHead, Check: "suite", Slot: "ariadne:1", QueuedAt: &queued, AcquiredAt: &acquired, StartedAt: acquired, FinishedAt: acquired.Add(time.Minute), QueueSeconds: &queue, LogSHA256: strings.Repeat("b", 64)}
+	raw, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	common := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--git-common-dir"))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(r.root, common)
+	}
+	dir := filepath.Join(common, "sdlc", "test-stats", "attempts")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "aabb.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	// Private migration fixtures use a file: repository, while persisted suite
+	// records require owner/repo names. Supply that scope at the queue seam.
+	repo, err := tracker.NewRepository(t.Context(), r.root, "origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := attachOwnedQueueEvidence(t.Context(), ownerRoot, repo, cardPath, "github.com/xianxu/ariadne", inputs, actualCloseCandidate); err != nil {
+		t.Fatal(err)
+	}
+	measured := computeOwnedActualFor(t.Context(), ownerRoot, "335", "", inputs)
+	if measured.Status != actualMeasured || measured.Inputs == nil {
+		t.Fatalf("hybrid queued measurement failed: %+v", measured)
+	}
+	saved := measured.Inputs
+	if saved.Version != gatestate.MeasurementHybridInputsVersion || saved.Method != gatestate.MeasurementMethodHybridQueueV1 || saved.LegacyPrefix == nil || len(saved.QueueWaits) != 1 {
+		t.Fatalf("queue promotion lost hybrid boundary: %+v", saved)
+	}
+	if err := saved.Validate(); err != nil {
+		t.Fatal(err)
 	}
 }
