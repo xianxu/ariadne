@@ -1,6 +1,6 @@
 ---
 id: 000534
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c267bbefd9e4e337aebf13a2a63392c2e0ea0e8f
         evidence_commit: f1102187a5a9556da4e841eee6b7e696cef3a986
+        landed_commit: 95c49015861851fa04f8894df6403fe3cd682168
 ---
 
 # CI compiler metadata pipeline intermittently exits with SIGPIPE
