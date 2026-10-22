@@ -121,6 +121,12 @@ BR-2 (Important, user-surface-documentation): README now states the committed ex
 
 Review correction verification: authority / pinned resolver / retired-boundary / replay / original split / decimal-hint tests PASS (24.960s). The broad measurement run completed all remaining controls but failed TestOwnedActualProductionConsumersShareBrainAndOwnership because its M1 request lacked a pinned executable declaration (588.559s overall). Added that declaration to this fixture, preserving its original ownership/provenance assertions. Consumer + requested-authority + production split/refusal rerun PASS (20.689s). No blind passing retry or flake classification. Preparing the corrected pushed head for its recorded full suite; close round 2 may overlap the queue per tl-worker, but no landing before a final code pass.
 
+### 2026-10-22 — landing integration recovery
+
+Close round 2 finalized SHIP with both BR-1/BR-2 addressed and no open findings; the card is codecomplete. The retained merge runner reached its turn but refused an actualinputs.go conflict with main, preserving the branch and naming manual integration, integrated full suite and fixed-then-ship re-close. Its process exited; no duplicate merge runner remains.
+
+Resolved the single conflict by preserving freshActualRounds / selected measurementCuts and main's attachOwnedQueueEvidence call with the explicit remote-main reference. Targeted requested-authority, retired-boundary, captured replay, ownership, queue evidence and decimal-hint controls PASS (56.990s). Branch patch whitespace check against integrated main PASS; the full cached main advance includes two existing fixture blank-line warnings, not introduced by this resolution. The prior code-head suite lease-1754157053 was retained unchanged through 5605s queued and has now started; it is not integrated-head evidence. Next: record its result, run the required integrated-head suite, fixed-then-ship close with --full-suite evidence, then re-enter sdlc merge --yes. No gate waived.
+
 ## Revisions
 
 ### 2026-10-22 — completion bookkeeping

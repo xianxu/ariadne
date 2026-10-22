@@ -39,7 +39,9 @@ type ownedActualInputs struct {
 	SourceSlots   map[string]string
 	Replay        bool
 	Protected     []activetime.CreditedInterval
-	LegacyPrefix  *ownedActualInputs // separately labelled, unowned pre-cutover evidence
+	LegacyPrefix  *ownedActualInputs             // separately labelled, unowned pre-cutover evidence
+	CarWaits      []gatestate.MeasurementCarWait // descriptive; never passed to activity subtraction
+	CarWaitNotes  []string
 }
 
 type actualInputPurpose uint8
@@ -153,7 +155,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 					return nil, err
 				}
 				out.Warnings = append(out.Warnings, "measurement purpose: correction candidate (completion-pinned authority with fresh queue evidence)")
-				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
+				if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose, gitx.RemoteTrackingRef(target.Remote, "main")); err != nil {
 					return nil, err
 				}
 				out.Replay = false
@@ -273,7 +275,7 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	}
 	out.Warnings = append(out.Warnings, notes...)
 	out.Snapshot.Cuts = measurementCuts(rounds)
-	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose); err != nil {
+	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose, gitx.RemoteTrackingRef(target.Remote, "main")); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -352,7 +354,7 @@ func completedMeasurementSnapshot(ctx context.Context, root string, rec tracker.
 	return nil, ledger, "", nil
 }
 
-func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose) error {
+func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker.Repository, cardPath, repository string, issueID int, out *ownedActualInputs, purpose actualInputPurpose, mainRefs ...string) error {
 	if issueID <= 0 {
 		return fmt.Errorf("queue evidence requires a canonical issue ID")
 	}
@@ -402,6 +404,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 			return err
 		}
 	}
+	attachCarWaitInputs(ctx, repoTop, common, repository, issueID, engagements, out)
 	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)
 	if err != nil {
 		return err
@@ -410,7 +413,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	for _, a := range attempts {
 		heads = append(heads, a.SHA)
 	}
-	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop))
+	memberships, err := readQueueHeadMemberships(ctx, heads, path.Base(repository), gitQueueHeadReader(repoTop, mainRefs...))
 	if err != nil {
 		var blockers []string
 		for _, a := range attempts {

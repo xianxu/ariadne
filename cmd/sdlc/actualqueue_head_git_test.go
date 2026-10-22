@@ -19,7 +19,7 @@ type queueGraphFake struct {
 	calls int
 }
 
-func (f *queueGraphFake) read(ctx context.Context, heads []string) ([]queueHeadFact, error) {
+func (f *queueGraphFake) read(ctx context.Context, heads []string, _ string) ([]queueHeadFact, error) {
 	f.calls++
 	var out []queueHeadFact
 	for _, head := range heads {

@@ -1,0 +1,25 @@
+Original tool-output capture; message text below is unmodified.
+Source: /Users/xianxu/.codex/sessions/2026/10/20/rollout-2026-10-20T10-08-18-01a15a49-099a-71f3-872b-0c2ad747d4bc.jsonl
+
+JSONL line: 23558
+Timestamp: 2026-10-22T02:06:34.040Z
+Tool call: call_9cbcdb3a91df4252b3c32cd2f63c9d72
+--- original output ---
+landing train: not ready: CI gate: CI gate: PR #535 has checks still running on its head
+landing train: not ready: CI gate: CI gate: PR #535 needs recorded local checks on its head: affected or its full-suite fallback
+
+--- end original output ---
+
+JSONL line: 23984
+Timestamp: 2026-10-22T04:34:02.688Z
+Tool call: call_fb0f44b0c6a14f49ae042d7ac310cb61
+--- original output ---
+landing train: not ready: could not read 000779-couch-tab-bar-wrap-onto-a-second-line-when-it-overflows-instead-of-hiding-slots-behind-n's pushed tip: git ls-remote origin refs/heads/000779-couch-tab-bar-wrap-onto-a-second-line-when-it-overflows-instead-of-hiding-slots-behind-n: exit status 128
+fatal: unable to access 'https://github.com/xianxu/pair.git/': Could not resolve host: github.com
+
+landing train: not ready: CI gate: CI gate: PR #535 needs recorded local checks on its head: affected or its full-suite fallback
+landing line: position 1; landing now: #743 (000743-conformance-run-couch-zellij-conformance-in-a-local-tart-vm-as-a-declared-local-check-github-job-becomes-a-non-required-main-weekly-backstop, pid 14501) (sdlc landing status)
+landing train: held: train due; not ready: CI gate: CI gate: PR #535 needs recorded local checks on its head: affected or its full-suite fallback
+
+--- end original output ---
+

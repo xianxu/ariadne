@@ -544,6 +544,16 @@ trains on:
   car directly; the affected stand-in is an alternative. The missing-record
   message names affected or its full-suite fallback and explains conditionally
   to wait if affected fell back (#513), without asserting a queued run exists.
+  Missing local evidence ends the retained wait (#550): `ciVerdict.LocalNeeded`
+  survives aggregate pending/red/unknown/unregistered/guard refusals through
+  `ciGateError.LocalNeeded`. `carReadiness` returns a separate terminal error
+  with canonical commands; `vouchWhileWaiting` signals the cancellation owner
+  once, then `enterLandingLine` joins it, ends wait evidence and releases the
+  ticket. Successful admission, observed settlement and caller cancellation
+  retain precedence over late errors. The pane says `merge stopped: run <exact
+  command>, then re-enter sdlc merge`. A separately queued check stays intact;
+  retry after its pass, or run the named check through the normal queue first.
+  Serial/granted admission retains automatic missing-check execution.
 - Admission waits for the departure (the last `train` event's `next_due`)
   and a current vouch. A grant departs at once, alone.
 - Candidate and composed membership have distinct banners (#521); the terminal
@@ -1277,7 +1287,7 @@ prompt's `repository root:` and its `git -C` recipes name the clone, and only
 such an isolated prompt (`PromptInput.Isolated`) tells the reviewer to revert
 in place. `sdlc judge` and plan reviews still run in the caller's checkout and
 keep the scratch-copy instruction. A missing-verdict or invalid-response retry resets the clone first
-(`DispatchOptions.BeforeRetry` → `Checkout.Reset`), so attempt 2 never reads
+(`DispatchOptions.BeforeRetryContext` → `Checkout.ResetContext`), so attempt 2 never reads
 attempt 1's mutations. The process is one argv transform shared by every
 agent (`Isolation.Wrap`, applied through `judge.DispatchOptions.Wrap`):
 
@@ -1315,6 +1325,44 @@ and the round runs clone-only. The ledger round's `isolation:` and the
 sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
 TL's decision on #204. `--dry-run` prints the wrapped command with a
 `<review-checkout>` placeholder.
+
+**Dependency inspection in boundary reviews (#551).** The pinned consumer's
+`construct/deps` supplies direct `SDLC_DEP_SUBSTRATE` and `SDLC_DEP_DATA`
+bindings, using the same declaration, anchor, deduplication and conflict rules
+as managed checks (#545). `reviewdependencies.go` resolves present local
+sources, pins each last-fetched `refs/remotes/origin/main` once, and creates
+separately locked disposable sibling clones. It never fetches, acquires a
+missing source or copies dirty source bytes. Source-less rows remain supported
+when the local repository is present. Missing sources/refs and invalid or
+conflicting declarations fail before the reviewer runs, naming the repair.
+
+The review-window prompt lists each absolute disposable path, exact commit,
+fetch-age evidence and mode. The same paths reach reviewer/preparation commands
+and Claude's restored shell environment; stale inherited `SDLC_DEP_*` values are
+cleared. Fetch age is unknown unless a single matching origin/main `FETCH_HEAD`
+observation supplies its file timestamp. An observation is labeled as such;
+commit dates and ref-change times never substitute for a fetch timestamp, and
+remote freshness remains unverified.
+
+With an available fence, dependency clones, source worktrees and common Git
+directories are protected from writes. Checkout-only fallback instead permits
+writes to disposable clones and says so in the prompt. The primary `Checkout`
+owns its children for reset/close; each child retains its own flock so concurrent
+sweeps spare it. Retry rebuilds the same paths at the original pins; exit or
+cancellation removes them, and dead-owner sweeps reclaim them. Dependency clone
+setup suppresses inherited Git configuration, templates, hooks and smudge
+filters; it copies no source main-authority settings or live overlays.
+
+Preparation accepts at most 64 direct rows, with at most one distinct source
+binding per kind. Before materialization, bounded tree metadata rejects gitlinks,
+more than 100,000 entries, or more than 512 MiB blob bytes per dependency
+(1 GiB across dependencies). A shared two-minute setup budget bounds Git
+process groups. Contextual checkout/reset APIs carry caller cancellation;
+a retry's fresh two-minute budget is capped by Dispatch's remaining deadline.
+`reviewbox/dependencies.go` owns the pure descriptor/tree policy;
+`layergraph.DependencyEnvironment` owns the shared environment projection.
+Real fence conformance on disposable fixtures runs with
+`WF_LIVE_REVIEW_DEPENDENCIES=1 go test ./cmd/sdlc -run '^TestReviewDependencyLiveFence$' -count=1`.
 
 **Pinned preparation and answerable responses (#364).** Boundary reviews read
 `.sdlc/review-prepare.json` from the pinned HEAD's regular Git blob, not the working
@@ -1771,8 +1819,15 @@ cannot support a calibrated numeric actual. A legacy `started_at` follows an
 unrecorded setup delay, so a reconstructed wait never proves non-overlap with
 an engagement or measurement boundary. The actual resolver selects validated records for the pinned
 repository, immutable tested-head issue membership, owner slot and engagement
-(#548). Membership reuses local subject leads and follows only recognized
-first-parent metadata/integration commits. Exact same-train composition includes
+(#548). Membership reuses local subject leads and recognized first-parent metadata.
+An otherwise unattributed merge also inherits its first parent's membership when every
+other parent is reachable from one pinned publication-main OID (#553), independently
+of the merge message. That command-local ancestry cache has the same node ceiling;
+ref movement cannot change its pin. Proof selection and classification receive the
+same repository context through the reader interface. Structural probes disable replacements, grafts,
+shallow boundaries and lazy fetching; a failed probe is distinct from a non-ancestor.
+Exact train parsing, including malformed-train refusal, runs before this fallback.
+Exact same-train composition includes
 admitted cars only; main and held cars contribute nothing. Proven foreign runs
 are excluded before ownership errors can block another issue. Unknown or missing
 head proof refuses with the attempt, SHA and restore/retry guidance. Reads disable
@@ -1797,6 +1852,28 @@ can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
+
+Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
+owns versioned start/bind/end facts under the existing ticket/head lifetime and
+pure `ReduceWaitEvidence`. `landingqueue.go` records exact owner boundaries and
+`landingtrain.go` binds the verified car to the live conductor. A closed invocation
+with at least one verified binding contributes its whole retained interval,
+including pre-boarding and release/reformation gaps. No per-poll history or
+source-idle claim is made. Non-addressable legacy invocations report unavailable
+coverage while preserving their ordinary landing behavior.
+
+`actualtrainwait_io.go` reads the existing 30-day audit once, bounded to 32 MiB,
+100,000 records and 1 MiB per record; it reuses #548's immutable-head proof.
+`actualtrainwait.go` clips to exact pinned owner/source windows and reports the
+union as `unverified coverage: N min in a retained train wait`. These inputs never
+enter the activity engine's subtraction path. Existing hours, phase splits and
+calibration policy remain unchanged. Malformed/partial/expired evidence produces a
+bounded limitation instead of a guessed duration. Optional preserving snapshot
+facts have a 16-interval/8 KiB budget; candidate-copy validation drops diagnostic
+attachment before it can invalidate the accounting snapshot. A compact limitation
+is pinned when it fits, otherwise replay preserves accounting alone. No past
+actual is automatically rewritten. Structural runtime-job/invocation binding for
+future proven-idle subtraction is deferred to pair#800.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
@@ -2190,9 +2267,8 @@ growth per direct completion). It is not suite-pass or admission evidence.
 Old tombstones lacking exit evidence remain unknown; there is no retroactive
 promotion. A Couch restart does not end the independent watcher, whereas loss
 of the watcher before its durable terminal transition requires reconciliation.
-The
-supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
-the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
+`couch --skill` owns authenticated supervisor notices and receipts;
+`tl-worker --help` owns checkpoint and idle discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained
 check verification; the continuation prototype points workers to that rule.
 

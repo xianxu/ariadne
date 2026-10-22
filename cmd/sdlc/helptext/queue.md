@@ -67,5 +67,5 @@ with the normal newest-20-head log retention. Retry the same head after resume.
 ROLLOUT
   Rebuild the central sdlc after landing. Older runners drain or relaunch;
   until no pre-gate runner remains, status is unknown/incomplete and names it.
-  Couch owns drain notice formatting and acknowledgments; workers checkpoint
-  and acknowledge the authenticated drain ID using tl-worker's drain rule.
+  For worker checkpoint and idle obligations, read `tl-worker --help`.
+  For authenticated supervisor notices and receipts, read `couch --skill`.

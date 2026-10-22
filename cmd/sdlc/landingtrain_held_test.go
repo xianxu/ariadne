@@ -91,8 +91,8 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 	var stderr bytes.Buffer
 	turn := &landingTurn{line: s.line, handle: head, log: &lineLog{line: s.line, stderr: &stderr}, stderr: &stderr}
 	pr := s.gh.pr(landingTestBranch)
-	self := func(context.Context) (landingline.Readiness, bool) {
-		return landingline.Readiness{Branch: landingTestBranch, Head: pr.HeadOID, PR: pr.Number, Ready: true}, false
+	self := func(context.Context) (landingline.Readiness, bool, error) {
+		return landingline.Readiness{Branch: landingTestBranch, Head: pr.HeadOID, PR: pr.Number, Ready: true}, false, nil
 	}
 	target := landingTarget{Root: s.first, Remote: "upstream", Repo: "test/repo"}
 	_, _, err = maybeConductTrain(ctx, execGitRunner{}, s.gh, s.gh, target, landingFlags(), turn, landingTestBranch, pr.HeadOID, pr, landingline.Schedule{Interval: time.Hour}, self, &stderr)

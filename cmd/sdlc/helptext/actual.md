@@ -64,6 +64,12 @@ OUTPUT
                             when all blockers are legacy; include the reason
                             with verification evidence.
   - malformed suite data → restore the named recoverable evidence and re-run.
+  - unverified coverage → "N min in a retained train wait" describes overlapping
+                            whole waiter invocations with verified car membership.
+                            It makes no new subtraction: substantive work and
+                            polls keep their existing accounting. Pre-boarding
+                            and released gaps are included; this is not proven
+                            idle time or time aboard a train.
   - no window           → commit the issue's work with #N in its subject, then
                             re-run sdlc actual --issue N. Do not invent hours.
 
@@ -74,6 +80,17 @@ Saved cuts are replayed exactly: retiring a Plan row later does not rewrite an
 already-adopted sample. The fresh-cut fallback is not a historical repair.
 Legacy closes without retained inputs reconstruct their historical completion
 binding and report that limitation.
+
+Retained train waits (#547) record ticket-owned start, verified car/conductor
+binding and owner-return end facts in the existing 30-day landing audit. Fresh
+measurements select the issue's immutable head, owner engagement and pinned source
+windows, union descriptive overlap, and retain optional coverage for replay.
+Incomplete/expired facts or diagnostic capacity limits report unavailable coverage
+without changing measured hours or calibration validity. Optional coverage is
+bounded to 16 intervals and 8 KiB within the existing snapshot limit; if even a
+compact limitation note cannot fit, replay preserves accounting without a coverage
+claim. Old snapshots remain unchanged. Historical records lacking the new identity
+or owner-return endpoint cannot yield an exact wait duration or corrected hours.
 
 Close and milestone-close measure their current candidate head and tracker
 authority, including fixed-then-ship re-closes. They retain a fresh snapshot with

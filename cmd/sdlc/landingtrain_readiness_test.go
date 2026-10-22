@@ -46,7 +46,7 @@ func TestLandingTrainReadinessClockOrder(t *testing.T) {
 			t.Cleanup(func() { landingNow = oldNow })
 			turn := &landingTurn{line: s.line, handle: head, log: &lineLog{line: s.line, stderr: io.Discard}, stderr: io.Discard}
 			pr := s.gh.pr(landingTestBranch)
-			self := func(context.Context) (landingline.Readiness, bool) {
+			self := func(context.Context) (landingline.Readiness, bool, error) {
 				// This existing callback runs after maybeConductTrain starts deciding.
 				// Replace the waiting car's sidecar synchronously: no load or sleeps
 				// are needed to force the refresh between decision start and boarding.
@@ -55,7 +55,7 @@ func TestLandingTrainReadinessClockOrder(t *testing.T) {
 				if err := s.line.Vouch(waiter, r); err != nil {
 					t.Fatal(err)
 				}
-				return landingline.Readiness{Branch: landingTestBranch, Head: pr.HeadOID, PR: 1, Ready: true, At: now}, false
+				return landingline.Readiness{Branch: landingTestBranch, Head: pr.HeadOID, PR: 1, Ready: true, At: now}, false, nil
 			}
 			target := landingTarget{Root: s.first, Remote: "upstream", Repo: "test/repo"}
 			merged, trained, err := maybeConductTrain(ctx, execGitRunner{}, s.gh, s.gh, target, landingFlags(), turn, landingTestBranch, pr.HeadOID, pr, landingline.Schedule{Interval: time.Hour}, self, io.Discard)

@@ -20,7 +20,7 @@ func TestFenceDeniesSourceWrites(t *testing.T) {
 		t.Skipf("no write fence here (%s); the review would run checkout-only", reason)
 	}
 	src, _, h2 := sourceRepo(t)
-	co, err := Create(t.TempDir(), src, h2, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

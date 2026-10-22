@@ -77,7 +77,7 @@ func reviewerGit(dir string, args ...string) error {
 func TestCheckoutMutationLeavesSourceUntouched(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
 	before := snapshot(t, src)
-	co, err := Create(t.TempDir(), src, h2, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestCheckoutMutationLeavesSourceUntouched(t *testing.T) {
 func TestCheckoutIsPristinePerRound(t *testing.T) {
 	src, h1, h2 := sourceRepo(t)
 	root := t.TempDir()
-	one, err := Create(root, src, h1, nil)
+	one, err := CreateContext(t.Context(), root, src, h1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestCheckoutIsPristinePerRound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	two, err := Create(root, src, h2, nil)
+	two, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestCheckoutIsPristinePerRound(t *testing.T) {
 func TestCheckoutCloseRemovesAndIsIdempotent(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
 	root := t.TempDir()
-	co, err := Create(root, src, h2, nil)
+	co, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestCheckoutCloseRemovesAndIsIdempotent(t *testing.T) {
 func TestSweepReclaimsDeadOwnerAndSparesLiveOne(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
 	root := t.TempDir()
-	live, err := Create(root, src, h2, nil)
+	live, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestSweepReclaimsDeadOwnerAndSparesLiveOne(t *testing.T) {
 	if _, err := os.Stat(fresh); err != nil {
 		t.Fatalf("the sweep reclaimed a fresh .lock.tmp a live Create may be locking: %v", err)
 	}
-	next, err := Create(root, src, h2, nil)
+	next, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatalf("Create after a sweep problem: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestCloseFailureLeavesLockForSweep(t *testing.T) {
 	}
 	src, _, h2 := sourceRepo(t)
 	root := t.TempDir()
-	co, err := Create(root, src, h2, nil)
+	co, err := CreateContext(t.Context(), root, src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestCloseFailureLeavesLockForSweep(t *testing.T) {
 
 func TestResetRestoresPristineCheckout(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
-	co, err := Create(t.TempDir(), src, h2, []string{"README"})
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, []string{"README"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestResetRestoresPristineCheckout(t *testing.T) {
 	if err := reviewerGit(co.Dir, "commit", "-q", "-am", "attempt one"); err != nil {
 		t.Fatal(err)
 	}
-	if err := co.Reset(); err != nil {
+	if err := co.ResetContext(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(co.Dir, "residue")); !os.IsNotExist(err) {
@@ -274,7 +274,7 @@ func TestResetRestoresPristineCheckout(t *testing.T) {
 
 func TestCheckoutOverlaysLiveFiles(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
-	co, err := Create(t.TempDir(), src, h2, []string{"README", "missing/plan.md"})
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, []string{"README", "missing/plan.md"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,10 +287,10 @@ func TestCheckoutOverlaysLiveFiles(t *testing.T) {
 func TestCreateFailureLeavesNothing(t *testing.T) {
 	src, _, _ := sourceRepo(t)
 	root := t.TempDir()
-	if _, err := Create(root, src, strings.Repeat("0", 40), nil); err == nil {
+	if _, err := CreateContext(t.Context(), root, src, strings.Repeat("0", 40), nil); err == nil {
 		t.Fatal("Create at a missing commit succeeded")
 	}
-	if _, err := Create(root, src, "HEAD", []string{"../escape"}); err == nil {
+	if _, err := CreateContext(t.Context(), root, src, "HEAD", []string{"../escape"}); err == nil {
 		t.Fatal("Create accepted an overlay outside the repository")
 	}
 	if entries, _ := os.ReadDir(root); len(entries) != 0 {
@@ -335,7 +335,7 @@ func TestCheckoutCarriesMainAuthorityReadOnly(t *testing.T) {
 		return strings.TrimSpace(testfix.Capture(t, dir, args...))
 	}
 	head := rev(src, "rev-parse", "HEAD")
-	co, err := Create(t.TempDir(), src, head, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, head, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +373,7 @@ func TestCheckoutCarriesMainAuthorityReadOnly(t *testing.T) {
 // needs one refuses in review exactly as it would in the slot.
 func TestCheckoutWithoutRemoteHasNoRemoteMain(t *testing.T) {
 	src, _, h2 := sourceRepo(t)
-	co, err := Create(t.TempDir(), src, h2, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestCheckoutCopiesOnlyTheSlotsConfig(t *testing.T) {
 	global := filepath.Join(t.TempDir(), "gitconfig")
 	write(t, global, "[branch \"main\"]\n\tremote = elsewhere\n\tmerge = refs/heads/main\n")
 	t.Setenv("GIT_CONFIG_GLOBAL", global)
-	co, err := Create(t.TempDir(), src, h2, nil)
+	co, err := CreateContext(t.Context(), t.TempDir(), src, h2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

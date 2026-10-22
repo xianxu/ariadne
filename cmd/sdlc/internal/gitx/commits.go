@@ -40,7 +40,7 @@ func ReadCommitObjects(ctx context.Context, dir string, oids []string) ([]Commit
 		input.WriteString(oid)
 		input.WriteByte('\n')
 	}
-	out, diag, err := runGitBoundedInputContext(ctx, dir, nil, strings.NewReader(input.String()), commitBatchOutputLimit, "--no-replace-objects", "cat-file", "--batch", "--buffer")
+	out, diag, err := runGitBoundedInputContext(ctx, dir, []string{"GIT_NO_LAZY_FETCH=1"}, strings.NewReader(input.String()), commitBatchOutputLimit, "--no-replace-objects", "cat-file", "--batch", "--buffer")
 	if err != nil {
 		return nil, fmt.Errorf("read commit objects: %w\n%s", err, diag)
 	}

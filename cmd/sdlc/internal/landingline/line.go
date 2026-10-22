@@ -95,13 +95,15 @@ var ErrNotWaiting = errors.New("landing line: only a waiting merge vouches")
 // Handle is one merge's place in the line. Its files are guarded by mu: a
 // merge's vouching goroutine writes through it while Wait admits it.
 type Handle struct {
-	mu     sync.Mutex
-	ticket Ticket
-	path   string
-	ready  string   // its readiness sidecar's path
-	out    string   // its outcome sidecar's path
-	file   *os.File // the ticket's flock while waiting
-	head   *os.File // head.lock's flock once admitted
+	waitStarted bool
+	waitEnded   bool
+	mu          sync.Mutex
+	ticket      Ticket
+	path        string
+	ready       string   // its readiness sidecar's path
+	out         string   // its outcome sidecar's path
+	file        *os.File // the ticket's flock while waiting
+	head        *os.File // head.lock's flock once admitted
 }
 
 func (h *Handle) Ticket() Ticket { return h.ticket }

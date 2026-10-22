@@ -134,7 +134,7 @@ func decideCIGate(in ciInputs) ciVerdict {
 	if len(in.Checks) == 0 {
 		switch {
 		case in.HeadHasWorkflows:
-			v.Reason, v.LocalNeeded = ciNotRegistered, nil
+			v.Reason = ciNotRegistered
 		case len(v.LocalNeeded) > 0:
 			v.Reason = ciLocalNeeded
 		default:
@@ -216,7 +216,7 @@ func (v ciVerdict) refusal(pr int) error {
 	switch v.Reason {
 	case ciLocalNeeded:
 		for _, n := range v.LocalNeeded {
-			fmt.Fprintf(&b, "\n  → sdlc local-check run --name %s", n)
+			fmt.Fprintf(&b, "\n  → %s", localCheckCommand(n))
 			if n == affectedCheckName {
 				b.WriteString("\n  If affected fell back, wait for the full-suite fallback; a passing suite on this head satisfies affected.")
 			}
@@ -228,8 +228,10 @@ func (v ciVerdict) refusal(pr int) error {
 		b.WriteString("\n  → wait for the checks (`gh pr checks " + strconv.Itoa(pr) + " --watch`), then re-run `sdlc merge`.")
 		b.WriteString("\n  A repository whose workflows never run on PRs stays pending here; only then is `--no-ci` the answer.")
 	}
-	return &ciGateError{Reason: v.Reason, Message: b.String()}
+	return &ciGateError{Reason: v.Reason, Message: b.String(), LocalNeeded: append([]string(nil), v.LocalNeeded...)}
 }
+
+func localCheckCommand(name string) string { return "sdlc local-check run --name " + name }
 
 func checkLabel(c prCheck) string {
 	if c.Workflow != "" && c.Workflow != c.Name {
@@ -645,7 +647,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 	missing := func(checks []prCheck) error {
 		for _, name := range required {
 			if !hasCheck(checks, name) {
-				return ciVerdict{Reason: ciMissing}.refusal(number)
+				return ciVerdict{Reason: ciMissing, LocalNeeded: v.LocalNeeded}.refusal(number)
 			}
 		}
 		return nil

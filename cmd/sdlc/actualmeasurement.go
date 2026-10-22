@@ -15,6 +15,7 @@ import (
 // correction. The resolver supplies pinned authority; the engine only measures.
 func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inputs *ownedActualInputs) actualResult {
 	m := inputs.Snapshot
+	allSources := append([]gatestate.MeasurementSource(nil), m.Sources...)
 	if !inputs.Replay {
 		m.Protected = nil
 		for _, credit := range inputs.Protected {
@@ -153,10 +154,16 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			m.ExcludedBrainMinutes = excludedOut.TotalActive
 		}
 	}
+	if !inputs.Replay {
+		var coverageNotes []string
+		m, coverageNotes = attachCarWaitCoverage(m, inputs.CarWaits, inputs.CarWaitNotes, allSources)
+		res.Warnings = append(res.Warnings, carWaitCoverageWarnings(nil, coverageNotes)...)
+	}
 	if err := m.Validate(); err != nil {
 		return fail(fmt.Errorf("measurement evidence incomplete: %w", err))
 	}
 	res.Inputs = &m
+	res.Warnings = append(res.Warnings, carWaitCoverageWarnings(m.CarWaits, m.CarWaitNotes)...)
 	res.Warnings = append(res.Warnings, fmt.Sprintf("provenance: %s; %d ownership intervals; %d admitted sessions; unbound brain excluded: %d sessions, %.2f minutes; code %s; tracker %s", m.Method, len(m.Engagements), len(m.Sources), m.ExcludedBrainSessions, m.ExcludedBrainMinutes, m.CodeHead, m.TrackerHead))
 	if len(m.QueueWaits) > 0 {
 		res.Warnings = append(res.Warnings, fmt.Sprintf("suite queue: %.2f raw minutes, %.2f excluded activity minutes across %d recorded waits", out.QueueAttribution.RawMinutes, out.QueueAttribution.ExcludedMinutes, len(m.QueueWaits)))

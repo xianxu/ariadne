@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #550: a readiness prerequisite cannot depend on an effect available only
+  after that readiness admits its owner. Preserve actionable prerequisite
+  facts separately from aggregate status precedence, and exit with the full
+  next command when the read-only waiter cannot perform the effect. Test mixed
+  verdicts and late observations through real held tickets; typed temporal
+  authority is defended by these regressions rather than lexical lint.
+
 - #548 BR-1: when splitting a function into its own module, update every core-concepts/function-contract location and append the file-split revision before close. Check table locations against definitions; the boundary reviewer enforces semantic traceability, without prose-presence tests.
 
 - #548: shared-slot and overlapping-clock evidence cannot establish an issue's suite ownership. Classify the immutable tested head first, then apply pinned engagement rules; unknown proof stays strict. Disable replacement refs at the immutable Git reader itself. Safety limits must stop discovery before IO grows past them, and neutral graph nodes must share immutable membership rather than multiply derived storage. Counted graph and real Git/tracker fixtures defend these semantic invariants.
@@ -1441,6 +1448,30 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
+- #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
+
+- #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.
+
+- #551 BR-1: a new command environment belongs in its README entry point as well as atlas. Sweep the existing README instructions for each affected flow (boundary preparation and managed checks) before close; an atlas-only description leaves users without the new bindings and recovery. This documentation contract needs review against behavior rather than a wording test.
+
+- #551 BR-2: live conformance that a review sandbox cannot repeat needs a committed raw output artifact bound to tested HEAD and relevant source blob IDs. A prose PASS in the Log is not independently inspectable host evidence; attach that measurement before close and let the gate explicitly dispose an unverifiable finding.
+
+- #551 live conformance: a Claude env file is sourced by the configured command shell, which can be zsh even when the tool is called Bash. Generate portable shell syntax and test actual Bash/zsh/sh processes, including nonexported stale names and hostile values. Keep live failure bytes as a fixture. Do not infer missing setup from a sidecar that does not persist the input manifest; print the same descriptor manifest for owner evidence.
+- #551 full suite: new compatibility wrappers must respect the existing no-Background context guard. Remove unused internal context-free APIs and propagate the caller through confinement and setup, rather than adding exceptions or hiding a Background allocation behind another helper.
+
+- #551 BR-3: a post-close fix that also adds operator-visible diagnostics exceeds a narrow fix review, even when it reuses an existing projection. Record that addition and run the full close review; do not treat passing targeted tests as permission to bypass scope review.
+- #506 TL wording review: a paused admission queue changes what “wait for background work” can mean.
+  Distinguish already-running work from queued, not-started work before instructing an owner to wait;
+  leave the latter queued and record it outstanding. Neither owner idleness nor a drain flag proves
+  restart safety. Rendered-help guards pin the running/queued distinction and keep unrelated test advice
+  outside the drain procedure.
+
+- #506 BR-1: retiring a protocol step requires a semantic alias sweep, not only a grep for its literal
+  command. Search acknowledgment/ID and notice/ack descriptions across every shipped help consumer, then
+  replace drift-prone restatements with owner pointers. Render sibling help through its real registration
+  and assert that the read-only path never reaches storage or authority checks.
+- #547 plan review: producer lifetime proves a blocked command, not source idle. If the runtime cannot bind pure observations to that invocation, expose counted unverified coverage rather than infer intent from tool or command text. Define whether coverage means a whole invocation or train membership episodes before implementation.
+- #547 plan review: optional diagnostic facts must be budgeted independently from the accounting snapshot. Validate an attachment candidate, preserve existing evidence on overflow, and retain a bounded limitation only when it fits; descriptive coverage must not create a new accounting failure.
 - #538: an archive helper's successful legacy byte-preserving move is not proof
   of a current tracker completion generation. A new authorization consumer must
   require the archived done-card mirror to pin the current full binding; empty
@@ -1454,3 +1485,14 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #531 full suite: every new --issue recovery hint must use issue.CLIRef even when current callers pass decimal IDs. Include TestIssueHintsRenderDecimalIDs in targeted checks before queuing the full suite, and use a padded ID in the native refusal assertion. The existing source guard owns this mechanical class; do not add a parallel lint.
 
 - #531 BR-1: when a fast path skips evidence collection, test every independent reason the evidence is required. Requested milestone authority and existing open-cut filtering are separate predicates; empty, whole-issue-only and finalized-only ledgers must not bypass live target validation.
+- #553 BR-1: a structural fallback placed after selected grammar branches can
+  remain message-dependent through earlier unknown returns. Apply fallback to
+  the authority parser's explicit unknown result; preserve definite authority
+  and malformed-train refusal. Enumerate early-return classes, including invalid
+  leads and bookkeeping merges, in the real-Git controls. This semantic ordering
+  invariant needs behavioral tests rather than a source-name lint.
+- #553 BR-2: sharing a parser does not share authority when callers supply
+  different repository identities. Carry the classifier's context through the
+  typed reader call; do not substitute an empty or independently derived name
+  for proof selection. Cross-repository qualified/ref-list controls exercise the
+  production seam and prevent another instance of this message-dependent class.
