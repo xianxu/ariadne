@@ -41,9 +41,9 @@ queue), re-evaluated on each queue tick; revoking or expiring the grant drops it
 
 ## Plan
 
-- [ ] Reproduce missing train-car identity at the production local-check/helper seam.
-- [ ] Carry the exact composed prefix's issue IDs into suite queue metadata; reuse the existing grant provider and refresh/cache path to prioritize when any included car has a valid grant.
-- [ ] Cover late grant, revoke, unchanged-log expiry, multiple grants, unrelated repository/train, conflict exclusion, split prefix, reintegration and diagnostic baseline; run counted queue projection checks at N and 2N.
+- [x] Reproduce missing train-car identity at the production local-check/helper seam.
+- [x] Carry the exact composed prefix's issue IDs into suite queue metadata; reuse the existing grant provider and refresh/cache path to prioritize when any included car has a valid grant.
+- [x] Cover late grant, revoke, unchanged-log expiry, multiple grants, unrelated repository/train, conflict exclusion, split prefix, reintegration and diagnostic baseline; run counted queue projection checks at N and 2N.
 - [ ] Update atlas and shipped guidance as needed; run targeted tests, recorded pushed-head suite and close review, then land through sdlc.
 
 ### Proposed bounded design
@@ -73,3 +73,10 @@ Private conformance proposal: existing real Python helper/process/flock harness 
 ### 2026-10-21
 
 - Claimed and entered planning from refreshed main. Root-cause trace: conductor.build uses a detached train worktree; runLocalCheck calls suiteSubject on that tree and tested composed SHA. suiteSubject only assigns one issue for an exact checkout HEAD on an issue branch, so a train has issue zero. The helper currently orders by one (common_dir, issue) key. Existing grant refresh already observes late grant/revoke/expiry; membership is the missing input. No code changed yet.
+
+- TL approved additive metadata and exact-prefix projection (Couch a4d22167-ccd7-497d-ae1c-ae73cce8a9d5); private production provider plus real helper/process/flock conformance is sufficient, no stage. TL will confirm on the next natural train with a grant.
+- TDD: stable real-helper late-grant regression failed before implementation: the included car's later grant left the train at normal FIFO position 2. Pure counted train projection failed with zero provider calls instead of one. Initial combined subtest fixture leaked its own held capacity between failed cases; split it into isolated tests and repeated the single late-grant RED (11.286s). Two earlier test selector typos were harness errors, not behavior evidence.
+- Implemented optional issues metadata with legacy issue zero, exact current prefix projection through localRunDeps, and any-included-grant ordering using the existing provider/cache. The Go provider still receives singular issue requests; no grant authority or protocol version added. Real conductor fixture verifies conflicting car 2 is excluded while kept cars 1/3 reach the helper. Split/reintegration tests reject obsolete, empty and main heads; recorded suite/affected bind while smoke/baselines remain FIFO. Malformed lists fail to normal FIFO.
+- Targeted production selection passed (53.001s): TestLandingTrainPriority*, TestSuitePriority*, TestSuiteQueuePriorityRealHelper and TestLocalCheckPrioritySubjectBinding. First run found only a fixture's unregistered newly committed fake GitHub SHA; registered that head and reran successfully. Pure grant-policy tests also passed, including N=8/16 train subjects, one provider request and one repository stat per snapshot, two car requests per train and unchanged-cache reuse.
+
+- Broader verification passed: go test ./pkg/golint ./cmd/sdlc with TestLandingTrain*, suite-priority and local-check-priority selection (cmd/sdlc 322.308s; tracked Go catalog 0.766s). All real train scenarios and private provider/process/flock conformance passed. git diff --check clean. Recorded pushed-head full suite and mandatory close review remain pending.

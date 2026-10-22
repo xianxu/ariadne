@@ -116,7 +116,10 @@ SUITE QUEUE PRIORITY (#452)
   at the next sufficient free machine capacity. Running suites continue;
   weight is respected and priority suites are FIFO. Expiry or revocation
   returns a waiting suite to its original normal FIFO position. An expired
-  grant confers nothing. No extra suite grant is needed.
+  grant confers nothing. No extra suite grant is needed. A composed train's
+  suite inherits any active grant on a car in its exact tested prefix, including
+  one granted while queued. Conflicting/removed cars and later split cars confer
+  nothing; revoke and expiry restore normal FIFO.
 
   Recorded suites bind the original checkout's issue branch to the tested
   HEAD; main diagnostics and other checks stay normal. Direct make test uses

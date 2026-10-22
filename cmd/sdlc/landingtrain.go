@@ -71,6 +71,7 @@ type conductor struct {
 	suite      localCheck
 	landing    landingCheckOwner
 	carHeads   []string // admitted originals, aligned with kept prefixes
+	carIssues  []int    // same successfully composed prefix order; no rejected car inherits priority
 	suiteReady map[int]bool
 	evidence   map[int]localRunRecord // exact prefix attempts, including diagnostic main at zero
 	baseline   *bool                  // main's baseline verdict, run once on the first failure
@@ -266,6 +267,7 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		return nil, err
 	}
 	c.local.Root = dir
+	c.local.PriorityIssues = c.priorityIssues
 	c.local.WorkflowAnchor = c.t.Root // the train's tree sits apart from its substrate sibling (#486)
 	if enabledLandingChecks(decl) {
 		decl, err = withDefaultSuiteContext(c.ctx, c.git, main, decl)
@@ -320,6 +322,7 @@ func (c *conductor) build(cars []landingline.Car) (landingline.TrainEvent, error
 		built.Kept = append(built.Kept, car.Seq)
 		c.heads = append(c.heads, head)
 		c.carHeads = append(c.carHeads, car.Head)
+		c.carIssues = append(c.carIssues, car.Issue)
 	}
 	return built, nil
 }
@@ -390,6 +393,17 @@ func (c *conductor) prText() (string, string) {
 	title := fmt.Sprintf("Landing train %d", c.id)
 	body := fmt.Sprintf("sdlc merge landing train %d (#449): main %s, then each car's exact head. Merging this PR lands every car; GitHub marks each car's PR merged.\n", c.id, shortSHA(c.base))
 	return title, body
+}
+
+// priorityIssues binds priority only to the currently composed, tested prefix.
+// Recomposition replaces heads; split runs cannot borrow a later car's grant.
+func (c *conductor) priorityIssues(sha string) []int {
+	for i, head := range c.heads {
+		if head != "" && head == sha && i < len(c.carIssues) {
+			return append([]int(nil), c.carIssues[:i+1]...)
+		}
+	}
+	return nil
 }
 
 // runSuite runs the recorded suite on prefix k. A failure of the full train

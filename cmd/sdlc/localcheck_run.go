@@ -34,7 +34,8 @@ import (
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
-	StrictGroupCleanup bool // resume retains its suite capacity but confirms descendant cleanup
+	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
+	StrictGroupCleanup bool               // resume retains its suite capacity but confirms descendant cleanup
 	GH                 ghCaller
 	Repo               string // owner/name
 	Root               string // the checkout's top level; Makefile.workflow resolves from here
@@ -111,8 +112,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			fmt.Fprintf(d.Stderr, "[test-lock] priority unavailable: %v; using normal FIFO\n", subjectErr)
 			subject = suitePrioritySubject{CommonDir: d.Root}
 		}
+		if d.PriorityIssues != nil {
+			subject.Issue, subject.Issues = 0, d.PriorityIssues(sha)
+		}
 		if !isTestCheck(c.Name) || d.SkipRecord {
-			subject.Issue = 0
+			subject.Issue, subject.Issues = 0, nil
 		}
 	}
 	logDir, err := localCheckLogDir(d)
