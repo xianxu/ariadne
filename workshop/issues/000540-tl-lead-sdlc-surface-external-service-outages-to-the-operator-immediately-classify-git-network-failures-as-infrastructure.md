@@ -1,13 +1,13 @@
 ---
 id: 000540
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.7
 collaboration-mode: collaboration
-card_mirror: 'fadb435ae51f0dbbb581d8f78da5fe20d5ff8b56' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2ee41130dc4d959654acf4a7ae621251796d9ec1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T20:12:17-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 2.00
 ---
 
 # tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure
