@@ -1,6 +1,6 @@
 ---
 id: 000555
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7b0850353f09b7c24f98b4d498762d467552d4c8
         evidence_commit: b2a3b9cfbd1d765bc66ac75b67d7897139f4165f
+        landed_commit: e023311b9d174dd4389dff4537ef991d97b9f65c
 ---
 
 # sdlc merge holds the repo lock across its suite wait, blocking stage --clear/--build (and operator checks) for the whole suite
