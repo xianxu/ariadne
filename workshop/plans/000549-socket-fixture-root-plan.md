@@ -1,0 +1,94 @@
+---
+collaboration-mode: discussion
+---
+
+# Socket fixture root lint implementation plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3 for execution strategy. SDLC owns the fresh-context review boundary. This work remains in the current issue branch; do not start implementation before TL approval and change-code.
+
+**Goal:** Reject inherited temporary roots that visibly reach Unix socket paths or Pair's isolated socket parent, without rejecting unrelated temporary data.
+
+**Architecture:** Add one test-only AST rule to the shared Go lint catalog. Build a command-local dependency graph of local path values, propagate inherited-temp provenance once, and inspect recognized socket sinks. Existing Check/CheckSources own parsing, findings and suppressions; no type checker, consumer import, external analyzer or persistent state is added.
+
+**Tech stack:** Go standard-library AST/parser, existing pkg/golint catalog, private native Unix listener fixtures.
+
+## Alternatives and decision
+
+1. Recommended: shared catalog rule with exact source import/API recognition. Existing downstream catalog users receive it when they update Ariadne; import aliases and shadowed names are resolved structurally.
+2. Consumer-configured sink registration adds an API and adoption step for the one known namespace API. Defer that axis until a second custom API needs it; standard net APIs and the existing Pair import path are enough here.
+3. Function-wide TempDir prohibition is smaller but rejects the motivating corrected fixture. Whole-program SSA would recognize opaque helper returns but exceeds this bounded mechanical rule's purpose and dependencies.
+
+## Core concepts
+
+All named functions below are proposed implementation names, not claims they already exist.
+
+| Pure entity / risky function | Lives in | Status | Adversarial strategy and independent guard |
+|---|---|---|---|
+| socketFixtureRoots | pkg/golint/socket_root.go | new | Replay recorded unsafe/corrected source through actual Check and CheckSources; assert finding locations, not only counts. Catalog registration and TestAtlasNamesEveryRule enforce discovery. |
+| socketRootGraph / propagateInheritedRoots | pkg/golint/socket_root.go | new | Aliases, multi-result MkdirTemp, branch writes, shadowing and cycles; explicit graph visit counters at N and 2N reject repeated whole-graph rescans. |
+| socketRootSink | pkg/golint/socket_root.go | new | Exact import identity, renamed imports, unrelated same-name methods, TCP controls, independent isolation parent and namespace; API matrix tests pin argument selection. |
+| Catalog | pkg/golint/rules.go | modified | Shared production catalog rejects original misuse; existing tmp-literal ordinary-file controls remain unchanged. |
+
+One graph owns all value provenance for a parsed file. Nodes represent AST expressions/local bindings; edges mean a result can contain a parent's inherited path. Reuse localName/stringLit and existing parser object identities. Do not extract the different temp-sweep safety proof into a generic framework merely because both inspect assignments.
+
+| Integration seam | Lives in | Status | Wraps and verification |
+|---|---|---|---|
+| Check / CheckSources and tracked-file catalog test | pkg/golint/check.go, repo_test.go | existing, reused | Source bytes -> parsed AST -> findings; no new IO API. Exercise both entry points and the tracked repository sweep. |
+| TestSocketFixtureShortRootWithLongTMPDIR | pkg/golint/socket_root_test.go | new test only | Real private directories and net.ListenUnix; long inherited TMPDIR, TestScratch preference when mounted, short /tmp fallback and close/remove verification. No Couch supervisor, live socket, production store or private fleet harness. |
+| Recorded source fixture | pkg/golint/testdata/socket-root/ | new | Retain original failing pattern, corrected Pair source excerpt and reported real error with provenance. Replay source fixtures in ordinary rule tests. Obtain the original capture from the owner if available; do not present reconstructed bytes as a verbatim capture. |
+
+## Supported analysis boundary
+
+- Test-only rule `test-socket-fixture-root`, incident ariadne#549 / pair#792. Generated files and standard reasoned suppressions follow the existing engine.
+- Inherited producers: os.TempDir(), os.MkdirTemp with an empty or inherited parent, testing T/B/F/TB TempDir calls whose receiver binding/type is visible. Multi-result declarations bind only the path result. Imported package aliases are honored; shadowed package identifiers do not match imports.
+- Propagate through local declarations/assignments and aliases, parentheses, string concatenation, filepath.Join, Clean, Abs and EvalSymlinks (first result), plus UnixAddr.Name composite literals and local aliases of those addresses. An explicit parent that is not inherited does not acquire taint merely from an unrelated TempDir elsewhere.
+- Join all visible writes to a binding: any inherited write can taint a sink, including conditional writes. This is conservative syntax analysis, not a proof of execution order. Document and test its suppression escape for a proven overwrite.
+- Generic sinks: net.Listen, ListenPacket and Dial with a literal Unix network (unix/unixgram/unixpacket as appropriate), ResolveUnixAddr, ListenUnix, ListenUnixgram and DialUnix. Read only their actual path/address arguments; TCP and unrelated arguments remain clean.
+- Pair sinks: exact github.com/xianxu/pair/cmd/internal/couchmessage import's SocketPath namespace argument; additionally os.Setenv or testing Setenv of literal COUCH_ISOLATED_ROOT. The latter is the actual parent selector even if SocketPath's namespace is short. Never interpret ordinary TMPDIR Setenv as a socket sink.
+- Helpers across function boundaries, interface-dispatched methods, arbitrary container mutation, reflection, dynamic network/env keys and opaque return values are outside this first syntax-only boundary. Unknown provenance produces no finding, never a claim that the path is safe. Function-value aliases are outside scope unless their direct imported selector can be resolved without adding a second analysis mechanism. State this visibly in atlas/tests.
+- The rule reports at the recognized sink, so suppressions remain local and actionable. A message explains short, canonical, private roots and immediate cleanup; existing tmp-literal exceptions need a reason and remain exceptional.
+
+## Cost, state and lifecycle
+
+Batch workload: per file, N AST nodes, E expression/binding dependency edges and S sinks. One AST index pass, a worklist where a node transitions from untainted to tainted at most once, each outgoing edge visited at most once, one sink pass: O(N+E+S) time and storage. No per-sink whole-file scans, recursive alias rescans or repeated fixed-point scans. Counters in the actual analyzer count AST/node/edge/sink visits for 64 and 128 aliases, shared fan-out and cycles; assert a constant per node/edge bound rather than elapsed time. Parser cost stays owned by Check/CheckSources.
+
+Actions: edit the fixture or add a reasoned suppression, rerun lint.
+
+| Internal outcome | Visible state | Recovery action | Possible loss |
+|---|---|---|---|
+| Proven inherited root reaches recognized sink | Finding with source location and incident | Edit fixture or justify suppression, rerun | None; source is never rewritten |
+| No proven flow, including unsupported/opaque flow | No finding from this rule | Review documented boundary; rerun after edits | Possible missed misuse, explicitly not a safety proof |
+| Invalid source or invalid suppression | Existing parser/suppression error | Correct source/suppression, rerun | None |
+
+There is no durable runtime state, user cancellation protocol or external event ordering in this pure analysis. Analysis memory dies with the check. Native tests own their directory/listener lifetimes lexically, close listeners before removing roots, and verify removal even on test failure. No credential or real fleet state is consumed. No persisted format changes.
+
+## Implementation and verification steps
+
+### 1. Recorded red and behavior controls
+
+Files: create pkg/golint/socket_root_test.go and testdata/socket-root source/evidence fixtures.
+
+- [ ] Obtain/record provenance of Pair's original failure and corrected source. Reproduce the original source shape in the normal Check path; expect a finding at its isolation-root/namespace sink, initially absent under the old catalog.
+- [ ] Add table cases for each supported producer, propagation and sink; alias imports, local shadowing, multi-result path binding, branch writes, cycles and same-name unrelated APIs. Add corrected short-root plus unrelated t.TempDir/TMPDIR negative fixture and TCP controls. Avoid expanding the prose into a second case inventory; executable tests own the cases.
+- [ ] Run `go test ./pkg/golint -run 'TestSocketFixtureRoot' -count=1 -v`; retain meaningful RED before implementation.
+
+### 2. Pure rule and catalog integration
+
+Files: create pkg/golint/socket_root.go; modify pkg/golint/rules.go.
+
+- [ ] Implement source/API indexing, path dependency graph and one-way worklist propagation; report only recognized sink nodes with proven inherited input. Reuse the existing lint parser and suppression engine.
+- [ ] Run the red selection to GREEN; exercise both Check and CheckSources and all supported cases. Add counted growth tests through the actual analyzer and verify N/2N bounds, shared fan-out and cycles.
+- [ ] Mutation check: remove producer recognition or a required propagation edge and confirm the recorded positive regression fails; add a broad function-level taint and confirm corrected/unrelated-temp negative controls fail. Restore code before committing.
+
+### 3. Native proof, documentation and close
+
+Files: pkg/golint/socket_root_test.go; atlas/workflow/sdlc-binary.md; workshop/lessons.md; README.md only if its existing lint discovery pointer needs changing.
+
+- [ ] Add the private native listener regression under a real long TMPDIR, selecting a canonical short TestScratch root when available or explicitly short /tmp otherwise, immediate cleanup, successful connect/accept and verified root removal. Test selection/fallback logic independently without changing machine mounts or settings. Retain existing 103-byte socket bounds; no transport/timeout changes.
+- [ ] Run `go test ./pkg/golint -count=1` and the targeted native test with `-race`. Run Pair's existing corrected resource RPC test read-only as cross-repo conformance when its checkout is safe and available; do not edit Pair or use live Couch. Ask the hub if unavailable rather than silently substituting a live fleet test.
+- [ ] Document the rule, exact recognized APIs, conservative write join, unsupported helper boundary and short-root/tmp-literal rationale. Check the existing README lint discovery pointer; update atlas's derived catalog coverage and lessons.
+- [ ] Commit/push final code, run `sdlc local-check run --name suite`, record evidence, close with SDLC's mandatory review, enter managed merge and report the outcome. No separate review agent or live :0 stage is proposed for a pure source lint plus native private-resource tests; TL decides smoke.
+
+## Architecture lenses
+
+ARCH-DRY: one catalog rule and provenance graph, reuse parsing/import/suppression ownership; no Pair runtime dependency or duplicate consumer lint. ARCH-PURE: analyzer is pure, filesystem/listener work is test-only. ARCH-PURPOSE: cover original isolation parent and derived namespace plus generic sockets, retaining corrected source control. ARCH-MOCK: no new production external dependency; native kernel conformance uses private resources rather than live fleet. ARCH-CONSTRAINTS: O(N+E+S), counted growth, no subprocess per source. ARCH-SECURE: parse bytes without execution; exact imported API identity; private owned native roots only. ARCH-ORDER: no cross-event state; worklist is monotone and cycle-safe, test IO lifetimes explicit. ARCH-FUNERAL: no runtime artifacts; test listener/root cleanup verified, fixture bytes remain bounded version-controlled evidence. ARCH-EVOLVE: no persisted format or configuration changes; additive catalog entry uses existing finding/suppression contracts.

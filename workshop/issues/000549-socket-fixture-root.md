@@ -1,6 +1,6 @@
 ---
 id: 000549
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
@@ -8,7 +8,15 @@ updated: 2026-10-22
 estimate_hours:
 severity: medium
 collaboration-mode: collaboration
-card_mirror: '36cf33b834ac4f306aafc6a3db174a023b325620' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8133e9838daa23e9df627027d162bd2b5eeec7cb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T13:51:39-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Lint inherited temp roots used for Unix socket fixtures
@@ -41,8 +49,18 @@ This is an independent, unclaimed follow-up to pair#792 BR-3. Filing it does not
 
 ## Plan
 
-- [ ]
+- [ ] Red-first recorded source replay and source-to-socket flow controls.
+- [ ] Implement the shared catalog rule and counted local provenance analysis.
+- [ ] Verify short-root Unix sockets under long TMPDIR, document the boundary, run recorded suite and close review.
+
+Detailed design: [implementation plan](../plans/000549-socket-fixture-root-plan.md). Awaiting TL approval before code.
 
 ## Log
 
 2026-10-22: Filed from Pair's pair#792 BR-3 repair. Read-only inspection found no socket-fixture rule in Pair's pinned ariadne/pkg/golint or the current Ariadne source; tmp-literal addresses the opposite ordinary-file misuse. The Pair repair and its red/green verification remain on Pair's own issue branch. No Ariadne implementation, branch, or checkout edit is part of this filing.
+
+2026-10-22: Claimed by ariadne:5 and entered planning after #552 landed. Read the shared AST-only catalog, existing temp-sweep provenance matcher, Pair's corrected resource fixture and actual SocketPath implementation. Important distinction: SocketPath hashes its namespace, while COUCH_ISOLATED_ROOT selects its socket parent; the rule must recognize the isolation-root setting as well as namespace flow. Pair's existing corrected fixture remains clean despite unrelated t.TempDir used to construct long TMPDIR. Source-level API recognition avoids importing Pair runtime packages. No code changed; plan submitted for TL approval. Initial Couch socket was briefly unavailable; subsequent canonical receipt lookup verified the dispatch.
+
+## Revisions
+
+2026-10-22: Added the concrete implementation plan and analysis boundary without changing the requested acceptance criteria. Use the shared catalog with source-level API recognition; do not add a consumer runtime dependency or a general interprocedural analyzer.
