@@ -484,3 +484,291 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 		t.Fatalf("missing adopted evidence did not name issue and overlap: %v", err)
 	}
 }
+
+// Only a positive immutable end bound strictly before the earliest admitted
+// engagement can release windowless credit. The comparison uses instants.
+func TestLegacyWindowDisjointStrictOrdering(t *testing.T) {
+	base := time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)
+	for delta := -100; delta <= 100; delta++ {
+		end := base.Add(time.Duration(delta) * time.Nanosecond)
+		for _, zone := range []*time.Location{time.UTC, time.FixedZone("west", -7*3600), time.FixedZone("east", 9*3600)} {
+			if got := legacyWindowDisjoint(end.In(zone), base); got != (delta < 0) {
+				t.Fatalf("delta=%d zone=%s: disjoint=%v", delta, zone, got)
+			}
+		}
+	}
+	for _, pair := range [][2]time.Time{{{}, base}, {base, {}}, {{}, {}}} {
+		if legacyWindowDisjoint(pair[0], pair[1]) {
+			t.Fatalf("missing bound proved disjoint: %v", pair)
+		}
+	}
+}
+
+func TestLegacyAdoptionExclusionUsesEarliestEngagement(t *testing.T) {
+	for _, closeBacked := range []bool{false, true} {
+		t.Run(fmt.Sprintf("close-%v", closeBacked), func(t *testing.T) {
+			ownedFixtureAt(t, 0)
+			f := newLegacyProofFixture(t)
+			if closeBacked {
+				f.close(true)
+			}
+			terminal := f.terminal()
+			proof, err := f.resolve()
+			if err != nil {
+				t.Fatal(err)
+			}
+			source, err := os.ReadFile(filepath.Join(f.root, f.archive))
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Build the imported card through the same codec as migration. This keeps
+			// terminal-only records explicitly unbound rather than inventing a close.
+			raw, _, err := issue.SplitCardWithFormat(source, "sha1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if proof.HasCompletion {
+				raw, err = issue.SetCardCompletion(raw, proof.Completion)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			modernRaw := append([]byte(nil), raw...)
+			raw, err = issue.SetCardLegacyAdoption(raw, proof.Adoption)
+			if err != nil {
+				t.Fatal(err)
+			}
+			origin := filepath.Join(t.TempDir(), "origin.git")
+			testfix.Git(t, "", "init", "--bare", "-q", "-b", "main", origin)
+			testfix.Git(t, f.root, "remote", "add", "origin", origin)
+			testfix.Git(t, f.root, "push", "-q", "-u", "origin", "main")
+			bootstrapTracker(t, f.root, map[string]string{tracker.CardPath("000001", "example"): string(raw)})
+			t.Chdir(f.root)
+			stamp := strings.TrimSpace(testfix.Git(t, f.root, "show", "-s", "--format=%cI", terminal))
+			end, err := time.Parse(time.RFC3339, stamp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, tc := range []struct {
+				name    string
+				since   time.Time
+				wantErr bool
+			}{
+				{"new claim", end.Add(time.Minute), false},
+				{"equal bound", end, true},
+				// A reclaim after the archive cannot discard the earlier admitted
+				// engagement represented by Snapshot.Since.
+				{"park then reclaim", end.Add(-time.Minute), true},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					current := &ownedActualInputs{Snapshot: gatestate.MeasurementInputs{Repository: "github.com/test/example", Since: tc.since.Format(time.RFC3339Nano), Until: end.Add(time.Hour).Format(time.RFC3339Nano)}}
+					got, err := loadAdoptedExclusions(context.Background(), f.root, "335", "workshop/plans", current)
+					if (err != nil) != tc.wantErr || len(got) != 0 {
+						t.Fatalf("exclusions=%+v err=%v wantErr=%v", got, err, tc.wantErr)
+					}
+					if tc.wantErr && !strings.Contains(err.Error(), "no trustworthy saved window") {
+						t.Fatalf("wrong refusal: %v", err)
+					}
+				})
+			}
+			repo, err := tracker.NewRepository(context.Background(), f.root, "origin")
+			if err != nil {
+				t.Fatal(err)
+			}
+			replace := func(raw []byte, token string) {
+				t.Helper()
+				snapshot, err := repo.Snapshot()
+				if err != nil {
+					t.Fatal(err)
+				}
+				card, ok := snapshot.Card("000001")
+				if !ok {
+					t.Fatal("missing adopted card")
+				}
+				if err := repo.UpdateCard(card, raw, token, func(string, string) error { return nil }); err != nil {
+					t.Fatal(err)
+				}
+			}
+			late := &ownedActualInputs{Snapshot: gatestate.MeasurementInputs{Repository: "github.com/test/example", Since: end.Add(time.Minute).Format(time.RFC3339Nano), Until: end.Add(time.Hour).Format(time.RFC3339Nano)}}
+			replace(modernRaw, "remove-legacy-provenance")
+			if _, err := loadAdoptedExclusions(context.Background(), f.root, "335", "workshop/plans", late); err == nil {
+				t.Fatal("modern missing window inferred legacy")
+			}
+			damaged := proof.Adoption
+			damaged.SourceBlob = strings.Repeat("a", 40)
+			raw, err = issue.SetCardLegacyAdoption(raw, damaged)
+			if err != nil {
+				t.Fatal(err)
+			}
+			replace(raw, "damage-legacy-provenance")
+			if _, err := loadAdoptedExclusions(context.Background(), f.root, "335", "workshop/plans", late); err == nil || !strings.Contains(err.Error(), "legacy adoption") {
+				t.Fatalf("invalid proof waived missing window: %v", err)
+			}
+		})
+	}
+}
+
+// Exercise the public measurement controller after a real initial cutover:
+// the controller must derive Since from pinned ownership history and discover
+// the transcript itself, rather than accept a hand-built measurement window.
+func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testing.T) {
+	for _, mode := range []struct {
+		name                   string
+		closeBacked, oldImport bool
+	}{{"terminal", false, false}, {"close", true, false}, {"old-terminal", false, true}} {
+		for _, parked := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/parked-%v", mode.name, parked), func(t *testing.T) {
+				t.Setenv("HOME", t.TempDir())
+				ownedFixtureAt(t, 10)
+				var r *trackerRepo
+				if mode.oldImport {
+					// This generation was born archived; there was never a
+					// review-bearing close or active-to-archive transition.
+					root := testfix.Repo(t, testfix.InitialCommit())
+					f := legacyProofFixture{t: t, root: root, archive: "workshop/history/issues/000001-example.md"}
+					f.write(f.archive, "done", "0.80")
+					f.commit("import born-archived legacy generation")
+					origin := filepath.Join(t.TempDir(), "origin.git")
+					testfix.Git(t, "", "init", "--bare", "-q", "-b", "main", origin)
+					testfix.Git(t, root, "remote", "add", "origin", origin)
+					testfix.Git(t, root, "push", "-q", "-u", "origin", "main")
+					t.Chdir(root)
+					r = &trackerRepo{t: t, root: root, origin: origin}
+				} else {
+					r, _ = legacyRepairRepo(t, mode.closeBacked)
+				}
+
+				// Tracker and code histories have independent committer clocks. Keep
+				// tracker creation at 00:00, so the real first engagement can precede
+				// the imported terminal's 00:10 bound in the parked case.
+				ownedFixtureAt(t, 0)
+				candidate := issue.Render(issue.ScaffoldSpec{ID: "000335", Title: "Later owned work", Today: "2026-10-14"})
+				writeRepoFile(t, r.root, "workshop/issues/000335-owned.md", candidate)
+				r.git("add", "workshop/issues/000335-owned.md")
+				r.git("commit", "-qm", "seed future candidate")
+				r.git("push", "-q")
+				if mode.oldImport {
+					env, err := openMigrate(t.Context())
+					if err != nil {
+						t.Fatal(err)
+					}
+					view, err := env.main.Snapshot()
+					if err != nil {
+						t.Fatal(err)
+					}
+					in, err := migrationInventory(env, view)
+					if err != nil {
+						t.Fatal(err)
+					}
+					in.Legacy = nil
+					manifest := tracker.PlanTrackerMigration(in)
+					root, err := applyTrackerBootstrap(env, manifest)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := applyMainCutover(env, manifest, root); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					digest, out, err := migrateDryRun(t)
+					if err != nil {
+						t.Fatalf("migration dry run: %v %s", err, out)
+					}
+					if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+						t.Fatalf("migration apply: %v %s", err, stderr)
+					}
+				}
+
+				r.git("pull", "-q")
+				ownerRoot := filepath.Join(t.TempDir(), "owner")
+				testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000335-owned", ownerRoot)
+				owner := hostClaimant(t, ownerRoot)
+				owner.Workspace = "ariadne:1"
+				repo, err := tracker.NewRepository(t.Context(), r.root, "origin")
+				if err != nil {
+					t.Fatal(err)
+				}
+				update := func(at int, token string, edit func([]byte) ([]byte, error)) {
+					t.Helper()
+					ownedFixtureAt(t, at)
+					snap, err := repo.Snapshot()
+					if err != nil {
+						t.Fatal(err)
+					}
+					card, ok := snap.Card("000335")
+					if !ok {
+						t.Fatal("missing candidate")
+					}
+					raw, err := edit(card.Raw)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := repo.UpdateCard(card, raw, token, func(string, string) error { return nil }); err != nil {
+						t.Fatal(err)
+					}
+				}
+				first := 20
+				if parked {
+					first = 1
+				}
+				update(first, "claim-first", func(raw []byte) ([]byte, error) {
+					raw, err := issue.SetCardClaimant(raw, owner)
+					if err != nil {
+						return nil, err
+					}
+					return issue.SetCardField(raw, "started", fmt.Sprintf("2026-10-14T00:%02d:00Z", first))
+				})
+				if parked {
+					update(5, "unclaim-park", issue.ClearCardClaimant)
+					update(20, "claim-reclaim", func(raw []byte) ([]byte, error) { return issue.SetCardClaimant(raw, owner) })
+				}
+				file := filepath.Join(os.Getenv("HOME"), ".codex", "sessions", "legacy-later.jsonl")
+				if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
+					t.Fatal(err)
+				}
+				data := fmt.Sprintf("{\"timestamp\":\"2026-10-14T00:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"legacy-later\",\"cwd\":%q}}\n", ownerRoot)
+				for _, minute := range []int{21, 25, 30} {
+					data += fmt.Sprintf("{\"timestamp\":\"2026-10-14T00:%02d:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335 measured work\"}}\n", minute)
+				}
+				if err := os.WriteFile(file, []byte(data), 0600); err != nil {
+					t.Fatal(err)
+				}
+				ownedFixtureAt(t, 30)
+				testfix.Git(t, ownerRoot, "commit", "--allow-empty", "-qm", "#335: measured implementation")
+				owned, err := resolveOwnedActualInputsFor(t.Context(), ownerRoot, "", "335", "workshop/plans", actualCloseCandidate)
+				if err != nil {
+					t.Fatal(err)
+				}
+				expectedSince := fmt.Sprintf("2026-10-14T00:%02d:00Z", first)
+				if owned.Snapshot.Since != expectedSince {
+					t.Fatalf("earliest engagement lost: since=%s want=%s engagements=%+v", owned.Snapshot.Since, expectedSince, owned.Snapshot.Engagements)
+				}
+				if parked && len(owned.Snapshot.Engagements) != 2 {
+					t.Fatalf("park/reclaim history lost: %+v", owned.Snapshot.Engagements)
+				}
+				trackerBefore := r.git("ls-remote", "origin", "refs/heads/issue-tracker")
+				legacyBefore := r.card(tracker.CardPath("000001", "example"))
+				if mode.oldImport {
+					if _, ok, err := issue.CardCompletion([]byte(legacyBefore)); err != nil || ok {
+						t.Fatalf("old import fabricated completion: %v", err)
+					}
+					if _, ok, err := issue.CardLegacyAdoption([]byte(legacyBefore)); err != nil || ok {
+						t.Fatalf("old import has new provenance: %v", err)
+					}
+				}
+				got := computeActualForPurpose(t.Context(), ownerRoot, "", "335", "", "workshop/plans", actualCloseCandidate)
+				if after := r.git("ls-remote", "origin", "refs/heads/issue-tracker"); after != trackerBefore || r.card(tracker.CardPath("000001", "example")) != legacyBefore {
+					t.Fatal("actual recovery wrote tracker provenance")
+				}
+
+				if parked {
+					if got.Status != actualError || !strings.Contains(got.Detail, "no trustworthy saved window") {
+						t.Fatalf("parked engagement admitted: %+v", got)
+					}
+				} else if got.Status != actualMeasured || got.Hours <= 0 || got.Inputs == nil || len(got.Inputs.Sources) == 0 {
+					t.Fatalf("later actual did not measure: %+v", got)
+				}
+			})
+		}
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,8 +32,10 @@ import (
 )
 
 type issueMigrateFlags struct {
-	Apply, Reconcile bool
-	Expect           string
+	Apply, Reconcile  bool
+	RepairCompletions bool
+	Issue             int
+	Expect            string
 }
 
 func newIssueMigrateCmd() *cobra.Command {
@@ -50,6 +53,8 @@ func newIssueMigrateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Apply, "apply", false, "perform the reviewed plan (requires --expect)")
 	cmd.Flags().StringVar(&f.Expect, "expect", "", "the digest the dry run printed; --apply refuses any other plan")
 	cmd.Flags().BoolVar(&f.Reconcile, "reconcile", false, "bring this pre-cutover branch's details onto the tracker")
+	cmd.Flags().BoolVar(&f.RepairCompletions, "repair-completions", false, "plan a missing imported legacy close repair; requires --issue (dry run unless --apply --expect)")
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "the imported issue whose legacy completion to repair")
 	return cmd
 }
 
@@ -78,12 +83,21 @@ func openMigrate(ctx context.Context) (*migrateEnv, error) {
 }
 
 func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigrateFlags) error {
+	if f.RepairCompletions && (f.Reconcile || f.Issue <= 0) {
+		return errors.New("--repair-completions requires --issue N and cannot combine with --reconcile")
+	}
+	if !f.RepairCompletions && f.Issue != 0 {
+		return errors.New("--issue is only supported with --repair-completions")
+	}
 	if f.Apply && f.Reconcile {
 		return errors.New("--apply migrates main; --reconcile brings a branch across afterwards — pick one")
 	}
 	env, err := openMigrate(ctx)
 	if err != nil {
 		return err
+	}
+	if f.RepairCompletions {
+		return runLegacyCompletionRepair(env, stdout, stderr, f)
 	}
 	if f.Reconcile {
 		return runMigrateReconcile(env, stdout, stderr)
@@ -210,6 +224,38 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 			return in, err
 		}
 		in.Anchors[id] = anchors
+	}
+	// Let the pure planner choose duplicate generations once; gather proof only
+	// for the source each resulting card actually imports.
+	selected := tracker.PlanTrackerMigration(in)
+	files := make(map[string]tracker.MigrationFile, len(in.Active)+len(in.Archived))
+	for _, group := range [][]tracker.MigrationFile{in.Active, in.Archived} {
+		for _, f := range group {
+			files[f.Path] = f
+		}
+	}
+	in.Legacy = map[string]tracker.MigrationLegacyClose{}
+	for _, c := range selected.Cards {
+		card, err := issue.ParseCard(c.Raw)
+		if err != nil {
+			return in, err
+		}
+		status, err := issue.FieldString(card.Frontmatter, "status")
+		if err != nil {
+			return in, err
+		}
+		actual, err := issue.FieldString(card.Frontmatter, "actual_hours")
+		if err != nil {
+			return in, err
+		}
+		if _, err := strconv.ParseFloat(actual, 64); status != "done" || err != nil {
+			continue
+		}
+		proof, err := resolveLegacyCompletion(env.ctx, env.root, mainView.Ref(), env.target.Repository, files[c.Source], plansDir())
+		if err != nil {
+			return in, err
+		}
+		in.Legacy[c.Source] = tracker.MigrationLegacyClose{Completion: proof.Completion, HasCompletion: proof.HasCompletion, Adoption: proof.Adoption}
 	}
 	return in, nil
 }

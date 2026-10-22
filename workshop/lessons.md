@@ -8,6 +8,9 @@
 
 # Lessons
 
+- #544: migration is an accounting boundary, not the beginning of an existing issue. Retain pre-cutover evidence separately under its original attribution rule and test a claim-before/close-after path through real migration and retained replay. Git --follow similarity can also cross an issue creation into an unrelated template; prove the creation boundary from every parent rather than raising similarity until contradictory history disappears. Equal root/current card fields do not prove an unchanged generation: a pinned complete card-history guard must reject restored lifecycle and authority changes. These are semantic authority properties defended by production Git/measurement fixtures, not lexical lint rules.
+
+- #544 PQ-1: name risky pure/effect functions in plans and give each one an adversarial strategy plus an independent guard. Keep case inventories in executable tests; entity names alone do not define a test contract. Plan-quality review enforces this semantic documentation rule.
 - #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
   per risky boundary. Task checkboxes reference that strategy instead of repeating
   its case list; executable tests own the concrete inventory. The plan-quality
@@ -1380,6 +1383,10 @@ Unknown descendant completion protects every input and output together: checkout
 
 - #526 BR-2 collision: an unknown-field union can still erase data when copying between distinct nested objects. Preserve the destination’s own unknown value on same-name collisions, copy source-only keys, and verify both objects after the real request/completion writers. Codec round trips and unique-key cases alone miss this scope error; the request-driven collision regression defends it without a lexical lint rule.
 
+- #544 BR-1: an additive evidence field needs a new method/version boundary when ignoring it changes a retained measurement's value. Exercise the actual previous decoder, not only the new codec, and require old readers to reject the new interpretation. Cross-version fixtures defend this semantic compatibility contract; a lexical field-presence rule cannot establish whether omission changes accounting.
+- #544 BR-2: repair must share the consumer's complete generation validator. Restoring original bytes after removing authority does not restore continuity; test repair → removal/replacement → repair → actual, including positive no-op repair, rather than only endpoint equality. The shared validator and production sequence regressions defend this semantic authority contract without a duplicate lexical lint.
+- #544 BR-2 publication: checking history during prepare does not bind a later card-blob CAS to that history. Validate each actual publication base with the same generation rule; a failed conditional push must repeat validation on its new base. Real command schedules for changed/restored bytes, retry, unrelated-card movement and cancellation defend the lifecycle contract without a second validator or lexical lint.
+- #544 BR-3: accepting future metadata creates a preservation obligation across the entire persisted record family and every format, including nested lists and cross-format numeric precision. Decode exact known keys separately from opaque extensions, reject duplicate/unrepresentable values explicitly, and test the real ledger rewrite as well as path-by-type round trips. These semantic codec contracts are guarded by executable matrices rather than a lexical lint rule.
 - #543 plan review: a new mutating command must name its pure phase owner and
   controllable effect boundary before implementation, and join the derived
   recovery catalog/help/proof contract. Reuse durable authority instead of

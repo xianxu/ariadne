@@ -181,11 +181,15 @@ type Checkpoints struct {
 
 type Completion struct {
 	Read
-	Authority      Authority `json:"authority"`
-	Token          string    `json:"token,omitempty"`
-	EvidenceCommit string    `json:"evidence_commit,omitempty"`
-	ReviewedHead   string    `json:"reviewed_head,omitempty"`
-	LandedCommit   string    `json:"landed_commit,omitempty"`
+	Authority            Authority `json:"authority"`
+	Token                string    `json:"token,omitempty"`
+	EvidenceCommit       string    `json:"evidence_commit,omitempty"`
+	ReviewedHead         string    `json:"reviewed_head,omitempty"`
+	LandedCommit         string    `json:"landed_commit,omitempty"`
+	LegacyWindowClass    string    `json:"legacy_window_class,omitempty"`
+	LegacyTerminalCommit string    `json:"legacy_terminal_commit,omitempty"`
+	LegacyRecovered      bool      `json:"legacy_recovered,omitempty"`
+	LegacyRecoveryError  string    `json:"legacy_recovery_error,omitempty"`
 }
 
 // Outcome is whether the issue's work landed.
