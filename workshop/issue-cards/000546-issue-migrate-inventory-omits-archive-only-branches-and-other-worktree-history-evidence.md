@@ -1,6 +1,6 @@
 ---
 id: 000546
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 2.11
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.28
+tracker:
+    version: 1
+    completion:
+        token: close-a44a775d0616
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 345fdc36883e03cca3b98d68586010ce77926e03
+        evidence_commit: 7689cecfc684715c6a3a76266bfc2139cbe84d9f
 ---
 
 # issue migrate inventory omits archive-only branches and other-worktree history evidence
