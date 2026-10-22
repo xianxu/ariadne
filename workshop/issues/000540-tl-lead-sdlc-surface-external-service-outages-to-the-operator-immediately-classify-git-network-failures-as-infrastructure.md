@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "31ed4e94", done: "34dd4de2"}
 ---
 
 # tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure
