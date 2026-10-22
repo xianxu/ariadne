@@ -251,3 +251,77 @@ dispose:
    Append a `## Revisions` entry specifying that initialization observes every local/publication branch tip before applying any evidence-based exemption. Extend the root × scope tests to cover every excluded ref category.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"90652019-eff1-43e7-bb5a-d2f07cdf733d","repository":"github.com/xianxu/ariadne","issue_id":"000543","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/35117b907c7222b3","reviewed_head":"e344c6cec0332b0d8316be96dce73dd04f18280c","slot":"ariadne:3","requested_at":"2026-10-22T06:59:55.296901Z"},"phase":"finished","pid":71430,"started_at":"2026-10-22T06:59:55.393406Z","finished_at":"2026-10-22T07:03:31.601395Z","session_id":"01a16268-c486-7801-a520-277fda24906c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T00:36:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 543 — new repositories start on the legacy issue path: initial setup should create the issue tracker (non-brain repos) |
+| repo | ariadne |
+| issue file | workshop/issues/000543-new-repositories-start-on-the-legacy-issue-path-initial-setup-should-create-the-issue-tracker-non-brain-repos.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a4600f5050712a27c7979cfd035cccd8b5a1ceca..8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb |
+| command | sdlc close --issue 543 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T00:36:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the revised initialization contract. BR-2 is addressed across the documented roots and scopes, including previously excluded branch categories. Regression tests fail when the relevant corrections are removed. No new blocking findings emerged; the recorded pushed-head suite and landing remain separate, unchecked acceptance steps.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      issueinit_inventory.go enforces presence across all three roots, complete publication branch tips, live worktree HEADs, indexes and filesystem entries. Head tests pass; disposable mutations restoring filtered branch observation or active-only scanning fail the reserved-branch and both archive regressions. The approved plan revision explicitly separates init presence from migration importing.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      publicationBranchTips refreshes the complete publication heads mapping and pins names/OIDs. Current-remote, failed-refresh, moved-main, pinned-consumer and fetch-scope regressions pass.
+```
+
+1. **Strengths**
+
+   - One presence predicate serves snapshot, index and filesystem scans in `cmd/sdlc/issueinit_inventory.go:39`.
+   - The opaque initialization model owns phase transitions; failures preserve confirmed identities and stop subsequent effects.
+   - Recovery tests exercise real bare-Git publication with deterministic interruption and competing-clone schedules.
+   - README, atlas, command help and TL creation guidance document the explicit final setup step and recovery behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed the targeted tracker/init/hint/recovery tests, migration-inventory tests, existing issue-migration tests, TL tests and recovery-package tests. `git diff --check` passed.
+
+   In a disposable pinned-head checkout, restoring filtered observation failed all four local reserved-branch cases. Restricting inventory to the active root failed remote-only archive and untracked-other-worktree archive cases. The disposable checkout was removed; the reviewed checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** shared publication owner and common presence predicate.
+   - **ARCH-PURE — Pass:** deterministic eligibility/transitions separated from Git and filesystem effects.
+   - **ARCH-PURPOSE — Pass:** fresh setup reaches tracker-backed issue creation and planning; the inventory rule covers the documented enumeration.
+   - **ARCH-MOCK — Pass:** shared effect seam, portable real-Git backends and controlled failure schedules.
+   - **ARCH-CONSTRAINTS — Pass:** explicit batch operation; process-growth tests cover unrelated files and distinct branch tips.
+   - **ARCH-SECURE — Pass:** uncertain observations refuse; literal paths and pinned identities constrain reads.
+   - **ARCH-ORDER — Pass:** production dispatch follows the opaque transition model; interruption and retry tests preserve partial publication.
+   - **ARCH-FUNERAL — Pass:** existing artifact lifecycles are reused; no new durable phase files.
+   - **ARCH-EVOLVE — Pass:** existing tracker and marker formats remain unchanged.
+
+7. **Plan revision recommendations:** None. The latest revisions accurately describe the presence-only gate and verified recovery exceptions.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8f7a1f8b-e180-4300-88fb-eeace446502f","repository":"github.com/xianxu/ariadne","issue_id":"000543","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/21a7c551b65eed37","reviewed_head":"8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb","slot":"ariadne:3","requested_at":"2026-10-22T07:32:23.4977Z"},"phase":"finished","pid":64896,"started_at":"2026-10-22T07:32:23.638511Z","finished_at":"2026-10-22T07:36:53.864723Z","session_id":"01a16286-7f62-73a3-87c9-4ebe56b13e8e","outcome":"returned"}] -->

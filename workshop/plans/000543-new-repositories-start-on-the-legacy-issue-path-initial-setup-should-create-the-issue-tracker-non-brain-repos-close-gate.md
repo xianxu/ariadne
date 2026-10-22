@@ -424,6 +424,154 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 8f7a1f8b-e180-4300-88fb-eeace446502f
+            repository: github.com/xianxu/ariadne
+            issue_id: "000543"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/21a7c551b65eed37
+            reviewed_head: 8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb
+            slot: ariadne:3
+            requested_at: "2026-10-22T07:32:23.4977Z"
+          phase: finished
+          pid: 64896
+          started_at: "2026-10-22T07:32:23.638511Z"
+          finished_at: "2026-10-22T07:36:53.864723Z"
+          session_id: 01a16286-7f62-73a3-87c9-4ebe56b13e8e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb
+        tracker_head: 4d9ddce05f14c34e05bb8b406ceba52175d87882
+        branch_point: a4600f5050712a27c7979cfd035cccd8b5a1ceca
+        since: "2026-10-21T22:43:36-07:00"
+        until: "2026-10-22T00:20:46-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T22:43:36-07:00"
+              end: "2026-10-22T00:20:46-07:00"
+              began: "2026-10-21T22:43:36-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: d7f6382f51360ddd30987acd03f39d6fa4385b70deb91d81bf04e168f6d32220
+              started: "2026-10-21T14:24:08.011Z"
+              spawned: false
+              bytes: 31337888
+              windows:
+                - start: "2026-10-21T22:43:36-07:00"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a16223-465f-7072-8a6d-000b13cd7d1f
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: 19fc09b896a7525e7a128b9022e4c0378bdacac76b3fdbb72e212653c928e591
+              started: "2026-10-22T05:44:01.478Z"
+              spawned: true
+              bytes: 906026
+              windows:
+                - start: "2026-10-22T05:44:01.478Z"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a16228-99a6-7fa1-b81c-ce96606a3570
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 3b346945906489566e93112696f2ab52099fd105e4099321862e028143892c2b
+              started: "2026-10-22T05:49:50.708Z"
+              spawned: false
+              bytes: 654735
+              windows:
+                - start: "2026-10-22T05:49:50.708Z"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a1622b-9e56-77e3-9f46-1cdfdd4d1f74
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 509abcda94a2f6a4d8ddf1031ec804142396bf64286dea86ba15cc74c1b705e2
+              started: "2026-10-22T05:53:08.564Z"
+              spawned: false
+              bytes: 517988
+              windows:
+                - start: "2026-10-22T05:53:08.564Z"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a1622d-d3a2-7533-ae5e-39ecf8100f7a
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 024b057aedf79116cd6bb15f171cd67034c1fe7d75f3683aff1310c618d4c466
+              started: "2026-10-22T05:55:33.176Z"
+              spawned: false
+              bytes: 468701
+              windows:
+                - start: "2026-10-22T05:55:33.176Z"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a1622e-518e-78d3-8696-6dc1300c5de2
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 624647cc1e9d8dfc3d5e546c6d0a0a66227eefd9679aa5170d9b266d457cac86
+              started: "2026-10-22T05:56:05.446Z"
+              spawned: false
+              bytes: 407857
+              windows:
+                - start: "2026-10-22T05:56:05.446Z"
+                  end: "2026-10-22T00:20:46-07:00"
+            - harness: codex
+              id: 01a1622f-5ea5-7f63-8b0d-e1ceaf9f513c
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              parent_id: 01a15ed8-b1d1-7783-855a-322febf4f2fe
+              digest: bb5db824bc6ea168a2552fe13e03a512dd4ddf3f4f22d805438e53b50ac67811
+              started: "2026-10-22T05:57:14.066Z"
+              spawned: true
+              bytes: 895581
+              windows:
+                - start: "2026-10-22T05:57:14.066Z"
+                  end: "2026-10-22T00:20:46-07:00"
+        cuts:
+            - dispatched: "2026-10-21T23:18:30-07:00"
+              finalized: "2026-10-21T23:21:44-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T23:33:05-07:00"
+              finalized: "2026-10-21T23:36:01-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T23:59:55-07:00"
+              finalized: "2026-10-22T00:03:32-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-22T00:36:54-07:00"
+      dispatched: "2026-10-22T00:32:23-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: issueinit_inventory.go enforces presence across all three roots, complete publication branch tips, live worktree HEADs, indexes and filesystem entries. Head tests pass; disposable mutations restoring filtered branch observation or active-only scanning fail the reserved-branch and both archive regressions. The approved plan revision explicitly separates init presence from migration importing.
+          round: 4
+        - id: BR-1
+          disposition: addressed
+          note: publicationBranchTips refreshes the complete publication heads mapping and pins names/OIDs. Current-remote, failed-refresh, moved-main, pinned-consumer and fetch-scope regressions pass.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 8b7cbe40b2997f5142d19d5d5f3560ad62d43ddb
+      blocked: false
 ---
 
 # Gate ledger — ariadne#543 (boundary-review)
@@ -455,6 +603,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-2 — not-addressed — The original archive regressions pass and fail when the presence guard is removed. However, issueinit_inventory.go:47 inherits migrationBranchRefs's unconditional exclusion of refs/heads/issue-tracker at issu emigrate.go:242 (path spelling: cmd/sdlc/issuemigrate.go). A disposable pinned-head regression placed workshop/history/issues/000001-old.md only on that unchecked-out local branch; issue init succeeded, changed published main, and created the remote tracker. Removing that exclusion made the regression pass. The complete-inventory rule remains unenforced (ARCH-PURPOSE, ARCH-SECURE). This is the third demonstrated instance in family authoritative-inventory-completeness; sweep every branch exclusion and require evidence for exemptions rather than fixing only this branch name.
 
+## Round 4 — 2026-10-22T00:36:54-07:00 (codex) — passed
+
+### Disposed
+
+- BR-2 — addressed — issueinit_inventory.go enforces presence across all three roots, complete publication branch tips, live worktree HEADs, indexes and filesystem entries. Head tests pass; disposable mutations restoring filtered branch observation or active-only scanning fail the reserved-branch and both archive regressions. The approved plan revision explicitly separates init presence from migration importing.
+- BR-1 — addressed — publicationBranchTips refreshes the complete publication heads mapping and pins names/OIDs. Current-remote, failed-refresh, moved-main, pinned-consumer and fetch-scope regressions pass.
+
 ## Open findings
 
-- **BR-2** [Critical] `authoritative-inventory-completeness` (kind: defect) Empty initialization ignores archived issues on branches and in other worktrees
+(none — every finding has been disposed)
