@@ -1,6 +1,6 @@
 ---
 id: 000539
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours: 2.13
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.88
+tracker:
+    version: 1
+    completion:
+        token: close-8773fbb8a8e4
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 68f2de6564778342dc6e1bdc0db630cefa29d0d5
+        evidence_commit: b90d220ef0b735366304904c1c318d7a2b672065
 ---
 
 # queue: a watched unmanaged suite that exits normally is tombstoned as 'owner ended' instead of released
