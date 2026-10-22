@@ -1,6 +1,6 @@
 ---
 id: 000553
-status: working
+status: codecomplete
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.82
+tracker:
+    version: 1
+    completion:
+        token: close-4851ddd7850e
+        repository: github.com/xianxu/ariadne
+        reviewed_head: fe9a4c9e4baff739a319d5969a7adeb8ca683212
+        evidence_commit: fe83377b1a4c4204680ae5b170331012c443a29d
 ---
 
 # actual: an issue branch's own merge of origin/main (default message, no #N lead) has unknown head attribution; suites on it block close (echo#10)
