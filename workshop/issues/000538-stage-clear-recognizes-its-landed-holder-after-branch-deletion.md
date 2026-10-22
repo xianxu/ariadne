@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 1.43
 collaboration-mode: collaboration
-card_mirror: '53855556f8adaa61cb630abf58fb2bf1a604e475' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '24eb65b7684f8ca47ac4677d33240dca79c2acac' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T02:51:52-07:00
 claimant:
     operator: Xian Xu
@@ -55,3 +55,22 @@ Allow the original holder slot to clear its landed stage after normal branch del
 ## Revisions
 
 - 2026-10-22 02:59 PDT — Proposed full-flow design narrows the new recovery route to the original canonical slot on its own rest with current tracked done completion, matching landed PR and confirmed archive. Existing same-holder/legacy and exact --abandoned paths remain; new recovery grants no staging or move authority. Propose isolated native proof to preserve the four live operator stages; awaiting hub review.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration source is stale, so values remain provisional.*
+
+Reuse existing completion/archive/GitHub integrations; no novel stack or external library is required. Raw v2 picks: two smaller Go modules (predicate/proof and locked clear integration), each design 0.30 / implementation 0.50; one cross-cutting refactor/native fixture and adversarial proof coverage, design 1.00 / implementation 0.50; issue spec 0.50 / 0.10; docs 0.10 / 0.15; one review boundary 0.10 / 0.50. Thorough approved plan applies design ×0.2 and +15% buffer; familiar implementation ×1.0 after v3.1 ×0.4 scaling. Tests, debugging and active verification are included in implementation, queue-only time excluded. Design subtotal 0.46; implementation subtotal 0.90; total 0.46 ×1.15 +0.90 =1.429, rounded 1.43.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: issue-spec design=0.10 impl=0.04
+item: atlas-docs design=0.02 impl=0.06
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 1.429
+```
