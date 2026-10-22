@@ -3,9 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -37,44 +34,22 @@ func verifyInitializationEmpty(env *migrateEnv, main string) error {
 // filesystem entries. Plans, assets and side bundles nested below a root are
 // not top-level issue documents; the flat legacy root remains a first-class root.
 func initializationIssuePath(p string, roots []string) bool {
-	if _, _, ok := issue.ParseFilename(path.Base(p)); !ok {
-		return false
-	}
-	for _, root := range roots {
-		if path.Dir(p) == root {
-			return true
-		}
-	}
-	return false
+	_, _, ok := issue.IssueInventoryPath(p, roots)
+	return ok
 }
 
 func initializationEvidence(env *migrateEnv, main string, roots []string) (string, error) {
-	refs, err := publicationBranchTips(env, main)
+	observation, err := observeIssueInventory(env, main)
 	if err != nil {
 		return "", err
 	}
-	// Init never creates a local reserved branch. Its presence has no bootstrap
-	// provenance; remote verified-empty and completed-marker recovery are separate.
-	for _, ref := range refs {
+	for _, ref := range observation.Tips {
 		if ref.Name == "refs/heads/"+vocab.Issue().Discovery().Tracker {
 			return "", fmt.Errorf("%w: pre-existing local reserved branch %s", errInitTrackerAlreadyInitialized, ref.Name)
 		}
 	}
-	raw, err := env.gitRaw(nil, "worktree", "list", "--porcelain", "-z")
-	if err != nil {
-		return "", err
-	}
-	worktrees, err := gitx.ParseWorktrees(raw)
-	if err != nil {
-		return "", err
-	}
-	tips := append([]migrationBranchRef{{Name: "main", OID: main}}, refs...)
-	for _, wt := range worktrees {
-		if wt.Bare || wt.Prunable != nil {
-			continue
-		}
-		tips = append(tips, migrationBranchRef{Name: "worktree " + wt.Path, OID: wt.HEAD})
-	}
+	tips := observation.Tips
+	worktrees := observation.Worktrees
 	seen := map[string]bool{}
 	for _, tip := range tips {
 		if seen[tip.OID] {
@@ -97,7 +72,7 @@ func initializationEvidence(env *migrateEnv, main string, roots []string) (strin
 			continue
 		}
 		args := append([]string{"-C", wt.Path, "--literal-pathspecs", "ls-files", "-z", "--cached", "--"}, roots...)
-		raw, err := env.gitRaw(nil, args...)
+		raw, err := inventoryGit(env, args...)
 		if err != nil {
 			return "", err
 		}
@@ -109,7 +84,7 @@ func initializationEvidence(env *migrateEnv, main string, roots []string) (strin
 				return "worktree index " + wt.Path + ": " + p, nil
 			}
 		}
-		found, err := initializationFilesystemEvidence(wt.Path, roots)
+		found, err := initializationFilesystemEvidence(env, wt.Path, roots)
 		if err != nil {
 			return "", fmt.Errorf("worktree %s: %w", wt.Path, err)
 		}
@@ -124,86 +99,23 @@ func initializationEvidence(env *migrateEnv, main string, roots []string) (strin
 // keeps process count independent of file count. Pins also cover unrelated or
 // inherited histories: no merge-base/difference rule can erase present evidence.
 func initializationTipEvidence(env *migrateEnv, tip string, roots []string) (string, error) {
-	view := env.main.ViewOf(tip)
-	kinds := map[string]string{}
-	for _, root := range roots {
-		present := true
-		parts := strings.Split(root, "/")
-		for i := range parts {
-			prefix := strings.Join(parts[:i+1], "/")
-			kind, known := kinds[prefix]
-			if !known {
-				exists, err := view.Exists(prefix)
-				if err != nil {
-					return "", err
-				}
-				if exists {
-					kind, err = env.git("cat-file", "-t", tip+":"+prefix)
-					if err != nil {
-						return "", err
-					}
-				}
-				kinds[prefix] = kind
-			}
-			if kind == "" {
-				present = false
-				break
-			}
-			if kind != "tree" {
-				return "", fmt.Errorf("issue root component %s is not a directory", prefix)
-			}
-		}
-		if !present {
-			continue
-		}
-		found := ""
-		_, err := view.FilesSelected(root, func(f gitx.TreeFile) bool {
-			if initializationIssuePath(f.Path, []string{root}) {
-				found = f.Path
-			}
-			return false
-		})
-		if err != nil {
-			return "", err
-		}
-		if found != "" {
-			return found, nil
-		}
+	files, err := issueSnapshotFiles(env, tip, roots)
+	if err != nil {
+		return "", err
+	}
+	if len(files) > 0 {
+		return files[0].Path, nil
 	}
 	return "", nil
 }
 
-func initializationFilesystemEvidence(worktree string, roots []string) (string, error) {
-	for _, root := range roots {
-		present := true
-		parts := strings.Split(root, "/")
-		for i := range parts {
-			prefix := filepath.Join(worktree, filepath.FromSlash(strings.Join(parts[:i+1], "/")))
-			info, err := os.Lstat(prefix)
-			if os.IsNotExist(err) {
-				present = false
-				break
-			}
-			if err != nil {
-				return "", err
-			}
-			if !info.IsDir() {
-				return "", fmt.Errorf("issue root component %s is not a directory", prefix)
-			}
-		}
-		if !present {
-			continue
-		}
-		entries, err := os.ReadDir(filepath.Join(worktree, filepath.FromSlash(root)))
-		if err != nil {
-			return "", err
-		}
-		for _, entry := range entries {
-			p := path.Join(root, entry.Name())
-			if initializationIssuePath(p, roots) {
-				return p, nil
-			}
-		}
+func initializationFilesystemEvidence(env *migrateEnv, worktree string, roots []string) (string, error) {
+	files, err := issueFilesystemFiles(env, worktree, roots)
+	if err != nil {
+		return "", err
+	}
+	if len(files) > 0 {
+		return files[0], nil
 	}
 	return "", nil
 }

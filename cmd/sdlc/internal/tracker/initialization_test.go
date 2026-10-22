@@ -11,6 +11,8 @@ func TestEmptyTrackerInitEligibility(t *testing.T) {
 		name   string
 		change func(*MigrationInput, *MigrationManifest)
 	}{
+		{"published evidence", func(i *MigrationInput, m *MigrationManifest) { i.Published = []MigrationObservedFile{{}} }},
+		{"tip evidence", func(i *MigrationInput, m *MigrationManifest) { i.Tips = []MigrationTipEvidence{{}} }},
 		{"active", func(i *MigrationInput, m *MigrationManifest) { i.Active = []MigrationFile{{Path: "unrecognized.md"}} }},
 		{"archived", func(i *MigrationInput, m *MigrationManifest) { i.Archived = []MigrationFile{{}} }},
 		{"branch deletion", func(i *MigrationInput, m *MigrationManifest) { i.Branches = []MigrationBranchFile{{Raw: nil}} }},

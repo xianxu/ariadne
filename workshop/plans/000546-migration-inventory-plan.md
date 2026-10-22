@@ -95,9 +95,9 @@ Use existing `gitx` snapshot entry, blob and aggregate-output limits. Apply equi
 
 Files: create `cmd/sdlc/internal/tracker/migration_inventory.go` and `_test.go`; modify `migration.go`, `initialization.go` and their tests. Extract shared classification to `cmd/sdlc/internal/issue/inventory.go` with colocated tests.
 
-- [ ] Write pure failing tests using the `IssueInventoryPath`, `MigrationEvidenceRefusals` and `PlanTrackerMigration` strategies below. Preserve the existing active-removal and close-binding oracles.
-- [ ] Run `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/issue -run 'TestMigration|TestEmptyTrackerInit|TestIssueInventory' -count=1`; confirm new cases fail for the intended missing observation/policy.
-- [ ] Implement the typed evidence and keyed matcher; compose with the existing planner and reject added nonempty evidence in `EmptyInitEligible`. Run the same tests green and commit.
+- [x] Write pure failing tests using the `IssueInventoryPath`, `MigrationEvidenceRefusals` and `PlanTrackerMigration` strategies below. Preserve the existing active-removal and close-binding oracles.
+- [x] Run `go test ./cmd/sdlc/internal/tracker ./cmd/sdlc/internal/issue -run 'TestMigration|TestEmptyTrackerInit|TestIssueInventory' -count=1`; confirm new cases fail for the intended missing observation/policy.
+- [x] Implement the typed evidence and keyed matcher; compose with the existing planner and reject added nonempty evidence in `EmptyInitEligible`. Run the same tests green and commit.
 
 ### 2. Shared complete observation and main-only import
 

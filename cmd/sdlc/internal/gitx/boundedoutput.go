@@ -39,6 +39,13 @@ func (w *boundedOutput) Write(p []byte) (int, error) {
 	return w.buffer.Write(p)
 }
 
+// RunGitBoundedInputContext exposes the existing contextual, output-bounded
+// Git read boundary to inventory adapters. Overflow cancels the child and
+// remains an error; a truncated stream cannot authorize an empty inventory.
+func RunGitBoundedInputContext(ctx context.Context, dir string, env []string, input io.Reader, limit int, args ...string) ([]byte, []byte, error) {
+	return runGitBoundedInputContext(ctx, dir, env, input, limit, args...)
+}
+
 func runGitBoundedInputContext(ctx context.Context, dir string, env []string, input io.Reader, limit int, args ...string) ([]byte, []byte, error) {
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()

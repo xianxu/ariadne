@@ -23,7 +23,7 @@ func TestBoundedOutputCancelsAndNeverExceedsBudget(t *testing.T) {
 
 func TestBoundedGitOutput(t *testing.T) {
 	repo, _ := trunkFixture(t, "seed\n")
-	_, _, err := runGitBoundedInputContext(context.Background(), repo, nil, nil, 1, "rev-parse", "HEAD")
+	_, _, err := RunGitBoundedInputContext(context.Background(), repo, nil, nil, 1, "rev-parse", "HEAD")
 	if !errors.Is(err, ErrOutputLimit) {
 		t.Fatalf("expected output budget error, got %v", err)
 	}
