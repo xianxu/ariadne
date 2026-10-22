@@ -36,6 +36,10 @@ Scope:
   (extra suite runs and wall time spent splitting). Surface it in `sdlc landing status` and a weekly line, so the TL
   can watch it and turn per-car full suites back on for a repo whose escape rate climbs.
 
+- **Start small (operator, 10-22):** begin with trains of at most **2 cars** per repo, so a failing train splits once
+  and an escape is cheap to attribute; raise the cap only after the escape rate stays low for about a week. The cap is a
+  per-repo setting the TL adjusts, shown in `sdlc landing status`.
+
 ## Done when
 
 - A car with a passing affected record boards without a full suite (test); the train's full suite still gates.
