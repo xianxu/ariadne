@@ -90,6 +90,10 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - TL confirmed verified empty-bootstrap resume and completed valid root/marker no-op exceptions (Couch 7ca0ad18-0fe5-4bf5-99c8-9b5d26749593). Applied complete publicationBranchTips observation with no name filter; migrate alone retains its existing skip list. Added tracker-already-initialized refusal for unverified/pre-existing reserved branches. All 18 category/root cases produced intended before-fix observation RED; local-reserved CLI cases wrongly initialized and unknown-remote diagnostic also failed before correction. Removed temporary RED adapter, then focused category/refusal/recovery/workflow tests PASS (76.690s). Final rebuilt private production CLI PASS all local-reserved roots, real rejected-main-push partial bootstrap recovery with same root, completed no-op, no-checkout issue and claim/start-plan; evidence /Volumes/TestScratch/ariadne-543-final-cli-5_48qswq/commands.json. Broad verification/suite/review remain due.
 
+### 2026-10-22
+
+- Broad final-correction init/migration/transition/hint/recovery set PASS (165.077s); Go lint/recovery package checks PASS (0.997s/0.135s). Complete observation and unchanged migrate filtering are covered separately across every former ref exemption and all three issue roots. Final private production CLI recovery/refusal evidence is recorded above. No further code change since those passes; requeue suite and submit close round 4 next. No recorded-suite pass or SHIP claimed yet.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
