@@ -1,6 +1,6 @@
 ---
 id: 000506
-status: codecomplete
+status: done
 created: 2026-10-20
 updated: 2026-10-22
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b8c10b7804c3a61a4239fd276bf3964556cc96bb
         evidence_commit: 4b775cbfc2c33c59b913ea6f0413e4d9c3206060
+        landed_commit: 5b1a91057db2940c5dadca951d72277b65fa2bdb
 ---
 
 # tl-worker draining rule and tl-lead drain-the-fleet procedure (fleet-drain; recovery only on the operator's word)
