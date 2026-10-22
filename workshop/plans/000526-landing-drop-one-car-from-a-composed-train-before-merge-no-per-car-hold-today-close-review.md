@@ -320,3 +320,67 @@ dispose:
 7. **Plan revisions:** None required. The added revision records integration compatibility within approved scope.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3229c300-5da7-4724-9e20-d605409890d8","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/052b471e7ebeda4f","reviewed_head":"a887eb11140108b188dd37dd2abaebdb8144a18a","slot":"ariadne:1","requested_at":"2026-10-21T23:33:10.948882Z"},"phase":"finished","pid":61994,"started_at":"2026-10-21T23:33:11.118153Z","finished_at":"2026-10-21T23:34:15.14084Z","session_id":"01a160cf-c4ef-7322-9dd8-02013617efb4","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T18:18:24-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 526 — landing: drop one car from a composed train before merge (no per-car hold today) |
+| repo | ariadne |
+| issue file | workshop/issues/000526-landing-drop-one-car-from-a-composed-train-before-merge-no-per-car-hold-today.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 640577b38c53a9193453874fca19b2149b78916e..45e47313662ffd2415d6ad58ffce1ca8a6fc1fe1 |
+| command | sdlc close --issue 526 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T18:18:24-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff completes BR-2’s unknown-field preservation fix: cleanup retains its own metadata on key collisions while copying publication-only keys. The regression fails with the previous implementation and passes at the pinned head. The revision records this correction within approved scope; no new blocking defects found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Completion/drop ordering tests and targeted conductor completion/abort tests pass; this interdiff leaves their fencing behavior unchanged.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The request/apply/finish regression verifies conflicting-key preservation in both objects; restoring the previous merge order through a temporary overlay makes it fail at the second acceptance.
+```
+
+1. **Strengths**
+   - `traincontrol.go:193` reuses `mergeExtra` with the correct collision precedence.
+   - `traincontrol_test.go:535` exercises real persistence through acceptance, apply and finish, checking both metadata scopes.
+   - The added revision describes the existing preservation contract without expanding scope.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** Full landingline package and targeted conductor completion/abort tests passed. Reverting the fix through a temporary overlay caused the regression to fail as expected. `git diff --check` passed; checkout remained unchanged. Full repository suite was not rerun.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** Reuses the existing metadata merge helper.
+   - **ARCH-PURE — pass:** The changed decision remains deterministic and contains no IO.
+   - **ARCH-PURPOSE — pass:** Corrects collision handling for the shared acceptance path.
+   - **ARCH-EVOLVE — pass:** Preserves each object’s unknown values without changing known fields or version semantics.
+
+   No new architectural or user-facing surface requires atlas or README changes in this window.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"8229e720-b20f-4240-bf95-c80b9fce38cb","repository":"github.com/xianxu/ariadne","issue_id":"000526","recipe":"fix-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/7c16e2e08f1dfdf2","reviewed_head":"45e47313662ffd2415d6ad58ffce1ca8a6fc1fe1","slot":"ariadne:1","requested_at":"2026-10-22T01:17:14.379389Z"},"phase":"finished","pid":4685,"started_at":"2026-10-22T01:17:14.518065Z","finished_at":"2026-10-22T01:18:23.64197Z","session_id":"01a1612f-096d-7291-9005-5d17bf5d8897","outcome":"returned"}] -->
