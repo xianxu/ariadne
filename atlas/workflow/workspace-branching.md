@@ -105,8 +105,13 @@ cleared. The behaviour:
   executable with unreadable build info also refuses; scripts are skipped.
   Each sentinel command must
   have a verified output, even when its binary name differs from the source
-  directory. `--clear` runs that same build check against the resting HEAD;
-  repeating it repairs a failed post-switch rebuild. For a resting main that
+  directory. `--clear` holds the stage lock, fetches and pins origin/main,
+  restores and fast-forwards the resting branch with no autostash or ignored-file
+  overwrite, then runs that same build check against the pin. Dirty,
+  ahead/diverged and failed-fetch states refuse before a build. Repeating clear
+  from rest fetches again to repair a failed rebuild; it never trusts a stale
+  local resting commit. Clear dry-run fetches to report behind/ahead counts,
+  with no checkout, lease release or build; failed fetch reports unverified. For a resting main that
   predates the `sdlc` declaration, clear also uses the existing `sdlc-build`
   target when generic Make left `bin/sdlc` stale.
 - **Refusals:** a dirty target or one mid-operation; a target on another branch;

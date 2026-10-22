@@ -38,7 +38,10 @@ commit, runs `make build` plus targets declared as `# stage-build: <target>` in
 Go commands' `.skip-make-build` files, and refuses missing, modified or
 wrong-revision `bin/*` binaries. The target must be a simple Make target name,
 not an option or variable assignment. `sdlc stage --clear` returns the target
-to its resting branch, then rebuilds and checks its binaries at that HEAD.
+to its resting branch, fast-forwards it to freshly fetched origin/main, then
+rebuilds and checks its binaries at that exact pin. Dirty, ahead/diverged or
+failed-fetch states refuse before building. Clear dry-run fetches and reports
+behind/ahead counts without checkout or build changes; failed fetch says unverified.
 If that post-switch build fails, fix it and repeat `sdlc stage --clear`; the
 retry works from the resting branch. One stage at a time (#421): the stage is
 a lease naming its holder, so another issue's `sdlc stage`, `--clear` or
