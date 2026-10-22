@@ -4,7 +4,7 @@ collaboration-mode: discussion
 
 # Train car wait attribution implementation plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 for bounded delegation versus warm-context execution. Use checkbox tracking and TDD. This is a full-flow design with one close boundary, awaiting TL approval; do not implement yet.
+> **For agentic workers:** Consult AGENTS.md Section 3 for bounded delegation versus warm-context execution. Use checkbox tracking and TDD. This is a full-flow design with one close boundary, TL approved on 2026-10-22. The Revisions section records the governing policy; change-code must clear before implementation.
 
 **Goal:** Stop periodic status polls from turning a proven retained train-car wait into focused work, without attributing another conductor's suite to the car or guessing historical hours.
 
@@ -129,3 +129,13 @@ Read the audit once per measurement with explicit total-entry/byte bounds and ca
 ## Approval requested
 
 Approve the bounded producer-owned wait record, conservative historical limitation, explicit measurement-method boundary and preservation of #548's slot/head authority. Resolve the substantive same-source-activity ambiguity at the policy boundary before implementation; the recommended approach is conservative unverified coverage rather than heuristically classifying commands. No estimate is derived until the approved plan clears change-code plan-quality.
+
+## Revisions
+
+### 2026-10-22T05:18-07:00 — approval and counted unverified coverage
+
+TL approval receipt 898cfb60-b77a-42a4-81f4-11b13628ed6d accepts the proposed bounded ticket-owned facts, existing retention, typed source-bound evidence and compatibility boundary. The same-source policy is now explicit: substantive work during a retained wait stays counted and is labelled **unverified coverage**. Only proven idle waiting is excluded. Do not use command-text heuristics, guessed credit, per-poll history or automatic historical actual rewrites. This supersedes the earlier pending-policy wording; ambiguous substantive activity does not itself become a calibration refusal. Malformed or contradictory provenance remains a separate evidence error.
+
+Add a same-source substantive-work control proving the activity is counted and visibly labelled, alongside the poll-only N/2N controls. A held ticket proves the blocked command's lifetime; it does not by itself prove the entire transcript source was idle. Before implementation, identify the structural evidence that permits an idle cut; unsupported or ambiguous source activity stays counted. If this needs a mechanism beyond the approved producer facts, take that question to TL before code.
+
+#548 landed at 80602233df36a670023b60af8dabb0b6f3c2c071 (tracker plus Git ancestry verified). Integrate landed main before change-code; retain the initial read-first digest as historical design evidence. No estimate or implementation has begun. The next workflow action is the full-flow change-code gate once the structural idle-proof detail is concrete.

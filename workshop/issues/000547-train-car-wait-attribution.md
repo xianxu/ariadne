@@ -41,7 +41,7 @@ Investigate active-time-v3 engagement/queue attribution for a train car waiting 
 - [ ] Bind validated car waits into fresh measurement while preserving #548, solo-suite ownership, concurrent work and saved measurement replay.
 - [ ] Record the pair#778 correction or explicit historical limitation, update provenance docs, and verify/review the final implementation.
 
-Durable plan: [train car wait attribution](../plans/000547-train-car-wait-attribution-plan.md). Full flow, one close boundary, awaiting TL approval; no implementation started.
+Durable plan: [train car wait attribution](../plans/000547-train-car-wait-attribution-plan.md). Full flow, one close boundary, TL approved on 2026-10-22; no implementation started. The approval and current next action are recorded below.
 
 ## Log
 
@@ -60,3 +60,9 @@ Filed unclaimed by pair:5 while its corrected pair#778 suite/review run. No acti
 ### 2026-10-22 — proposed producer-bound attribution contract
 
 The investigation found that existing train261 suite and audit metadata can establish a train envelope and conductor phases but not the complete retained waiter identity/return boundary. Propose exact producer evidence and conservative incomplete-historical handling, with explicit persisted measurement-method compatibility. The original Spec/Done-when remain the contract; this durable plan is awaiting TL approval before code or estimates.
+
+### 2026-10-22T05:18-07:00 — TL approval and same-source policy
+
+Authenticated TL receipt 898cfb60-b77a-42a4-81f4-11b13628ed6d approves bounded start/bind/end facts under the held ticket in the existing 30-day audit, a typed source-bound car-idle method, unchanged old snapshots, no per-poll history and no automatic revision of past actuals. Substantive same-source work during a retained wait stays counted and is labelled **unverified coverage**. Only positively proven idle waiting is excluded; command-text heuristics and guessed credit are forbidden. This resolves the policy question in the initial design; ambiguity about substantive work is counted coverage, distinct from malformed or conflicting provenance.
+
+#548 is now done and landed at 80602233df36a670023b60af8dabb0b6f3c2c071, verified by the tracker and Git ancestry in origin/main. The dependency hold is cleared. Next: integrate landed main, establish the precise structural idle-proof seam without command parsing, then run change-code's full-flow plan-quality gate before estimating or implementing. No tests, production changes or own recorded checks have started. If the structural seam requires a new mechanism beyond the approved facts, return that design question to the TL before code.
