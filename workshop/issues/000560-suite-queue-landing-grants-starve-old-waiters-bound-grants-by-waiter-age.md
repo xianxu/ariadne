@@ -41,7 +41,7 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 
 ## Plan
 
-- [ ] Approve the durable plan: [bounded grant aging](../plans/000560-suite-queue-landing-grants-starve-old-waiters-bound-grants-by-waiter-age-plan.md).
+- [x] Approve the durable plan: [bounded grant aging](../plans/000560-suite-queue-landing-grants-starve-old-waiters-bound-grants-by-waiter-age-plan.md).
 - [ ] Implement and verify pure protected-prefix ordering and immutable ticket age.
 - [ ] Add shared read-only queue inspection/status with actual admission and compatibility coverage.
 - [ ] Complete conformance, recorded suite, review and landing.
@@ -53,6 +53,10 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 ### 2026-10-22 — claimed, design checkpoint
 
 #555's retained merge runner completed successfully before this item began; workspace returned to main-slot1. Claimed #560 and ran start-plan, now on its independent issue branch from main. Read current suite helper, grant provider, queue status and private helper/provider tests. Current effective_order is unconditional grant-first stable partition, which explains repeated-grant starvation; existing started is naive wall time from before identity lookup and is unsuitable for elapsed queue age. Keep fairness in Python admission, leaving Go grant validity and repository landing GrantHold unchanged (ARCH-DRY). A read-only subagent audited the same seams and recommended a protected prefix to avoid malformed-age inversions. No code changed. TL approved the policy/60-minute threshold; complete plan is now ready for approval, including shared status projection and bounded private conformance.
+
+### 2026-10-22 — full plan approved; rollout on next helper start
+
+TL approved the complete plan (delivery b7226f49-4802-4e84-a68e-dd94c93e60c5): one named setting/projection; text ages, limit and override; frozen JSON unchanged; additive monotonic member with unknown ages protected; no new durable history, hot reload or forced cutover. Running helpers pick up the new behavior at their next process start; the operator's planned full shutdown tonight restarts them. This issue does not initiate that shutdown. Enter full-flow change-code before implementation because the scheduler, bounded observer and status integration exceed the quick-flow code shell.
 
 ## Revisions
 
