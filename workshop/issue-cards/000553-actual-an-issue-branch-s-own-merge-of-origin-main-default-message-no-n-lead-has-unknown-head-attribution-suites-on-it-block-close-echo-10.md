@@ -1,6 +1,6 @@
 ---
 id: 000553
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: fe9a4c9e4baff739a319d5969a7adeb8ca683212
         evidence_commit: fe83377b1a4c4204680ae5b170331012c443a29d
+        landed_commit: be0e64c3d329ddb210880ba570c5bf1a6de76c1e
 ---
 
 # actual: an issue branch's own merge of origin/main (default message, no #N lead) has unknown head attribution; suites on it block close (echo#10)
