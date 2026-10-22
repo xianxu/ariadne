@@ -81,3 +81,73 @@ findings:
    Add a `## Revisions` entry extending the observer verification contract to cancellation/deadline during a real inspector’s provider call, including separately grouped provider descendants. Retain the existing requirement that all observation work ends before return.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"1393cf07-8a1f-484f-9881-ff17abc9cade","repository":"github.com/xianxu/ariadne","issue_id":"000560","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c8a72681fe917250","reviewed_head":"532929d548a9badfc18ccf1b433180af93f27037","slot":"ariadne:1","requested_at":"2026-10-22T22:35:57.133123Z"},"phase":"finished","pid":28161,"started_at":"2026-10-22T22:35:57.315073Z","finished_at":"2026-10-22T22:37:55.750063Z","session_id":"01a165c1-bb70-7232-bccf-8e3580a32ec0","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T15:47:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 560 — Suite queue: landing grants starve old waiters; bound grants by waiter age |
+| repo | ariadne |
+| issue file | workshop/issues/000560-suite-queue-landing-grants-starve-old-waiters-bound-grants-by-waiter-age.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 25024b5ed8de7bc930f357fbabb3a6ecf1771566..37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47 |
+| command | sdlc close --issue 560 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T15:47:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation fulfills the aging policy, preserves weighted admission, and exposes the shared ordering through text status. BR-1 is verified addressed: the real-inspector regression passes and fails when provider detachment is restored. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      scripts/test-lock.py:924 keeps supervised providers in the Go-owned group; queue_suite_status.go:103–107 collects that group on cancellation and completion. TestSuiteQueueRealInspectorOwnsProviderTree passes all four modes. In a disposable pinned-head copy, restoring detached sessions makes cancellation and deadline tests fail on surviving provider and descendant processes. The disposable copy was removed.
+```
+
+1. **Strengths**
+
+   - `scripts/test-lock.py:999` centralizes protected-prefix ordering for admission, inspection and diagnostics.
+   - Enqueue timestamps are allocated under the lock and preserved through final watcher publication, including unknown nested metadata.
+   - Real flock tests verify protected heavy waiters prevent younger grants from backfilling partially available capacity.
+   - README and atlas document aging, unavailable observations, compatibility and rollout limits.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed targeted Go observer/status tests, the production-provider admission harness, 23 Python aging/resource/evidence tests, and 18 pause tests. The BR-1 mutation failed as expected for both cancellation and deadline. Diff whitespace checks passed; reviewed tracked files remain unchanged. The full recorded suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared scheduling projection and policy owner.
+   - **ARCH-PURE — pass:** deterministic ordering core with explicit time inputs; integration owns IO.
+   - **ARCH-PURPOSE — pass:** actual admission and observable aging behavior are covered.
+   - **ARCH-MOCK — pass:** private stateful grant fixtures exercise the production provider seam.
+   - **ARCH-CONSTRAINTS — pass:** bounded inspection and counted linear ordering work are tested.
+   - **ARCH-SECURE — pass:** hostile files and invalid observations produce explicit unavailability.
+   - **ARCH-ORDER — pass:** allocation revalidation, controlled cancellation and joined observation lifetimes are exercised.
+   - **ARCH-FUNERAL — pass:** provider trees have verified teardown; existing ticket/slot cleanup remains applicable.
+   - **ARCH-EVOLVE — pass:** additive metadata survives publication; frozen status JSON remains unchanged.
+
+   Core-concept table entries map to the implemented projections and integration paths.
+
+7. **Plan revision recommendations:** None. The supervised-ownership revision matches the code and verified regression.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"16dbd975-796a-4e14-b8cf-4525f885dba1","repository":"github.com/xianxu/ariadne","issue_id":"000560","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/9248e5e836107ba6","reviewed_head":"37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47","slot":"ariadne:1","requested_at":"2026-10-22T22:46:04.537279Z"},"phase":"finished","pid":3222,"started_at":"2026-10-22T22:46:04.70985Z","finished_at":"2026-10-22T22:47:58.442906Z","session_id":"01a165cb-0048-7b72-9571-8b44d014c773","outcome":"returned"}] -->

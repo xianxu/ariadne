@@ -50,6 +50,7 @@ each waiter's age and when aging overrode a grant. The grant still beats everyth
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — BR-1 actual-inspector provider-tree cancel/deadline regression RED7.063s, then fixed cancel/deadline/completion/provider-timeout and broad queue/suite/helper Go tests PASS77.260s; Python23 ownership/core/resource/evidence PASS0.689s, pause18 PASS4.222s, golint PASS1.694s. Clean c66fa30e12d1d12dd3897446f20266f71d444322 read-only live status and private weighted/renewal/watcher cohort PASS9.283s; raw evidence in workshop/plans/000560-supervised-inspection-evidence.md. Fresh recorded suite lease-3147671628 queued on pushed37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47, not claimed passing. Old lease1847011191 intentionally cancelled before execution. tl-worker permits close-review overlap; no-plan-check acknowledges pending suite/landing checklist, with recorded final-code pass still required before merge.; review verdict: SHIP
 
 ### 2026-10-22 — claimed, design checkpoint
 
