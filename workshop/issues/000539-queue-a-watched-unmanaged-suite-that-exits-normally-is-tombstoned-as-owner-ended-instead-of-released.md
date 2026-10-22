@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-21
-estimate_hours:
+estimate_hours: 2.13
 collaboration-mode: collaboration
-card_mirror: '8a8cd38bd31cdd6cc5a9391e1bb99988c700a0fa' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f31bcb7f607c9da5036ff0e3e7bd70b8b69331c3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-21T21:43:50-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # queue: a watched unmanaged suite that exits normally is tombstoned as 'owner ended' instead of released
@@ -65,3 +66,21 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 - 2026-10-21: TL narrowed the completion contract to observed exit 0 plus verified empty, private make process group. The original restart alternative must not turn PID disappearance into completion authority: watcher loss keeps an unknown tombstone; restarting Couch while the independent watcher survives must not change completion. Unsupported exit-status observation and shared/unknown process groups remain conservative. The implementation plan carries these controls explicitly (ARCH-ORDER, ARCH-SECURE).
 
 - 2026-10-21: Concrete plan approved by TL receipt `c86c6fec-3912-4277-9ea1-f519c2aa7f25`, with the diagnostic receipt-directory proposal cut in favor of one compact audit line beside reconciliation. Actual initial plan commit: `35fb28672` (corrects the accidental placeholder in the outgoing checkpoint message, already corrected through Couch). Enter change-code next; implementation remains unchanged.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; source tagged stale by estimate-source, so hours are provisional. Python/make tooling maps to the documented smaller-module primitive. Native observer integration uses existing Python kqueue and libproc (halve API design for library availability), with the thorough approved spec's 0.2 design factor and 15% design buffer. Implementation values are 40% of v2 ranges; familiarity 1.5 reflects bounded novel native exit observation. Includes the real-process discovery, actual make fixtures, one close review, and atlas work; no peer adoption or deployment.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.5
+item: issue-spec design=0.10 impl=0.04
+item: api-integration design=0.10 impl=0.24
+item: smaller-go-module design=0.04 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.04
+item: milestone-review design=0.02 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+design-buffer: 0.15
+total: 2.13
+```
