@@ -89,3 +89,79 @@ findings:
    Add a `## Revisions` entry clarifying that an explicit, nonfinalized milestone independently requires pinned executable membership, even with an empty or finalized-only ledger. Extend the verification contract with those refusal cases and record the README usage update.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a10d8292-4aac-43c6-8e0a-79deb1d7e95b","repository":"github.com/xianxu/ariadne","issue_id":"000531","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/1a7943ef0e4eab21","reviewed_head":"930a9c77fdc610a8f1d6d955c6750978bf22b4b8","slot":"ariadne:2","requested_at":"2026-10-22T17:01:26.829064Z"},"phase":"finished","pid":48197,"started_at":"2026-10-22T17:01:27.152796Z","finished_at":"2026-10-22T17:03:54.413581Z","session_id":"01a1648f-7d29-78e3-9cff-a5d796877883","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T10:23:26-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 531 — sdlc actual: a milestone after a superseded one measures 0 h (pair#737 M3) |
+| repo | ariadne |
+| issue file | workshop/issues/000531-sdlc-actual-a-milestone-after-a-superseded-one-measures-0-h-pair-737-m3.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 891ba3f81f67690364507cf4030a71c60ee681e4..bca05a82260d4fcb3d9ee6965af661b82bd5e5d7 |
+| command | sdlc close --issue 531 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T10:23:26-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation fulfills the retired-boundary accounting contract. Both prior findings are addressed, including regression tests that fail when the BR-1 fix is removed. No new blocking findings were identified; fresh cuts use pinned Plan authority while retained snapshots preserve their original accounting.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      actualplan.go:87 independently requires authority for requested unfinalized milestones. Removing this predicate in a disposable pinned-head copy failed nine authority cases and both production regressions, reproducing unauthorized measurements of 50/60h and 25/60h.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:1070-1076 now documents committed executable Plan authority, retirement without clearing findings or granting SHIP, refusal guidance, and unchanged saved replay. These statements match actualplan.go:79-115 and the retained-replay paths in actualinputs.go.
+```
+
+1. **Strengths**
+
+   - One pure selector serves both fresh measurement paths, preserving finalized history and whole-issue rounds (`actualsplit.go:188`).
+   - Pinned Plan resolution validates identity, uniqueness, fences, and section authority (`actualplan.go:18`).
+   - Native tests verify replacement accounting and independently replay old and new saved cuts (`actualinputs_test.go:708`).
+   - Phase diagnostics derive from the same timeline used to calculate hours (`actualsplit.go:175`).
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Targeted authority, accounting, replay, rendering, and consumer tests passed. Full activetime and gatestate package tests passed, as did the decimal issue-hint guard and `git diff --check`.
+
+   The BR-1 negative control failed as expected. Its disposable copy was removed; the reviewed checkout remains unchanged. I did not rerun the repository-wide suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared selection and existing Plan parsers avoid parallel accounting rules.
+   - **ARCH-PURE — pass:** Selection and diagnostics remain deterministic; repository reads stay in the resolver.
+   - **ARCH-PURPOSE — pass:** Both fresh consumers apply retirement accounting; retained replay bypasses reselection.
+   - **ARCH-MOCK — pass:** Native tests use isolated Git repositories and portable transcript fixtures through existing boundaries.
+   - **ARCH-CONSTRAINTS — pass:** Tests verify constant Git observation count at 100 and 200 rounds; no new concurrency.
+   - **ARCH-SECURE — pass:** Pinned repository text is validated, and invalid authority produces actionable refusal.
+   - **ARCH-ORDER — pass:** Finalized-history precedence matches the evidence table; this selector holds no state between events.
+   - **ARCH-FUNERAL — pass:** No new durable artifact family is introduced.
+   - **ARCH-EVOLVE — pass:** Persisted formats remain unchanged; old and new ordinary cuts retain their respective replay results.
+
+   Core-concept locations and classifications match the implementation. README, help, and atlas cover the introduced workflow.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"963e25d8-3eba-45c5-ae26-d222cc38095a","repository":"github.com/xianxu/ariadne","issue_id":"000531","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/90952d50972162c1","reviewed_head":"bca05a82260d4fcb3d9ee6965af661b82bd5e5d7","slot":"ariadne:2","requested_at":"2026-10-22T17:21:30.344967Z"},"phase":"finished","pid":97711,"started_at":"2026-10-22T17:21:30.498898Z","finished_at":"2026-10-22T17:23:25.965558Z","session_id":"01a164a1-d911-71d2-900d-26b04cb32227","outcome":"returned"}] -->

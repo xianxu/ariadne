@@ -72,6 +72,7 @@ Follow-through (pending): close through the mandatory review and land.
 ### 2026-10-21
 
 ### 2026-10-22 — claim and root-cause investigation
+- 2026-10-22: closed — BR-1 red-before native cases cover requested milestone authority with empty, whole-issue and finalized-only ledgers; absent or ambiguous Plan and absent target refuse; whole-issue and finalized history remain valid. Targeted authority/resolver/retirement/replay tests pass 24.960s; updated consumer and authority/split controls pass 20.689s. BR-2 README and help describe committed authority, retirement and unchanged replay. Prior full suite passed all 2241 tests and 76 packages; fresh recorded suite on this code correction is queued/running and must pass before landing, overlapping review per tl-worker.; review verdict: SHIP
 
 Claimed in ariadne:2 and started planning. BuildTimeline sends an unfinalized boundary's convergence to the complete measurement right edge, so its monotonic emitter leaves no M3 phases. Neither BoundaryRound nor gatestate.Round / MeasurementCut has supersession metadata.
 
