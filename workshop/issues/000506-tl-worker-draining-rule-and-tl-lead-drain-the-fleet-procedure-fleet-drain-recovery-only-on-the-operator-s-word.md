@@ -79,7 +79,7 @@ steward need the rules.
   tests and both real CLI help renders; verify the documented queue flags against current CLI help and
   automation activation/landing against pair#739's actual status. No real drain smoke; pair#722's watched
   live run after this landing supplies live proof.
-- [ ] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
+- [x] Record a pushed-head suite, close through the binary-owned review, then managed merge and report
   to hub and pair:5 before its watched live run. Follow the TL decision on the pair#739 landing dependency.
 
 ## Log
@@ -176,6 +176,21 @@ steward need the rules.
   peer/TL-approved revised text awaiting peer source patch/re-close; no invented new commit identity.
 - Moved later dated evidence back under Log and retained all scope revision paragraphs under Revisions;
   no historical note content was discarded. Recorded suite is next on the pushed corrected head.
+
+### 2026-10-22 — recorded suite passed; entering close
+
+- PR #390: https://github.com/xianxu/ariadne/pull/390. Final-wording corrections at
+  745b0f7dcc27c1f7d6daa02fdcc316b831396797 were pushed before the recorded check; no code changed since.
+- `sdlc local-check run --name suite` passed on that exact head: 8/8 shards, 2135 cmd/sdlc tests,
+  76 other packages, zero failures; wall 758.1s (12m38s). Lease lease-798942241 waited 1139s before
+  starting, then completed normally. Saved log `.git/sdlc/local-checks/745b0f7dcc27c1f7d6daa02fdcc316b831396797/suite.log`,
+  SHA256 prefix b461107aceb1. Current GitHub checks are green; no local-gates paths changed.
+- Pair:5's source formatter and expected-body tests now agree byte-for-byte with our current graceful
+  fixture (verified receipt 06d83c76-b5db-4ab2-9c53-5d8e81a75c3a). Independently measured 537 UTF-8 bytes,
+  SHA256 612bc49844512b2c992db2b3e973b117244c659a37411d2b2d06febf36d5fe92. No vector change/requeue needed.
+- TL final wording approval and both requested corrections are fulfilled. The final plan checkbox records
+  verified suite completion and entry into the binary-owned acceptance/landing sequence, not a claimed
+  review verdict or landing. Invoking close next; pair#722's operator-watched live run remains held until landing.
 
 ## Revisions
 

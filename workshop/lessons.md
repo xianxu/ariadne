@@ -1415,3 +1415,9 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
+
+- #506 TL wording review: a paused admission queue changes what “wait for background work” can mean.
+  Distinguish already-running work from queued, not-started work before instructing an owner to wait;
+  leave the latter queued and record it outstanding. Neither owner idleness nor a drain flag proves
+  restart safety. Rendered-help guards pin the running/queued distinction and keep unrelated test advice
+  outside the drain procedure.
