@@ -204,3 +204,29 @@ func TestStageClearNumberedRestingBranch(t *testing.T) {
 		t.Fatalf("numbered target returned to %q", got)
 	}
 }
+
+func TestStageClearChecksRestingAttributesForIncomingAssets(t *testing.T) {
+	r, _ := stageFreshFixture(t)
+	testfix.Git(t, r[0], "pull", "-q", "--ff-only", "origin", "main")
+	procedureWrite(t, r[0], ".gitattributes", "workshop/issues/assets/** filter=unsafe\n")
+	testfix.Git(t, r[0], "add", ".gitattributes")
+	testfix.Git(t, r[0], "commit", "-qm", "rest attributes")
+	rest := procedureHead(t, r[0])
+	testfix.Git(t, r[2], "switch", "-qc", "incoming-assets", rest)
+	testfix.Git(t, r[2], "rm", ".gitattributes")
+	asset := "workshop/issues/assets/000001/evidence.png"
+	procedureWrite(t, r[2], asset, "evidence")
+	testfix.Git(t, r[2], "add", asset)
+	testfix.Git(t, r[2], "commit", "-qm", "safe incoming attributes")
+	testfix.Git(t, r[2], "push", "-q", "origin", "HEAD:main")
+	if out, err := runStageTest(t, r[1], ":0", false); err != nil {
+		t.Fatalf("stage: %v\n%s", err, out)
+	}
+	before := slotState(t, r[0])
+	if out, err := runUnstageTest(t, r[1], ":0"); err == nil || !strings.Contains(err.Error(), asset) {
+		t.Fatalf("resting attributes not checked for incoming asset: %v\n%s", err, out)
+	}
+	if slotState(t, r[0]) != before {
+		t.Fatal("unsafe asset transition changed target/lease")
+	}
+}

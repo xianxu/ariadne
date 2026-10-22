@@ -205,6 +205,11 @@ func runUnstage(ctx context.Context, dir, address, abandoned string, dryRun bool
 			return err
 		}
 	}
+	// Clear switches through rest before merging; its attributes also govern
+	// assets that exist only in the freshly fetched tree.
+	if err := verifyAssetMaterialization(ctx, to.Root, pin, issuesDir, to.RestHead); err != nil {
+		return err
+	}
 	if dryRun {
 		if held.Holder != "" && !staged {
 			fmt.Fprintf(stdout, "Would release %s's stage lease on %s (already on its resting branch %s)\n", held.Holder, to.Address, to.Resting)
