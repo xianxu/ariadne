@@ -70,6 +70,7 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — BR-1 proof: recorded suite PASS on 1603ce1215d805c4d1d63be9c936df8bdaeba65f, attempt ffa80947944ff752aeb1b94024e0d3ca, all8 shards/2254 SDLC tests/76 other packages, zero failures or flakes, exit0/25m30s; raw-log SHA2567114aad7dad5d6a7a2ca01404387df490db49a9ec5e85666e8e85df41a710696, matching remote sdlc-local/suite success at18:49:44Z. Full saved-attempt fields and independent gh api read command retained in Log; later commits change only issue/review records, no code/fixture drift. FIFO-controlled RED before PID write; GREEN atomic sibling write/close/rename; recorded empty-PID replay and original cancellation/group controls retained. Adjacent doc/FIFO/cancellation tests and tracked Go lint PASS; first reviewer10/10 and direct-publication mutation RED. --no-atlas acknowledges test-only correction with no new architecture, API, production behavior or timeout change. Registration retirement follows the normal done/landing transition and will be read back afterward. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Claimed and started from main in canonical ariadne:5. The production adapter already owns a process
   group; the defect is the test's assumption that os.Stat success means the shell's PID write finished.
