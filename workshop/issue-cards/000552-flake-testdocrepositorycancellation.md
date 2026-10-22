@@ -1,6 +1,6 @@
 ---
 id: 000552
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 39896d4b95d12e1c726f906ac8578cf9beaf04b4
         evidence_commit: d126089ac5b8703a3dfa6998b60bdf6cbf559617
+        landed_commit: 2182b1a7b674ec3ca31c48f570e3a6a75e08d602
 ---
 
 # flake: TestDocRepositoryCancellation
