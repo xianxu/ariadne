@@ -70,7 +70,7 @@ total: 1.27
 
 - [x] Reproduce the incident and share subject-aware main-first policy between CLI and CI facts, preserving exact pushed-head and cancellation controls.
 - [x] Cover ordinary/immutable landing and train prefixes/reintegration with the same derivation, no weakened gate or fabricated baseline evidence.
-- [ ] Document the contract, complete focused/recorded verification and prepare close. Detailed steps: [bootstrap suite plan](../plans/000536-bootstrap-suite-plan.md).
+- [x] Document the contract, complete focused/recorded verification and prepare close. Detailed steps: [bootstrap suite plan](../plans/000536-bootstrap-suite-plan.md).
 
 ## Log
 
@@ -88,6 +88,8 @@ total: 1.27
 
 - Implementation verification: broad landing/train/CI controls ran to completion (457.446s); only immutable-probe count expectations and a canceled-fallback seam failed. Updated the count to one main plus one subject probe cached across polling, and added the between-probe context guard. Native immutable failure reproduced false main-red diagnosis before the fix; now it preserves the original failure and reports unavailable/unverified baseline. Recovery red confirmed main-only suite refusal for native known-flake republish and original-SHA resume; fixed every current-policy reader through one shared derivation. The fixture was corrected to emit structured Go evidence, preserving resume's completeness guard.
 - Final targeted bootstrap/default/train/probe/baseline/resume controls passed (cmd/sdlc, 35.246s); golint passed (0.894s), shelllint passed (0.259s). Compiled local-check help inspected. Isolated native CLI, exact-head status, train and recovery fixtures satisfy the hub-approved live gate, with no :0 touch. Full recorded suite follows on the pushed implementation head.
+
+- Recorded suite lease-2338454225 passed on pushed PR #389 head 1f7ba34cdf9e3e78f428c38ad31200cdb31d5801: 2,121 SDLC tests across eight shards plus 76 other packages, zero failures, 761.1s wall (12m41s), queue wait 272s, log sha256:4457a6349d81. Every shard and the package job exited 0; sdlc-local/suite success recorded. Server merge-check and local-gates guard/verdict also passed. No special label, :0 mutation or gate bypass.
 
 ## Revisions
 

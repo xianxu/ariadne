@@ -101,7 +101,7 @@ Commit minimal byte-preserving Makefile/declaration inputs and a provenance READ
 
 - [x] Document exact eligibility, managed command, head-only evidence, delayed custom-policy activation, protected-label ownership and refusal recovery.
 - [x] Run focused packages and compiled help; verify `git diff --check`. Ask hub whether isolated production CLI/landing proof suffices for the live gate; no :0 staging without approval.
-- [ ] Commit/push final implementation, retain `sdlc local-check run --name suite` on its exact head through completion, and record the full result before close. No manual main chase.
+- [x] Commit/push final implementation, retain `sdlc local-check run --name suite` on its exact head through completion, and record the full result before close. No manual main chase.
 
 Then `sdlc close` owns the one boundary review. On SHIP enter `sdlc merge --yes`; verify merged PR, archive and clean rest, and report to hub. No new estimate until change-code's plan-quality gate accepts this full-flow plan.
 
