@@ -1,13 +1,13 @@
 ---
 id: 000556
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 6.18
 collaboration-mode: collaboration
-card_mirror: '5012db0f94a1090d2588e0ce77aa69ce1b1254d1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ad083a6a3d7ba2c25e6ff16d31844d2951b3c060' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T13:11:41-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 4.29
 ---
 
 # flake register and local-check resume accept only Go test identities; give shell-script and Lua cases typed identities
