@@ -671,7 +671,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	// #204: a fresh disposable checkout per round, removed once the reviewer has
 	// exited — on success, reviewer failure, timeout and cancellation alike. The
 	// review text is captured in memory; nothing after this reads the checkout.
-	checkout, iso, err := openReviewIsolation(stderr, manifest)
+	checkout, iso, err := openReviewIsolationContext(commandContext(p.Context), stderr, manifest)
 	if err != nil {
 		return notRun(err.Error())
 	}
@@ -684,7 +684,11 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	if !ok {
 		return notRun(reason)
 	}
-	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
+	opts.BeforeRetryContext = func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, reviewDependencyTimeout)
+		defer cancel()
+		return checkout.ResetContext(ctx)
+	}
 	opts.Preparation, err = readReviewPreparation(manifest.RepoRoot, manifest.HeadSHA)
 	if err != nil {
 		return notRun(err.Error())
@@ -793,7 +797,7 @@ func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewPara
 	if reason != "" {
 		return judge.DispatchOptions{}, errors.New(reason)
 	}
-	iso, err := plannedReviewIsolation(manifest)
+	iso, err := plannedReviewIsolation(commandContext(p.Context), manifest)
 	if err != nil {
 		return judge.DispatchOptions{}, err
 	}
@@ -867,6 +871,11 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	if err != nil {
 		return judge.DispatchOptions{}, judge.ReviewChoice{}, false, fmt.Sprintf("render review manifest: %v", err)
 	}
+	if iso != nil {
+		if dependencies := reviewbox.DependencyManifest(iso.Dependencies, iso.Level() == reviewbox.LevelFenced); dependencies != "" {
+			reviewWindow += "\n\n" + dependencies
+		}
+	}
 	o.RepoRoot = manifest.RepoRoot
 	o.IssueFile = manifest.IssueFile
 	in := judge.PromptInput{
@@ -887,6 +896,7 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 		Stderr:       stderr,
 	}
 	if iso != nil {
+		opts.Dependencies = iso.Dependencies
 		opts.Wrap = iso.Wrap
 		opts.Checkout = iso.Dir // its temp dir and git shim live there (#339)
 		opts.Containment = judge.ContainCheckout

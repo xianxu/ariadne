@@ -46,7 +46,7 @@ func TestReviewPreparationLivePair(t *testing.T) {
 	})
 	pinned := strings.TrimSpace(git(source, "rev-parse", "origin/main^{commit}"))
 	fence := liveReviewFence(t)
-	co, err := reviewbox.Create(t.TempDir(), source, pinned, nil)
+	co, err := reviewbox.CreateContext(t.Context(), t.TempDir(), source, pinned, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestReviewPreparationLiveCodexPS(t *testing.T) {
 			t.Fatalf("git: %v: %s", err, out)
 		}
 	}
-	co, err := reviewbox.Create(t.TempDir(), source, "HEAD", nil)
+	co, err := reviewbox.CreateContext(t.Context(), t.TempDir(), source, "HEAD", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,9 +188,9 @@ func TestReviewPreparationLiveCodexPS(t *testing.T) {
 	started := time.Now()
 	output, err := judge.Dispatch(context.Background(), judge.DispatchOptions{
 		Agent: judge.AgentCodex, Checkout: co.Dir, Containment: judge.ContainFenced, Wrap: iso.Wrap, Stderr: &diagnostics,
-		Prompt:           `This is a bounded live OS fence conformance check. Execute exactly /bin/ps -p 1 -o pid=,comm= in the foreground using your shell tool. Do not inspect or edit files or run any other commands. Only if that actual command exits zero and returns PID 1, lead your final response with a fenced verdict block containing verdict: SHIP, then PS_READ_OK and the actual ps output, then a fenced findings block containing findings: [] and dispose: []. Otherwise emit verdict: REWORK and a blocking kind: unverifiable finding naming the failed command, observed failure and evidence needed. Do not claim success from the prompt or from prior knowledge.` + "\nUse these literal fences (not yaml fences):\n```verdict\nverdict: SHIP\n```\nPS_READ_OK and actual output\n```findings\nfindings: []\ndispose: []\n```",
-		ValidateResponse: func(output string) error { return validateBoundaryResponse(output, gatestate.Ledger{}) },
-		BeforeRetry:      co.Reset,
+		Prompt:             `This is a bounded live OS fence conformance check. Execute exactly /bin/ps -p 1 -o pid=,comm= in the foreground using your shell tool. Do not inspect or edit files or run any other commands. Only if that actual command exits zero and returns PID 1, lead your final response with a fenced verdict block containing verdict: SHIP, then PS_READ_OK and the actual ps output, then a fenced findings block containing findings: [] and dispose: []. Otherwise emit verdict: REWORK and a blocking kind: unverifiable finding naming the failed command, observed failure and evidence needed. Do not claim success from the prompt or from prior knowledge.` + "\nUse these literal fences (not yaml fences):\n```verdict\nverdict: SHIP\n```\nPS_READ_OK and actual output\n```findings\nfindings: []\ndispose: []\n```",
+		ValidateResponse:   func(output string) error { return validateBoundaryResponse(output, gatestate.Ledger{}) },
+		BeforeRetryContext: co.ResetContext,
 	})
 	t.Logf("installed Codex transcript (fence=%s, mode=danger-full-access under outer fence, duration=%s):\n%s", fence, time.Since(started), diagnostics.String())
 	t.Logf("semantic response: %s", output)
