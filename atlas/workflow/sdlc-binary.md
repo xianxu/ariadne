@@ -2640,7 +2640,10 @@ command and renders the same ordering projection: effective positions, ages,
 protected boundary and aging overrides. Inspection reads/revalidates the allocation
 snapshot without creating/pruning tickets or taking slots; provider IO occurs
 outside locks. Busy or changing snapshots, missing/old helpers and exceeded bounds
-report unavailable order with `sdlc queue status` as the retry. It shares status's
+report unavailable order with `sdlc queue status` as the retry. Go launches
+inspection in supervised mode: provider descendants inherit its owned helper
+process group, which is collected on completion, cancellation and deadline.
+Standalone Python queries retain detached provider-group cleanup. It shares status's
 3-second budget, caps 4096 records, 64KiB per record and 1MiB response. The frozen
 `--json` schema_version1 remains unchanged and does not run this supplementary read.
 If contention or a pause prevents validating order, it reports `position unknown`

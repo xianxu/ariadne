@@ -130,6 +130,10 @@ Files: atlas/workflow/sdlc-binary.md; README.md if its queue entry needs the new
 
 PQ-1 requested function names and one adversarial strategy/mechanical guard per risky function. Consolidated repeated test inventories into the table and named the planned pure, inspection, observer and rendering functions. PQ-2 corrected the distinction between bounded reads and unchecked existing writes; writer enforcement remains outside scope. Approved scheduling policy and rollout are unchanged.
 
+### 2026-10-22 — BR-1 supervised provider ownership
+
+TL approved explicit supervision for the Go-launched inspector after a real-helper cancellation reproduction. Supervised provider descendants inherit the Go-owned helper group; Go's existing cancellation and unconditional post-Run teardown collect the full tree, while standalone Python queries retain detached-group cleanup. The observeSuiteQueue strategy includes the actual inspector and provider tree on cancel, deadline, completion and provider timeout, rather than only replacing the helper with a same-group sleep. This implements the existing observation-lifetime contract without new persistent state or scheduling policy (ARCH-ORDER/FUNERAL).
+
 ## Architectural lenses
 
 ARCH-DRY/PURE: one Python policy/setting/projection owner, Go only renders observed scheduling facts. ARCH-PURPOSE: include queue status and actual weighted admission, not just a comparator. ARCH-MOCK: reuse stateful Go grant provider and private real process/flock cohort. ARCH-CONSTRAINTS: linear extra work and bounded observation. ARCH-SECURE: inspection never mutates capacity/grants; malformed ages cannot grant priority. ARCH-ORDER: immutable age plus existing allocation/global gates, explicit unknown observations. ARCH-FUNERAL: existing ticket/slot lifetimes, no new persistent family. ARCH-EVOLVE: additive age metadata, unknown members retained, frozen status JSON untouched.

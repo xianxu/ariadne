@@ -34,7 +34,7 @@ func suiteQueueHelperFixture(t *testing.T, script string) string {
 }
 
 func TestSuiteQueueObservationUsesSupplier(t *testing.T) {
-	root := suiteQueueHelperFixture(t, "import sys\nassert sys.argv[1:] == ['inspect']\nprint("+quoteHelperShell(suiteQueueFixture)+")\n")
+	root := suiteQueueHelperFixture(t, "import sys\nassert sys.argv[1:] == ['inspect', '--supervised']\nprint("+quoteHelperShell(suiteQueueFixture)+")\n")
 	got := observeSuiteQueue(context.Background(), root)
 	if !got.Available || len(got.Tickets) != 3 || got.PolicySeconds != 3600 {
 		t.Fatalf("observation: %+v", got)

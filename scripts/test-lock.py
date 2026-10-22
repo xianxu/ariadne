@@ -904,8 +904,12 @@ PROTOCOL_LIMIT = 64 << 10
 PROVIDER_TIMEOUT = 2
 
 
-def query_priority(provider, request, describe=None):
-    """Bounded read-only provider invocation; terminate/reap the whole group."""
+def query_priority(provider, request, describe=None, *, own_group=True):
+    """Bounded provider call; a supervised inspector shares its owner's group.
+
+    The external supervisor kills the inherited group on every exit/cancellation.
+    Standalone calls own a detached provider group and reclaim descendants here.
+    """
     data = json.dumps(request).encode()
     if len(data) > PROTOCOL_LIMIT:
         raise ValueError("priority request exceeds 64 KiB")
@@ -917,7 +921,7 @@ def query_priority(provider, request, describe=None):
         source.write(data)
         source.seek(0)
         process = subprocess.Popen(argv, stdin=source, stdout=subprocess.PIPE,
-                                   stderr=subprocess.DEVNULL, start_new_session=True)
+                                   stderr=subprocess.DEVNULL, start_new_session=own_group)
         try:
             output = bytearray()
             end = time.monotonic() + PROVIDER_TIMEOUT
@@ -943,7 +947,10 @@ def query_priority(provider, request, describe=None):
             return result
         finally:
             with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
+                if own_group:
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()  # The supervisor owns group-wide teardown.
             process.wait()
             process.stdout.close()
 
@@ -1402,19 +1409,25 @@ def main():
     ap.add_argument("cmd", choices=["acquire", "inspect"])
     ap.add_argument("--watch", type=int, help="pid whose exit releases the lock (make); required for acquire")
     ap.add_argument("--slots", type=int, default=1, help="this suite's weight: slots it takes at once (#346)")
+    ap.add_argument("--supervised", action="store_true",
+                    help="inspect only: external caller owns process-group cleanup")
     args = ap.parse_args()
-    if args.cmd == "inspect":
-        provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
-        print(json.dumps(inspect_queue(lock_paths()[0], GrantEvidence(provider))))
-        return
-    if args.watch is None:
-        ap.error("acquire requires --watch")
-    # local-check cancellation uses SIGTERM. Unwind owned provider/ticket
-    # resources before exiting, just as KeyboardInterrupt does for SIGINT.
+    if args.supervised and args.cmd != "inspect":
+        ap.error("--supervised requires inspect")
+    # Both standalone commands unwind their owned provider groups on SIGTERM.
+    # Supervised inspection also survives forced cancellation through its
+    # external owner, which tears down the inherited process group.
     def terminate(signum, _frame):
         raise SystemExit(128 + signum)
     signal.signal(signal.SIGTERM, terminate)
+    if args.cmd == "inspect":
+        provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
+        query = lambda provider, request: query_priority(provider, request, own_group=not args.supervised)
+        print(json.dumps(inspect_queue(lock_paths()[0], GrantEvidence(provider, query=query))))
+        return
+    if args.watch is None:
+        ap.error("acquire requires --watch")
     print(acquire(args.watch, args.slots))
 
 

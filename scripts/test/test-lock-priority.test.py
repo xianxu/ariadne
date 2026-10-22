@@ -817,9 +817,26 @@ class SuiteAgingResources(unittest.TestCase):
             json.dumps(got, allow_nan=False)
             self.assertEqual(Path(ticket.path).read_bytes(), replacement)
 
+    def test_provider_supervision_has_one_process_group_owner(self):
+        provider = self.root / 'group-provider'
+        provider.write_text('#!/usr/bin/env python3\nimport json,os\nprint(json.dumps(dict(version=1,pid=os.getpid(),group=os.getpgrp())))\n')
+        provider.chmod(0o755)
+        standalone = module.query_priority(str(provider), {'version': 1})
+        self.assertEqual(standalone['pid'], standalone['group'])
+        supervised = module.query_priority(str(provider), {'version': 1}, own_group=False)
+        self.assertEqual(supervised['group'], os.getpgrp())
+        self.assertNotEqual(supervised['pid'], supervised['group'])
+        for result in (standalone, supervised):
+            with self.assertRaises(ProcessLookupError):
+                os.kill(result['pid'], 0)
+        invalid = subprocess.run(['python3', str(HELPER), 'acquire', '--supervised', '--watch', str(os.getpid())],
+                                 capture_output=True, text=True)
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertIn('requires inspect', invalid.stderr)
+
     def test_inspection_cli_and_acquire_watch_contract(self):
         env = dict(os.environ, WF_TEST_LOCK_FILE=self.base)
-        result = subprocess.run(['python3', str(HELPER), 'inspect'], env=env, capture_output=True, text=True)
+        result = subprocess.run(['python3', str(HELPER), 'inspect', '--supervised'], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)['tickets'], [])
         missing = subprocess.run(['python3', str(HELPER), 'acquire'], capture_output=True, text=True)

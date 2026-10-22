@@ -71,6 +71,14 @@ Python and Go implementations are complete. New final-watcher lifecycle regressi
 
 Built clean d7136fdce2100bff36eb271c9a4f00bd455c6232 (vcs.modified=false). Built-binary read-only queue status exited0, showed GRANT_MAX_WAIT_SECONDS=3600 (60min), sixteen live waiters with unknown legacy ages and their protected FIFO prefix through ticket130. That observation does not retrofit the old waiting helper processes. The private mixed-weight/renewed-grant cohort and final watcher metadata conformance both passed (2 tests,8.314s) using that clean binary as production provider. Raw build/status/completion evidence and source blob pins are committed in [suite aging evidence](../plans/000560-suite-aging-evidence.md). No live mutation, stage or forced cutover. Next: push this checkpoint and queue the recorded suite on its exact head; close/review after the suite, then enter merge on SHIP.
 
+### 2026-10-22 — BR-1 real-inspector cancellation ownership
+
+Close round1 returned REWORK on BR-1 (Critical, subprocess-cancellation-ownership). Independent review and a new production-path regression confirmed the provider escapes the inspector's Go-owned group through start_new_session=True. Real inspect cancellation/deadline left both provider and child running (RED7.063s); completion and provider-timeout controls passed. Supported cancel retired queued suite lease-1847011191 before execution; no passing suite is claimed and no same-head retry is attempted. TL approved supervised inspector ownership (delivery8b559327-691f-45b5-96c7-c1f7bc383c1e). Fix under way; fresh verification and suite required on fixed code.
+
+### 2026-10-22 — BR-1 fixed and verified
+
+The approved supervised mode now keeps provider descendants in the external Go-owned helper group; standalone queries still own detached groups, and the existing SIGTERM-unwind handler covers both standalone commands. The actual-inspector cancel/deadline/completion/provider-timeout regression and broader Go suite/queue/helper selection PASS77.260s. Python ownership/core/resource/evidence23 tests PASS0.689s; pause18 tests PASS4.222s. New review required to dispose BR-1; no close finalized yet. Old queued suite is fully retired, terminal63074 exited1 as intentional cancellation before execution. Next: clean build and conformance refresh, push fixed checkpoint, start one fresh recorded suite, then repeat close review with that suite queued.
+
 ## Revisions
 
 ### 2026-10-22 — approved aging policy and60-minute threshold
@@ -80,6 +88,10 @@ TL approved immutable monotonic enqueue age under the allocation lock, FIFO pref
 ### 2026-10-22 — plan-quality refinement
 
 First change-code review accepted the design but blocked on PQ-1 (function-level test contract). Consolidated repeated case inventories into one strategy/independent guard per named risky function. Corrected PQ-2: existing holder reads are bounded, existing ticket/slot writers are not; this issue bounds inspection without expanding writer scope. No production code changed; rerun plan-quality.
+
+### 2026-10-22 — approved supervised observation lifetime
+
+BR-1 extends the already-required bounded observation lifecycle across the real provider seam. The Go-launched inspect command is explicitly supervised; its provider and descendants inherit the Go-owned helper process group, matching the existing drop-cost pattern. Python supervised cleanup kills/reaps the provider leader without targeting its shared group; Go unconditionally collects that whole group on return, cancellation or deadline. Standalone callers retain their detached provider cleanup. Add actual-inspector cancel, deadline, completion and provider-timeout regressions. No new scheduling policy, durable state or status JSON field. TL approved this refinement before implementation.
 
 ## Estimate
 

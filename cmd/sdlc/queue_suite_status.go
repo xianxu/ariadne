@@ -78,6 +78,8 @@ func decodeSuiteQueue(raw []byte) (suiteQueueObservation, error) {
 // observeSuiteQueue resolves the same workflow supplier as make/local-check.
 // The Python owner handles clocks, ticket liveness, grants and ordering. Its
 // bounded inspect operation creates no queue resources and never takes slots.
+// Supervised provider children inherit this group, so one owner collects the
+// complete tree even when cancellation cannot run Python finally blocks.
 func observeSuiteQueue(parent context.Context, root string) suiteQueueObservation {
 	unavailable := func(err error) suiteQueueObservation { return suiteQueueObservation{Reason: err.Error()} }
 	if err := parent.Err(); err != nil {
@@ -95,7 +97,7 @@ func observeSuiteQueue(parent context.Context, root string) suiteQueueObservatio
 	defer cancel()
 	capture := &helperHelpCapture{cancel: cancel, limit: suiteQueueOutputLimit}
 	stdout, stderr := &helperHelpWriter{capture: capture}, &helperHelpWriter{capture: capture}
-	cmd := exec.CommandContext(ctx, "python3", helper, "inspect")
+	cmd := exec.CommandContext(ctx, "python3", helper, "inspect", "--supervised")
 	cmd.Dir = root
 	processgroup.Configure(cmd)
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
