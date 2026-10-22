@@ -569,3 +569,43 @@ func TestVerifyLegacyAdoptionUnmarkedActiveDoneHasNoArchiveFallback(t *testing.T
 		t.Fatalf("active record inherited archive-only fallback: %v %v", end, err)
 	}
 }
+
+// Echo's native --follow capture followed a 1%-similar project template past
+// the issue's creation. Keep the real Git heuristic in this regression.
+func TestLegacyCompletionProofDoesNotFollowUnrelatedTemplate(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit())
+	f := legacyProofFixture{t: t, root: root, active: "workshop/issues/000001-example.md", archive: "workshop/history/issues/000001-example.md"}
+	common := "---\nid: 000001\nstatus: working\ncreated: 2026-01-01\nstarted: 2026-01-01T00:00:00Z\nactual_hours: 0.80\n---\n\n# Example\n\n## Problem\n\nLegacy fixture.\n"
+	writeRepoFile(t, root, "workshop/projects/control-board.md", common+strings.Repeat("Project-only context.\n", 30))
+	f.commit("project template")
+	writeRepoFile(t, root, f.active, common+strings.Repeat("Issue-only context.\n", 30))
+	f.commit("create issue from template")
+	f.base = f.head()
+	close := f.close(true)
+	f.terminal()
+	capture := testfix.Git(t, root, "log", "--topo-order", "--full-history", "--follow", "-M1%", "--format=@@%H", "--name-only", "HEAD", "--", f.archive)
+	if !strings.Contains(capture, "workshop/projects/control-board.md") {
+		t.Fatalf("fixture did not reproduce Echo's false template ancestry: %s", capture)
+	}
+	proof, err := f.resolve()
+	if err != nil || !proof.HasCompletion || proof.Completion.EvidenceCommit != close {
+		t.Fatalf("real archive rename lost its close through unrelated template history: %+v, %v", proof, err)
+	}
+}
+
+func TestLegacyHistoryIssueBirthChecksEveryParent(t *testing.T) {
+	f := newLegacyProofFixture(t)
+	birth, err := legacyHistoryIssueBirth(context.Background(), f.root, legacySourceState{commit: f.head(), path: f.active})
+	if err != nil || !birth {
+		t.Fatalf("new issue path not proved: %v %v", birth, err)
+	}
+	withIssue := f.head()
+	testfix.Git(t, f.root, "checkout", "-qb", "without-issue", withIssue+"^")
+	writeRepoFile(t, f.root, "unrelated", "main work")
+	f.commit("other parent")
+	testfix.Git(t, f.root, "merge", "-q", "--no-edit", "main")
+	birth, err = legacyHistoryIssueBirth(context.Background(), f.root, legacySourceState{commit: f.head(), path: f.active})
+	if err != nil || birth {
+		t.Fatalf("path present in second parent mistaken for creation: %v %v", birth, err)
+	}
+}

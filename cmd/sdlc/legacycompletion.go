@@ -75,7 +75,9 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 		return out, err
 	}
 	out.Adoption = issue.LegacyAdoption{Repository: repository, SourceMain: sourceMain, SourcePath: source.Path, SourceBlob: blob, WindowClass: issue.LegacyWindowlessTerminal}
-	// --follow performs one bounded history walk, including a real archive rename.
+	// --follow performs one bounded history walk, including a real archive
+	// rename. The low threshold preserves identity checks across heavily edited
+	// archives; a copied non-issue template is bounded by a proven issue birth.
 	history, err := ownedActualGit(ctx, root, "--literal-pathspecs", "log", "--topo-order", "--full-history", "--follow", "-M1%", "--format=@@%H", "--name-only", "--max-count="+strconv.Itoa(legacyCompletionHistoryLimit+1), sourceMain, "--", source.Path)
 	if err != nil {
 		return out, err
@@ -85,7 +87,7 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 		return fail("source history exceeds complete-history bound")
 	}
 	var states []legacySourceState
-	for _, block := range blocks {
+	for blockIndex, block := range blocks {
 		lines := strings.Split(strings.TrimSpace(block), "\n")
 		if len(lines) == 0 || lines[0] == "" {
 			continue
@@ -107,6 +109,26 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 			}
 		}
 		if p == "" {
+			// Git --follow may treat an issue created from a project template
+			// as a copy and continue into that project's history (Echo #1).
+			// Stop only after proving creation at the last issue observation;
+			// a missing path within an existing generation still refuses.
+			if len(states) > 0 {
+				birth, e := legacyHistoryIssueBirth(ctx, root, states[len(states)-1])
+				if e != nil {
+					return out, e
+				}
+				if birth {
+					for _, remaining := range blocks[blockIndex:] {
+						for _, candidate := range strings.Split(strings.TrimSpace(remaining), "\n")[1:] {
+							if _, _, valid := issue.ParseFilename(path.Base(candidate)); valid {
+								return fail("ambiguous issue ancestry beyond its creation")
+							}
+						}
+					}
+					break
+				}
+			}
 			return fail("source history lost its path")
 		}
 		text, e := ownedActualGit(ctx, root, "show", lines[0]+":"+p)
@@ -233,6 +255,30 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 		return out, nil
 	}
 	return out, nil
+}
+
+// legacyHistoryIssueBirth proves the path was absent in every parent of its
+// oldest issue observation. This bounds --follow's heuristic copy ancestry;
+// neither similarity nor a missing name in log output proves a new generation.
+func legacyHistoryIssueBirth(ctx context.Context, root string, state legacySourceState) (bool, error) {
+	parents, err := ownedActualGit(ctx, root, "rev-list", "--parents", "-n", "1", state.commit)
+	if err != nil {
+		return false, err
+	}
+	parts := strings.Fields(parents)
+	if len(parts) == 0 || parts[0] != state.commit {
+		return false, fmt.Errorf("invalid issue creation ancestry")
+	}
+	for _, parent := range parts[1:] {
+		present, err := ownedActualGit(ctx, root, "--literal-pathspecs", "ls-tree", "--name-only", parent, "--", state.path)
+		if err != nil {
+			return false, err
+		}
+		if present != "" {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func fullLegacyOID(s string) bool {
