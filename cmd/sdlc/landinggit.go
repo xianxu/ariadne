@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
@@ -73,17 +74,22 @@ func (r boundedLandingGitRunner) run(dir string, currentDir bool, args ...string
 		processgroup.Configure(cmd)
 		cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 		cmd.WaitDelay = time.Second
-		out, err := runGitCmd(cmd)
+		out, diagnostic, err := runGitCmdRaw(cmd)
 		// WaitDelay closes inherited pipes; it does not kill their owners.
 		// Also reclaim descendants whose parent exited successfully.
 		_ = processgroup.Terminate(cmd, true)
 		if ctx.Err() != nil {
 			err = errors.Join(ctx.Err(), err)
 		}
-		return out, err
+		if err != nil {
+			return append(out, diagnostic...), gitx.ClassifyNetworkFailure(args, diagnostic, err)
+		}
+		return out, nil
 	default:
-		// Deterministic fakes retain their existing interface and observations.
-		// Production subprocess execution above is the lifetime boundary.
+		// This injected seam supplies raw results, including raw process causes;
+		// it must not preclassify errors before this owner's final context check.
+		// All production callers use the concrete subprocess path above (nested
+		// bounded runners are unwrapped by the constructor).
 		var out []byte
 		var err error
 		if currentDir {

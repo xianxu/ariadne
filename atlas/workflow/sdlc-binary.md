@@ -1040,6 +1040,34 @@ ref fake at that same boundary and real bare-Git fixtures in normal test runs,
 including receive-pack races, remote rewinds, lost acknowledgments, identical
 candidate commits, conflicts and retries after later edits or reverts.
 
+## Network incidents
+
+`sdlc net check` (`cmd/sdlc/net.go`, `internal/netcheck`) compares native system
+DNS with direct DNS through dig's configured server, and attempts HTTPS to the
+Git host from one address on each path. TLS hostname verification remains on;
+no redirects, credentials, proxies, cache edits or remote Git mutations occur.
+An HTTP response establishes reachability, not application service health.
+The configured publication remote selects the default effective fetch host;
+`--remote` selects another remote, and `--host` works outside a repository.
+Distinct push hosts receive a separate check hint. github.com includes
+api.github.com DNS; `--api-host` selects another explicit DNS-only observation.
+
+The command owns an eight-second total budget, at most four path jobs,
+two-second native utility bounds and three-second HTTPS bounds. SIGINT/SIGTERM
+use executeCLI's signal owner and each utility's process group; all work joins
+before return. Missing utilities, partial failures and timeouts remain
+observations rather than inferred upstream outages. Private TLS/subprocess
+controls and a stateful probe fake cover address provenance and shutdown.
+
+`gitx.ClassifyNetworkFailure` is a pure shared adapter for the main Git runner,
+internal contextual and legacy runners, and weekly inputs. Recognized
+transport diagnostics become `infrastructure: network` with a safe host and
+exact net-check command, retaining original error identity and publication
+uncertainty. Ordinary auth/ref/hook/local failures and user cancellation are
+unchanged. No probes or retries run inside failed Git paths, and local-check
+preparation failures do not produce test verdicts. TL/worker help owns prompt
+incident escalation and recovery notices; see [TL tooling](tl-skills.md).
+
 ## Drift checks (`sdlc state`)
 
 `state` gates nothing — it reports. `detectDrift` (state.go) surfaces warn-only
@@ -2069,9 +2097,29 @@ failure/flake decisions.
 
 Rollout rebuilds central :0, then lets old runners finish/relaunch; legacy
 activity remains named unknown until that boundary is proved. Managed suites
-own cancellation through processgroup cleanup. A direct make watcher alone
-only proves one PID ended, so an unproved descendant boundary stays unknown
-for operator reconciliation. No shared process group is signalled. The
+own cancellation through processgroup cleanup. A direct make watcher registers
+an exact-incarnation exit observer before acknowledging acquisition (#539).
+On Darwin, a positively observed exit status 0 plus an empty private make
+process group (`pgid == make pid`) permits normal retirement. The watcher
+detaches its own session and takes one bounded native group snapshot after
+exit; it never scans process inventories in its polling or admission loop.
+This boundary covers the shell job's group, not descendants that deliberately
+escape into another session. A nonzero or unobserved status, survivor,
+shared/unknown group, failed observation, cancellation or watcher crash keeps
+the lifetime unresolved. Hosts without native nonparent exit-status support
+keep the conservative unresolved behavior. No shared process group is signalled.
+
+Known endings retain `exit_observed_at` (observation time, not a reconstructed
+kernel exit time), known status and bounded survivor PIDs in the tombstone's
+additive fields and status detail. Normal retirement appends and fsyncs one
+diagnostic line to `completion.jsonl` beside the reconciliation audit before
+committing finished phase and deleting the operation. Each completion line is
+bounded to 1 KiB; like reconciliation, it has no expiry (at most 1 KiB lasting
+growth per direct completion). It is not suite-pass or admission evidence.
+Old tombstones lacking exit evidence remain unknown; there is no retroactive
+promotion. A Couch restart does not end the independent watcher, whereas loss
+of the watcher before its durable terminal transition requires reconciliation.
+The
 supervisor notice/ack formatter belongs to pair#722, while tl-worker describes
 the checkpoint discipline. Its recorded-check continuation/restart rule (#525)
 owns safe timing, hub-first context-pressure recovery, and post-restart retained

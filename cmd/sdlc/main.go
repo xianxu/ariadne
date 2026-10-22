@@ -74,13 +74,16 @@ func main() {
 	}
 }
 
-// Only reviewer commands take ownership of signal shutdown: their isolated
-// subprocess groups must be cancelled and reaped before the CLI exits. Other
-// commands retain their existing signal behavior, including Git/network tools
-// whose runners do not yet consume contexts.
+// Reviewer commands and net check own signal shutdown: their isolated process
+// groups must be cancelled and reaped before the CLI exits. Other commands
+// retain their existing signal behavior, including legacy Git callers whose
+// runners do not yet consume contexts.
 type cliSignalContextKey struct{}
 
 func cliOwnsReviewSignals(cmd *cobra.Command) bool {
+	if cmd.Name() == "check" && cmd.Parent() != nil && cmd.Parent().Name() == "net" {
+		return true
+	}
 	switch cmd.Name() {
 	case "change-code", "close", "milestone-close", "judge", "usage", "calibrate":
 		return true
@@ -167,6 +170,7 @@ func buildRoot() *cobra.Command {
 	add(newFlakeCmd(), "", "Register known flaky tests on their issues; list the daily flake view (#394)")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
+	add(NewNetCmd(), "net", "Compare system/direct DNS and HTTPS for a network incident")
 	add(NewMoveCmd(), "move", "Move this slot's issue branch into another slot (default :0)")
 	add(NewStageCmd(), "stage", "Put this slot's HEAD on another slot (default :0) as a detached commit for a smoke test")
 	add(NewReclaimCmd(), "reclaim", "Operator-directed transfer of an issue's responsibility to this workspace (#278)")

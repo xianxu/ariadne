@@ -85,6 +85,41 @@ func TestOperationCodecRoundTripAndStrictTypes(t *testing.T) {
 	}
 }
 
+func TestDirectSuiteExitEvidenceSurvivesGoRewrite(t *testing.T) {
+	for _, id := range directSuiteFixtureIDs {
+		t.Run(id, func(t *testing.T) {
+			_, op := directSuiteFixture(t, id)
+			evidence := directSuiteExitEvidence(op.PID)
+			op.Extra = evidence
+			raw, err := EncodeOperation(op)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := DecodeOperation(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertDirectSuiteEvidence(t, decoded, evidence)
+			rewritten, err := TransitionOperation(decoded, "unknown")
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err = EncodeOperation(rewritten)
+			if err != nil {
+				t.Fatal(err)
+			}
+			again, err := DecodeOperation(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertDirectSuiteEvidence(t, again, evidence)
+			if again.ID != op.ID || again.PID != op.PID || again.PIDStarted != op.PIDStarted || again.BootID != op.BootID {
+				t.Fatalf("Go rewrite changed original incident identity: %+v", again)
+			}
+		})
+	}
+}
+
 func TestCodecPreservesUnknownValueBytesAndRejectsInvalidUTF8(t *testing.T) {
 	raw := []byte(`{"schema_version":1,"pause_owners":[],"future": { "value" : 1e99999 } }`)
 	c, err := DecodeControl(raw)
