@@ -1448,6 +1448,22 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
+- #546: inventory completeness and import authority are separate. Observe all
+  current carriers first; keep archive evidence out of active rename inputs,
+  and preserve related-branch merge-base semantics. A stricter path classifier
+  must not silently hide filename bytes accepted by ParseFilename. Pure matching
+  tests and native root × scope/preservation regressions guard this semantic
+  contract; helper-name lint cannot establish publication completeness.
+- #546 PQ-1: use exact production function names in plan strategy tables and
+  one adversarial class plus independent guard per function. Keep finite test
+  input enumerations in executable tests rather than duplicating them in prose.
+
+- #546 recorded suite: a stricter, intended preflight can make an unrelated
+  regression fail in fixture setup before reaching its original guard. Align
+  prerequisite evidence with the new contract while preserving the exact old
+  refusal and no-mutation oracle; do not weaken production policy or label a
+  reproducible fixture failure a flake. Exercise helper tests through the live
+  consumer path instead of retaining unused compatibility code solely for tests.
 - #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
 
 - #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.

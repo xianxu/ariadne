@@ -73,7 +73,7 @@ func TestMigrationInventoryPinsIssueAndAnchorReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	refs, err := migrationBranchRefs(env, main.Ref())
+	refs, err := publicationBranchTips(env, main.Ref())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestMigrationInventoryFetchOnlyOwnHeadsMapping(t *testing.T) {
 	if err := os.WriteFile(fetchHead, sentinel, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := migrationBranchRefs(env, main.Ref()); err != nil {
+	if _, err := publicationBranchTips(env, main.Ref()); err != nil {
 		t.Fatal(err)
 	}
 	if r.git("rev-parse", "refs/tags/retained") != main.Ref() || r.git("rev-parse", "refs/remotes/unrelated/keep") != main.Ref() {

@@ -8,8 +8,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
-// Init needs every publication-branch category, including names migration
-// deliberately excludes from its difference/import policy. These assertions
+// Init and migration need every publication-branch category. These assertions
 // exercise observation and conservative presence independently of CLI recovery
 // exceptions for an already verified tracker.
 func TestIssueInitObservesEveryPublicationRefCategory(t *testing.T) {
@@ -100,16 +99,20 @@ func TestIssueInitObservesEveryPublicationRefCategory(t *testing.T) {
 				if err = verifyInitializationEmpty(env, main.Ref()); err == nil || !strings.Contains(err.Error(), "issue migrate") {
 					t.Errorf("presence gate did not refuse %s issue evidence: %v", category.ref, err)
 				}
-				// Migration keeps its existing semantic exclusion list; sharing a complete
-				// observer must not expand its importer or changed-file policy.
-				filtered, err := migrationBranchRefs(env, main.Ref())
+				// Both consumers use this complete observation before their own
+				// presence/import policies; no category disappears in a wrapper.
+				inventory, err := observeIssueInventory(env, main.Ref())
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, ref := range filtered {
-					if ref.Name == category.ref {
-						t.Errorf("migration policy unexpectedly included excluded %s", category.ref)
+				included := false
+				for _, ref := range inventory.Tips {
+					if ref.Name == category.ref && ref.OID == tip {
+						included = true
 					}
+				}
+				if !included {
+					t.Errorf("shared inventory omitted %s at %s", category.ref, tip)
 				}
 				if r.originMain() != beforeMain {
 					t.Fatal("observation/presence gate changed published main")
