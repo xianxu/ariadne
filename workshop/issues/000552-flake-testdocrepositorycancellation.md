@@ -65,7 +65,7 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
 - [x] Retain the recorded empty-PID failure and add a barrier-controlled regression; observe RED with direct publication.
 - [x] Publish the fixture PID by sibling staging/close/rename, release the barrier, and verify complete readiness plus the existing cancellation controls.
 - [x] Sweep sibling readiness consumers and review a mechanically sound lint guard with the hub; avoid a lexical rule that confuses safe validating readers with this race.
-- [ ] Run targeted tests and the recorded pushed-head suite, retaining their proof for close and landing.
+- [x] Run targeted tests and the recorded pushed-head suite, retaining their proof for close and landing.
 
 ## Log
 
@@ -119,6 +119,23 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
   head and log hash, tick the last verification checkbox, and close again to dispose of BR-1. Then
   mark draft PR399 ready, publish the close head and enter canonical sdlc merge; after landing verify
   TestDocRepositoryCancellation is absent from the flake registry. No full-suite pass is claimed yet.
+
+### 2026-10-22 — recorded final-code suite proof (BR-1)
+
+- PASS on code head 1603ce1215d805c4d1d63be9c936df8bdaeba65f, attempt
+  ffa80947944ff752aeb1b94024e0d3ca: all eight shards, 2254 SDLC tests and 76 other packages, zero
+  failures, wall 1530.212445417s (25m30s). Outcome passed, exit 0, timed_out=false, main_baseline=false;
+  no flake retry or allowance. Queue 6870.713529s; finished 2026-10-22T18:49:43.700129Z.
+- Retained raw-log SHA256 7114aad7dad5d6a7a2ca01404387df490db49a9ec5e85666e8e85df41a710696,
+  path local-checks/1603ce1215d805c4d1d63be9c936df8bdaeba65f/suite.log under the Git common
+  directory's sdlc store. Read the saved attempt JSON directly and confirmed the matching GitHub
+  sdlc-local/suite status is success, created 2026-10-22T18:49:44Z, with the same duration/log digest.
+  The remote proof is independently readable using gh api
+  repos/xianxu/ariadne/commits/1603ce1215d805c4d1d63be9c936df8bdaeba65f/status.
+- Git confirms every later branch change is issue/review bookkeeping only; tested executable and
+  fixture bytes remain exactly those reviewed and tested at 1603ce1215d805c4d1d63be9c936df8bdaeba65f.
+  The recorded run retired normally. All pre-close verification checkboxes are now earned; submit
+  this proof to dispose of BR-1 without changing the implementation or repeating the full suite.
 
 ## Revisions
 
