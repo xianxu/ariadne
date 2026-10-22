@@ -1,13 +1,13 @@
 ---
 id: 000536
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.27
 collaboration-mode: collaboration
-card_mirror: '97c37eebd3541dcba599e990a4475d535a4f1c09' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8069866fa847d8f72ecea47d74bec78ce53a20d6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T01:19:13-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.43
 ---
 
 # local-check: bootstrap a repo with no declaration on main (managed default suite), so first-declaration PRs don't need a direct make test
