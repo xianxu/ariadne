@@ -33,3 +33,48 @@ func TestWorkingdocBlockBoundaryMarkersRefuseBeforeEffects(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkingdocSettlePreservesLiteralExamples(t *testing.T) {
+	for _, tc := range workingdocLiteralExamples() {
+		t.Run(tc.name, func(t *testing.T) {
+			source, ss, repo, d := newWorkingdocFixture(t)
+			before, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before = append(before, []byte("\n"+tc.body+"\n[live](../README.md)\n")...)
+			if err := os.WriteFile(source, before, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(repo.root, "README.md"), []byte("Repository"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			result, err := settleWorkingdoc(context.Background(), d, repo, repo.root, source, "")
+			if err != nil || !result.Published || !result.Stamped {
+				t.Fatalf("settle: %+v %v", result, err)
+			}
+			want := bytes.ReplaceAll(before, []byte("[live](../README.md)"), []byte("[live](../../README.md)"))
+			if !bytes.Equal(repo.current[result.Target], want) {
+				t.Fatalf("published code changed: got %q want %q", repo.current[result.Target], want)
+			}
+			copy, err := os.ReadFile(filepath.Join(repo.root, result.Target))
+			if err != nil || !bytes.Equal(copy, want) {
+				t.Fatalf("prepared copy differs: %q %v", copy, err)
+			}
+			stamped, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			meta, err := parseWorkingdoc(string(stamped))
+			if err != nil || meta.Pointer == nil {
+				t.Fatalf("stamp: %v", err)
+			}
+			if string(stamped[:meta.pointerStart])+string(stamped[meta.pointerEnd:]) != string(before) || ss.stamps != 1 || repo.publishes != 1 {
+				t.Fatal("source body changed or effects duplicated")
+			}
+			if _, err := settleWorkingdoc(context.Background(), d, repo, repo.root, source, ""); err != nil || repo.publishes != 1 {
+				t.Fatalf("identical retry: %v publishes=%d", err, repo.publishes)
+			}
+		})
+	}
+}

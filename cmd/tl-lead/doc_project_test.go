@@ -58,3 +58,27 @@ func FuzzWorkingdocPointerPathRoundTrip(f *testing.F) {
 		}
 	})
 }
+
+func workingdocLiteralExamples() []struct{ name, body string } {
+	return []struct{ name, body string }{
+		{"multiline span", "`example\n[example](../README.md)\nend`\n"},
+		{"indented code", "    [example](../README.md)\n"},
+		{"list fence", "- ```\n  [example](../README.md)\n  ```\n"},
+		{"blockquote fence", "> ```\n> [example](../README.md)\n> ```\n"},
+		{"ordinary fence", "```markdown\n[example](../README.md)\n```\n"},
+		{"inline code", "An example: `[example](../README.md)`.\n"},
+	}
+}
+
+func TestWorkingdocProjectionPreservesLiteralExamples(t *testing.T) {
+	for _, tc := range workingdocLiteralExamples() {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "---\ntype: workingdoc\n---\n" + tc.body + "\n[live](../README.md)\n"
+			want := "---\ntype: workingdoc\n---\n" + tc.body + "\n[live](../../README.md)\n"
+			got, warnings, err := projectWorkingdoc(source, "session.side/direction.md", "workshop/workingdoc/direction.md", func(string) bool { return true })
+			if err != nil || got != want || len(warnings) != 0 {
+				t.Fatalf("literal changed or ordinary link not rebased: got %q want %q warnings=%v err=%v", got, want, warnings, err)
+			}
+		})
+	}
+}

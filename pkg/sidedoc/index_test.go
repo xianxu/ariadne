@@ -20,6 +20,20 @@ func TestSideLinks(t *testing.T) {
 	}
 }
 
+func TestSideLinksExcludesActualCodeContexts(t *testing.T) {
+	for _, literal := range []string{
+		"`example\n→ [answer](literal.md)\nend`\n",
+		"    → [answer](literal.md)\n",
+		"- ```\n  → [answer](literal.md)\n  ```\n",
+		"> ```\n> → [answer](literal.md)\n> ```\n",
+	} {
+		got := SideLinks(literal + "\n→ [answer](active.md)\n")
+		if !slices.Equal(got, []string{"active.md"}) {
+			t.Errorf("%q: got %v", literal, got)
+		}
+	}
+}
+
 func TestSideLinksIncludeOnlyEnginePendingMarkers(t *testing.T) {
 	doc := "The release is slow. 🤖{ → \\[proposal\\](design.side/01-release.md)}\n" +
 		"- Ask → [discussion](design.side/02-clean.md) then 🤖{ → \\[answer\\](design.side/03-answer.md)}\n" +

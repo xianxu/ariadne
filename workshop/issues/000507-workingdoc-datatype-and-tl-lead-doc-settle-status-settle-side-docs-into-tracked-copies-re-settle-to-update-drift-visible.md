@@ -87,6 +87,11 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Close round 3 disposed BR-5/6 and returned REWORK with new Critical BR-7 (markdown-literal-preservation): the shared sidedoc.RebaseLinks still uses older line-based literal detection, so multiline spans, indented code and list/blockquote fences can have example links rewritten before successful publication/stamping. Reviewer reproduced four pure/coordinator probes. Per TL instruction, stopped before implementing another mechanism-level correction and reported the concrete shared-boundary proposal to hub. No stage or live effect occurred; awaiting TL decision.
 
+- TL approved BR-7 as completing the existing shared mechanism (ec07e85b-8459-4f68-9338-9b232420fd29). Promoted Goldmark masking to sidedoc.CodeLiteralMask, used by marker scanning, RebaseLinks and SideLinks; deleted old codeSpans and forUnfenced implementations. Link/index public APIs and approved cost scope stay unchanged. Index rebasing is structured frontmatter-only and does not rewrite body examples. Shared tests first failed all four reviewer contexts; the nested-list case also showed an ordinary live link incorrectly skipped by the old fence scanner.
+- Pure projection plus full settlement/retry tests cover the four cases and ordinary-fence/inline controls, exact published bytes, source preservation and live-link rebasing. Removing the shared mask from rebasing failed every pure/coordinator preservation case (mutation exit 1); restored focused controls PASS 0.421s. Shared sidedoc tests PASS 0.155s, focused race PASS 1.356s, reviewexport consumer PASS 0.325s. Any round-four finding outside literal detection will be reported to TL before implementation.
+
+- Combined restored BR-7 checks PASS: cmd/tl-lead 76.228s, cmd/datatype 0.180s, pkg/sidedoc 0.095s, pkg/golint 1.258s. Diff check clean. Checkpointing before a new recorded suite, since shared production code changed after the previous pass.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items

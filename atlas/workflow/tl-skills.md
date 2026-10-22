@@ -9,7 +9,8 @@ that same path. `doc status` compares a shared pure projection with committed
 blobs, distinguishing drift, destination conflicts and unknown evidence.
 
 `doc_model.go`, `doc_project.go` and `doc_markers.go` own metadata, content and
-marker validation. Literal masks come from Goldmark's actual Markdown code nodes;
+marker validation. Literal masks have one shared owner, `sidedoc.CodeLiteralMask`, used by marker
+validation, link rebasing and side-link discovery. They come from Goldmark's actual Markdown code nodes;
 unmatched backticks across paragraphs or containers cannot hide active questions.
 The counted linear work covers our input, AST walk, masks and scanner. Goldmark's
 code-span parser can rescan pathological input; the existing 1 MiB document cap
