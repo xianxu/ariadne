@@ -77,6 +77,7 @@ total: 1.27
 ### 2026-10-21
 
 ### 2026-10-22
+- 2026-10-22: closed — Captured echo#1 refusal now passes through native managed CLI and landing evidence; head custom policy stays inactive, prefixes use exact subjects, original-SHA republish/resume works and absent baseline stays unverified. Recorded suite on 1f7ba34c: 2121 SDLC tests + 76 other packages, 0 failures, 761.1s, log sha256:4457a6349d81. Targeted bootstrap/default/train/probe/baseline/resume controls and Go/shell lint passed; help and atlas updated; hub approved isolated live proof, no :0 stage.; review verdict: SHIP
 
 - Claimed and started from fresh main after #545 landed/reported and hub rebuilt ariadne:0. Existing no-declaration/main-test case is already supported by TestLocalCheckCmd_DefaultSuite; the missing bootstrap case is no main test target. Hub approved exact-subject default only, no head custom declarations or CI substitutions, and requested the real echo regression.
 - Verified echo#1 archived Log and native Git objects read-only: aeee435d3953c60cdd1ab4350e206d0e162646f7 and final pre-merge main 77a0fd6320ccc5ff603c9cfefdb8bb4789486556 share Makefile blob 0e078508dd6066bb3ac059e6a5b649e26a568694 and lack tracked Makefile.local, Makefile.workflow and local-check declaration. Tested head e3965c2c6d79ece162e704d07335b5b883fe9668 adds the test target and first make-test declaration. No echo checkout mutation.
