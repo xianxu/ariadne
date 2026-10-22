@@ -321,3 +321,71 @@ findings:
    Update the latest revision’s instruction to obtain a “narrow post-close review” to require a full `sdlc close` for the expanded implementation. BR-1 and BR-2 remain disposed; neither is re-raised.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"373c21f3-51a9-4b71-b0db-5907bb64fac3","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2b5e00e85b8ca3cd","reviewed_head":"1151135bfd024f4b709f1af158a58ed52f7a2ce9","slot":"ariadne:1","requested_at":"2026-10-22T13:34:21.738757Z"},"phase":"finished","pid":52595,"started_at":"2026-10-22T13:34:21.943766Z","finished_at":"2026-10-22T13:35:45.251725Z","session_id":"01a163d1-e4e0-7e22-ac5b-6e15fd4c4444","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T06:43:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 551 — review box gives the reviewer no dependency checkouts; consumer reviews can't verify substrate claims (echo#9 BR-1 unverifiable) |
+| repo | ariadne |
+| issue file | workshop/issues/000551-review-box-gives-the-reviewer-no-dependency-checkouts-consumer-reviews-can-t-verify-substrate-claims-echo-9-br-1-unverifiable.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | cce05bc3f48f61cb63d010060ad2cb79e5ebd1c2..52ecd86363930418c4f78ec6bf8d8dec8fce0d52 |
+| command | sdlc close --issue 551 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T06:43:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The complete pinned range satisfies the revised dependency-review contract. Dependency snapshots, command bindings, retry behavior, cleanup, and documentation are implemented and covered by passing tests. This full-range review addresses BR-3’s scope objection. The plan’s final integrated suite and Echo live proof remain landing prerequisites; this review does not claim those have completed.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Reviewed the complete pinned base-to-head implementation, including close diagnostics and shell/context changes. The plan at lines 135–137 explicitly supersedes narrow review with full sdlc close. This is a procedural correction requiring no executable fix.
+```
+
+1. **Strengths**
+
+   - Dependency setup reads the reviewed declaration and pins local `origin/main`, with bounded metadata and explicit failures (`cmd/sdlc/reviewdependencies.go:21`).
+   - Ownership tests cover pristine reset, retained pins, cancellation, partial failure, and dead-owner cleanup.
+   - Production-boundary tests read actual pinned fixture bytes through exported reviewer-command bindings.
+   - README and atlas document the new bindings, isolation modes, freshness limitations, and recovery.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed full reviewbox, judge, and layergraph package tests; targeted boundary/dependency/context, local-check/isolation/preparation tests; and Git bounded-output tests. The shell matrix covers Bash, zsh, and POSIX sh. Committed host-fence evidence matches the pinned head’s recorded source blobs; I did not rerun that host measurement. The checkout remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared declaration resolution and environment projection serve both managed checks and reviews.
+   - **ARCH-PURE — pass:** Environment projection, manifest rendering, tree policy, and isolation transforms remain pure; IO stays in preparation and checkout boundaries. Core-concept paths and classifications match.
+   - **ARCH-PURPOSE — pass:** Dependency context reaches prompts, reviewer processes, preparation, and restored command shells.
+   - **ARCH-MOCK — pass:** Existing injectable Git/process seams and portable repository fixtures exercise stateful behavior; host conformance supplies fence evidence.
+   - **ARCH-CONSTRAINTS — pass:** Row, metadata, entry, blob-size, and preparation-time bounds are enforced.
+   - **ARCH-SECURE — pass:** Malformed declarations fail visibly; dependency materialization suppresses inherited hooks/filters and lazy acquisition.
+   - **ARCH-ORDER — pass:** Ownership and contextual retry sequencing preserve pins, stop cancelled retries, and retain cleanup obligations.
+   - **ARCH-FUNERAL — pass:** Child clones reuse locked ownership, Close, and dead-owner Sweep.
+   - **ARCH-EVOLVE — pass:** No persisted format changes; descriptors remain scoped to one review.
+
+7. **Plan revision recommendations:** None. The existing revision explicitly corrects the review scope.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e9de7263-4fab-409d-9504-c9d1d09c7613","repository":"github.com/xianxu/ariadne","issue_id":"000551","recipe":"milestone-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/6023e97fa020ac86","reviewed_head":"52ecd86363930418c4f78ec6bf8d8dec8fce0d52","slot":"ariadne:1","requested_at":"2026-10-22T13:41:02.394072Z"},"phase":"finished","pid":9402,"started_at":"2026-10-22T13:41:02.545952Z","finished_at":"2026-10-22T13:43:39.270502Z","session_id":"01a163d8-0177-7400-97f7-f43cdf37da33","outcome":"returned"}] -->
