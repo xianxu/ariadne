@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -27,17 +30,22 @@ var trunkProseOpen = func(name string) (io.ReadCloser, error) { return os.Open(n
 
 func newTrunkCmd() *cobra.Command {
 	var selected string
+	var options trunkPublishOptions
 	cmd := &cobra.Command{Use: "trunk", Short: "Publish selected non-issue workshop prose to main"}
 	pub := markMutatingCommand(&cobra.Command{
 		Use: "publish --path P", Short: "Publish one dirty workshop prose file to main without an issue-branch commit",
-		Long: "Publish one dirty Markdown file under workshop/parley, pensive, targets or projects, or workshop/lessons.md, to main. Issue details use sdlc issue publish; plans, atlas, code and settings travel with reviewed issue branches. A main edit to the selected path refuses. A retry after an uncertain push reconciles the same local bytes. The local file remains untouched; the command prints exact-path cleanup guidance.",
+		Long: "Publish one dirty Markdown file under workshop/parley, pensive, targets, projects or workingdoc, or workshop/lessons.md, to main. Issue details use sdlc issue publish; plans, atlas, code and settings travel with reviewed issue branches. A main edit to the selected path refuses. A retry after an uncertain push reconciles the same local bytes. The local file remains untouched; the command prints exact-path cleanup guidance.",
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			guardSpineRepo(c.ErrOrStderr())
-			return runTrunkPublish(c.Context(), c.OutOrStdout(), c.ErrOrStderr(), selected)
+			return runTrunkPublishWithOptions(c.Context(), c.OutOrStdout(), c.ErrOrStderr(), selected, options)
 		},
 	})
 	pub.Flags().StringVar(&selected, "path", "", "one repository-relative non-issue workshop Markdown path")
+	pub.Flags().StringVar(&options.ExpectedCommit, "expected-commit", "", "exact ancestor commit supplying the selected path baseline")
+	pub.Flags().StringVar(&options.ExpectedContentSHA256, "expected-content-sha256", "", "SHA-256 of the one captured local payload (64 hex characters)")
+	pub.Flags().BoolVar(&options.ExpectAbsent, "expect-absent", false, "require the remote path to be absent or identical on every publication attempt")
+	pub.Flags().BoolVar(&options.JSON, "json", false, "emit a versioned path/commit receipt after remote readback")
 	cmd.AddCommand(pub)
 	return cmd
 }
@@ -55,7 +63,7 @@ func trunkProsePath(p string) error {
 	if p == "workshop/lessons.md" {
 		return nil
 	}
-	for _, root := range []string{"workshop/parley/", "workshop/pensive/", "workshop/targets/", "workshop/projects/"} {
+	for _, root := range []string{"workshop/parley/", "workshop/pensive/", "workshop/targets/", "workshop/projects/", "workshop/workingdoc/"} {
 		if strings.HasPrefix(p, root) && len(p) > len(root) {
 			return nil
 		}
@@ -147,9 +155,37 @@ func stagedProse(ctx context.Context, root, p string) (bool, error) {
 	return false, fmt.Errorf("check staged path %s: %w", p, err)
 }
 
+type trunkPublishOptions struct {
+	ExpectAbsent          bool
+	ExpectedCommit        string
+	ExpectedContentSHA256 string
+	JSON                  bool
+}
+
+// Keep the original entry point for callers without publication preconditions.
 func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) error {
+	return runTrunkPublishWithOptions(ctx, stdout, stderr, p, trunkPublishOptions{})
+}
+
+func runTrunkPublishWithOptions(ctx context.Context, stdout, stderr io.Writer, p string, options trunkPublishOptions) error {
 	if err := trunkProsePath(p); err != nil {
 		return err
+	}
+	if options.ExpectedCommit != "" {
+		if len(options.ExpectedCommit) != 40 && len(options.ExpectedCommit) != 64 {
+			return fmt.Errorf("expected-commit must be an exact commit SHA")
+		}
+		if _, err := hex.DecodeString(options.ExpectedCommit); err != nil {
+			return fmt.Errorf("expected-commit must be an exact commit SHA: %w", err)
+		}
+	}
+	var expectedHash []byte
+	if options.ExpectedContentSHA256 != "" {
+		var err error
+		expectedHash, err = hex.DecodeString(options.ExpectedContentSHA256)
+		if err != nil || len(expectedHash) != sha256.Size {
+			return fmt.Errorf("expected-content-sha256 must contain exactly 64 hex characters")
+		}
 	}
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
@@ -158,6 +194,12 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 	local, localOK, err := readLocalProse(root, p)
 	if err != nil {
 		return err
+	}
+	if expectedHash != nil {
+		capturedHash := sha256.Sum256(local)
+		if !localOK || !bytes.Equal(capturedHash[:], expectedHash) {
+			return fmt.Errorf("%s does not match expected-content-sha256; local copy retained", p)
+		}
 	}
 	staged, err := stagedProse(ctx, root, p)
 	if err != nil {
@@ -187,6 +229,18 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 	if err != nil {
 		return err
 	}
+	if options.ExpectedCommit != "" {
+		kind, err := gitForProse(ctx, root, "cat-file", "-t", options.ExpectedCommit)
+		if err != nil {
+			return fmt.Errorf("expected-commit must name a commit object: %w", err)
+		}
+		if string(kind) != "commit" {
+			return fmt.Errorf("expected-commit must name a commit object, got %s", kind)
+		}
+		if err := requireProseAncestor(ctx, root, options.ExpectedCommit, view.Ref()); err != nil {
+			return err
+		}
+	}
 	headBytes, headOK, err := proseAt(tf.ViewOf(string(head)), p)
 	if err != nil {
 		return err
@@ -198,23 +252,41 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 		if headOK {
 			return fmt.Errorf("%s is deleted locally; deletion is not supported by trunk publish", p)
 		}
+		if options.JSON {
+			return fmt.Errorf("%s has no local payload to confirm", p)
+		}
 		fmt.Fprintf(stdout, "%s: already clean\n", p)
 		return nil
 	}
-	if headOK && bytes.Equal(local, headBytes) {
+	if headOK && bytes.Equal(local, headBytes) && !options.JSON && options.ExpectedCommit == "" && expectedHash == nil && !options.ExpectAbsent {
 		fmt.Fprintf(stdout, "%s: already clean\n", p)
 		return nil
+	}
+	if options.ExpectedCommit != "" {
+		base, baseOK, err = proseAt(tf.ViewOf(options.ExpectedCommit), p)
+		if err != nil {
+			return err
+		}
 	}
 	if err := verifyAssetAttributes(ctx, root, p); err != nil {
 		return err
 	}
 	msg := "trunk: publish " + p
 	err = tf.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		if options.ExpectedCommit != "" {
+			if err := requireProseAncestor(ctx, root, options.ExpectedCommit, v.Ref()); err != nil {
+				return gitx.TrunkWrite{}, err
+			}
+		}
 		current, present, err := proseAt(v, p)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
-		if prosePublishDecision(local, localOK, base, baseOK, current, present) == publishRefuse {
+		if options.ExpectAbsent {
+			if present && !bytes.Equal(current, local) {
+				return gitx.TrunkWrite{}, fmt.Errorf("first publication conflicts with existing %s", p)
+			}
+		} else if prosePublishDecision(local, localOK, base, baseOK, current, present) == publishRefuse {
 			return gitx.TrunkWrite{}, fmt.Errorf("%s changed on main since this branch's base; reconcile it there before retrying", p)
 		}
 		if err := verifyAssetAttributesAt(ctx, root, p, v.Ref()); err != nil {
@@ -237,7 +309,34 @@ func runTrunkPublish(ctx context.Context, stdout, stderr io.Writer, p string) er
 	} else {
 		fmt.Fprintf(stderr, "Before merging main into this branch, run %s to remove the published untracked copy; git restore cannot remove an untracked file.\n", trunkCleanCommand(p))
 	}
+	if options.JSON {
+		confirmed, err := tf.Snapshot()
+		if err != nil {
+			return fmt.Errorf("confirm published path %s: %w", p, err)
+		}
+		published, present, err := proseAt(confirmed, p)
+		if err != nil {
+			return fmt.Errorf("confirm published path %s: %w", p, err)
+		}
+		if !present || !bytes.Equal(published, local) {
+			return fmt.Errorf("%s differs on main at readback; no publication receipt", p)
+		}
+		return json.NewEncoder(stdout).Encode(struct {
+			SchemaVersion int    `json:"schema_version"`
+			Path          string `json:"path"`
+			Commit        string `json:"commit"`
+		}{1, p, confirmed.Ref()})
+	}
 	fmt.Fprintln(stdout, p)
+	return nil
+}
+
+// Every fetched CAS base must retain the caller's expected commit, including
+// after a rejected push; a remote rewrite can invalidate the initial check.
+func requireProseAncestor(ctx context.Context, root, expected, main string) error {
+	if _, err := gitForProse(ctx, root, "merge-base", "--is-ancestor", expected, main); err != nil {
+		return fmt.Errorf("expected-commit must name an ancestor commit of fetched main: %w", err)
+	}
 	return nil
 }
 

@@ -24,50 +24,37 @@ var (
 // SideLinks returns the targets of a document's side-doc links
 // (`→ [discussion](…)`, `→ [answer](…)`, `→ [notes](…)`,
 // `→ [proposal](…)`), including Pair's escaped pending-link marker, as written
-// and in order. Fenced examples are not links.
+// and in order. Literal code examples are not links.
 func SideLinks(text string) []string {
 	var out []string
-	forUnfenced(strings.Split(text, "\n"), func(_ int, line string) {
+	literal, _ := CodeLiteralMask(text)
+	offset := 0
+	for _, line := range strings.Split(text, "\n") {
 		type found struct {
 			at     int
 			target string
 		}
 		var links []found
 		for _, m := range linkRE.FindAllStringSubmatchIndex(line, -1) {
-			links = append(links, found{m[0], line[m[2]:m[3]]})
+			if !literal[offset+m[0]] {
+				links = append(links, found{m[0], line[m[2]:m[3]]})
+			}
 		}
 		for _, marker := range pendingMarkerRE.FindAllStringIndex(line, -1) {
 			body := line[marker[0]:marker[1]]
 			for _, m := range escapedLinkRE.FindAllStringSubmatchIndex(body, -1) {
-				links = append(links, found{marker[0] + m[0], body[m[2]:m[3]]})
+				if !literal[offset+marker[0]+m[0]] {
+					links = append(links, found{marker[0] + m[0], body[m[2]:m[3]]})
+				}
 			}
 		}
 		sort.Slice(links, func(i, j int) bool { return links[i].at < links[j].at })
 		for _, link := range links {
 			out = append(out, link.target)
 		}
-	})
-	return out
-}
-
-// forUnfenced calls f with each line outside fenced code (``` or ~~~), and
-// its index; the fence lines themselves are code too.
-func forUnfenced(lines []string, f func(i int, line string)) {
-	fence := ""
-	for i, line := range lines {
-		t := strings.TrimLeft(line, " \t")
-		if fence == "" && (strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")) {
-			fence = t[:3]
-			continue
-		}
-		if fence != "" {
-			if strings.HasPrefix(t, fence) {
-				fence = ""
-			}
-			continue
-		}
-		f(i, line)
+		offset += len(line) + 1
 	}
+	return out
 }
 
 // linkedSet is the cleaned targets of a document's side links.

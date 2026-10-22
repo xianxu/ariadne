@@ -47,6 +47,7 @@ type trackerEnvelope struct {
 	Release          *Release          `yaml:"release,omitempty"`   // #284
 	Abandoned        *Abandoned        `yaml:"abandoned,omitempty"` // #286
 	ActualCorrection *ActualCorrection `yaml:"actual_correction,omitempty"`
+	LegacyAdoption   *LegacyAdoption   `yaml:"legacy_adoption,omitempty"`
 	// Extra keeps every member this binary does not know, so a rewrite never
 	// drops a record a newer sdlc wrote (#284).
 	Extra map[string]yaml.Node `yaml:",inline"`
@@ -111,6 +112,14 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 	}
 	if env.Completion != nil {
 		if err := env.Completion.validate(); err != nil {
+			return env, err
+		}
+	}
+	if env.LegacyAdoption != nil {
+		if err := env.LegacyAdoption.validate(); err != nil {
+			return env, err
+		}
+		if err := env.LegacyAdoption.validateCompletion(env.Completion); err != nil {
 			return env, err
 		}
 	}
@@ -214,9 +223,9 @@ func CardCompletion(card []byte) (Completion, bool, error) {
 }
 
 // SetCardCompletion records a close's binding. A new close (a new token)
-// replaces an older generation and retires its current correction summary;
+// replaces an older generation and retires its correction and legacy provenance;
 // the same close may only add its landed commit. Historical card blobs retain
-// the retired correction's evidence.
+// the retired generation's evidence.
 func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
@@ -231,6 +240,9 @@ func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
 		}
 		if env.Completion != nil && env.Completion.Token != c.Token {
 			env.ActualCorrection = nil
+		}
+		if env.LegacyAdoption != nil && env.LegacyAdoption.CompletionToken != c.Token {
+			env.LegacyAdoption = nil
 		}
 		env.Completion = &c
 		return nil

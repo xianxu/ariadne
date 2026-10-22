@@ -1,5 +1,41 @@
 # TL skill binaries (tl-worker, tl-lead)
 
+## Workingdoc settlement (#507)
+
+`tl-lead doc settle SIDE-DOC [--to PATH]` preserves the live editing surface and
+publishes one tracked copy, defaulting to `workshop/workingdoc/<date>-<slug>.md`.
+Its managed source pointer pins the target and full commit; re-settlement uses
+that same path. `doc status` compares a shared pure projection with committed
+blobs, distinguishing drift, destination conflicts and unknown evidence.
+
+`doc_model.go`, `doc_project.go` and `doc_markers.go` own metadata, content and
+marker validation. Literal masks have one shared owner, `sidedoc.CodeLiteralMask`, used by marker
+validation, link rebasing and side-link discovery. They come from Goldmark's actual Markdown code nodes;
+unmatched backticks across paragraphs or containers cannot hide active questions.
+The counted linear work covers our input, AST walk, masks and scanner. Goldmark's
+code-span parser can rescan pathological input; the existing 1 MiB document cap
+bounds accepted input, rather than a claim that dependency internals are linear.
+The phase model returns the next permitted publication/stamp effect, and both
+external calls require that permission before executing; failed or unconfirmed
+outcomes stop further effects. Remaining active questions, proposals and malformed markers
+refuse; the operator's editor owns acceptance. `doc_settle.go` coordinates a
+repository lock, source/target guards, immutable publication and Couch's source
+CAS stamp. `doc_repository.go` validates repository identity and batches Git
+blob reads. Products reuse the SDLC trunk publisher; verified ops primary-main
+publication is `doc_operating.go`, with a private Git index and scoped child
+processes. The real filesystem, bare-remotes and stateful Couch/repository fakes
+exercise interruptions and late edits through the production seams.
+
+Publishing and stamping have separate outcomes. A confirmed copy survives a
+locked/stale source; an uncertain response is never absence. Reconcile the named
+source/target and retry the same command. Independent destination edits refuse.
+The copy is durable knowledge removed through ordinary repository edits; temporary
+payload/index resources end at command return. The constant-size common-directory
+lock inode remains so concurrent callers cannot lock different inodes.
+
+The [workingdoc datatype](../../construct/datatype/workingdoc.md) supplies the
+authoring contract; `tl-lead --help` supplies the operator procedure.
+
 A Couch fleet is run by a TL in the hub slot (AGENTS §15). The rules for both
 roles ship as **skill binaries** in the shape of `sdlc --help` and
 `couch --skill`: the prose is embedded in the binary, and the skill is a
