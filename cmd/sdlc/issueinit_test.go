@@ -225,8 +225,12 @@ func TestIssueInitInventoryProcessGrowth(t *testing.T) {
 		r.git("add", ".")
 		r.git("commit", "--allow-empty", "-qm", "unrelated source")
 		r.git("push", "-q")
+		tree, parent := r.git("rev-parse", "HEAD^{tree}"), r.git("rev-parse", "HEAD")
 		for i := 0; i < branches; i++ {
-			r.git("branch", fmt.Sprintf("unrelated-%d", i))
+			// Distinct tips exercise per-tip metadata reads rather than letting
+			// identical-commit deduplication hide their process growth.
+			tip := r.git("commit-tree", tree, "-p", parent, "-m", fmt.Sprintf("unrelated tip %d", i))
+			r.git("branch", fmt.Sprintf("unrelated-%d", i), tip)
 		}
 		trace := filepath.Join(t.TempDir(), "git.trace")
 		t.Setenv("GIT_TRACE", trace)

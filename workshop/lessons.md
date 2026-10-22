@@ -1358,3 +1358,12 @@ Pin diagnostic names and object IDs together for every subsequent evidence
 consumer, and reject a main snapshot mismatch. Two-clone created/advanced-branch
 regressions defend this shared boundary; tests also pin the fetch write set so
 user tag-pruning/refmap preferences cannot expand a read's effects.
+
+### #543 BR-2 — initialization needs presence, not an importer
+
+A new-repository command needs only conservative absence proof. Do not enlarge
+an existing importer to answer that simpler question. Use one roots/path rule
+across every pinned tip, live worktree HEAD, index and filesystem scope, and
+refuse any issue presence without interpreting its body or differences. Test
+the roots × scopes enumeration; put pre-existing importer completeness work on
+its own issue (#546), as directed by the TL after the repeated family.

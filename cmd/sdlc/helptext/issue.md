@@ -57,7 +57,9 @@ NEW REPOSITORY SETUP (#543)
 
   The command initializes the issue-tracker branch and main cutover marker,
   then fast-forwards the clean main checkout. Only a completely empty issue
-  inventory is eligible; existing issues require reviewed issue migrate.
+  inventory is eligible; evidence in active, flat legacy or history/issues roots
+  on main, any branch or any live worktree (including detached, staged, ignored
+  and untracked files) refuses toward issue migrate. Init imports no records.
   Other legacy writers must remain quiescent until setup finishes.
   Brains (.brain/config.md) and absent/declined issue scaffolds are skipped.
   To opt out, keep using ordinary composition/adoption without issue init.

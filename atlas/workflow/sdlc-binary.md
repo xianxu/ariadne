@@ -12,20 +12,26 @@ Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 
 ## New repository initialization (#543)
 
-The explicit final setup command `sdlc issue init` shares the existing migration
-inventory, tracker bootstrap CAS and main cutover. The pure invocation-local
-`tracker.InitTransition` owns phase changes; `issueinit.go` dispatches only its
-returned effects and stops on failure/cancellation/uncertainty. Retry inspects
-existing Git root/marker evidence, retaining partial publication. Clean main
-checkout completion uses a pinned ff-only commit. Brains/declined scaffolds skip;
-nonempty inventories require reviewed migration. Shared migration inventory first
-refreshes the publication remote's entire heads mapping, then pins names/OIDs for
-both issue and close-anchor reads. Failed refresh or main moving from its pin
-refuses before publication; configured fetch filters cannot hide branches.
-Tags, other remotes and FETCH_HEAD stay outside this explicit fetch's write set.
-Legacy hints use local-only
-`issue.LocalPathsByID` evidence and never authorize publication. See
-[the setup procedure](setup-and-replication.md#new-repository-default).
+The explicit final setup command `sdlc issue init` has a conservative presence-only
+inventory and reuses migration's tracker bootstrap CAS and main cutover. Its pure
+invocation-local `tracker.InitTransition` owns phase changes; `issueinit.go`
+dispatches only returned effects and stops on failure/cancellation/uncertainty.
+Retry verifies existing root/marker evidence, retaining partial publication.
+Clean main checkout completion uses a pinned ff-only commit. Brains/declined
+scaffolds skip.
+
+`issueinit_inventory.go` refuses any recognized issue evidence in the active,
+flat legacy history or history/issues roots: pinned main, every current local
+and publication-remote branch tip, live worktree HEADs (including detached),
+indexes and filesystem entries (including ignored/untracked). It imports no
+records and applies no difference/merge rules. Unreadable or non-directory roots
+refuse as uncertain. Snapshot scans select metadata only, not issue bodies.
+The shared BR-1 head helper refreshes the entire publication heads mapping and
+pins names/OIDs; failed refresh or main moving from its pin refuses. Tags, other
+remotes and FETCH_HEAD remain outside that explicit fetch's write set. Existing
+migration import policy is separate; its archive/worktree gaps are ariadne#546.
+Legacy hints use local-only `issue.LocalPathsByID` evidence and never authorize
+publication. See [the setup procedure](setup-and-replication.md#new-repository-default).
 
 ## Executable identity (#461)
 

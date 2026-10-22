@@ -129,9 +129,6 @@ func (g *gitInitializationEffects) Inspect(ctx context.Context) (tracker.InitIns
 		return refuse(fmt.Errorf("commit initial setup and configure/push main's publication upstream first: %w", err))
 	}
 	g.env = env
-	if err = g.cleanMain(); err != nil {
-		return refuse(err)
-	}
 	main, err := env.main.Snapshot()
 	if err != nil {
 		return refuse(fmt.Errorf("push initial main to its configured publication remote first: %w", err))
@@ -147,6 +144,9 @@ func (g *gitInitializationEffects) Inspect(ctx context.Context) (tracker.InitIns
 		return refuse(err)
 	}
 	if complete {
+		if err = g.cleanMain(); err != nil {
+			return refuse(err)
+		}
 		commit, err := initializationCutoverCommit(env, main.Ref(), trackerRoot)
 		if err != nil {
 			return refuse(err)
@@ -163,10 +163,15 @@ func (g *gitInitializationEffects) Inspect(ctx context.Context) (tracker.InitIns
 		}
 		return tracker.InitInspected{Disposition: tracker.InitRemoteReady, Root: trackerRoot, Commit: commit}, nil
 	}
-	in, err := migrationInventory(env, main)
-	if err != nil {
+	if err := verifyInitializationEmpty(env, main.Ref()); err != nil {
 		return refuse(err)
 	}
+	if err = g.cleanMain(); err != nil {
+		return refuse(err)
+	}
+	// Presence was verified across every root/scope. Construct only an empty
+	// bootstrap manifest; init never invokes migration's importer or diff rules.
+	in := tracker.MigrationInput{Repository: env.target.Repository, ObjectFormat: env.format, Main: main.Ref()}
 	g.plan = tracker.PlanTrackerMigration(in)
 	if !tracker.EmptyInitEligible(in, g.plan) {
 		return refuse(errors.New("existing or uncertain legacy issue inventory; use sdlc issue migrate for reviewed migration"))

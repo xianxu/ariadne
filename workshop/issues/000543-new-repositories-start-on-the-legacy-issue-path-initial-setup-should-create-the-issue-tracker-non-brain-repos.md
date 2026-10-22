@@ -82,6 +82,10 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - TL stopped importer widening and directed a conservative init presence gate (Couch 5119a959-0128-4420-89ee-9a91fb0b08d9). Superseded the prior whole-rule importer proposal: init refuses recognized evidence anywhere across three roots and all branch/worktree/index/filesystem scopes, importing/merging nothing. Pre-existing migrate completeness gaps filed separately as unclaimed #546; its card/details published with no checkout write. Existing BR-1 fresh/pinned helper remains; no new migration import/refusal policy in #543. Revised durable plan is authorized to proceed.
 
+- Implemented the narrowed presence gate in issueinit_inventory.go. It reads no issue bodies and applies no import/difference rules; all pinned tip, worktree HEAD/index/filesystem scopes use one path predicate over issue.IDDirs. Presence/uncertainty refuses before bootstrap, while completed valid root/marker idempotence stays first. Matrix/additional tests produced intended RED omissions; fixed one unrelated-history fixture setup then confirmed its behavioral RED. Presence tests passed (40.539s). Private rebuilt production CLI passed remote archive-only and dirty-other-worktree refusal without mutation, brain skip and fresh setup workflow; evidence /Volumes/TestScratch/ariadne-543-presence-cli-oyjpz403/commands.json. No importer policy expansion; #546 remains unclaimed. Broader tests/suite/review still due.
+
+- Final narrowed-gate verification: broad init/migration/transition/hint/recovery set PASS (135.319s); Go lint/recovery package checks PASS (1.630s/0.139s). Strengthened the existing process-count fixture to use distinct branch-tip OIDs; PASS (5.138s), with unrelated files 8/16 = 100/100 Git processes and unique branches 8/16 = 148/196. Production code is unchanged since the passing private CLI. Ready to requeue the recorded suite and submit close round 3; no passing recorded suite or SHIP claimed yet.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
