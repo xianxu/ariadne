@@ -177,6 +177,11 @@ This is a single atomic change; if implementation leaves the quick-flow shell, u
   clone cannot see the canonical grant. The hub applied #553's grant separately in both checkouts
   (receipts 51de1d34-a1e0-4b31-975e-9b6b9adb3756 and a8af588d-9401-49b2-a26c-a9b6743fb66c), moving
   the retained suite to next-to-run. This issue still lands only from the canonical checkout.
+- The independent clone's active suite also has an empty workspace identity in queue records:
+  op-f2ed5b568305275eb3782c1a51006ef3 appears as `unknown ()`, making queue status report
+  `complete=false`. The hub identified this display limitation (receipt
+  65d87200-2e03-4876-b7f0-fc40dc639689); the retained terminal/lease still identify the live owned run.
+  Preserve that run rather than interpreting the incomplete queue display as a dead runner.
 
 ## Revisions
 
