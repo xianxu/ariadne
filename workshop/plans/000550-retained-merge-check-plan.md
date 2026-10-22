@@ -108,3 +108,9 @@ Files: `cmd/sdlc/helptext/merge.md`, `README.md`, `atlas/workflow/sdlc-binary.md
 - [ ] Enter `sdlc merge --yes` promptly; its integration suite owns current-main verification. Report the Git-verified merge/PR outcome to the hub.
 
 Agent-facing assertions cover the same CLI result under Claude/Codex-labelled fixture invocations (Qoder when available); no harness command-text heuristics. No operator-environment mutation is required for this refusal path. Ask the hub to accept the capture-backed fixture and disposable real-lock proof in place of a live stage before landing; do not stage or manipulate a live retained merge unasked.
+
+## Revisions
+
+### 2026-10-22 — approved exit text and no stage
+
+Ops:0 approves this design (`4cec01c2-b2f4-4df2-9346-718e9a3e4c55`) with the additional required sentence: `merge stopped: run <exact command>, then re-enter sdlc merge`. Compose it from the same typed missing-check names as the canonical CI commands, never parse the existing message. For multiple commands, name each required action. Fixture plus real-lock verification is approved in place of a live stage. No code or effect-owner changes beyond the existing plan.

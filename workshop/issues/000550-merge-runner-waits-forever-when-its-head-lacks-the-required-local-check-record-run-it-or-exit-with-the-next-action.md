@@ -71,3 +71,7 @@ Additional Done when clauses:
 - Affected stand-ins/full-suite fallbacks and accepted docs-only ancestor records keep their existing satisfaction rules. Landing-scoped checks are not treated as missing branch prerequisites.
 - Refusal joins the readiness goroutine, ends wait evidence and releases this ticket without touching another holder. A check already queued elsewhere is left running; its existing result can satisfy a subsequent merge retry.
 - Cancellation, admission, settled/merged observations, survivor reformation, and trains turning on during an existing wait have deterministic regression controls. No new persisted state or check runner is introduced.
+
+### 2026-10-22 — hub approval and actionable exit wording
+
+Authenticated ops:0 receipt `4cec01c2-b2f4-4df2-9346-718e9a3e4c55` approves this plan and fixture plus real-lock verification; no stage. The exit must say plainly `merge stopped: run <exact command>, then re-enter sdlc merge`, so an idle slot's pane gives the TL a single next action. This is an additional Done when requirement; implementation must preserve the canonical commands and all approved cancellation/cleanup semantics.
