@@ -28,6 +28,13 @@ run that exceeds the threshold by a margin is stopped and requeued as normal (an
 until it measures short again), and the light slot's load is small enough not to disturb a running heavy suite's
 timing.
 
+**Operator and ops-echo additions (10-22):** "nice to have, but be careful of starvation; echo will surely grow to be
+as complex as pair." Bound starvation both ways: heavy suites keep their FIFO turn however many short ones arrive
+(the light slot never borrows a normal slot or delays a heavy suite's admission), and a repo whose recorded wall time
+grows past the limit leaves the lane automatically by measurement, never by a flag. Also: the machine's CPU sits at
+100% constantly, so CPU, not slot count, limits landing throughput. The light slot must be cheap enough (one short
+suite, niced) not to slow a running heavy suite measurably; measure that, don't assume it.
+
 ## Done when
 
 - A repo whose recorded suite wall time is under the threshold runs immediately in the light slot while both normal
@@ -35,6 +42,7 @@ timing.
 - A light run exceeding the bound is stopped and requeued normally, and eligibility is re-derived from measurements
   (test).
 - `sdlc queue status` shows the lane and its holder.
+- Heavy suites keep their FIFO admission under a continuous stream of short ones (test); a running heavy suite's wall time with the light slot busy is measured and within a stated bound.
 
 ## Plan
 
