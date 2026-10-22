@@ -38,11 +38,11 @@ The default is exactly `make test`, required, with existing default timeout and 
 
 | Boundary | Adversarial strategy | Mechanical guard |
 | --- | --- | --- |
-| Shared derivation | Present-empty/malformed main config; negative versus failed probe; main weight 2 versus head weight 1 | Colocated policy controls plus native Git/probe fixtures |
-| CLI | Unpushed/non-tip `--rev`, subject different from checkout HEAD, first declaration using `true` or CI substitutions | Private bare origin, native command markers and exact-head GH status assertions |
-| CI/admission | Accept correct bootstrap record; code advance loses reuse; red server CI remains red | Existing stateful `ciFakeGH`, real commits and ordinary/immutable landing fixtures |
-| Train selection | Later prefix introduces target/weight; earlier prefix lacks it; main gains declaration on reintegration | Native prefix execution records head/command/weight; no virtual green or later-prefix proof reuse |
-| Probe cancellation | Context/deadline during fallback; failure of main probe | Existing process/budget controls plus fallback cancellation regression; no launch after cancellation |
+| `withSubjectDefaultSuiteContext` | Adversarial absence/unknown/authority combinations | Native Git/make fixtures assert selected command, weight and required policy |
+| `runLocalCheckCmd` | Subject identity and undeployed head policy attempts | Private bare origin, native command markers and exact-head GH status assertions |
+| `prepareCIGateFactsContext`, `runPreparedCIGate` | Evidence from another subject or code state, red server checks | Existing stateful `ciFakeGH` and real ordinary/immutable landing fixtures |
+| Conductor `build`, `runSuite`, `reintegrate` | Prefix and base transitions that invalidate suite eligibility | Native execution records exact head/command/weight; absent-target prefixes cannot virtual-pass |
+| `makeTestFactsContext` via subject fallback | Cancellation and failed probe must not establish absence | Existing process/budget controls plus fallback cancellation regression; no later launch |
 
 These are semantic policy/provenance invariants, defended by executable tests rather than a helper-name lint. Existing parsers and protected-path guards keep schema/config ownership.
 
@@ -77,7 +77,7 @@ Commit minimal byte-preserving Makefile/declaration inputs and a provenance READ
 **Files:** Create `cmd/sdlc/localchecks_bootstrap.go`, `cmd/sdlc/localchecks_bootstrap_test.go`, `cmd/sdlc/testdata/bootstrap-suite/echo-1/`; modify CLI and CI integration points above.
 
 - [ ] Capture verified incident inputs/provenance. Write a native CLI regression and confirm old code refuses before the fixture harness runs.
-- [ ] Add red controls for declaration absence/empty/invalid, main's command/weight, no head custom checks/substitutions, pushed exact `--rev`, no target and fallback cancellation.
+- [ ] Implement the executable adversarial strategies for the shared derivation and CLI rows above; retain their meaningful red results.
 - [ ] Implement shared main-first derivation and pushed-subject validation before fallback. Label bootstrap explicitly; route CI facts through the same function.
 - [ ] Run focused native tests plus existing default/declared-suite, CI wait/probe and ancestor-record controls. Assert actual command, weight, required and recorded SHA, not only text. Commit code and Log evidence.
 
@@ -85,7 +85,7 @@ Commit minimal byte-preserving Makefile/declaration inputs and a provenance READ
 
 **Files:** `cmd/sdlc/landingtrain.go`; extend existing native train and single/immutable landing tests.
 
-- [ ] Write red first-declaration landing admission and prefix tests: different target/weight facts, no target, changed base and no evidence migration.
+- [ ] Implement the executable CI/admission and conductor strategies above; retain meaningful red results before wiring those paths.
 - [ ] Derive the suite per actual prefix through the same policy before execution; retain normal declared-policy paths and failure attribution. An unavailable main baseline stays unverified, never invented main-health proof. Do not let an empty/virtual runner satisfy a bootstrap suite.
 - [ ] Re-run native train, suite enforcement, main advance and CI budget/cancellation controls through existing resource seams. Commit code and Log evidence.
 
@@ -98,3 +98,7 @@ Commit minimal byte-preserving Makefile/declaration inputs and a provenance READ
 - [ ] Commit/push final implementation, retain `sdlc local-check run --name suite` on its exact head through completion, and record the full result before close. No manual main chase.
 
 Then `sdlc close` owns the one boundary review. On SHIP enter `sdlc merge --yes`; verify merged PR, archive and clean rest, and report to hub. No new estimate until change-code's plan-quality gate accepts this full-flow plan.
+
+## Revisions
+
+- 2026-10-22 01:35 PDT — Address plan-quality advisory PQ-1 without changing behavior or scope: name actual risky functions in the strategy table and remove repeated task-level case inventories. Executable regressions own the individual cases; task checkboxes reference the strategies once.

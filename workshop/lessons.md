@@ -8,6 +8,11 @@
 
 # Lessons
 
+- #536 PQ-1: keep one function-named adversarial strategy and mechanical guard
+  per risky boundary. Task checkboxes reference that strategy instead of repeating
+  its case list; executable tests own the concrete inventory. The plan-quality
+  reviewer enforces this semantic authoring rule; source-name lint cannot prove it.
+
 - #540 suite: native deadline fixtures must signal child readiness before expiry; use the shared DeadlineOnCue helper rather than shrinking commandTimeout. Run the tracked-file lint catalog after staging new Go tests: it reads Git-tracked files and can miss untracked additions. The existing test-shrunk-deadline rule enforces this pattern.
 
 - #540 BR-3: a fake system resolver returning bare IPs cannot verify a native
