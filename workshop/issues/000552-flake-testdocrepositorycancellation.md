@@ -65,7 +65,7 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
 - [x] Retain the recorded empty-PID failure and add a barrier-controlled regression; observe RED with direct publication.
 - [x] Publish the fixture PID by sibling staging/close/rename, release the barrier, and verify complete readiness plus the existing cancellation controls.
 - [x] Sweep sibling readiness consumers and review a mechanically sound lint guard with the hub; avoid a lexical rule that confuses safe validating readers with this race.
-- [ ] Run targeted tests and the recorded pushed-head suite; close, land and confirm registration retirement.
+- [ ] Run targeted tests and the recorded pushed-head suite, retaining their proof for close and landing.
 
 ## Log
 
@@ -107,6 +107,16 @@ Its real shell/process boundary is the existing stateful executable fixture (ARC
   no code correction or replacement run is needed for this verification-only finding.
 
 ## Revisions
+
+### 2026-10-22 — verification checkpoint
+
+- Clarify the last Plan checkbox as pre-close verification; close, landing and registration retirement
+  remain subsequent workflow steps and explicit Done-when requirements, rather than future work that
+  must be ticked before the close gate. No behavioral design or implementation changed.
+- The suite waiter survived the 10:57 Couch restart and is now next to run behind #551's running suite.
+  Its original lease-1199673725, runner 84443 and terminal 84004 remain retained. The registry read
+  confirmed TestDocRepositoryCancellation is still registered to this working issue; verify retirement
+  after landing. Draft PR399 CI is green. No new review or replacement suite was started while waiting.
 
 ### 2026-10-22 — deterministic readiness-publication fix
 
