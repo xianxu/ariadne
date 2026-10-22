@@ -600,6 +600,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		cwarn(stderr, fmt.Sprintf("--no-reclose-guard (or --force): re-closing %s#%s (already done)", repoName, issueStr))
 	}
 
+	if err := checkCloseSideNames(issuePath, f.plansDir(), os.ReadDir); err != nil {
+		die(stderr, err.Error())
+	}
+
 	// ── Integrate gate (#269) ───────────────────────────────────────────────
 	// Before the window is planned, so a stale branch refuses before any review cost.
 	integrateGate(commandContext(f.Context), stderr, f, issueStr)

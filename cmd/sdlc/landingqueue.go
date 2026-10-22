@@ -156,6 +156,25 @@ func enterLandingLine(ctx context.Context, r gitRunner, t landingTarget, branch 
 	turn := &landingTurn{line: line, handle: h, log: log, stderr: stderr}
 	tk := h.Ticket()
 	log.record(landingline.Event{Kind: landingline.EventEnqueue, Seq: tk.Seq, Issue: tk.Issue, Branch: tk.Branch})
+	if release, ok := ctx.Value(trainReformReleaseKey{}).(func()); ok {
+		// Publish this survivor's fresh vouch before freeing the old head.
+		// The next conductor then observes both ready surviving tickets.
+		if readiness == nil {
+			err := errors.New("survivor handoff needs readiness")
+			turn.leave(err)
+			return nil, err
+		}
+		fresh, _ := readiness(ctx)
+		if err := ctx.Err(); err != nil {
+			turn.leave(err)
+			return nil, err
+		}
+		if err := line.Vouch(h, fresh); err != nil {
+			turn.leave(err)
+			return nil, err
+		}
+		release()
+	}
 	var stopVouching func()
 	waitCtx, endWait := context.WithCancelCause(ctx)
 	defer endWait(nil)

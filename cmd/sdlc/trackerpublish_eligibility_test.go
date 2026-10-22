@@ -102,7 +102,7 @@ func TestPublishEligibilityPreservesIssueFreeBranches(t *testing.T) {
 				t.Fatal(err)
 			}
 			pr := landingPR{HeadOID: head, BaseOID: base}
-			if err := runLandingPublishGate(withIssueRecordsScope(context.Background()), pr, "workshop/issues", io.Discard); err != nil {
+			if err := runLandingPublishGate(withIssueRecordsScope(context.Background()), pr, "workshop/issues", "workshop/plans", io.Discard); err != nil {
 				t.Fatal(err)
 			}
 			if err := runPublishGate(withIssueRecordsScope(context.Background()), base, "workshop/issues", io.Discard); err != nil {
@@ -124,7 +124,7 @@ func TestPublishEligibilityChecksEveryCarriedIssue(t *testing.T) {
 			return runPublishGate(withIssueRecordsScope(context.Background()), base, "workshop/issues", io.Discard)
 		},
 		func() error {
-			return runLandingPublishGate(withIssueRecordsScope(context.Background()), landingPR{HeadOID: head, BaseOID: base}, "workshop/issues", io.Discard)
+			return runLandingPublishGate(withIssueRecordsScope(context.Background()), landingPR{HeadOID: head, BaseOID: base}, "workshop/issues", "workshop/plans", io.Discard)
 		},
 	} {
 		if err := gate(); err == nil || !strings.Contains(err.Error(), "#1 is working") {

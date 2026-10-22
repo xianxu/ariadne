@@ -336,6 +336,14 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
+The shared `validateArchiveSideNames` policy (#532) rejects active
+`<document>.md.side` bundles at close, pinned-head landing preflight (including
+train readiness), and immutable archive planning; rename to the canonical
+`<document>.side`, preserve contents and update links before retry. Close reads
+both active roots once including untracked names; landing reads the selected
+commit, scoped to its owned issue IDs. Explicit one-off Git repairs of old
+parent-only archives preserve bytes but do not retroactively satisfy historical
+archive proof. Unrelated future issue families remain independent.
 A done-card sweep can archive a car without per-PR trailers (#494, #512).
 Every archive check, including fresh already-merged recovery and the publisher's
 refreshed main view, can locate that archive through bounded destination-path
@@ -527,7 +535,7 @@ trains on:
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
 - **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
-  - Events: `Boarded`, `Built`, `SuiteDone`, `SplitAssessed`, `LandingChecksDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`.
+  - Events: `Boarded`, `Built`, `SuiteDone`, `SplitAssessed`, `LandingChecksDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`, `CarsDropped`.
   - Effects: `Build`, `Publish`, `RunSuite`, `AssessSplit`, `RunLandingChecks`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
   - Phases: forming, integrating, testing, bisecting, attributing, reintegrating, checking, landing, merging, and the terminal landed, abandoned, refused and merge-unconfirmed.
   - Attribution: `AssessSplit` refreshes registration and dependency-aware package impact for the exact adjacent prefix pair; `SplitAssessed` must match it. Only a named unregistered affected failure permits a suite Hold. Otherwise unresolved cars stop with an unattributed/unverified refusal and the exact `sdlc merge --branch BRANCH --yes` retry. Only the already verified prefix proceeds; neither registration nor untouched sources promotes a failed suite to passing evidence. Assessment has a two-minute diagnostic budget and five-second cleanup bound; unavailable evidence stops without blame. A code-main reintegration rebuilds the final head and invalidates lower heads: if that multi-car suite fails, all cars stop as unverified before any split on stale prefixes. Docs-only reuse is unchanged.
@@ -2640,6 +2648,13 @@ Landing trains enter `PhaseChecking` after the successful final-prefix suite (al
 
 `landingchecks_gate.go` owns automatic check proof and invocation-local attempt memory. `conductor.execute` runs it for the exact kept final prefix; tracked `runDurableMerge` and legacy `runMerge` call the same gate after per-head requirements. Pinned original car heads, policy digests and retained log hashes bind proof. Docs reuse requires ancestor/code-surface proof and no watched new path; issue-only fast merges apply the same boundary. `headLocalChecks` projects per-head requirements without hiding red statuses. Manual-only landing entries require pinned main and explicit CLI naming; runner execution uses no suite capacity. No consumer is activated by this capability.
 
+### Dropping a composed train car (#526)
+
+`sdlc landing drop --issue N [--reason WHY] [--repo DIR]` accepts the actual car owner or the repository :0 steward. It holds that exact car until explicit owner retry and aborts the obsolete composition; surviving runners re-form using fresh normal tickets. The dropped runner prints its reason and exact branch recovery. A recomposed head reruns the validation its change invalidates.
+
+The landingline control record (`train-control.json`) pins the held head.lock generation, actual composed members, publication identity, accepted exclusions and cleanup obligation. Drop acceptance and admission of the Merge effect share line.lock. Every pre-merge completion, including bisect membership changes, terminal refusals and deferred aborts, uses the same pending-drop fence before replacing the in-memory train or running effects; a winning drop applies to the original riders. Once that effect starts after green CI, drop refuses with the current phase and irreversible merge-start marker, even if the merge later reintegrates or is unconfirmed. Unsupported/malformed control refuses; an old conductor cannot claim drop support.
+
+A scoped watcher cancels and joins the obsolete effect before held/abort cleanup. Pending drop cleanup survives a dead conductor: every admitted successor, including serial and grant landings, confirms closure of the exact obsolete PR and leased ref before proceeding. `landing status` exposes pending cleanup and its original conductor recovery command. The bounded record retains exclusions until their tickets retire, carries unknown JSON members, and cannot be replaced while cleanup remains unconfirmed. Existing car/train audit events retain their 30-day lifetime.
 
 ### Reader-first attempt compatibility (#524, prerequisite for #463)
 
