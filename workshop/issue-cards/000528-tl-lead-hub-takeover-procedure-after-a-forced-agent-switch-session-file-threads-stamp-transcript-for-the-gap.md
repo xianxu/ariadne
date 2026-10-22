@@ -1,6 +1,6 @@
 ---
 id: 000528
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-21
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: dba27e4716583af1100b997249c49723ecaa54be
         evidence_commit: 5d5d0f91a1cfb979061f4a965952aab6d8c9dfd3
+        landed_commit: 3e2158e46918947b61364c490a7242ea7df93981
 ---
 
 # tl-lead: hub takeover procedure after a forced agent switch (session file, Threads stamp, transcript for the gap)
