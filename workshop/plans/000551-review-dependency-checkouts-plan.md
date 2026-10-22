@@ -65,49 +65,55 @@ Use the existing gitx contextual process runner for dependency commands so cance
 
 The clone's files and lock are owned by existing Create/Close/Sweep. No new durable cache, lease format or tracker field is introduced (ARCH-EVOLVE). Preparation uses a single deadline; reset rebuilds at the same pins with the same limits. Large dependencies fail before reviewer launch rather than unexpectedly filling the RAM disk. Infrastructure errors keep their original cause.
 
+## Deadline and environment integration
+
+Add reviewbox.CreateContext(ctx, ...) and Checkout.ResetContext(ctx); keep Create/Reset compatibility wrappers with the bounded default. Pass context to population, authority copying and every Git effect through gitx.RunGitInContext (bounded metadata output where applicable). The main boundary uses openReviewIsolationContext(p.Context, ...), with its existing wrapper only for compatibility callers. Initial dependency setup gets one two-minute child context capped by the caller; each retry gets a fresh two-minute preparation context capped by Dispatch's remaining deadline. Add DispatchOptions.BeforeRetryContext func(context.Context) error, prefer it over the compatibility BeforeRetry callback, and supply the actual dispatch context at the retry call site. BeforeRetryContext calls ResetContext; cancellation cleans all children and never launches the next reviewer. A blocked-Git descendant regression exercises production setup and retry, asserting process exit and released clone locks.
+
+Carry disposable bindings through DispatchOptions.DependencyEnvironment and the existing Confinement environment construction, not inherited caller variables. Use #545's reserved-key clearing and deterministic projection; add these values to Claude's generated shell env file as well as the reviewer/preparation process environment. Prompt and environment derive from the same descriptor list. A reviewer-run shell command must read the actual pinned fixture using its exported path; no test relies on a preexisting shared sibling.
+
 ## Implementation and verification
 
-### 1. Share declaration resolution; define descriptors and pure rendering
+### 1. Share resolution and define descriptors
 
 Files: cmd/sdlc/localcheck_dependency_environment.go and its tests; new cmd/sdlc/reviewdependencies.go and reviewdependencies_test.go; new reviewbox/dependencies.go and dependencies_test.go.
 
-- [ ] Add red-first tests: a pinned consumer declaration wins over dirty caller edits; substrate primary fallback and data mount resolve exactly as #545; equal paths dedupe and conflicts refuse; missing/malformed declaration controls remain unchanged.
-- [ ] Extract the minimal resolved-row helper and preserve local-check environment behavior byte-for-byte.
-- [ ] Add pure tests for kind/path/SHA/freshness/mode rendering, path quoting, row/count and tree-byte limits, malformed metadata and unknown age. Reject over-bound data before any clone.
-- [ ] Implement descriptors and tree metadata policy without filesystem IO in the pure functions (ARCH-PURE).
-- [ ] Run targeted dependency-environment and new descriptor tests; commit.
+- [ ] Write failing tests using the resolution/descriptor strategies in the conformance table; run them and retain the red evidence.
+- [ ] Extract resolvedDependencyRows, preserving #545 environment behavior; implement pure descriptor rendering and metadata budgets.
+- [ ] Run targeted dependency-environment and descriptor tests to green; commit.
 
-### 2. Attach bounded disposable dependency clones to review lifetime
+### 2. Own bounded dependency clones through setup and retry
 
-Files: reviewbox/checkout.go, dependencies.go and their tests; cmd/sdlc/reviewdependencies.go and tests; reviewisolation.go and reviewisolation_test.go.
+Files: reviewbox/checkout.go, dependencies.go and their tests; cmd/sdlc/reviewdependencies.go, reviewisolation.go and tests; judge/dispatch.go and retry tests.
 
-- [ ] Red-first real-Git fixture: consumer depends on a source with distinct origin/main, local HEAD and dirty bytes. Assert only origin/main content appears, exact SHA is retained, source snapshots are unchanged and no network command runs.
-- [ ] Red-first lifecycle matrix: successful Close, partial second-clone failure, cancellation, automatic Reset after deliberately changed dependency contents, live Sweep preservation and dead-owner Sweep reclamation. Assert all dependency handles release, including cleanup errors.
-- [ ] Implement bounded preflight and local clones through existing Create; add ownership for child handles and clean partial failure. Keep same absolute sibling paths across retries.
-- [ ] Expand available fence protection to dependency clones plus source worktrees/common dirs. Preserve no-fence admission and label its disposable mode explicitly.
-- [ ] Test FETCH_HEAD matches/mismatches, unavailable/corrupt/future timestamp and pin movement between attempts; never invent an age or refresh a pin.
-- [ ] Run go test ./cmd/sdlc/internal/reviewbox -count=1 and targeted cmd/sdlc dependency/isolation tests; commit.
+- [ ] Write failing ownership, pinning and cancellation regressions using the table's strategies; verify their red failures.
+- [ ] Implement contextual checkout creation/reset, child ownership, bounded preparation and protected paths under the approved modes.
+- [ ] Run go test ./cmd/sdlc/internal/reviewbox -count=1 and targeted dependency/isolation/retry tests to green; commit.
 
-### 3. Supply dependency context to every boundary review and document it
+### 3. Expose dependency context and verify the production boundary
 
-Files: cmd/sdlc/milestoneclose.go; reviewisolation.go; reviewisolation_test.go; reviewpreparation_live_test.go; atlas/workflow/sdlc-binary.md and setup-and-replication.md.
+Files: cmd/sdlc/milestoneclose.go; reviewisolation.go; reviewisolation_test.go; reviewpreparation_live_test.go; judge/dispatch.go; reviewbox/confine.go; atlas/workflow/sdlc-binary.md and setup-and-replication.md.
 
-- [ ] Red-first production-boundary tests capture the dispatched prompt for both milestone and issue-close recipes. A reviewer can read the actual dependency fixture/template at the named SDLC_DEP_SUBSTRATE path; no-deps prompts/behavior remain unchanged. Include substrate and data names, duplicate/conflict controls and dry-run behavior (no clones created).
-- [ ] Thread descriptors through Isolation and append a deterministic dependency manifest to the existing review-window prompt. Names are documented path bindings for inspection; no live caller path is advertised as a review dependency. Include exact revision, freshness evidence and read-only-fenced versus disposable-write mode.
-- [ ] Exercise Claude and Codex argv wrappers and preparation/retry entry points. Under real Seatbelt or bubblewrap, verify reads succeed and file/ref writes to clones and sources fail. Under FenceNone, verify writes affect only disposable clones and reset removes them.
-- [ ] Add atlas documentation of local-last-fetched pins, unknown fetch age, modes, bounds, failure recovery and lifecycle. Record relevant lesson only if review finds one; no lexical lint can establish this ownership/fence contract.
-- [ ] Run targeted tests once green. Checkpoint/push; run recorded suite via sdlc local-check run --name suite; close through the mandatory SDLC review; land on SHIP.
+- [ ] Write failing production-dispatch prompt and reviewer-command environment regressions using the table; verify red before threading descriptors.
+- [ ] Render dependency paths, pins, freshness evidence and mode from the shared descriptor list; project its bindings into confinement and Claude shell restoration.
+- [ ] Run targeted tests to green and the available live OS-fence conformance fixture. Document modes, local-last-fetched pins, bounds and recovery.
+- [ ] Checkpoint/push; run recorded suite via sdlc local-check run --name suite; obtain the Echo-owned live check; close through the mandatory SDLC review and land on SHIP.
 
 ## Plan conformance table
 
 | Risky production function | Adversarial strategy | Independent guard |
 |---|---|---|
 | resolvedDependencyRows | Declaration differs between reviewed head and dirty caller; two aliases/conflicting rows | #545 environment regressions and counted unique-resolution fixture |
-| prepareReviewDependencies | Wrong local branch, stale/missing main, unrelated FETCH_HEAD, oversized tree, cancellation | Real source/clone bytes and ref snapshot; no network command sentinel |
-| Checkout.Reset/Close/Sweep | Mutation, partial create, retry, owner death and concurrent sweep | Lock ownership plus absence/pristine-content assertions through real Git |
+| prepareReviewDependencies and tree budget | Adversarial local source/ref/freshness and tree metadata | Real pinned clone bytes and source snapshot; bounded-output/budget guard and no-network sentinel |
+| CreateContext/ResetContext/Close/Sweep | Interrupt or mutate lifecycle at effect boundaries | Blocked-Git descendant termination, lock release and pristine-content/absence assertions |
 | openReviewIsolation | Source alternate path and dependency clone writes, fenced and unfenced | Kernel write denial where available; unchanged real source snapshots otherwise |
-| boundaryReviewOptionsFor | Prompt omits or misnames dependency; alternate recipe/agent/preparation | Production-dispatch capture and actual file read using printed paths |
+| boundaryReviewOptionsFor and Confinement.Env | Prompt/environment drift across recipe, retry and agent shell | Production-dispatch capture plus reviewer-run command reading the actual fixture from its exported path |
 
 ## Live conformance proposal
 
 Build the branch binary. Ask ops-echo:0 to run its next boundary review from Echo using that binary and report the dependency manifest: ariadne path, exact origin/main SHA, age evidence, mode, and successful fixture/template inspection. This runs the ordinary disposable reviewer lifecycle, with no forced outage or live dependency write. Hub decides whether that owner-run check is required pre-landing; deterministic real-Git/fence fixtures provide the reproducible proof.
+
+## Revisions
+
+### 2026-10-22 — plan-quality round 1 and environment conformance
+
+PQ-1: name the contextual Create/Reset and BeforeRetryContext seams explicitly; each retry receives a fresh bounded preparation child capped by the remaining dispatch deadline, and all Git descendants terminate before cleanup. PQ-2: remove repeated concrete test inventories, retaining the function-level adversarial strategy table and red/green execution steps; detailed cases belong in tests. PQ-3: align the issue's current acceptance criteria with the approved two isolation modes. TL also approved exporting disposable SDLC_DEP_* through confinement and Claude shell restoration, with the reviewer-command regression. Echo confirmed #10's readers all honor that binding, making its held boundary review the live proof.

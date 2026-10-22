@@ -42,8 +42,7 @@ clone (ARCH-FUNERAL), never writable, bounded size and time.
 
 ## Done when
 
-- A review of a consumer repo whose deps name ariadne sees a read-only ariadne checkout at the documented path, and
-  the prompt names it (test).
+- A consumer boundary review receives disposable dependency checkouts pinned to last-fetched origin/main. The prompt names SDLC_DEP_* paths, exact SHA, fetch age or unknown, and mode; the same bindings reach reviewer-run commands. Available OS fences make dependencies read-only; checkout-only mode labels writable disposable copies whose edits are discarded (test).
 - Removed with the review clone; repos with no deps are unchanged (test).
 
 ## Plan
@@ -70,3 +69,8 @@ The original never-writable condition is revised by TL instruction: with an avai
 ### 2026-10-22 — design checkpoint
 
 Claimed and started planning after #548 landed. #531 is parked by TL. Read #545 environment resolution, layergraph grammar/resolver, reviewbox checkout/fence/confinement and the shared boundary dispatch. Read-only delegated lifecycle audit identified that an unowned sibling directory would be swept during a live review; the plan therefore reuses individually locked Create clones retained by the primary owner. No source implementation started. Full plan includes direct substrate/data bindings, exact last-fetched pins, freshness uncertainty, bounded materialization, retry/death cleanup and real-Git/fence proof. ARCH-DRY reuses existing declaration and checkout owners; ARCH-FUNERAL keeps all artifacts within their current cleanup lifecycle.
+
+
+### 2026-10-22 — approved plan and plan-quality refinement
+
+TL approved the full design and Echo-owned #10 boundary review as live conformance. Initial change-code inferred quick while the diff was still empty; reran with --flow full to obtain the intended plan-quality gate before implementation. Round 1 found PQ-1 contextual checkout/retry propagation and PQ-2 repeated test inventories; refined both as recorded in the plan. Current Done-when now reflects the approved modes. TL approved disposable environment exports, including Claude shell restoration. Echo supplied exact BR-1 evidence at its commit 5a3ada9 and confirmed #10 readers honor SDLC_DEP_SUBSTRATE. No source implementation yet.

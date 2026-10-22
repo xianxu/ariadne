@@ -1440,3 +1440,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #541 BR-1: when replacing a vague recovery error, search its old wording across README, atlas and shipped
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
+
+- #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
