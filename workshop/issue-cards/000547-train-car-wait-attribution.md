@@ -1,6 +1,6 @@
 ---
 id: 000547
-status: working
+status: codecomplete
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 2.9
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.14
+tracker:
+    version: 1
+    completion:
+        token: close-b393942172d8
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9dcb195ed5fd08d9c38cddd3892657fb922cd3bb
+        evidence_commit: 50ea176a3d50e093f19ec2a8066fb2d7654c4d51
 ---
 
 # Train car active-time counts conductor-owned queue wait and status polls as focused work
