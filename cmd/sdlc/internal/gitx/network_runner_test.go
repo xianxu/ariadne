@@ -110,3 +110,41 @@ func TestNetworkPublicationCause(t *testing.T) {
 		}
 	})
 }
+
+func TestNetworkNativeGitFakeDNSAndTimeoutBoundaries(t *testing.T) {
+	for _, diagnostic := range []string{
+		"fatal: unable to look up git.example (port 9418) (Temporary failure in name resolution)",
+		"fatal: unable to connect to git.example:\ngit.example[0: 2001:db8::1]: errno=Connection timed out",
+	} {
+		t.Run(diagnostic, func(t *testing.T) {
+			dir := t.TempDir()
+			// The fixture contains no shell syntax or credentials; fixed data only.
+			script := "#!/bin/sh\nprintf 'partial'\ncat <<'DIAGNOSTIC' >&2\n" + diagnostic + "\nDIAGNOSTIC\nexit 128\n"
+			if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			for _, runner := range []struct {
+				name string
+				run  func() ([]byte, error)
+			}{
+				{"bounded-output", func() ([]byte, error) { return boundedGitOutput(context.Background(), nil, "git", "fetch", "origin") }},
+				{"input-context", func() ([]byte, error) {
+					out, _, err := RunGitContext(context.Background(), "fetch", "origin")
+					return out, err
+				}},
+			} {
+				t.Run(runner.name, func(t *testing.T) {
+					out, err := runner.run()
+					var network *GitNetworkFailure
+					if !errors.As(err, &network) || network.Host != "git.example" {
+						t.Fatalf("native transport cause missing: %v", err)
+					}
+					if string(out) != "partial" {
+						t.Fatalf("stdout contaminated: %q", out)
+					}
+				})
+			}
+		})
+	}
+}

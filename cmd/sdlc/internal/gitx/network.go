@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -117,6 +118,40 @@ var curlResolveNetwork = regexp.MustCompile(`^Could not resolve (host|proxy):\s*
 var curlConnectNetwork = regexp.MustCompile(`^Failed to connect to (\S+) port [0-9]+(?: after [0-9]+ ms)?: (?:Couldn't connect to server|Connection refused|Connection timed out)\s*$`)
 var curlTimeoutNetwork = regexp.MustCompile(`^(?:Connection timed out after [0-9]+ milliseconds|Operation timed out after [0-9]+ milliseconds(?: with [0-9]+(?: out of [0-9]+)? bytes received)?|Failed to connect to \S+ port [0-9]+ after [0-9]+ ms: Timeout was reached)\s*$`)
 
+// Native Git uses getaddrinfo for lookup, and a paired header plus one numbered
+// errno entry per attempted address for connection failure. Keep those distinct
+// from unrelated local/hook prose, including isolated errno lines.
+var nativeResolveNetwork = regexp.MustCompile(`^fatal: unable to look up (\S+) \(port [0-9]+\) \((?:Name or service not known|Temporary failure in name resolution|nodename nor servname provided, or not known|hostname nor servname provided, or not known|No address associated with hostname|No such host is known\.?)\)$`)
+var nativeConnectEntry = regexp.MustCompile(`^(\S+)\[([0-9]+): ([^\]\s]+)\]: errno=(.+)$`)
+
+func nativeConnectNetworkHost(lines []string, index int) (string, bool) {
+	const prefix = "fatal: unable to connect to "
+	header := strings.TrimSuffix(lines[index], "\r")
+	if !strings.HasPrefix(header, prefix) || !strings.HasSuffix(header, ":") {
+		return "", false
+	}
+	rawHost := strings.TrimSuffix(strings.TrimPrefix(header, prefix), ":")
+	host, err := NormalizeNetworkHost(rawHost)
+	if err != nil {
+		return "", false
+	}
+	for offset := 1; index+offset < len(lines); offset++ {
+		entry := nativeConnectEntry.FindStringSubmatch(strings.TrimSuffix(lines[index+offset], "\r"))
+		if entry == nil || entry[1] != rawHost || entry[2] != strconv.Itoa(offset-1) {
+			return "", false
+		}
+		address, err := netip.ParseAddr(entry[3])
+		if err != nil || address.Zone() != "" {
+			return "", false
+		}
+		switch entry[4] {
+		case "Connection refused", "Connection timed out", "Operation timed out":
+			return host, true
+		}
+	}
+	return "", false
+}
+
 func networkVerb(args []string) bool {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -152,13 +187,19 @@ func ClassifyNetworkFailure(args []string, diagnostic []byte, cause error) error
 	}
 	// Transport signatures must begin their own line; hook/remote prose does not
 	// become a network failure merely by mentioning a resolver or timeout.
-	for _, line := range strings.Split(string(diagnostic), "\n") {
+	lines := strings.Split(string(diagnostic), "\n")
+	for index, line := range lines {
 		line = strings.TrimSuffix(line, "\r")
 		host, proxy, recognized := "", false, false
 		if m := sshResolveNetwork.FindStringSubmatch(line); m != nil {
 			host, recognized = m[1], true
 		} else if m := sshConnectNetwork.FindStringSubmatch(line); m != nil {
 			host, recognized = m[1], true
+		} else if m := nativeResolveNetwork.FindStringSubmatch(line); m != nil {
+			host, _ = NormalizeNetworkHost(m[1])
+			recognized = host != ""
+		} else if strings.HasPrefix(line, "fatal: unable to connect to ") {
+			host, recognized = nativeConnectNetworkHost(lines, index)
 		} else if strings.HasPrefix(line, "fatal: unable to access '") {
 			rest := strings.TrimPrefix(line, "fatal: unable to access '")
 			// Git encloses the URL in quotes; the last delimiter also permits an

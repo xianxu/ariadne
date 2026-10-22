@@ -91,7 +91,10 @@ func TestNetworkHosts(t *testing.T) {
 }
 
 func FuzzNetworkSafety(f *testing.F) {
-	for _, s := range []string{"https://user:SECRET@example.org/repo", "ssh: Could not resolve hostname example.org: unknown", "host\nSECRET"} {
+	for _, s := range []string{"https://user:SECRET@example.org/repo", "ssh: Could not resolve hostname example.org: unknown", "host\nSECRET",
+		"fatal: unable to look up git.example (port 9418) (Name or service not known)",
+		"fatal: unable to connect to git.example:\ngit.example[0: 2001:db8::1]: errno=Connection timed out",
+		"fatal: unable to connect to ::1:\n::1[0: ::1]: errno=Connection refused"} {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, raw string) {
@@ -142,5 +145,70 @@ func TestNetworkCancellationAndCanonicalHost(t *testing.T) {
 	}
 	if host, err := NormalizeNetworkHost("GitHub.COM."); err != nil || host != "github.com" {
 		t.Fatalf("canonical host=%q,%v", host, err)
+	}
+}
+
+// This table enumerates the transport families admitted by RemoteNetworkHost:
+// HTTP(S)/libcurl, SSH (including scp-style remotes), and native git://.
+func TestNetworkTransportFamilies(t *testing.T) {
+	cause := errors.New("transport exit")
+	for _, tc := range []struct{ name, diagnostic, host string }{
+		{"http-dns", "fatal: unable to access 'http://git.example/repo': Could not resolve host: git.example", "git.example"},
+		{"https-refused", "fatal: unable to access 'https://git.example/repo': Failed to connect to git.example port 443: Connection refused", "git.example"},
+		{"https-timeout", "fatal: unable to access 'https://git.example/repo': Operation timed out after 42 milliseconds with 0 bytes received", "git.example"},
+		{"ssh-dns", "ssh: Could not resolve hostname alias: Temporary failure in name resolution", "alias"},
+		{"scp-refused", "ssh: connect to host alias port 22: Connection refused", "alias"},
+		{"ssh-timeout", "ssh: connect to host 2001:db8::1 port 22: Operation timed out", "2001:db8::1"},
+		{"git-dns-linux", "fatal: unable to look up git.example (port 9418) (Name or service not known)", "git.example"},
+		{"git-dns-transient", "fatal: unable to look up git.example (port 9418) (Temporary failure in name resolution)", "git.example"},
+		{"git-dns-macos", "fatal: unable to look up git.example (port 9418) (nodename nor servname provided, or not known)", "git.example"},
+		{"git-refused", "fatal: unable to connect to 127.0.0.1:\n127.0.0.1[0: 127.0.0.1]: errno=Connection refused\n", "127.0.0.1"},
+		{"git-timeout", "fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=Connection timed out\n", "git.example"},
+		{"git-ipv6", "fatal: unable to connect to ::1:\n::1[0: ::1]: errno=Connection refused\n", "::1"},
+		{"git-ipv6-timeout", "fatal: unable to connect to git.example:\ngit.example[0: 2001:db8::1]: errno=Operation timed out\n", "git.example"},
+		{"git-multiple-addresses", "fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=Network is unreachable\ngit.example[1: 2001:db8::1]: errno=Connection refused\n", "git.example"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ClassifyNetworkFailure([]string{"ls-remote", "origin"}, []byte(tc.diagnostic), cause)
+			var network *GitNetworkFailure
+			if !errors.As(err, &network) || network.Host != tc.host || !errors.Is(err, cause) {
+				t.Fatalf("lost transport/host/cause: %v", err)
+			}
+			for _, prefix := range []string{"remote: ", "hook: "} {
+				prefixed := prefix + strings.ReplaceAll(tc.diagnostic, "\n", "\n"+prefix)
+				if got := ClassifyNetworkFailure([]string{"push"}, []byte(prefixed), cause); got != cause {
+					t.Fatalf("classified prefixed %q: %v", prefix, got)
+				}
+			}
+			for _, verb := range []string{"commit", "status", "update-ref"} {
+				if got := ClassifyNetworkFailure([]string{verb}, []byte(tc.diagnostic), cause); got != cause {
+					t.Fatalf("classified local %s: %v", verb, got)
+				}
+			}
+		})
+	}
+}
+
+func TestNetworkNativeGitNegativeMutations(t *testing.T) {
+	cause := errors.New("ordinary failure")
+	for _, diagnostic := range []string{
+		"fatal: unable to connect to git.example:",
+		"git.example[0: 192.0.2.1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\nother.example[0: 192.0.2.1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[0: SECRET]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[x: 192.0.2.1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[1: 192.0.2.1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=Network is unreachable\ngit.example[2: 2001:db8::1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=Network is unreachable\nhook text\ngit.example[1: 2001:db8::1]: errno=Connection refused",
+		"fatal: unable to connect to git.example:\nhook: Connection refused",
+		"fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=Permission denied",
+		"fatal: unable to connect to git.example:\ngit.example[0: 192.0.2.1]: errno=stale info",
+		"fatal: unable to look up git.example (port 9418) (hook timed out)",
+		"fatal: unable to look up /SECRET/path (port 9418) (Name or service not known)",
+		"fatal: unable to connect to git.example:\nremote: git.example[0: 192.0.2.1]: errno=Connection refused",
+	} {
+		if got := ClassifyNetworkFailure([]string{"fetch"}, []byte(diagnostic), cause); got != cause {
+			t.Errorf("classified mutation %q: %v", diagnostic, got)
+		}
 	}
 }

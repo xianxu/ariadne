@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,5 +81,25 @@ func TestNetworkProductionLocalFetchSuccess(t *testing.T) {
 	got, err := (execGitRunner{}).GitInDir(target, "rev-parse", "FETCH_HEAD")
 	if err != nil || strings.TrimSpace(string(got)) != want {
 		t.Fatalf("parsed output=(%q,%v), want %s", got, err, want)
+	}
+}
+
+func TestNetworkProductionNativeGitLoopbackRefusal(t *testing.T) {
+	// A closed ephemeral listener gives Git a real refused loopback connection,
+	// without production DNS or a dependency on a particular well-known port.
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	remote := "git://" + listener.Addr().String() + "/no-repo"
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	out, err := boundedLandingGit(t.Context(), execGitRunner{}).GitInDir(t.TempDir(), "ls-remote", remote)
+	t.Logf("real Git diagnostic: %s", out)
+	var network *gitx.GitNetworkFailure
+	var exit *exec.ExitError
+	if !errors.As(err, &network) || network.Host != "127.0.0.1" || !errors.As(err, &exit) {
+		t.Fatalf("real native transport must retain network/exit cause: %v", err)
 	}
 }
