@@ -115,6 +115,13 @@ Corrected setup publishes the common archive reference before the fork, while th
 
 Next: fresh recorded suite on this committed correction, plus narrow fixed-then-ship review. The earlier full-suite failure remains recorded as failure; it is not resumed, republished as pass or registered as a flake.
 
+
+### 2026-10-22 — corrected-head conformance and re-close SHIP
+
+Final private production CLI conformance passed all 13 required assertions on 8797b4a4a7e57b60ff83e29f56a245c40926d4d3. Artifact `/Volumes/TestScratch/ariadne-546-cli-close.Rw2Sg9/result.json` retains commands, executable harness and preservation snapshots. Both original refusal reproductions preserve raw index and refs; ordinary legacy publication resolves them, migration imports both archive roots, repeated apply is idempotent, and issue allocation/claim works.
+
+Narrow fixed-then-ship review round 2 returned SHIP: BR-1 addressed, no new findings or remaining advisories. Independent affected native tests passed (126.465s). Fresh recorded suite on the corrected source head is queued as lease-2642570106, attempt a100f3e29cc43b3710f507575726fcfb; preserve this runner. Landing remains contingent on its PASS.
+
 ## Estimate
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration reports stale and values remain provisional. The approved root × scope contract resolves design decisions (×0.2); Git/vocab/normalization libraries already exist, so no greenfield API is needed. Four smaller-module units cover pure evidence, shared observation, bulk main/delta adaptation and worktree uncertainty; the extraction is one cross-cutting refactor. Native conformance is one real-API discovery unit. Familiarity is 1.0 after #543, with +15% design buffer. Implementation values are 40% of the selected v2 ranges. Design sum 0.36h × 1.15 plus implementation sum 1.70h = 2.114h, rounded 2.11h.
