@@ -157,3 +157,67 @@ dispose:
 7. **Plan revision recommendations:** None. The Core concepts locations and documented implementation match the code; subsequent suite and landing gates remain explicitly pending.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"96761d7e-422a-4005-b19e-97c73abe1dd3","repository":"github.com/xianxu/ariadne","issue_id":"000530","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/89447e6c45aa52ab","reviewed_head":"99c89cf3f2181f380fafd754afd28eb65e10674d","slot":"ariadne:5","requested_at":"2026-10-21T23:46:42.664658Z"},"phase":"finished","pid":19215,"started_at":"2026-10-21T23:46:42.820403Z","finished_at":"2026-10-21T23:48:40.072441Z","session_id":"01a160dc-27a9-7fb1-9e7f-9040574bc097","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T19:28:00-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 530 — local-check: a suite that fails before any test on ENOSPC (full Go cache) is could-not-run, not an unattributable failure or main-red |
+| repo | ariadne |
+| issue file | workshop/issues/000530-local-check-a-suite-that-fails-before-any-test-on-enospc-full-go-cache-is-could-not-run-not-an-unattributable-failure-or-main-red.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f62f6fc7e8f08502b427d4ec4f368de0d5a682cd..375050fa4c18294459edd172359d8d644c268b73 |
+| command | sdlc close --issue 530 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T19:28:00-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both sides of all three conflict resolutions and enforces the existing genuine-rerun contract across composite reuse and posting. Both prior findings remain addressed. No new defects found; the revision entry records integration fixes without changing scope.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The Core concepts row names cmd/sdlc/teststats_reclassify.go, matching validateReclassificationProof at line 67.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Executed-revision advice remains intact. Current tests pass; removing revision advice through a temporary compiler overlay makes all six direct, rerun, baseline and missing-Go cases fail.
+```
+
+1. **Strengths**
+   - Command wiring retains reclassify, resume and reconcile (`localcheck_cmd.go:75`).
+   - Recovery guards cover composite selection and cached posting (`localcheck_republish.go:108,218`).
+   - Publication shares the existing directory lock; pruning test seams share one implementation.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** Focused recovery, startup, resume-store, retention and catalog tests passed. Temporary overlays confirmed regressions fail without the composite guards or publication lock. Full suite was not rerun. Repository files remain unchanged.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** Shared pruning implementation and existing lock reused.
+   - **ARCH-PURE — pass:** File coordination remains in the IO boundary.
+   - **ARCH-PURPOSE — pass:** Composite reuse, cached posting and completed-resume reposting enforce genuine recovery.
+   - **ARCH-EVOLVE — pass:** No persisted-format change introduced.
+
+   Atlas documents the lock integration. No new user-facing command or flag requires a README update in this window.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c7fbedd3-9101-44eb-b4b5-69ce580d44b7","repository":"github.com/xianxu/ariadne","issue_id":"000530","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/bdd81efd1868cb26","reviewed_head":"375050fa4c18294459edd172359d8d644c268b73","slot":"ariadne:5","requested_at":"2026-10-22T02:25:57.397992Z"},"phase":"finished","pid":71041,"started_at":"2026-10-22T02:25:57.485491Z","finished_at":"2026-10-22T02:27:59.826295Z","session_id":"01a1616d-f1f9-73f1-ab12-8386ce1d5f2a","outcome":"returned"}] -->
