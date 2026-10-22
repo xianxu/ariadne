@@ -5,10 +5,10 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 1.93
 severity: critical
 collaboration-mode: collaboration
-card_mirror: '13b7f48810be493165d2a2364a91745e07ec9f88' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '167331c577222f4c9e0a65d5fa45e9c54454c42b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T01:34:58-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # Actual queue evidence must belong to the measured issue head
@@ -54,3 +55,20 @@ Durable plan: [suite head attribution](../plans/000548-suite-head-attribution-pl
 2026-10-22: Discovered in #544 live conformance; ops-echo:0 delivery f8174005-af47-42ac-af83-c57928432164. Read-only actual9 at its pushed branch head on clean #544 binary b1ea682 refused: suite attempt fcf15650129203dfd1408728d625962b has 0 matching pinned slot engagements. Echo owner identifies it as echo#3's failed recorded run. echo:0 had kept #3 blocked at close and taken #9 per ops:0, so both claims coexist legitimately. The #544 repair and mixed legacy/tracker measurement for #3 passed independently. TL delivery59ea794e-0b24-4d8f-85cf-c1b571d0117a keeps this outside #544; delivery7ebee200-0aa0-49ac-9606-ee9ac3af6f02 assigns it to ariadne:1 immediately after #544 lands, plan first, with parallel planning from main allowed while #544 queues.
 
 - 2026-10-22: Plan-quality round1 blocked on replacement-sensitive immutable reads and an unspecified aggregate resource envelope. Revised the narrow reader contract to disable Git replacements and specify command-global node/byte plus per-lineage depth ceilings, with boundary tests through the production walker; compressed the repeated test inventory. No implementation changed.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; calibration is flagged stale by estimate-source. Two single-concern greenfield modules cover pure membership and the memoized walker; bounded Git IO and existing measurement wiring are smaller extensions. Git's cat-file protocol and existing bounded runner remove novel-stack discovery; no new library is needed. Thorough approved plan applies ×0.2 design discount and15% design buffer; implementation values are already40% of v2 ranges, familiarity1.0.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.03 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 1.93
+```
