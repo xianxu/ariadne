@@ -312,6 +312,16 @@ mandatory subsequent workflow gates; they are tracked in the Log below.
   new recorded suite and the merge-prescribed narrow re-close with
   --fixed-then-ship and --full-suite before landing.
 
+- Retained integrated-code suite: pushed head
+  0181ef043a90f5807118d663c26e437bb46cf687, attempt
+  767c1bb9ca999987696c7fbbda27762a, lease-225718307, terminal 97786,
+  detached checkout /Volumes/TestScratch/local-checks/sdlc-local-603910783.
+  Inflight raw log is under the common Git directory at
+  sdlc/test-stats/inflight/767c1bb9ca999987696c7fbbda27762a/run.log.
+  Last observed FIFO position 4. Keep this runner; no live merge runner remains
+  after the conflict refusal. Wait for its pass, then narrow re-close with the
+  actual --full-suite proof, push the new close generation and re-enter merge.
+
 ## Revisions
 
 - 2026-10-21 — Added the proposed design and explicit acceptance controls after
