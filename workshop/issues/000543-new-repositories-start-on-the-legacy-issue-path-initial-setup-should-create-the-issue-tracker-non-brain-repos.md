@@ -80,6 +80,8 @@ Proposed durable plan: [new repository tracker initialization](../plans/000543-n
 
 - Close round 2 REWORK: BR-1 addressed; BR-2 Critical repeats authoritative-inventory-completeness because branch/dirty-worktree scans omit archives. Canceled queued lease-2849438579, with no executed suite/pass. Source audit additionally identified flat legacy history, inherited/unrelated branch evidence, detached clean worktree heads and ignored candidates as cells the complete rule must address. Appended a whole-inventory root × scope re-plan and held production changes for TL approval; this replaces site-by-site repairs.
 
+- TL stopped importer widening and directed a conservative init presence gate (Couch 5119a959-0128-4420-89ee-9a91fb0b08d9). Superseded the prior whole-rule importer proposal: init refuses recognized evidence anywhere across three roots and all branch/worktree/index/filesystem scopes, importing/merging nothing. Pre-existing migrate completeness gaps filed separately as unclaimed #546; its card/details published with no checkout write. Existing BR-1 fresh/pinned helper remains; no new migration import/refusal policy in #543. Revised durable plan is authorized to proceed.
+
 ## Revisions
 
 ### 2026-10-21 — approved default initialization boundary
