@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: c7e910da-728e-4ac8-b7f5-310b4fbe3f6c
+        repository: github.com/xianxu/ariadne
+        issue_id: "000544"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        reviewed_head: eefa6c6fafd36e2234c38419a83615918dcf0ad5
+        slot: ariadne:1
+        requested_at: "2026-10-22T07:17:08.372888Z"
+      phase: finished
+      pid: 39076
+      started_at: "2026-10-22T07:17:08.576651Z"
+      finished_at: "2026-10-22T07:17:52.905073Z"
+      session_id: 01a16278-88f7-7140-941b-a5b6f5ef1974
+      outcome: returned
 gate: plan-quality
 issue: 544
 id_prefix: PQ
@@ -65,7 +85,62 @@ rounds:
           note: Named risky functions now have concise adversarial strategies and mechanical guards; production-path integration objectives remain without enumerated prose case inventories.
           round: 2
       blocked: false
-content_hash: c5b68e3320e084d79669c8884f4a7ba84c7c5ae6e99f66b78d70dd40f1e4d4c0
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: fd814fa4-2038-4edb-9c62-5fa20796b796
+            repository: github.com/xianxu/ariadne
+            issue_id: "000544"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            reviewed_head: eefa6c6fafd36e2234c38419a83615918dcf0ad5
+            slot: ariadne:1
+            requested_at: "2026-10-22T07:14:52.698664Z"
+          phase: finished
+          pid: 64394
+          started_at: "2026-10-22T07:14:52.918602Z"
+          finished_at: "2026-10-22T07:15:21.983011Z"
+          session_id: 01a16276-7782-7033-8ceb-4e2afe871c23
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-22T00:15:22-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 292d3aa4-70fb-4ed8-9e4d-845dcf13bf8e
+            repository: github.com/xianxu/ariadne
+            issue_id: "000544"
+            recipe: plan-quality
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            reviewed_head: eefa6c6fafd36e2234c38419a83615918dcf0ad5
+            slot: ariadne:1
+            requested_at: "2026-10-22T07:16:34.811848Z"
+          phase: finished
+          pid: 18623
+          started_at: "2026-10-22T07:16:34.98198Z"
+          finished_at: "2026-10-22T07:17:05.624582Z"
+          session_id: 01a16278-05e4-76a0-a7d1-bba7766466c4
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-22T00:17:06-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: The revised plan names risky functions and provides one concise adversarial strategy and mechanical guard per function.
+          round: 4
+      blocked: false
+content_hash: 53b79951ba89084680899ad55b3e278b8db64413651191e4645128b318572abe
 ---
 
 # Gate ledger — ariadne#544 (plan-quality)
@@ -85,6 +160,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-1 — addressed — Named risky functions now have concise adversarial strategies and mechanical guards; production-path integration objectives remain without enumerated prose case inventories.
+
+## Round 3 — 2026-10-22T00:15:22-07:00 (codex) — passed
+
+## Round 4 — 2026-10-22T00:17:06-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — The revised plan names risky functions and provides one concise adversarial strategy and mechanical guard per function.
 
 ## Open findings
 

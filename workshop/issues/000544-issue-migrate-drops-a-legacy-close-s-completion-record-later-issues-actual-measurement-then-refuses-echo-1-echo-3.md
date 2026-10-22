@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-21
 updated: 2026-10-22
-estimate_hours:
+estimate_hours: 3.57
 collaboration-mode: collaboration
-card_mirror: '9cdf509175715c8768fbf00884a640e65c56be42' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '585491c70ccd512790479fee5890879e2748a20a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T00:02:32-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # issue migrate drops a legacy close's completion record; later issues' actual measurement then refuses (echo#1 → echo#3)
@@ -80,3 +81,23 @@ Durable plan: [legacy completion preservation and repair](../plans/000544-legacy
 ### 2026-10-22 — unbound terminal imports
 
 TL delivery 82679d7d-74d5-4320-9051-4232bdd6f97f extends the same strictly-earlier rule to unbound legacy imports using a proven archive/done commit. Preserve absence of a close, never fabricate review/window evidence, and keep overlapping cases strict. The plan now uses one LegacyAdoption envelope record across close-backed and terminal-only imports.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is stale, so provisional. Issue shaping uses 0.70 design without discount and 0.20 raw implementation. Codec is a typed-data prototype (0.50 design ×0.2 spec discount; 0.50 raw impl). Shared proof resolution is a single-concern greenfield Go module (1.20 design halved because existing contextual Git, review-window and ledger adapters provide the IO foundation, then ×0.2; 0.80 raw impl). Migration and exclusion each extend smaller modules (0.30 design ×0.2; 0.50 raw impl). Repair uses the existing tracker API/CAS integration with fault/retry tests (1.00 design ×0.2; 1.50 raw impl). Docs use 0.10 design ×0.2 and 0.20 raw impl. One close review uses 0.50 raw impl; owner-run Echo discovery uses 0.60 raw impl. Apply v3.1's 40% to implementation once, familiarity1.0 and 15% thorough-plan design buffer. Design1.26 ×1.15 + implementation2.12 =3.569, rounded3.57 focused ship hours. Queue waits are not active implementation; no tests or evidence are waived to meet the estimate.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: issue-spec design=0.70 impl=0.08
+item: typed-data-prototype design=0.10 impl=0.20
+item: greenfield-go-module design=0.12 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: api-integration design=0.20 impl=0.60
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+total: 3.57
+```
