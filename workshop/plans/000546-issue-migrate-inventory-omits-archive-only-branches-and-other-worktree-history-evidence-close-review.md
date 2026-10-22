@@ -128,3 +128,68 @@ dispose:
 7. **Plan revisions:** None needed.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0b69eff7-ac13-46da-8b80-313b4900d2ef","repository":"github.com/xianxu/ariadne","issue_id":"000546","recipe":"fix-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/07a423a39a92b53a","reviewed_head":"8797b4a4a7e57b60ff83e29f56a245c40926d4d3","slot":"ariadne:3","requested_at":"2026-10-22T11:44:20.006488Z"},"phase":"finished","pid":93383,"started_at":"2026-10-22T11:44:20.163984Z","finished_at":"2026-10-22T11:47:09.705346Z","session_id":"01a1636d-2882-7d41-9443-1f523e71cf6b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T08:25:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 546 — issue migrate inventory omits archive-only branches and other-worktree history evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000546-issue-migrate-inventory-omits-archive-only-branches-and-other-worktree-history-evidence.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a437d609d13e8b2efbb69bb113f1e60555bda5b5..eaad89ade92b1faa464ae407615a6e803cdcda06 |
+| command | sdlc close --issue 546 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T08:25:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both sides of the conflict: complete inventory observation and main’s legacy-completion verification. BR-1 remains addressed. No new defects or scope changes were identified; affected native tests passed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Repository search confirms the obsolete migrationBranchRefs helper and dirtyIssuePaths wrapper remain absent. Tests exercise publicationBranchTips and observeIssueInventory; the retained dirtyIssuePaths consumes pinned worktrees through migrationInventory.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/issuemigrate_inventory.go:110–140` preserves main’s completion-proof collection byte-for-byte and connects it to the complete inventory.
+   - The collector propagates proof errors and uses the planner’s selected source generation.
+   - `atlas/workflow/issue-tracker-migration.md:34,79` retains both inventory guidance and legacy-completion recovery. Both legacy sections are preserved verbatim.
+   - Spec and Done-when remain unchanged; the plan changes only an acceptance checkbox.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Nine targeted tests passed, including their subtests, in **39.944s**. Coverage includes archived completion preservation, provable/landed closes, committed inventory scopes, reserved branch names, both archive layouts, immutable reads, fetch isolation, and changed-evidence rejection. Pinned-range `git diff --check` passed. The full suite was not rerun during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** one inventory implementation remains; proof collection reuses the existing planner and verifier.
+   - **ARCH-PURE — pass:** semantic selection remains pure; Git evidence collection stays in the integration shell.
+   - **ARCH-PURPOSE — pass:** conflict resolution preserves complete observation and existing completion authority.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+   
+   Atlas updates cover the resolution. This interdiff introduces no new user-facing command or configuration requiring a README update.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"99ffc415-0233-4de9-b742-10bae4a6f47d","repository":"github.com/xianxu/ariadne","issue_id":"000546","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/fffe4d866e38acdd","reviewed_head":"eaad89ade92b1faa464ae407615a6e803cdcda06","slot":"ariadne:3","requested_at":"2026-10-22T15:23:14.66332Z"},"phase":"finished","pid":22039,"started_at":"2026-10-22T15:23:14.819637Z","finished_at":"2026-10-22T15:25:04.658755Z","session_id":"01a16435-93ef-79d3-9f3b-99db69d63674","outcome":"returned"}] -->
