@@ -1,6 +1,6 @@
 ---
 id: 000538
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.43
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f5818fcb854639cffd0220502a4e6ed5ed93e474
         evidence_commit: 8db668b518f2f2ef14fffc8c8a1759458aaedbed
+        landed_commit: d3f41306ed953073940ee4400cafadd72953a302
 ---
 
 # stage --clear recognizes its landed holder after branch deletion
