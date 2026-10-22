@@ -1,6 +1,6 @@
 ---
 id: 000548
-status: working
+status: codecomplete
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 1.93
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.54
+tracker:
+    version: 1
+    completion:
+        token: close-60c2a7c53889
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f4d418291df2bf170ea38006a4a55052526ce60b
+        evidence_commit: ab0c8051f9cedb50b7382e29a2f8b72ccf007d9c
 ---
 
 # Actual queue evidence must belong to the measured issue head
