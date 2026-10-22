@@ -1,6 +1,6 @@
 ---
 id: 000548
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 1.93
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f4d418291df2bf170ea38006a4a55052526ce60b
         evidence_commit: ab0c8051f9cedb50b7382e29a2f8b72ccf007d9c
+        landed_commit: 80602233df36a670023b60af8dabb0b6f3c2c071
 ---
 
 # Actual queue evidence must belong to the measured issue head
