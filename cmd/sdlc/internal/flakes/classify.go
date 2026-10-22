@@ -36,6 +36,9 @@ const MaxRerun = 5
 // Kind is the gate's decision for one suite attempt on one head.
 type Kind string
 
+// CouldNotRun is verified execution evidence, never a failed test or a pass.
+const CouldNotRun Kind = "could-not-run"
+
 const (
 	Passed            Kind = "passed"
 	NeedRerun         Kind = "need-rerun"           // effect: rerun Known's tests, then classify again

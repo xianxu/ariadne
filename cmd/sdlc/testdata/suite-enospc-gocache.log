@@ -1,0 +1,20 @@
+pattern ./...: write /Volumes/AgentScratch/go-build/50/50bab5dfb43fd65a63eb5992ae46b19766f708e175c70f527777f3c01b8e8496-a: no space left on device
+Traceback (most recent call last):
+  File "/Volumes/TestScratch/local-checks/sdlc-local-1900373097/scripts/test-shard.py", line 184, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Volumes/TestScratch/local-checks/sdlc-local-1900373097/scripts/test-shard.py", line 93, in main
+    others = [p for p in git_list(root) if p != MAIN_PKG]
+                         ~~~~~~~~^^^^^^
+  File "/Volumes/TestScratch/local-checks/sdlc-local-1900373097/scripts/test-shard.py", line 126, in git_list
+    out = subprocess.check_output(["go", "list", "./..."], cwd=root, text=True)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 473, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['go', 'list', './...']' returned non-zero exit status 1.
+make: *** [test] Error 1
