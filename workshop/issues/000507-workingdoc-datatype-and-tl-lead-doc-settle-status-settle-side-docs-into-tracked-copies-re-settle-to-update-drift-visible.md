@@ -83,6 +83,8 @@ Durable implementation plan: [workingdoc settlement](../plans/000507-workingdoc-
 
 - Combined post-BR-5/6 checks PASS: full cmd/tl-lead 59.286s, cmd/datatype 0.184s, pkg/golint 1.140s; diff check clean. Committing this coherent correction before queuing a fresh recorded suite. No staging or live hub effect has occurred.
 
+- Post-BR-5/6 recorded suite PASS on 4886a014ea52f498d3475603ebc1e59fff7ca2a2: 8 shards, 1,960 SDLC tests and 75 other packages, zero failures, wall 908.7s; recorded sdlc-local/suite, log SHA256 prefix 4fb0c18091a0. Retained lease-2210632118 completed after its FIFO wait. Re-closing now per TL hourly sweep; any new mechanism-level review gap will be reported before further implementation.
+
 ## Revisions
 
 ### 2026-10-21 — publication ownership and unresolved review items
