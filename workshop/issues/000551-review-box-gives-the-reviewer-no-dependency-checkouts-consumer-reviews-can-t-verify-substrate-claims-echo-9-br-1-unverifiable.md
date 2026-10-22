@@ -114,3 +114,8 @@ Final combined checks passed on this implementation: judge 14.352s, reviewbox 21
 ### 2026-10-22 — close review round 1
 
 Mandatory boundary review found no runtime correctness blocker and returned one Important BR-1, user-surface-documentation: README omitted the new reviewer/preparation environment contract while atlas documented it. Added README guidance for bindings, exact last-fetched pins, no fetch, repair/retry, modes, freshness and lifecycle, with an atlas link. Existing local-check environment guidance still applies to local checks. The recorded suite remains running on unchanged implementation code; only documentation and review records change for the next close. Reviewer could not nest the live OS fence in its own sandbox; the owner-run disposable fence conformance had already passed outside that nesting, with the exact test command/results logged above.
+
+
+### 2026-10-22 — close review round 2 and host evidence
+
+Round 2 addressed BR-1, found no implementation defect, but raised Important BR-2 (unverifiable, os-fence-conformance): its nested sandbox cannot run sandbox-exec, and it needs captured host output rather than the prose summary. Re-ran the exact opt-in TestReviewDependencyLiveFence outside that nested sandbox on HEAD 80e095147c447abf1a3c41799029a050eca5817f; PASS, exit 0, 1.391s command / 0.91s test. [Host fence evidence](../plans/000551-host-fence-evidence.md) captures raw output, UTC capture time, tested HEAD and immutable source blob IDs. Only generated Markdown review sidecars were modified at execution. The same code is covered by the still-running recorded suite; evidence commits introduce no executable changes. Submit measured host evidence through finding dispute so the next reviewer must answer it explicitly.

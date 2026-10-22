@@ -1446,3 +1446,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.
 
 - #551 BR-1: a new command environment belongs in its README entry point as well as atlas. Sweep the existing README instructions for each affected flow (boundary preparation and managed checks) before close; an atlas-only description leaves users without the new bindings and recovery. This documentation contract needs review against behavior rather than a wording test.
+
+- #551 BR-2: live conformance that a review sandbox cannot repeat needs a committed raw output artifact bound to tested HEAD and relevant source blob IDs. A prose PASS in the Log is not independently inspectable host evidence; attach that measurement before close and let the gate explicitly dispose an unverifiable finding.
