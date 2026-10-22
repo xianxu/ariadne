@@ -74,3 +74,57 @@ findings:
 7. **Plan revision recommendations:** None required for the delivered behavior.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"37118dd5-60a9-497d-ad6c-fb51182120b9","repository":"github.com/xianxu/ariadne","issue_id":"000546","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/18c9939a0aa4ce00","reviewed_head":"345fdc36883e03cca3b98d68586010ce77926e03","slot":"ariadne:3","requested_at":"2026-10-22T10:36:09.986285Z"},"phase":"finished","pid":66917,"started_at":"2026-10-22T10:36:10.134036Z","finished_at":"2026-10-22T10:41:27.54641Z","session_id":"01a1632e-bfa9-7710-bfe5-46fec3f6247c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T04:47:10-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 546 — issue migrate inventory omits archive-only branches and other-worktree history evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000546-issue-migrate-inventory-omits-archive-only-branches-and-other-worktree-history-evidence.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9c846f17395634d47f4dd2f9084f1a2d4f990a87..8797b4a4a7e57b60ff83e29f56a245c40926d4d3 |
+| command | sdlc close --issue 546 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T04:47:10-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff addresses BR-1 and introduces no identified defects. The fixture correction preserves the original asset-refusal assertions. Spec and Done-when remain unchanged; the plan revision records the bounded correction.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Removed migrationBranchRefs and the unused dirtyIssuePaths wrapper. Tests now exercise publicationBranchTips and observeIssueInventory; the retained dirtyIssuePaths has a live migrationInventory caller consuming pinned worktrees. Repository search confirms no obsolete helper references remain.
+```
+
+1. **Strengths**
+   - Removed both obsolete production paths without changing runtime policy.
+   - Ref-category tests now check the shared inventory’s exact names and OIDs.
+   - Asset fixture repair retains conversion/content-name refusal and checkout-preservation assertions.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** Affected asset, migration-inventory and ref-category tests passed (`126.465s`). Pinned-range `git diff --check` passed. Cleanup changes no executable behavior requiring a new regression test. The full recorded suite was not rerun in this review.
+
+6. **Architecture:** ARCH-DRY passes: obsolete parallel paths removed. ARCH-PURE passes: IO boundaries unchanged. ARCH-PURPOSE passes: both BR-1 instances addressed and tests moved to live consumers. ARCH-EVOLVE passes: no persisted-format changes. No new user-facing or architectural surface requires README or atlas updates.
+
+7. **Plan revisions:** None needed.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0b69eff7-ac13-46da-8b80-313b4900d2ef","repository":"github.com/xianxu/ariadne","issue_id":"000546","recipe":"fix-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/07a423a39a92b53a","reviewed_head":"8797b4a4a7e57b60ff83e29f56a245c40926d4d3","slot":"ariadne:3","requested_at":"2026-10-22T11:44:20.006488Z"},"phase":"finished","pid":93383,"started_at":"2026-10-22T11:44:20.163984Z","finished_at":"2026-10-22T11:47:09.705346Z","session_id":"01a1636d-2882-7d41-9443-1f523e71cf6b","outcome":"returned"}] -->
