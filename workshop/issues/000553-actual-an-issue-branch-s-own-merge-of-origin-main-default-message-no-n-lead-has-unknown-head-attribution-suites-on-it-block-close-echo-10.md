@@ -1,13 +1,13 @@
 ---
 id: 000553
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '707a528314e9042450920b8a46d84d144c7c95ae' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9e5e7bd525d6fe1838e7e2dfb31266fea7ae7e9e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T06:34:21-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "99b94420", done: "20a91033"}
+actual_hours: 0.82
 ---
 
 # actual: an issue branch's own merge of origin/main (default message, no #N lead) has unknown head attribution; suites on it block close (echo#10)
