@@ -57,15 +57,18 @@ type localCheckDecl struct {
 // "workflow / job") it stands in for when that job never got a runner. Required
 // makes the recorded run mandatory whatever CI reports.
 type localCheck struct {
-	RunScope       string                     `json:"scope,omitempty"`
-	Resource       string                     `json:"resource,omitempty"`
-	PathsFile      string                     `json:"paths_file,omitempty"`
-	Extra          map[string]json.RawMessage `json:"-"`
-	Name           string                     `json:"name"`
-	Command        []string                   `json:"command"`
-	Substitutes    []string                   `json:"substitutes,omitempty"`
-	Required       bool                       `json:"required,omitempty"`
-	TimeoutMinutes int                        `json:"timeout_minutes,omitempty"`
+	// DeclarationVersion is reader-owned capability metadata, never declared.
+	DeclarationVersion int                        `json:"-"`
+	FlakeRunners       flakes.UnitRunners         `json:"flake_runners,omitempty"`
+	RunScope           string                     `json:"scope,omitempty"`
+	Resource           string                     `json:"resource,omitempty"`
+	PathsFile          string                     `json:"paths_file,omitempty"`
+	Extra              map[string]json.RawMessage `json:"-"`
+	Name               string                     `json:"name"`
+	Command            []string                   `json:"command"`
+	Substitutes        []string                   `json:"substitutes,omitempty"`
+	Required           bool                       `json:"required,omitempty"`
+	TimeoutMinutes     int                        `json:"timeout_minutes,omitempty"`
 	// Weight is how many machine-wide suite slots the run takes at once (#346,
 	// #332): ariadne's sharded suite takes 2 and runs alone. Default 1.
 	Weight int `json:"weight,omitempty"`
@@ -101,6 +104,9 @@ func parseLocalChecks(data []byte) (localCheckDecl, error) {
 	}
 	if isV2LocalChecks(data) {
 		return parseLocalChecksV2(data)
+	}
+	if isV3LocalChecks(data) {
+		return parseLocalChecksV3(data)
 	}
 	var legacy map[string]json.RawMessage
 	if err := json.Unmarshal(data, &legacy); err == nil {
@@ -139,6 +145,10 @@ func validateLocalChecks(d localCheckDecl) (localCheckDecl, error) {
 	names, labels := map[string]bool{}, map[string]string{}
 	for i := range d.Checks {
 		c := &d.Checks[i]
+		c.DeclarationVersion = d.Version
+		if len(c.FlakeRunners) != 0 && (d.Version != 3 || c.Name != suiteCheckName) {
+			return bad("flake_runners requires a version 3 suite declaration")
+		}
 		if d.Version == 1 && (c.RunScope != "" || c.Resource != "" || c.PathsFile != "") {
 			return bad("version 1 does not support landing fields")
 		}

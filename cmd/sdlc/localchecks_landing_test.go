@@ -27,7 +27,7 @@ func TestParseLocalChecksLanding(t *testing.T) {
 		t.Fatalf("--all ran manual landing check: %v %v", got, err)
 	}
 	for _, edit := range []struct{ old, new string }{
-		{`"version":2`, `"version":3`},
+		{`"version":2`, `"version":4`},
 		{`"resource":"runner",`, ``}, {`"required":false,`, ``},
 		{`"required":false`, `"required":null`}, {`"resource":"runner"`, `"resource":"bogus"`},
 		{`"scope":"landing"`, `"scope":"head"`},

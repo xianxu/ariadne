@@ -44,7 +44,7 @@ Each row gets colocated tests without IO mocks. Identity owns syntax and coverag
 |------|----------|--------|-------|
 | Trusted runner declarations | `cmd/sdlc/localchecks.go`, `localchecks_v2.go`, new `localchecks_v3.go` | modified | declaration read from trusted main and exact tested commit |
 | `sdlc flake run --unit KIND:PATH` | new `cmd/sdlc/flake_run.go` | new | one declared argv, scoped process lifetime, structured unit output |
-| Plenary result producer | new `scripts/sdlc-plenary-events.lua`, `construct/base.manifest` | new | existing Plenary results after normal hooks/assertions |
+| Plenary result producer | new `scripts/sdlc-plenary-events.lua` | new | existing Plenary results after normal hooks/assertions; distribution follows #558 |
 | Registry setters/evidence | `cmd/sdlc/flake_cmd.go`, `internal/issue/card.go`, `construct/vocabulary/issue.cue` | modified | fresh tracker CAS and retained attempt/log reads |
 | Recorded and resumed reruns | `cmd/sdlc/localcheck_flakes.go`, `localcheck_resume.go`, `localcheck_run.go` | modified | existing helper, queue, process group and immutable attempt store |
 | Saved pass and retention consumers | `cmd/sdlc/localcheck_resume_evidence.go`, `localcheck_resume_saved.go`, `localcheck_resume_retention.go`, `localcheck_republish.go`, `teststats_evidence.go` | modified | exact saved bytes, locks, current registry/policy and status provider |
@@ -153,7 +153,7 @@ Files: new `internal/flakes/identity.go`/`identity_test.go`; modify `registry.go
 
 ### Task 2: Trusted unit execution and producer evidence
 
-Files: new `internal/flakes/unit_runner.go`, `unit_evidence.go` and tests; new `localchecks_v3.go`, `flake_run.go` and tests; new `scripts/sdlc-plenary-events.lua`; modify declaration parser, command wiring and `construct/base.manifest`.
+Files: new `internal/flakes/unit_runner.go`, `unit_evidence.go` and tests; new `localchecks_v3.go`, `flake_run.go` and tests; new `scripts/sdlc-plenary-events.lua`; modify declaration parser and command wiring. The single base-manifest distribution row is separately owned by ariadne#558.
 
 - [ ] Add red tests for runner declaration/projection and unit-evidence functions using the function-level strategies above, plus the synchronized wrapper-death ownership test.
 - [ ] Implement pure runner/evidence models, thin wrapper and Plenary result producer. Reuse existing scoped process execution without another queue acquisition. Child diagnostics never become control events. Add counted 8/16-case growth tests and enforce writer-side bounds.
@@ -187,3 +187,7 @@ Read-only code and live-case surveys establish that typed identities require pos
 ### 2026-10-22 — PQ-1/PQ-2/PQ-3
 
 Plan-quality round 1 correctly found that nested use of the managed helper would create an escaping process group. Supersede the earlier ambiguous wrapper-lifetime claim: only the outer helper owns a group; the adapter's unit child inherits it, and only the outer owner confirms group completion and retires resources. The adapter requires a managed invocation, with ordinary direct peer-runner fallback outside recorded checks. Add a synchronized death test to prevent accidental nested groups. This ownership clarification is submitted to ops:0 before code. Replace test inventories with function-named strategies and add native conformance ownership/repeat triggers. No attempt/link/reconciliation authority changes.
+
+### 2026-10-22 — TL-directed distribution split
+
+`construct/base.manifest` is a local-gates-protected path. ops:0 directs #556 to ship without editing it and places the single producer symlink row in unclaimed ariadne#558, depending on #556, for operator-held verification (delivery `8556cb2f-b354-48e4-ad56-4a99963da64e`). This supersedes the original manifest file list. Producer source, native/private adoption conformance and all typed registry/resume implementation stay here; actual peer adoption follows #558. No live gate configuration changes are included.

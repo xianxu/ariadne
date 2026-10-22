@@ -43,6 +43,7 @@ Same evidence rules as Go flakes: a saved same-head fail-then-pass.
 - A script timeout in a recorded suite is reported with a `script:` identity (not unattributable), and can be
   registered and resumed (test).
 - A failing busted case reports a `lua:` identity that registration accepts (test).
+- Peer adoption follows ariadne#558, which separately distributes the Plenary producer through the operator-verified base-manifest row. #556 ships the implementation/source and private adoption conformance without editing local-gates configuration.
 
 ## Plan
 
@@ -112,3 +113,17 @@ The full-flow gate blocked on PQ-1 (nested process ownership) and PQ-2 (function
 ops:0 approved the ownership clarification, existing StrictGroupCleanup, wrapper-death test and lint rule (delivery `dee4f241-4334-488e-bbed-ab6a0232dc2b`); rerunning change-code.
 
 Round 2 plan-quality returned CLEAN, disposing PQ-1/PQ-2/PQ-3 as addressed, with no new findings. The remaining admission gate requires the derived estimate above and card setter; no production edits yet.
+
+### 2026-10-22 — implementation admitted; bounded cores and adapter checkpoint
+
+`sdlc change-code --issue 556 --flow full` completed successfully after the estimate setter. Plan-quality round 3 remained CLEAN; estimate-quality INFO accepted the derivation and noted that compatibility/conformance and recorded suite/landing time may exceed the primitive allowances. The issue/spec row includes whole-issue shaping; schema, log and acceptance rows absorb their own tests, while the consumer row covers shared wiring. This is a provisional estimate, not a cap or grounds to omit any gate.
+
+Implemented and verified the immutable typed identity model, exact-only non-Go coverage, literal runner argv projection with opaque JSON preservation, strict unit/summary decoding and the sticky unit lifecycle. Unit-evidence fuzzing and 8/16 growth tests defend malformed frames, ordering and lookup work. Existing Go coverage and emitted-name rules remain intact. The Plenary producer preserves native formatting/hooks/assertions and writes a bounded private channel; native pass/fail and setup-error behavior was compared with the installed library.
+
+The v3 declaration parser and `flake run --unit` wrapper pass targeted integration tests, including a literal script path with shell metacharacters, observed exit 124, stdout impostors, a required private Lua summary, contract mismatch, replaced result-channel symlink and typed display. Red failures were observed before each implementation slice. Verified commands: `go test ./cmd/sdlc/internal/flakes ./cmd/sdlc/internal/issue -count=1`; native producer `SDLC_PLENARY_DIR=/Users/xianxu/.local/share/nvim/lazy/plenary.nvim go test ./scripts/test -run PlenaryEvents -count=1`; root targeted `go test ./cmd/sdlc -run 'TestFlakeRun|TestFlakeUnitSummary|TestLocalChecksV3|TestParseLocalChecks' -count=1 -timeout 10m`.
+
+Outstanding: bind the outer managed run's trusted contract/environment and strict lifetime, add the wrapper-death/lint guards, connect typed log facts and v4 records to live/resumed/saved proof and registration, then private full CLI acceptance and recorded verification/close/landing. This is not yet a usable end-to-end typed recorded check. The planned producer distribution row is pending: `construct/base.manifest` is local-gates protected; ops:0 was notified before editing it (receipt `47731f88-5148-4a8d-b064-ff83aeab8371`), with a choice to split rollout if desired. No live `.sdlc` or seeded workflow was edited.
+
+ops:0 directed the split (delivery `8556cb2f-b354-48e4-ad56-4a99963da64e`). Filed unclaimed ariadne#558 on origin, depending on #556, for the one `scripts/sdlc-plenary-events.lua` symlink row and operator-held local-gates verification. #556's Done-when now records that peer adoption follows #558; this branch leaves `construct/base.manifest` unchanged.
+
+Checkpoint verification also includes the pure mixed-kind rerun planner/proof dispatcher and the curated `unit-child-process-group` lint rule, including single-command wrapper aliases. `go test ./pkg/golint -count=1` passed after atlas catalog documentation; fresh pure flakes/issue and explicit installed-Plenary tests passed. No full/recorded suite or close review has run yet. All delegated bounded files are stable, and no own test process remains running at this checkpoint.

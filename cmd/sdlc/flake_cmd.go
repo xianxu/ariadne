@@ -390,7 +390,7 @@ Already narrowed writes nothing. Rebuild :0 before narrowing to a subtest
 	}
 	narrow.Flags().StringVar(&edit.To, "to", "", "the subtest of --test to register instead (required)")
 	list.Flags().BoolVarP(&verbose, "verbose", "v", false, "include flakes fixed by landed issues")
-	cmd.AddCommand(register, unregister, narrow, list)
+	cmd.AddCommand(register, unregister, narrow, list, newFlakeRunCmd())
 	return cmd
 }
 
@@ -569,8 +569,12 @@ func mergeTests(have, add []string) []string {
 func shortTestNames(tests []string) string {
 	var names []string
 	for _, t := range tests {
-		n, _ := flakes.ParseName(t)
-		names = append(names, n.Run())
+		name, err := flakes.ParseIdentity(t)
+		if err != nil {
+			names = append(names, t)
+			continue
+		}
+		names = append(names, name.Display())
 	}
 	return strings.Join(names, ", ")
 }
