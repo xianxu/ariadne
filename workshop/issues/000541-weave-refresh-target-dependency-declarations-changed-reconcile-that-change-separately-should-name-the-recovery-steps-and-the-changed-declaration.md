@@ -75,6 +75,7 @@ declarations changed (names and fields, never credential-bearing URLs). Document
 ### 2026-10-21
 
 ### 2026-10-22 — claimed and planned
+- 2026-10-22: closed — BR-1 fixed across the declaration-drift documentation: README now gives the clean/behind fast-forward, bootstrap and retry procedure, divergent qualification and canonical atlas link; prose-only correction checked against the tested runtime, no code changed since passing suite c04d7afed5768941f083205ddf95a17bd15ed7a7 (8 shards, 2103 SDLC tests, 76 packages, zero failures; log 13a615c98585). Real SSH-to-HTTPS red/green and credential, divergence, substrate-only, no-update/no-compile controls passed; review independently passed targeted refresh/CLI/parser tests. No live smoke needed for the incident-shaped private Git diagnostic fixture. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - TL assigned claim and plan, small quick flow. Claimed and started on a fresh issue branch from main.
 - Root cause: `RunWithOptions` already fetches and parses both generations, but its DeepEqual mismatch

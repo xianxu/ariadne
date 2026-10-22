@@ -80,6 +80,85 @@ rounds:
       recipe: small-diff-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 043b5c18-8d23-4a09-86f9-76ceaa789391
+            repository: github.com/xianxu/ariadne
+            issue_id: "000541"
+            recipe: small-diff-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/925630ab084fa848
+            reviewed_head: 47286711ea6fc2bca08fdaa78a7100fad5a6a086
+            slot: ariadne:5
+            requested_at: "2026-10-22T08:11:25.993397Z"
+          phase: finished
+          pid: 99080
+          started_at: "2026-10-22T08:11:26.141422Z"
+          finished_at: "2026-10-22T08:13:08.015685Z"
+          session_id: 01a162aa-3dca-72e1-84ca-e197c41c79b7
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 47286711ea6fc2bca08fdaa78a7100fad5a6a086
+        tracker_head: 4b2631325c51af6ed04495d1ec9faf482bb1b6c5
+        branch_point: f5aae36f628a4f9ea04439543f46995a45d61b37
+        since: "2026-10-22T00:31:21-07:00"
+        until: "2026-10-22T01:11:02-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-22T00:31:21-07:00"
+              end: "2026-10-22T01:11:02-07:00"
+              began: "2026-10-22T00:31:21-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a09-0f59-7b93-ad53-4f28144d42d9
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: ae9de9ffe22285d1da94a81c6addcbdb5ad8eedf5a549750e72cfe63ae4d6d10
+              started: "2026-10-20T15:58:37.432Z"
+              spawned: false
+              bytes: 36656953
+              windows:
+                - start: "2026-10-22T00:31:21-07:00"
+                  end: "2026-10-22T01:11:02-07:00"
+        queue_waits:
+            - attempt_id: f893b414f1e45b4f1e41b31036fa9636
+              slot: ariadne:5
+              record_digest: 6e3adc67a92a29c56a4e97e6f0b04e994e7e7f7a7d356eddf7a84cd420225c7f
+              start: "2026-10-22T07:38:34.655566Z"
+              end: "2026-10-22T07:53:12.846585Z"
+              queue_seconds: 878.191019
+              raw_seconds: 878.191019
+              exact: true
+        cuts:
+            - dispatched: "2026-10-22T01:06:50-07:00"
+              finalized: "2026-10-22T01:09:44-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-22T01:13:08-07:00"
+      dispatched: "2026-10-22T01:11:25-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:373–380 now states the clean-behind prerequisite, fast-forward/setup/retry commands, ahead/divergent qualification, and atlas recovery link. These agree with atlas/workflow/setup-and-replication.md:66–85 and refresh.go:157–162. The pinned before/after confirms this prose-only correction; no wording test is required.
+          round: 2
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 47286711ea6fc2bca08fdaa78a7100fad5a6a086
+      blocked: false
 ---
 
 # Gate ledger — ariadne#541 (boundary-review)
@@ -94,6 +173,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Important] `user-facing-recovery-docs` (kind: defect) README update appears missing for declaration-drift recovery
   README.md:372–376 still instructs readers to “reconcile that declaration change separately,” while cmd/weave/internal/refresh/refresh.go:157–161 introduces concrete recovery commands. The complete family in this window is this declaration-drift recovery flow: its atlas documentation was updated at atlas/workflow/setup-and-replication.md:66–85, but its README entry was not. Update the README entry with the clean-behind prerequisite, fast-forward/setup/retry steps, and ahead/divergent qualification, linking to the atlas recovery section.
 
+## Round 2 — 2026-10-22T01:13:08-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:373–380 now states the clean-behind prerequisite, fast-forward/setup/retry commands, ahead/divergent qualification, and atlas recovery link. These agree with atlas/workflow/setup-and-replication.md:66–85 and refresh.go:157–162. The pinned before/after confirms this prose-only correction; no wording test is required.
+
 ## Open findings
 
-- **BR-1** [Important] `user-facing-recovery-docs` (kind: defect) README update appears missing for declaration-drift recovery
+(none — every finding has been disposed)
