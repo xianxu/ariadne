@@ -468,6 +468,162 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 15c23c50-1d3f-4a0e-860a-81d0234dcf9a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000540"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/5cfc37e60d716dab
+            reviewed_head: f64e748c5510c35bd99d6b5ba1ef403117c17246
+            slot: ariadne:1
+            requested_at: "2026-10-22T04:09:27.641983Z"
+          phase: finished
+          pid: 10223
+          started_at: "2026-10-22T04:09:27.787648Z"
+          finished_at: "2026-10-22T04:11:33.422458Z"
+          session_id: 01a161cc-b55b-7271-b90c-12f7636505f3
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f64e748c5510c35bd99d6b5ba1ef403117c17246
+        tracker_head: 7b0ec67481c8e922c8dd003994350d2555791ede
+        branch_point: d2c7a015f631896fdff770f72ef0e89ff406aab8
+        since: "2026-10-21T20:12:17-07:00"
+        until: "2026-10-21T21:08:39-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-21T20:12:17-07:00"
+              end: "2026-10-21T21:08:39-07:00"
+              began: "2026-10-21T20:12:17-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+        sources:
+            - harness: codex
+              id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 33e02cf6e07071f7e6fa07a86bed0e9eb61df7193aa477023326f55bc10a6a7c
+              started: "2026-10-20T01:22:09.69Z"
+              spawned: false
+              bytes: 56564747
+              windows:
+                - start: "2026-10-21T20:12:17-07:00"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a16198-dfd2-7e51-b203-78a6c727a5a0
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: 4da803af25e24b24e5e473803cba87ab9def2011254673c69a15e5e3634fdbbb
+              started: "2026-10-22T03:12:51.342Z"
+              spawned: true
+              bytes: 518761
+              windows:
+                - start: "2026-10-22T03:12:51.342Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a1619e-1b2a-7433-bd4f-759515fc5331
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 0efb1e7e6893bce737836d34c09ff7fb3c5cbd6ddb00246c81943103a4ba184c
+              started: "2026-10-22T03:18:34.533Z"
+              spawned: false
+              bytes: 591616
+              windows:
+                - start: "2026-10-22T03:18:34.533Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a1619f-b959-7ec2-8197-3d094d728cb6
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: ebfb0d0aff8645571824bf5b29a7658730d6b03af27afe36dd6f47c55e92e904
+              started: "2026-10-22T03:20:20.493Z"
+              spawned: false
+              bytes: 463235
+              windows:
+                - start: "2026-10-22T03:20:20.493Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a161a0-f963-7761-a38b-3d9423e96e16
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: c4f5de65c6a8415ece70feecbd96152118be4dda458f8cbee5d3dc3356649eec
+              started: "2026-10-22T03:21:42.484Z"
+              spawned: false
+              bytes: 449750
+              windows:
+                - start: "2026-10-22T03:21:42.484Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a161a1-6ba6-7490-b5ac-e6c898495122
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              digest: 1fbfed750a94c54efd816bc1dc30842554ccc3a187561f272d3d65d14f1e6473
+              started: "2026-10-22T03:22:11.615Z"
+              spawned: false
+              bytes: 397147
+              windows:
+                - start: "2026-10-22T03:22:11.615Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a161a2-3b52-7641-b272-8adfbfa35005
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: f565e71f2a8d9adc2debac82c513931c02fabf89a23df46d2d0010d34c50b50f
+              started: "2026-10-22T03:23:04.497Z"
+              spawned: true
+              bytes: 1502986
+              windows:
+                - start: "2026-10-22T03:23:04.497Z"
+                  end: "2026-10-21T21:08:39-07:00"
+            - harness: codex
+              id: 01a161a2-78f9-7e41-b635-b9295f78342b
+              slot: ariadne:1
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+              parent_id: 01a156e6-ad1c-73b0-a82f-2043dce7ed9e
+              digest: a844235bbd3f658e7bbc7d4842c93222547e423dd9cfd960c4a2d2eff3ce2227
+              started: "2026-10-22T03:23:20.276Z"
+              spawned: true
+              bytes: 728296
+              windows:
+                - start: "2026-10-22T03:23:20.276Z"
+                  end: "2026-10-21T21:08:39-07:00"
+        cuts:
+            - dispatched: "2026-10-21T20:39:13-07:00"
+              finalized: "2026-10-21T20:41:50-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T20:48:51-07:00"
+              finalized: "2026-10-21T20:51:30-07:00"
+              finalizing: false
+            - dispatched: "2026-10-21T21:01:19-07:00"
+              finalized: "2026-10-21T21:03:56-07:00"
+              finalizing: false
+      "n": 4
+      timestamp: "2026-10-21T21:11:34-07:00"
+      dispatched: "2026-10-21T21:09:27-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: probe.go:87 accepts both native macOS address fields. TestParseAddressesNativeFormats and TestNativeDarwinFormatsEligibleForHTTPS cover IPv6-only and mixed answers; both failed under a temporary overlay removing the fix and pass on HEAD. A read-only native localhost lookup independently matched the recorded fixture.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: f64e748c5510c35bd99d6b5ba1ef403117c17246
+      blocked: false
 ---
 
 # Gate ledger — ariadne#540 (boundary-review)
@@ -504,6 +660,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Critical] `native-observation-format-completeness` (kind: defect) macOS system DNS silently discards IPv6 answers
   cmd/sdlc/internal/netcheck/probe.go:87 recognizes ip_address: but omits dscacheutil's ipv6_address: field. A local dscacheutil lookup confirmed that format, and an isolated regression using "ipv6_address: ::1" fails with an empty result. For IPv6-only answers, check.go:155 marks successful DNS unknown and skips HTTPS, violating the diagnostic contract (ARCH-PURPOSE). Accept both native address fields and add parser plus production-adapter regressions covering IPv6-only and mixed answers.
 
+## Round 4 — 2026-10-21T21:11:34-07:00 (codex) — passed
+
+### Disposed
+
+- BR-3 — addressed — probe.go:87 accepts both native macOS address fields. TestParseAddressesNativeFormats and TestNativeDarwinFormatsEligibleForHTTPS cover IPv6-only and mixed answers; both failed under a temporary overlay removing the fix and pass on HEAD. A read-only native localhost lookup independently matched the recorded fixture.
+
 ## Open findings
 
-- **BR-3** [Critical] `native-observation-format-completeness` (kind: defect) macOS system DNS silently discards IPv6 answers
+(none — every finding has been disposed)

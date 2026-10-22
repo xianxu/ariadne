@@ -262,3 +262,73 @@ findings:
    Add a `## Revisions` entry recording native resolver-format coverage: both macOS address fields, IPv6-only and mixed answers, and regression evidence through the production lookup adapter.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"290e3cdb-0c93-4215-8094-ff5205553e18","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/12083b1229c4995a","reviewed_head":"7cf22ce3c771dd2cc80d40799468bb1c5f065f64","slot":"ariadne:1","requested_at":"2026-10-22T04:01:19.270993Z"},"phase":"finished","pid":65431,"started_at":"2026-10-22T04:01:19.378846Z","finished_at":"2026-10-22T04:03:55.888904Z","session_id":"01a161c5-412e-78a0-9ac0-b185779411d8","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-21T21:11:33-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 540 — tl-lead + sdlc: surface external-service outages to the operator immediately; classify git network failures as infrastructure |
+| repo | ariadne |
+| issue file | workshop/issues/000540-tl-lead-sdlc-surface-external-service-outages-to-the-operator-immediately-classify-git-network-failures-as-infrastructure.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d2c7a015f631896fdff770f72ef0e89ff406aab8..f64e748c5510c35bd99d6b5ba1ef403117c17246 |
+| command | sdlc close --issue 540 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-21T21:11:33-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range matches the revised Spec and Plan. BR-3 is fixed with meaningful parser and production-adapter regressions: both fail when the IPv6 condition is removed and pass on HEAD. No new blocking findings. The checkout remains unchanged.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      probe.go:87 accepts both native macOS address fields. TestParseAddressesNativeFormats and TestNativeDarwinFormatsEligibleForHTTPS cover IPv6-only and mixed answers; both failed under a temporary overlay removing the fix and pass on HEAD. A read-only native localhost lookup independently matched the recorded fixture.
+```
+
+1. **Strengths**
+
+   - Shared classification remains pure and preserves original causes and publication uncertainty (`cmd/sdlc/internal/gitx/network.go:177`).
+   - BR-3 tests exercise native lookup results through HTTPS eligibility, including malformed-field controls (`cmd/sdlc/internal/netcheck/native_format_test.go:15`, `:55`).
+   - Probe work has explicit budgets, bounded output, verified TLS, and cancellation ownership.
+   - README and both relevant atlas pages document the new command and incident workflow.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed targeted Git/CLI network tests, full netcheck race tests, targeted Git/CLI race tests, full TL/worker packages, and vet for touched packages. BR-3’s mutation control failed as expected. Core-concept entities exist at the documented locations; pure classification tests require no external effects.
+
+   I did not rerun the full repository suite or public-host conformance. The fixture’s trailing blank line triggers `git diff --check`; it faithfully preserves native output.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** one classifier serves the shared Git boundaries.
+   - **ARCH-PURE — pass:** classification/rendering remain separate from native effects.
+   - **ARCH-PURPOSE — pass:** operator escalation, transport classification, and explicit diagnosis are delivered.
+   - **ARCH-MOCK — pass:** injected probe tests, native fixtures, and private TLS/process controls exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** deadlines, output caps, concurrency, and address sampling are bounded.
+   - **ARCH-SECURE — pass:** validated destinations, fixed diagnostic reasons, certificate verification, and credential omission.
+   - **ARCH-ORDER — pass:** final cancellation precedes classification; signal tests verify probe cleanup.
+   - **ARCH-FUNERAL — pass:** no new durable runtime artifacts; connections and subprocesses have scoped cleanup.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes; error identities remain discoverable.
+
+7. **Plan revision recommendations:** None. Existing revisions describe the implementation corrections accurately.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"15c23c50-1d3f-4a0e-860a-81d0234dcf9a","repository":"github.com/xianxu/ariadne","issue_id":"000540","recipe":"milestone-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/5cfc37e60d716dab","reviewed_head":"f64e748c5510c35bd99d6b5ba1ef403117c17246","slot":"ariadne:1","requested_at":"2026-10-22T04:09:27.641983Z"},"phase":"finished","pid":10223,"started_at":"2026-10-22T04:09:27.787648Z","finished_at":"2026-10-22T04:11:33.422458Z","session_id":"01a161cc-b55b-7271-b90c-12f7636505f3","outcome":"returned"}] -->
