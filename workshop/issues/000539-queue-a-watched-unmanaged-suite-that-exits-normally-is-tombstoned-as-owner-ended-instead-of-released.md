@@ -63,3 +63,5 @@ ended, phase unknown" for a clean exit (e.g. the watcher losing its handle acros
 ## Revisions
 
 - 2026-10-21: TL narrowed the completion contract to observed exit 0 plus verified empty, private make process group. The original restart alternative must not turn PID disappearance into completion authority: watcher loss keeps an unknown tombstone; restarting Couch while the independent watcher survives must not change completion. Unsupported exit-status observation and shared/unknown process groups remain conservative. The implementation plan carries these controls explicitly (ARCH-ORDER, ARCH-SECURE).
+
+- 2026-10-21: Concrete plan approved by TL receipt `c86c6fec-3912-4277-9ea1-f519c2aa7f25`, with the diagnostic receipt-directory proposal cut in favor of one compact audit line beside reconciliation. Actual initial plan commit: `35fb28672` (corrects the accidental placeholder in the outgoing checkpoint message, already corrected through Couch). Enter change-code next; implementation remains unchanged.
