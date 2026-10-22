@@ -240,7 +240,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"stage"},
 		Class:         ConvergentRetry,
-		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear returns the target to its resting branch and drops the record.",
+		Effects:       "under a flock on the target's lease, writes the holder into the target's staged record (the stage lease, #421), detaches the target at this slot's HEAD, verifies it, then records the commit (#344); --build runs the target's `make build`; --clear fetches and pins origin/main, refuses dirty or ahead/diverged rest, restores and fast-forwards the resting branch, verifies assets, drops the record, and rebuilds binaries against the pin; clear dry-run fetches lag only, reporting unverified on fetch failure.",
 		Evidence:      "`sdlc fleet` (the target's hold `staged`) and `git -C <target> rev-parse HEAD`.",
 		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged; its lease free or held by this issue (another holder refuses stage, --clear and a move into it; `--clear --abandoned HOLDER` frees an abandoned one).",
 		Repeat:        "the same HEAD again is already staged: nothing switches, and the record is rewritten; a new HEAD replaces the staged one.",

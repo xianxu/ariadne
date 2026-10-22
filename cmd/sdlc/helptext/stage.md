@@ -10,7 +10,9 @@ closes and lands from here as usual. Landing never needs the stage cleared.
                               branch, rebuild and verify at that exact pin
   sdlc stage --clear --abandoned 418
                               free :0 from issue #418's abandoned stage
-  sdlc stage --dry-run        check both slots and print the stage; change nothing
+  sdlc stage --dry-run        check both slots and print the stage; no checkout
+  sdlc stage --clear --dry-run
+                              fetch and report resting lag; no checkout/build
 
 It prints the staged commit, so the TL can verify it in one step. Only HEAD is
 staged: this slot's uncommitted changes are reported, not carried.
