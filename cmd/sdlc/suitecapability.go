@@ -68,22 +68,37 @@ func suiteHostCapabilities(ctx context.Context) error {
 		bootID: queueBootID,
 		mkdir: func() (string, error) {
 			// Unix socket paths must stay short even with an arbitrarily long TMPDIR.
-			root, roots, _ := scratchdisk.Roots("tmp", "/tmp")
+			const fallback = "/tmp"
+			root, roots, _ := scratchdisk.Roots("tmp", fallback)
 			for _, old := range roots {
 				sweepStaleTemp(old, true, time.Now(), processAlive)
 			}
-			if err := os.MkdirAll(root, 0700); err != nil {
-				return "", err
+			// A configured scratch root can itself be long, or resolve through a
+			// short symlink to a long path. Select before bind; permission errors
+			// never authorize trying a different root.
+			for _, base := range []string{root, fallback} {
+				if err := os.MkdirAll(base, 0700); err != nil {
+					return "", err
+				}
+				dir, err := os.MkdirTemp(base, scratchRunPrefix+"probe-"+strconv.Itoa(os.Getpid())+"-")
+				if err != nil {
+					return "", err
+				}
+				physical, err := filepath.EvalSymlinks(dir)
+				if err != nil {
+					return "", errors.Join(err, os.RemoveAll(dir))
+				}
+				if len(filepath.Join(physical, "s")) <= 103 {
+					return physical, nil
+				}
+				if err := os.RemoveAll(dir); err != nil {
+					return "", err
+				}
+				if base == fallback {
+					break
+				}
 			}
-			dir, err := os.MkdirTemp(root, scratchRunPrefix+"probe-"+strconv.Itoa(os.Getpid())+"-")
-			if err != nil {
-				return "", err
-			}
-			physical, err := filepath.EvalSymlinks(dir)
-			if err != nil {
-				return "", errors.Join(err, os.RemoveAll(dir))
-			}
-			return physical, nil
+			return "", errors.New("canonical suite socket path exceeds 103 bytes even under the short system root")
 		},
 		listen: func(path string) (io.Closer, error) {
 			return net.ListenUnix("unix", &net.UnixAddr{Net: "unix", Name: path})

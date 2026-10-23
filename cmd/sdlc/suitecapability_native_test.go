@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -17,6 +18,13 @@ func TestSuiteCapabilityNativeSandbox(t *testing.T) {
 	const child = "ARIADNE_572_NATIVE_CHILD"
 	if mode := os.Getenv(child); mode != "" {
 		d, sha, gh, _ := localRunRepo(t, "skipped")
+		// A long configured root must select the short probe path, while
+		// preserving the actual kernel denial instead of failing on length.
+		root := filepath.Join(t.TempDir(), strings.Repeat("scratch", 30))
+		if err := os.MkdirAll(root, 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("WF_TEST_SCRATCH", root)
 		before := capabilityEvidenceFiles(t, d)
 		d.Git = func(args ...string) (string, error) {
 			t.Fatalf("preflight denial reached Git/execution preparation: %v", args)

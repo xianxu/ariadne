@@ -113,6 +113,19 @@ func TestSuiteCapabilityAdvice(t *testing.T) {
 
 func TestSuiteCapabilityShortSocket(t *testing.T) {
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), strings.Repeat("long", 50)))
+	root := filepath.Join(t.TempDir(), strings.Repeat("scratch", 30))
+	if err := os.MkdirAll(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_TEST_SCRATCH", root)
+	if err := suiteHostCapabilities(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(t.TempDir(), "scratch-link")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_TEST_SCRATCH", alias)
 	if err := suiteHostCapabilities(context.Background()); err != nil {
 		t.Fatal(err)
 	}
