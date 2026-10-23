@@ -59,7 +59,7 @@ manual rollout responsibility, without automatic cancellation or policy changes.
 - [x] Claim and start-plan from fresh main; reproduce both historical and current admission against one private native lock root.
 - [x] Trace the grant provider/cache and distinguish a new-helper decision from agreement by already-running old code.
 - [x] Resolve the rollout choice with the hub before implementation (approved guarded rollout recorded below).
-- [ ] After agreement, write final function-level adversarial plan, enter change-code, observe regression RED, implement, and run isolated mixed-version conformance plus normal recorded gates.
+- [x] After agreement, write final function-level adversarial plan, enter change-code, observe regression RED, implement, and run isolated mixed-version conformance. Normal recorded gates are tracked in the Log and remain required before landing.
 
 ### Proposed rollout boundary — awaits hub
 
@@ -123,6 +123,12 @@ Committed implementation7a9eca2651111298b817fe72c36ebb0cbd3b0278, rebuilt this s
 Private executable conformance passed all seven public CLI calls against a temporary bare repo and explicit private lock, queue and fleet roots: grant an empty queue; introduce real old/current held tickets; refuse another grant with ticket identity and byte-unchanged grants log; show existing deadlock risk and exact832 revoke hint; preserve frozen JSON; revoke despite legacy waiters; prove old/new native FIFO admission after revoke and allow regrant when only compatible metadata remains. COUCH_TREE was absent only for the approved private operator-shell fixture, never for a live grant. All temporary fixtures were removed by their owner; no production queue, grant, process or :0 checkout was changed. Raw argv/exit/stdout/stderr evidence is retained at common sdlc/test-stats/evidence/000570/private-executable-conformance.json.
 
 Next: push/open PR, central recorded final-code suite, close with a fresh binary-owned review and measured actual, then normal central merge on SHIP. Do not restart/checkpoint a continuation while the suite is queued or running; preserve its controller. If the close review changes code, reverify and record a new suite on that final code. Hub owns post-land rebuild and operational guarded rollout.
+
+### 2026-10-23 — PR411 and retained suite; close review may overlap queue
+
+PR411 is open: https://github.com/xianxu/ariadne/pull/411. Central sdlc local-check run --name suite controller39881 is retained on pushed head64f5f670c94a88a896e92b74c68f8e05b7d22361, run lease-2043870299, log common test-stats/inflight/68d2286b951d347568a2b01ce7e77ca7/run.log. It is queued for both real machine slots, initially position5; no result yet. Preserve its FIFO place, never restart or kill it, and do not claim a full pass. All code is unchanged since the verified clean executable.
+
+TL-worker permits fresh close review to overlap a queued recorded suite; run that review now on the same code with explicit pending-suite evidence. Final-code recorded pass still precedes landing. The last issue Plan checkbox now covers the completed design/implementation/private-conformance work, while the durable plan and this Log keep recorded suite/close/landing visibly pending. This is bookkeeping, not an acceptance waiver or scope change. A review requiring code changes supersedes this candidate and needs new verification/recorded suite.
 
 ## Revisions
 
