@@ -181,6 +181,79 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 56ce1152-4c80-4dca-a227-ff338dbff35d
+            repository: github.com/xianxu/ariadne
+            issue_id: "000566"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/bd6f30cf3712816e
+            reviewed_head: 1f64a0aadbbc7e6357a93ed1f1612696b316a7b7
+            slot: ariadne:5
+            requested_at: "2026-10-23T11:05:43.313711Z"
+          phase: finished
+          pid: 55760
+          started_at: "2026-10-23T11:05:43.40508Z"
+          finished_at: "2026-10-23T11:11:54.458107Z"
+          session_id: 9d5448df-dd11-4f8e-8d64-318e96261cbb
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 1f64a0aadbbc7e6357a93ed1f1612696b316a7b7
+        tracker_head: 880b1cbfc9b03c260175e582aaa125f0cc5f6640
+        branch_point: 73492328ed3745236372ad859b538029f1488ca0
+        since: "2026-10-23T03:16:37-07:00"
+        until: "2026-10-23T04:05:16-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T03:16:37-07:00"
+              end: "2026-10-23T04:05:16-07:00"
+              began: "2026-10-23T03:16:37-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 475ddd42e7370ea52a1233db80d40426ece72b1670d72f8922452c5de5717031
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 3015807
+              windows:
+                - start: "2026-10-23T03:16:37-07:00"
+                  end: "2026-10-23T04:05:16-07:00"
+        cuts:
+            - dispatched: "2026-10-23T03:48:47-07:00"
+              finalized: "2026-10-23T03:54:26-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T03:58:55-07:00"
+              finalized: "2026-10-23T04:02:55-07:00"
+              finalizing: false
+      "n": 3
+      timestamp: "2026-10-23T04:11:55-07:00"
+      dispatched: "2026-10-23T04:05:43-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: MoveCard pins Record.Raw through MovePath expect; TestIssueRenameRefusesACardChangedAfterItsChecks fails with the pin removed (err = nil) and passes with it; plan State rows corrected.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 1f64a0aadbbc7e6357a93ed1f1612696b316a7b7
+      blocked: false
 ---
 
 # Gate ledger — ariadne#566 (boundary-review)
@@ -215,6 +288,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Important] `guard-observed-outside-cas` (kind: defect) issue rename checks renamable (status open, ownership) on a stale snapshot; MoveCard moves whatever bytes the fresh tip holds
   issuerename.go:680-688 evaluates renamable on cur, then MovePath (rename.go:399) copies the fresh tip's card without comparing it to cur. A claim landing in between gets its now-working card renamed, its branch stranded on the old stem, and further renames refused. The plan's State design wrongly says no action is needed. Fix: pass the expected source bytes into MovePath and refuse on mismatch so a rerun re-checks; add a test that changes the card in the gap.
 
+## Round 3 — 2026-10-23T04:11:55-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — MoveCard pins Record.Raw through MovePath expect; TestIssueRenameRefusesACardChangedAfterItsChecks fails with the pin removed (err = nil) and passes with it; plan State rows corrected.
+
 ## Open findings
 
-- **BR-5** [Important] `guard-observed-outside-cas` (kind: defect) issue rename checks renamable (status open, ownership) on a stale snapshot; MoveCard moves whatever bytes the fresh tip holds
+(none — every finding has been disposed)

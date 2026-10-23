@@ -225,3 +225,76 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"62ba3204-8a7d-4db1-b1e4-9032fec37274","repository":"github.com/xianxu/ariadne","issue_id":"000566","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/214ccabd26f40ca0","reviewed_head":"ec1d2831d02f2e7df3f3e7a25134663b4bcc080f","slot":"ariadne:5","requested_at":"2026-10-23T10:58:55.171001Z"},"phase":"finished","pid":47353,"started_at":"2026-10-23T10:58:55.295634Z","finished_at":"2026-10-23T11:02:53.919166Z","session_id":"4d933977-0093-4217-9444-18cb77687338","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T04:11:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 566 — Issue filing builds over-long file names (331-byte basename broke parley checkouts); cap slugs, refuse oversized paths, add a rename |
+| repo | ariadne |
+| issue file | workshop/issues/000566-issue-filing-builds-over-long-file-names-331-byte-basename-broke-parley-checkouts-cap-slugs-refuse-oversized-paths-add-a-rename.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 73492328ed3745236372ad859b538029f1488ca0..1f64a0aadbbc7e6357a93ed1f1612696b316a7b7 |
+| command | sdlc close --issue 566 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T04:11:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Let me focus first on the open finding BR-5 and the last commit.
+
+Now revert the pin to confirm the regression test goes red.
+
+Checking the last caller (`fetch.go`), then writing the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-5, is fixed. `MoveCard` now receives the `Record` that `renamable` checked and passes `Record.Raw` to `MovePath` as the expected bytes. If the card changed between the checks and the move, the move refuses and nothing is written; a rerun checks the new card again. I removed the pin (`MovePath(from.Path, to, nil)`) and ran `TestIssueRenameRefusesACardChangedAfterItsChecks`: it failed with `err = <nil>`. With the pin restored it passes. The targeted suites pass: `cmd/sdlc` (rename, filer and legacy tests), `internal/tracker`, `internal/gitx`, `internal/issue` and `internal/recovery`. I did not run the full recorded suite here; the issue log says it is queued and gates landing. All three slug paths go through the one capped builder: tracker `issue new`, legacy `issue new`, and the rename. `fetch` and `flake register` reach it through `runIssueNew`. Every candidate built through `commitSet` and every `PublishCommitChecked` publication now passes `CheckPathLimits`. Nothing blocks SHIP.
+
+Done-when: current — its three bullets (capped filing basename, refusal of over-limit paths before any push, rename on both refs) still cover what the diff builds. The round-2 change tightens how the rename refuses; it adds no new surface.
+
+1. **Strengths**
+   - `tracker.MovePath`'s `expect` parameter (`cmd/sdlc/internal/tracker/rename.go:66`) keeps the check and the write in the same compare-and-swap. It fixes the whole check-then-act class for the card step, not just the claim case the finding named.
+   - The `renameBeforeStep` test hook (`cmd/sdlc/issuerename.go:50`) lets the test choose when the concurrent change lands, so it tests a specific interleaving rather than whichever one happens to run. It also checks that the rerun refuses the now-started issue.
+   - `NextRenameStep` is a small pure state machine over what both refs hold, which makes reruns resume or do nothing.
+   - `FileSlug` is the single slug builder: tracker `issue new`, legacy `issue new` and the rename call it directly, and `fetch` and `flake register` reach it through `runIssueNew`.
+   - The path-length guard sits in `commitSet`, which builds every candidate, so no writer can skip it.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none newly raised. The details step stays unpinned (`MovePath(..., nil)`). The comment there gives the reason: ownership lives on the card, which has already moved. That is sound.
+
+5. **Test coverage notes:** the BR-5 regression test fails without the fix and passes with it (verified above). The recovery catalog entry lists it as evidence.
+
+6. **Architecture:**
+   - ARCH-DRY pass: one slug builder and one path check.
+   - ARCH-PURE pass: `FileSlug`, `CheckPathLimits`, `NextRenameStep` and `DetailNames` are pure; the IO stays in `runIssueRename`.
+   - ARCH-PURPOSE pass: every filer is capped, every writer is guarded, and the rename exists.
+   - ARCH-MOCK pass: the stateful git fake now models `diff`.
+   - ARCH-CONSTRAINTS pass: the 255-byte limit is stated and enforced.
+   - ARCH-SECURE pass: the card bytes are trusted only after the byte comparison.
+   - ARCH-ORDER pass: the state design now includes the gap between the checks and the write, and that gap is tested.
+   - ARCH-FUNERAL pass: no durable artifacts are created; the rename moves existing files.
+   - ARCH-EVOLVE pass: no persisted format changes.
+
+7. **Plan revision recommendations:** none. The round-2 Revisions entry and the corrected State design rows match the code.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      MoveCard pins Record.Raw through MovePath expect; TestIssueRenameRefusesACardChangedAfterItsChecks fails with the pin removed (err = nil) and passes with it; plan State rows corrected.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"56ce1152-4c80-4dca-a227-ff338dbff35d","repository":"github.com/xianxu/ariadne","issue_id":"000566","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/bd6f30cf3712816e","reviewed_head":"1f64a0aadbbc7e6357a93ed1f1612696b316a7b7","slot":"ariadne:5","requested_at":"2026-10-23T11:05:43.313711Z"},"phase":"finished","pid":55760,"started_at":"2026-10-23T11:05:43.40508Z","finished_at":"2026-10-23T11:11:54.458107Z","session_id":"9d5448df-dd11-4f8e-8d64-318e96261cbb","outcome":"returned"}] -->

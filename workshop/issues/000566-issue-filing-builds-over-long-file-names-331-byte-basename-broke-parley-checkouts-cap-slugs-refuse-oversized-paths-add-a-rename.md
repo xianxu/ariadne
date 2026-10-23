@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "3cf180a1", done: "f6144709"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Issue filing builds over-long file names (331-byte basename broke parley checkouts); cap slugs, refuse oversized paths, add a rename
@@ -56,6 +56,8 @@ Release gates (binary-owned, not plan items): the recorded suite on the pushed h
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round 3. BR-5: the card move pins the bytes its status/ownership checks read; a card changed in the gap refuses and the rerun re-checks (TestIssueRenameRefusesACardChangedAfterItsChecks, RED with the pin removed). Prior: FileSlug filer tests incl. legacy (RED with cap lifted), CheckPathLimits in commitSet and PublishCommitChecked (RED without, origin unchanged), NextRenameStep over 16 observations, rename move/derive/resume/no-op and seven refusals moving no ref (incl. a non-owner finishing a half-done rename). Recovery catalog proven; fresh-reader help check passed. internal/issue, gitx, tracker, recovery and cmd/sdlc rename/filer/legacy tests pass. Recorded suite lease on 1f64a0aa queued and must pass before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 362 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Close round 2 FIX-THEN-SHIP: BR-1 to BR-4 disposed addressed. BR-5 (Important, family guard-observed-outside-cas): the permission and status checks read one snapshot while MoveCard moved whatever the fresh tip held, so a claim in the gap would be renamed unchecked. The card move now pins the checked bytes and refuses a change; test lands a status change in the gap through a renameBeforeStep seam, RED with the pin removed, GREEN now, and the rerun refuses the now-started issue. Class sweep: the details step is the only other write after a check; it stays unpinned because ownership is on the card, already renamed, and the move copies the details whole. Branch checks race start-plan only through the card status, which the pin covers.
 
