@@ -201,4 +201,41 @@ out=$(WF_TEST_LOCK_TIMEOUT=1 lock $ow 2>"$tmp/o.err")
 check "owner: the held-by line names the owning checkout" '[ "$out" = timeout ] && grep -q "  - repo (/work/slot7/repo), make pid $o" "$tmp/o.err"'
 kill $o $ow
 
+# #559: the light lane. A light run takes the one light slot while a weight-2
+# suite holds both normal slots; light waiters go in FIFO order; a nested make
+# under a light holder is re-entrant; the normal line never sees light tickets,
+# so a heavy waiter's admission is unchanged by any number of light waiters.
+export WF_TEST_LOCK_FILE="$tmp/lane"; unset WF_TEST_SUITES
+light() { python3 scripts/test-lock.py acquire --watch "$1" --lane light; }
+light_tickets() { ls "$WF_TEST_LOCK_FILE.light-tickets" 2>/dev/null | grep -c '^[0-9]'; }
+await_light() { local i=0; while [ "$(light_tickets)" -lt "$1" ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i + 1)); done; }
+sleep 60 & lh=$!; sleep 60 & la=$!; sleep 60 & lb=$!; sleep 60 & lc=$!; sleep 60 & ln=$!; sleep 60 & hw=$!
+check "lane: a weight-2 suite holds both normal slots" '[ "$(heavy $lh)" = acquired ]'
+t0=$(date +%s)
+check "lane: a light run is admitted at once beside it" '[ "$(WF_TEST_LOCK_TIMEOUT=3 light $la)" = acquired-light ] && [ $(( $(date +%s) - t0 )) -le 2 ]'
+check "lane: its record names the light slot" 'grep -q "\"slot\": \"light\"" "$tmp/lane.light" && grep -q "make pid\|\"pid\": $la" "$tmp/lane.light"'
+lane_view() { WF_TEST_PRIORITY_PROVIDER=/nonexistent python3 scripts/test-lock.py inspect 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin)["lane"]; print(d["busy"], (d["holder"] or {}).get("pid"), *[w["record"]["pid"] for w in d["waiters"]])'; }
+check "lane: inspect shows the light holder" '[ "$(lane_view)" = "True $la" ]'
+check "lane: a nested make under the light holder is re-entrant" '[ "$(WF_TEST_LOCK_HELD_BY=$la WF_TEST_LOCK_TIMEOUT=1 lock $ln)" = reentrant ]'
+python3 scripts/test-lock.py acquire --watch $lb --lane light >"$tmp/lb.out" 2>"$tmp/lb.err" & wlb=$!; await_light 1
+python3 scripts/test-lock.py acquire --watch $lc --lane light >"$tmp/lc.out" 2>"$tmp/lc.err" & wlc=$!; await_light 2; sleep 1.5
+check "lane: light waiters name their place in the light line" 'grep -q "for the light slot" "$tmp/lb.err" && grep -q "light lane FIFO" "$tmp/lb.err" && grep -q "position 2 in line; next in line: .*make pid $lb" "$tmp/lc.err"'
+check "lane: inspect lists the light waiters in order" '[ "$(lane_view)" = "True $la $lb $lc" ]'
+check "lane: the normal line holds no light tickets" '[ "$(tickets)" = 0 ]'
+heavy $hw >"$tmp/hw.out" 2>"$tmp/hw.err" & whw=$!; await_tickets 1; sleep 1.5
+check "lane: a heavy waiter heads the normal line despite light waiters" 'grep -q "position 1 in line: next to run" "$tmp/hw.err"'
+kill -STOP $wlb
+release $la; sleep 2.5
+check "lane: a later light waiter that polls first does not overtake" '[ ! -s "$tmp/lc.out" ] && [ ! -s "$tmp/lb.out" ]'
+kill -CONT $wlb; wait $wlb
+check "lane: the oldest light waiter goes first" '[ "$(cat "$tmp/lb.out")" = acquired-light ] && [ ! -s "$tmp/lc.out" ]'
+release $lb; wait $wlc
+check "lane: then the next" '[ "$(cat "$tmp/lc.out")" = acquired-light ]'
+check "lane: the heavy waiter is still waiting only for the normal slots" 'kill -0 $whw 2>/dev/null && [ ! -s "$tmp/hw.out" ]'
+release $lh; wait $whw
+check "lane: the heavy waiter takes both normal slots while the light slot is held" '[ "$(cat "$tmp/hw.out")" = acquired ] && kill -0 $lc'
+check "lane: the light line leaves no ticket behind" '[ "$(light_tickets)" = 0 ]'
+check "lane: an unknown lane is refused" '! python3 scripts/test-lock.py acquire --watch $ln --lane heavy >/dev/null 2>&1'
+release $lc; release $hw; kill $ln
+
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
