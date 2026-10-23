@@ -91,3 +91,79 @@ findings:
    - Preservation scenarios for existing `collaboration-mode` and `processing-instruction`, alongside the already-covered presentation and processing choices.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dd728520-2827-437b-8bdb-1948128a8376","repository":"github.com/xianxu/ariadne","issue_id":"000562","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/35c1e181a342a6ee","reviewed_head":"fef3c6b67b0878d6d61e5d6eff545bc2cf2d94fa","slot":"ariadne:5","requested_at":"2026-10-23T06:14:38.216534Z"},"phase":"finished","pid":54799,"started_at":"2026-10-23T06:14:38.313337Z","finished_at":"2026-10-23T06:17:39.619899Z","session_id":"01a16765-ac1e-7412-86bc-f3eef0948a93","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T23:26:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 562 — unified-editorial-interface: spec the three uniform mode keys, per-section heading comments and single-value frontmatter |
+| repo | ariadne |
+| issue file | workshop/issues/000562-unified-editorial-interface-spec-the-three-uniform-mode-keys-per-section-heading-comments-and-single-value-frontmatter.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ada6c156d263d1ad3376e44147dfdacfe2c4d90e..2a40b9e992ed64dddb675af0beff4026b012fa1e |
+| command | sdlc close --issue 562 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T23:26:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned changes deliver the revised editorial contract and resolve both prior findings. Prompt instructions, exported contract, TL path validation, preservation fixtures, README, and atlas agree. No new blocking findings remain.
+
+Done-when: current — documenting “all of the above” covers the clarified compatibility rules, and preservation tests cover existing choices and instructions.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Inspected every previously enumerated consumer: creation now uses monthly paths and explicit defaults or references the shared contract. Export freshness passes. Temporarily restoring pre-fix prompts and answers.go makes composition, rendered-help, and monthly-link regression tests fail; restored-head tests pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      editorial_fill_test.go:20-21 and the canonical-instruction/canonical-mode fixtures exercise existing chat/collaboration choices and canonical instructions alongside independent legacy fallback. Mutating the preserved collaboration and instruction values makes both value and preservation assertions fail.
+```
+
+1. **Strengths**
+
+   - Canonical precedence, alias retention, and lossless multi-mode refusal are explicit.
+   - Monthly answer validation checks calendar dates, directory matching, and parent resolution while retaining dated flat paths.
+   - Refusal tests verify that invalid targets publish neither links nor index entries.
+   - README and atlas document the surface and downstream implementation ownership.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - Full `pkg/reviewexport`, `pkg/vocab`, and `pkg/sidedoc` tests.
+   - Full `cmd/tl-lead` tests.
+   - Weave skill discovery checks.
+   - Export freshness and `git diff --check`.
+
+   Revert and mutation checks confirmed the regressions go red. Temporary changes were restored. Fill fixtures validate conformance examples; they do not execute downstream fillers. No repository-wide suite pass is claimed.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — active creation consumers reference or agree with the shared contract.
+   - **ARCH-PURE: pass** — validator IO remains injected; checker mutations use in-memory filesystems.
+   - **ARCH-PURPOSE: pass** — the contract covers all settled axes, compatibility, completion ownership, and naming.
+   - **ARCH-EVOLVE: pass** — legacy formats remain readable; the validator does not rewrite documents or discard unknown fields.
+
+7. **Plan revision recommendations:** None; existing revisions cover the bounded runtime correction and preservation cases.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"40943610-ca13-4cba-8d33-d75f252c1fc3","repository":"github.com/xianxu/ariadne","issue_id":"000562","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/07b048c516b13232","reviewed_head":"2a40b9e992ed64dddb675af0beff4026b012fa1e","slot":"ariadne:5","requested_at":"2026-10-23T06:23:35.410507Z"},"phase":"finished","pid":7202,"started_at":"2026-10-23T06:23:35.525106Z","finished_at":"2026-10-23T06:26:54.916955Z","session_id":"01a1676d-de38-72c2-ab25-a4b81e1ced9b","outcome":"returned"}] -->
