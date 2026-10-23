@@ -322,6 +322,141 @@ rounds:
       isolation: fenced
       reviewed: 37a4536e423b774dd71d6ca746783de445b5b3c4
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 2c02130e-5c08-4f59-a797-17adfeedd042
+            repository: github.com/xianxu/ariadne
+            issue_id: "000572"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/fc47879ea7c11cb2
+            reviewed_head: b31c13c6e55df5a6ea7343173b0c9f4b127071a1
+            slot: ariadne:4
+            requested_at: "2026-10-23T18:10:31.236253Z"
+          phase: finished
+          pid: 7368
+          started_at: "2026-10-23T18:10:31.387559Z"
+          finished_at: "2026-10-23T18:11:39.009379Z"
+          session_id: 01a169f5-14ee-7143-9a8d-09ecbffb54a1
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: b31c13c6e55df5a6ea7343173b0c9f4b127071a1
+        tracker_head: 7acf1074f4f67366da213b97a6126447f9bf4ce2
+        branch_point: db77404e3257507f41c9d6fc3d819a8723bb36fa
+        since: "2026-10-23T04:39:43-07:00"
+        until: "2026-10-23T11:10:02-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T04:39:43-07:00"
+              end: "2026-10-23T11:10:02-07:00"
+              began: "2026-10-23T04:39:43-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        sources:
+            - harness: codex
+              id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              digest: a18e9e44a637ec38e9e2a054ee33537dd834e089797cf712211a690214954f69
+              started: "2026-10-20T16:55:54.591Z"
+              spawned: false
+              bytes: 49341835
+              windows:
+                - start: "2026-10-23T04:39:43-07:00"
+                  end: "2026-10-23T11:10:02-07:00"
+            - harness: codex
+              id: 01a1688f-e5e1-7e41-8b6c-3a9e586d357f
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: 336f4cfda7801d1855ed45be24604f35d28a177118a152466b7e3a78ed3e917b
+              started: "2026-10-23T11:40:23.557Z"
+              spawned: true
+              bytes: 485279
+              windows:
+                - start: "2026-10-23T11:40:23.557Z"
+                  end: "2026-10-23T11:10:02-07:00"
+            - harness: codex
+              id: 01a16894-0ee9-73a3-a8f3-4259c01ff191
+              slot: ariadne:4
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+              parent_id: 01a15a3d-80b5-7451-ab0e-35331fe11c6f
+              digest: bfe0d56d24147bf7a70b8355000a4868e1283f0f6455b295e17ab0178e8544d0
+              started: "2026-10-23T11:44:56.254Z"
+              spawned: true
+              bytes: 463643
+              windows:
+                - start: "2026-10-23T11:44:56.254Z"
+                  end: "2026-10-23T11:10:02-07:00"
+        queue_waits:
+            - attempt_id: ed0499e973a9764a01b6040e40e59520
+              slot: ariadne:4
+              record_digest: ecf47dba3438c56bd3bb63e3b2b696979a643f8c3ef12d33dd61a5a77b2b3085
+              start: "2026-10-23T12:04:49.003989Z"
+              end: "2026-10-23T12:57:35.188453Z"
+              queue_seconds: 3166.184464
+              raw_seconds: 3166.184464
+              exact: true
+            - attempt_id: 41c529571f7e1460e3c789680d4cf93c
+              slot: ariadne:4
+              record_digest: 335ff4e3dd2cb700a8f91a217827757f424c79b93ae8aeb9c7a46bc108399759
+              start: "2026-10-23T13:19:49.1117Z"
+              end: "2026-10-23T14:10:56.737454Z"
+              queue_seconds: 3067.625754
+              raw_seconds: 3067.625754
+              exact: true
+            - attempt_id: ce5a5fb083cf6dfcd3374a94401985b1
+              slot: ariadne:4
+              record_digest: cd5930763a55340a73ded4520774249332014df9f05b4387d0ba064844786868
+              start: "2026-10-23T16:42:22.798516Z"
+              end: "2026-10-23T17:15:47.092256Z"
+              queue_seconds: 2004.29374
+              raw_seconds: 2004.29374
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 15.241266666666666
+        cuts:
+            - dispatched: "2026-10-23T04:58:00-07:00"
+              finalized: "2026-10-23T05:00:30-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T05:06:01-07:00"
+              finalized: "2026-10-23T05:08:49-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T06:20:47-07:00"
+              finalized: "2026-10-23T06:22:44-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-23T11:11:40-07:00"
+      dispatched: "2026-10-23T11:10:31-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The plan correctly identifies suiteEnvironmentError.Error as pure and lists the capability probes and execution boundaries separately as integration points. The formatter remains free of IO.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: suitecapability.go retains the explanatory comment without the unused suppression. The tracked-file golint checks pass on the pinned head.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: README.md:789–794 documents capability refusal, whole-call retry, preservation of earlier failures, and healthy-host failure attribution, matching the implementation.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: b31c13c6e55df5a6ea7343173b0c9f4b127071a1
+      blocked: false
 ---
 
 # Gate ledger — ariadne#572 (boundary-review)
@@ -355,6 +490,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — addressed — The plan identifies suiteEnvironmentError.Error in suiteenvironment.go as pure and separately lists the IO functions and execution boundaries. Direct advice tests exercise formatting without IO.
 - BR-2 — addressed — suitecapability.go retains an ordinary explanatory comment without the unused suppression. The tracked-file golint regression passes; unused suppressions remain rejected.
 - BR-3 — addressed — README.md:772–777 documents could-not-run, whole-call retry, preservation of earlier failures, and healthy-host failure attribution, matching the formatter and execution contract.
+
+## Round 4 — 2026-10-23T11:11:40-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The plan correctly identifies suiteEnvironmentError.Error as pure and lists the capability probes and execution boundaries separately as integration points. The formatter remains free of IO.
+- BR-2 — addressed — suitecapability.go retains the explanatory comment without the unused suppression. The tracked-file golint checks pass on the pinned head.
+- BR-3 — addressed — README.md:789–794 documents capability refusal, whole-call retry, preservation of earlier failures, and healthy-host failure attribution, matching the implementation.
 
 ## Open findings
 

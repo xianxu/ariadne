@@ -264,3 +264,86 @@ dispose:
    None. The appended revision records the bounded correction; Spec and Done-when remain unchanged.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"20e3d60d-2989-460e-a207-a60c08db42d7","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/454dc8e333029bbd","reviewed_head":"37a4536e423b774dd71d6ca746783de445b5b3c4","slot":"ariadne:4","requested_at":"2026-10-23T13:20:47.524863Z"},"phase":"finished","pid":73874,"started_at":"2026-10-23T13:20:47.652634Z","finished_at":"2026-10-23T13:22:42.567384Z","session_id":"01a168eb-d359-7693-9ba7-aa22f8080541","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T11:11:39-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 572 — local-check: refuse to record a suite attempt invalidated by sandbox denials |
+| repo | ariadne |
+| issue file | workshop/issues/000572-local-check-refuse-to-record-a-suite-attempt-invalidated-by-sandbox-denials.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0e90d4118a78a7f45d0a52495aff00a18cd67ac5..b31c13c6e55df5a6ea7343173b0c9f4b127071a1 |
+| command | sdlc close --issue 572 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T11:11:39-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff correctly resolves the formatter conflict and adapts the affected-check tests to main’s interface. Both sides’ behavior is preserved: canonical affected retry commands include `--boarding`, explicit resume commands retain their identity, and EPERM guidance and absent-log formatting remain intact. No new defects or scope changes found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The plan correctly identifies suiteEnvironmentError.Error as pure and lists the capability probes and execution boundaries separately as integration points. The formatter remains free of IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      suitecapability.go retains the explanatory comment without the unused suppression. The tracked-file golint checks pass on the pinned head.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:789–794 documents capability refusal, whole-call retry, preservation of earlier failures, and healthy-host failure attribution, matching the implementation.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/suiteenvironment.go:48–54` reuses the canonical command builder while preserving explicit retry overrides.
+   - `cmd/sdlc/suitecapability_test.go:97–113` exercises affected boarding advice, EPERM identity, ordinary errors, and omitted log text.
+   - The affected graph fixture retains its assertion that refusal precedes graph, execution, and publication effects.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Focused capability, environment, infrastructure, and canonical-command tests: PASS, 18.177s.
+   - `go test ./pkg/golint -count=1`: PASS, 1.296s.
+   - Pinned-range whitespace check passed; checkout remains clean.
+   - No full suite or native sandbox conformance rerun was performed in this narrow review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** retry advice derives from the existing canonical command builder.
+   - **ARCH-PURE — pass:** formatting remains pure; no IO introduced.
+   - **ARCH-PURPOSE — pass:** conflict resolution preserves both capability-refusal semantics and main’s retry-command policy.
+   - **ARCH-EVOLVE — pass:** no persisted formats changed.
+
+   No new surface requires additional README or atlas changes.
+
+7. **Plan revision recommendations**
+
+   None. Spec, Revisions, and Done-when are unchanged in this window.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2c02130e-5c08-4f59-a797-17adfeedd042","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/fc47879ea7c11cb2","reviewed_head":"b31c13c6e55df5a6ea7343173b0c9f4b127071a1","slot":"ariadne:4","requested_at":"2026-10-23T18:10:31.236253Z"},"phase":"finished","pid":7368,"started_at":"2026-10-23T18:10:31.387559Z","finished_at":"2026-10-23T18:11:39.009379Z","session_id":"01a169f5-14ee-7143-9a8d-09ecbffb54a1","outcome":"returned"}] -->
