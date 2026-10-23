@@ -16,7 +16,7 @@ import (
 
 // The real #151 ledger says protocol_error in its whole-issue round. An
 // archive can prove temporal disjointness without repairing that review.
-func legacyCapturedClose(t *testing.T, f legacyProofFixture) {
+func legacyCapturedClose(t *testing.T, f legacyProofFixture, edits ...func(string, string) string) {
 	t.Helper()
 	head := f.head()
 	f.write(f.active, "codecomplete", "0.80")
@@ -24,16 +24,20 @@ func legacyCapturedClose(t *testing.T, f legacyProofFixture) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeRepoFile(t, f.root, "workshop/plans/000001-example-close-gate.md", strings.Replace(string(ledger), "issue: 151\n", "issue: 1\n", 1))
+	text := strings.Replace(string(ledger), "issue: 151\n", "issue: 1\n", 1)
+	for _, edit := range edits {
+		text = edit(text, head)
+	}
+	writeRepoFile(t, f.root, "workshop/plans/000001-example-close-gate.md", text)
 	f.commit("#1: close\n\nReview-Verdict: SHIP\nReview-Window: " + f.base + ".." + head)
 }
 
-func legacyDamagedCloseImport(t *testing.T) (legacyProofFixture, time.Time) {
+func legacyDamagedCloseImport(t *testing.T, edits ...func(string, string) string) (legacyProofFixture, time.Time) {
 	t.Helper()
 	ownedFixtureAt(t, 0)
 	f := newLegacyProofFixture(t)
 	f.archive = "workshop/history/issues/000001-example.md"
-	legacyCapturedClose(t, f)
+	legacyCapturedClose(t, f, edits...)
 	terminal := f.terminal()
 	raw, err := os.ReadFile(filepath.Join(f.root, f.archive))
 	if err != nil {
@@ -55,6 +59,28 @@ func legacyDamagedCloseImport(t *testing.T) (legacyProofFixture, time.Time) {
 		t.Fatal(err)
 	}
 	return f, end
+}
+
+func TestLegacyDisjointArchiveDoesNotReplaceModernSavedAuthority(t *testing.T) {
+	for _, kind := range []string{"damaged inputs", "retained inputs", "modern reviewed head"} {
+		t.Run(kind, func(t *testing.T) {
+			f, end := legacyDamagedCloseImport(t, func(_ string, head string) string {
+				round := gatestate.Round{N: 1, Reviewed: head}
+				switch kind {
+				case "damaged inputs":
+					round.ActualInputs = &gatestate.MeasurementInputs{}
+				case "retained inputs":
+					round.ActualInputs = &gatestate.MeasurementInputs{Version: 1, Method: gatestate.MeasurementMethodLegacyV1, Repository: "github.com/test/example", CodeHead: head, Since: "2026-01-01T00:00:00Z", Until: "2026-01-01T01:00:00Z", GapMinutes: 10}
+				}
+				return gatestate.Render(gatestate.Ledger{Gate: "boundary-review", IssueNum: 1, IDPrefix: "BR", Rounds: []gatestate.Round{round}}, "fixture")
+			})
+			t.Chdir(f.root)
+			current := &ownedActualInputs{Snapshot: gatestate.MeasurementInputs{Repository: "github.com/test/example", Since: end.Add(time.Minute).Format(time.RFC3339Nano), Until: end.Add(time.Hour).Format(time.RFC3339Nano)}}
+			if _, err := loadAdoptedExclusions(t.Context(), f.root, "162", "workshop/plans", current); err == nil || len(current.Warnings) != 0 {
+				t.Fatalf("%s replaced by a legacy bound: err=%v warnings=%v", kind, err, current.Warnings)
+			}
+		})
+	}
 }
 
 func TestLegacyDisjointArchiveGenerationFences(t *testing.T) {

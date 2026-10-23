@@ -94,6 +94,18 @@ Built a private Go1.27.3 CLI at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne56
 
 Hub receipt3b570bf4-7b42-431b-b239-f5f94400b3bb submitted this concrete result before any new full suite. Authenticated reply29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c approves the split: land #569 unchanged and queue its suite. The remaining pair#162 fix follows on fresh main: apply the operator's echo#5 no-retroactive-owner rule and #554 first-modern-ownership bound, labelling the September1 legacy prefix unowned/not counted. If that extension is large, report instead; the fallback belongs to the TL and pair#162 may close with --no-actual citing the overlap. Do not expand #569 or claim pair:2 is ready; readiness follows verified measurement with the later fix.
 
+### 2026-10-23 — post-review adversarial correction; old queued run cancelled
+
+First close review returned SHIP with zero findings, evidence commit34a72841e7e372e3b4bc4465faeb8fc8b7ca92b5. Before landing, an additional read-only overlay tested the contract's modern-corruption edge: an old unmarked imported card whose source ledger contained damaged retained measurement inputs. It reproduced an incorrect disjoint skip (RED1.539s). Permanent controls for damaged inputs, retained inputs and a modern reviewed-head marker all then failed RED2.505s. The old-card shape alone cannot prove that source authority is legacy.
+
+Stopped only this checkout's still-queued recorded run through sdlc local-check cancel --name suite. Its controller20231 exited1 from cancellation before make started; other checkouts were left running. No passing/failing suite evidence was invented, and no peer process or queue state was edited. The prepared head96cd72ed is superseded, so it cannot satisfy final-code verification.
+
+The shared bound-only reader now reads the selected immutable ledger before returning a temporal fact, refuses unreadable ledgers or any modern reviewed-head/retained-input marker, and leaves strict completion/replay unchanged. This implements the already-approved modern-corruption refusal, not a new policy. All new disjoint/generation/source-authority controls passed11.837s. Re-run broader normal/race/lint with all checkout edits frozen, commit/rebuild the private CLI proof, then push and queue the replacement final-code suite. Re-close for a fresh review; the earlier SHIP does not cover this code correction.
+
+### 2026-10-23 — corrected final-code focused checks passed
+
+After the source-authority fence, broader legacy/adopted/strict/migration controls passed142.427s; all new disjointness and modern-source-authority controls passed under race12.301s. Go/shell lint passed1.067s/0.409s. Entire checkout stayed frozen through those commands; no hermeticity refusal. The permanent modern-input controls were observed RED2.505s before the correction. Shipping additions remain within the quick-flow shell and no schema or hours changed. Commit this corrected code before rebuilding the private CLI and restarting recorded verification; the earlier SHIP and cancelled old queued run do not verify the corrected head.
+
 ## Revisions
 
 ### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
@@ -123,3 +135,7 @@ Cost remains one bounded complete source-history walk plus the existing tracker-
 ### 2026-10-23 — approved landing split
 
 The private CLI exposed a genuinely overlapping second old adoption (#161). Hub approval29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c keeps #569 solely the already-approved disjointness change, and assigns no-retroactive-owner handling as a separate follow-up after landing. Strict overlap is acceptance evidence here. Keep the original queued/running suite and its FIFO place; close review may overlap the queue, but final-code recorded pass precedes landing. No source changes since569b05ab344676a1eb960bfbda9a5449ce67e408. Next: push this evidence, central recorded suite, close/PR/merge; post-landing file/claim the bounded follow-up from main.
+
+### 2026-10-23 — same-contract source-authority fence
+
+A classic unmarked tracker card is insufficient if its pinned source ledger contains modern reviewed-head or retained measurement authority. Bound-only mode must not replace that evidence, whether valid, damaged or unreadable. Reuse ownedLedgerAt's strict parser; keep the original captured protocol-error-only ledger eligible. This is a correction within the approved modern-corruption contract. No new persisted state, numerical interpretation, legacy-owner rule or history walker.

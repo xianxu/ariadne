@@ -183,6 +183,22 @@ func resolveLegacyGeneration(ctx context.Context, root, sourceMain, repository s
 		return out, err
 	}
 	out.Adoption.TerminalCommit = selected.TerminalCommit
+	if archiveBoundOnly {
+		pin := selected.CloseCommit
+		if pin == "" {
+			pin = selected.TerminalCommit
+		}
+		num, _ := strconv.Atoi(id)
+		ledger, err := ownedLedgerAt(ctx, root, pin, num, plans)
+		if err != nil {
+			return out, err
+		}
+		for _, round := range ledger.Rounds {
+			if round.Reviewed != "" || round.ActualInputs != nil {
+				return fail("archive bound cannot replace modern saved review or measurement evidence")
+			}
+		}
+	}
 	if selected.CloseCommit == "" {
 		return out, nil
 	}
