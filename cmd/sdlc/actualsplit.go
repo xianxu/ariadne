@@ -66,7 +66,8 @@ func splitRounds(l gatestate.Ledger) []activetime.BoundaryRound {
 
 // cutTimes is the ONE rule for which rounds can cut a split and with what
 // times, shared by the split and the row's metadata so they cannot disagree;
-// nothing downstream filters rounds again. Unusable: a round that consumed no
+// fresh Plan selection can then omit retired unfinalized boundaries while metadata
+// retains consumed review history. Unusable: a round that consumed no
 // review, one that belongs to every boundary (gatestate.BoundaryAll: no cut
 // of its own), or one whose finalize time does not parse. An unparseable
 // dispatch stamp reads as zero (missing).
@@ -125,8 +126,8 @@ type splitMeta struct {
 
 // rowSplitMeta reads it from the boundary gate ledger AS PERSISTED when the row
 // is written (PQ-1): the measurement runs before this close dispatches its
-// review, so only the ledger has the finalizing round. It counts exactly the
-// rounds the split can use (cutTimes).
+// review, so only the ledger has the finalizing round. It counts usable consumed
+// rounds (cutTimes), including history retired from fresh measurement cuts.
 // An empty recipe on a boundary round is the full review (pre-#231).
 func rowSplitMeta(l gatestate.Ledger) splitMeta {
 	meta := splitMeta{Stamped: true}
@@ -168,4 +169,42 @@ func rowSplitSource(measured *actualSplit, meta splitMeta) string {
 	default:
 		return activetime.SplitDispatch
 	}
+}
+
+// actualPhaseDiagnostic describes the exact selected timeline used by Split.
+func actualPhaseDiagnostic(tl activetime.Timeline, milestone string) string {
+	label := "issue"
+	if milestone != "" {
+		label = milestone
+	}
+	if len(tl.Phases) == 0 {
+		return fmt.Sprintf("effective %s phases: empty; no selected phase interval (inspect retained executable open boundaries)", label)
+	}
+	return fmt.Sprintf("effective %s phases: %s → %s (%d phase(s); tail remains uncounted)", label, tl.Phases[0].Start.Format(time.RFC3339Nano), tl.Phases[len(tl.Phases)-1].End.Format(time.RFC3339Nano), len(tl.Phases))
+}
+
+// selectFreshSplitRounds changes only newly derived cuts. Finalized history
+// always wins over current Plan membership; saved snapshots never call this.
+func selectFreshSplitRounds(rounds []activetime.BoundaryRound, milestones []string) ([]activetime.BoundaryRound, []string) {
+	keep := map[string]bool{"": true}
+	for _, m := range milestones {
+		keep[m] = true
+	}
+	for _, r := range rounds {
+		if r.Finalizing {
+			keep[r.Boundary] = true
+		}
+	}
+	var selected []activetime.BoundaryRound
+	var retired []string
+	seen := map[string]bool{}
+	for _, r := range rounds {
+		if keep[r.Boundary] {
+			selected = append(selected, r)
+		} else if !seen[r.Boundary] {
+			retired = append(retired, r.Boundary)
+			seen[r.Boundary] = true
+		}
+	}
+	return selected, retired
 }

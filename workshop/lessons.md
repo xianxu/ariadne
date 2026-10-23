@@ -1502,6 +1502,11 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   effects. Native replaced-token, target-movement and post-archive replacement
   regressions defend these semantic contracts; lexical lint cannot prove them.
 
+- #531 plan review: name each risky selector/resolver/diagnostic function and its adversarial strategy; leave case inventories in executable tests. For immutable accounting, normalize fresh inputs before persistence rather than changing the interpretation of saved cuts. The native retired-boundary/replay matrix and pinned-read call counter defend the semantic contract; a lexical lint cannot prove correct time attribution.
+
+- #531 full suite: every new --issue recovery hint must use issue.CLIRef even when current callers pass decimal IDs. Include TestIssueHintsRenderDecimalIDs in targeted checks before queuing the full suite, and use a padded ID in the native refusal assertion. The existing source guard owns this mechanical class; do not add a parallel lint.
+
+- #531 BR-1: when a fast path skips evidence collection, test every independent reason the evidence is required. Requested milestone authority and existing open-cut filtering are separate predicates; empty, whole-issue-only and finalized-only ledgers must not bypass live target validation.
 - #553 BR-1: a structural fallback placed after selected grammar branches can
   remain message-dependent through earlier unknown returns. Apply fallback to
   the authority parser's explicit unknown result; preserve definite authority
