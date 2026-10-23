@@ -6,17 +6,18 @@ universal-agent-input-interface). Parley's Alt+Return sends only `submitted: PAT
 skill carries the rest.
 
 - **`SKILL.md`** — the trigger and three pointers; it restates no protocol.
-- **`round.md`** — the harness-neutral round: the frontmatter `process-instruction:
-  [mode][mode] text`, mode resolution (exact name, else a unique prefix; the first mode's
-  scope/frontier govern), document-level `presentation:` (direct, highlight by default, or
-  propose), marker handling, and the reply. It names no Couch verb, so it works outside
-  Couch. §4 resolves the collaboration modes and routes each ask (#412).
-- **`collaboration-modes.md`** — where an ask's answer goes, per section, by frontmatter `collaboration-mode:`
-  (separate from the review mode, which says how an edit is made): **discussion** (the default; an imperative is an
+- **`round.md`** — the harness-neutral round: single-valued `processing-mode` (exact name or unique prefix),
+  separate `processing-instruction` free text, per-region scope/frontier and effective `presentation-mode`,
+  marker handling and the reply. Deprecated composite `process-instruction` remains readable; automatic fill
+  refuses a multi-mode legacy value rather than dropping a brief. It names no Couch verb, so it works outside
+  Couch. §4 resolves settings and routes each ask (#412, #562).
+- **`collaboration-modes.md`** — owns the three-key contract (#562): `collaboration-mode`, `presentation-mode`,
+  `processing-mode`; scalar frontmatter, heading comments, precedence, defaults, aliases and legacy-map migration.
+  Where an ask goes: **discussion** (the default; an imperative is an
   edit, an instruction that only acts is honored, a decision becomes one `Decided (operator): …` line with any notes in a
   linked side doc, a question opens a linked side doc), **collaboration** (answered in
   place), **chat** (each list item gets a dated answer doc). It holds the heading matching and its error cases, the
-  side-doc contract (one flat `<name>.side/` folder per document, `NN-slug` and `YYYY-MM-DD-NN-slug` names,
+  side-doc contract (new `<name>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md` paths, old flat names remain valid,
   frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink an
   unlinked doc by `parent:` + `marker:` + section, never one already linked), and the state table. Design: ops universal-agent-input-interface, S2.
   **S3 (#424):** a side doc has no closed state; the parent's `discussions:` frontmatter is the operator's review
@@ -31,20 +32,31 @@ skill carries the rest.
   `sdlc project new` write. Datatypes declare it in their prototype's Frontmatter shape table
   ([Data Artifacts](data-artifacts.md)). Durable plans get it from the writing-plans header (discussion). Side docs
   and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
-  `vocab.CollaborationModes` is the Go copy of the three values.
+  `vocab.CollaborationModes` is the Go copy of the three values. Under #562's fill contract, creators
+  (Parley, Couch and tl-lead's side-doc helpers) write all three mode keys explicitly, preserving set values.
+  Legacy-only choices are materialized under canonical keys without rewriting aliases; there is no blanket
+  rewrite of existing documents. Runtime adoption: parley.nvim#418 owns canonical/legacy presentation,
+  processing-mode and processing-instruction readers plus fill; #419 owns completion, concealment,
+  section comments and monthly side-doc layout. Pair/Couch readers belong to pair#823.
+  Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section publication: new
+  month paths require a real filename date matching the sole month directory and a parent resolved from
+  that directory; legacy dated flat targets remain accepted. It does not fill or rewrite answer documents.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — twenty-four reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
+- **`examples/`** — reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
   submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
   on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
   side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
-  of the move contract. Only the move cases are exported, as parley's fixtures.
+  of the move contract. Older cases deliberately preserve legacy aliases/maps/flat names. New editorial cases
+  cover heading overrides, explicit defaults, preserved existing/legacy choices and lossless multi-mode refusal.
+  The checker validates month directories, cross-layout numbering and retry identity as well as legacy files.
+  Only the move cases are exported, as parley's fixtures.
 - **`adapters/file-edit.md`** — editing the file. A document is edited directly only on a
   confirmed untracked lookup; a `type: session-sync` file (tracked even outside a slot) or a registered one goes through
   `couch --session-sync` status → diff → `read --all` (the snapshot, hash H) →
   atomic `apply` records with per-edit `explain` and answered fold IDs → `round --json`
   for the reply. Exit 1 invalid/proposal refusals either rebuild the full batch or open a
   linked side doc; exit 3 (lock) defers to the next submit without polling; exit 6 (stale)
-  re-reads and rebuilds. Under `presentation: propose`, a record replacing the
+  re-reads and rebuilds. Under effective `presentation-mode: propose`, a record replacing the
   operator's ready marker with a side-doc link, or answering a fold-in marker at
   that link, applies directly; ordinary prose edits still become proposals. Its
   matching `discussions:` entry rides in the same atomic apply. A marker-free
