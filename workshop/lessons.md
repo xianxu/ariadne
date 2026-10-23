@@ -1520,3 +1520,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   production seam and prevent another instance of this message-dependent class.
 
 - #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
+
+- #557 suite: when a production process adapter changes an argv contract, sweep
+  executable fixture parsers and expected event transcripts as well as direct
+  argv assertions. Preserve each fixture's original policy oracle while updating
+  its prerequisite contract. Settings-only compatibility remains valid, so a
+  lexical ban on the old flag would be wrong; native adapter/start-plan and
+  dependency-environment regressions enforce this semantic distinction.
