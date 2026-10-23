@@ -161,6 +161,11 @@ source files. The prompt names each path, exact SHA, fetch-age evidence (or
 declarations stop setup: repair or refresh the local dependency outside the
 review, then rerun the original close command.
 
+Reviewer scratch uses `<clone>.sdlc-review/tmp` beside the review checkout,
+so tests that discover project markers cannot mistake scratch for that project.
+The existing checkout lock owns both trees through reset, close and dead-owner
+cleanup. The source and Git write protections are unchanged.
+
 An available OS fence makes dependency clones and source Git directories
 read-only. Without the fence, the prompt identifies writable disposable clones
 whose edits are discarded. Retries rebuild the same paths at the same pins;

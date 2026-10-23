@@ -174,8 +174,8 @@ func TestConfineInsideCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir, _ := canonicalDir(co.Dir)
-	if c.Base != filepath.Join(dir, confineBaseName) {
-		t.Fatalf("base %s is not inside the checkout %s", c.Base, dir)
+	if c.Base != dir+".sdlc-review" {
+		t.Fatalf("base %s must be a sibling outside checkout %s", c.Base, dir)
 	}
 	write(t, filepath.Join(c.Tmp(), "scratch"), "x")
 	if st := testfix.Capture(t, co.Dir, "status", "--porcelain"); strings.TrimSpace(st) != "" {
@@ -196,7 +196,7 @@ func TestConfineInsideCheckout(t *testing.T) {
 	if !strings.Contains(env, "CLAUDE_ENV_FILE="+c.envFile()) {
 		t.Errorf("env lacks CLAUDE_ENV_FILE:\n%s", env)
 	}
-	// A retry resets the checkout, which deletes the base; Prepare restores it.
+	// A retry resets both disposable trees; Prepare restores the confinement.
 	if err := co.ResetContext(t.Context()); err != nil {
 		t.Fatal(err)
 	}
