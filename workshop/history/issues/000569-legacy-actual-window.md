@@ -1,0 +1,168 @@
+---
+id: 000569
+status: wontfix
+deps: []
+github_issue:
+created: 2026-10-23
+updated: 2026-10-23
+estimate_hours:
+collaboration-mode: collaboration
+card_mirror: '75e9c99d84d66c112d5b4cd6305f4ebab7815f2f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T01:30:48-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1963757c", done: "0f903ae5"}
+actual_hours: 0.55
+---
+
+# Diagnose legacy actual-window refusal blocking pair#162
+
+## Problem
+
+The hub reports that central sdlc actual --issue 162 from pair-slot2 refuses because old landed pair#151 has no trustworthy saved adopted window: legacy completion workshop/history/issues/000151-hierarchical-thread-menu.md has no finalized whole-issue close in its saved boundary ledger. pair#162 was filed on September 1 and is closing now. Its close waits on diagnosis; no urgency before about08:00 on October23.
+
+## Spec
+
+Diagnose the provenance and scope of the cross-issue adopted-window dependency before changing anything. Determine whether genuine historical evidence can be restored or whether an unrelated legacy adoption should be excluded with a visible label. Never fabricate a close, window, ownership history or measured hours. Keep Pair checkout and historical evidence unchanged during diagnosis.
+
+## Done when
+
+- Reproduce the exact refusal with the central binary and trace the adopted-window selection to its data and production functions.
+- Compare pair#162 engagement and migration bounds with pair#151 close/archive/measurement evidence, distinguishing proven disjointness from unknown overlap.
+- Record a concrete recovery or root-fix recommendation, evidence gaps and acceptance controls; report the cause to the hub before implementation.
+
+- Exact old unmarked imported archive/done generations may be skipped only when their immutable end strictly predates the earliest candidate prefix/engagement, with a visible issue/end label and no numerical/review repair.
+- Equality, overlap, changed/restored generations, modern corrupt authority and unreadable history still refuse; strict legacy completion/replay verification stays unchanged.
+- The captured partial legacy ledger and full hybrid measurement path have regression coverage; recorded suite, close review and central landing pass before telling pair:2 to measure.
+
+## Plan
+
+- File and claim; enter planning on a branch from main.
+- Reproduce read-only in pair-slot2, inspect only the implicated historical records and measurement call chain.
+- Verify the cause with the smallest nonmutating probe; preserve returned evidence and rejected alternatives.
+- Publish diagnosis and recovery recommendation to the hub; obtain approval for any scope or evidence-policy change.
+
+## Log
+
+### 2026-10-23 — dispatch
+- 2026-10-23: abandoned (wontfix): TL decision: corruption-safe legacy disjointness requires source-ledger history machinery, not justified for the shrinking legacy cohort; drop pair#162 ownership follow-up. Affected closes use --no-actual with --verified citing legacy-era overlap; measurement unavailable by design (ariadne#569). No implementation lands.
+- 2026-10-23: closed — Exact captured Pair151 ledger regression RED then GREEN; equality/overlap and strict close verification remain refusals. Real-Git generation fences and public hybrid prefix/output controls pass; broad targeted tests138.888s, race9.830s and10.953s, Go/shell lint pass. Private clean production CLI gets past151 and correctly preserves overlapping161; hub approved that split. Central recorded final-code suite queued on pushed head and must pass before landing (tl-worker permitted overlap). README/help/atlas and lessons updated; no historical Pair evidence or numeric actual changed. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+
+Authenticated hub delivery9c270b83-96f0-4235-b536-7f809314451c assigned this after #563. #563 is now landed as PR406, so investigation can begin. The hub asks to file, claim and report; no speculative Pair evidence repair is authorized.
+
+### 2026-10-23 — reproduced and traced; no evidence restoration performed
+
+Central binary in pair-slot2 reports path=/Users/xianxu/workspace/ariadne/bin/sdlc, revision584d909713dbd858397f1330a23ee026861a5844, modified=false. sdlc actual --issue162 reproduces the exact warning (the command exits0 but produces no numeric measurement). The read-only sdlc issue migrate --repair-completions --issue151 exits1 with the same missing-finalized-whole-issue-close error. No apply, correction, exclusion, label, Pair edit or Pair commit was performed.
+
+Production path: computeActualForPurpose -> resolveOwnedActualInputsFor -> loadAdoptedExclusions -> recoverUnboundLegacyAdoption -> resolveLegacyCompletion. The adopted-actual guard protects against counting time already adopted by another issue. Its calendar-date filter deliberately widens old card dates by a timezone-safe48h; #151 updated2026-08-31 still passes for a September1 candidate. Selection does not establish a shared slot: #151 has no tracker owner, completion, legacy-adoption marker or correction, and its tracker history has only the original migration-root commit. The legacy proof errors before slot comparison and before immutable temporal disjointness can be established.
+
+A temporary Go overlay (no tracked source edit) invoked the real input resolver and exclusion loader read-only. On own source pinb10a950e2693b79fe69b1d4279f1b752c9d48162 it printed:
+
+- candidate_since=2026-09-01T14:21:09-07:00, until=2026-10-22T22:03:04-07:00, method=active-time-v3-engagement-legacy-prefix-v1;
+- legacy prefix September1 14:21:09 through September28 00:06:01 PDT;
+- tracked engagement October22 18:09:43 through22:03:04 PDT, root pair-slot2/pair;
+- immutable_archive_before_candidate=true and coarse_card_filter_may_overlap=true;
+- the original production exclusion refusal naming #151.
+
+The first boundary is the parent of the legacy #162 draft commit, not its created date or its much later tracker claim. Git independently shows parent7f85f5c4c1934f33ab23d0a0eee5e90096ffecc7 at September1 14:21:09; draft858a4452fbee8c329526adcb541fc18870f86d27 follows at14:22:14. Tracker rootc039dc4b8140f73ecc140f80e945beebadc4da7f is September28 00:05:53; marker commitd636b304405f9208a2341e8cffbcfb504f140a0c is00:06:01. This is hybrid legacy attribution, not an inferred old shared-slot claim.
+
+#151's actual20.07h was already adopted before cutover. Git close commitd5d23dcc210f8b80c7cb440e3ffd8dc2e09e31bd (August31 18:17:38 PDT) says Review-Verdict: SHIP and Review-Window:9157998f..309a9717. Its own immutable close-gate ledger has24 rounds; round24 (18:17:17) records protocol_error: no valid findings block, and no finalized whole-issue reviewed head exists. Earlier accepted rounds are milestone boundaries, so they cannot substitute for a whole-issue close. The archive commitc643b4b2638a71f82e8e4cc1363fd7c023f198f9 is August31 18:20:40, strictly before even the candidate's earliest legacy prefix. No matching finalized whole-issue record was found in the implicated immutable close/archive history. Restoring a finalized review or numeric snapshot would invent authority; the strict repair refusal is appropriate.
+
+Temporary overlay source and raw output are retained at common test-stats/evidence/000569/readonly-input-probe.go.txt and readonly-input-probe.log; the overlay and temporary build-input directory were removed. It passed9.619s; targeted existing timezone-filter, strict-disjointness and damaged-legacy-evidence controls passed1.642s. These verify the diagnosis, not an implementation fix. No full suite was started for this read-only investigation.
+
+### 2026-10-23 — implementation and targeted verification checkpoint
+
+Approved bound-only mode reuses the immutable source/generation reader and cannot yield a completion. Strict completion/show/repair/replay wrappers retain strict validation; only the old unmarked-import exclusion path asks for the temporal fact and prints the label. Shipping additions remain49 lines including help. The exact original Pair#151 close-gate bytes are committed as the regression fixture; no original evidence is changed.
+
+The first regression setup used SplitCard instead of the old migration codec and failed on an ID mismatch, so it did not count as RED. After using PlanTrackerMigration, the regression failed for the exact missing-finalized-whole-issue-ledger refusal in1.860s. The implementation made it pass2.796s, while equality/overlap and strict completion refusal stayed intact. Generation controls add numeric/start mismatch, modern completion, reopen/restore and provenance-strip/restore. A real public measurement fixture recreates an old importer with the partial ledger and a genuine legacy prefix; after correcting fixture bootstrap clocks (started cannot be later than its tracker-root commit), both its measured/labelled and overlapping-prefix controls passed6.886s. Go/shell lint passed1.034s/0.395s.
+
+The broader legacy/adopted test cases all printed PASS, but TestMain's hermeticity guard correctly failed the187.533s run: I edited atlas/workflow/issue-tracker-migration.md while it ran. This is attributable to my concurrent edit, not a test flake or main failure; no registration or blind full retry. Freeze ALL checkout files (including atlas/Log), then repeat the targeted verification unchanged. Documentation and lessons edits are complete before the repeat. No full recorded suite has been queued yet. Next: targeted normal/race controls, clean code commit, private read-only CLI proof of pair#162, then pushed-head recorded suite/close/central landing. Keep historical #151 evidence strict and unchanged.
+
+### 2026-10-23 — focused verification complete; prepare private CLI proof
+
+With the entire checkout frozen, the broader TestLegacy/TestVerifyLegacy/TestAdopted/archived-migration/parked-claim controls passed138.888s. Race verification of the new disjointness/generation controls passed9.830s; an explicit public hybrid old-partial-ledger selector independently passed under race10.953s. The new production branch stays disjointness-only; strict historical completion/replay and damaged-modern controls passed unchanged. No blind suite retry or flake registration was used for the earlier concurrent atlas edit.
+
+Implementation source remains44 added Go lines plus5 embedded help lines, inside the quick shell. README, both relevant atlas pages, help, exact captured ledger fixture and lessons are updated. No persisted schema, number, prior review record or peer checkout was changed. Commit the clean code checkpoint, build a private production CLI with verified revision/modified=false, and invoke actual162 read-only in pair-slot2. If another genuine blocker appears, report it instead of weakening evidence. After private proof, queue the central pushed-head recorded suite, close/PR and normal central merge; post-land rebuild and actual success precede the direct pair:2 readiness message.
+
+### 2026-10-23 — private production CLI proves the boundary; split confirmed
+
+Built a private Go1.27.3 CLI at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne569-cli-o8gb453q/sdlc. Git/build metadata confirms revision569b05ab344676a1eb960bfbda9a5449ce67e408 and modified=false. Its read-only actual162 invocation from pair-slot2 passes the #151 dependency but correctly refuses #161's potentially overlapping legacy adoption. Git shows #161 archive1019d1ad13e6d920000764252f56f2b5ce55af7c at September1 17:02:22 PDT, later than candidate prefix14:21:09. Its imported numeric actual0.45 and strict missing-whole-close evidence remain unchanged. This is expected overlap refusal, not a failed disjointness fix. Private-path fleet warning is expected; all workflow/landing commands use central sdlc. Remove this one private directory after acceptance; no :0 staging, peer edit or live queue mutation.
+
+Hub receipt3b570bf4-7b42-431b-b239-f5f94400b3bb submitted this concrete result before any new full suite. Authenticated reply29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c approves the split: land #569 unchanged and queue its suite. The remaining pair#162 fix follows on fresh main: apply the operator's echo#5 no-retroactive-owner rule and #554 first-modern-ownership bound, labelling the September1 legacy prefix unowned/not counted. If that extension is large, report instead; the fallback belongs to the TL and pair#162 may close with --no-actual citing the overlap. Do not expand #569 or claim pair:2 is ready; readiness follows verified measurement with the later fix.
+
+### 2026-10-23 — post-review adversarial correction; old queued run cancelled
+
+First close review returned SHIP with zero findings, evidence commit34a72841e7e372e3b4bc4465faeb8fc8b7ca92b5. Before landing, an additional read-only overlay tested the contract's modern-corruption edge: an old unmarked imported card whose source ledger contained damaged retained measurement inputs. It reproduced an incorrect disjoint skip (RED1.539s). Permanent controls for damaged inputs, retained inputs and a modern reviewed-head marker all then failed RED2.505s. The old-card shape alone cannot prove that source authority is legacy.
+
+Stopped only this checkout's still-queued recorded run through sdlc local-check cancel --name suite. Its controller20231 exited1 from cancellation before make started; other checkouts were left running. No passing/failing suite evidence was invented, and no peer process or queue state was edited. The prepared head96cd72ed is superseded, so it cannot satisfy final-code verification.
+
+The shared bound-only reader now reads the selected immutable ledger before returning a temporal fact, refuses unreadable ledgers or any modern reviewed-head/retained-input marker, and leaves strict completion/replay unchanged. This implements the already-approved modern-corruption refusal, not a new policy. All new disjoint/generation/source-authority controls passed11.837s. Re-run broader normal/race/lint with all checkout edits frozen, commit/rebuild the private CLI proof, then push and queue the replacement final-code suite. Re-close for a fresh review; the earlier SHIP does not cover this code correction.
+
+### 2026-10-23 — corrected final-code focused checks passed
+
+After the source-authority fence, broader legacy/adopted/strict/migration controls passed142.427s; all new disjointness and modern-source-authority controls passed under race12.301s. Go/shell lint passed1.067s/0.409s. Entire checkout stayed frozen through those commands; no hermeticity refusal. The permanent modern-input controls were observed RED2.505s before the correction. Shipping additions remain within the quick-flow shell and no schema or hours changed. Commit this corrected code before rebuilding the private CLI and restarting recorded verification; the earlier SHIP and cancelled old queued run do not verify the corrected head.
+
+### 2026-10-23 — corrected clean private CLI; restart final-code gates
+
+Rebuilt the same private CLI after the code correction; go version -m confirms Go1.27.3, revision506a6de0af54025b9e9dce33bb8959cb83ca72aa, modified=false. Its read-only actual162 probe again gets past151 and preserves161's true-overlap refusal. That is the approved split, not readiness for pair:2. No source edits remain. Push this documentary checkpoint, queue one replacement recorded suite on that pushed head, then fresh close review for the post-SHIP correction. Keep the new controller/FIFO place until result. No continuation/restart while it is queued or running. All other work is the later no-retroactive-owner follow-up from main, per authenticated hub approval29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c.
+
+### 2026-10-23 — round-two REWORK; third-delta stop and re-plan
+
+Fresh close review returned REWORK: BR-1 Critical (legacy-bound-must-check-source-authority) reproduces modern or unreadable ledger writes at archive and later before cutover escaping the selected-close-only guard; BR-2 Minor identifies a fixture comment that describes only one of two branches. The critical cause is confirmed in the production code. No dispute and no code change after this review. Stopped the replacement recorded suite through sdlc local-check cancel --name suite while it was still queued; controller33871 exited1 before make ran. Together with cancelled controller20231, neither recorded run executed a full suite. No own background suite/review remains.
+
+Recovery used sdlc state, the issue Log, branch and generated review; couch --peek ariadne:3 --previous --all explicitly reports the previous recovery screen unavailable. The tracker read currently reports codecomplete despite the refused review; no mirror/status was hand-edited, and a new close is required. Prior SHIP does not authorize this head. The retained private CLI only proved the earlier selected-close implementation and is not proof of the proposed correction.
+
+This is the third design delta on the source-authority mechanism, so stop under tl-worker PLANNING rather than patch another timestamp. Proposed re-plan is workshop/plans/000569-legacy-actual-window-plan.md: one complete bounded relevant source-ledger history check, strict parsing/identity, distinct immutable blob reads and counted linear work; preserve the existing disjointness-only policy and strict completion/replay. The simple three-snapshot alternative fixes cited examples but misses authority added then removed between them. No lifetime lease can prove historical absence. Commit and send this concrete proposal to the hub; await approval before implementation or another recorded run. The first-proven-modern-owner follow-up stays separate after landing.
+
+### 2026-10-23 — TL decision: wontfix; no further mechanism
+
+Authenticated hub receipt74137932-2fd2-4698-8067-62ad44c54a91 declines the proposed source-ledger history mechanism. Finding: the disjointness bound cannot be made corruption-safe without checking the independently changing source-ledger history; selected close/archive/source snapshots alone do not prove absence between snapshots. Three design rounds for a shrinking set of legacy-era cutover issues cost more mechanism than the payoff of one or two issues' velocity-calibration hours. End #569 as wontfix without landing its code; preserve diagnosis, rejected implementation and review findings through sdlc abandon's archive ref.
+
+Drop the pair#162 first-proven-modern-ownership follow-up as directed. Pair#162 and other affected legacy-crossing issues use the precise --no-actual close gate flag, with --verified citing: 'legacy-era overlap; measurement unavailable by design (ariadne#569)'. No number or historical evidence is invented. This is the TL's explicit decision, not a passing review or successful measurement. No other checks, processes or queue entries are cancelled. Both own queued suites were already cancelled before execution; no full-suite pass is claimed. Report the terminal card and preserved archive to the hub after the lifecycle verb completes.
+
+## Revisions
+
+### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
+
+The cause is an overbroad dependency on trustworthy historical close replay even for a provably earlier imported generation. Recommend one narrow, separately proved archive/done end bound for exclusion relevance: only a numeric done issue present in the real tracker root and its exact pre-cutover archive, with matching identity/actual/started and generation continuity (no reopen, correction, modern completion or provenance substitution), may use that immutable end solely to prove end < candidate.Snapshot.Since. Since must include the entire legacy prefix/earliest engagement, not only today's owner. Print a visible diagnostic naming the issue and bound and saying its adopted number was not replay-verified. Keep its historical numeric actual unchanged.
+
+ARCH-DRY/ARCH-PURE: extract/reuse the existing immutable source/generation proof rather than duplicate a history walker; keep close/replay validation strict. This is not permission to reinterpret malformed saved modern inputs as legacy, to accept #151's review as valid, or to ignore any potentially overlapping adoption. Equal/overlapping/missing bounds, source mismatch, reopened generation, unreadable/bounded-out history and malformed modern authority still refuse. A single lifetime lease cannot prove a historical generation/time relation; immutable Git object identity and bounded complete history are the appropriate authority.
+
+Proposed acceptance strategies before implementation: reduce the captured real #151 ledger/old unmarked-import shape into a real-Git regression with #162's legacy-prefix boundary; prove the labelled disjoint skip, plus strict equality/overlap, initial/reclaimed ownership, archive/source tamper, reopened/restored generations and modern missing/corrupt completion refusal. Retain TestLegacyCompletionProofRefusesDamagedEvidence unchanged. A dedicated classifier handles only temporal relevance; no new persisted schema, hours, state store, runtime scan or production artifact family. The existing output/snapshot provenance path should carry any label. No production code has been edited; report this concrete recommendation to the hub before expanding scope.
+
+### 2026-10-23 — approved implementation refinement
+
+Authenticated hub delivery3934fa98-49d4-4b59-98d1-478677117b64 approves the narrow archive/done bound and asks to notify pair:2 after landing. Proceed within the quick-flow shell, one atomic close boundary, no Mx split. Preserve the already-approved policy; no further operator round is required for routine implementation.
+
+Reuse the complete bounded immutable history reader in legacycompletion.go through a private archive-bound mode. resolveLegacyCompletion remains its strict wrapper. A shared recoverUnboundLegacyAdoption implementation takes the same purpose, preserving root membership, archive identity, immutable bytes, scalar types and full tracker generation checks; a separate temporal-bound entry point alone requests bound mode and returns only a time, never a valid close or number. loadAdoptedExclusions invokes that entry point only for unmarked imports without a completion, compares through the existing pure legacyWindowDisjoint, and appends a visible fresh preview/close warning. Existing immutable historical replay is unchanged, and no persisted field is added. Strict repair/show/completion paths remain on strict mode.
+
+Actions: rerun measurement; repair named evidence.
+| Internal state | Visible state | Recovery | Possible loss |
+| --- | --- | --- | --- |
+| Exact unmarked import, proven archive/done end before earliest candidate | Measured with labelled disjoint legacy adoption | Continue normal close | None; old actual/review unchanged |
+| Equal/overlapping/unknown bound or modern malformed evidence | Cannot measure, named evidence | Repair evidence and rerun | None; no adopted hours |
+
+Test first: a real-Git archived old import with the captured round24 protocol-error ledger must let a later candidate proceed with the label, while strict completion verification still refuses it. Extend its controls across equality/overlap/legacy-prefix bounds and real tracker mutations, and retain existing source/root/reopen/modern corruption tests. Risky seams: resolveLegacyCompletion mode cannot yield completion authority in bound mode (strict-refusal control); recoverUnboundLegacyAdoption root/generation checks cannot be bypassed (real-Git provenance mutations); loadAdoptedExclusions cannot use only latest ownership (hybrid earliest-prefix control); visible label cannot disappear (public-output assertion).
+
+Cost remains one bounded complete source-history walk plus the existing tracker-history validation per relevant old adoption; no process/topology scan, schema, durable family, cache or new scheduler. Reuse the existing counted history-scan guard. The mistake class is semantic authority/relevance ordering, so the real-Git behavioural fixture is the guard; a lexical linter cannot infer temporal disjointness. Update help/atlas and lessons, run focused normal/race and a private read-only production CLI against Pair; normal central suite/close/merge only, no staging or live queue mutation. Notify the hub and pair:2 only once the landed central binary is rebuilt and measurement actually succeeds.
+
+### 2026-10-23 — approved landing split
+
+The private CLI exposed a genuinely overlapping second old adoption (#161). Hub approval29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c keeps #569 solely the already-approved disjointness change, and assigns no-retroactive-owner handling as a separate follow-up after landing. Strict overlap is acceptance evidence here. Keep the original queued/running suite and its FIFO place; close review may overlap the queue, but final-code recorded pass precedes landing. No source changes since569b05ab344676a1eb960bfbda9a5449ce67e408. Next: push this evidence, central recorded suite, close/PR/merge; post-landing file/claim the bounded follow-up from main.
+
+### 2026-10-23 — same-contract source-authority fence
+
+A classic unmarked tracker card is insufficient if its pinned source ledger contains modern reviewed-head or retained measurement authority. Bound-only mode must not replace that evidence, whether valid, damaged or unreadable. Reuse ownedLedgerAt's strict parser; keep the original captured protocol-error-only ledger eligible. This is a correction within the approved modern-corruption contract. No new persisted state, numerical interpretation, legacy-owner rule or history walker.
+
+### 2026-10-23 — proposed third-delta re-plan; implementation held
+
+Round-two review shows the prior source-authority correction was incomplete: issue-file history does not cover independent ledger changes. The proposed durable plan at workshop/plans/000569-legacy-actual-window-plan.md replaces snapshot-by-snapshot repairs with one bounded immutable ledger-history eligibility decision. It covers retained inputs, damaged inputs, reviewed-head-only and unreadable ledgers at close, archive and later writes, including evidence added and removed before cutover. The fixed snapshot inventories still enforce ambiguity and identity; history reads must not scan the entire plans inventory per commit. No schema, old actual or review authority changes. This proposal awaits hub approval under the third-delta rule; no code has been changed for it. Rerun inferred change-code gates if the revised design leaves the quick-flow shell.
+
+### 2026-10-23 — proposed re-plan declined; scope ends
+
+Hub receipt74137932-2fd2-4698-8067-62ad44c54a91 chooses wontfix instead of adding historical ledger machinery for this shrinking legacy set. This supersedes the implementation proposal and queued follow-up. Preserve all work as abandoned evidence; no source changes land. Measurement for affected legacy overlaps is intentionally unavailable, with the explicit --no-actual gate waiver and labelled verification above.
