@@ -1,0 +1,87 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+)
+
+func TestOperatingCancellationStopsGitHookDescendants(t *testing.T) {
+	f := operatingRepo(t)
+	d := t.TempDir()
+	ready := filepath.Join(d, "ready")
+	blocked := filepath.Join(d, "blocked")
+	if err := syscall.Mkfifo(ready, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(blocked, 0600); err != nil {
+		t.Fatal(err)
+	}
+	// RDWR keeps the reader open before the hook arrives; readiness is an
+	// actual hook write, independent of process launch/instrumentation time.
+	signal, err := os.OpenFile(ready, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer signal.Close()
+	childFile := filepath.Join(d, "child")
+	hook := "#!/bin/sh\ncat '" + blocked + "' &\nprintf '%s' $! > '" + childFile + "'\nprintf r > '" + ready + "'\nwait\n"
+	if err = os.WriteFile(filepath.Join(f.root, ".git", "hooks", "pre-commit"), []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, e := publishOperatingWorkingdoc(ctx, f.root, f.target, []byte("snapshot"), ""); done <- e }()
+	arrived := make(chan error, 1)
+	go func() { b := make([]byte, 1); _, e := signal.Read(b); arrived <- e }()
+	deadline, _ := t.Deadline()
+	if deadline.IsZero() {
+		deadline = time.Now().Add(time.Minute)
+	}
+	guard := time.NewTimer(time.Until(deadline))
+	defer guard.Stop()
+	select {
+	case err = <-arrived:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case err = <-done:
+		t.Fatalf("publisher stopped before hook readiness: %v", err)
+	case <-guard.C:
+		t.Fatal("hook never reached readiness")
+	}
+	pidBytes, err := os.ReadFile(childFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(string(pidBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	cancel()
+	// Git's child inherits the output pipes. Killing Git alone takes the
+	// one-second WaitDelay and reports ErrWaitDelay; killing its group closes
+	// them and reports the cancellation promptly without surviving work.
+	select {
+	case err = <-done:
+		if err == nil || strings.Contains(err.Error(), "WaitDelay") {
+			t.Fatalf("cancellation=%v", err)
+		}
+	case <-guard.C:
+		t.Fatal("cancellation did not return")
+	}
+	state, _ := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "stat=").Output()
+	if strings.TrimSpace(string(state)) != "" && !strings.HasPrefix(strings.TrimSpace(string(state)), "Z") {
+		t.Fatalf("Git descendant %d remains runnable: %s", pid, state)
+	}
+}

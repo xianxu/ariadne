@@ -2506,7 +2506,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-landing-completion-wait` #498/#500,
+that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagnostics, not completion barriers; use the owned group or resource release),
+`test-landing-completion-wait` #498/#500,
 `test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,

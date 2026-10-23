@@ -1577,3 +1577,12 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #570: a shared projection in new code cannot impose agreement on an older running scheduler. Version metadata is evidence only for readers that recognize it. Gate new grants on a fresh compatible held-ticket snapshot, expose existing/later mixed-policy grant risks, and keep revoke independent of inspection. Native old/new flock admission with real private grant/revoke commands guards the temporal rollout contract; a lexical lint cannot prove cross-version agreement.
 - #571: scratch hidden from Git status can still be inside a project's marker ancestry. Keep reviewer scratch beside the checkout, under its existing lifetime lock; update reset, close and dead-owner sweep together. Assert real marker discovery and effective native temp paths, since Neovim can silently fall back on long paths. A clean status or a lexical temp-path rule alone cannot prove placement.
+
+- #567: a killed descendant can still appear as Darwin `?E` after its leader
+  and output pipes finish. A one-shot `ps stat=` snapshot is not a completion
+  barrier. Capture the private owned group before cancellation and wait on
+  `procgroup`'s terminal condition under the existing test deadline; resource
+  release still requires the resource's own proof. Let the executing child
+  publish readiness, join the fixture on failure, and keep a leader-only-kill
+  negative control. The test-ps-liveness Go catalog rule catches direct test
+  state queries, with explicit suppressions reserved for diagnostic captures.

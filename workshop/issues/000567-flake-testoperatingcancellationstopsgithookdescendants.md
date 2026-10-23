@@ -76,9 +76,9 @@ production group runner would widen scope despite successful group signalling.
 
 ## Plan
 
-- [ ] Retain the original JSON capture and test-source excerpt; make the narrow `test-ps-liveness` catalog rule red on that source, with import-alias/context/absolute-binary and unrelated-command controls plus counted N/2N visits.
-- [ ] Fix `TestOperatingCancellationStopsGitHookDescendants` to obtain child-origin readiness, capture and validate its group before cancel, and observe the shared terminal condition under its existing guard; register cleanup before failure-prone waits.
-- [ ] Verify the real Git fixture normally and with race instrumentation; temporarily change only the operating command kill to leader-only, observe the negative control fail, restore it, and retain the result. The test must not accept a surviving owned group or an unexpected probe error.
+- [x] Retain the original JSON capture and test-source excerpt; make the narrow `test-ps-liveness` catalog rule red on that source, with import-alias/context/absolute-binary and unrelated-command controls plus counted N/2N visits.
+- [x] Fix `TestOperatingCancellationStopsGitHookDescendants` to obtain child-origin readiness, capture and validate its group before cancel, and observe the shared terminal condition under its existing guard; register cleanup before failure-prone waits.
+- [x] Verify the real Git fixture normally and with race instrumentation; temporarily change only the operating command kill to leader-only, observe the negative control fail, restore it, and retain the result. The test must not accept a surviving owned group or an unexpected probe error.
 - [ ] Run the tracked-file catalog and relevant cancellation controls; record the lesson, push, run the recorded suite, close for fresh review and land through central SDLC.
 
 Risky function strategies: `TestOperatingCancellationStopsGitHookDescendants`
@@ -105,3 +105,54 @@ Production `operatingCommandGroup` already installs Setpgid, group SIGKILL and
 one-second WaitDelay; adjacent the repository-cancellation regression uses a bounded
 group completion probe instead of an immediate `ps` snapshot. The proposed
 patch changes the fixture/oracle and adds the mechanical lint backstop only.
+
+### 2026-10-23 — correction and independent negative control
+
+The catalog regression first failed because `test-ps-liveness` was absent;
+after adding the rule, its captured-source and syntax controls passed. The
+tracked-file catalog then rejected the actual old oracle at its original
+source line. The corrected fixture and catalog passed together (tl-lead
+1.847s, golint 0.851s). The rule has no production process observer or state
+parser; it visits each source call once and examines literal command/format
+arguments, with N=16/32 counted predicate calls. Dynamic argv and diagnostics
+are deliberately outside this narrow lexical guard.
+
+Temporary native negative control replaced only the production group kill
+with leader kill and bounded the observation *after publisher return* to one
+second. The corrected test failed explicitly: `Git descendant group ...
+remains runnable` (2.81s test; 2.965s package). Both temporary mutations were
+restored byte-for-byte; Git confirms no production runner diff. An earlier
+diagnostic started its short guard immediately after cancel and stopped at
+`cancellation did not return`, because it raced the existing one-second
+WaitDelay; that unsuccessful diagnostic is retained separately. No shipped
+timeout changed. Evidence files live in common
+`sdlc/test-stats/evidence/000567/leader-only-negative{,-group}.txt`.
+
+### 2026-10-23 — focused verification complete
+
+Corrected original fixture: 30/30 pass, package 22.099s. Race-enabled operating
+cancellation, neighboring repository cancellation and lint controls repeated
+five times: PASS (tl-lead 10.935s, golint 1.205s). Broader operating-publication
+and repository-cancellation tests: PASS 18.555s. Full Go lint catalog and
+native procgroup package: PASS 0.739s / 0.081s. The first complete lint run
+correctly required the new rule's atlas catalog entry; that entry is now
+present and verified. The captured source oracle, native failure and successful
+leader-only negative control are committed under
+`pkg/golint/testdata/operating-cancellation/`. Remaining test logs stay in the
+common evidence directory. Central SDLC reports the primary path, current
+28c40fd5 revision and modified=false. Next: push PR, recorded full suite, close
+review, then central merge; no staging or live fleet process check is needed
+for this test-only cancellation correction and pure lint guard.
+
+## Revisions
+
+### 2026-10-23 — quick-flow implementation detail and verification
+
+The small fix plan was posted to the hub and its delivery was verified before
+change-code inferred quick flow. Named the lint's pure per-call predicate
+`psLivenessQuery` and one-pass visitor `psLivenessCalls` for counted tests;
+`psLivenessQueries` remains the catalog entry point. The native negative
+control's diagnostic observation starts after publisher return (rather than
+racing WaitDelay); all such instrumentation is restored before verification.
+The atlas catalog entry is included alongside the lesson. No change to the
+approved test-only boundary or production cancellation/deadline semantics.
