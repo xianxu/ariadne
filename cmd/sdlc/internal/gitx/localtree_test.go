@@ -66,8 +66,23 @@ func TestReadLocalTreeMissingPromisorBlobNeverFetches(t *testing.T) {
 	if _, err := ReadLocalTree(context.Background(), root, head, nil); err == nil {
 		t.Fatal("missing blob became invented source evidence")
 	}
+	if _, err := ReadLocalBlob(context.Background(), root, blob); err == nil {
+		t.Fatal("missing original issue blob became invented evidence")
+	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("source promisor contacted: %v", err)
+	}
+}
+
+func TestReadLocalBlobUsesExactUnfilteredBytes(t *testing.T) {
+	root, _ := trunkFixture(t, "original issue\n")
+	blob := strings.TrimSpace(testfix.Git(t, root, "rev-parse", "HEAD:note.md"))
+	raw, err := ReadLocalBlob(context.Background(), root, blob)
+	if err != nil || string(raw) != "original issue\n" {
+		t.Fatalf("immutable original issue: %q %v", raw, err)
+	}
+	if _, err := ReadLocalBlob(context.Background(), root, "HEAD:note.md"); err == nil {
+		t.Fatal("accepted moving object expression in place of a full pin")
 	}
 }
 

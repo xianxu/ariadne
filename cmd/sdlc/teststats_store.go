@@ -17,6 +17,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
@@ -34,6 +35,22 @@ const (
 var suiteHex = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 var issueIDRE = regexp.MustCompile(`^[0-9]{6}$`)
 var suiteRepo = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
+// A saved attempt can belong to the validated bench's private Git origin.
+// Identity acceptance does not select a publication backend or confer a pass.
+func validSuiteRepo(repo string) bool {
+	if suiteRepo.MatchString(repo) {
+		return true
+	}
+	if !strings.HasPrefix(repo, "file:") || len(repo) > 4096 {
+		return false
+	}
+	path := strings.TrimPrefix(repo, "file:")
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == string(filepath.Separator) {
+		return false
+	}
+	return strings.IndexFunc(path, unicode.IsControl) < 0
+}
 
 // encoding/json matches struct fields case-insensitively even with
 // DisallowUnknownFields. Persisted evidence needs exact schema names so an
@@ -204,7 +221,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if !suiteHex.MatchString(a.ID) || len(a.ID) < 2 || len(a.ID) > 64 {
 		return a, errors.New("invalid attempt ID")
 	}
-	if !suiteRepo.MatchString(a.Repo) {
+	if !validSuiteRepo(a.Repo) {
 		return a, errors.New("invalid repository")
 	}
 	if !suiteHex.MatchString(a.SHA) || len(a.SHA) != 40 && len(a.SHA) != 64 {

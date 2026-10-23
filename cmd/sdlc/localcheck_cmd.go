@@ -153,6 +153,10 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return string(out), err
 	}
 	// The declaration and the pushed-ness check both read origin, freshly.
+	// Validate a bench context before the first fetch, including a moved origin.
+	if _, err := loadBenchContext(ctx, root); err != nil {
+		return err
+	}
 	if out, err := git("fetch", "--quiet", "origin"); err != nil {
 		return fmt.Errorf("local-check run: git fetch origin: %w\n%s", err, out)
 	}
@@ -218,12 +222,11 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	if err := validateManualLandingTarget(checks, sha, mainHead); err != nil {
 		return err
 	}
-	repo, err := detectRepo()
+	d, err := localCheckPublicationDeps(ctx, root, git, stderr)
 	if err != nil {
 		return err
 	}
-	pr := currentBranchPR(git, repo)
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+	d.CleanupGit = localCheckCleanupGit(ctx, mergeRunner, root)
 	var failed []string
 	for _, c := range checks {
 		rec, err := runLocalCheck(ctx, d, c, sha)
@@ -274,11 +277,10 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 		return fmt.Errorf("local-check republish: %s is not a commit: %w", f.Rev, err)
 	}
 	sha := strings.TrimSpace(out)
-	repo, err := detectRepo()
+	d, err := localCheckPublicationDeps(ctx, root, git, stderr)
 	if err != nil {
 		return err
 	}
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return err
@@ -298,7 +300,6 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 			return fmt.Errorf("local-check republish: the saved known-flake pass on %s no longer holds: %s", abbrevSHA(sha), next.Reason)
 		}
 	}
-	d.PR = currentBranchPR(git, repo)
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
 		return fmt.Errorf("local-check republish: %s on %s was NOT recorded: %w", f.Name, abbrevSHA(sha), err)
 	}

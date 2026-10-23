@@ -763,3 +763,14 @@ TWO HATS
   status file (`## Slots`, `### Miscellaneous` under `## Threads`), and its
   history is in the issues. Don't open a second log, and don't put it in a project file: a
   project file holds only its project.
+
+BENCH STEWARDSHIP
+  tl-lead bench adds the fixed-model replay rules to this procedure. The bench
+  TL approves plans and records interventions; it never codes or lands.
+  From the provisioned disposable hub, use:
+    tl-lead bench decision --run-id ID --kind approve --reason 'why'
+    tl-lead bench finish --run-id ID --candidate FULL_COMMIT
+  Decision kinds are approve, replan, ruling and stop. Finish is a proposal:
+  the observer independently verifies the real suite and SHIP close evidence.
+  M1 uses trusted agents and prepared-repository isolation; host read and
+  network isolation are later work. See tl-lead bench --help for the limits.

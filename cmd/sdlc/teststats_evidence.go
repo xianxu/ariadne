@@ -279,7 +279,7 @@ func decodeUnsupportedProof(data []byte, filename string) (UnsupportedProof, err
 		return p, err
 	}
 	validID := func(id string) bool { return len(id) >= 2 && len(id) <= 64 && suiteHex.MatchString(id) }
-	if wire.Version <= suiteAttemptReadVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
+	if wire.Version <= suiteAttemptReadVersion || !validID(wire.ID) || filename != wire.ID+".json" || !validSuiteRepo(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
 		return p, errors.New("invalid unsupported evidence identity")
 	}
 	if wire.RerunOf != "" && (!validID(wire.RerunOf) || wire.RerunOf == wire.ID) {

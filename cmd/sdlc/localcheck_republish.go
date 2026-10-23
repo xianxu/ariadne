@@ -297,6 +297,9 @@ func postLocalCheckRecord(ctx context.Context, d localRunDeps, rec localRunRecor
 	if err := guard(); err != nil {
 		return err
 	}
+	if d.RecordStatus != nil {
+		return d.RecordStatus(ctx, rec)
+	}
 	err := d.GH.PostStatus(ctx, d.Repo, rec.SHA, localStatusContext(rec.Name), rec.state(), rec.statusDescription())
 	for _, wait := range localCheckPostBackoff {
 		if err == nil {

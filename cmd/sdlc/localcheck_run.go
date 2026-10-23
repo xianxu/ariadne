@@ -39,8 +39,11 @@ type localRunDeps struct {
 	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
 	StrictGroupCleanup bool               // resume retains its suite capacity but confirms descendant cleanup
 	GH                 ghCaller
-	Repo               string // owner/name
-	Root               string // the checkout's top level; Makefile.workflow resolves from here
+	// RecordStatus is a validated bench-local sink; nil uses GitHub. The
+	// native same-head proof guard always runs before this callback.
+	RecordStatus func(context.Context, localRunRecord) error
+	Repo         string // owner/name
+	Root         string // the checkout's top level; Makefile.workflow resolves from here
 	// WorkflowAnchor is the checkout Root was made from, when Root is a
 	// disposable tree whose relative Makefile.workflow link does not resolve
 	// where it sits (a landing train's, #486); "" when Root is that checkout.

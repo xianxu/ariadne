@@ -127,7 +127,7 @@ func executeCLI(root *cobra.Command, args []string) int {
 	root.SetArgs(args)
 	// #252: one composed issue view per repository per command (one tracker fetch).
 	ctx = withIssueRecordsScope(ctx)
-	if err := root.ExecuteContext(ctx); err != nil {
+	if err := executeWithBenchBoundary(ctx, root, args); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		return 1
 	}

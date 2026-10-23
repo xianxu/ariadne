@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -31,6 +32,8 @@ type deps struct {
 	// landing reads the fleet's newest landing; nil: no landing.
 	landing   func(file string) (Landing, error)
 	documents DocRepository // nil: real Git/SDLC publication
+	// benchCommand forwards public proposals; SDLC owns their validation/store.
+	benchCommand func(context.Context, []string) ([]byte, error)
 }
 
 func (d deps) clock() time.Time {
@@ -67,6 +70,6 @@ func buildRoot(d deps) *cobra.Command {
 		},
 	}
 	root.CompletionOptions.HiddenDefaultCmd = true
-	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d), newFleetCmd(d), newDocCmd(d))
+	root.AddCommand(newStatusCmd(d), newTrainsCmd(d), newTeamCmd(d), newFleetCmd(d), newDocCmd(d), newBenchCmd(d))
 	return root
 }

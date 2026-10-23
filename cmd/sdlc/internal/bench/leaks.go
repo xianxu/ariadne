@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 )
@@ -28,27 +29,30 @@ type LeakScope struct {
 }
 
 type LeakFinding struct {
-	EventID    string `json:"event_id,omitempty"`
-	EventIndex int    `json:"event_index"`
-	Kind       string `json:"kind"`
-	Evidence   string `json:"evidence"`
+	Unknown    map[string]json.RawMessage `json:"-"`
+	EventID    string                     `json:"event_id,omitempty"`
+	EventIndex int                        `json:"event_index"`
+	Kind       string                     `json:"kind"`
+	Evidence   string                     `json:"evidence"`
 }
 
 type LeakCoverage struct {
-	Events         int    `json:"events"`
-	Supported      int    `json:"supported"`
-	Unknown        int    `json:"unknown"`
-	Operands       int    `json:"operands"`
-	PrivateFetches int    `json:"private_fetches"`
-	Complete       bool   `json:"complete"`
-	Basis          string `json:"basis"`
+	UnknownFields  map[string]json.RawMessage `json:"-"`
+	Events         int                        `json:"events"`
+	Supported      int                        `json:"supported"`
+	Unknown        int                        `json:"unknown"`
+	Operands       int                        `json:"operands"`
+	PrivateFetches int                        `json:"private_fetches"`
+	Complete       bool                       `json:"complete"`
+	Basis          string                     `json:"basis"`
 }
 
 type LeakReport struct {
-	Status   string        `json:"status"`
-	Findings []LeakFinding `json:"findings,omitempty"`
-	Coverage LeakCoverage  `json:"coverage"`
-	Issues   []string      `json:"issues,omitempty"`
+	Unknown  map[string]json.RawMessage `json:"-"`
+	Status   string                     `json:"status"`
+	Findings []LeakFinding              `json:"findings,omitempty"`
+	Coverage LeakCoverage               `json:"coverage"`
+	Issues   []string                   `json:"issues,omitempty"`
 }
 
 // ScanLeakEvents diagnoses observed access, not secrecy. It visits each event
