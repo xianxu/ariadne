@@ -84,7 +84,7 @@ Two **commentary** enclosures:
 🤖~old text~[new text]             -- human-authored replacement
 ```
 
-For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](<name>.side/NN-slug.md)` and add the matching `discussions:` frontmatter entry; use the side-doc layout and backlink contract in `../universal-review/collaboration-modes.md` §4. Another question inside that side doc opens a further doc in the same flat folder. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
+For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](path)` and add the matching `discussions:` frontmatter entry. Creation follows the shared naming, written-defaults and backlink contract in `../universal-review/collaboration-modes.md` §4: use the round's month under the common side root, including for a further question inside a side doc; preserve existing flat files and links. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
 
 **One line** (review-convention §3, §5). Every marker you write opens and
 closes on the same line; never let a marker span lines. Inside a `[]`/`{}`
