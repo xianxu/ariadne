@@ -66,7 +66,10 @@ printf 'effective TMPDIR=%s checkout=%s\n' "$TMPDIR" "$PWD" >&2
 if ( : > "$1/.review-write-probe" ) 2>/dev/null; then exit 11; fi
 if ( : > "$1/.git/review-write-probe" ) 2>/dev/null; then exit 12; fi
 export PARLEY_TEST_NVIM="${PARLEY_TEST_NVIM:-nvim}"
-"$PARLEY_TEST_NVIM" --headless -u NONE -i NONE -n "+lua local p=vim.fn.tempname(); print('effective tempname='..p); assert(p:sub(1,#vim.env.TMPDIR)==vim.env.TMPDIR, 'Neovim temp fallback')" +qa >&2
+mkdir -p "$TMPDIR/p/tmp"
+for temp_root in "$TMPDIR" "$TMPDIR/p/tmp"; do
+  TMPDIR="$temp_root" "$PARLEY_TEST_NVIM" --headless -u NONE -i NONE -n "+lua local p=vim.fn.tempname(); print('effective tempname='..p); assert(p:sub(1,#vim.env.TMPDIR)==vim.env.TMPDIR, 'Neovim temp fallback')" +qa >&2
+done
 make test-spec SPEC=infra/config PLENARY="$2" TEST_ENV_ROOT="$TMPDIR/p" >&2
 make test-spec SPEC=infra/test_harness PLENARY="$2" TEST_ENV_ROOT="$TMPDIR/p" >&2
 test -z "$(git status --porcelain --untracked-files=all)"

@@ -1444,6 +1444,10 @@ plus `<id>.sdlc-review/` and their shared `<id>.lock`. The companion keeps test
 scratch outside the reviewed project's marker ancestry. Reset, close and dead-owner
 reclaim remove both trees; a concurrent sweep preserves both while the lock is held.
 Companion symlinks and non-directories refuse before confinement writes.
+Rollout limit: an older binary's sweep does not recognize this companion and
+can delete it during a live review; that review fails and must rerun. At #571
+landing the hub rebuilds ariadne:0's shared tools immediately and notifies slots
+using private Ariadne builds to rebuild. No lock alias or versioned root is added.
 - The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
   the round.
 - `dispatchBoundaryReview` removes both in a defer once the reviewer has
