@@ -126,7 +126,7 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 func formatMergeIntent(r mergeIntentReport) string {
 	switch r.State {
 	case "unreadable":
-		return fmt.Sprintf("unreadable merge intent %s: %q (inspect it, then remove it)", r.Path, r.Note)
+		return fmt.Sprintf("unreadable merge intent %q: %q (inspect it, then remove it)", r.Path, r.Note)
 	case string(landingline.IntentOrphaned):
 		issue := ""
 		if r.Issue > 0 {

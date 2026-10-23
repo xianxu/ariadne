@@ -187,7 +187,16 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 	path := s.path(in.Branch)
 	deadline := time.Now().Add(IntentHoldPatience)
 	for {
-		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+		f, err := os.OpenFile(path, os.O_RDWR, 0)
+		if errors.Is(err, os.ErrNotExist) {
+			// A first record appears already locked and complete: it is
+			// written under a temporary name, then linked into place.
+			h, err := s.create(path, in)
+			if errors.Is(err, os.ErrExist) {
+				continue // another merge of this branch linked first
+			}
+			return h, err
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -212,17 +221,15 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 			}
 			continue
 		}
-		if info, err := f.Stat(); err == nil && info.Size() > 0 {
-			prev, err := readIntent(f)
-			if err == nil && prev.Branch != in.Branch {
-				err = fmt.Errorf("it records branch %q", prev.Branch)
-			}
-			if err != nil {
-				f.Close()
-				return nil, fmt.Errorf("unreadable merge intent %s: %v; inspect it, then remove it and rerun", path, err)
-			}
-			in.Extra = mergeExtra(prev.Extra, in.Extra)
+		prev, err := readIntent(f)
+		if err == nil && prev.Branch != in.Branch {
+			err = fmt.Errorf("it records branch %q", prev.Branch)
 		}
+		if err != nil {
+			f.Close()
+			return nil, fmt.Errorf("unreadable merge intent %q: %v; inspect it, then remove it and rerun", path, err)
+		}
+		in.Extra = mergeExtra(prev.Extra, in.Extra)
 		data, err := json.Marshal(in)
 		if err == nil {
 			err = f.Truncate(0)
@@ -239,6 +246,34 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 		}
 		return &IntentHold{path: path, file: f}, nil
 	}
+}
+
+// create writes a first record to a locked temporary file and links it to
+// path, so no reader ever finds it unlocked or incomplete. os.ErrExist means
+// another merge linked first.
+func (s Intents) create(path string, in Intent) (*IntentHold, error) {
+	data, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.CreateTemp(s.dir, ".tmp-")
+	if err != nil {
+		return nil, err
+	}
+	if err = flock.Exclusive(f, true); err == nil {
+		if _, err = f.Write(data); err == nil {
+			err = f.Sync()
+		}
+	}
+	if err == nil {
+		err = os.Link(f.Name(), path)
+	}
+	os.Remove(f.Name())
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	return &IntentHold{path: path, file: f}, nil
 }
 
 // Release ends the hold. A terminal outcome removes the intent; an
@@ -315,6 +350,7 @@ func observeIntent(path string) (ObservedIntent, bool) {
 // exclusive lock only if the record is unchanged. Unreadable records are
 // left for the operator: status names their path.
 func (s Intents) Sweep(branchExists func(string) (bool, error), now time.Time, maxAge time.Duration) ([]Intent, error) {
+	s.sweepTemps()
 	paths, err := s.files()
 	errs := []error{err}
 	var removed []Intent
@@ -336,6 +372,24 @@ func (s Intents) Sweep(branchExists func(string) (bool, error), now time.Time, m
 		}
 	}
 	return removed, errors.Join(errs...)
+}
+
+// sweepTemps removes temporary records whose writer died between creating
+// and linking them: a live writer holds its temp file's lock.
+func (s Intents) sweepTemps() {
+	entries, _ := os.ReadDir(s.dir)
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), ".tmp-") {
+			continue
+		}
+		path := filepath.Join(s.dir, e.Name())
+		if f, err := os.Open(path); err == nil {
+			if flock.Exclusive(f, true) == nil && samePath(f, path) {
+				os.Remove(path)
+			}
+			f.Close()
+		}
+	}
 }
 
 // removeUnchanged unlinks path only while no merge holds it and it still

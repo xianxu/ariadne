@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "2dc3e2b6", done: "64d53608"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Merge intents survive a full shutdown: record them and give one exact re-entry step
@@ -52,6 +52,8 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round-1 Important fixed as a class: readers share a lock, the sweep decides unlocked and removes only an unchanged record, Hold waits out brief locks (TestIntentReadersAreNotOwners, mutation-verified); Minors fixed (TestIntentHoldNeverOverwritesAnUnreadableRecord, quoted fields, one branch-head helper). Done-when 1: TestOrphanedMergeOnStatusSurfaces, TestIntentOfAKilledRunnerIsOrphaned. Done-when 2: TestMergeReentryReusesThePassedSuite. landingline/queuegate/recovery packages pass; cmd/sdlc Landing|Merge|State|Intent|Train|Queue pass except two sandbox-only failures identical on main. Recorded suite runs on the final head before merge.; review verdict: FIX-THEN-SHIP
+- 2026-10-23: flow upgraded quick → full — 626 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed and planned (ariadne:5). What exists today:
   - Nothing on the landing line survives a shutdown: tickets and head.lock are flock-only.
   - The queue op survives as `unresolved`, but it has no branch and a reboot erases it.
@@ -74,5 +76,9 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
     - `Hold` refuses (naming the path) rather than overwriting an unreadable or later-version record.
     - Root, pause owner and pause reason are printed `%q`-quoted.
     - One `localBranchHead` helper replaces three copies of the lookup.
+- Close review round 2, FIX-THEN-SHIP with no blocking findings. Three Minors, all fixed:
+  - The unreadable record's path is now quoted, so every string from the shared directory prints `%q`.
+  - A first record is linked into place already locked and complete, which closes the window in which a reader found an empty file and advised removing it. The sweep collects temp files whose writer died.
+  - Plan Revisions now record the entity names as built.
 
 ### 2026-10-22

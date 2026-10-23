@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -287,11 +288,49 @@ func TestIntentHoldNeverOverwritesAnUnreadableRecord(t *testing.T) {
 		os.MkdirAll(s.dir, 0o755)
 		path := s.path("b1")
 		os.WriteFile(path, []byte(body), 0o644)
-		if _, err := s.Hold(testIntent("b1")); err == nil || !strings.Contains(err.Error(), "unreadable merge intent "+path) {
+		if _, err := s.Hold(testIntent("b1")); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("unreadable merge intent %q", path)) {
 			t.Errorf("%s: %v", name, err)
 		}
 		if got, _ := os.ReadFile(path); string(got) != body {
 			t.Errorf("%s: overwritten to %s", name, got)
 		}
+	}
+}
+
+// A first record is linked into place already locked and complete, so no
+// reader can find it empty; a writer that died before linking leaves a
+// temporary file the sweep collects, while a live writer's stays.
+func TestIntentCreationLeavesNoWindowOrResidue(t *testing.T) {
+	s := OpenIntents(t.TempDir())
+	h, err := s.Hold(testIntent("b1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Release(false)
+	if o := listOne(t, s); !o.Locked || o.Err != nil || o.Intent.Branch != "b1" {
+		t.Fatalf("a new record reads %+v", o)
+	}
+	entries, _ := os.ReadDir(s.dir)
+	if len(entries) != 1 {
+		t.Fatalf("creation left residue: %v", entries)
+	}
+	dead := s.dir + "/.tmp-dead"
+	os.WriteFile(dead, []byte("{"), 0o644)
+	live, err := os.CreateTemp(s.dir, ".tmp-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer live.Close()
+	if err := flock.Exclusive(live, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Sweep(func(string) (bool, error) { return true, nil }, time.Now(), IntentMaxAge); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dead); !os.IsNotExist(err) {
+		t.Fatal("a dead writer's temporary record survived the sweep")
+	}
+	if _, err := os.Stat(live.Name()); err != nil {
+		t.Fatal("the sweep removed a live writer's temporary record")
 	}
 }

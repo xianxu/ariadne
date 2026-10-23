@@ -144,7 +144,7 @@ func TestReportMergeIntent(t *testing.T) {
 		t.Fatalf("an untrusted root broke the line: %q", line)
 	}
 	bad := reportMergeIntent(landingline.ObservedIntent{Path: "/l/intents/z", Err: errors.New("intent: not one JSON object")}, false, nil)
-	if bad.State != "unreadable" || bad.Reentry != "" || !strings.Contains(formatMergeIntent(bad), "unreadable merge intent /l/intents/z") {
+	if bad.State != "unreadable" || bad.Reentry != "" || !strings.Contains(formatMergeIntent(bad), `unreadable merge intent "/l/intents/z"`) {
 		t.Fatalf("an unreadable intent: %+v", bad)
 	}
 }

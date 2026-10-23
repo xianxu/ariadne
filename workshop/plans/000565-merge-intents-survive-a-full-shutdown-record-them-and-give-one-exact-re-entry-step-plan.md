@@ -186,3 +186,8 @@ So the gap is the record and the surface, not re-entry.
   - `sdlc landing status` has no JSON mode, so `merge_intents` lives in `sdlc state --json` only, scoped to the slot. Couch's restart plan reads it per slot, and a status JSON carrying intents alone would be half a format.
   - The live-intent refusal is `IntentHeldError`; the line package already has a `HeldError` for train holds.
 - 2026-10-23 (close review round 1): readers take a shared lock (`flock.Shared`), and a sweep removes only under a momentary exclusive lock, after deciding with none held. `Hold` waits up to `IntentHoldPatience` (2 s) before refusing, so a reader's or a sweep's brief lock is never mistaken for a running merge. `Hold` refuses to overwrite an unreadable or later-version record.
+- 2026-10-23 (close review round 2): the entities as built.
+  - `MergeIntent` is `landingline.Intent`, and `IntentStore` is `landingline.Intents`. The store's `Hold`, `Release(keep)`, `List` and `Sweep` live in `internal/landingline/intent.go`.
+  - `List` returns `[]ObservedIntent`, each carrying its own read error, rather than a separate unreadable list.
+  - `intentReentry` became `reportMergeIntent` plus `formatMergeIntent` in `cmd/sdlc/mergeintent.go`, and the hold wraps `runDurableMerge` (once per process), not each `runDurableMergeAttempt`.
+  - A first record is written to a locked temp file and linked into place, so no reader sees it unlocked or empty. The sweep collects temp files whose writer died.
