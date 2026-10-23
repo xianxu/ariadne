@@ -1,6 +1,6 @@
 ---
 id: 000561
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours: 4.46
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d58219e00d87c953bcbc3b6ec7ed345a1bad9185
         evidence_commit: 62ed363989ed081a61e3eea7083b6a0859782132
+        landed_commit: 2fa4ee5d27cfa22689f31e0a14debb54e3289b2e
 ---
 
 # Landing trains: cars board on affected tests; full suite once per train; measure escapes and bisect cost
