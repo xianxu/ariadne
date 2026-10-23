@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "cf1a9628", done: "04480520"}
 ---
 
 # Machine suite queue: a short-suite lane so one-minute suites don't wait an hour behind heavy ones
