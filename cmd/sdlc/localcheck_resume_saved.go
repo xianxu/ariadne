@@ -155,7 +155,11 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 	for _, r := range s.Reconciliations {
 		add(r.Repo, r.SHA, r.RerunOf)
 	}
-	if len(parents) == 0 {
+	hasTyped := false
+	for _, a := range s.Attempts {
+		hasTyped = hasTyped || a.Version == 4 && a.Repo == d.Repo && a.SHA == sha
+	}
+	if len(parents) == 0 && !hasTyped {
 		return records, nil
 	}
 	// Recognition does not waive scoped future-version or unreadable authority.
@@ -164,9 +168,18 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 	}
 	var policy flakes.Policy
 	var err error
+	var typedContract string
+	if hasTyped {
+		var c localCheck
+		c, typedContract, err = currentTypedSuite(ctx, d, sha)
+		if err != nil {
+			return nil, fmt.Errorf("current typed runner contract unavailable: %w", err)
+		}
+		policy = c.knownFlakePolicy()
+	}
 	if d.CurrentSuitePolicy != nil {
 		policy, err = d.CurrentSuitePolicy(ctx)
-	} else {
+	} else if !hasTyped {
 		if d.Git == nil {
 			err = errors.New("no current suite policy reader")
 		} else {
@@ -197,6 +210,7 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 		if err != nil {
 			return nil, resumeSavedError(in, "current suite policy is unavailable: "+err.Error())
 		}
+		in.RunnerContractSHA256 = typedContract
 		in.Policy = policy
 		in.Registry = reg
 		in.RegistryErr = regErr
@@ -206,6 +220,14 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 		}
 		rec.LogPath = suiteAttemptLogFile(store, in.Parent)
 		records[id] = rec
+	}
+	if hasTyped {
+		if err != nil {
+			return nil, fmt.Errorf("current suite policy unavailable: %w", err)
+		}
+		if resolveErr := resolveTypedSavedRecords(store, s, d.Repo, sha, host, typedSavedAuthority{contract: typedContract, policy: policy, registry: reg, registryErr: regErr}, records); resolveErr != nil {
+			return nil, resolveErr
+		}
 	}
 	return records, nil
 }

@@ -46,6 +46,7 @@ var suiteAttemptJSONFields = map[string]bool{
 	"log_sha256": true, "log_path": true, "failures": true, "units": true,
 	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
 	"reclassification_sha256": true,
+	"runner_contract_sha256":  true,
 }
 
 // suiteAttemptVersion is the version the writer records. Version 2 (#394)
@@ -53,9 +54,9 @@ var suiteAttemptJSONFields = map[string]bool{
 // cannot carry them, so a v1 history stays readable and unambiguous.
 const suiteAttemptVersion = 2
 
-// Ordinary runs remain v2 for older fleet readers. Only an audited nonpassing
-// correction requires v3 semantics and therefore the newer reader.
-const suiteAttemptReadVersion = 3
+// Go-only runs remain v2 for older fleet readers. Audited nonpassing corrections
+// use v3; ordinary runs with declared typed runners explicitly opt into v4.
+const suiteAttemptReadVersion = 4
 
 var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
 
@@ -153,8 +154,16 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return a, errors.New("trailing JSON")
 	}
-	if a.Version != 1 && a.Version != 2 && a.Version != 3 {
+	if a.Version < 1 || a.Version > suiteAttemptReadVersion {
 		return a, fmt.Errorf("unsupported version %d", a.Version)
+	}
+	if a.Version == 4 {
+		if len(a.RunnerContractSHA256) != 64 || !suiteHex.MatchString(a.RunnerContractSHA256) ||
+			(a.Check != suiteCheckName && a.Check != affectedCheckName && a.Check != suiteRerunCheck) {
+			return a, errors.New("invalid typed runner contract envelope")
+		}
+	} else if keys["runner_contract_sha256"] {
+		return a, errors.New("runner contract requires version 4")
 	}
 	if a.Version == 1 {
 		for _, key := range suiteAttemptV2Fields {
@@ -184,7 +193,7 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		return a, errors.New("too many facts")
 	}
 	for _, e := range a.KnownFlakes {
-		if flakes.ValidTest(e.Test) != nil || !issueIDRE.MatchString(e.Issue) {
+		if (a.Version < 4 && suiteTypedIdentity(e.Test)) || flakes.ValidTest(e.Test) != nil || !issueIDRE.MatchString(e.Issue) {
 			return a, errors.New("invalid known flake")
 		}
 	}
@@ -232,6 +241,12 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		return a, errors.New("too many facts")
 	}
 	for _, f := range a.Failures {
+		if suiteTypedIdentity(f) {
+			if a.Version < 4 || flakes.ValidTest(f) != nil {
+				return a, errors.New("invalid typed failure name")
+			}
+			continue // typed identity constructors enforce their path/case byte bounds
+		}
 		if f == "" || len(f) > 512 {
 			return a, errors.New("invalid failure name")
 		}
@@ -245,6 +260,10 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 		return a, errors.New("log path escapes generated locations")
 	}
 	return a, nil
+}
+
+func suiteTypedIdentity(name string) bool {
+	return strings.HasPrefix(name, "script:") || strings.HasPrefix(name, "lua:")
 }
 
 // suiteAttemptQueueWindow preserves the documented late-shifted convention for
@@ -337,6 +356,13 @@ func suiteAttemptLogFile(root string, a SuiteAttempt) string {
 	}
 }
 
+// suiteAttemptImmutable keeps typed semantic failures even when an outer
+// recipe ignored the adapter's exit. Later runs cannot overwrite that proof.
+func suiteAttemptImmutable(a SuiteAttempt) bool {
+	return a.Exit != 0 || a.TimedOut || a.RerunOf != "" ||
+		a.Version == 4 && (len(a.Failures) != 0 || a.Outcome != "" && a.Outcome != string(flakes.Passed))
+}
+
 // publishSuiteAttempt closes the private lifecycle before posting status. It
 // preserves a failed log under an immutable ID and atomically publishes JSON.
 func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (string, error) {
@@ -370,7 +396,7 @@ func publishSuiteAttempt(root string, w *suiteAttemptWriter, a SuiteAttempt) (st
 	// is kept immutably under its ID: the per-head legacy path below is
 	// rewritten by every later attempt on the head, so a rerun's evidence
 	// there would be overwritten by the suite attempt it reran.
-	immutable := a.Exit != 0 || a.TimedOut || a.RerunOf != ""
+	immutable := suiteAttemptImmutable(a)
 	if immutable {
 		a.LogPath = filepath.Join("failed", a.ID+".log")
 		// Link is an exclusive, same-filesystem publication: even an ID

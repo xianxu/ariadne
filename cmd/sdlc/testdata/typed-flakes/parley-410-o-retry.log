@@ -1,0 +1,11 @@
+[31mFail[0m	||	session-sync native edits retries refused admission with native o entry (#408 retry)	
+            ...rley.nvim/tests/integration/session_sync_native_spec.lua:564: Expected objects to be the same.
+            Passed in:
+            (boolean) true
+            Expected:
+            (boolean) false
+            
+            stack traceback:
+            	...rley.nvim/tests/integration/session_sync_native_spec.lua:564: in function 'refuse_insert_entry'
+            	...rley.nvim/tests/integration/session_sync_native_spec.lua:576: in function <...rley.nvim/tests/integration/session_sync_native_spec.lua:574>
+            	

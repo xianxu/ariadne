@@ -136,6 +136,11 @@ func pruneResumeBundlesWithIO(root string, now time.Time, ops resumeRetentionIO)
 		latest := retentionLatest(l.CreatedAt, child.FinishedAt)
 		p, hasParent := x.attempts[parent]
 		if hasParent {
+			// V4 completion belongs to the parent's exact typed runner contract.
+			// A legacy/typed mismatch is uncertainty, not a terminal witness.
+			if (p.Version == 4) != (child.Version == 4) || p.Version == 4 && p.RunnerContractSHA256 != child.RunnerContractSHA256 {
+				continue
+			}
 			if !resumeMeasuredDuration(p.WallSeconds) || p.RerunOf != "" || p.Repo != l.Repo || p.SHA != l.SHA || p.Check != l.Check || p.LogSHA256 != l.ParentLogSHA256 || s.recordDigests[p.ID] != l.ParentRecordSHA256 || l.CreatedAt.Before(p.FinishedAt) {
 				continue
 			}
@@ -182,7 +187,7 @@ func retentionLatest(a, b time.Time) time.Time {
 	return a
 }
 func retentionChildBound(l ResumeLink, c SuiteAttempt) bool {
-	return (c.Version == 1 || c.Version == 2) && c.ID == l.ChildID && c.Repo == l.Repo && c.SHA == l.SHA && c.Check == suiteRerunCheck && c.RerunOf == l.RerunOf && !c.Legacy && !c.MainBaseline && resumeMeasuredDuration(c.WallSeconds) && resumeUTC(c.StartedAt) && resumeUTC(c.FinishedAt) && !c.StartedAt.Before(l.CreatedAt) && !c.FinishedAt.Before(c.StartedAt) && resumeValidDigest(c.LogSHA256)
+	return (c.Version == 1 || c.Version == 2 || c.Version == 4) && c.ID == l.ChildID && c.Repo == l.Repo && c.SHA == l.SHA && c.Check == suiteRerunCheck && c.RerunOf == l.RerunOf && !c.Legacy && !c.MainBaseline && resumeMeasuredDuration(c.WallSeconds) && resumeUTC(c.StartedAt) && resumeUTC(c.FinishedAt) && !c.StartedAt.Before(l.CreatedAt) && !c.FinishedAt.Before(c.StartedAt) && resumeValidDigest(c.LogSHA256)
 }
 func readRetentionLog(path string) ([]byte, error) {
 	if path == "" {

@@ -884,6 +884,29 @@ trailers cannot change its package.
   `known_flakes` names a subtest, so its success guard and test-stats fail
   closed until it is rebuilt.
 
+Typed non-Go identities (#556) are exact: `script:tests/check.sh` and
+`lua:tests/native_spec.lua#full native case label`. Register them with
+`sdlc flake register --test IDENTITY --issue N` after a new typed-capable
+same-head failure followed by a **complete suite pass**. A targeted retry or
+an unrelated case cannot supply that confirmation. Scripts rerun whole; Lua
+reruns the whole spec and requires both the exact selected case and file pass.
+
+Declaration version 3 adds suite-only `flake_runners`: `script.command` and
+`lua.command` are literal argv with one complete `{path}` operand, and Lua
+sets `results: "plenary-events-v1"`. Managed recipes call
+`sdlc flake run --unit script:tests/check.sh` or
+`sdlc flake run --unit lua:tests/native_spec.lua`. The actual Plenary child
+installs the distributed producer before its native run; its private channel
+supplies case proof. Normal direct make behavior remains available outside
+managed checks. Typed-capable attempts use v4; historical raw evidence stays
+unchanged.
+
+Deploy capable fleet binaries first, then ariadne#558's producer distribution,
+then the operator-verified peer declaration/recipe adoption (pair#816 and
+parley.nvim#415). See [typed flake evidence and adoption](atlas/workflow/sdlc-binary.md#typed-script-and-lua-flake-evidence-556)
+for the runner, producer and compatibility contract. This implementation does
+not activate peer local-gates configuration.
+
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
@@ -895,8 +918,8 @@ with the fixing issue and merge. A failure on a head containing that merge stays
 visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
 are shown as not covered until #451.
-When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
-reruns just those tests once on the same head, grouped into exact-package
+For Go names, when a recorded suite (`local-check run`, or merge's) fails only
+on known flakes, it reruns those tests once on the same head, grouped into exact-package
 commands under one weight-1 lease and total timeout. Registered subtests run
 their whole top-level test, including siblings. Each required test and package
 must have a matching structured JSON PASS event, and its
@@ -1104,6 +1127,13 @@ the ledger and eligible raw-row hashes. Have the TL/operator select the row by
 its provenance and use `--target-row <full SHA256>`; ordering is not evidence.
 `--exclude` invalidates a proven bad sample when numeric evidence cannot be
 trusted. Pending corrections retain their target; a conflicting selector refuses.
+Fresh milestone measurements require the requested unfinalized milestone to be
+an executable checkbox in the canonical issue Plan committed at the measured
+code pin, even before its first review. Retiring an unfinalized milestone's row
+removes its cut from fresh accounting, so its replacement owns work since the
+last finalized boundary; it does not clear review findings or grant SHIP.
+Missing or ambiguous required Plan evidence refuses with recovery guidance.
+Saved measurement cuts still replay unchanged.
 See `sdlc actual --help` for provenance and recovery.
 
 ## License

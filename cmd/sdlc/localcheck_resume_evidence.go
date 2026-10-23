@@ -208,6 +208,7 @@ type ResumeProofInput struct {
 	Policy                              flakes.Policy
 	Registry                            flakes.Registry
 	RegistryErr                         error
+	RunnerContractSHA256                string
 }
 type ResumeProof struct {
 	State                     ResumeState
@@ -229,8 +230,11 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if !in.Complete {
 		return refuse("incomplete evidence snapshot")
 	}
-	if (p.Version != 1 && p.Version != 2) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || p.Check != suiteCheckName || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)]) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
+	if (p.Version != 1 && p.Version != 2 && p.Version != 4) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || p.Check != suiteCheckName || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)]) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
 		return refuse("parent is not an ordinary completed resumable suite failure")
+	}
+	if p.Version == 4 && (!resumeValidDigest(in.RunnerContractSHA256) || p.RunnerContractSHA256 != in.RunnerContractSHA256) {
+		return refuse("typed runner contract is absent or changed")
 	}
 	if !resumeValidDigest(in.ParentRecordSHA256) || !resumeValidDigest(in.ParentLogSHA256) || p.LogSHA256 != in.ParentLogSHA256 {
 		return refuse("parent log or record digest is invalid")
@@ -291,7 +295,13 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 		return out
 	}
 	c := in.Child
-	if (c.Version != 1 && c.Version != 2) || c.ID != l.ChildID || c.Repo != p.Repo || c.SHA != p.SHA || c.Check != suiteRerunCheck || c.RerunOf != p.ID || c.Legacy || c.MainBaseline || !resumeMeasuredDuration(c.WallSeconds) || !flakes.Explainable(flakes.Kind(c.Outcome)) || (c.Outcome != "" && !suiteOutcomes[flakes.Kind(c.Outcome)]) || !resumeUTC(c.StartedAt) || !resumeUTC(c.FinishedAt) || c.StartedAt.Before(l.CreatedAt) || c.FinishedAt.Before(c.StartedAt) || !resumeValidDigest(in.ChildLogSHA256) || c.LogSHA256 != in.ChildLogSHA256 || resumeRecordDigest([]byte(in.ChildLog)) != in.ChildLogSHA256 {
+	if p.Version == 4 && (c.Version != 4 || c.RunnerContractSHA256 != p.RunnerContractSHA256) {
+		return refuse("child typed runner contract differs from its parent")
+	}
+	if p.Version != 4 && c.Version == 4 {
+		return refuse("typed child cannot replace legacy parent evidence")
+	}
+	if (c.Version != 1 && c.Version != 2 && c.Version != 4) || c.ID != l.ChildID || c.Repo != p.Repo || c.SHA != p.SHA || c.Check != suiteRerunCheck || c.RerunOf != p.ID || c.Legacy || c.MainBaseline || !resumeMeasuredDuration(c.WallSeconds) || !flakes.Explainable(flakes.Kind(c.Outcome)) || (c.Outcome != "" && !suiteOutcomes[flakes.Kind(c.Outcome)]) || !resumeUTC(c.StartedAt) || !resumeUTC(c.FinishedAt) || c.StartedAt.Before(l.CreatedAt) || c.FinishedAt.Before(c.StartedAt) || !resumeValidDigest(in.ChildLogSHA256) || c.LogSHA256 != in.ChildLogSHA256 || resumeRecordDigest([]byte(in.ChildLog)) != in.ChildLogSHA256 {
 		return refuse("child identity, completion or log digest is invalid")
 	}
 	facts := parseSuiteLogFacts(in.ChildLog)
@@ -302,7 +312,7 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if c.TimedOut || c.Exit < 0 || c.Exit > 125 {
 		result.Unattributed = append(result.Unattributed, "rerun did not complete ordinarily")
 	}
-	for _, name := range flakes.RerunMissingJSON(in.ChildLog, flakes.Tests(out.Outcome.Known)) {
+	for _, name := range flakes.RerunMissingProof(in.ChildLog, flakes.Tests(out.Outcome.Known)) {
 		result.Unattributed = append(result.Unattributed, name+" did not pass in the rerun log")
 	}
 	classifier.Rerun = &result
