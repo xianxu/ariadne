@@ -2664,6 +2664,32 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   A composed train suite inherits any active grant on a car in its exact tested
   prefix (#535), including a grant added while queued. Removed/conflicting cars
   and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
+- **Mixed-helper grant rollout (#570).** New tickets carry the exact
+  `ordering_policy: "fifo-grant-aging-v1"` contract marker, stamped under `alloc`
+  with their monotonic age and retained through admitted holder publication.
+  Missing, malformed or other policy values are legacy/unknown; enqueue age
+  alone never proves policy compatibility. The constant names the current
+  FIFO/grant/3,600-second aging semantics; incompatible future changes need a
+  different marker and rollout decision. The pure Go compatibility assessment
+  consumes the inspector's raw records once for both grant preflight and status.
+  New `landing grant` calls observe the supplying helper with a three-second
+  budget, refuse legacy/unknown held waiters with ticket/repository/worktree
+  identities, and refuse incomplete/unavailable observations. Revoke skips
+  inspection, so broken or old helpers cannot block recovery. No grant-log or
+  frozen drain-JSON format changes.
+
+  Text `queue status` names incompatible ordering; if a live granted waiter
+  coexists, it flags **deadlock risk** and prints a revoke command for each
+  observed granted subject (including train cars). These hints address the
+  subject's Git common directory explicitly. Status does not inventory every
+  repository's grants when no corresponding suite waits. The TL revokes the
+  conflicting grant manually, leaves the waiters unchanged, lets them drain,
+  and refreshes supplying checkouts through normal pins before regranting.
+  Existing grants and legacy waiters joining after preflight remain possible:
+  the fresh observation is not authority over future joins or old running code.
+  Do not claim universal deadlock prevention or fall back to old grant-first
+  policy. Once legacy waiters are absent, current FIFO and aging apply unchanged.
+  No automatic revocation, ticket rewriting, hot reload or live waiter teardown.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it
