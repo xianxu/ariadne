@@ -94,8 +94,16 @@ Hub receipt37cca118-4502-47a9-9f23-1f971793731c submitted the diagnosis and roll
 
 Final executable plan: workshop/plans/000570-suite-queue-rollout-plan.md. It adds one exact additive ticket contract marker and one shared Go compatibility assessment over existing raw inspector ticket records; no scheduler rewrite, new schema version, frozen drain JSON change, grant-log cache/format change, automatic revoke or shared-helper substitution. Fresh grant preflight is not a lock over future legacy joins; status and manual revoke cover that accepted risk. Revoke never depends on inspection. Private conformance is proposed instead of :0 staging or live grants. This likely leaves the quick shell, so run inferred full-flow change-code gates after plan approval. No implementation or new suite started.
 
+### 2026-10-23 — final plan approved
+
+Authenticated hub deliveryfbba1f6b-67d8-452d-89ba-6c8a1271f693 approves workshop/plans/000570-suite-queue-rollout-plan.md as written, including private conformance plus post-land hub rebuild and no live grants. Proceed to inferred change-code gates. No permanent implementation has begun; preserve the read-only RED diagnosis and add behavior-specific RED tests after entry.
+
 ## Revisions
 
 ### 2026-10-23 — hub-approved acceptance replaces universal historical fallback
 
 Delivery0d18f5fd-7569-444d-a57a-100cee559713 supersedes the original first Done-when bullet and initial option analysis: unchanged old helpers cannot be made to elect FIFO by a new field or new-helper conditional. The acceptance contract is now: grant refuses and names legacy/unknown held waiters; status names mixed/unknown ordering and a live granted waiter plus legacy waiter as deadlock risk with manual TL revoke instruction; compatible queues keep the current FIFO-plus-aging rule. Existing grants and later legacy joins are explicitly retained rollout risks. Revoke/expiry/drain restore the existing common order without killing or unlocking waiters. The original universal mixed-version admission assertion is not claimed. This policy is approved; the concrete function-level plan still goes to the hub before code.
+
+### 2026-10-23 — implementation approval
+
+Deliveryfbba1f6b-67d8-452d-89ba-6c8a1271f693 approves the concrete final plan. The earlier proposed alternatives are retained history; only the durable guarded-rollout plan is executable scope. Revoke and suite admission remain independent of compatibility inspection.
