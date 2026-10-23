@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-23T19:53:27.295866Z"
       session_id: 01a16a52-db8f-7fc3-a6c3-e9eea3b4dc24
       outcome: returned
+    - version: 1
+      intent:
+        id: 1c350e27-cd60-447b-8a82-dbf473463809
+        repository: github.com/xianxu/ariadne
+        issue_id: "000577"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+        reviewed_head: 2066496db61374934ac942c252fe8b188ee75310
+        slot: ariadne:4
+        requested_at: "2026-10-23T23:51:47.884075Z"
+      phase: finished
+      pid: 62244
+      started_at: "2026-10-23T23:51:47.97833Z"
+      finished_at: "2026-10-23T23:52:14.474733Z"
+      session_id: 01a16b2d-8713-7b80-ac3e-0faa2240b9b0
+      outcome: returned
 gate: plan-quality
 issue: 577
 id_prefix: PQ
@@ -110,7 +129,37 @@ rounds:
       agent: codex
       reviewer: codex (openai; author openai)
       blocked: false
-content_hash: b563c88b814f523cc7082d2be82042a2212f3b956d0b6b46b1eeb7a79b98e52f
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 1665a1ce-1c93-47cd-8d2b-53e61905673b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000577"
+            recipe: plan-quality
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+            reviewed_head: 2066496db61374934ac942c252fe8b188ee75310
+            slot: ariadne:4
+            requested_at: "2026-10-23T23:51:24.40482Z"
+          phase: finished
+          pid: 42521
+          started_at: "2026-10-23T23:51:24.568265Z"
+          finished_at: "2026-10-23T23:51:46.49112Z"
+          session_id: 01a16b2d-2c08-77a0-aec6-e000ec2ef831
+          outcome: returned
+      "n": 4
+      timestamp: "2026-10-23T16:51:46-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Shared run/republish dependency construction selects validated private identity before GitHub discovery; the replacement plan explicitly preserves this boundary and its CLI sentinel controls.
+          round: 4
+      blocked: false
+content_hash: 12597ce776b4fe8fc91a3b35f1874321d0e4ee30fa96a9bcc23faf563473d920
 ---
 
 # Gate ledger — ariadne#577 (plan-quality)
@@ -132,6 +181,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-1 — addressed — Both commands share validated private-origin dependency construction, omit GitHub discovery in bench mode, preserve proof guards and production behavior, and require built-CLI tests proving zero GitHub calls.
 
 ## Round 3 — 2026-10-23T12:52:55-07:00 (codex) — passed
+
+## Round 4 — 2026-10-23T16:51:46-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Shared run/republish dependency construction selects validated private identity before GitHub discovery; the replacement plan explicitly preserves this boundary and its CLI sentinel controls.
 
 ## Open findings
 
