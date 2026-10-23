@@ -34,6 +34,10 @@ Diagnose the provenance and scope of the cross-issue adopted-window dependency b
 - Compare pair#162 engagement and migration bounds with pair#151 close/archive/measurement evidence, distinguishing proven disjointness from unknown overlap.
 - Record a concrete recovery or root-fix recommendation, evidence gaps and acceptance controls; report the cause to the hub before implementation.
 
+- Exact old unmarked imported archive/done generations may be skipped only when their immutable end strictly predates the earliest candidate prefix/engagement, with a visible issue/end label and no numerical/review repair.
+- Equality, overlap, changed/restored generations, modern corrupt authority and unreadable history still refuse; strict legacy completion/replay verification stays unchanged.
+- The captured partial legacy ledger and full hybrid measurement path have regression coverage; recorded suite, close review and central landing pass before telling pair:2 to measure.
+
 ## Plan
 
 - File and claim; enter planning on a branch from main.
@@ -76,3 +80,19 @@ The cause is an overbroad dependency on trustworthy historical close replay even
 ARCH-DRY/ARCH-PURE: extract/reuse the existing immutable source/generation proof rather than duplicate a history walker; keep close/replay validation strict. This is not permission to reinterpret malformed saved modern inputs as legacy, to accept #151's review as valid, or to ignore any potentially overlapping adoption. Equal/overlapping/missing bounds, source mismatch, reopened generation, unreadable/bounded-out history and malformed modern authority still refuse. A single lifetime lease cannot prove a historical generation/time relation; immutable Git object identity and bounded complete history are the appropriate authority.
 
 Proposed acceptance strategies before implementation: reduce the captured real #151 ledger/old unmarked-import shape into a real-Git regression with #162's legacy-prefix boundary; prove the labelled disjoint skip, plus strict equality/overlap, initial/reclaimed ownership, archive/source tamper, reopened/restored generations and modern missing/corrupt completion refusal. Retain TestLegacyCompletionProofRefusesDamagedEvidence unchanged. A dedicated classifier handles only temporal relevance; no new persisted schema, hours, state store, runtime scan or production artifact family. The existing output/snapshot provenance path should carry any label. No production code has been edited; report this concrete recommendation to the hub before expanding scope.
+
+### 2026-10-23 — approved implementation refinement
+
+Authenticated hub delivery3934fa98-49d4-4b59-98d1-478677117b64 approves the narrow archive/done bound and asks to notify pair:2 after landing. Proceed within the quick-flow shell, one atomic close boundary, no Mx split. Preserve the already-approved policy; no further operator round is required for routine implementation.
+
+Reuse the complete bounded immutable history reader in legacycompletion.go through a private archive-bound mode. resolveLegacyCompletion remains its strict wrapper. A shared recoverUnboundLegacyAdoption implementation takes the same purpose, preserving root membership, archive identity, immutable bytes, scalar types and full tracker generation checks; a separate temporal-bound entry point alone requests bound mode and returns only a time, never a valid close or number. loadAdoptedExclusions invokes that entry point only for unmarked imports without a completion, compares through the existing pure legacyWindowDisjoint, and appends a visible fresh preview/close warning. Existing immutable historical replay is unchanged, and no persisted field is added. Strict repair/show/completion paths remain on strict mode.
+
+Actions: rerun measurement; repair named evidence.
+| Internal state | Visible state | Recovery | Possible loss |
+| --- | --- | --- | --- |
+| Exact unmarked import, proven archive/done end before earliest candidate | Measured with labelled disjoint legacy adoption | Continue normal close | None; old actual/review unchanged |
+| Equal/overlapping/unknown bound or modern malformed evidence | Cannot measure, named evidence | Repair evidence and rerun | None; no adopted hours |
+
+Test first: a real-Git archived old import with the captured round24 protocol-error ledger must let a later candidate proceed with the label, while strict completion verification still refuses it. Extend its controls across equality/overlap/legacy-prefix bounds and real tracker mutations, and retain existing source/root/reopen/modern corruption tests. Risky seams: resolveLegacyCompletion mode cannot yield completion authority in bound mode (strict-refusal control); recoverUnboundLegacyAdoption root/generation checks cannot be bypassed (real-Git provenance mutations); loadAdoptedExclusions cannot use only latest ownership (hybrid earliest-prefix control); visible label cannot disappear (public-output assertion).
+
+Cost remains one bounded complete source-history walk plus the existing tracker-history validation per relevant old adoption; no process/topology scan, schema, durable family, cache or new scheduler. Reuse the existing counted history-scan guard. The mistake class is semantic authority/relevance ordering, so the real-Git behavioural fixture is the guard; a lexical linter cannot infer temporal disjointness. Update help/atlas and lessons, run focused normal/race and a private read-only production CLI against Pair; normal central suite/close/merge only, no staging or live queue mutation. Notify the hub and pair:2 only once the landed central binary is rebuilt and measurement actually succeeds.
