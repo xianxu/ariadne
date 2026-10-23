@@ -93,6 +93,7 @@ is introduced.
 ### 2026-10-22
 
 ### 2026-10-23 — diagnosis and proposed quick-flow fix
+- 2026-10-23: closed — BR-1 native ps format family verified and corrected through one shared predicate: all Check/CheckSources separator and command-form controls pass, counted visits remain linear, full golint PASS 0.813s, race controls PASS 1.157s. Native cancellation correction remains unchanged and passed 30/30 plus five race repetitions and broader operating checks; leader-only negative control refuses surviving work. Old queued suite canceled because superseded; fresh recorded suite runs on pushed correction before landing. No production cancellation/deadline change; atlas and lessons updated. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Claimed and started on the fresh main base. Native original repetition:
 `go test ./cmd/tl-lead -run '^TestOperatingCancellationStopsGitHookDescendants$' -count=30 -timeout 3m -json`

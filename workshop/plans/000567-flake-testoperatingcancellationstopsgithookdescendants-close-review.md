@@ -73,3 +73,79 @@ findings:
    Append a `## Revisions` entry recording the expanded literal-format regression inventory. The existing Done-when clauses remain applicable.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"cfb2e440-fe80-4229-9c0c-b0c7d952f81d","repository":"github.com/xianxu/ariadne","issue_id":"000567","recipe":"small-diff-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/b787b09c2e352652","reviewed_head":"2dddb0b59de75742cb9e288d679285c327184c4f","slot":"ariadne:3","requested_at":"2026-10-23T12:33:01.754033Z"},"phase":"finished","pid":69737,"started_at":"2026-10-23T12:33:01.855061Z","finished_at":"2026-10-23T12:35:47.327745Z","session_id":"01a168c0-18b9-7b83-847e-81de3406c869","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T05:41:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 567 — flake: TestOperatingCancellationStopsGitHookDescendants |
+| repo | ariadne |
+| issue file | workshop/issues/000567-flake-testoperatingcancellationstopsgithookdescendants.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 28c40fd5dc3485dce3ec4936485238a56743f4ab..839fc18ae652343c0777a8a515ac943476fc32d3 |
+| command | sdlc close --issue 567 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T05:41:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation matches the issue’s Spec and Plan. BR-1 is addressed with regression evidence, and no new findings remain. Native cancellation checks pass, and an independent leader-only mutation confirms the descendant guard detects surviving work. The recorded full-suite pass remains a separate acceptance requirement.
+
+Done-when: current — its clauses cover the revised format parser, cancellation fixture, negative control, and acceptance checks.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      pkg/golint/ps_liveness.go:65 now normalizes comma and whitespace separators in the shared predicate. TestPSLivenessQueriesFormatSeparators covers both constructors, separate and attached formats, and both Check entry points. All 40 cases pass at head and fail with the previous comma-only parser restored through a temporary Go overlay.
+```
+
+1. **Strengths**
+
+   - Child-origin readiness establishes an executing descendant before cancellation (`cmd/tl-lead/doc_operating_test.go:374`).
+   - Private-group validation and the existing `procgroup` terminal condition replace the snapshot oracle while preserving cancellation assertions (`:428–466`).
+   - Lint coverage includes aliases, shadowing, production exclusion, captured source, format variants, and counted linear visits.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None remaining.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed: 30 native cancellation repetitions; focused race checks repeated twice; broader operating and repository-cancellation tests; complete golint and procgroup packages; diff whitespace checks.
+
+   Independently confirmed the leader-only mutation fails with “remains runnable.” The captured original test matches the pinned base exactly. Temporary overlays were removed; the checkout remains clean. The full suite was not independently run during this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — shared process-group semantics and one format predicate are reused.
+   - **ARCH-PURE: pass** — lint logic remains pure; native IO stays in integration fixtures.
+   - **ARCH-PURPOSE: pass** — the cancellation proof and previously identified format family are covered.
+   - **ARCH-EVOLVE: pass** — no persisted-format changes.
+
+   The atlas documents the new lint rule. No new user command, flag, or configuration requires a README update.
+
+7. **Plan revision recommendations**
+
+   None. The existing BR-1 revision describes the delivered correction.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"adc631ff-17f8-4fb3-9fd4-9b134d918ba4","repository":"github.com/xianxu/ariadne","issue_id":"000567","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/8d3a008bc9780160","reviewed_head":"839fc18ae652343c0777a8a515ac943476fc32d3","slot":"ariadne:3","requested_at":"2026-10-23T12:39:33.831684Z"},"phase":"finished","pid":86717,"started_at":"2026-10-23T12:39:33.932846Z","finished_at":"2026-10-23T12:41:40.981433Z","session_id":"01a168c6-1449-74d1-b7da-9b057e7ccabf","outcome":"returned"}] -->
