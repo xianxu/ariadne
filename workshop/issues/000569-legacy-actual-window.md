@@ -110,6 +110,14 @@ After the source-authority fence, broader legacy/adopted/strict/migration contro
 
 Rebuilt the same private CLI after the code correction; go version -m confirms Go1.27.3, revision506a6de0af54025b9e9dce33bb8959cb83ca72aa, modified=false. Its read-only actual162 probe again gets past151 and preserves161's true-overlap refusal. That is the approved split, not readiness for pair:2. No source edits remain. Push this documentary checkpoint, queue one replacement recorded suite on that pushed head, then fresh close review for the post-SHIP correction. Keep the new controller/FIFO place until result. No continuation/restart while it is queued or running. All other work is the later no-retroactive-owner follow-up from main, per authenticated hub approval29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c.
 
+### 2026-10-23 — round-two REWORK; third-delta stop and re-plan
+
+Fresh close review returned REWORK: BR-1 Critical (legacy-bound-must-check-source-authority) reproduces modern or unreadable ledger writes at archive and later before cutover escaping the selected-close-only guard; BR-2 Minor identifies a fixture comment that describes only one of two branches. The critical cause is confirmed in the production code. No dispute and no code change after this review. Stopped the replacement recorded suite through sdlc local-check cancel --name suite while it was still queued; controller33871 exited1 before make ran. Together with cancelled controller20231, neither recorded run executed a full suite. No own background suite/review remains.
+
+Recovery used sdlc state, the issue Log, branch and generated review; couch --peek ariadne:3 --previous --all explicitly reports the previous recovery screen unavailable. The tracker read currently reports codecomplete despite the refused review; no mirror/status was hand-edited, and a new close is required. Prior SHIP does not authorize this head. The retained private CLI only proved the earlier selected-close implementation and is not proof of the proposed correction.
+
+This is the third design delta on the source-authority mechanism, so stop under tl-worker PLANNING rather than patch another timestamp. Proposed re-plan is workshop/plans/000569-legacy-actual-window-plan.md: one complete bounded relevant source-ledger history check, strict parsing/identity, distinct immutable blob reads and counted linear work; preserve the existing disjointness-only policy and strict completion/replay. The simple three-snapshot alternative fixes cited examples but misses authority added then removed between them. No lifetime lease can prove historical absence. Commit and send this concrete proposal to the hub; await approval before implementation or another recorded run. The first-proven-modern-owner follow-up stays separate after landing.
+
 ## Revisions
 
 ### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
@@ -143,3 +151,7 @@ The private CLI exposed a genuinely overlapping second old adoption (#161). Hub 
 ### 2026-10-23 — same-contract source-authority fence
 
 A classic unmarked tracker card is insufficient if its pinned source ledger contains modern reviewed-head or retained measurement authority. Bound-only mode must not replace that evidence, whether valid, damaged or unreadable. Reuse ownedLedgerAt's strict parser; keep the original captured protocol-error-only ledger eligible. This is a correction within the approved modern-corruption contract. No new persisted state, numerical interpretation, legacy-owner rule or history walker.
+
+### 2026-10-23 — proposed third-delta re-plan; implementation held
+
+Round-two review shows the prior source-authority correction was incomplete: issue-file history does not cover independent ledger changes. The proposed durable plan at workshop/plans/000569-legacy-actual-window-plan.md replaces snapshot-by-snapshot repairs with one bounded immutable ledger-history eligibility decision. It covers retained inputs, damaged inputs, reviewed-head-only and unreadable ledgers at close, archive and later writes, including evidence added and removed before cutover. The fixed snapshot inventories still enforce ambiguity and identity; history reads must not scan the entire plans inventory per commit. No schema, old actual or review authority changes. This proposal awaits hub approval under the third-delta rule; no code has been changed for it. Rerun inferred change-code gates if the revised design leaves the quick-flow shell.
