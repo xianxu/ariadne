@@ -59,7 +59,7 @@ func NewIssueCmd() *cobra.Command {
 	cmd.AddCommand(setStatus)
 	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
 	cmd.AddCommand(newIssueSetAreaCmd(), newIssueSetSeverityCmd(), newIssueCorrectActualCmd())
-	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd())
+	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd(), newIssueRenameCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
 	cmd.AddCommand(newIssuePublishCmd(), newIssueRestoreCmd())

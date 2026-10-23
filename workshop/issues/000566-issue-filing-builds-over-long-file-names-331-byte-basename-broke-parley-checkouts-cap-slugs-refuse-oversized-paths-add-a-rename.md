@@ -45,15 +45,17 @@ supported rename for an existing card/details pair (both refs, content unchanged
 
 Durable plan: `workshop/plans/000566-issue-filing-builds-over-long-file-names-331-byte-basename-broke-parley-checkouts-cap-slugs-refuse-oversized-paths-add-a-rename-plan.md`.
 
-- [ ] FileSlug: one capped slug builder (80 bytes, word boundary) for issue new (tracker + legacy) and flake register
-- [ ] CheckPathLimits in gitx commitSet: refuse any component over 255 bytes before a candidate exists
-- [ ] NextRenameStep state machine + MovePath
-- [ ] `sdlc issue rename --issue N [--slug S]`, help + atlas
+- [x] FileSlug: one capped slug builder (80 bytes, word boundary) for issue new (tracker + legacy) and flake register
+- [x] CheckPathLimits in gitx commitSet: refuse any component over 255 bytes before a candidate exists
+- [x] NextRenameStep state machine + MovePath
+- [x] `sdlc issue rename --issue N [--slug S]`, help + atlas
 - [ ] Verification: targeted tests, fresh-reader help check, recorded suite
 
 ## Log
 
 ### 2026-10-23
+
+TL approved the plan and all four scope choices (9e66382f); change-code inferred the quick flow, and close upgrades to the full review because the rename verb leaves the 100-line shell. Implemented FileSlug (RED/GREEN: the filer tests failed with the cap lifted only after their oracle became a literal 80, since a MaxSlugBytes-based bound was circular), CheckPathLimits in commitSet (RED: with the call removed, the 331-byte UpdateMany pushed), NextRenameStep/DetailNames/MovePath/MoveCard and `sdlc issue rename`. The resume test exposed a real defect: the rerun took the old details name from the card, which the card step had already moved. Details are now found on main by ID (`DetailNames`). A squatted new name is caught as an inconsistent observation before either ref moves. Deviation from plan: the "no plans on main" precondition was dropped; status open plus no local/remote branch covers the unstarted case. Recovery catalog entry, `issue` help and atlas row added.
 
 Claimed and planned in ariadne:5. All filers reach one slug site per mode (`runIssueNew`, legacy `issue new`; `flake register` calls `runIssueNew`). Every tracker/main candidate tree is built by `gitx.TrunkFile.commitSet`, so the 255-byte refusal sits there (closetracker re-indexes existing paths; refbootstrap writes fixed names). `Slugify` stays uncapped because gate family slugs use it. Branch, plan and sidecar names derive from the stem, so rename is scoped to unstarted issues; four scope decisions sent to TL with the plan. No estimate yet (full flow: after plan-quality).
 

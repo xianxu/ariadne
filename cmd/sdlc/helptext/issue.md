@@ -34,6 +34,8 @@ SUBCOMMANDS
                  `--repair-completions --issue N` repairs a missing imported close
   set-status     Flip an issue card's status with transition guards
   set-title      Retitle an issue card (paths keep their slug)
+  rename         Move an unstarted issue's card and details to a new slug
+                 (`--slug S`, or derived from the title within 80 bytes; #566)
   set-estimate   Record estimate_hours on the card (`--hours`)
   set-github     Link the card to a GitHub issue (`--number`)
   set-area       Set the card's areas (`<area>...` | `--clear`); each must be
