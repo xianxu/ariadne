@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1963757c", done: "0f903ae5"}
 ---
 
 # Diagnose legacy actual-window refusal blocking pair#162
