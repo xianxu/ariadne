@@ -97,6 +97,14 @@ total: 6.18
 
 ## Log
 
+### 2026-10-22 — SHIP and recorded suite passed; landing queued
+
+Close round three returned SHIP, disposing all four findings with no new or open blockers. The codecomplete card is bound to evidence commit 8ef9a70a0db1. PR 403 is open at https://github.com/xianxu/ariadne/pull/403; its local-gates guard passed and reports no protected paths touched.
+
+Recorded suite lease-927309115 on pushed code d746d269c29d95856ebaf718bf396d29cf7662a3 passed: all eight shards (2,336 cmd/sdlc tests) and 76 other packages, zero failures, wall 863.8s. The controller published sdlc-local/suite and retained its log at the common Git directory's sdlc/local-checks/d746d269c29d95856ebaf718bf396d29cf7662a3/suite.log (sha256 prefix 9ccbd1da153e). Its 6,194-second queue wait is infrastructure waiting, not test runtime. No own recorded suite remains queued or running.
+
+The existing `sdlc merge --yes` controller remains live, first waiting behind #531. It survived the Couch restarts; no duplicate runner was created. This checkpoint changes only documentation after the tested code. Next: keep that landing controller, let it perform current-main integration and authoritative verification as needed, resolve any named refusal through the supported workflow, then confirm archive/cleanup and report the landed PR to ops:0. No staging or live peer activation is included.
+
 ### 2026-10-22 — close round two and weekly reporting correction
 - 2026-10-22: closed — Private production CLI mixed Go/script/native Plenary complete-suite registration, exact resume, omitted-case refusal and crash/reconcile passed; frozen old-reader and legacy Go conformance passed. BR1-3 verified addressed by close round two. BR4 reporting parity reproduced red for both typed kinds, fixed with shared hash-verified hydration; weekly/stats/typed regression command passed in 5.928s, including missing/tampered logs. Corrected checkpoint pushed and fresh recorded suite queued under permitted overlap; final-code suite pass required before landing. Distribution/adoption remain #558, pair#816 and parley.nvim#415; no local-gates activation.; review verdict: SHIP
 
