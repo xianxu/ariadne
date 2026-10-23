@@ -80,3 +80,9 @@ The independent no-retroactive-owner follow-up remains after #569, from fresh ma
 ## Architecture lenses
 
 ARCH-DRY: share generation validation, parser and snapshot identity policy. ARCH-PURE: eligibility and temporal comparison are pure; Git is the thin integration boundary. ARCH-PURPOSE: sweep independent ledger chronology, not only review examples. ARCH-MOCK: native private Git/tracker fixtures model persisted history. ARCH-CONSTRAINTS: bounded history and counted linear growth. ARCH-SECURE: untrusted historical bytes are strictly parsed and pins are immutable; no credentials. ARCH-ORDER: no state survives this read, but all historical evidence is considered before weaker authority is returned. ARCH-FUNERAL: creates no production artifact or process. ARCH-EVOLVE: changes no persisted format or replay meaning.
+
+## Revisions
+
+### 2026-10-23 — declined by TL; do not implement
+
+Authenticated hub receipt74137932-2fd2-4698-8067-62ad44c54a91 declines this mechanism on cost/payoff grounds for a shrinking set of legacy-era issues. #569 ends wontfix; the first-modern-owner follow-up is dropped too. Preserve this proposal and existing work as evidence, without landing code. Affected legacy-crossing closes explicitly use --no-actual and verification citing 'legacy-era overlap; measurement unavailable by design (ariadne#569)'.

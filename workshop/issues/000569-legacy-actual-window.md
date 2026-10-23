@@ -118,6 +118,12 @@ Recovery used sdlc state, the issue Log, branch and generated review; couch --pe
 
 This is the third design delta on the source-authority mechanism, so stop under tl-worker PLANNING rather than patch another timestamp. Proposed re-plan is workshop/plans/000569-legacy-actual-window-plan.md: one complete bounded relevant source-ledger history check, strict parsing/identity, distinct immutable blob reads and counted linear work; preserve the existing disjointness-only policy and strict completion/replay. The simple three-snapshot alternative fixes cited examples but misses authority added then removed between them. No lifetime lease can prove historical absence. Commit and send this concrete proposal to the hub; await approval before implementation or another recorded run. The first-proven-modern-owner follow-up stays separate after landing.
 
+### 2026-10-23 — TL decision: wontfix; no further mechanism
+
+Authenticated hub receipt74137932-2fd2-4698-8067-62ad44c54a91 declines the proposed source-ledger history mechanism. Finding: the disjointness bound cannot be made corruption-safe without checking the independently changing source-ledger history; selected close/archive/source snapshots alone do not prove absence between snapshots. Three design rounds for a shrinking set of legacy-era cutover issues cost more mechanism than the payoff of one or two issues' velocity-calibration hours. End #569 as wontfix without landing its code; preserve diagnosis, rejected implementation and review findings through sdlc abandon's archive ref.
+
+Drop the pair#162 first-proven-modern-ownership follow-up as directed. Pair#162 and other affected legacy-crossing issues use the precise --no-actual close gate flag, with --verified citing: 'legacy-era overlap; measurement unavailable by design (ariadne#569)'. No number or historical evidence is invented. This is the TL's explicit decision, not a passing review or successful measurement. No other checks, processes or queue entries are cancelled. Both own queued suites were already cancelled before execution; no full-suite pass is claimed. Report the terminal card and preserved archive to the hub after the lifecycle verb completes.
+
 ## Revisions
 
 ### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
@@ -155,3 +161,7 @@ A classic unmarked tracker card is insufficient if its pinned source ledger cont
 ### 2026-10-23 — proposed third-delta re-plan; implementation held
 
 Round-two review shows the prior source-authority correction was incomplete: issue-file history does not cover independent ledger changes. The proposed durable plan at workshop/plans/000569-legacy-actual-window-plan.md replaces snapshot-by-snapshot repairs with one bounded immutable ledger-history eligibility decision. It covers retained inputs, damaged inputs, reviewed-head-only and unreadable ledgers at close, archive and later writes, including evidence added and removed before cutover. The fixed snapshot inventories still enforce ambiguity and identity; history reads must not scan the entire plans inventory per commit. No schema, old actual or review authority changes. This proposal awaits hub approval under the third-delta rule; no code has been changed for it. Rerun inferred change-code gates if the revised design leaves the quick-flow shell.
+
+### 2026-10-23 — proposed re-plan declined; scope ends
+
+Hub receipt74137932-2fd2-4698-8067-62ad44c54a91 chooses wontfix instead of adding historical ledger machinery for this shrinking legacy set. This supersedes the implementation proposal and queued follow-up. Preserve all work as abandoned evidence; no source changes land. Measurement for affected legacy overlaps is intentionally unavailable, with the explicit --no-actual gate waiver and labelled verification above.
