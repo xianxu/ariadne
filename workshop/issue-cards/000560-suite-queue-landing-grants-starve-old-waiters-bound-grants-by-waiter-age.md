@@ -1,6 +1,6 @@
 ---
 id: 000560
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 1.61
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47
         evidence_commit: 9c821802139fd7259408a299fa49e6362208df39
+        landed_commit: 841586790519324cb987886f93ba46de812f00ea
 ---
 
 # Suite queue: landing grants starve old waiters; bound grants by waiter age
