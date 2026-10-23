@@ -332,7 +332,7 @@ them**, and a round never deletes or rewrites one of their lines.
 | `collaboration-mode: chat` (frontmatter scalar) | the whole document is a chat section: every top-level item, in any section, is an ask |
 | a section map, `collaboration-mode: {chat: [names], default: …}` (block or flow form) | each named section is chat. Names match headings at any level after lowercasing, collapsing whitespace, trimming and dropping one trailing parenthesised annotation (`### Operator instructions (open)` matches `"operator instructions"`); a name that matches no heading is named in the notice. A `default: chat` makes the whole document chat |
 | a heading comment `<!-- collaboration-mode: chat -->` on the line directly under a heading | that section is chat |
-| `collaboration-mode: discussion` or `collaboration` (scalar, map default or heading comment) | nothing: the one mode applies. Questions get side docs and commands act, in issues, plans and projects too |
+| `collaboration-mode: discussion` or `collaboration-mode: collaboration` (scalar, map default or heading comment) | nothing: the one mode applies. Questions get side docs and commands act, in issues, plans and projects too |
 | `presentation-mode`, `presentation`, `processing-mode`, `processing-instruction`, `process-instruction`, in frontmatter or a heading comment | nothing |
 | an unknown, empty or malformed value of any of these | nothing |
 
