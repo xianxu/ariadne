@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c7a2b022", done: "4bdabeb6"}
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
