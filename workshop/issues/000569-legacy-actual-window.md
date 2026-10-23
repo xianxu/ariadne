@@ -50,6 +50,7 @@ Diagnose the provenance and scope of the cross-issue adopted-window dependency b
 ## Log
 
 ### 2026-10-23 — dispatch
+- 2026-10-23: abandoned (wontfix): TL decision: corruption-safe legacy disjointness requires source-ledger history machinery, not justified for the shrinking legacy cohort; drop pair#162 ownership follow-up. Affected closes use --no-actual with --verified citing legacy-era overlap; measurement unavailable by design (ariadne#569). No implementation lands.
 - 2026-10-23: closed — Exact captured Pair151 ledger regression RED then GREEN; equality/overlap and strict close verification remain refusals. Real-Git generation fences and public hybrid prefix/output controls pass; broad targeted tests138.888s, race9.830s and10.953s, Go/shell lint pass. Private clean production CLI gets past151 and correctly preserves overlapping161; hub approved that split. Central recorded final-code suite queued on pushed head and must pass before landing (tl-worker permitted overlap). README/help/atlas and lessons updated; no historical Pair evidence or numeric actual changed. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Authenticated hub delivery9c270b83-96f0-4235-b536-7f809314451c assigned this after #563. #563 is now landed as PR406, so investigation can begin. The hub asks to file, claim and report; no speculative Pair evidence repair is authorized.
