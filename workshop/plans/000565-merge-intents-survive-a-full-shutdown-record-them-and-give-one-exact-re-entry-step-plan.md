@@ -176,3 +176,7 @@ So the gap is the record and the surface, not re-entry.
 - Couch reading the `--json` field (Couch repo; #564 owns the restart summary).
 - Non-suite landing-check proofs. They are held in memory by design (`landingchecks_gate.go:12` refuses stored statuses as unbound), so they rerun on re-entry. That is correct and cheap.
 - Automatic re-entry. The spec says no.
+
+## Revisions
+
+- 2026-10-23: TL approved scope choices (a)–(e) as written. Follow-up: an unclaimed pair issue for Couch's recover-plan reading `merge_intents`.

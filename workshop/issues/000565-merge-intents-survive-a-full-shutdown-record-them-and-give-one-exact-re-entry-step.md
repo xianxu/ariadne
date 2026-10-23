@@ -57,5 +57,6 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
   - The recovery command goes only to the dead runner's stderr.
   - Re-entry is already correct (it resumes from Git/GitHub), and #332 suite reuse reads GitHub statuses, so it survives a shutdown.
   - The gap is a durable, lock-classified intent record plus a surface that prints the command.
+- TL approved scope choices (a)–(e), plus the stale sweep and the 30-day bound. After this lands, file the Couch side (recover-plan reading `merge_intents`) as an unclaimed pair issue.
 
 ### 2026-10-22
