@@ -180,3 +180,8 @@ So the gap is the record and the surface, not re-entry.
 ## Revisions
 
 - 2026-10-23: TL approved scope choices (a)–(e) as written. Follow-up: an unclaimed pair issue for Couch's recover-plan reading `merge_intents`.
+- 2026-10-23 (implementation): four details differ from the plan.
+  - The intent has no `pid_started` or `boot_id`. Liveness comes from the flock alone, which dies with the process on a kill or a reboot, so neither field would be read.
+  - The record is written in place under its lock, not by temp file and rename. A rename would move the path to a new inode, away from the lock. A reader that finds the file locked treats it as live, even half-written.
+  - `sdlc landing status` has no JSON mode, so `merge_intents` lives in `sdlc state --json` only, scoped to the slot. Couch's restart plan reads it per slot, and a status JSON carrying intents alone would be half a format.
+  - The live-intent refusal is `IntentHeldError`; the line package already has a `HeldError` for train holds.

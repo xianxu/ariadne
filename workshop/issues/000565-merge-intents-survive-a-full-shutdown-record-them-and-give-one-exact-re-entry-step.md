@@ -42,12 +42,12 @@ No automatic merge without the slot re-entering it; just a durable record and an
 
 Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-record-them-and-give-one-exact-re-entry-step-plan.md` (scope choices a–e for the TL).
 
-- [ ] `MergeIntent` record and `ClassifyIntent` (pure)
-- [ ] `IntentStore`: hold, release by outcome, list, stale and age sweep
-- [ ] `sdlc merge` holds the intent; an interruption keeps it, a terminal outcome removes it
-- [ ] Surfaces: `sdlc landing status`, `sdlc state`, `--json` `merge_intents`
-- [ ] End-to-end: a SIGKILLed runner, the printed command, the suite reused on an unchanged head
-- [ ] Atlas, recovery catalog, recorded suite
+- [x] `MergeIntent` record and `ClassifyIntent` (pure)
+- [x] `IntentStore`: hold, release by outcome, list, stale and age sweep
+- [x] `sdlc merge` holds the intent; an interruption keeps it, a terminal outcome removes it
+- [x] Surfaces: `sdlc landing status`, `sdlc state`, `--json` `merge_intents`
+- [x] End-to-end: a SIGKILLed runner, the printed command, the suite reused on an unchanged head
+- [x] Atlas, recovery catalog, recorded suite
 
 ## Log
 
@@ -59,5 +59,10 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
   - Re-entry is already correct (it resumes from Git/GitHub), and #332 suite reuse reads GitHub statuses, so it survives a shutdown.
   - The gap is a durable, lock-classified intent record plus a surface that prints the command.
 - TL approved scope choices (a)–(e), plus the stale sweep and the 30-day bound. After this lands, file the Couch side (recover-plan reading `merge_intents`) as an unclaimed pair issue.
+- Implemented in five commits: the record, the merge hold, the surfaces, re-entry suite reuse, and the atlas/catalog.
+  - The intent tests include a SIGKILLed helper process holding an intent, which reads as orphaned afterwards.
+  - Mutation check: making release always remove the intent fails the lifecycle test and both reuse cases.
+  - Suite reuse is end to end: the context is cancelled right after the suite records a pass, re-entry lands with 1 suite run, and it reruns (2 runs) when main moved.
+  - Deviations are recorded in the plan's Revisions.
 
 ### 2026-10-22

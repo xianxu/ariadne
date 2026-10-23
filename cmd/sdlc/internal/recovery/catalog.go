@@ -220,7 +220,7 @@ var Catalog = []Contract{
 		Evidence:      observeEvidence + ": landing.outcome, landing.archived; the printed `Recovery: sdlc merge --branch B --yes`.",
 		Preconditions: "a reviewed branch whose patch still satisfies the publish replay gate; a clean tree; confirmation (--yes without a TTY). Legacy worktrees must already contain freshly fetched main, checked before and after CI; otherwise manually merge origin/main, push and record the suite.",
 		Repeat:        "a validated unpushed Integrated-Main merge resumes its leased push after replay validation; a pushed head awaiting GitHub registration is re-observed. An already-merged PR resumes post-merge cleanup; a reused branch name is refused (#148); after full success from rest, refused.",
-		LostResponse:  "run the printed `sdlc merge --branch B --yes`: it observes merged / integrated / archived / at rest and continues from there.",
+		LostResponse:  "run the printed `sdlc merge --branch B --yes`: it observes merged / integrated / archived / at rest and continues from there. Lost output (a shutdown killed the runner): `sdlc landing status` or the slot's `sdlc state` names the orphaned merge intent and prints the same command (#565).",
 		Ends:          "the card was reopened or closed again (another generation): completion is refused.",
 		Proofs: []Proof{
 			{"integrates moved main and reruns the exact-head suite; bounds reintegration", []string{"TestLandingIntegratesAMovedMain", "TestLandingMainMovesDuringSuite"}},
@@ -233,6 +233,7 @@ var Catalog = []Contract{
 			{"resumes cleanup after a merge already happened", []string{"TestRunMerge_ResumeMergedPR_FinishesCleanup"}},
 			{"refuses unmerged commits on a merged branch name", []string{"TestRunMerge_ResumeMergedPR_UnmergedCommits_Refuses"}},
 			{"interrupted landings resume from observation", []string{"TestLandingInterruptedCleanup", "TestLandingInterruptedIntegration", "TestLandingRefusesUncertainty"}},
+			{"an interrupted merge leaves an intent whose printed re-entry reuses the passed suite (#565)", []string{"TestMergeIntentLifecycle", "TestOrphanedMergeOnStatusSurfaces", "TestMergeReentryReusesThePassedSuite"}},
 			{"a re-closed generation is left alone", []string{"TestPublishFlipLeavesAReclosedGenerationAlone"}},
 			{"a reopened card is left alone", []string{"TestLandingLeavesAReopenedCardAlone"}},
 			{"the archive retry proof is deterministic", []string{"TestLandingArchiveAtomicAndRetryProof", "TestDurableLandingProofSurvivesACardChangeAfterArchive"}},
