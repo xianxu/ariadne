@@ -1,13 +1,21 @@
 ---
 id: 000557
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'dbfe3801379f7d47bbd3b1d356759d10cab32f96' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '90b1ad203a910e0fd1cd57e1d32e5103055f992a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T17:29:49-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # start-plan's weave refresh regenerates seeded workflows on the resting branch, then refuses
@@ -41,8 +49,28 @@ pending regeneration to reach each consumer's main as one local-gates change.
 
 ## Plan
 
-- [ ]
+Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral-plan.md). Awaiting hub approval; no implementation started.
+
+- [ ] Add a planning-only publication policy that defers every Seed / SeedOnce destination and existing protected settings before any output effects.
+- [ ] Wire start-plan catch-up to that policy; report stale seed paths and the separate consumer regeneration action.
+- [ ] Prove native catch-up cleanliness and explicit consumer-branch regeneration, document the operator-verified PR route, then complete suite/review/landing.
 
 ## Log
 
 ### 2026-10-22
+
+### 2026-10-22 — claim and design investigation
+
+Claimed in ariadne:2 and started planning from fresh main. #531's merge runner completed with a passing authoritative suite (2302 SDLC tests, 76 other packages), PR396 merged, and this slot clean on main-slot2 before the new claim. This ariadne checkout did not reproduce consumer seed drift because its own start-plan succeeded.
+
+Root cause verified: startPlanBranch calls catchUpBeforeWork while on the resting branch; installed weave runs refresh --defer-settings. Refresh fast-forwards captured host/substrate targets and then compilePreparedSettings publishes normal actions. Only .claude/settings.json is deferred. plan.Seed performs an atomic content/mode replacement and is consumer-owned, outside managed identity/displacement recovery. plan.SeedOnce can also adopt a tracked entrypoint. Restoring files after refresh is unsafe on partial failure or a kill; prevent these actions before publication instead (ARCH-ORDER / SECURE).
+
+Read-only bounded code trace identified existing OutputCurrent, DeferredOutput, settings deferral and real-Git refresh fixtures for reuse (ARCH-DRY). Verified both source commits named by the issue with Git: 2dc46703996c42f4b0916515d4572cf439dd2a32 and 5785330cda6bf31d533e4282aecc8f3f9cd632a7. Their actual workflow diff is the two quiet grep compiler-identity checks replaced with full-input grep plus a drain comment; capture that diff in the native regression rather than inventing a similar incident.
+
+Proposal: a new explicit weave refresh --planning policy defers all Seed and SeedOnce actions regardless of tracking, plus existing protected settings; normal compile and explicit refresh retain their current regeneration semantics. Compare before publication, retain DeferredOutput evidence, name each stale destination and direct regeneration onto its own consumer issue branch with weave compile. That separate local-gates PR requires the operator's label; no automatic label, consumer branch, commit or PR creation. Plan explains that this covers the whole seeded-output class, not an unspecified global rollback for other tracked writer families; requesting hub confirmation of that scope. No source edits or implementation tests yet.
+
+## Revisions
+
+### 2026-10-22 — proposed prevention at publication boundary
+
+Propose deferring seed / seed-once publication before effects, instead of post-refresh restoration. Preserve ordinary regeneration and route pending updates through a dedicated consumer issue and operator-verified PR. The existing Done when remains the acceptance contract; await hub review of the seeded-output scope.
