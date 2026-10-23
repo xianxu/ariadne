@@ -90,6 +90,7 @@ Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral
 ## Log
 
 ### 2026-10-22
+- 2026-10-22: closed — Only post-close code delta aligns TestSDLCWeaveDependenciesCheckOnly fake/parser and expected argv with the already-reviewed refresh --planning contract; no production behavior/scope change. Original full suite completed 2303 SDLC tests and 76 packages with only the two stale-fixture cases failing; targeted red reproduced both, then corrected dependency context + installed argv + native start-plan controls PASS 14.306s. Fresh recorded suite queued on pushed fix head; pass still required before landing. Fleet merge pause remains active; no new merge or landing will start. (fixed-then-ship); review verdict: SHIP
 - 2026-10-22: closed — Native installed-weave/start-plan catch-up creates the issue branch with clean resting workflow/index for Claude and Codex; captured pair#809 replay proves pre-fix dirty seed publication and planning preservation, plus ordinary compile yields the pending workflow-only diff on a separate consumer branch. Targeted SDLC PASS 19.711s; weave policy/state/evidence/errors/interrupted publication/counted growth and compatibility controls PASS 41.402s; tracked Go catalog PASS 1.171s. Hub approved isolated proof, no live stage. Recorded suite lease-1202838612 on pushed code head c9ee0844b3d9251a082eb821db4229d1195ed472 is queued and retained; close review overlaps it under tl-worker, with suite pass required before landing.; review verdict: SHIP
 
 ### 2026-10-22 — claim and design investigation
