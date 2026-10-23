@@ -202,6 +202,20 @@ bookkeeping if needed and run central `sdlc merge --yes`; report only after
 Git, PR and tracker landing evidence agree. Do not manually chase newer main
 or restart a retained waiter.
 
+### 2026-10-23 — recorded branch suite passed
+
+Retained `lease-2618842037` acquired both slots after 3760s. The full suite on
+839fc18ae652343c0777a8a515ac943476fc32d3 returned exit 0: 2374 cmd/sdlc tests
+over eight shards plus 76 other packages, zero failures and no reruns, 956.0s
+(15m56s). The corrected cancellation case passed under suite load (0.98s).
+Saved proof: common `sdlc/local-checks/839fc18ae652343c0777a8a515ac943476fc32d3/suite.log`,
+SHA-256 prefix `035c9478f411`, recorded `sdlc-local/suite` success. All code is
+unchanged since this tested and reviewed head; subsequent commits contain
+close evidence/card mirror and this Log only. Round-two SHIP has no open
+findings. Next: central `sdlc merge --yes` owns integration, CI, any required
+integration suite, archive and final cleanup. No manual integration or fresh
+pre-close suite is needed.
+
 ## Revisions
 
 ### 2026-10-23 — quick-flow implementation detail and verification
