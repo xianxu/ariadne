@@ -237,6 +237,15 @@ func TestChatSectionsLaminar(t *testing.T) {
 		}
 		doc := b.String()
 		scan := ChatSections(doc)
+		owners := map[int]string{}
+		for _, c := range scan.Sections {
+			owners[c.Heading] = c.Source
+		}
+		for _, tag := range scan.Tags {
+			if owners[tag+1] != "tag" {
+				t.Fatalf("tag at line %d owns no section on line %d:\n%s", tag, tag+1, doc)
+			}
+		}
 		seen := map[int]bool{}
 		for i, a := range scan.Sections {
 			if seen[a.Heading] {
@@ -265,3 +274,24 @@ func TestChatSectionsLaminar(t *testing.T) {
 		}
 	}
 }
+
+// Tags lists every valid tag, including those a whole-document legacy chat
+// suppresses as sections, and never a misplaced one.
+func TestChatSectionsTags(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		doc             string
+		tags, misplaced []int
+		sections        int
+	}{
+		{"tag sections", "@@chat@@\n## A\n1. a\n@@chat@@\n\n## B\n", []int{1}, []int{4}, 1},
+		{"whole-document legacy keeps its tags", "---\ncollaboration-mode: chat\n---\n@@chat@@\n## A\n1. a\n", []int{4}, nil, 1},
+		{"code is no tag", "```\n@@chat@@\n## A\n```\n", nil, nil, 0},
+	} {
+		scan := ChatSections(tc.doc)
+		if !reflect.DeepEqual(scan.Tags, tc.tags) || !reflect.DeepEqual(scan.Misplaced, tc.misplaced) || len(scan.Sections) != tc.sections {
+			t.Errorf("%s: tags %v misplaced %v sections %d, want %v %v %d", tc.name, scan.Tags, scan.Misplaced, len(scan.Sections), tc.tags, tc.misplaced, tc.sections)
+		}
+	}
+}
+

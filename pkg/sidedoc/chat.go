@@ -34,8 +34,15 @@ type ChatSection struct {
 // sections, the lines of `@@chat@@` tags that sit above no heading (ordinary
 // text, named in the reply), and one notice per legacy or retired mode key,
 // which a round reports and never fails on.
+//
+// Tags are the lines of every valid `@@chat@@` tag (outside code, directly
+// above an ATX heading; its heading is the next line), reported even when a
+// whole-document legacy chat emits no section of its own for it, so a
+// consumer can protect each tag and its heading as operator-owned without
+// recognizing tags itself. Misplaced and Tags never share a line.
 type ChatScan struct {
 	Sections  []ChatSection
+	Tags      []int
 	Misplaced []int
 	Notices   []string
 }
@@ -182,7 +189,10 @@ func chatSections(doc string) (ChatScan, int) {
 		return isHeading[line] && strings.HasPrefix(strings.TrimLeft(lines[line-1], " "), "#")
 	}
 	for i := bodyStart; i <= len(lines); i++ {
-		if tagLine[i] && !atx(i+1) {
+		switch {
+		case tagLine[i] && atx(i+1):
+			scan.Tags = append(scan.Tags, i)
+		case tagLine[i]:
 			scan.Misplaced = append(scan.Misplaced, i)
 		}
 	}
