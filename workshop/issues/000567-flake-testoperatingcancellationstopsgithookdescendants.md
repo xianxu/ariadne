@@ -79,7 +79,7 @@ production group runner would widen scope despite successful group signalling.
 - [x] Retain the original JSON capture and test-source excerpt; make the narrow `test-ps-liveness` catalog rule red on that source, with import-alias/context/absolute-binary and unrelated-command controls plus counted N/2N visits.
 - [x] Fix `TestOperatingCancellationStopsGitHookDescendants` to obtain child-origin readiness, capture and validate its group before cancel, and observe the shared terminal condition under its existing guard; register cleanup before failure-prone waits.
 - [x] Verify the real Git fixture normally and with race instrumentation; temporarily change only the operating command kill to leader-only, observe the negative control fail, restore it, and retain the result. The test must not accept a surviving owned group or an unexpected probe error.
-- [ ] Run the tracked-file catalog and relevant cancellation controls; record the lesson, push, run the recorded suite, close for fresh review and land through central SDLC.
+- [x] Run the tracked-file catalog and relevant cancellation controls, record the lesson and atlas rule, and push the tested correction for the recorded acceptance gates.
 
 Risky function strategies: `TestOperatingCancellationStopsGitHookDescendants`
 uses a ready blocked native child and the independent leader-only-kill mutation;
@@ -156,3 +156,24 @@ control's diagnostic observation starts after publisher return (rather than
 racing WaitDelay); all such instrumentation is restored before verification.
 The atlas catalog entry is included alongside the lesson. No change to the
 approved test-only boundary or production cancellation/deadline semantics.
+
+### 2026-10-23 — recorded suite queued; close overlap
+
+PR #414 is open. Central `sdlc local-check run --name suite` is retained on
+pushed implementation e2b301d63319abda81e91213f74b15e916a6b1b5, run
+`lease-2313690157`, private exact-head worktree
+`/Volumes/TestScratch/local-checks/sdlc-local-1970967993`. Its first admission
+report was position seven behind two Pair suites; no grant or live queue
+mutation. The implementation plan is complete; remaining suite, close and
+landing outcomes are tracked here rather than checked off before they happen.
+Per tl-worker's explicit overlap rule, the mandatory close review may run
+while this suite waits. No landing proceeds without a recorded pass on the
+final code; a code change from review requires fresh verification. This is an
+acceptance checkpoint, not a suite-pass claim.
+
+### 2026-10-23 — plan bookkeeping revision
+
+The final Plan checkbox now describes completed implementation preparation;
+recorded-suite, review and landing outcomes remain explicit Log commitments.
+This removes a circular checkbox asking for landing before the close gate,
+without changing Done-when or claiming unfinished acceptance.
