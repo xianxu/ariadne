@@ -259,8 +259,8 @@ func TestReviewSkillApplyContract(t *testing.T) {
 			[]string{"pair review apply EDITS.json FILE", "docflow round --side agent", "propose-too-large", "operator-owned", "operator-lock", "stale", "Body"},
 			[]string{"PAIR_REVIEW_HANDOFF_PATH", "PAIR_REVIEW_LANDED_PATH", "[reconcile —", "applied N edits"}},
 		{"review round", round,
-			[]string{"presentation:", "highlight", "propose", "never type"},
-			[]string{"deletions:", "propose-strike"}},
+			[]string{"highlight", "Never type proposal marker syntax", "@@chat@@", "question", "command"},
+			[]string{"deletions:", "propose-strike", "presentation-mode:", "processing-mode:", "frontier"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, phrase := range tc.want {

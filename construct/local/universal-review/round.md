@@ -40,8 +40,8 @@ first heading. Nothing else in the document is open to edits, and no brief
 widens the scope by itself. A question has no scope: it opens a side doc.
 
 Your edits are presented as highlight: build the clean edit, and the adapter
-shows the operator what the machine last changed. Never type proposal marker
-syntax yourself. A rewrite too large for one write still goes through the
+shows the operator what the machine last changed.
+Never type proposal marker syntax yourself. A rewrite too large for one write still goes through the
 adapter, which says what to do when it refuses.
 
 ## 4. Routing

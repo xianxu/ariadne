@@ -784,26 +784,69 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 	doc := string(b)
 	flat := strings.Join(strings.Fields(doc), " ")
-	for i := 1; i <= 29; i++ {
+	for i := 1; i <= 31; i++ {
 		if !strings.Contains(doc, fmt.Sprintf("\n| %d | ", i)) {
 			t.Errorf("the state table lacks row %d", i)
 		}
 	}
 	for _, phrase := range []string{
+		"Direct edits by the operator are content",                                  // #575 rule 1
+		"When unsure, it is a question",                                             // #575 rule 2
+		"A **`@@chat@@`** line directly above a heading makes that section chat",    // the carve-out
+		"nothing new writes them",                                                   // the legacy rule
+		"A mode key never fails a round",                                            // report, never fail
 		"add a closing record at the end of the side doc",                           // row 9
-		"leaves its answer doc in place",                                            // row 15
+		"leaves its answer doc in place",                                            // row 16
 		"Deleting a link drops its entry; removing an entry never touches the link", // the one-way rule
 		"Rename the orphan to `spec_1.side/`",                                       // the orphan suffix
 		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
-		"the adapter's exit 3",                                                      // row 17
+		"the adapter's exit 3",                                                      // row 18
 		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
-		"Swapping a marker for its link is an edit through `apply`",                 // presentation owns proposals
+		"Swapping a marker for its link is an edit through `apply`",                 // the link write
 		"don't fold again",                                                          // a refused side-doc write after the fold landed
 		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {
 		// Compared with whitespace collapsed, so rewrapping the prose doesn't break it.
 		if !strings.Contains(flat, phrase) {
 			t.Errorf("collaboration-modes.md lacks %q", phrase)
+		}
+	}
+}
+
+// #575's Done-when: no skill text asks a creator or filler to write a mode
+// key. The retired keys may be named only in collaboration-modes.md §7 (the
+// legacy table), and in the adapter's Couch-transition note and its
+// legacy propose mechanics, which describe Couch until pair#838.
+func TestNoSpecWritesModeKeys(t *testing.T) {
+	dir := skillDir(t)
+	keys := append([]string{"collaboration-mode:"}, "presentation-mode", "processing-mode", "processing-instruction", "process-instruction")
+	files := []string{"round.md", "SKILL.md", "collaboration-modes.md"}
+	briefs, _ := filepath.Glob(filepath.Join(dir, "briefs", "*.md"))
+	for _, b := range briefs {
+		files = append(files, filepath.Join("briefs", filepath.Base(b)))
+	}
+	for _, f := range files {
+		b, err := os.ReadFile(filepath.Join(dir, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(b)
+		if f == "collaboration-modes.md" {
+			legacy := strings.Index(text, "## 7. Legacy mode keys")
+			if legacy < 0 {
+				t.Fatal("collaboration-modes.md lacks §7")
+			}
+			text = text[:legacy]
+		}
+		for _, k := range keys {
+			if strings.Contains(text, k) {
+				t.Errorf("%s names the retired key %q outside the legacy table", f, k)
+			}
+		}
+		for _, retired := range []string{"Written defaults", "write all three keys", "Whenever frontmatter is created or filled"} {
+			if strings.Contains(text, retired) {
+				t.Errorf("%s still instructs writers: %q", f, retired)
+			}
 		}
 	}
 }

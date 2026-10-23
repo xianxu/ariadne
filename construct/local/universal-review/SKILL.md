@@ -1,6 +1,6 @@
 ---
 name: xx-universal-review
-description: Use when a message reads `submitted: PATH` (or `review request: PATH`) for a markdown document — the operator's Alt+Return in parley — or when asked to review a document, including one carrying legacy mode keys such as `process-instruction:` or `collaboration-mode:`.
+description: Use when a message reads `submitted: PATH` (or `review request: PATH`) for a markdown document — the operator's Alt+Return in parley — or when asked to review a document, including an older one whose frontmatter carries legacy review mode keys.
 ---
 
 # xx-universal-review — answer a document review request
