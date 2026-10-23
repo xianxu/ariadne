@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "c7a2b022", done: "4bdabeb6"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
@@ -87,6 +87,8 @@ ARCH-DRY/PURPOSE: one shared projection for updated admission/status is necessar
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Marker, grant refusal and mixed-policy risk controls observed RED then GREEN; historical/current native flock and real public grant/revoke private harness pass; seven-call clean Go1.27.3 executable conformance passes; focused normal48.597s, race1.739s, TL phrase guards and Go/shell lint pass. Central recorded suite on pushed final code is queued (lease-2043870299); TL-worker permits review overlap, and its pass is required before landing. README/atlas/help/lessons document explicit guarded rollout and manual revoke risk; no live queue or grant changed.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 138 added lines in code files (limit 100)
 
 ### 2026-10-23 — claim, root cause and isolated native reproduction
 
