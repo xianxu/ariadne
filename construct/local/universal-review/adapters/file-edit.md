@@ -86,9 +86,11 @@ One round reviews one snapshot: the text whose hash you write against.
    reply. A no-op answer can use `write --all` with the unchanged snapshot
    solely to fold its owed IDs; it makes no body edit. Generated content and
    frontmatter-only changes use their `write` verbs, whose changes also get
-   a derived round. `write --frontmatter` is the only path for a needed
-   frontmatter change under `presentation-mode: propose`: Pair refuses markers
-   inside frontmatter.
+   a derived round. For a standalone frontmatter-only change under
+   `presentation-mode: propose`, use `write --frontmatter`: Pair refuses markers
+   inside frontmatter. The atomic link/index `apply` batch above remains required
+   when frontmatter accompanies a side-doc link; keep its metadata literal, not
+   wrapped in proposal markers.
 
 Refusals:
 

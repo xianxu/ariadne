@@ -143,7 +143,7 @@ Each ready 🤖 marker is an ask. Classify it, then act:
 | an imperative that is **unclear**, even when the alternatives fit in one line | open a linked side doc asking which reading the operator meant; replace the ready marker and index the doc (§4) |
 | an **instruction that only acts** | honor it (below) |
 | a **decision** or an approval: an answer to a question the text put to the operator ("first in the section", "yes, Friday", "ok") | record it in one line and carry it out (below) |
-| anything else: a **question**, "why…?", "let's think about…", a request whose outcome is not yet an edit | open a **side doc** (§4) and replace the marker with `→ [discussion](<name>.side/NN-slug.md)` |
+| anything else: a **question**, "why…?", "let's think about…", a request whose outcome is not yet an edit | open a **side doc** (§4) and replace the marker with `→ [discussion](<name>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md)` |
 
 - **The rule is strict.** Every question branches, even a small factual one ("is this number right?"). Never answer a
   question in the document's prose. The operator phrases an imperative ("check this number and fix it") to get an
@@ -382,7 +382,7 @@ relative, so a move that keeps the file name keeps everything resolving. When yo
   **orphan** (its document is gone; a taken `spec.md` would stop the move). Rename the orphan to `spec_1.side/` (then
   `_2`, … until free), and give the moving document `spec.side/`: every tool finds a document's side docs from its
   file name. Name where the orphan went in the reply.
-- **A side doc keeps its name for life:** links and entries point at its `NN-slug`. Don't rename one inside the
+- **A side doc keeps its name for life:** links and entries point at its original path. Don't rename one inside the
   folder. When you find a dangling link or entry, name it in the reply.
 - **Links into the folder from other documents** are not rewritten: side docs are local references.
 
@@ -398,7 +398,7 @@ before/after documents.
 |---|---|---|---|---|
 | 1 | any section | edits text directly, submits | read the changes since your last read; find no ask; write the snapshot back unchanged, folding the submit | the reply "read your edits; no asks" |
 | 2 | discussion | 🤖[tighten this paragraph] | apply the clean paragraph edit and remove the marker; under `presentation-mode: propose`, Couch writes proposal markers instead (round.md §5) | the changed paragraph, or a proposal to accept or reject |
-| 3 | discussion | 🤖[why do we lock per file, not per section?] | create `<name>.side/NN-lock-granularity.md` holding the question and its answer; replace the marker with `→ [discussion](…)` | the link where the marker was; the text otherwise unchanged |
+| 3 | discussion | 🤖[why do we lock per file, not per section?] | create `<name>.side/YYYY-MM/YYYY-MM-DD-NN-lock-granularity.md` holding the question and its answer; replace the marker with `→ [discussion](…)` | the link where the marker was; the text otherwise unchanged |
 | 4 | discussion | 🤖[add the numbers], with two readings | open a side doc asking which numbers; replace the marker with its link and index the doc | the link and an indexed question |
 | 5 | discussion, unsure | 🤖[the retry story feels off] | treat it as a question: a side doc proposing what is off | a `→ [discussion]` link |
 | 6 | side doc | 🤖[a follow-up question] | open a further side doc under the same side root in the round's month folder, `parent:` naming this one, and link it here | a link in the side doc; the parent untouched |
@@ -407,7 +407,7 @@ before/after documents.
 | 9 | side doc | 🤖[file this as a parley issue] | file it; add a closing record at the end of the side doc | the side doc's record |
 | 10 | parent, after a discussion | 🤖[fold in] by the link | edit the parent from what the side doc settled, through the parent's write; mark the link `(folded <date>)`; add a closing note to the side doc; add no entry | the folded text and the folded link |
 | 11 | collaboration | 🤖[why…?] | answer in place, folded into clean prose | the answer in the text |
-| 12 | chat | adds item `5. what does S4 cost?` | create `<name>.side/<date>-NN-s4-cost.md`; append ` → [answer](…)` to item 5 | the link at item 5's end |
+| 12 | chat | adds item `5. what does S4 cost?` | create `<name>.side/YYYY-MM/YYYY-MM-DD-NN-s4-cost.md`; append ` → [answer](…)` to item 5 | the link at item 5's end |
 | 13 | chat | adds item `6. move #353 to :2` | do it; the answer doc records what was done and where; append the link | the link; the reply says it was done |
 | 14 | chat | edits a linked item, or one of its sub-items | append the follow-up and its answer to the item's answer doc; leave the link | the reply names the doc it extended |
 | 15 | chat | deletes an item | drop its answer doc's index entry; the doc stays | the item and the entry gone; the doc kept |

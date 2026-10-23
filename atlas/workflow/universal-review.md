@@ -36,6 +36,9 @@ skill carries the rest.
   (Parley, Couch and tl-lead's side-doc helpers) write all three mode keys explicitly, preserving set values.
   Legacy-only choices are materialized under canonical keys without rewriting aliases; there is no blanket
   rewrite of existing documents. Runtime adoption belongs to the corresponding consumer implementation.
+  Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section publication: new
+  month paths require a real filename date matching the sole month directory and a parent resolved from
+  that directory; legacy dated flat targets remain accepted. It does not fill or rewrite answer documents.
 - **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
 - **`examples/`** — reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
   submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round

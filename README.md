@@ -32,6 +32,7 @@ directly under a heading overrides any of the three for that section, for exampl
 Creators write all three defaults explicitly when filling missing frontmatter,
 preserving existing choices and readable legacy aliases. New side docs live at
 `<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`; existing flat names stay valid.
+`tl-lead status instructions link` accepts both layouts and checks the corresponding parent before publishing.
 
 In universal review, effective `presentation-mode: propose` asks the edit
 engine to show prose changes as proposals. Tracked Couch documents use

@@ -12,11 +12,13 @@ import (
 // also apply the prose contract to these inputs.
 func TestEditorialFrontmatterFillExamples(t *testing.T) {
 	for _, tc := range []struct {
-		name, presentation, processing, instruction string
+		name, collaboration, presentation, processing, instruction string
 	}{
-		{"empty", "highlight", "free-form", ""},
-		{"existing", "direct", "proofreading", ""},
-		{"legacy", "propose", "copy-editing", "Fix punctuation."},
+		{"empty", "discussion", "highlight", "free-form", ""},
+		{"existing", "discussion", "direct", "proofreading", ""},
+		{"legacy", "discussion", "propose", "copy-editing", "Fix punctuation."},
+		{"canonical-instruction", "chat", "propose", "copy-editing", "Keep the operator's exact brief."},
+		{"canonical-mode", "collaboration", "highlight", "fact-check", "Keep this legacy brief."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			read := func(tree string) string {
@@ -33,7 +35,7 @@ func TestEditorialFrontmatterFillExamples(t *testing.T) {
 				t.Fatal("filled document lacks frontmatter")
 			}
 			for k, v := range map[string]string{
-				"collaboration-mode": "discussion", "presentation-mode": tc.presentation,
+				"collaboration-mode": tc.collaboration, "presentation-mode": tc.presentation,
 				"processing-mode": tc.processing, "processing-instruction": tc.instruction,
 			} {
 				if got[k] != v {
