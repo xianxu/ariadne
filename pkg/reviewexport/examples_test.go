@@ -699,7 +699,8 @@ var numberedItem = regexp.MustCompile(`^\d+\. `)
 // checkChat holds a case to the chat grammar through sidedoc.ChatSections
 // (#575), the oracle pair and parley copy: every answer link the round adds
 // sits in a chat section, every numbered item of a @@chat@@ section ends the
-// round answered, and each misplaced tag is named in the reply.
+// round answered, each misplaced tag is named in the reply, and the reply
+// carries the oracle's legacy-key notices verbatim.
 func checkChat(fsys fs.FS) []string {
 	var errs []string
 	cm, err := fs.ReadFile(fsys, "case.md")
@@ -741,6 +742,14 @@ func checkChat(fsys fs.FS) []string {
 			if !answered {
 				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, i+1))
 			}
+		}
+	}
+	// The reply carries ChatSections' notices verbatim, read from the document
+	// as submitted (its line numbers count in before/), so the fixtures pair
+	// and parley pin agree with the oracle word for word.
+	for _, n := range sidedoc.ChatSections(string(before)).Notices {
+		if !strings.Contains(strings.Join(strings.Fields(string(cm)), " "), n) {
+			errs = append(errs, fmt.Sprintf("the reply lacks the notice %q", n))
 		}
 	}
 	for _, n := range scan.Misplaced {

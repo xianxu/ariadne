@@ -85,7 +85,7 @@ The unified model applies everywhere, issues, plans and projects included. Legac
 | `Brief` / `ParseBrief` (was `Mode` / `ParseMode`) | `pkg/reviewexport/export.go` | modified |
 | `exportedCases` | `pkg/reviewexport/export.go` | new |
 | `checkCase` side-doc frontmatter rule | `pkg/reviewexport/examples_test.go` | modified |
-| `chatSections` (tag, legacy scalar, map and comment → chat extents) | `pkg/reviewexport/chat.go` | new |
+| `ChatSections` (tag, legacy scalar, map and comment → chat extents; see Revisions) | `pkg/sidedoc/chat.go` | new |
 
 - **Brief / ParseBrief**: parses `briefs/*.md`, requiring flat frontmatter with exactly `name` equal to the basename. It replaces `Mode` and drops `order`, `scope`, `frontier` and the defaults map. Tests: `export_test.go` `TestParseBrief` covers an accepted brief, a name mismatch, a leftover `scope:` and a leftover `order:` (each refused).
 - **exportedCases**: the one list of example cases exported as fixtures. Build and `TestExportCurrent` read it (ARCH-DRY, one source). Today that list is hard-coded as "move cases".
@@ -183,3 +183,10 @@ Both read the real skill tree through `os.DirFS`, as today, and there's no new e
 ## Done-when mapping
 - The spec states the model, the `@@chat@@` grammar, the scope rules and the legacy mapping, with exported fixtures → Tasks 3, 4 and 1 (the exported set).
 - No spec text asks a creator or filler to write mode keys → the Task 5 retired-phrase guard, plus the checker rule that new side docs carry no mode keys (Task 4).
+
+## Revisions
+
+- 2026-10-23 (implementation): `chatSections` became `ChatSections` in `pkg/sidedoc/chat.go`, not `pkg/reviewexport/chat.go`. pkg/sidedoc is the side-doc library tl-lead and sdlc already import, so #576's tl-lead adoption reuses it instead of a third heading scanner (ARCH-DRY). It also exports `RetiredKeys`, which the checker and the guard share.
+- 2026-10-23 (implementation): Task 5's guard, `TestNoSpecWritesModeKeys`, covers `round.md`, `SKILL.md`, `briefs/*.md` and `collaboration-modes.md` before §7. It excludes `adapters/file-edit.md` and the root README, which name `presentation-mode: propose` only to describe what Couch still does to older documents until pair#838.
+- 2026-10-23 (close review round 1): the chat tag counts only above an ATX heading, because CommonMark folds a line above a setext heading into the heading, and never inside indented code. Replies carry `ChatSections`' notices verbatim, with line numbers counted in the submitted document, and `checkChat` enforces it on every case. A map's retired `default:` and unread CRLF frontmatter are now noticed.
+

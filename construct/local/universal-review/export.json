@@ -5,8 +5,8 @@
     {
       "role": "round",
       "path": "round.md",
-      "bytes": 5058,
-      "sha256": "02abca289dd664629a7917eece5486b01a30b5ca40d2d0f74c7e13543dc7aed4"
+      "bytes": 5073,
+      "sha256": "dc320a784caa329e7dfee5f37ea057d4583fdb641aa315d5e92f0f83340c37c9"
     },
     {
       "role": "grammar",
@@ -18,15 +18,15 @@
     {
       "role": "collaboration-modes",
       "path": "collaboration-modes.md",
-      "bytes": 29248,
-      "sha256": "887a543b86dc0559dd2a44d86a4078e9a65909d3b8a837a5335aba77994bba83"
+      "bytes": 29533,
+      "sha256": "ccd7460a2f547dc2f0fe091c4c37ad5425517882ab664b8f852b6ebdd9bf9ee8"
     },
     {
       "role": "adapter",
       "name": "file-edit",
       "path": "adapters/file-edit.md",
-      "bytes": 10480,
-      "sha256": "053e0e334ed990590bfa6029e8e59ff4451f70b66f3a5dc0bfc7dfe3f8e082cd"
+      "bytes": 10497,
+      "sha256": "d6ad8c8db78af9e6f83161e02c4753d2d6ae4967344ae55be3b51e2e2c64e7b1"
     },
     {
       "role": "brief",
@@ -270,8 +270,8 @@
       "role": "fixture",
       "name": "legacy-chat-comment",
       "path": "examples/legacy-chat-comment/case.md",
-      "bytes": 569,
-      "sha256": "dbbac2c34695b37a00e24b522ef5f8d9e5067289ebeae9aadf2247975af726dc"
+      "bytes": 685,
+      "sha256": "3cecf380588adf696e549a711da6cbded2b25e53a7cc47a32ba8288d984140cd"
     },
     {
       "role": "fixture",
@@ -298,8 +298,8 @@
       "role": "fixture",
       "name": "legacy-chat-map",
       "path": "examples/legacy-chat-map/case.md",
-      "bytes": 484,
-      "sha256": "9557be35e73771e42c532ee557b3dc7dd3ed2ebb57319bb4c613f71583d8b6e8"
+      "bytes": 551,
+      "sha256": "99aeaabca65ccceb99708e1ae88d033b7502a01af53c96fb10bbad402a0fbacf"
     },
     {
       "role": "fixture",
@@ -361,8 +361,8 @@
       "role": "fixture",
       "name": "legacy-keys-ignored",
       "path": "examples/legacy-keys-ignored/case.md",
-      "bytes": 629,
-      "sha256": "ba82a20231a75dd7f764a7a13314bf3f27de9295ae12af0da44355dfaf3eb46b"
+      "bytes": 659,
+      "sha256": "cd2db06d3bb23d9a51d11b1a631a7944a1916b36a5a35dd9685adda1075d5755"
     },
     {
       "role": "fixture",

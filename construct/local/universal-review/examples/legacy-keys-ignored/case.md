@@ -10,5 +10,5 @@ and nothing fails. Every key line stays byte for byte; only the index is added.
 ## Reply
 
 - Opened note.side/2026-10/2026-10-23-01-why-cap.md for the question on the cap.
-- collaboration-mode: collaboration is retired and ignored; retired keys ignored: presentation,
-  presentation-mode, process-instruction, processing-instruction, processing-mode.
+- collaboration-mode: collaboration is retired and ignored: one collaborative mode applies
+- retired keys ignored: presentation, presentation-mode, process-instruction, processing-instruction, processing-mode

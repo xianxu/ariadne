@@ -89,6 +89,6 @@ an untracked document, report the observed before/after diff instead; no Couch
 round exists. Then name what you left for the operator (open questions,
 pending markers), each side doc or answer doc you created, extended or
 relinked, every misplaced `@@chat@@` tag, every legacy map name that matches no
-heading, every orphan side doc (collaboration-modes.md §4), and one notice line
-for the legacy mode keys the document carries (§7 there). A refused write is
+heading, every orphan side doc (collaboration-modes.md §4), and the notice lines for
+the legacy mode keys the document carries, worded as §7 there says. A refused write is
 reported the same way and leaves the document unchanged; a mode key never is.

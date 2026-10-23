@@ -50,6 +50,26 @@ func TestChatSections(t *testing.T) {
 			misplaced: []int{1},
 		},
 		{
+			name:      "tag above a setext heading: CommonMark folds it into the heading, so it is misplaced",
+			doc:       "@@chat@@\nOps\n---\n1. a\n",
+			misplaced: []int{1},
+		},
+		{
+			name: "tag in indented code directly above a heading: code, not a tag",
+			doc:  "para\n\n    @@chat@@\n## Ops\n1. a\n",
+		},
+		{
+			name:    "a map default of a retired or unknown value is named",
+			doc:     "---\ncollaboration-mode: {default: debate, chat: [Q]}\n---\n## Q\n- a\n",
+			want:    []sec{{4, 5, "legacy-map"}},
+			notices: []string{"collaboration-mode map", "map default: debate"},
+		},
+		{
+			name:    "CRLF frontmatter is not read, and says so",
+			doc:     "---\r\ncollaboration-mode: chat\r\n---\r\n- a\r\n",
+			notices: []string{"CRLF"},
+		},
+		{
 			name: "other @@tag@@ lines are parley's, not review's",
 			doc:  "@@label@@\n## Ops\n",
 		},
@@ -63,7 +83,7 @@ func TestChatSections(t *testing.T) {
 			name:    "legacy block map: named sections by normalized name",
 			doc:     "---\ncollaboration-mode:\n  default: discussion\n  chat: [\"operator  Instructions\"]\n---\n# T\n### Operator instructions (open)\n- a\n## Next\n",
 			want:    []sec{{7, 8, "legacy-map"}},
-			notices: []string{"collaboration-mode map"},
+			notices: []string{"collaboration-mode map", "map default: discussion"},
 		},
 		{
 			name:    "legacy flow map",

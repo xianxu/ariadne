@@ -137,8 +137,8 @@ the reply rather than inventing a list of edits.
 
 ## Side docs and a parent
 
-A round in discussion or chat mode may create side docs and may fold into a
-parent document (`../collaboration-modes.md` §4 orders the writes). A new side
+A round that answers a question or a chat item may create side docs, and a
+fold-in changes a parent document (`../collaboration-modes.md` §4 orders the writes). A new side
 doc keeps the existing create/write path: no one holds a lock on a file that
 doesn't exist yet. Every existing document the round changes, the submitted
 one and a parent alike, takes its own path above or below by its own tracked

@@ -49,7 +49,7 @@ docs' names and frontmatter; and which files are unchanged.
 **Older cases** keep legacy keys, maps and flat side-doc names in their documents as compatibility fixtures: their
 `before/` files are what older documents look like, not what new writers emit. `chat` is the comprehensive legacy
 map case (tl-lead's tests read it); `legacy-collaboration` shows the retired `collaboration` value no longer
-answering in place. A reply to a document carrying legacy keys also has §7's notice line; older cases' replies may
-omit it.
+answering in place. A reply to a document carrying legacy keys ends with §7's notice lines, exactly as `ChatSections` words them;
+`checkChat` holds every case to that.
 
 The work the cases file or dispatch (an issue number, a slot move) is illustrative.

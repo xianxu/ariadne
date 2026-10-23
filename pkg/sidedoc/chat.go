@@ -50,7 +50,7 @@ const chatTag = "@@chat@@"
 var modeComment = regexp.MustCompile(`^<!--\s*(.*?)\s*-->\s*$`)
 
 // ChatSections scans a document for its chat sections: a `@@chat@@` line
-// directly above an ATX or setext heading, outside code, makes that section
+// directly above an ATX heading, outside fenced or indented code, makes that section
 // chat; so do the legacy forms that meant chat (a `collaboration-mode: chat`
 // scalar, a section map's chat names, a heading comment). Every other mode
 // key or value is retired: noticed, ignored. Headings come from goldmark, so a
@@ -64,6 +64,9 @@ func ChatSections(doc string) ChatScan {
 		total--
 	}
 	fm, body, hasFM := frontmatter(doc)
+	if !hasFM && strings.HasPrefix(doc, "---\r\n") {
+		scan.Notices = append(scan.Notices, "frontmatter has CRLF line endings, so any legacy mode keys in it were not read")
+	}
 	bodyStart := 1 // the body's first line, 1-based
 	if hasFM {
 		bodyStart = len(fm) + 3 // the two fences and the frontmatter lines
@@ -100,15 +103,27 @@ func ChatSections(doc string) ChatScan {
 		return total
 	}
 
+	// A tag is a line holding only @@chat@@ outside code (fenced or indented),
+	// and it counts only directly above an ATX heading: CommonMark folds a
+	// line above a setext heading into that heading's text.
 	literal, _ := CodeLiteralMask(body)
+	tagLine := map[int]bool{}
 	off := 0
 	for i := bodyStart - 1; i < len(lines); i++ {
 		l := lines[i]
 		lead := len(l) - len(strings.TrimLeft(l, " \t"))
-		if strings.TrimSpace(l) == chatTag && !(off+lead < len(literal) && literal[off+lead]) && !isHeading[i+2] {
-			scan.Misplaced = append(scan.Misplaced, i+1)
+		if strings.TrimSpace(l) == chatTag && !(off+lead < len(literal) && literal[off+lead]) {
+			tagLine[i+1] = true
 		}
 		off += len(l) + 1
+	}
+	atx := func(line int) bool {
+		return isHeading[line] && strings.HasPrefix(strings.TrimLeft(lines[line-1], " "), "#")
+	}
+	for i := bodyStart; i <= len(lines); i++ {
+		if tagLine[i] && !atx(i+1) {
+			scan.Misplaced = append(scan.Misplaced, i)
+		}
 	}
 
 	if scalarChat {
@@ -117,7 +132,7 @@ func ChatSections(doc string) ChatScan {
 	matched := map[string]bool{}
 	for i, h := range headings {
 		source := ""
-		if h.line >= 2 && strings.TrimSpace(lines[h.line-2]) == chatTag {
+		if tagLine[h.line-1] && atx(h.line) {
 			source = "tag"
 		}
 		if h.line < len(lines) {
@@ -173,6 +188,8 @@ func (s *ChatScan) readFrontmatter(fm []string) (wholeChat bool, names []string)
 				switch {
 				case k == "default" && v.Value == "chat":
 					wholeChat = true
+				case k == "default":
+					s.Notices = append(s.Notices, fmt.Sprintf("collaboration-mode map default: %s is retired and ignored", v.Value))
 				case k == "chat":
 					for _, item := range append([]*yaml.Node{v}, v.Content...) {
 						if item.Kind == yaml.ScalarNode && item.Value != "" {

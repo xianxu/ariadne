@@ -10,4 +10,5 @@ retired and changes nothing. The map lines stay.
 ## Reply
 
 - Answered "Why now?" in status.side/2026-10/2026-10-23-01-why-now.md.
-- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@.
+- collaboration-mode map default: discussion is retired and ignored
+- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@

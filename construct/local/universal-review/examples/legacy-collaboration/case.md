@@ -10,4 +10,5 @@ too. The key lines stay byte for byte; the index is added.
 ## Reply
 
 - Opened notes.side/2026-10/2026-10-23-01-lock-granularity.md for the question on lock granularity.
-- collaboration-mode: collaboration is retired and ignored; retired keys ignored: process-instruction.
+- collaboration-mode: collaboration is retired and ignored: one collaborative mode applies
+- retired keys ignored: process-instruction

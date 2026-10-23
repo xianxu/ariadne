@@ -10,3 +10,4 @@ so the link never landed and the item is unlinked. This round relinks the answer
 ## Reply
 
 - Item 1: linked status.side/2026-10-16-01-s4-cost.md, which an earlier round wrote before its write was refused.
+- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@

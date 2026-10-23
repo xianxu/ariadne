@@ -104,8 +104,9 @@ A **`@@chat@@`** line directly above a heading makes that section chat:
 2. Move #353 to :2.
 ```
 
-- **The tag** is a line holding only `@@chat@@` (surrounding spaces allowed), on the line directly above an ATX or
-  setext heading, outside fenced code. Its section runs from the heading to the next heading of the same or a higher
+- **The tag** is a line holding only `@@chat@@` (surrounding spaces allowed), on the line directly above an ATX
+  (`#`) heading, outside fenced or indented code. A line above a setext heading is part of that heading's text in
+  CommonMark, so a tag there is misplaced. Its section runs from the heading to the next heading of the same or a higher
   level, subsections included.
 - **A misplaced tag** (a blank line or text between it and the heading, or no heading after it) is ordinary text.
   Name it in the reply: "`@@chat@@` at line 12 is not directly above a heading". Other `@@tag@@` lines are parley's
@@ -337,8 +338,10 @@ them**, and a round never deletes or rewrites one of their lines.
 
 - A legacy chat section keeps its old item grammar: `-`, `*` and `N.` items. A `@@chat@@` tag and a legacy form on
   the same heading are one chat section, not a conflict.
-- **Report, never fail.** The reply carries one notice line per document naming the legacy keys it read or ignored,
-  as `pkg/sidedoc`'s `ChatSections` words them (for example "retired keys ignored: presentation-mode,
-  processing-mode"). A mode key never fails a round and never makes it write nothing.
+- **Report, never fail.** The reply carries the notice lines `pkg/sidedoc`'s `ChatSections` produces for the
+  document as submitted, word for word, one per legacy form (for example "retired keys ignored: presentation-mode,
+  processing-mode"); a line number in a notice counts lines of the submitted document, frontmatter included. A
+  mode key never fails a round and never makes it write nothing. Frontmatter with CRLF line endings is not read,
+  and its notice says so.
 - In a chat section, an item that ends in `→ done: …` (the TL's older form of an answered instruction) counts as
   answered, like a linked one.
