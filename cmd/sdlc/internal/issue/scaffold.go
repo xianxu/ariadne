@@ -193,6 +193,37 @@ func Slugify(title string) string {
 	return strings.Trim(hyphenRunRE.ReplaceAllString(b.String(), "-"), "-")
 }
 
+// MaxSlugBytes caps an issue filename slug (#566). The longest derived sibling,
+// <stem>-close-review.md, then stays near 100 bytes, far inside the 255-byte
+// file-name limit of every checkout.
+const MaxSlugBytes = 80
+
+// FileSlug is the slug an issue's files are named with: the operator's explicit
+// slug, validated, or the title's Slugify cut at the last word boundary within
+// MaxSlugBytes. Every filer and the rename use it (#566).
+func FileSlug(title, explicit string) (string, error) {
+	if explicit != "" {
+		if explicit != Slugify(explicit) || len(explicit) > MaxSlugBytes {
+			return "", fmt.Errorf("slug %q must be lowercase words joined by single hyphens, at most %d bytes", explicit, MaxSlugBytes)
+		}
+		return explicit, nil
+	}
+	s := Slugify(title)
+	if len(s) > MaxSlugBytes {
+		cut := s[:MaxSlugBytes]
+		if s[MaxSlugBytes] != '-' {
+			if i := strings.LastIndexByte(cut, '-'); i > 0 {
+				cut = cut[:i]
+			}
+		}
+		s = strings.TrimRight(cut, "-")
+	}
+	if s == "" {
+		return "", fmt.Errorf("title %q produced an empty slug; pass --slug", title)
+	}
+	return s, nil
+}
+
 // ScaffoldSpec carries the inputs for rendering a new issue file from the
 // canonical template. The optional fields default cleanly: empty
 // GithubIssue/ProblemBody → a blank issue; populated → the --from-github
