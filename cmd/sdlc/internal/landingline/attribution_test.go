@@ -51,7 +51,52 @@ func TestClassifySplit(t *testing.T) {
 					t.Errorf("reason %q names nonsupporting evidence %q", got.Reason, fragment)
 				}
 			}
+			// #561: escapes are exactly the qualifying failures, and only
+			// when the verdict blames the candidate.
+			var want []string
+			if tc.kind == AttributionAttributable {
+				for _, f := range tc.failures {
+					if f.Impact == ImpactAffected && f.RegisteredIssue == "" && f.Test != "" {
+						want = append(want, f.Test)
+					}
+				}
+			}
+			slices.Sort(want)
+			if !slices.Equal(got.Escapes, want) {
+				t.Errorf("escapes %v, want %v", got.Escapes, want)
+			}
 		})
+	}
+}
+
+// #561: several qualifying failures are all retained, sorted.
+func TestClassifySplitRetainsEveryEscape(t *testing.T) {
+	got := ClassifySplit([]SplitFailure{
+		{Test: "p/TestB", Impact: ImpactAffected}, {Test: "p/TestFlake", RegisteredIssue: "9", Impact: ImpactAffected},
+		{Test: "q/TestOther", Impact: ImpactUntouched}, {Test: "p/TestA", Impact: ImpactAffected},
+	}, "")
+	if got.Kind != AttributionAttributable || !slices.Equal(got.Escapes, []string{"p/TestA", "p/TestB"}) {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// #561 cost model: classification visits each failure once; N and 2N
+// failures cost exactly twice as much.
+func TestTrainFailureMeasurementWorkIsLinear(t *testing.T) {
+	work := func(n int) int {
+		var failures []SplitFailure
+		for i := range n {
+			failures = append(failures, SplitFailure{Test: "p/Test" + strings.Repeat("x", i), Impact: ImpactAffected})
+		}
+		visits := 0
+		got := classifySplit(failures, "", func() { visits++ })
+		if len(got.Escapes) != n {
+			t.Fatalf("%d escapes for %d failures", len(got.Escapes), n)
+		}
+		return visits
+	}
+	if a, b := work(8), work(16); a != 8 || b != 16 {
+		t.Fatalf("visits %d at 8, %d at 16", a, b)
 	}
 }
 
@@ -81,7 +126,7 @@ func TestClassifySplitDeterministicWithoutMutation(t *testing.T) {
 			rotated := append(slices.Clone(failures[i:]), failures[:i]...)
 			slices.Reverse(rotated)
 			before := slices.Clone(rotated)
-			if got := ClassifySplit(rotated, ""); got != want {
+			if got := ClassifySplit(rotated, ""); !reflect.DeepEqual(got, want) {
 				t.Errorf("order changed result: %+v, want %+v", got, want)
 			}
 			if !reflect.DeepEqual(rotated, before) {

@@ -195,6 +195,10 @@ type Readiness struct {
 	// mismatch marks that Since stale: it is trusted only on a vouch written
 	// by an sdlc that maintains it (#475).
 	SinceStamp time.Time `json:"since_stamp,omitzero"`
+	// Proof is the record that satisfied the car's CI gate (#561), for train
+	// measurements only: AcceptedProof trusts it only when bound to this
+	// vouch, and it never decides readiness.
+	Proof *BoardingProof `json:"proof,omitempty"`
 	// Extra holds members a later sdlc wrote that this one doesn't know.
 	// They survive a rewrite of the same ticket's vouch (ARCH-EVOLVE).
 	Extra map[string]json.RawMessage `json:"-"`
@@ -205,6 +209,7 @@ func readinessFields(r *Readiness) map[string]any {
 	return map[string]any{
 		"version": &r.Version, "seq": &r.Seq, "branch": &r.Branch, "head": &r.Head, "pr": &r.PR,
 		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since, "since_stamp": &r.SinceStamp,
+		"proof": &r.Proof,
 	}
 }
 

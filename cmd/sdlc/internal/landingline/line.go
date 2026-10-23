@@ -372,7 +372,13 @@ func (l *Line) Vouch(h *Handle, r Readiness) error {
 			if prev, err := DecodeReadiness(old); err == nil && prev.Seq == h.ticket.Seq {
 				r.Extra = mergeExtra(prev.Extra, r.Extra)
 				r.Since = carrySince(&prev, r)
+				r.Proof = carryProof(prev.Proof, r.Proof)
 			}
+		}
+		if r.Proof != nil {
+			p := *r.Proof
+			p.Stamp = r.At // the observation this proof belongs to (#561)
+			r.Proof = &p
 		}
 		if r.Since.IsZero() {
 			r.Since = carrySince(nil, r)
