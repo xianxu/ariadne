@@ -147,6 +147,10 @@ Migration preserves verified legacy close evidence and reports each adoption's
 measurement class. For an older cutover missing a close binding, inspect
 `sdlc issue migrate --repair-completions --issue N`, then apply its reviewed
 digest. See [legacy completion recovery](atlas/workflow/issue-tracker-migration.md#legacy-completion-recovery).
+An exact old unmarked import may use a proven archive/done end solely to show
+that it predates a new actual's earliest legacy prefix or engagement. The report
+labels this disjointness; it does not repair or replay-verify the old actual or
+review. Overlap, equality and modern corrupt evidence still refuse.
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent

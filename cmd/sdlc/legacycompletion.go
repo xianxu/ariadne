@@ -28,6 +28,12 @@ type legacySourceState struct{ commit, path, fm, status string }
 // resolveLegacyCompletion reads only immutable objects. Missing old inputs may
 // establish a windowless adoption; malformed saved evidence never does.
 func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository string, source tracker.MigrationFile, plans string) (legacyCompletionProof, error) {
+	return resolveLegacyGeneration(ctx, root, sourceMain, repository, source, plans, false)
+}
+
+// archiveBoundOnly proves the terminal generation, never review or measured
+// credit. Only the old unmarked-import path may request this weaker fact.
+func resolveLegacyGeneration(ctx context.Context, root, sourceMain, repository string, source tracker.MigrationFile, plans string, archiveBoundOnly bool) (legacyCompletionProof, error) {
 	var out legacyCompletionProof
 	fail := func(message string) (legacyCompletionProof, error) {
 		return out, fmt.Errorf("legacy completion %s: %s", source.Path, message)
@@ -167,7 +173,7 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 		}
 		messages[state.commit] = message
 		bearing := strings.Contains(message, "Review-Verdict:") || strings.Contains(message, "Review-Window:")
-		if !bearing && (state.status == "done" || state.status == "codecomplete") && strings.Contains(strings.Split(message, "\n")[0], ": close") {
+		if !archiveBoundOnly && !bearing && (state.status == "done" || state.status == "codecomplete") && strings.Contains(strings.Split(message, "\n")[0], ": close") {
 			return fail("close is missing review evidence")
 		}
 		observations = append(observations, tracker.LegacyCloseEvidence{Position: i, Commit: state.commit, Path: state.path, Status: state.status, Actual: field(state.fm, "actual_hours"), Started: field(state.fm, "started"), HasReview: bearing})
@@ -187,6 +193,9 @@ func resolveLegacyCompletion(ctx context.Context, root, sourceMain, repository s
 		if _, err := ownedActualGit(ctx, root, "merge-base", "--is-ancestor", candidate.Commit, selected.CloseCommit); err != nil {
 			return fail("incomparable legacy close generations")
 		}
+	}
+	if archiveBoundOnly {
+		return out, nil // HasCompletion stays false; no review/actual is certified.
 	}
 
 	for _, s := range states {
@@ -435,6 +444,10 @@ func legacyScalarFields(fm string) (map[string]string, error) {
 // Root membership and exact archived generation are positive authority; a
 // missing completion on any other card is never evidence of a legacy close.
 func recoverUnboundLegacyAdoption(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string) (issue.LegacyAdoption, bool, error) {
+	return recoverUnboundLegacyGeneration(ctx, root, trackerPin, rec, repository, plans, false)
+}
+
+func recoverUnboundLegacyGeneration(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string, archiveBoundOnly bool) (issue.LegacyAdoption, bool, error) {
 	var zero issue.LegacyAdoption
 	if rec.Card == nil || rec.Status() != "done" {
 		return zero, false, nil
@@ -443,6 +456,9 @@ func recoverUnboundLegacyAdoption(ctx context.Context, root, trackerPin string, 
 		return zero, false, err
 	}
 	if _, corrected, err := issue.CardActualCorrection(rec.Card.Raw); err != nil || corrected {
+		return zero, false, err
+	}
+	if _, marked, err := issue.CardLegacyAdoption(rec.Card.Raw); err != nil || marked {
 		return zero, false, err
 	}
 	actual, err := strconv.ParseFloat(rec.Text("actual_hours"), 64)
@@ -499,7 +515,7 @@ func recoverUnboundLegacyAdoption(ctx context.Context, root, trackerPin string, 
 	if path.Dir(source.Path) != vocab.ArchiveSubdir(vocab.Issue().Discovery().Archive, vocab.ArchiveIssues) {
 		return zero, false, nil
 	}
-	proof, err := resolveLegacyCompletion(ctx, root, sourceMain, repository, source, plans)
+	proof, err := resolveLegacyGeneration(ctx, root, sourceMain, repository, source, plans, archiveBoundOnly)
 	if err != nil {
 		return zero, false, err
 	}
@@ -517,6 +533,10 @@ func recoverLegacyTerminalAdoption(ctx context.Context, root, trackerPin string,
 	if err != nil || !proven {
 		return time.Time{}, err
 	}
+	return legacyTerminalEnd(ctx, root, adoption)
+}
+
+func legacyTerminalEnd(ctx context.Context, root string, adoption issue.LegacyAdoption) (time.Time, error) {
 	timestamp, err := ownedActualGit(ctx, root, "show", "-s", "--format=%cI", adoption.TerminalCommit)
 	if err != nil {
 		return time.Time{}, err
@@ -526,6 +546,16 @@ func recoverLegacyTerminalAdoption(ctx context.Context, root, trackerPin string,
 		return time.Time{}, fmt.Errorf("legacy terminal object timestamp: %w", err)
 	}
 	return end, nil
+}
+
+// An archive bound is relevance evidence only. Strict close, repair and replay
+// callers continue through recoverLegacyTerminalAdoption instead.
+func recoverLegacyArchiveBound(ctx context.Context, root, trackerPin string, rec tracker.IssueRecord, repository, plans string) (time.Time, error) {
+	adoption, proven, err := recoverUnboundLegacyGeneration(ctx, root, trackerPin, rec, repository, plans, true)
+	if err != nil || !proven {
+		return time.Time{}, err
+	}
+	return legacyTerminalEnd(ctx, root, adoption)
 }
 
 // legacyGenerationHistory is the shared repair and exclusion authority fence.

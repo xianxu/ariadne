@@ -613,9 +613,9 @@ func TestLegacyAdoptionExclusionUsesEarliestEngagement(t *testing.T) {
 // the transcript itself, rather than accept a hand-built measurement window.
 func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testing.T) {
 	for _, mode := range []struct {
-		name                   string
-		closeBacked, oldImport bool
-	}{{"terminal", false, false}, {"close", true, false}, {"old-terminal", false, true}} {
+		name                            string
+		closeBacked, oldImport, damaged bool
+	}{{"terminal", false, false, false}, {"close", true, false, false}, {"old-terminal", false, true, false}, {"old-partial-ledger", false, true, true}} {
 		for _, parked := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/parked-%v", mode.name, parked), func(t *testing.T) {
 				t.Setenv("HOME", t.TempDir())
@@ -624,10 +624,18 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 				if mode.oldImport {
 					// This generation was born archived; there was never a
 					// review-bearing close or active-to-archive transition.
-					root := testfix.Repo(t, testfix.InitialCommit())
-					f := legacyProofFixture{t: t, root: root, archive: "workshop/history/issues/000001-example.md"}
-					f.write(f.archive, "done", "0.80")
-					f.commit("import born-archived legacy generation")
+					var f legacyProofFixture
+					if mode.damaged {
+						f = newLegacyProofFixture(t)
+						f.archive = "workshop/history/issues/000001-example.md"
+						legacyCapturedClose(t, f)
+						f.terminal()
+					} else {
+						f = legacyProofFixture{t: t, root: testfix.Repo(t, testfix.InitialCommit()), archive: "workshop/history/issues/000001-example.md"}
+						f.write(f.archive, "done", "0.80")
+						f.commit("import born-archived legacy generation")
+					}
+					root := f.root
 					origin := filepath.Join(t.TempDir(), "origin.git")
 					testfix.Git(t, "", "init", "--bare", "-q", "-b", "main", origin)
 					testfix.Git(t, root, "remote", "add", "origin", origin)
@@ -643,6 +651,13 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 				// the imported terminal's 00:10 bound in the parked case.
 				ownedFixtureAt(t, 0)
 				candidate := issue.Render(issue.ScaffoldSpec{ID: "000335", Title: "Later owned work", Today: "2026-10-14"})
+				legacyFirst := 15
+				if mode.damaged {
+					if parked {
+						legacyFirst = 1
+					}
+					candidate = strings.Replace(candidate, "\n---", fmt.Sprintf("\nstarted: 2026-10-14T00:%02d:00Z\n---", legacyFirst), 1)
+				}
 				writeRepoFile(t, r.root, "workshop/issues/000335-owned.md", candidate)
 				r.git("add", "workshop/issues/000335-owned.md")
 				r.git("commit", "-qm", "seed future candidate")
@@ -656,15 +671,33 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 					if err != nil {
 						t.Fatal(err)
 					}
-					in, err := migrationInventory(env, view)
-					if err != nil {
-						t.Fatal(err)
+					var in tracker.MigrationInput
+					if mode.damaged {
+						// Replay the original importer, before strict legacy-close
+						// verification existed. Today's migration must still refuse.
+						archive := "workshop/history/issues/000001-example.md"
+						archived, err := os.ReadFile(filepath.Join(r.root, archive))
+						if err != nil {
+							t.Fatal(err)
+						}
+						in = tracker.MigrationInput{Repository: "github.com/test/example", ObjectFormat: "sha1", Main: strings.TrimSpace(r.git("rev-parse", "HEAD")), Active: []tracker.MigrationFile{{Path: "workshop/issues/000335-owned.md", Raw: []byte(candidate)}}, Archived: []tracker.MigrationFile{{Path: archive, Raw: archived}}}
+					} else {
+						in, err = migrationInventory(env, view)
+						if err != nil {
+							t.Fatal(err)
+						}
 					}
 					in.Legacy = nil
 					manifest := tracker.PlanTrackerMigration(in)
+					if mode.damaged {
+						ownedFixtureAt(t, 18)
+					}
 					root, err := applyTrackerBootstrap(env, manifest)
 					if err != nil {
 						t.Fatal(err)
+					}
+					if mode.damaged {
+						ownedFixtureAt(t, 18)
 					}
 					if err := applyMainCutover(env, manifest, root); err != nil {
 						t.Fatal(err)
@@ -708,7 +741,7 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 					}
 				}
 				first := 20
-				if parked {
+				if parked && !mode.damaged {
 					first = 1
 				}
 				update(first, "claim-first", func(raw []byte) ([]byte, error) {
@@ -719,15 +752,23 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 					return issue.SetCardField(raw, "started", fmt.Sprintf("2026-10-14T00:%02d:00Z", first))
 				})
 				if parked {
-					update(5, "unclaim-park", issue.ClearCardClaimant)
-					update(20, "claim-reclaim", func(raw []byte) ([]byte, error) { return issue.SetCardClaimant(raw, owner) })
+					release, reclaim := 5, 20
+					if mode.damaged {
+						release, reclaim = 22, 25
+					}
+					update(release, "unclaim-park", issue.ClearCardClaimant)
+					update(reclaim, "claim-reclaim", func(raw []byte) ([]byte, error) { return issue.SetCardClaimant(raw, owner) })
 				}
 				file := filepath.Join(os.Getenv("HOME"), ".codex", "sessions", "legacy-later.jsonl")
 				if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
 					t.Fatal(err)
 				}
 				data := fmt.Sprintf("{\"timestamp\":\"2026-10-14T00:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"legacy-later\",\"cwd\":%q}}\n", ownerRoot)
-				for _, minute := range []int{21, 25, 30} {
+				minutes := []int{21, 25, 30}
+				if mode.damaged {
+					minutes = append([]int{16}, minutes...)
+				}
+				for _, minute := range minutes {
 					data += fmt.Sprintf("{\"timestamp\":\"2026-10-14T00:%02d:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335 measured work\"}}\n", minute)
 				}
 				if err := os.WriteFile(file, []byte(data), 0600); err != nil {
@@ -740,6 +781,12 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 					t.Fatal(err)
 				}
 				expectedSince := fmt.Sprintf("2026-10-14T00:%02d:00Z", first)
+				if mode.damaged {
+					expectedSince = fmt.Sprintf("2026-10-14T00:%02d:00Z", legacyFirst)
+					if owned.Snapshot.LegacyPrefix == nil {
+						t.Fatal("hybrid prefix was lost")
+					}
+				}
 				if owned.Snapshot.Since != expectedSince {
 					t.Fatalf("earliest engagement lost: since=%s want=%s engagements=%+v", owned.Snapshot.Since, expectedSince, owned.Snapshot.Engagements)
 				}
@@ -767,6 +814,13 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 					}
 				} else if got.Status != actualMeasured || got.Hours <= 0 || got.Inputs == nil || len(got.Inputs.Sources) == 0 {
 					t.Fatalf("later actual did not measure: %+v", got)
+				}
+				if mode.damaged && !parked {
+					var out bytes.Buffer
+					printActual(&out, got, "")
+					if !strings.Contains(out.String(), "legacy adopted issue #1") || !strings.Contains(out.String(), "not replay-verified") {
+						t.Fatalf("public measurement lost disjointness label: %s", out.String())
+					}
 				}
 			})
 		}

@@ -320,6 +320,16 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 				savedErr = fmt.Errorf("legacy adoption: %w", legacyErr)
 			} else if (!completed && (!explicit || legacy.WindowClass == issue.LegacyWindowlessTerminal)) ||
 				(explicit && completed && legacy.WindowClass == issue.LegacyWindowlessClose) {
+				if !completed && !explicit {
+					end, boundErr := recoverLegacyArchiveBound(ctx, root, rs.Ref, rec, current.Snapshot.Repository, plans)
+					if boundErr != nil {
+						return nil, fmt.Errorf("%s has no trustworthy saved window: legacy adoption archive bound: %w", context, boundErr)
+					}
+					if legacyWindowDisjoint(end, since) {
+						current.Warnings = append(current.Warnings, fmt.Sprintf("legacy adopted issue #%s skipped for disjointness: immutable archive/done end %s is strictly before candidate start %s; actual/review not replay-verified and unchanged", id, end.Format(time.RFC3339Nano), since.Format(time.RFC3339Nano)))
+						continue
+					}
+				}
 				end, proofErr := verifyLegacyAdoption(ctx, root, rs.Ref, rec, current.Snapshot.Repository, plans)
 				if proofErr != nil {
 					return nil, fmt.Errorf("%s has no trustworthy saved window: legacy adoption: %w", context, proofErr)

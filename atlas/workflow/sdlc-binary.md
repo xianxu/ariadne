@@ -1581,6 +1581,17 @@ The chosen intervals are retained inside the candidate's bounded
 `MeasurementInputs`; historical completed actuals replay that same protected
 generation even after other cards or transcripts change.
 
+**Disjoint legacy imports (#569).** An exact old unmarked archive imported at
+the tracker root may have an unverifiable close ledger. The shared bounded
+source/generation reader in `legacycompletion.go` can establish only an immutable
+archive/done end, without yielding completion or measured-credit authority.
+`actualexclusion.go` skips that adoption only when its end strictly precedes the
+candidate's earliest prefix/engagement and prints the issue, bound and unverified
+status. Original actual/review validity stays unchanged. Source mismatch,
+reopen/correction/provenance changes, equality, overlap and modern corruption
+remain strict. Historical retained measurement replay is unchanged; no persisted
+schema is added. The Pair#151 ledger capture guards the independent facts.
+
 `computeActualForCloseFn` explicitly selects `actualCloseCandidate`: a close
 derives new ownership-proven inputs at current HEAD/current tracker, even when
 the card holds an older completion or actual correction. `computeActualFor`

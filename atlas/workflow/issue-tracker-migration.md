@@ -103,6 +103,13 @@ admitted candidate engagement. Old unmarked born-archived root cards can recover
 terminal provenance read-only through the same verifier; their card stays
 unchanged. Overlap/equality, damaged snapshots and ordinary modern missing
 records remain strict. No source sessions or measurement window are invented.
+For an exact unmarked old import, an immutable archive/done end can independently
+prove disjointness even when the close ledger is unverifiable (#569). The shared
+reader checks source and tracker generation; its bound-only mode cannot certify
+a completion or numeric actual. Fresh actual/close output labels the skipped
+issue and end as not replay-verified. The comparison includes any earlier legacy
+prefix, so a later claim/reclaim cannot hide overlap. Historical actual/review
+validity and strict close repair remain unchanged.
 Source history and complete tracker generation history each have a 10,000-commit
 bound with an overflow sentinel. Incomplete reads
 cannot provide authority.

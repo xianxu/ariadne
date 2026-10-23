@@ -1,0 +1,1 @@
+Exact Pair legacy close-gate bytes at Git commit d5d23dcc210f8b80c7cb440e3ffd8dc2e09e31bd, workshop/plans/000151-hierarchical-thread-menu-close-gate.md. Captured read-only for ariadne#569. Round24 has protocol_error and no finalized whole-issue reviewed head. Test remaps only issue151 to synthetic issue1; original fixture bytes remain unchanged.

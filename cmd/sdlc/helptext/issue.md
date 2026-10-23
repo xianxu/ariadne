@@ -288,6 +288,11 @@ archive/done bound skips adopted-time exclusion only when it strictly predates
 the candidate's earliest admitted engagement; overlap remains unavailable.
 Old unmarked terminal-only imports can recover this bound read-only from the
 actual tracker root and matching pre-cutover archive, without changing a card.
+For an exact old unmarked import, the immutable archive/done end can prove only
+disjointness even if its historical close cannot be verified. The output labels
+that bound and leaves the old actual/review unchanged. It must strictly precede
+the entire candidate, including its legacy prefix; equality, overlap, changed
+generations and modern corrupt evidence still refuse. This does not repair a close.
 
 For a completed cutover missing an imported close, inspect one issue:
 
