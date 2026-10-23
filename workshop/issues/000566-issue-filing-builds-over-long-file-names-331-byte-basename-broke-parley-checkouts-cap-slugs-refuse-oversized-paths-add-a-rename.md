@@ -42,8 +42,18 @@ supported rename for an existing card/details pair (both refs, content unchanged
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000566-issue-filing-builds-over-long-file-names-331-byte-basename-broke-parley-checkouts-cap-slugs-refuse-oversized-paths-add-a-rename-plan.md`.
+
+- [ ] FileSlug: one capped slug builder (80 bytes, word boundary) for issue new (tracker + legacy) and flake register
+- [ ] CheckPathLimits in gitx commitSet: refuse any component over 255 bytes before a candidate exists
+- [ ] NextRenameStep state machine + MovePath
+- [ ] `sdlc issue rename --issue N [--slug S]`, help + atlas
+- [ ] Verification: targeted tests, fresh-reader help check, recorded suite
 
 ## Log
+
+### 2026-10-23
+
+Claimed and planned in ariadne:5. All filers reach one slug site per mode (`runIssueNew`, legacy `issue new`; `flake register` calls `runIssueNew`). Every tracker/main candidate tree is built by `gitx.TrunkFile.commitSet`, so the 255-byte refusal sits there (closetracker re-indexes existing paths; refbootstrap writes fixed names). `Slugify` stays uncapped because gate family slugs use it. Branch, plan and sidecar names derive from the stem, so rename is scoped to unstarted issues; four scope decisions sent to TL with the plan. No estimate yet (full flow: after plan-quality).
 
 ### 2026-10-22
