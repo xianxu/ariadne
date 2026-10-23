@@ -88,6 +88,7 @@ Architecture: ARCH-PURE — specification and test-only checks, no new IO shell.
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Prior recorded branch suite passed all 2364 SDLC tests and 76 other packages in 14m1s. TL-approved presentation clarification has fresh-reader RED/GREEN: frontmatter canonical empty/unknown blocks alias fallback and uses highlight, unknown warns without refusal, heading values remain strict; exact empty/unknown fill source lines preserved. Updated reviewexport/vocab/sidedoc checks and export freshness pass. New recorded suite is queued on the clarified integrated source and must pass before landing. No runtime resolver or consumer enum duplicated; owners allocated by TL. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 Presentation clarification fresh-reader GREEN: canonical typo plus alias propose resolves highlight with unknown-value and deprecation warnings; canonical empty plus alias propose resolves highlight without unknown-value warning; absent canonical plus alias direct resolves direct and materializes direct. Both empty/unknown fill inputs add only collaboration-mode: discussion and processing-mode: free-form, preserving all old lines/body bytes. Unknown/empty adjacent heading values refuse without writes. Reader did not read after fixtures, issue or plan; no remaining ambiguity in these scenarios. Focused reviewexport/vocab/sidedoc PASS after export regeneration.
 

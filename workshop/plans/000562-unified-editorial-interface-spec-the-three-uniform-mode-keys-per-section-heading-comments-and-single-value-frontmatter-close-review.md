@@ -167,3 +167,78 @@ dispose:
 7. **Plan revision recommendations:** None; existing revisions cover the bounded runtime correction and preservation cases.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"40943610-ca13-4cba-8d33-d75f252c1fc3","repository":"github.com/xianxu/ariadne","issue_id":"000562","recipe":"small-diff-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/07b048c516b13232","reviewed_head":"2a40b9e992ed64dddb675af0beff4026b012fa1e","slot":"ariadne:5","requested_at":"2026-10-23T06:23:35.410507Z"},"phase":"finished","pid":7202,"started_at":"2026-10-23T06:23:35.525106Z","finished_at":"2026-10-23T06:26:54.916955Z","session_id":"01a1676d-de38-72c2-ab25-a4b81e1ced9b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T00:33:04-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 562 — unified-editorial-interface: spec the three uniform mode keys, per-section heading comments and single-value frontmatter |
+| repo | ariadne |
+| issue file | workshop/issues/000562-unified-editorial-interface-spec-the-three-uniform-mode-keys-per-section-heading-comments-and-single-value-frontmatter.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6318fc7bc700173acdcea67f3993d326f8947845..904fc9c470c097e4624b540a788de9fa73d682d5 |
+| command | sdlc close --issue 562 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T00:33:04-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range delivers the revised editorial contract, compatibility examples, export, and monthly TL answer-path support. Both prior findings are addressed; no new blocking findings remain.
+
+Done-when: current — documenting “all of the above” covers the presentation fallback clarification, while preservation criteria still cover unchanged canonical values and aliases.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Inspected all previously enumerated creation instructions: monthly paths and explicit defaults now appear directly or through the shared contract. Regression assertions distinguish the retired base instructions from head; composition, rendered-help, monthly-link and export tests pass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      editorial_fill_test.go exercises canonical-instruction and canonical-mode fixtures with existing chat/collaboration choices, canonical instructions and independent legacy fallback. Value and source-line assertions enforce preservation; focused tests pass.
+```
+
+1. **Strengths**
+
+   - Canonical presence, presentation fallback, and strict heading declarations are clearly distinguished in `construct/local/universal-review/collaboration-modes.md:50`.
+   - Monthly answer validation retains flat-path compatibility and checks calendar dates, directory matching, and relative parents (`cmd/tl-lead/answers.go:22`).
+   - Invalid-link tests verify that neither the operator section nor its index is written.
+   - README and atlas document the new surface and downstream ownership; export freshness passes.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./pkg/reviewexport ./pkg/vocab ./pkg/sidedoc ./cmd/tl-lead`
+   - Weave skill discovery tests.
+   - `git diff --check` for the pinned range.
+
+   Fill tests validate conformance artifacts, not downstream runtime fillers. No repository-wide suite or downstream implementation pass is claimed.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY: pass** — creation consumers agree with or reference the shared contract; completion sources are named.
+   - **ARCH-PURE: pass** — the production validator retains injected reads; checker tests use in-memory filesystems.
+   - **ARCH-PURPOSE: pass** — all three axes, precedence, compatibility, completion requirements, and side-doc layout are covered within the stated specification scope.
+   - **ARCH-EVOLVE: pass** — legacy forms remain readable, fill preserves existing lines, and answer validation performs no document rewrite.
+
+7. **Plan revision recommendations:** None. Existing revisions account for the presentation clarification and bounded production validator change.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"411d0776-84c8-4341-87ff-b81caf51595e","repository":"github.com/xianxu/ariadne","issue_id":"000562","recipe":"small-diff-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/56a25e8830a63376","reviewed_head":"904fc9c470c097e4624b540a788de9fa73d682d5","slot":"ariadne:5","requested_at":"2026-10-23T07:31:08.571914Z"},"phase":"finished","pid":7064,"started_at":"2026-10-23T07:31:08.662835Z","finished_at":"2026-10-23T07:33:04.256676Z","session_id":"01a167ab-b60b-7ab3-9868-ab929687030d","outcome":"returned"}] -->
