@@ -203,6 +203,79 @@ rounds:
       isolation: fenced
       reviewed: f1e4752bd9b7920606ada1739383c73ffc1575f6
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: aee73bfb-0a0a-4f5b-b204-58fe9f882387
+            repository: github.com/xianxu/ariadne
+            issue_id: "000575"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/5d4601b41e81e3d7
+            reviewed_head: 213f0fa2d58f44975260da50b823ea9f57760f41
+            slot: ariadne:2
+            requested_at: "2026-10-23T19:20:14.177636Z"
+          phase: finished
+          pid: 90290
+          started_at: "2026-10-23T19:20:14.366087Z"
+          finished_at: "2026-10-23T19:22:01.134438Z"
+          session_id: 72d0912c-a9a2-4b2f-8b31-f1be1dd2713a
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 213f0fa2d58f44975260da50b823ea9f57760f41
+        tracker_head: 9931424325a44d83b3cd7b30b0677abd32c7bce6
+        branch_point: 588a0b0af09a8965d472f7acc216581db3afa815
+        since: "2026-10-23T11:52:48-07:00"
+        until: "2026-10-23T12:19:28-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T11:52:48-07:00"
+              end: "2026-10-23T12:19:28-07:00"
+              began: "2026-10-23T11:52:48-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: e36384d8f632afac8ae2b4e2b6314aa983799bce6a4f60216f8cc96208ed2f02
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 9627576
+              windows:
+                - start: "2026-10-23T11:52:48-07:00"
+                  end: "2026-10-23T12:19:28-07:00"
+        cuts:
+            - dispatched: "2026-10-23T12:07:55-07:00"
+              finalized: "2026-10-23T12:11:33-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T12:16:09-07:00"
+              finalized: "2026-10-23T12:18:32-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T12:22:02-07:00"
+      dispatched: "2026-10-23T12:20:14-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: chat.go:73 and chat.go:178 apply one rule for every unread fence; chat_test.go:67-86 rows go red when the pre-fix chat.go is restored (checked in this checkout).
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 213f0fa2d58f44975260da50b823ea9f57760f41
+      blocked: false
 ---
 
 # Gate ledger — ariadne#575 (boundary-review)
@@ -242,6 +315,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `legacy-key-notice-coverage` (kind: defect) Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
   This is the 2nd finding in family legacy-key-notice-coverage, so fix the rule, not this instance. Rule: when the doc opens with a --- fence and its keys were not read for any reason (frontmatter() refused, any CR in the doc, a ... or % line, or yaml.Unmarshal error), ChatSections emits one notice. Probes in which a legacy chat scalar vanished silently: LF frontmatter plus a CR in the body, a malformed flow sequence, a ... marker. Replace the CRLF-prefix check at chat.go:67 and the silent return at chat.go:173 with that one rule, and add rows for each route.
 
+## Round 3 — 2026-10-23T12:22:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — chat.go:73 and chat.go:178 apply one rule for every unread fence; chat_test.go:67-86 rows go red when the pre-fix chat.go is restored (checked in this checkout).
+
 ## Open findings
 
-- **BR-7** [Minor] `legacy-key-notice-coverage` (kind: defect) Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
+(none — every finding has been disposed)

@@ -239,3 +239,75 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7ff57d0e-7ef2-4b9e-86b6-5124415082f0","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e8a01914f50112e4","reviewed_head":"f1e4752bd9b7920606ada1739383c73ffc1575f6","slot":"ariadne:2","requested_at":"2026-10-23T19:16:09.565549Z"},"phase":"finished","pid":67873,"started_at":"2026-10-23T19:16:09.774686Z","finished_at":"2026-10-23T19:18:30.916027Z","session_id":"2135aa92-3250-486d-8fb1-ce9cbfadad1d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T12:22:01-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 575 — universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases |
+| repo | ariadne |
+| issue file | workshop/issues/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 588a0b0af09a8965d472f7acc216581db3afa815..213f0fa2d58f44975260da50b823ea9f57760f41 |
+| command | sdlc close --issue 575 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T12:22:01-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The open finding is BR-7 in chat.go. Let me read it.
+
+Status: BR-7's fix is confirmed. Reverting it turns its new tests red, and the tree is restored. Next I'm probing edge cases of the new rule and checking the rest of the diff.
+
+Wrapping up: BR-7 holds up, and I'm writing the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-7, is fixed the way it asked: one rule now covers every route, not just the next instance. `pkg/sidedoc/chat.go:73` gives the "frontmatter could not be read" notice to any document that opens with a `---` fence when `frontmatter()` refuses it. That covers a CR anywhere in the document, a `...`, `---` or `%` line inside the frontmatter, and an unclosed fence. `chat.go:178` gives the same notice when the YAML does not parse. The two can't fire on the same document: when `frontmatter()` refuses, `fm` is empty and `readFrontmatter` returns early. Each route has its own test row (`chat_test.go:67-86`). I restored the pre-fix `chat.go` from `213f0fa2d^` and four rows went red: CRLF, LF frontmatter with a CR in the body, a document marker, and YAML that does not parse. I then put the file back, and the tree is clean. The spec text matches the code (`collaboration-modes.md:344`). `go test ./pkg/sidedoc/ ./pkg/reviewexport/` passes, and so does `go test ./cmd/weave/ -run 'Universal|Review'`. Some other `cmd/weave` tests fail because the sandbox refuses `git init` ("outside the reviewer's directories (sdlc #339)"). That is the environment, not this diff. Nothing new blocks shipping.
+
+1. **Strengths**
+   - `chat.go:50`: one `unreadFrontmatter` constant feeds both routes, so the wording can't drift between them (ARCH-DRY).
+   - `ChatSections` is pure (only string and goldmark parsing). The test table runs with no IO, and the fixtures are checked against it through `examples_test.go:699-750` (`checkChat`). The fixtures and the code that decides chat sections stay in step.
+   - `ParseBrief` (`export.go`) rejects retired mode flags and unknown keys with named errors. A v3 mode file can't pass as a brief by accident.
+   - `exportedCases` is the single list read by both `Build` and `TestExportCurrent`.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings** (not raised as findings)
+   - A document whose first line is a thematic break (`---\n\ntext`) now gets the notice even though it has no frontmatter, as my probe confirmed. The wording ("any legacy mode keys … were not read") makes this harmless.
+   - A document with a BOM before its first `---` gets no notice. This is consistent with `frontmatter()`, which also doesn't treat it as frontmatter.
+
+5. **Test coverage notes:** each route that leaves frontmatter unread has a row, and reverting the fix turns four rows red. The empty-frontmatter case (`---\n---\n`) correctly produces no notice. I probed it but there is no table row for it, which is optional.
+
+6. **Architecture**
+   - ARCH-DRY: pass.
+   - ARCH-PURE: pass. `ChatSections` is pure and IO stays in the export shell.
+   - ARCH-PURPOSE: pass. BR-7 was fixed at the rule level.
+   - ARCH-MOCK: pass. No new external dependencies.
+   - ARCH-CONSTRAINTS: pass. The scan is linear in document size.
+   - ARCH-SECURE: pass. Malformed persisted frontmatter now shows up as a notice instead of being ignored silently.
+   - ARCH-ORDER: pass. `ChatSections` keeps no state between calls; it is a single-shot scan.
+   - ARCH-FUNERAL: pass. Nothing durable is added beyond the fixtures, which are versioned.
+   - ARCH-EVOLVE: pass. Going to Version 4 removes the `mode` role and its flags. That changes what the manifest means, and the version comment documents it, so refusal by v3 readers is justified.
+
+7. **Plan revision recommendations:** add a Revisions entry for round 2 at `plan.md:191`. Round 1 says "unread CRLF frontmatter are now noticed"; the rule is now broader, covering every unread fence (CR, document marker or directive, YAML that does not parse).
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      chat.go:73 and chat.go:178 apply one rule for every unread fence; chat_test.go:67-86 rows go red when the pre-fix chat.go is restored (checked in this checkout).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"aee73bfb-0a0a-4f5b-b204-58fe9f882387","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/5d4601b41e81e3d7","reviewed_head":"213f0fa2d58f44975260da50b823ea9f57760f41","slot":"ariadne:2","requested_at":"2026-10-23T19:20:14.177636Z"},"phase":"finished","pid":90290,"started_at":"2026-10-23T19:20:14.366087Z","finished_at":"2026-10-23T19:22:01.134438Z","session_id":"72d0912c-a9a2-4b2f-8b31-f1be1dd2713a","outcome":"returned"}] -->
