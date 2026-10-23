@@ -1,13 +1,13 @@
 ---
 id: 000567
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '8dc3747fc6535d094bfd3aff87c2c649aff8be65' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9f2216dbc3a04a3aa2a6b32d42ceb28879ce32b1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T05:17:26-07:00
 claimant:
     operator: Xian Xu
@@ -18,6 +18,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestOperatingCancellationStopsGitHookDescendants]
 flow: {kind: quick, provenance: inferred, spec: "cbf89813", done: "c4b06df2"}
+actual_hours: 0.35
 ---
 
 # flake: TestOperatingCancellationStopsGitHookDescendants
