@@ -1600,3 +1600,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   whole format family through Command and CommandContext and both Check entry
   points; normalize once in the shared predicate. This extends the same
   test-ps-liveness catalog rule rather than adding a second guard.
+
+- #577 plan review: an alternate result sink is incomplete if identity or dependency construction still requires the original external service. Trace the full CLI before the sink, share its context-aware construction across run and retry/republish, and test the real command with a rejecting all-call service sentinel. Preserve the ordinary production constructor and proof guards.

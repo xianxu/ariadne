@@ -3,6 +3,7 @@ package gitx
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -45,14 +46,24 @@ func (v *TrunkView) Files(prefix string) ([]TreeFile, error) {
 // predicate receives Path, Mode and OID with nil Content; nil selects all files.
 // Tree listing, per-blob and aggregate output limits remain unchanged.
 func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
+	return readSnapshotFiles(v.tf.operationContext(), v.tf.dir, v.ref, prefix, selectFile, nil, nil)
+}
+
+// readSnapshotFiles keeps tree framing, bounds and batching shared by ordinary
+// snapshots and the bench observer's local-only source reads.
+func readSnapshotFiles(ctx context.Context, dir, ref, prefix string, selectFile func(TreeFile) bool, env, policy []string) ([]TreeFile, error) {
+	run := func(input io.Reader, limit int, args ...string) ([]byte, []byte, error) {
+		argv := append(append([]string(nil), policy...), args...)
+		return runGitBoundedInputContext(ctx, dir, env, input, limit, argv...)
+	}
 	if prefix != "" && (path.IsAbs(prefix) || path.Clean(prefix) != prefix || prefix == "." || strings.HasPrefix(prefix, "../") || strings.ContainsAny(prefix, "\\\x00")) {
 		return nil, errors.New("snapshot prefix must be a canonical repository-relative directory")
 	}
-	args := []string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", v.ref, "--"}
+	args := []string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", ref, "--"}
 	if prefix != "" {
 		args = append(args, prefix+"/")
 	}
-	out, diag, err := runGitBoundedInputContext(v.tf.operationContext(), v.tf.dir, nil, nil, snapshotOutputLimit, args...)
+	out, diag, err := run(nil, snapshotOutputLimit, args...)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot tree: %w\n%s", err, diag)
 	}
@@ -77,11 +88,7 @@ func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool)
 		input.WriteString(f.OID)
 		input.WriteByte('\n')
 	}
-	ctx := v.tf.operationContext()
-	out, diag, err = runGitBoundedInputContext(ctx, v.tf.dir, nil, strings.NewReader(input.String()), snapshotOutputLimit, "cat-file", "--batch", "--buffer")
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
+	out, diag, err = run(strings.NewReader(input.String()), snapshotOutputLimit, "cat-file", "--batch", "--buffer")
 	if err != nil {
 		return nil, fmt.Errorf("snapshot blobs: %w\n%s", err, diag)
 	}
