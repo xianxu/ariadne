@@ -1,13 +1,21 @@
 ---
 id: 000570
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '45ed51532276e9c749f84573d856206eb180f934' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '41a6b9aa2719ce1cf06a853a71fc35f81a47160e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T02:36:18-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
@@ -40,8 +48,42 @@ fall back to plain FIFO.
 
 ## Plan
 
-- [ ]
+- [x] Claim and start-plan from fresh main; reproduce both historical and current admission against one private native lock root.
+- [x] Trace the grant provider/cache and distinguish a new-helper decision from agreement by already-running old code.
+- [ ] Resolve the rollout choice with the hub before implementation (proposal below).
+- [ ] After agreement, write final function-level adversarial plan, enter change-code, observe regression RED, implement, and run isolated mixed-version conformance plus normal recorded gates.
+
+### Proposed rollout boundary — awaits hub
+
+A FIFO change in only the new helper cannot make existing old helpers use FIFO. The unchanged old helper ignores future ticket policy fields and still sees the active grant; its cache is keyed to grants.jsonl identity/mtime/size and grant temporal boundaries, not queue membership. Status and admission share the new pure projection, but that does not make old admission agree.
+
+Options:
+
+1. Ticket policy negotiation alone: useful for future versions that already implement negotiation, insufficient for unmodified historical waiters. Even selecting the oldest policy in the newest helper leaves pre-fix aging helpers applying their own order in a three-version queue.
+2. Central shared helper authority: future consumers could agree, but this changes #563's deliberately checkout-supplied helper ownership and does not replace code already executing. It is a larger rollout change.
+3. Recommend a guarded rollout: refuse new grants while any live waiting helper cannot prove the agreed ordering contract (status explicitly names mixed/unknown policy); the TL explicitly revokes any existing conflicting grants and allows old waiters to drain unchanged. Do not automatically revoke, kill, unlock, rewrite another waiter's identity or alter supplier pins. Once all live waiters support negotiation, mixed supported policy versions use FIFO. This requires the hub to accept that historical active-grant mixes need an explicit rollout operation; no new code can retroactively change their decisions.
+
+Proposed invariant authority: use the existing allocation mutex plus each waiter's lifetime ticket flock to read exact live membership and additive ordering-policy metadata. No process scan or separate daemon. A decision made only at grant creation can race a legacy waiter joining later, so a creation-only guard cannot justify a permanent never-deadlock claim; approval must settle whether incompatible later joins disable priority via a shared supported contract, or grants remain operationally off until helper rollout is complete. Do not implement a nominal FIFO fallback while leaving this contradiction unresolved.
+
+Actions: wait for drain; request a grant after compatible rollout; TL revokes a conflicting existing grant.
+
+| State / failure | Visible state | Recovery action | Possible loss |
+| --- | --- | --- | --- |
+| Proven compatible waiting helpers | Normal negotiated queue order | Continue waiting | None |
+| Legacy/mixed/unknown helper with requested new grant | Priority unavailable, named incompatible ticket | Wait for drain/rollout, then request grant | Priority only, never queued work |
+| Existing conflicting grant plus immutable old waiter | Mixed-policy queue; disagreement possible | TL revokes the conflicting grant and lets waiters drain | Priority only; no work cancellation |
+| Ticket observation unavailable | Compatibility unknown; no new grant authorized | Retry after named observation fault resolves | No false agreement |
+
+ARCH-DRY/PURPOSE: one shared projection for updated admission/status is necessary but not authority over old code. Preserve old-reader behavior explicitly. Expected scans are O(N) live tickets per observation and O(N) policy classification; no per-ticket subprocess/provider calls. Count N/2N live-record visits and provider invocations. Any final guard must share the existing mutex rather than infer liveness from stale filenames, and must state its joining-waiter race boundary.
 
 ## Log
 
 ### 2026-10-23
+
+### 2026-10-23 — claim, root cause and isolated native reproduction
+
+Authenticated dispatch42339e6f-6456-4657-82ed-5c2b018c1a0a assigns claim and plan, not implementation. tl-worker rules loaded; start-plan created this issue branch from main. No new helper/Go implementation or live queue/grant mutation.
+
+Loaded the exact pre-aging helper from Git32e6177751fb5936be76207b1888372325536207 and current source independently. On identical ticket identities32 and37 with a grant for issue832, the old pure order is37,32 while current order is32,37. A private native-flock fixture then ran both actual Tickets.admission implementations against one fresh lock root with two free slots: old_taken=[], old_head=false; aging_taken=[], aging_head=false. Removing grant evidence admitted the old waiter into both slots, then the newer waiter after the old ticket retired. No watched processes, live queue root or production grant were driven. Evidence retained in common sdlc/test-stats/evidence/000570/mixed-helper-diagnosis.json. The old source is immutable Git evidence, not fresh instructions.
+
+Tickets.elect is the decision boundary. GrantEvidence caches per grant-file signature and temporal refresh, so a provider-only membership change would not immediately invalidate all old helper evidence. A new additive ordering-policy field alone is not sufficient: old admission never reads it. This is a rollout/authority decision, not a simple missing conditional. Send the concrete alternatives and recommended guarded rollout to the hub before code; await a clarified compatibility contract. No full suite is needed for the read-only diagnosis and none was started.
