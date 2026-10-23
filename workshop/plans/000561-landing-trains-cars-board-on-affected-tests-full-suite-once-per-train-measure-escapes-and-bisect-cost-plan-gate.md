@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: 61e821a7-f761-48e9-b0ef-0aa688db3bac
+        repository: github.com/xianxu/ariadne
+        issue_id: "000561"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: codex
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: b6c2f91478870fde652e63530569e31d84d016c1
+        slot: ariadne:2
+        requested_at: "2026-10-23T07:37:47.030541Z"
+      phase: finished
+      pid: 11297
+      started_at: "2026-10-23T07:37:47.161094Z"
+      finished_at: "2026-10-23T07:38:53.041281Z"
+      session_id: 01a167b1-cacb-7f63-ad15-9a2f3efef053
+      outcome: returned
 gate: plan-quality
 issue: 561
 id_prefix: PQ
@@ -85,7 +105,45 @@ rounds:
           note: Nested strict preserving codecs, binding-aware re-vouch merging and older-reader rewrite tests are explicitly required.
           round: 2
       blocked: false
-content_hash: 388ef474ec21fcc1bdb8b5f52babc32f60c50dcb0af52aa7ccc74ec0824b4f8d
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 381107ca-39b7-4d67-ab65-7b81d9f7ebea
+            repository: github.com/xianxu/ariadne
+            issue_id: "000561"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: b6c2f91478870fde652e63530569e31d84d016c1
+            slot: ariadne:2
+            requested_at: "2026-10-23T07:37:06.637509Z"
+          phase: finished
+          pid: 99032
+          started_at: "2026-10-23T07:37:06.855016Z"
+          finished_at: "2026-10-23T07:37:44.976259Z"
+          session_id: 01a167b1-2df2-7dd1-9ce4-befd102b8266
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-23T00:37:45-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Function-named adversarial strategies and mechanical guards replace prose case inventories.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: AdvanceMeasurement exclusively owns private accumulation through explicit lifecycle transitions and immutable finalization.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: Nested proof codecs preserve unknown members, retain strict validation, and define binding-aware rewrite behavior.
+          round: 3
+      blocked: false
+content_hash: 4cc348b75a20b0193135efbd7b72129a2d932cb3e31b09dd9701d7d76e205fba
 ---
 
 # Gate ledger — ariadne#561 (plan-quality)
@@ -111,6 +169,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-1 — addressed — Function-named strategies cover provenance, decoding, transitions and aggregation with adversarial inputs and mechanical guards.
 - PQ-2 — addressed — AdvanceMeasurement owns encapsulated state, legal transitions, interrupted finalization and sequence-tested invariants.
 - PQ-3 — addressed — Nested strict preserving codecs, binding-aware re-vouch merging and older-reader rewrite tests are explicitly required.
+
+## Round 3 — 2026-10-23T00:37:45-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Function-named adversarial strategies and mechanical guards replace prose case inventories.
+- PQ-2 — addressed — AdvanceMeasurement exclusively owns private accumulation through explicit lifecycle transitions and immutable finalization.
+- PQ-3 — addressed — Nested proof codecs preserve unknown members, retain strict validation, and define binding-aware rewrite behavior.
 
 ## Open findings
 

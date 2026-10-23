@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-23
-estimate_hours:
+estimate_hours: 4.46
 collaboration-mode: collaboration
-card_mirror: 'fede1c3a7f2ab897965fc8444a31f6d7ef3c8d81' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '28881f06522dad33442dc98746c0e324f65405a8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T00:12:42-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Landing trains: cars board on affected tests; full suite once per train; measure escapes and bisect cost
@@ -83,3 +84,31 @@ Durable design: [affected boarding and train measurements](../plans/000561-affec
 ## Revisions
 
 - 2026-10-23: Refined implementation scope from the observed fallback owner, incorporated the hub's boarding/default-cap decisions, and added weekly compatibility/onboarding acceptance criteria already required by the operator's Spec. Full plan awaits approval.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only; `sdlc estimate-source` marks the calibration stale, so these numbers are provisional. Derived after plan-quality round two passed, not before.
+
+Decomposition: one issue/spec/design effort; six smaller Go extensions (boarding CLI/execution, default-cap policy/rendering, nested proof codec, accepted CI provenance, managed-run observation, status/weekly wiring); two new single-concern pure modules (measurement lifecycle and aggregate/format); three review boundaries (M1, M2, issue close); one atlas/help maintenance effort. Existing selector, CI/ancestor gates, codec, runner, log and stateful fakes are reused. No new external API or unfamiliar stack needs discovery. No available library owns this domain-specific lifecycle/fold; standard encoding/time/maps and existing codecs cover infrastructure, so no greenfield infrastructure is charged.
+
+For each smaller module, use v2 design 0.3 × thorough-spec 0.2 = 0.06 and impl 0.5 × v3.1 0.4 = 0.20. Each new pure module uses design 1.5 × 0.2 = 0.30 and impl 0.8 × 0.4 = 0.32. Spec authoring uses 0.75 design and 0.2 × 0.4 implementation; each review uses 0 design and 0.375 × 0.4 implementation. Atlas uses design 0.2 × 0.2 and impl 0.2 × 0.4. Familiarity 1.0 and thorough-plan design buffer 15%; design subtotal 1.75, implementation subtotal 2.45; 1.75 × 1.15 + 2.45 = 4.4625 ship-hours, rounded 4.46. Main risks are proof-preserving compatibility and interrupted measurement coverage, rather than novel API behavior.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.75 impl=0.08
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.30 impl=0.32
+item: greenfield-go-module design=0.30 impl=0.32
+item: milestone-review design=0 impl=0.15
+item: milestone-review design=0 impl=0.15
+item: milestone-review design=0 impl=0.15
+item: atlas-docs design=0.04 impl=0.08
+design-buffer: 0.15
+total: 4.46
+```
