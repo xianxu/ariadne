@@ -1,6 +1,6 @@
 ---
 id: 000566
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 1f64a0aadbbc7e6357a93ed1f1612696b316a7b7
         evidence_commit: ef618bb9f20d712d9f254827138742f6cbdda35c
+        landed_commit: 0bbd0e2e0f2bc14e58395db68a95eb444b90992d
 ---
 
 # Issue filing builds over-long file names (331-byte basename broke parley checkouts); cap slugs, refuse oversized paths, add a rename
