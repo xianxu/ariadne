@@ -1,0 +1,6 @@
+Diagnostic mutation: group kill -> leader kill; one-second group observation starts only AFTER publisher return. No shipped timeout changes.
+--- FAIL: TestOperatingCancellationStopsGitHookDescendants (2.81s)
+    doc_operating_test.go:461: Git descendant group 83522 remains runnable
+FAIL
+FAIL	github.com/xianxu/ariadne/cmd/tl-lead	2.965s
+FAIL

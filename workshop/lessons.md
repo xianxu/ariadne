@@ -1582,3 +1582,18 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #571: scratch hidden from Git status can still be inside a project's marker ancestry. Keep reviewer scratch beside the checkout, under its existing lifetime lock; update reset, close and dead-owner sweep together. Assert real marker discovery and effective native temp paths, since Neovim can silently fall back on long paths. A clean status or a lexical temp-path rule alone cannot prove placement.
 
 - #573 review (family test-hardcodes-host-filesystem-layout): a shell test that reaches host binaries must derive every host-dependent expectation (a resolved path, a count of symlink hops) through the code under test's own resolution, never a literal macOS layout. Merged-usr Linux resolves /bin to /usr/bin, Debian's /usr/bin/print can be a link and busybox makes /bin/ls one. Prefer a fixture PATH that reaches only fixture files; where host binaries are the point, compute the expectation on the host.
+- #567: a killed descendant can still appear as Darwin `?E` after its leader
+  and output pipes finish. A one-shot `ps stat=` snapshot is not a completion
+  barrier. Capture the private owned group before cancellation and wait on
+  `procgroup`'s terminal condition under the existing test deadline; resource
+  release still requires the resource's own proof. Let the executing child
+  publish readiness, join the fixture on failure, and keep a leader-only-kill
+  negative control. The test-ps-liveness Go catalog rule catches direct test
+  state queries, with explicit suppressions reserved for diagnostic captures.
+
+- #567 BR-1: a command-format lint must cover the dependency's literal field
+  grammar, not one spelling from the incident. Native ps accepts comma and
+  whitespace field separators, including attached -o/-O formats. Exercise the
+  whole format family through Command and CommandContext and both Check entry
+  points; normalize once in the shared predicate. This extends the same
+  test-ps-liveness catalog rule rather than adding a second guard.

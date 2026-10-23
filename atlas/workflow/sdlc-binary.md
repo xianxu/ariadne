@@ -2514,7 +2514,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-landing-completion-wait` #498/#500,
+that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagnostics, not completion barriers; use the owned group or resource release),
+`test-landing-completion-wait` #498/#500,
 `test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
@@ -2639,6 +2640,37 @@ is included. The default is 1. ariadne retains 2 with its eight-shard cap (#480)
 the measured suites still occupied about 78–90% of whole-machine CPU. Taking
 both slots keeps two full suites from overlapping; the comparison did not test
 concurrent suites. Earlier overlapping suites had pushed load to 185 (#346).
+
+**The light lane (#559).** A short recorded suite does not wait behind heavy ones.
+- **A third concurrent run.** The lane is one extra slot, `test-suite.lock.light`,
+  beyond the `WF_TEST_SUITES=2` normal slots. It is bounded to light suites: one
+  at a time, niced +10, and stopped at 240 s.
+- **Its own line.** Light waiters queue in their own FIFO line,
+  `test-suite.lock.light-tickets/`, with no grants and no aging. They never take
+  or wait on a normal slot or ticket. Heavy admission is therefore unchanged by
+  any number of light waiters, and helpers older than #559 never open these paths.
+- **Who asks.** Only `sdlc local-check` asks (`test-lock.py acquire --lane light`,
+  answered `acquired-light`), and only for the `suite` check.
+- **Eligibility is measured.** The repo's newest 3 recorded suite attempts must
+  each have run under 120 s. The rule is `laneEligibility` in
+  `cmd/sdlc/suitelane.go`. Plain `make test` always takes the normal line.
+- **Capability probe.** The helper must declare `--lane` in `acquire --help`.
+  Without it, the run falls back to the normal line and says so.
+- **Overrun.** A light run that reaches the bound is stopped through the
+  check's timeout path and retried once in the normal line (`nextSuiteLaneStep`).
+  The retry's attempt carries `lane_overrun_seconds`, which removes the repo from
+  the lane until three shorter suites push it out of the newest three.
+  - **One record for the whole run.** That attempt is the only record. Its
+    queue time runs from the light request, so it includes the stopped run.
+  - **The partial log is not kept.** The stopped run's log is discarded, and
+    the retry's log is the attempt's.
+  - **Runs that never ask for the lane.** A run under strict group cleanup
+    (typed runners, resume) never asks, because that cleanup can't confirm a
+    run the deadline stopped.
+- **Attempt records.** They gain the additive `lane` field (`"light"`) and
+  `lane_overrun_seconds`.
+- **Status.** `sdlc queue status` prints a `light lane` line with its holder and
+  waiters.
 
 **Host preflight before the lock (#333).** A repo whose suite cannot run on some
 hosts ships a preflight, by convention `tests/host-preflight.sh`, or names another

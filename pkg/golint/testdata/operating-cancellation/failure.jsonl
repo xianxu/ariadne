@@ -1,0 +1,5 @@
+{"Time":"2026-10-22T23:25:03.845373-07:00","Action":"run","Package":"github.com/xianxu/ariadne/cmd/tl-lead","Test":"TestOperatingCancellationStopsGitHookDescendants"}
+{"Time":"2026-10-22T23:25:03.845384-07:00","Action":"output","Package":"github.com/xianxu/ariadne/cmd/tl-lead","Test":"TestOperatingCancellationStopsGitHookDescendants","Output":"=== RUN   TestOperatingCancellationStopsGitHookDescendants\n","OutputType":"frame"}
+{"Time":"2026-10-22T23:25:04.707269-07:00","Action":"output","Package":"github.com/xianxu/ariadne/cmd/tl-lead","Test":"TestOperatingCancellationStopsGitHookDescendants","Output":"    doc_operating_test.go:419: Git descendant 67936 remains runnable: ?E  \n","OutputType":"error"}
+{"Time":"2026-10-22T23:25:04.715756-07:00","Action":"output","Package":"github.com/xianxu/ariadne/cmd/tl-lead","Test":"TestOperatingCancellationStopsGitHookDescendants","Output":"--- FAIL: TestOperatingCancellationStopsGitHookDescendants (0.87s)\n","OutputType":"frame"}
+{"Time":"2026-10-22T23:25:04.71578-07:00","Action":"fail","Package":"github.com/xianxu/ariadne/cmd/tl-lead","Test":"TestOperatingCancellationStopsGitHookDescendants","Elapsed":0.87}
