@@ -1,13 +1,21 @@
 ---
 id: 000574
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '468d8c0873073d2cc9338673bec96716c3038ab4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '73723ceef72cb4276a425b9bca048a4ddf0f6cf7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T09:02:18-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish
@@ -34,8 +42,10 @@ non-main one, and says so), and have queue status name the stale sibling behind 
 
 ## Plan
 
-- [ ]
+- [ ] Implement and verify the [supplier-refresh plan](../plans/000574-sibling-helper-refresh-plan.md) after TL approval.
 
 ## Log
 
 ### 2026-10-23
+
+Claimed and started in ariadne:3. Read the actual Spec after noting that issue show displays headings without bodies. Traced workflowFile/prepareSuiteHelper, start-plan catch-up, weave refresh, and setup lease lifetime. The proposed suite-setup boundary handles issues active across a helper rollout; a narrow weave-owned refresh avoids broad compile effects. Text status identifies each legacy ticket's current supplier, without claiming that current HEAD is the running helper's launch revision. ARCH-DRY and ARCH-ORDER shaped the seam and lifetime choices. Durable plan awaits TL approval; no implementation, suite, live checkout update or grant. Original incident TTY unavailable: only the labelled TL report of 21 siblings exists here. #533 stays parked.
