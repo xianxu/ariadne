@@ -69,6 +69,7 @@ type actualResult struct {
 	Dirs            []string
 	Window          string // "<start ISO> → HEAD": the resolved left edge (#254)
 	Detail          string // diagnostic for the error path
+	Recovery        string // typed input failure's specific action; never persisted
 	Warnings        []string
 	QueueBlockers   []string // complete queue refusal diagnostics, when present
 	// Split divides Hours at the boundary reviews (#234); nil unless measured.
@@ -124,6 +125,10 @@ func actualErrorResult(issueNum string, err error) actualResult {
 	var queueErr *queueEvidenceError
 	if errors.As(err, &queueErr) {
 		res.QueueBlockers = append([]string(nil), queueErr.Blockers...)
+	}
+	var unowned *unownedActualError
+	if errors.As(err, &unowned) {
+		res.Recovery = unowned.recovery()
 	}
 	return res
 }
@@ -454,6 +459,8 @@ func printActual(w io.Writer, res actualResult, milestone string) {
 				subject = "legacy suite attempts " + strings.Join(ids, ", ") + " lack"
 			}
 			fmt.Fprintf(w, "  → %s exact queue endpoints; those timestamps were never recorded and cannot be restored. Exclude this actual from calibration with:\n    %s\n  Include the attempt ID(s) and reason with the verification evidence.\n", subject, rerunCmd(issueStr, milestone, " --no-actual"))
+		} else if res.Recovery != "" {
+			fmt.Fprintf(w, "  → %s; record subsequent owned work, then re-run sdlc actual --issue %s.\n", res.Recovery, issueStr)
 		} else if strings.Contains(res.Detail, "retained measurement code head differs") {
 			fmt.Fprintf(w, "  → run sdlc issue correct-actual --issue %s --reason 'repair inconsistent retained measurement' --dry-run; it names the exact target/exclusion action if numeric repair is unavailable.\n", issueStr)
 		} else {

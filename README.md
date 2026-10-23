@@ -1121,6 +1121,17 @@ for the TL.
 Issue actuals are measured from ownership intervals and the owning slots' agent
 sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
+
+A migrated working issue with no tracker owner refuses with
+`no owner since cutover: run sdlc claim --issue N from the slot doing the work`.
+Reconcile does not create ownership. Work between cutover and claim is unowned
+and not counted; successful hybrid measurements and retained replay expose that
+gap beside the legacy prefix and owned suffix. Claim does not retroactively
+credit it. Existing activity continuity may cross claim, but only its portion
+inside ownership can count. For a suite queued before first ownership,
+hybrid measurement clips queue-idle exclusion to the owned portion, preserving
+its raw endpoints. Waits crossing release/reclaim still refuse.
+
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
 Retained train waits appear as counted **unverified coverage** beside hours;
