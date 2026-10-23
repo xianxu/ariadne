@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "48209606", done: "ed3a978f"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish
@@ -48,6 +48,8 @@ non-main one, and says so), and have queue status name the stale sibling behind 
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — BR-1 README now documents mode, suite boundary, eligibility and skip/recovery. BR-2 native production resolver/read matrix covers distinct real supplier revisions, source ff after unchanged legacy ticket, missing/nested/redirected owner, failed Git read and helper symlink; redirected-owner regression red then green. Corrected SDLC race checks passed 13.357s, catalog 1.277s; fresh actual sdlc/weave private qualification passed refresh before current-policy ticket, recorded success, current versus unknown launch provenance, redirected-owner unavailable and frozen JSON. Evidence in common test-stats/evidence/000574/private-helper-refresh-round2. Corrected-head recorded branch suite is queued and must pass before landing; close overlaps under tl-worker rules.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 466 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Claimed and started in ariadne:3. Read the actual Spec after noting that issue show displays headings without bodies. Traced workflowFile/prepareSuiteHelper, start-plan catch-up, weave refresh, and setup lease lifetime. The proposed suite-setup boundary handles issues active across a helper rollout; a narrow weave-owned refresh avoids broad compile effects. Text status identifies each legacy ticket's current supplier, without claiming that current HEAD is the running helper's launch revision. ARCH-DRY and ARCH-ORDER shaped the seam and lifetime choices. Durable plan awaits TL approval; no implementation, suite, live checkout update or grant. Original incident TTY unavailable: only the labelled TL report of 21 siblings exists here. #533 stays parked.
 

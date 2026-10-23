@@ -83,3 +83,77 @@ findings:
    Add `## Revisions` entries recording the README documentation requirement and the completed provenance-test matrix. Until those tests exist, amend the checked verification item at line 82 to reflect the narrower evidence actually delivered.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"95463c2e-f4cd-4c59-98c8-01e947963491","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/8000f35af00287d4","reviewed_head":"a492fb052f9d058acef4f8eeabc41f62c8003482","slot":"ariadne:3","requested_at":"2026-10-23T16:35:27.002991Z"},"phase":"finished","pid":44319,"started_at":"2026-10-23T16:35:27.180476Z","finished_at":"2026-10-23T16:37:47.399515Z","session_id":"01a1699e-0be8-7082-ba69-ec46c70c3b3e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T09:48:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 574 — Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish |
+| repo | ariadne |
+| issue file | workshop/issues/000574-keep-slot-sibling-ariadne-checkouts-current-so-queue-helper-rollouts-finish.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | db77404e3257507f41c9d6fc3d819a8723bb36fa..bfdc338c2ba02184c25ef3a4b3ae70e5f2d0a214 |
+| command | sdlc close --issue 574 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T09:48:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the issue’s refresh and provenance requirements. Both prior findings are addressed, and no new blocking defects were found. Targeted tests passed; removing the redirected-owner guard through a temporary Go overlay made its regression test fail as expected. Repository files remained unchanged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:419–444 documents --suite-helper, automatic suite setup, eligibility, exclusions, and skip/recovery behavior; these match the refresh implementation and supplier diagnostics.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Native production-path tests cover distinct supplier revisions, fast-forward with unchanged ticket bytes, missing/nested/redirected owners, failed Git reads, and helper symlinks. Tests pass at HEAD; removing the exact-owner guard makes the redirected-owner regression fail.
+```
+
+1. **Strengths**
+
+   - Refresh reuses weave’s setup lease and Git safety machinery, including revalidation, ignored-file protection, and captured-target fast-forward.
+   - Unconfirmed effects remain explicitly uncertain without rollback (`cmd/weave/internal/refresh/helper.go:74`).
+   - Supplier diagnostics distinguish current checkout evidence from unknown launch provenance and deduplicate observations within each request.
+   - README, atlas, and command help consistently describe the new behavior.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   The targeted command passed across `cmd/weave/internal/refresh`, `cmd/weave`, `cmd/sdlc`, and `pkg/workspace`. Controls exercise unsafe suppliers, cancellation, interrupted effects, setup ordering, resume exclusions, executable fallback, native provenance, and observation deduplication.
+
+   The BR-2 negative control failed specifically because a redirected owner manufactured supplier proof when the guard was removed. Temporary overlay files were removed. The full repository suite and private binary qualification were not independently rerun in this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Shared workflow/helper resolution and existing refresh safeguards are reused.
+   - **ARCH-PURE — pass:** Eligibility and diagnostic rendering are deterministic; integration operations have explicit boundaries. Core-concept entries match their implementations.
+   - **ARCH-PURPOSE — pass:** Shared new-suite setup refreshes eligible suppliers; text status annotates every incompatible ticket.
+   - **ARCH-MOCK — pass:** Injected boundaries, executable fixtures, and private Git repositories exercise stateful behavior.
+   - **ARCH-CONSTRAINTS — pass:** Optional refresh is bounded; status shares its deadline and caches repeated observations.
+   - **ARCH-SECURE — pass:** Ownership checks reject redirected paths; unavailable evidence does not become revision proof.
+   - **ARCH-ORDER — pass:** Sequential observation, revalidation, mutation, and confirmation preserve uncertainty; controlled tests inject intervening changes and lost replies.
+   - **ARCH-FUNERAL — pass:** No new durable artifact family or background updater; temporary fixtures have cleanup.
+   - **ARCH-EVOLVE — pass:** Ticket records are read-only projections, and frozen status JSON remains unchanged.
+
+7. **Plan revision recommendations:** None. The existing revision records the earlier coverage overstatement and its correction.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0f8f657d-35c1-43f5-be1e-7dd63be7d3a5","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/ae23a5ffddc47477","reviewed_head":"bfdc338c2ba02184c25ef3a4b3ae70e5f2d0a214","slot":"ariadne:3","requested_at":"2026-10-23T16:46:21.766028Z"},"phase":"finished","pid":83156,"started_at":"2026-10-23T16:46:21.996141Z","finished_at":"2026-10-23T16:48:22.297413Z","session_id":"01a169a8-09af-7dd0-9684-194310c444f3","outcome":"returned"}] -->
