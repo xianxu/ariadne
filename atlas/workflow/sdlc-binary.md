@@ -109,6 +109,7 @@ staging or move rights. See `sdlc stage --help` and the
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
+| `issue rename`    | (new #566)                  | Move an unstarted issue's card (issue-tracker) then details (main) to a new slug, bytes unchanged; the next step is `tracker.NextRenameStep` over what both refs hold, so a rerun finishes or no-ops. Slugs come from `issue.FileSlug` (every filer: 80-byte cap at a word boundary), and `gitx.CheckPathLimits` in `TrunkFile.commitSet` refuses any name over 255 bytes before a candidate exists |
 | `issue set-area` / `set-severity` | (new #348) | Classification setters: areas must be declared (or ancestors of declared values) in main's `.sdlc/vocabulary.json`; severity is the shared enum ([vocabulary](vocabulary.md#repo-defined-enums-348)) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
 | `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
@@ -1426,7 +1427,7 @@ evidence after the existing stale-state checks.
 repository only, and some rounds run clone-only, so `judge.Dispatch` confines
 every agent it starts: the boundary review, plan-quality, estimate-quality and
 `sdlc judge` (`reviewbox.Confine`). Before the first attempt it makes a base,
-`<clone>/.sdlc-review/` (excluded from the clone's status), or a fresh
+`<clone>.sdlc-review/` beside the clone (#571), or a fresh
 `$TMPDIR/sdlc-review-*` for agents that run in the caller's checkout. It proves
 `tmp/` writable; a failure means the review did not run. The agent's
 environment (through the run context, so argv and the `Run` seam are
@@ -1447,7 +1448,14 @@ the gate halts. The shims stop accidents, not a reviewer that calls the real
 binaries by path. Without an OS fence, the check is what catches the rest.
 
 Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
-plus `<id>.lock`.
+plus `<id>.sdlc-review/` and their shared `<id>.lock`. The companion keeps test
+scratch outside the reviewed project's marker ancestry. Reset, close and dead-owner
+reclaim remove both trees; a concurrent sweep preserves both while the lock is held.
+Companion symlinks and non-directories refuse before confinement writes.
+Rollout limit: an older binary's sweep does not recognize this companion and
+can delete it during a live review; that review fails and must rerun. At #571
+landing the hub rebuilds ariadne:0's shared tools immediately and notifies slots
+using private Ariadne builds to rebuild. No lock alias or versioned root is added.
 - The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
   the round.
 - `dispatchBoundaryReview` removes both in a defer once the reviewer has
@@ -2664,6 +2672,32 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   A composed train suite inherits any active grant on a car in its exact tested
   prefix (#535), including a grant added while queued. Removed/conflicting cars
   and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
+- **Mixed-helper grant rollout (#570).** New tickets carry the exact
+  `ordering_policy: "fifo-grant-aging-v1"` contract marker, stamped under `alloc`
+  with their monotonic age and retained through admitted holder publication.
+  Missing, malformed or other policy values are legacy/unknown; enqueue age
+  alone never proves policy compatibility. The constant names the current
+  FIFO/grant/3,600-second aging semantics; incompatible future changes need a
+  different marker and rollout decision. The pure Go compatibility assessment
+  consumes the inspector's raw records once for both grant preflight and status.
+  New `landing grant` calls observe the supplying helper with a three-second
+  budget, refuse legacy/unknown held waiters with ticket/repository/worktree
+  identities, and refuse incomplete/unavailable observations. Revoke skips
+  inspection, so broken or old helpers cannot block recovery. No grant-log or
+  frozen drain-JSON format changes.
+
+  Text `queue status` names incompatible ordering; if a live granted waiter
+  coexists, it flags **deadlock risk** and prints a revoke command for each
+  observed granted subject (including train cars). These hints address the
+  subject's Git common directory explicitly. Status does not inventory every
+  repository's grants when no corresponding suite waits. The TL revokes the
+  conflicting grant manually, leaves the waiters unchanged, lets them drain,
+  and refreshes supplying checkouts through normal pins before regranting.
+  Existing grants and legacy waiters joining after preflight remain possible:
+  the fresh observation is not authority over future joins or old running code.
+  Do not claim universal deadlock prevention or fall back to old grant-first
+  policy. Once legacy waiters are absent, current FIFO and aging apply unchanged.
+  No automatic revocation, ticket rewriting, hot reload or live waiter teardown.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it
@@ -2704,7 +2738,14 @@ command and renders the same ordering projection: effective positions, ages,
 protected boundary and aging overrides. Inspection reads/revalidates the allocation
 snapshot without creating/pruning tickets or taking slots; provider IO occurs
 outside locks. Busy or changing snapshots, missing/old helpers and exceeded bounds
-report unavailable order with `sdlc queue status` as the retry. Go launches
+report unavailable order with `sdlc queue status` as the retry. For pre-#560
+helpers, the captured argparse `inspect`/`--supervised` incompatibility is
+diagnosed explicitly with the resolved helper path and supplying-checkout
+pin/refresh recovery (#563). Other helper errors retain the path and at most
+1024 stderr bytes; neither error becomes available ordering. The supplied
+scheduler remains authoritative: status does not replace it with a newer helper
+whose policy its acquisition path may not implement. Admission still uses the
+separate `acquire --watch --slots` protocol. Go launches
 inspection in supervised mode: provider descendants inherit its owned helper
 process group, which is collected on completion, cancellation and deadline.
 Standalone Python queries retain detached provider-group cleanup. It shares status's

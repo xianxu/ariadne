@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -185,7 +187,12 @@ func (t *TrunkFile) setMatchesTrunk(set TrunkWrite, base string) (bool, error) {
 }
 
 // commitSet builds one tree carrying every change without changing a caller ref.
+// Every tracker and main candidate is built here, so a name no checkout could
+// hold is refused before anything exists to push (#566).
 func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (string, error) {
+	if err := CheckPathLimits(slices.Collect(maps.Keys(set.Write))); err != nil {
+		return "", err
+	}
 	idx, cleanupIdx, err := tempIndexPath()
 	defer cleanupIdx()
 	if err != nil {

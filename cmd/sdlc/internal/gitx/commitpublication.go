@@ -146,6 +146,15 @@ func (t *TrunkFile) PublishCommitChecked(selected SelectedCommit, check func(bas
 			result.Outcome = CommitNoChange
 			return result, nil
 		}
+		// The merged tree bypasses commitSet; its new names get the same
+		// refusal before a candidate exists (#566).
+		changed, diag, err := t.run(nil, "diff", "--name-only", "--no-renames", "-z", base, tree)
+		if err != nil {
+			return result, fmt.Errorf("list the publication's paths: %v\n%s", err, diag)
+		}
+		if err := CheckPathLimits(strings.Split(strings.TrimRight(string(changed), "\x00"), "\x00")); err != nil {
+			return result, err
+		}
 		if check != nil {
 			if err := check(t.ViewOf(base), t.ViewOf(tree)); err != nil {
 				return result, err

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ type landingDeps struct {
 	couchTree    func() (slot *int, ok bool)
 	name         func() string
 	dropIdentity func(string) (workspace.Identity, error)
+	suite        func(context.Context, string) suiteQueueObservation
 }
 
 func defaultLandingDeps() landingDeps {
@@ -34,7 +36,8 @@ func defaultLandingDeps() landingDeps {
 		return id, err == nil
 	}
 	return landingDeps{
-		now: func() time.Time { return landingNow() },
+		suite: observeSuiteQueue,
+		now:   func() time.Time { return landingNow() },
 		caller: func() (string, *int, bool) {
 			id, ok := resolve(".")
 			if !ok {
@@ -85,7 +88,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 		Use: "grant", Short: "Give an issue fleet-blocking priority (operator or :0 only)",
 		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLandingGrant(cmd.OutOrStdout(), repo, issueN, reason, hours, false, d)
+			return runLandingGrant(cmd.Context(), cmd.OutOrStdout(), repo, issueN, reason, hours, false, d)
 		},
 	}
 	grant.Flags().IntVar(&issueN, "issue", 0, "the fleet-blocking issue's number")
@@ -99,7 +102,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 		Use: "revoke", Short: "End an issue's fleet-blocking priority (operator or :0 only)",
 		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLandingGrant(cmd.OutOrStdout(), repo, revokeIssue, revokeReason, 0, true, d)
+			return runLandingGrant(cmd.Context(), cmd.OutOrStdout(), repo, revokeIssue, revokeReason, 0, true, d)
 		},
 	}
 	revoke.Flags().IntVar(&revokeIssue, "issue", 0, "the issue whose priority ends")
@@ -118,7 +121,7 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 	return line, err
 }
 
-func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hours float64, revoke bool, d landingDeps) error {
+func runLandingGrant(ctx context.Context, out io.Writer, repo string, issueN int, reason string, hours float64, revoke bool, d landingDeps) error {
 	if issueN <= 0 {
 		return errors.New("--issue N is required")
 	}
@@ -136,6 +139,32 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 	if err := landingline.Authorize(slot, tree); err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !revoke {
+		observe := d.suite
+		if observe == nil {
+			observe = observeSuiteQueue
+		}
+		check, cancel := context.WithTimeout(ctx, 3*time.Second)
+		observed := observe(check, repo)
+		err := check.Err()
+		cancel()
+		if err != nil {
+			return fmt.Errorf("suite ordering compatibility unavailable; no grant written: %w", err)
+		}
+		if !observed.Available {
+			return fmt.Errorf("suite ordering compatibility unavailable; no grant written: %s; refresh the supplying helper and retry", observed.Reason)
+		}
+		compatibility := assessSuiteQueueCompatibility(slices.Values(observed.Tickets))
+		if len(compatibility.Incompatible) != 0 {
+			return fmt.Errorf("grant refused: %s; let these waiters drain and refresh their supplying helpers before retrying", compatibility.detail())
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	line, err := openRepoLine(repo)
 	if err != nil {
 		return err
@@ -144,6 +173,9 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 	g := landingline.Grant{Issue: issueN, Grantor: landingline.Grantor{Address: address, Slot: slot, Name: d.name()}, Reason: reason, Granted: now, Revoked: revoke}
 	if !revoke {
 		g.Expires = now.Add(time.Duration(hours * float64(time.Hour)))
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if err := line.AddGrant(g); err != nil {
 		return err

@@ -3,14 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
@@ -45,6 +49,9 @@ func decodeSuiteQueue(raw []byte) (suiteQueueObservation, error) {
 	var observed suiteQueueObservation
 	if len(raw) > suiteQueueOutputLimit {
 		return observed, fmt.Errorf("suite inspection exceeds output bound")
+	}
+	if err := jsonstrict.RejectDuplicateKeys(raw); err != nil {
+		return observed, err
 	}
 	if err := json.Unmarshal(raw, &observed); err != nil {
 		return observed, err
@@ -112,7 +119,7 @@ func observeSuiteQueue(parent context.Context, root string) suiteQueueObservatio
 		return unavailable(fmt.Errorf("suite inspection exceeds output bound"))
 	}
 	if err != nil {
-		return unavailable(fmt.Errorf("suite helper inspect unavailable: %w", err))
+		return unavailable(suiteQueueInspectFailure(helper, err, stderr.buffer.Bytes()))
 	}
 	observed, err := decodeSuiteQueue(stdout.buffer.Bytes())
 	if err != nil {
@@ -121,10 +128,39 @@ func observeSuiteQueue(parent context.Context, root string) suiteQueueObservatio
 	return observed
 }
 
+// Old supplying schedulers may still support acquisition without the optional
+// inspection protocol. Diagnose only explicit argparse incompatibility; other
+// failures remain unavailable with their own bounded stderr, never "old".
+func suiteQueueInspectFailure(helper string, err error, stderr []byte) error {
+	const diagnosticLimit = 1024 // one status-line excerpt; capture itself stays capped at 1 MiB
+	detail := strings.TrimSpace(string(stderr))
+	if len(detail) > diagnosticLimit {
+		detail = detail[:diagnosticLimit] + " [truncated]"
+	}
+	var exit *exec.ExitError
+	unsupported := errors.As(err, &exit) && exit.ExitCode() == 2 &&
+		(strings.Contains(detail, "error: argument cmd: invalid choice: 'inspect'") ||
+			strings.Contains(detail, "error: unrecognized arguments: --supervised"))
+	if unsupported {
+		return fmt.Errorf("suite helper %s does not support queue inspection: %w; update the supplying ariadne checkout %s through its pin/refresh workflow before retrying; acquisition uses the separate acquire command; stderr: %s", helper, err, filepath.Dir(filepath.Dir(helper)), detail)
+	}
+	return fmt.Errorf("suite helper inspect unavailable at %s: %w; stderr: %s", helper, err, detail)
+}
+
 func renderSuiteQueue(out io.Writer, observed suiteQueueObservation) {
 	if !observed.Available {
 		fmt.Fprintf(out, "suite queue order unavailable: %q; retry: sdlc queue status\n", observed.Reason)
 		return
+	}
+	compatibility := assessSuiteQueueCompatibility(slices.Values(observed.Tickets))
+	if len(compatibility.Incompatible) != 0 {
+		fmt.Fprintln(out, "suite queue mixed-policy / "+compatibility.detail())
+		if compatibility.Granted {
+			fmt.Fprintln(out, "  deadlock risk: a live granted waiter coexists with legacy/unknown ordering; TL must revoke the conflicting grant, then let old waiters drain")
+			for _, hint := range compatibility.Revoke {
+				fmt.Fprintln(out, "  recovery: "+hint)
+			}
+		}
 	}
 	fmt.Fprintf(out, "suite queue: GRANT_MAX_WAIT_SECONDS=%.0f (%.0f min grant overtaking limit); protected through ticket %d\n", observed.PolicySeconds, observed.PolicySeconds/60, observed.ProtectedThrough)
 	if observed.PriorityOverridden {

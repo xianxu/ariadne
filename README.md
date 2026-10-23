@@ -24,12 +24,23 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
-In universal review, the document's `presentation: propose` asks the edit
+Universal review uses three independent scalar settings: `collaboration-mode`
+(discussion by default), `presentation-mode` (highlight) and `processing-mode`
+(free-form), plus free text in `processing-instruction`. A single HTML comment
+directly under a heading overrides any of the three for that section, for example
+`<!-- collaboration-mode: chat; processing-mode: copy-editing -->`.
+Creators write all three defaults explicitly when filling missing frontmatter,
+preserving existing choices and readable legacy aliases. New side docs live at
+`<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`; existing flat names stay valid.
+`tl-lead status instructions link` accepts both layouts and checks the corresponding parent before publishing.
+
+In universal review, effective `presentation-mode: propose` asks the edit
 engine to show prose changes as proposals. Tracked Couch documents use
 `couch --session-sync apply`; a hosted Pair workbench uses `pair review apply`.
 An untracked document with that presentation must be tracked before editing.
 Both apply paths accept one atomic batch of explained edits and derive the
-round; see [universal review](atlas/workflow/universal-review.md).
+round; see [universal review](atlas/workflow/universal-review.md) for the contract,
+precedence, compatibility and implementation ownership (pair#823/parley.nvim#418/#419).
 New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
 longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
 remain readable and resolve by their final human turn. See the
@@ -160,6 +171,11 @@ source files. The prompt names each path, exact SHA, fetch-age evidence (or
 `unknown`) and isolation mode. Missing sources/refs or invalid/conflicting
 declarations stop setup: repair or refresh the local dependency outside the
 review, then rerun the original close command.
+
+Reviewer scratch uses `<clone>.sdlc-review/tmp` beside the review checkout,
+so tests that discover project markers cannot mistake scratch for that project.
+The existing checkout lock owns both trees through reset, close and dead-owner
+cleanup. The source and Git write protections are unchanged.
 
 An available OS fence makes dependency clones and source Git directories
 read-only. Without the fence, the prompt identifies writable disposable clones
@@ -656,6 +672,12 @@ priority is bounded by waiter age: a ticket waiting 60 minutes protects its enti
 FIFO prefix from further grant overtaking. Missing or invalid ages protect the
 prefix too. The younger suffix still gives grants priority; running suites keep
 their slots. This does not change repository landing-line grant holds.
+New grants refuse live suite waiters with legacy/unknown ordering metadata, or
+unavailable inspection. Let them drain and refresh their supplying helpers before
+retrying. Text `sdlc queue status` flags incompatible ordering and existing
+mixed-policy grant deadlock risk with a TL revoke command. A legacy waiter can
+join after preflight; this guarded rollout keeps FIFO/aging and requires manual
+revocation, never killing or unlocking waiters. Drain JSON stays unchanged.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 2 since #561; an explicit cap
@@ -819,7 +841,11 @@ machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
 resume --owner TOKEN` removes only that hold and never restarts interrupted work.
 Text `sdlc queue status` additionally shows suite waiter ages, the grant-overtaking
 limit and aging overrides from the supplying scheduler. Inspection is read-only;
-unavailable ordering is explicit. `sdlc queue status --json` reports the unchanged
+unavailable ordering is explicit. An older supplying helper may support `acquire`
+without `inspect`: status names that helper and the supplying Ariadne checkout
+to update through its normal pin/refresh workflow before retrying. This optional
+display failure does not change suite admission. Other inspection failures retain
+a bounded stderr excerpt for diagnosis. `sdlc queue status --json` reports the unchanged
 frozen v1 owner/activity schema. Incomplete
 or unknown observations never prove quiescence. Isolated conformance supplies
 private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and

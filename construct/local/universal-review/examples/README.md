@@ -32,4 +32,9 @@ docs' names and frontmatter; and which files are unchanged.
 - that a move case's `after/` is exactly the move contract applied to `before/`. The move cases are also parley's
   fixtures: `export.json` lists their files.
 
+The older cases deliberately retain legacy aliases, maps and flat side-doc names as compatibility fixtures; their
+creation traces describe the earlier contract, not the naming/defaults new writers should copy. New editorial
+cases use the three canonical keys, adjacent heading comments and YYYY-MM directories. The fill cases describe
+frontmatter creation/fill, not permission for an ordinary review to change an operator-owned setting.
+
 The work the cases file or dispatch (an issue number, a slot move) is illustrative.

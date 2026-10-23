@@ -52,6 +52,9 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"required TL approval", "Full-flow designs, design changes and scope revisions still\n  need TL approval."},
 		{"retro agreement required", "change the boundary only through those agreed items."},
 		{"landing order", "The landing line orders landings"},
+		{"grant compatibility refusal", "New grants refuse legacy/unknown ordering"},
+		{"grant deadlock recovery", "revoke the conflicting grant"},
+		{"grant rollout limit", "A legacy waiter can join after preflight"},
 		{"cross repo", "You never\n    relay a filing"},
 		{"teams", "TEAMS (ariadne#456: one team per ops repo)"},
 		{"hub contract", "A slot\n    whose checkout has .hub at its root runs this contract"},
@@ -107,7 +110,7 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		{"G1 Operator instructions is section 0", "0. `## Operator instructions`"},
 		{"G2 the TL only links answers", "Your only write is appending"},
 		// #412: the session file runs on the skill's chat mode, cited not restated.
-		{"the session file declares chat mode", "`collaboration-mode: {chat: [\"Operator instructions\"]}`"},
+		{"the session file declares chat mode", "`<!-- collaboration-mode: chat -->`"},
 		{"chat mode is the rule", "xx-universal-review's chat mode is the\n    rule for it"},
 		{"the body is discussion", "The rest of the status file (Needs you, Threads, …) is discussion"},
 		{"the TL writes only through tl-lead", "never by the skill's whole-document write"},
