@@ -139,6 +139,14 @@ Retained recorded suite: lease-2459060446, attempt b4fa6c947bd70ef4d22947d0e2252
 
 Exact next step: finish reading this retained suite; on pass append its result here, commit/push and remain idle for the night. On failure inspect every failure, preserving its raw evidence; no flake registration or rerun without classification. Before any restart verify the run/result on its exact SHA. After the planned Go upgrade, rebuild this slot's tools as directed and re-read tl-worker help, sdlc state, PR405 and queue/landing evidence. New landing requires fresh authenticated hub authorization after tonight's freeze; only then run sdlc merge --yes (never duplicate a surviving merge runner). A Couch-available notice alone is not authorization. No new issue is accepted while waiting.
 
+### 2026-10-22 19:57 — queued suite cancelled by hub; stop for tonight
+
+Authenticated hub instruction 8fa9c8ee-eca8-4029-adc0-b2888268b77e explicitly requested cancellation of #557's queued suite to let #554 (echo critical path) proceed, and requeue first thing tomorrow. This supersedes the earlier keep-waiting instruction. Ran sdlc local-check cancel --run lease-2459060446; it returned cancellation success on 63a90530/PID95656. Retained waiter exited with suite lock interrupted: context canceled, before any suite execution. The exact lease is gone. No code-failure result or passing evidence was created by that cancellation. No PID kill, sibling cancellation, duplicate runner, merge or landing was performed. Sent the requested cancellation report to the hub (receipt ed00356c-0234-4733-9ce4-6cea821eec49).
+
+Stopped with implementation and fixture correction reviewed SHIP, PR405 OPEN, and no owned background suite/review/merge left. Full-suite verification on the corrected code is OUTSTANDING: the only completed full run was the earlier stale-fixture failure; targeted correction/native controls passed, and re-close was SHIP. Do not treat this as a suite pass or land tonight.
+
+Exact next step for 2026-10-23: after resuming from this Log, read tl-worker --help and verify queue/landing/PR state and any retained checks; rebuild this slot's binaries after the operator's planned Go upgrade. Requeue sdlc local-check run --name suite once on the current pushed PR head, retain its exact new run ID, and read its completed result. There is no surviving #557 runner to resume or duplicate. Classify any failure before retrying. Only after a recorded pass and fresh authenticated hub authorization to lift the landing freeze, run sdlc merge --yes. A Couch-available notice alone grants neither new landing authority nor a suite pass. Take no new issue tonight; commit/push this Log and remain idle.
+
 ## Revisions
 
 ### 2026-10-22 — proposed prevention at publication boundary

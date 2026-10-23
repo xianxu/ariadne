@@ -100,3 +100,7 @@ Hub review must confirm seeded-output scope versus the stronger all-tracked-writ
 ### 2026-10-22 — hub-approved scope
 
 Authenticated hub approval b2a58869-feeb-45f0-b41c-973fb0167e90 confirms all Seed/SeedOnce suppression in planning mode, existing settings protection and explicit ordinary compile for the separate operator-verified consumer PR. The wider all-tracked-writers policy (Ship, managed retirement, .gitignore) is a known follow-up, not part of #557; file that follow-up if one of those families is actually observed dirtying a resting branch. No speculative follow-up issue is filed now. Proceed through change-code; no implementation preceded approval.
+
+### 2026-10-22 — verification and landing deferred for fleet freeze
+
+Implementation, isolated proof and both close reviews are complete (SHIP, no findings). The completed full suite exposed one stale process-fixture contract, now corrected and targeted/native verified. The fresh corrected-head suite was cancelled while still queued, by explicit hub request to unblock #554. The final lifecycle checkbox remains outstanding: requeue suite on the pushed PR head on 2026-10-23, then land only after fresh hub authorization. No scope or implementation change.
