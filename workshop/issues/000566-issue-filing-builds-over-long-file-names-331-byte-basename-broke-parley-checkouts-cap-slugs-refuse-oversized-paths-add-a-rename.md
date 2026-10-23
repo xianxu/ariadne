@@ -1,13 +1,13 @@
 ---
 id: 000566
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0ae300b5d4c6bb0173685bbcf3e960712e89baa6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c80e8daac24f19088c08f41689c36b78772cc69b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T03:16:37-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.80
 ---
 
 # Issue filing builds over-long file names (331-byte basename broke parley checkouts); cap slugs, refuse oversized paths, add a rename
