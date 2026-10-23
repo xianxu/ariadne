@@ -1,6 +1,7 @@
 package sidedoc
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -68,6 +69,15 @@ func TestChatSections(t *testing.T) {
 			name:    "CRLF frontmatter is not read, and says so",
 			doc:     "---\r\ncollaboration-mode: chat\r\n---\r\n- a\r\n",
 			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name: "a leading thematic break with no closing fence is not frontmatter: no notice",
+			doc:  "---\nJust a rule above prose.\n",
+		},
+		{
+			name:    "an empty collaboration-mode is empty or malformed, not retired",
+			doc:     "---\ncollaboration-mode:\n---\n",
+			notices: []string{"collaboration-mode is empty or malformed; ignored"},
 		},
 		{
 			name:    "LF frontmatter with a CR in the body is not read, and says so",
@@ -167,5 +177,32 @@ func TestChatSectionContains(t *testing.T) {
 	s := ChatSections("@@chat@@\n## Ops\n1. a\n## Next\nb\n")
 	if !s.InChat(3) || s.InChat(5) || s.InChat(1) {
 		t.Errorf("InChat over %+v", s.Sections)
+	}
+}
+
+// pair#838 calls ChatSections once per snapshot, so its work must grow
+// linearly in the document: N and 2N sections, each with a tag, a nested
+// subsection and items, and N legacy map names. A per-heading prefix count
+// or a rescan of later headings would roughly quadruple; linear doubles.
+func TestChatSectionsWorkIsLinear(t *testing.T) {
+	doc := func(n int) string {
+		var b strings.Builder
+		b.WriteString("---\ncollaboration-mode:\n  chat:\n")
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, "    - Named %d\n", i)
+		}
+		b.WriteString("---\n# Doc\n")
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, "@@chat@@\n## Ops %d\n1. why %d?\n### Sub %d\n2. how?\n## Named %d\ntext\n", i, i, i, i)
+		}
+		return b.String()
+	}
+	scan, w1 := chatSections(doc(200))
+	if len(scan.Sections) != 400 {
+		t.Fatalf("%d sections at N=200, want 400", len(scan.Sections))
+	}
+	_, w2 := chatSections(doc(400))
+	if w2 > 2*w1+w1/10 {
+		t.Errorf("work %d at N=200, %d at N=400: superlinear (ratio %.2f)", w1, w2, float64(w2)/float64(w1))
 	}
 }

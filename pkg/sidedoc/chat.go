@@ -59,18 +59,30 @@ var modeComment = regexp.MustCompile(`^<!--\s*(.*?)\s*-->\s*$`)
 // fenced "heading" is code. It is pure; a malformed legacy key degrades to a
 // notice rather than an error, because a mode key never fails a round.
 func ChatSections(doc string) ChatScan {
+	scan, _ := chatSections(doc)
+	return scan
+}
+
+// chatSections is ChatSections with its work count: lines and bytes scanned,
+// headings and map names visited, and section-stack operations, plus
+// CodeLiteralMask's own count. It is linear in the document (pair#838 runs it
+// once per snapshot); goldmark's parse is outside the count, as in
+// CodeLiteralMask.
+func chatSections(doc string) (ChatScan, int) {
 	var scan ChatScan
 	lines := strings.Split(doc, "\n")
+	work := len(lines)
 	total := len(lines)
 	if strings.HasSuffix(doc, "\n") {
 		total--
 	}
 	fm, body, hasFM := frontmatter(doc)
 	// One rule for every way frontmatter goes unread (CR line endings, a
-	// document marker or directive inside, YAML that does not parse): a
-	// document that opens with a fence gets the notice, so a legacy chat
-	// never vanishes silently.
-	if !hasFM && (strings.HasPrefix(doc, "---\n") || strings.HasPrefix(doc, "---\r\n")) {
+	// document marker or directive inside, YAML that does not parse): when a
+	// closed leading fence block exists but was not read, say so, so a legacy
+	// chat never vanishes silently. A document that merely opens with a
+	// thematic break has no such block and gets no notice.
+	if _, _, fenced := FrontBlock(doc); fenced && !hasFM {
 		scan.Notices = append(scan.Notices, unreadFrontmatter)
 	}
 	bodyStart := 1 // the body's first line, 1-based
@@ -78,6 +90,12 @@ func ChatSections(doc string) ChatScan {
 		bodyStart = len(fm) + 3 // the two fences and the frontmatter lines
 	}
 	scalarChat, mapNames := scan.readFrontmatter(fm)
+	work += len(mapNames)
+	wanted := map[string][]string{} // normalized name → the names as written
+	for _, n := range mapNames {
+		k := normalizeHeading(n)
+		wanted[k] = append(wanted[k], n)
+	}
 
 	type heading struct {
 		line, level int
@@ -85,7 +103,14 @@ func ChatSections(doc string) ChatScan {
 	}
 	var headings []heading
 	src := []byte(body)
-	lineOf := func(off int) int { return bodyStart + strings.Count(body[:off], "\n") }
+	// Headings arrive in source order, so one cursor counts each newline once.
+	cursor, cursorLine := 0, bodyStart
+	lineOf := func(off int) int {
+		cursorLine += strings.Count(body[cursor:off], "\n")
+		work += off - cursor
+		cursor = off
+		return cursorLine
+	}
 	root := goldmark.DefaultParser().Parse(gmtext.NewReader(src))
 	ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		h, ok := n.(*ast.Heading)
@@ -100,19 +125,28 @@ func ChatSections(doc string) ChatScan {
 	for _, h := range headings {
 		isHeading[h.line] = true
 	}
-	end := func(i int) int {
-		for _, next := range headings[i+1:] {
-			if next.level <= headings[i].level {
-				return next.line - 1
-			}
+	// Each section ends before the next heading of the same or a higher
+	// level: one stack pass, each heading pushed and popped once.
+	ends := make([]int, len(headings))
+	var open []int
+	for i, h := range headings {
+		for len(open) > 0 && headings[open[len(open)-1]].level >= h.level {
+			ends[open[len(open)-1]] = h.line - 1
+			open = open[:len(open)-1]
+			work++
 		}
-		return total
+		open = append(open, i)
+		work++
+	}
+	for _, i := range open {
+		ends[i] = total
 	}
 
 	// A tag is a line holding only @@chat@@ outside code (fenced or indented),
 	// and it counts only directly above an ATX heading: CommonMark folds a
 	// line above a setext heading into that heading's text.
-	literal, _ := CodeLiteralMask(body)
+	literal, maskWork := CodeLiteralMask(body)
+	work += maskWork
 	tagLine := map[int]bool{}
 	off := 0
 	for i := bodyStart - 1; i < len(lines); i++ {
@@ -148,16 +182,16 @@ func ChatSections(doc string) ChatScan {
 				}
 			}
 		}
-		for _, n := range mapNames {
-			if normalizeHeading(n) == normalizeHeading(h.name) {
+		if names, ok := wanted[normalizeHeading(h.name)]; ok {
+			for _, n := range names {
 				matched[n] = true
-				if source == "" {
-					source = "legacy-map"
-				}
+			}
+			if source == "" {
+				source = "legacy-map"
 			}
 		}
 		if source != "" && !scalarChat {
-			scan.Sections = append(scan.Sections, ChatSection{h.line, end(i), source})
+			scan.Sections = append(scan.Sections, ChatSection{h.line, ends[i], source})
 		}
 	}
 	for _, n := range mapNames {
@@ -165,7 +199,7 @@ func ChatSections(doc string) ChatScan {
 			scan.Notices = append(scan.Notices, fmt.Sprintf("collaboration-mode map name %q matches no heading", n))
 		}
 	}
-	return scan
+	return scan, work
 }
 
 // readFrontmatter reads the legacy mode keys: whether a scalar or map default
@@ -185,6 +219,8 @@ func (s *ChatScan) readFrontmatter(fm []string) (wholeChat bool, names []string)
 			if cm.Value == "chat" {
 				wholeChat = true
 				s.Notices = append(s.Notices, "collaboration-mode: chat is a legacy key; read as @@chat@@ for the whole document")
+			} else if cm.Value == "" {
+				s.Notices = append(s.Notices, "collaboration-mode is empty or malformed; ignored")
 			} else {
 				s.Notices = append(s.Notices, fmt.Sprintf("collaboration-mode: %s is retired and ignored: one collaborative mode applies", cm.Value))
 			}
