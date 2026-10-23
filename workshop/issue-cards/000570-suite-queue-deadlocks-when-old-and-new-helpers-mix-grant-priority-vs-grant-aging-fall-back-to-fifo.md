@@ -1,6 +1,6 @@
 ---
 id: 000570
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.39
+tracker:
+    version: 1
+    completion:
+        token: close-f2203e7b007f
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 401723f03420ca4d9e774917d64001bc3a60e5d5
+        evidence_commit: c8d0c66de52845bc0c1f2405c3c28919572fd3d2
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
