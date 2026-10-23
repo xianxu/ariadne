@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # model-bench M1: bench runner (leak-free checkout, run, measure, score, ledger) and a tl-lead bench mode
