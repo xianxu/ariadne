@@ -10,3 +10,4 @@ saying what it asks.
 ## Reply
 
 - Files: your question opened design.side/02-why-release-on-submit.md.
+- collaboration-mode: discussion is retired and ignored: one collaborative mode applies

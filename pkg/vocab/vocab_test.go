@@ -279,7 +279,8 @@ func TestScaffoldsDeclareACollaborationMode(t *testing.T) {
 
 // #415: the collaboration-mode values are stated in three places; they must
 // be the same three. pensive.cue's closed schema enumerates them, and
-// collaboration-modes.md (the protocol) names them in its errors table.
+// collaboration-modes.md names each in §7's legacy table, which since #575
+// reads them and never writes them (ariadne#576 retires the writers).
 func TestCollaborationModesAgreeAcrossSources(t *testing.T) {
 	cue, err := os.ReadFile("../../construct/vocabulary/pensive.cue")
 	if err != nil {
@@ -293,7 +294,13 @@ func TestCollaborationModesAgreeAcrossSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(md), "a mode other than `"+strings.Join(CollaborationModes, "`, `")+"`") {
-		t.Errorf("collaboration-modes.md's errors table names other modes than %v", CollaborationModes)
+	_, legacy, ok := strings.Cut(string(md), "## 7. Legacy mode keys")
+	if !ok {
+		t.Fatal("collaboration-modes.md lacks §7, the legacy mode keys")
+	}
+	for _, m := range CollaborationModes {
+		if !strings.Contains(legacy, "`collaboration-mode: "+m+"`") {
+			t.Errorf("collaboration-modes.md §7 does not read the legacy value %q", m)
+		}
 	}
 }

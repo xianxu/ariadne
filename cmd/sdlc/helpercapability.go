@@ -93,6 +93,13 @@ func prepareSuiteHelper(ctx context.Context, root, anchor string) (string, error
 	return resolved, nil
 }
 
+// helperSupportsLane reports whether the checkout's helper declares the light
+// lane (#559, lane-v1). Any probe failure means no: the lane is optional.
+func helperSupportsLane(ctx context.Context, dir, helper string) bool {
+	help, err := probeHelperHelp(ctx, dir, helper)
+	return err == nil && len(missingHelperOptions(string(help), []string{"--lane"})) == 0
+}
+
 func missingHelperOptions(help string, required []string) []string {
 	options := helperHelpOptions(help)
 	var missing []string

@@ -3,13 +3,13 @@
 submitted: status.md
 outcome: ok
 
-Rows 12 to 16, and the chat edges:
+A legacy section map (collaboration-modes.md §7) makes this a chat case: rows 13 to 16, and the chat edges:
 - the heading `### Operator instructions (open)` matches the name `"operator  instructions"` (case, whitespace and
   the trailing annotation are ignored), and its `#### Notes` subsection inherits chat;
 - the fenced `## Operator instructions` is text, not a heading;
-- the items sit above the topmost marker, and the review mode is copy-editing (frontier on), yet they are answered;
-- the text above the first heading and `## Needs you` take the default, discussion, so the marker there opens a side
-  doc, numbered, beside the dated answer docs;
+- the items sit above the topmost marker, yet they are answered: items are asks whatever the markers say;
+- the text above the first heading and `## Needs you` are not chat, so the marker there is an ordinary ask (§1): a
+  question, which opens a side doc, numbered, beside the dated answer docs;
 - item 4 links an old `qa/` answer file, and its follow-up extends that file;
 - the answer doc for "what is the quota burn?" lost its item before this round, so it is closed and left untouched.
 
@@ -27,7 +27,9 @@ Rows 12 to 16, and the chat edges:
 
 ## Reply
 
-- `collaboration-mode.chat` names 'Operatr notes', which matches no heading.
+- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@; retired keys ignored:
+  process-instruction.
+- collaboration-mode map name "Operatr notes" matches no heading.
 - Item 1: answered in status.side/2026-10-16-01-s4-cost.md.
 - Item 2: done (moved #353 to :2); recorded in status.side/2026-10-16-02-move-353.md.
 - Item 3: extended status.side/2026-10-15-01-backlog.md with your follow-up.

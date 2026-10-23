@@ -30,6 +30,14 @@
 # live waiter keeps its place even when stopped (^Z): the line waits for it, and
 # the waiters behind it name it as next in line.
 #
+# The light lane (#559): `acquire --lane light` waits in its own FIFO line
+# (<slot 0>.light-tickets/) for one extra slot (<slot 0>.light), a third concurrent
+# run beyond WF_TEST_SUITES. Only `sdlc local-check` asks for it, for a repo whose
+# recorded suites measure short; it stops a light run that overruns and retries it
+# in the normal line. The light line never reads or takes a normal ticket or slot,
+# so heavy admission is unchanged, and older helpers never open its paths. It is
+# plain FIFO: no grants, no aging. It answers `acquired-light`.
+#
 # WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the
 # lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait; WF_TEST_LOCK_FILE
 # overrides slot 0's path (tests). WF_TEST_LOCK_HELD_BY marks a nested run under
@@ -58,6 +66,8 @@ from typing import TypedDict
 REPORT_EVERY = 30
 GRANT_MAX_WAIT_SECONDS = 3600
 ORDERING_POLICY = "fifo-grant-aging-v1"
+LANE_LIGHT = "light"
+LIGHT_SLOT, LIGHT_TICKETS = ".light", ".light-tickets"
 INSPECT_MAX_RECORDS = 4096
 INSPECT_MAX_RECORD_BYTES = 64 << 10
 INSPECT_MAX_OUTPUT_BYTES = 1 << 20
@@ -795,8 +805,9 @@ def live_tickets(tdir):
 class Tickets:
     """This waiter's place in the FIFO line (#357)."""
 
-    def __init__(self, base, rec):
-        self.dir = base + ".tickets"
+    def __init__(self, base, rec, suffix=".tickets"):
+        self.dir = base + suffix
+        self.light = suffix == LIGHT_TICKETS
         os.makedirs(self.dir, exist_ok=True)
         self.mutex = os.open(os.path.join(self.dir, "alloc"), os.O_RDWR | os.O_CREAT, 0o644)
         with self.locked():
@@ -831,6 +842,8 @@ class Tickets:
         return records
 
     def elect(self, records, deadlines, fds, queue, want):
+        if self.light:
+            return self.elect_light(records, fds)
         projection = suite_order(records, deadlines, time.time(), time.monotonic())
         order = [(row["number"], row["record"]) for row in projection["tickets"]]
         self.observation = next(row for row in projection["tickets"] if row["number"] == self.number)
@@ -859,6 +872,20 @@ class Tickets:
             taken, busy = scan(fds, 0)
         deadline = subject_deadline(order[index][1], deadlines)
         return taken, busy, ahead, head, deadline
+
+    def elect_light(self, records, fds):
+        """The light line's head tries the one light slot; the alloc mutex the
+        caller holds serializes light waiters, so no queue token is needed."""
+        order = light_order(records, time.monotonic())
+        index = next(i for i, row in enumerate(order) if row["number"] == self.number)
+        self.observation = order[index]
+        ahead = [row["record"] for row in order[:index]]
+        taken, busy = scan(fds, 1 if index == 0 else 0)
+        if taken:
+            raw = json.dumps(dict(order[0]["record"], slot=LANE_LIGHT, slots=[LANE_LIGHT])).encode()
+            os.ftruncate(fds[0], 0)
+            os.pwrite(fds[0], raw, 0)
+        return taken, busy, ahead, index == 0, 0
 
     def admission(self, fds, queue, want, evidence, gate=None):
         """Prepare slow priority evidence outside global gate; revalidate inside."""
@@ -1031,6 +1058,21 @@ def suite_order(records, deadlines, now, monotonic_now, policy_seconds=GRANT_MAX
         row['position'] = position
     return dict(version=1, available=True, policy_seconds=policy_seconds,
                 protected_through=boundary, priority_overridden=overridden, tickets=ordered)
+
+
+def light_order(records, monotonic_now):
+    """The light line (#559): plain FIFO by ticket number, no grants or aging."""
+    return [dict(number=number, position=position, age_seconds=ticket_age(record, monotonic_now),
+                 granted=False, protected=False, priority_overridden=False, reason='light_fifo',
+                 record=record) for position, (number, record) in enumerate(records, 1)]
+
+
+class NoGrants:
+    """The light line's evidence: it takes no grants, so it asks no provider."""
+    warned = False
+
+    def deadlines(self, records, now):
+        return {}
 
 
 def effective_order(records, deadlines, now, monotonic_now=None):
@@ -1219,6 +1261,36 @@ def inspect_queue(base, evidence, now=None, monotonic_now=None):
             os.close(allocation)
 
 
+def inspect_light(base, monotonic_now=None):
+    """Read-only light lane observation (#559): its holder and FIFO waiters.
+
+    Probing the slot takes its flock for an instant when free; a light waiter
+    that loses that race retries on its next poll."""
+    monotonic_now = time.monotonic() if monotonic_now is None else monotonic_now
+    try:
+        busy, record = False, None
+        try:
+            fd = os.open(base + LIGHT_SLOT, os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0))
+        except FileNotFoundError:
+            fd = None
+        if fd is not None:
+            try:
+                if try_lock(fd):
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+                else:
+                    busy, record = True, holder(fd)
+            finally:
+                os.close(fd)
+        directory = base + LIGHT_TICKETS
+        tickets = inspection_snapshot(directory) if os.path.isdir(directory) else []
+        waiters = light_order([(number, rec) for number, _, _, rec in tickets], monotonic_now)
+        return dict(version=1, available=True, busy=busy, holder=record, waiters=waiters)
+    except InspectionUnavailable as error:
+        return dict(version=1, available=False, reason=str(error))
+    except (OSError, ValueError, TypeError, OverflowError):
+        return dict(version=1, available=False, reason='observation_unavailable')
+
+
 def priority_subject(provider, top, evidence):
     try:
         raw = os.environ.get("WF_TEST_PRIORITY_SUBJECT")
@@ -1282,7 +1354,7 @@ def require_watch(watch):
         raise SystemExit(1)
 
 
-def acquire(watch, weight=1):
+def acquire(watch, weight=1, lane=None):
     if os.environ.get("WF_TEST_LOCK", "").lower() in ("off", "0", "no"):
         log("WF_TEST_LOCK=off: NOT taking the machine-wide full-suite lock; this run may collide with another")
         return "skipped"
@@ -1290,8 +1362,12 @@ def acquire(watch, weight=1):
     paths = lock_paths()
     os.makedirs(os.path.dirname(paths[0]), exist_ok=True)
     fds = [os.open(p, os.O_RDWR | os.O_CREAT, 0o644) for p in paths]
+    light = os.open(paths[0] + LIGHT_SLOT, os.O_RDWR | os.O_CREAT, 0o644)
     queue = os.open(paths[0] + ".queue", os.O_RDWR | os.O_CREAT, 0o644)
     want = min(max(1, weight), len(fds))
+    every = fds + [light]  # a nested make finds a light holder as its parent too
+    if lane == LANE_LIGHT:
+        fds, want = [light], 1
     top = os.environ.get("WF_TEST_LOCK_OWNER") or subprocess.run(
         ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.getcwd()
     rec = {"repo": os.path.basename(top), "worktree": top, "pid": watch,
@@ -1304,7 +1380,7 @@ def acquire(watch, weight=1):
 
     gate, detached = None, False
     try:
-        if nested(scan(fds, 0)[1]):
+        if nested(scan(every, 0)[1]):
             return "reentrant"
         gate = QueueGate(queue_state_root(), top, watch)
         with gate.locked():
@@ -1314,9 +1390,12 @@ def acquire(watch, weight=1):
             return 'paused'
         provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
-        evidence = GrantEvidence(provider)
-        rec["subject"] = priority_subject(provider, top, evidence)
-        line = Tickets(paths[0], rec)
+        if lane == LANE_LIGHT:
+            evidence, line = NoGrants(), Tickets(paths[0], rec, LIGHT_TICKETS)
+        else:
+            evidence = GrantEvidence(provider)
+            rec["subject"] = priority_subject(provider, top, evidence)
+            line = Tickets(paths[0], rec)
         start = last = time.time()
         first, previous = True, None
         last_order = None
@@ -1342,7 +1421,8 @@ def acquire(watch, weight=1):
                              else f"issue #{rec['subject']['issue']}") if deadline > time.time() else ''
                     classification = (f"fleet-blocking {label}, until "
                                       f"{datetime.fromtimestamp(deadline).isoformat(timespec='seconds')}"
-                                      if deadline > time.time() else "normal FIFO")
+                                      if deadline > time.time() else
+                                      "light lane FIFO" if lane == LANE_LIGHT else "normal FIFO")
                     if head:
                         position = "position 1 in line: next to run"
                     else:
@@ -1365,10 +1445,11 @@ def acquire(watch, weight=1):
                     held += "\n  " + gate.last_pause
                 held += "\n  " + position
                 now = time.time()
-                wanted = "one" if want == 1 else str(want)
+                wanted = (f"the light slot ({paths[0]}{LIGHT_SLOT})" if lane == LANE_LIGHT else
+                          f"{'one' if want == 1 else want} of {len(fds)} full-suite slots ({paths[0]}*)")
                 position_state = (order_state, gate.last_pause)
                 if first or position_state != previous or now - last >= REPORT_EVERY:
-                    log(f"waiting {int(now - start)}s for {wanted} of {len(fds)} full-suite slots ({paths[0]}*); held by:{held}")
+                    log(f"waiting {int(now - start)}s for {wanted}; held by:{held}")
                     first, last, previous = False, now, position_state
                 if limit and now - start >= limit:
                     log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{held}")
@@ -1378,19 +1459,22 @@ def acquire(watch, weight=1):
             line.release()
         os.close(queue)
         queue = None
-        for slot, other in enumerate(fds):
-            if slot not in taken:
+        kept = [fds[slot] for slot in taken]
+        for other in every:
+            if other not in kept:
                 os.close(other)
         if not first:
             log(f"lock acquired after {int(time.time() - start)}s")
         child = start_owner_watcher(gate, watch)
         detached = True
         rec.update(holder=child, slot=taken[0], slots=taken, started=datetime.now().isoformat(timespec="seconds"))
+        if lane == LANE_LIGHT:
+            rec.update(slot=LANE_LIGHT, slots=[LANE_LIGHT])
         with gate.locked():
             for slot in taken:
                 os.ftruncate(fds[slot], 0)
                 os.pwrite(fds[slot], json.dumps(rec).encode(), 0)
-        return "acquired"
+        return "acquired-light" if lane == LANE_LIGHT else "acquired"
     finally:
         if gate is not None:
             if not detached and not gate.managed:
@@ -1398,7 +1482,7 @@ def acquire(watch, weight=1):
             gate.close()
         if queue is not None:
             os.close(queue)
-        for fd in fds:
+        for fd in every:
             try:
                 os.close(fd)
             except OSError:
@@ -1410,6 +1494,8 @@ def main():
     ap.add_argument("cmd", choices=["acquire", "inspect"])
     ap.add_argument("--watch", type=int, help="pid whose exit releases the lock (make); required for acquire")
     ap.add_argument("--slots", type=int, default=1, help="this suite's weight: slots it takes at once (#346)")
+    ap.add_argument("--lane", choices=[LANE_LIGHT], metavar="LANE",  # sdlc's capability probe reads LANE
+                    help="acquire only: wait in the light lane for its one slot (#559)")
     ap.add_argument("--supervised", action="store_true",
                     help="inspect only: external caller owns process-group cleanup")
     args = ap.parse_args()
@@ -1425,11 +1511,15 @@ def main():
         provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
         query = lambda provider, request: query_priority(provider, request, own_group=not args.supervised)
-        print(json.dumps(inspect_queue(lock_paths()[0], GrantEvidence(provider, query=query))))
+        observed = inspect_queue(lock_paths()[0], GrantEvidence(provider, query=query))
+        observed['lane'] = inspect_light(lock_paths()[0])
+        if len(json.dumps(observed).encode()) > INSPECT_MAX_OUTPUT_BYTES:
+            observed['lane'] = dict(version=1, available=False, reason='output_limit')
+        print(json.dumps(observed))
         return
     if args.watch is None:
         ap.error("acquire requires --watch")
-    print(acquire(args.watch, args.slots))
+    print(acquire(args.watch, args.slots, args.lane))
 
 
 if __name__ == "__main__":

@@ -13,3 +13,6 @@ and this document's default `presentation: highlight` applies clean edits.
 - Numbers: opened design.side/04-numbers.md to ask which numbers you mean.
 - Retries: opened design.side/03-retry-story.md, proposing what is off.
 - Cache: folded design.side/01-cache-ttl.md into the parent; the link is marked folded and the side doc records the fold.
+- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@
+- collaboration-mode map default: discussion is retired and ignored
+- retired keys ignored: process-instruction

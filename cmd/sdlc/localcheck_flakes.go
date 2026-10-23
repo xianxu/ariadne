@@ -77,6 +77,9 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	if o.Kind != flakes.NeedRerun {
 		return o, nil
 	}
+	if err := preflightSuite(ctx, d, g.check, g.sha); err != nil {
+		return flakes.Outcome{}, err
+	}
 	// Whole top-level tests (#466): a registered subtest reruns its test.
 	commands, err := flakeRerunCommands(flakes.RerunTests(o.Known))
 	if err != nil {

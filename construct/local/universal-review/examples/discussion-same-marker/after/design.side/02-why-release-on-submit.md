@@ -2,7 +2,6 @@
 type: side-doc
 parent: ../design.md
 marker: "why?"
-collaboration-mode: discussion
 ---
 
 # Why is the lock released on submit?

@@ -6,57 +6,50 @@ universal-agent-input-interface). Parley's Alt+Return sends only `submitted: PAT
 skill carries the rest.
 
 - **`SKILL.md`** — the trigger and three pointers; it restates no protocol.
-- **`round.md`** — the harness-neutral round: single-valued `processing-mode` (exact name or unique prefix),
-  separate `processing-instruction` free text, per-region scope/frontier and effective `presentation-mode`,
-  marker handling and the reply. Deprecated composite `process-instruction` remains readable; automatic fill
-  refuses a multi-mode legacy value rather than dropping a brief. It names no Couch verb, so it works outside
-  Couch. §4 resolves settings and routes each ask (#412, #562).
-- **`collaboration-modes.md`** — owns the three-key contract (#562): `collaboration-mode`, `presentation-mode`,
-  `processing-mode`; scalar frontmatter, heading comments, precedence, defaults, aliases and legacy-map migration.
-  Where an ask goes: **discussion** (the default; an imperative is an
-  edit, an instruction that only acts is honored, a decision becomes one `Decided (operator): …` line with any notes in a
-  linked side doc, a question opens a linked side doc), **collaboration** (answered in
-  place), **chat** (each list item gets a dated answer doc). It holds the heading matching and its error cases, the
-  side-doc contract (new `<name>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md` paths, old flat names remain valid,
-  frontmatter, the write order: side docs, then a folded parent, then the submitted document; retries relink an
-  unlinked doc by `parent:` + `marker:` + section, never one already linked), and the state table. Design: ops universal-agent-input-interface, S2.
+- **`round.md`** — the harness-neutral round (#575): read the chat tags and legacy keys, load a brief when an ask
+  names one, scope each command (s1–s3), route each marker as a question or a command and each chat item to an
+  answer doc, handle markers, and reply with one notice line for legacy keys. It names no Couch verb, so it works
+  outside Couch.
+- **`collaboration-modes.md`** (titled "Collaborative editing"; the path is kept because `pkg/sidedoc`, tl-lead and
+  sdlc cite its §4/§5) — the one-mode model of #575, which replaced #562's three keys (54 combinations): direct
+  edits are content; a marker is a **question** (a linked side doc; the default when unsure) or a **command** (an
+  edit, a one-line `Decided (operator): …` record, a fold-in, or an action elsewhere); §2 scope rules s1–s3; §3 the
+  `@@chat@@` carve-out (a tag directly above a heading; numbered items, each with a dated answer doc; follow-ups,
+  deletions, relinking); §4 the side-doc contract (new `<name>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md` paths, old flat
+  names valid, frontmatter of only `type`/`parent`/`marker`, the write order, retries relinking an unlinked doc by
+  `parent:` + `marker:` + section); §5 moves; §6 the state table; §7 the legacy keys, read and never written: the
+  forms that meant chat still mean chat, everything else is a reply notice, never a failed round. The operator
+  decided (10-23) that the one mode applies to issues, plans and projects too: `collaboration-mode: collaboration`
+  no longer answers in place.
   **S3 (#424):** a side doc has no closed state; the parent's `discussions:` frontmatter is the operator's review
   queue, under a one-way rule (deleting a link drops its entry; removing an entry means reviewed); fold-in is asked
-  from the parent by 🤖[fold in] at the link (an approval inside a side doc only records its Decided line); and §5
-  is the move contract (the `.side/` tree moves with its document, a name change rewrites the parent's references,
-  a taken folder name suffixes the orphan). `pkg/sidedoc` is the Go home of the links, the index and the tree, shared
-  by the checker, tl-lead and sdlc's archiving. It includes `→ [proposal](…)`
-  links for large rewrites.
-  **Per-type defaults (#415):** every managed type declares its default where the type is defined. Issues and
-  projects get theirs from `scaffold.collaboration_mode` in their CUE model, which `sdlc issue new` and
-  `sdlc project new` write. Datatypes declare it in their prototype's Frontmatter shape table
-  ([Data Artifacts](data-artifacts.md)). Durable plans get it from the writing-plans header (discussion). Side docs
-  and answer docs follow §4 of collaboration-modes.md (discussion). The TL session file follows tl-lead's help.
-  `vocab.CollaborationModes` is the Go copy of the three values. Under #562's fill contract, creators
-  (Parley, Couch and tl-lead's side-doc helpers) write all three mode keys explicitly, preserving set values.
-  Legacy-only choices are materialized under canonical keys without rewriting aliases; there is no blanket
-  rewrite of existing documents. Runtime adoption: parley.nvim#418 owns canonical/legacy presentation,
-  processing-mode and processing-instruction readers plus fill; #419 owns completion, concealment,
-  section comments and monthly side-doc layout. Pair/Couch readers belong to pair#823.
-  Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section publication: new
-  month paths require a real filename date matching the sole month directory and a parent resolved from
-  that directory; legacy dated flat targets remain accepted. It does not fill or rewrite answer documents.
-- **`modes/*.md`** — the six stock modes, canonical here since #399; parley snapshots them.
-- **`examples/`** — reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the
-  submitted document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round
-  on a copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
-  side-doc contract and the index rules (a test-only checker, mutation-tested), and a move case to an exact projection
-  of the move contract. Older cases deliberately preserve legacy aliases/maps/flat names. New editorial cases
-  cover heading overrides, explicit defaults, preserved existing/legacy choices and lossless multi-mode refusal.
-  The checker validates month directories, cross-layout numbering and retry identity as well as legacy files.
-  Only the move cases are exported, as parley's fixtures.
+  from the parent by 🤖[fold in] at the link; and §5 is the move contract (the `.side/` tree moves with its document,
+  a name change rewrites the parent's references, a taken folder name suffixes the orphan). `pkg/sidedoc` is the Go
+  home of the links, the index, the tree and now the chat grammar (`ChatSections`, `RetiredKeys`), shared by the
+  checker, tl-lead and sdlc's archiving.
+  **Remaining writers:** sdlc's issue and project scaffolds, tl-lead's side-doc migration, the datatype
+  `collaboration-mode` rows (with `vocab.CollaborationModes`) and the writing-plans header still write mode keys;
+  ariadne#576 removes them. Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section
+  publication.
+- **`briefs/*.md`** — five named editing briefs (copy-editing, line-editing, proofreading, developmental,
+  fact-check), loaded when an ask calls for one; name-only frontmatter (#575 retired the v3 order/scope/frontier
+  flags and the free-form mode). Parley snapshots them.
+- **`examples/`** — reference rounds, one per case: `before/` and `after/` trees plus `case.md` (the submitted
+  document, the outcome, the changes, the reply; a move case adds `move: OLD NEW`). A live check runs a round on a
+  copy of `before/` and compares it with `after/`. `pkg/reviewexport`'s `TestExamples` holds every case to the
+  side-doc contract, the index rules and a move case's exact projection, and (`checkChat`) to the chat grammar via
+  `ChatSections`; a new side doc may carry no mode key. The move cases and the 13 cases `exportedCases` names
+  (chat tag, question/command, scope, legacy) are exported as fixtures for pair and parley; older cases keep legacy
+  documents as compatibility fixtures. `TestNoSpecWritesModeKeys` guards that no skill text tells a writer to write
+  a mode key.
 - **`adapters/file-edit.md`** — editing the file. A document is edited directly only on a
   confirmed untracked lookup; a `type: session-sync` file (tracked even outside a slot) or a registered one goes through
   `couch --session-sync` status → diff → `read --all` (the snapshot, hash H) →
   atomic `apply` records with per-edit `explain` and answered fold IDs → `round --json`
   for the reply. Exit 1 invalid/proposal refusals either rebuild the full batch or open a
   linked side doc; exit 3 (lock) defers to the next submit without polling; exit 6 (stale)
-  re-reads and rebuilds. Under effective `presentation-mode: propose`, a record replacing the
+  re-reads and rebuilds. New documents are highlight; the propose passages describe Couch until pair#838,
+  for an older document whose legacy `presentation-mode: propose` it still honors. There, a record replacing the
   operator's ready marker with a side-doc link, or answering a fold-in marker at
   that link, applies directly; ordinary prose edits still become proposals. Its
   matching `discussions:` entry rides in the same atomic apply. A marker-free
@@ -73,15 +66,16 @@ skill carries the rest.
   turn per marker; an unclear ask or continued exchange becomes a linked side
   doc. Older chains remain readable and resolve by their last human turn.
   `TestExamples` rejects a newly appended turn in its before/after cases.
-- **`export.json`** — the versioned manifest (`ariadne/universal-review-export` v3) parley's
-  sync script snapshots: round, grammar (with `source`), collaboration-modes (exactly one, #412), adapters, dense mode
-  records (without the retired mode-level deletion knob), and (v2, #424) the move cases' files as `fixture` members for parley's mover (parley.nvim#373),
-  each with the resolved file's bytes and sha256, in a total order. Built by
-  `pkg/reviewexport`; `TestExportCurrent` fails when it is stale, and
-  `UPDATE_REVIEW_EXPORT=1 go test ./pkg/reviewexport` regenerates it.
+- **`export.json`** — the versioned manifest (`ariadne/universal-review-export` **v4**, #575) parley's sync script
+  snapshots: round, grammar (with `source`), collaboration-modes (exactly one, #412), adapters, flagless `brief`
+  members, and the `fixture` members (the move cases and `exportedCases`), each with the resolved file's bytes and
+  sha256, in a total order (role, name, path). v4 is a deliberate break: parley's sync allows v1–v3 and refuses v4
+  before writing, so an installed parley keeps its shipped v2 snapshot until parley.nvim#419 migrates consumer and
+  snapshot together; no other repo reads it. Built by `pkg/reviewexport`; `TestExportCurrent` fails when it is
+  stale, and `UPDATE_REVIEW_EXPORT=1 go test ./pkg/reviewexport` regenerates it.
 
-Composition: an agent in Couch loads the skill (round + grammar + collaboration modes + modes + file-edit).
-Parley's standalone prompt is round + grammar + the selected modes + its own
+Composition: an agent in Couch loads the skill (round + grammar + collaborative editing + briefs as asked +
+file-edit). Parley's standalone prompt is round + grammar + the briefs + its own
 `propose_edits` adapter; it leaves out `SKILL.md` and `adapters/file-edit.md` (parley.nvim#319).
 The hosted Pair review workbench instead follows `construct/local/fix/SKILL.md`:
 `pair review apply` owns its file write and returns the exact Body for a changed
