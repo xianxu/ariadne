@@ -82,4 +82,8 @@ Checking both shells means a name that is a builtin in either one is refused in 
 - End-to-end, generator CPU over `--workspace ~/workspace` (27 names, 30 runs each, interleaved): main 641ms (sd 38), branch 624ms (sd 41). Wall medians 1108ms against 1107ms. The added work is inside the run-to-run noise.
 - Real fleet: `--workspace ~/workspace` now refuses only echo's `cmd/echo` ("it would shadow the bash builtin echo"). The other 26 functions are unchanged.
 - Tests: `dev-aliases-shadow.test.sh` passes. Disabling the refusal turns it red ("echo: 0 warnings"). `dev-aliases`, `-path`, `-slot` and `portable-makefile` all pass under /bin/bash 3.2, as do `go test ./scripts/test -run TestConstructScripts` and `./pkg/shelllint`. An empty workspace exits 0 under `set -u`.
+- Close review round 1 returned FIX-THEN-SHIP, with one Important and minors, all fixed in this round. BR-1: the test hard-coded /bin/ls, but merged-usr Linux CI finds /usr/bin/ls first and resolves /bin to /usr/bin. The test now computes both expected paths with the same physical (cd -P) resolution the generator uses. Minor ARCH-DRY: the script-path dereference and system_command now share `follow_links`, which follows every hop and is capped at 40 so a link cycle ends. Minor: the atlas example now separates the $HOME exemption from the followed system-dir link.
 
+## Revisions
+
+- 2026-10-23: The plan's step to wire the test into the Makefile was not needed. `construct-scripts.test.sh` discovers `construct/scripts/test/*.test.sh` on its own, so the new test runs in the suite without a Makefile change.

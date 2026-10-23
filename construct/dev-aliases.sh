@@ -132,6 +132,19 @@ path_parts() {
     while [[ "$path_dir" == *$'\n' ]]; do path_dir="${path_dir%$'\n'}"; done
     while [[ "$path_base" == *$'\n' ]]; do path_base="${path_base%$'\n'}"; done
 }
+# follow_links PATH: sets link_path to PATH with its symlink hops followed (one
+# readlink each; a relative target is taken from the link's directory), up to
+# 40 hops so a cycle ends. readlink -f isn't on macOS bash 3.2.
+follow_links() {
+	local t hops=0
+	link_path="$1"
+	while [ -L "$link_path" ] && [ "$hops" -lt 40 ]; do
+		t="$(readlink "$link_path")" || return 0
+		case "$t" in /*) link_path="$t" ;; *) path_parts "$link_path"; link_path="$path_dir/$t" ;; esac
+		hops=$((hops + 1))
+	done
+}
+
 
 # script_dir: the directory of the dev-aliases.sh PATH as invoked — NOT
 # dereferencing the symlinked file (pwd -P resolves only path COMPONENTS). In a
@@ -148,16 +161,9 @@ ariadne_root="$(cd "$script_dir/.." && pwd -P)"
 # back at the owning substrate's copy). Needed ONLY to locate the shared
 # lib-deps.sh beside the real source — the substrate scan must reuse the owner's
 # parser, not look for a (non-existent) scripts/lib-deps.sh in the derivative.
-# readlink -f isn't on macOS bash 3.2; hand-roll a single-hop dereference
-# (the link points straight at the source, so one hop suffices).
-real_src="${BASH_SOURCE[0]}"
-if [ -L "$real_src" ]; then
-	link_target="$(readlink "$real_src")"
-	case "$link_target" in
-		/*) real_src="$link_target" ;;                       # absolute link
-		*)  path_parts "$real_src"; real_src="$path_dir/$link_target" ;; # relative to the link's dir
-	esac
-fi
+# readlink -f isn't on macOS bash 3.2, so follow_links walks the hops.
+follow_links "${BASH_SOURCE[0]}"
+real_src="$link_path"
 path_parts "$real_src"
 real_script_dir="$(cd "$path_dir" && pwd -P)"
 # A typo'd/empty --workspace must fail loudly, not silently emit nothing.
@@ -416,14 +422,11 @@ shadow_reason() {
 # symlink hops are followed (one readlink each, so only for such matches:
 # ~/.local/bin/sdlc, a link into the workspace, is exempt as found).
 system_command() {
-	local p="$1" t here="$PWD"
+	local p here="$PWD"
 	system_path=""
-	outside_user_trees "$p" || return 0
-	while [ -L "$p" ]; do
-		t="$(readlink "$p")" || return 0
-		case "$t" in /*) p="$t" ;; *) path_parts "$p"; p="$path_dir/$t" ;; esac
-	done
-	path_parts "$p"
+	outside_user_trees "$1" || return 0
+	follow_links "$1"
+	path_parts "$link_path"
 	CDPATH= cd -P -- "$path_dir" 2>/dev/null || return 0
 	p="$PWD/$path_base"
 	cd -- "$here" || return 0

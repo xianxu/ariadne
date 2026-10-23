@@ -21,7 +21,7 @@ echo|builtin|builtin||the bash builtin echo
 if|keyword|reserved||the bash keyword if
 print|none|builtin||the zsh builtin print
 foreach|none|reserved||the zsh reserved word foreach
-ls|file|command|/bin/ls|the system command /bin/ls
+ls|file|command|/usr/bin/ls|the system command /usr/bin/ls
 sdlc|file|command||
 oktool|none|none||
 warn|function|none||
@@ -50,8 +50,14 @@ for tool in zsh readlink; do
 	printf '#!/bin/sh\necho %s >> "%s/calls"\nexec %s "$@"\n' "$tool" "$fixture" "$real" > "$fixture/stubs/$tool"
 	chmod +x "$fixture/stubs/$tool"
 done
+test_path="$fixture/stubs:$home/bin:$fixture/sys:/usr/bin:/bin"
+# The host's physical system paths: merged-usr Linux finds /usr/bin/ls first and
+# resolves /bin to /usr/bin; macOS keeps /bin/ls.
+canonical() { (cd -P "$(dirname "$1")" && printf '%s/%s\n' "$PWD" "$(basename "$1")"); }
+ls_want="$(canonical "$(PATH="$test_path" type -P ls)")"
+lsalias_want="$(canonical /bin/ls)"
 run() {
-	(cd "$fixture/caller" && HOME="$home" PATH="$fixture/stubs:$home/bin:$fixture/sys:/usr/bin:/bin" \
+	(cd "$fixture/caller" && HOME="$home" PATH="$test_path" \
 		bash "$generator" --workspace "$ws" "$@")
 }
 
@@ -61,8 +67,8 @@ for name in $refused; do
 	[ "$n" -eq 1 ] || fail "$name: $n warnings, want 1: $(cat "$fixture/err")"
 done
 [ "$(grep -c . "$fixture/err")" -eq "$(printf '%s\n' $refused | grep -c .)" ] || fail "extra warnings: $(cat "$fixture/err")"
-grep -q "not defining ls .*the system command /bin/ls;" "$fixture/err" || fail "ls reason: $(cat "$fixture/err")"
-grep -q "not defining lsalias .*the system command /bin/ls;" "$fixture/err" || fail "lsalias reason"
+grep -q "not defining ls .*the system command $ls_want;" "$fixture/err" || fail "ls reason, want $ls_want: $(cat "$fixture/err")"
+grep -q "not defining lsalias .*the system command $lsalias_want;" "$fixture/err" || fail "lsalias reason, want $lsalias_want"
 grep -q "not defining sysdup .*the system command $fixture/sys/sysdup;" "$fixture/err" || fail "sysdup reason"
 if [ "$have_zsh" -eq 1 ]; then
 	grep -q "not defining print .*the zsh builtin print;" "$fixture/err" || fail "print reason"

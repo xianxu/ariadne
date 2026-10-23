@@ -151,9 +151,9 @@ symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 operator's shell already means by it gets no function and one warning (#573):
 a bash or zsh builtin or reserved word (`echo`, `test`, zsh's `print`;
 echo's `cmd/echo` once broke the operator's prompt), or a first PATH match
-outside the workspace and `$HOME` (`/bin/ls`; a symlink into the workspace
-such as `~/.local/bin/sdlc` is exempt, and so is a user's own install under
-`$HOME`). The binary stays runnable by its path; `dev-aliases-shadow.test.sh`
+outside the workspace and `$HOME` (`/bin/ls`). Anything under `$HOME`
+(`~/.local/bin/sdlc`, a stale `~/go/bin` install) is exempt, and so is a
+link from a system directory into the workspace, whose hops are followed. The binary stays runnable by its path; `dev-aliases-shadow.test.sh`
 sources the output in bash and zsh. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
 with its hermetic test under
