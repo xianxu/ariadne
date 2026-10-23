@@ -320,3 +320,79 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ac8be880-49e3-47a0-9c5c-3f95c127e975","repository":"github.com/xianxu/ariadne","issue_id":"000565","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/4d0f435b9867b717","reviewed_head":"5f60907996bc7a32ea2453e72e625043a4780a04","slot":"ariadne:5","requested_at":"2026-10-23T18:58:59.470679Z"},"phase":"finished","pid":12288,"started_at":"2026-10-23T18:58:59.630195Z","finished_at":"2026-10-23T19:00:56.167535Z","session_id":"66aae585-db32-4bee-9f27-2973edd3c148","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T15:01:44-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 565 — Merge intents survive a full shutdown: record them and give one exact re-entry step |
+| repo | ariadne |
+| issue file | workshop/issues/000565-merge-intents-survive-a-full-shutdown-record-them-and-give-one-exact-re-entry-step.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6a94f9d8f558ad40dbc017ac56feca5890639e3c..0455eba5f1c5e3f4e8558a2e0449043185db0757 |
+| command | sdlc close --issue 565 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T15:01:44-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests have finished. Next I'm reading their output, then I'll revert each fix to confirm its regression test fails without it.
+
+Targeted tests pass. Now reverting each fix to check whether its test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings (BR-7, BR-8) are fixed, and each fix now has a regression test that fails when the fix is reverted. I checked this in the disposable checkout. The interdiff adds no Critical or Important defect. The code change is small: `sweepTemps` now skips temp files younger than `IntentHoldPatience`, `create` treats a lost temp file as a retryable race, and there is a new seam test for the creation window. The `ctx` parameter removal is a fix for a suite failure (`TestVerbContextsReachTrackerReads`). It adds no new behavior. The merge commit `0455eba5f` touches nothing under `cmd/`, so there is no code conflict resolution to judge. `## Spec`, `## Revisions` and `## Done when` did not change.
+
+1. **Strengths**
+   - `intent.go:399-403`: this fixes the rule BR-8 names, not just the one site. A temp file's lock state is ignored until the file is old enough that its writer must have reached `flock`. That closes the gap between "created" and "locked" for every sweeper.
+   - `intent.go:263-276`: `create` checks that the file is still the same after locking (`samePath`) and maps a `Link` ENOENT to `errCreateRaced`. Hold retries that only until its deadline (`intent.go:195`; `&&` binds tighter than `||`, so the precedence is correct). If a sweep wins the race, the merge retries instead of failing to start.
+   - `intent_test.go:347-370`: the `onCreateLocked` seam pins the exact window. At that moment a reader sees no record, and a sweep with a far-future clock still leaves the locked temp file alone.
+   - The only `Sweep` caller (`mergeintent.go:78`) passes `time.Now()`, so the age check compares like with like.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - The retry path for `errCreateRaced` (lock fails, or `Link` returns ENOENT) has no test that triggers it. Since young temp files are now skipped, this path is mostly defensive.
+   - `onCreateLocked` is a global mutable seam. It is safe today because no test in the package uses `t.Parallel`, and `-race` passes.
+
+5. **Test coverage notes**
+   - `go build ./...` passes.
+   - `go test ./internal/landingline -count=1` passes, and so does the same run with `-race`.
+   - `go test . -run 'TestVerbContextsReachTrackerReads|MergeIntent'` passes in 23s.
+   - A broader `-run 'Intent|Landing|State'` run of `cmd/sdlc` hit the default 600s timeout. The output was cut off before naming the hung test, so I can't attribute it to this interdiff. The targeted tests for the changed surfaces pass.
+   - **BR-8 revert:** I dropped the age check and `TestIntentCreationLeavesNoWindowOrResidue` failed with "the sweep removed a fresh, not-yet-locked temporary record".
+   - **BR-7 revert:** I went back to writing the record directly at its path (O_CREATE|O_EXCL, no temp file or link). `TestIntentFirstRecordIsInvisibleUntilComplete` failed with "a reader saw a record before it was linked".
+   - I restored the checkout after both reverts.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. No duplicated logic was added.
+   - **ARCH-PURE:** pass. The age check takes an injected `now`. The seam is a narrow IO hook.
+   - **ARCH-PURPOSE:** pass. This is the 3rd finding in family `reader-lock-masquerades-as-owner`, and the fix covers the whole family. Readers never see an unlocked record at its real path, because it only appears there already locked via link. Sweepers don't trust the lock state of temp files that are too young to have been locked yet.
+   - **ARCH-EVOLVE:** pass. No persisted format changed.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Temp-then-link creation is now pinned by TestIntentFirstRecordIsInvisibleUntilComplete; reverting to direct O_CREATE at path makes it fail (reader saw a record before link).
+  - id: BR-8
+    disposition: addressed
+    note: |
+      sweepTemps skips temps younger than IntentHoldPatience (intent.go:399-403) and create retries errCreateRaced; reverting the age check fails TestIntentCreationLeavesNoWindowOrResidue on the fresh unlocked temp.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"20c43f45-5874-41d4-812d-6132ad38a515","repository":"github.com/xianxu/ariadne","issue_id":"000565","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/004a8b631cbd5e9d","reviewed_head":"0455eba5f1c5e3f4e8558a2e0449043185db0757","slot":"ariadne:5","requested_at":"2026-10-23T21:49:28.065511Z"},"phase":"finished","pid":19031,"started_at":"2026-10-23T21:49:28.171204Z","finished_at":"2026-10-23T22:01:43.771279Z","session_id":"f39254ad-1c0c-400e-8f94-b94e73359f1e","outcome":"returned"}] -->

@@ -285,6 +285,95 @@ rounds:
       isolation: fenced
       reviewed: 5f60907996bc7a32ea2453e72e625043a4780a04
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 20c43f45-5874-41d4-812d-6132ad38a515
+            repository: github.com/xianxu/ariadne
+            issue_id: "000565"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/004a8b631cbd5e9d
+            reviewed_head: 0455eba5f1c5e3f4e8558a2e0449043185db0757
+            slot: ariadne:5
+            requested_at: "2026-10-23T21:49:28.065511Z"
+          phase: finished
+          pid: 19031
+          started_at: "2026-10-23T21:49:28.171204Z"
+          finished_at: "2026-10-23T22:01:43.771279Z"
+          session_id: f39254ad-1c0c-400e-8f94-b94e73359f1e
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 0455eba5f1c5e3f4e8558a2e0449043185db0757
+        tracker_head: 989a9a71af55dadc67f3abd40b4fa7fb17dc3be4
+        branch_point: 1e4dd8d59b367cda6d96684d7b6d6a05e00693bd
+        since: "2026-10-23T10:46:54-07:00"
+        until: "2026-10-23T13:42:52-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T10:46:54-07:00"
+              end: "2026-10-23T13:42:52-07:00"
+              began: "2026-10-23T10:46:54-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 3358605b867a18a82995bcbbd515929e9c6c76b759e69fb924bd5e98d02c9b17
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 10252146
+              windows:
+                - start: "2026-10-23T10:46:54-07:00"
+                  end: "2026-10-23T13:42:52-07:00"
+        queue_waits:
+            - attempt_id: a5cdb53c3fbaa11f3ff4482ad3441cce
+              slot: ariadne:5
+              record_digest: fb5e1580853d0e2d4edeed1e72e12c4b38efcceda16f77fe770b9ef9ae7c2bd3
+              start: "2026-10-23T19:02:34.915126Z"
+              end: "2026-10-23T20:19:19.899172Z"
+              queue_seconds: 4604.984046
+              raw_seconds: 4604.984046
+              exact: true
+        cuts:
+            - dispatched: "2026-10-23T11:46:25-07:00"
+              finalized: "2026-10-23T11:49:46-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T11:53:33-07:00"
+              finalized: "2026-10-23T11:56:03-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T11:58:59-07:00"
+              finalized: "2026-10-23T12:00:57-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-23T15:01:44-07:00"
+      dispatched: "2026-10-23T14:49:28-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Temp-then-link creation is now pinned by TestIntentFirstRecordIsInvisibleUntilComplete; reverting to direct O_CREATE at path makes it fail (reader saw a record before link).
+          round: 4
+        - id: BR-8
+          disposition: addressed
+          note: sweepTemps skips temps younger than IntentHoldPatience (intent.go:399-403) and create retries errCreateRaced; reverting the age check fails TestIntentCreationLeavesNoWindowOrResidue on the fresh unlocked temp.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 0455eba5f1c5e3f4e8558a2e0449043185db0757
+      blocked: false
 ---
 
 # Gate ledger — ariadne#565 (boundary-review)
@@ -336,7 +425,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `reader-lock-masquerades-as-owner` (kind: defect) sweepTemps can remove a running merge's temp file before create has locked it, so a concurrent merge fails to start
   3rd in this family. Rule: never judge a file's owner dead from its lock state while the file can still be created but not yet locked. os.CreateTemp (intent.go:259) makes .tmp-* visible before flock.Exclusive (intent.go:263); another merge's Sweep (mergeintent.go:42, intent.go:379-393) can lock and unlink it, and create then fails with EWOULDBLOCK or ENOENT on Link. Fix: have sweepTemps skip temp files younger than IntentHoldPatience, or retry create on a lock or link failure; add a test using a temp file that is fresh and unlocked.
 
+## Round 4 — 2026-10-23T15:01:44-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Temp-then-link creation is now pinned by TestIntentFirstRecordIsInvisibleUntilComplete; reverting to direct O_CREATE at path makes it fail (reader saw a record before link).
+- BR-8 — addressed — sweepTemps skips temps younger than IntentHoldPatience (intent.go:399-403) and create retries errCreateRaced; reverting the age check fails TestIntentCreationLeavesNoWindowOrResidue on the fresh unlocked temp.
+
 ## Open findings
 
-- **BR-7** [Minor] `reader-lock-masquerades-as-owner` (kind: defect) A reader in the window between Hold's O_CREATE and its lock reports a live merge's empty file as unreadable and tells the operator to remove it
-- **BR-8** [Minor] `reader-lock-masquerades-as-owner` (kind: defect) sweepTemps can remove a running merge's temp file before create has locked it, so a concurrent merge fails to start
+(none — every finding has been disposed)
