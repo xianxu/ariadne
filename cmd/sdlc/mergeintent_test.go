@@ -180,3 +180,43 @@ func TestOrphanedMergeOnStatusSurfaces(t *testing.T) {
 		t.Fatalf("state --json merge_intents: %+v %v\n%s", s.MergeIntents, err, raw.String())
 	}
 }
+
+// #565 Done-when 2: re-entering an interrupted merge reuses the suite that
+// passed on its unchanged head (the record is a GitHub commit status, so it
+// outlives the runner); a head that changed meanwhile runs it again.
+func TestMergeReentryReusesThePassedSuite(t *testing.T) {
+	for _, moved := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unchanged head", true: "main moved"}[moved], func(t *testing.T) {
+			root, server, gh := integrationFixture(t)
+			var tested []string
+			ctx, shutdown := context.WithCancel(context.Background())
+			gh.afterStatus = func(sha string) {
+				tested = append(tested, sha)
+				shutdown() // the shutdown lands just after the suite recorded its pass
+			}
+			first := landingFlags()
+			first.Context = ctx
+			if err := runMerge(io.Discard, io.Discard, first); !errors.Is(err, context.Canceled) || gh.merges != 0 {
+				t.Fatalf("want an interruption before the merge: %v (merges %d)", err, gh.merges)
+			}
+			if got := landingIntents(t, root); len(got) != 1 || got[0].Locked {
+				t.Fatalf("no orphan: %+v", got)
+			}
+			if moved {
+				integrationAdvance(t, server, "moving.go", "change\n")
+			}
+			f := landingFlags()
+			f.Branch = landingTestBranch
+			if err := runMerge(io.Discard, io.Discard, f); err != nil {
+				t.Fatal(err)
+			}
+			want := map[bool]int{false: 1, true: 2}[moved]
+			if gh.merges != 1 || len(tested) != want {
+				t.Fatalf("merges=%d suite runs=%d (%v), want 1 and %d", gh.merges, len(tested), tested, want)
+			}
+			if got := landingIntents(t, root); len(got) != 0 {
+				t.Fatalf("re-entry left %+v", got)
+			}
+		})
+	}
+}
