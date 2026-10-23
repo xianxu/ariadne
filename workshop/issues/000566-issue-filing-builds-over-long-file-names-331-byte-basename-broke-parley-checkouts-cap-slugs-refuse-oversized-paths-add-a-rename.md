@@ -1,13 +1,21 @@
 ---
 id: 000566
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '5f63bba8d10b0d9a2929aa8cecb8f3b6b0b30895' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0ae300b5d4c6bb0173685bbcf3e960712e89baa6' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T03:16:37-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Issue filing builds over-long file names (331-byte basename broke parley checkouts); cap slugs, refuse oversized paths, add a rename
