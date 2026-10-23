@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.49
+actual_hours: 0.84
 tracker:
     version: 1
     completion:
-        token: close-bf86b0f70402
+        token: close-7a2c29a30ee7
         repository: github.com/xianxu/ariadne
-        reviewed_head: 7dad3c36d67a7f86404356c9b2b2cf9888c5b12a
-        evidence_commit: e7fea7115d276acf7afab6cdc6d08bb0ef283e34
+        reviewed_head: 37a4536e423b774dd71d6ca746783de445b5b3c4
+        evidence_commit: 4f0b071ed3c4d55f3f7a76681d55ee3f7fe31eb1
 ---
 
 # local-check: refuse to record a suite attempt invalidated by sandbox denials
