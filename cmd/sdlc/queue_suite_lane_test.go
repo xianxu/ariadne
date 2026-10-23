@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestSuiteQueueLaneRendering(t *testing.T) {
@@ -76,19 +78,20 @@ func TestSuiteQueueRealHelperShowsLightLane(t *testing.T) {
 	if out, err := light(holder).Output(); err != nil || strings.TrimSpace(string(out)) != "acquired-light" {
 		t.Fatalf("light acquire: %q %v", out, err)
 	}
-	queued := light(waiter)
+	// The helper prints its first wait line after it takes its ticket.
+	queued, waiting := light(waiter), testfix.NewWatch("waiting ")
+	queued.Stderr = waiting
 	if err := queued.Start(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = queued.Process.Kill(); _ = queued.Wait() })
-	var out bytes.Buffer
-	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
-		out.Reset()
-		renderSuiteQueue(&out, observeSuiteQueue(context.Background(), root))
-		if strings.Contains(out.String(), "1 waiting") {
-			break
-		}
+	select {
+	case <-waiting.Seen():
+	case <-time.After(testfix.HangCeiling):
+		t.Fatalf("the light waiter never reported waiting: %s", waiting.String())
 	}
+	var out bytes.Buffer
+	renderSuiteQueue(&out, observeSuiteQueue(context.Background(), root))
 	for _, want := range []string{`held by repo "` + strconv.Itoa(holder) + `", worktree "/w/` + strconv.Itoa(holder) + `"`, "1 waiting", "light ticket 1: position 1", `worktree "/w/` + strconv.Itoa(waiter) + `"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in:\n%s", want, out.String())

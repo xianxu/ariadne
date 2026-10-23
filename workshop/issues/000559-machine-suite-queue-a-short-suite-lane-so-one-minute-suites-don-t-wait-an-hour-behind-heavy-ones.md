@@ -57,17 +57,20 @@ suite, niced) not to slow a running heavy suite measurably; measure that, don't 
 
 Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-one-minute-suites-don-t-wait-an-hour-behind-heavy-ones-plan.md` (scope choices a–e approved by the TL, 10-23).
 
-- [ ] Eligibility (pure) and the attempt `lane` field
-- [ ] Helper light line (`--lane light`, `light_order`, `lane-v1`, inspect `lane`)
-- [ ] Capability probe and lane-aware acquisition
-- [ ] Run order and overrun requeue
-- [ ] Status and atlas
-- [ ] Verification: targeted tests, recorded suite, heavy-impact measurement
+- [x] Eligibility (pure) and the attempt `lane` field
+- [x] Helper light line (`--lane light`, `light_order`, `lane-v1`, inspect `lane`)
+- [x] Capability probe and lane-aware acquisition
+- [x] Run order and overrun requeue
+- [x] Status and atlas
+- [x] Verification: targeted tests, recorded suite, heavy-impact measurement
 
 ## Log
 
 ### 2026-10-23
 - Claimed and planned (ariadne:5). Measured: echo's recorded suites run 61–88 s and queued 2000–4480 s today; ariadne holds 445 attempt records.
 - TL approved all five scope choices (a)–(e); add an atlas note that the lane is a third concurrent run beyond WF_TEST_SUITES=2, bounded to light suites. (scope choices a–e approved)
+- Implemented in four commits (eligibility, helper light line, local-check lane wiring, status and atlas). Targeted runs pass, plus the helper's 16 lane checks (sharing the ticket directory makes them fail). `TestQueueRealHelperPause` fails only in the agent sandbox (boot identity unreadable).
+- Heavy-impact bound (d): the recorded suite on 6c0e952e ran 951 s (shards 914/936/948 s) with a light load busy throughout: 31 back-to-back `go test ./pkg/...` runs of 21–42 s from start to finish. The bound is 1003 s, 10% over the 912 s median of ariadne's last 5 recorded suites, so it holds. The load ran un-niced (the agent sandbox denies setpriority), which is harsher than the lane's nice +10.
+- That suite failed on two tests. My new `TestSuiteQueueRealHelperShowsLightLane` polled with a fixed sleep, which the golint catalog refuses; it now waits on the helper's own wait line through `testfix.Watch` (ARCH-ORDER: wait on events, not time). `TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize` saw a transient `~/sh-thd-*` heredoc temp file appear in $HOME during its review window. That file wasn't from this change and was gone afterwards. Rerunning the recorded suite on the fixed head.
 
 ### 2026-10-22
