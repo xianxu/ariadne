@@ -12,8 +12,8 @@
       "role": "grammar",
       "path": "review-convention.md",
       "source": "construct/local/fix/review-convention.md",
-      "bytes": 9955,
-      "sha256": "555038122b7a4dbbb834acbf74163deabfa4cc64eb040291d5e7fc1afad6078e"
+      "bytes": 9952,
+      "sha256": "2e09e11ec149e91169ff7caa2d468728d4c950508898c9ca756a75b1af3821ce"
     },
     {
       "role": "collaboration-modes",
