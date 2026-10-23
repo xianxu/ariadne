@@ -1,0 +1,213 @@
+packages  exit 1    202.0s  3 failed
+--- FAIL github.com/xianxu/ariadne/pkg/golint TestSocketFixtureShortRootWithLongTMPDIR/owned_listener
+=== RUN   TestSocketFixtureShortRootWithLongTMPDIR/owned_listener
+    socket_root_test.go:210: listen unix /Volumes/TestScratch/sr-3292525000/m/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.sock: bind: operation not permitted
+--- FAIL: TestSocketFixtureShortRootWithLongTMPDIR/owned_listener (0.00s)
+--- FAIL github.com/xianxu/ariadne/pkg/golint TestSocketFixtureShortRootWithLongTMPDIR
+=== RUN   TestSocketFixtureShortRootWithLongTMPDIR
+--- FAIL: TestSocketFixtureShortRootWithLongTMPDIR (0.00s)
+--- FAIL github.com/xianxu/ariadne/pkg/golint
+FAIL
+FAIL	github.com/xianxu/ariadne/pkg/golint	1.067s
+shard0    exit 1    835.6s  13 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/valid
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/valid
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/valid (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-pid
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-pid
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-pid (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-start
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-start
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-start (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-host
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-host
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-host (0.14s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-boot
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-boot
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/foreign-boot (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/unconfirmed-group
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/unconfirmed-group
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/unconfirmed-group (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/no-group
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/no-group
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/no-group (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-parent
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-parent
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-parent (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-link
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-link
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/changed-link (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/missing-marker
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/missing-marker
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/missing-marker (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence/removal-unconfirmed
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence/removal-unconfirmed
+    localcheck_resume_environment_test.go:291: operation not permitted
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence/removal-unconfirmed (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentCompletedAuthorizationAndAbsence
+=== RUN   TestResumeEnvironmentCompletedAuthorizationAndAbsence
+--- FAIL: TestResumeEnvironmentCompletedAuthorizationAndAbsence (1.15s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard1    exit 1    854.1s  12 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/wrong-reason
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/wrong-reason
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/wrong-reason (0.12s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/wrong-sha
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/wrong-sha
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/wrong-sha (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/foreign-owner
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/foreign-owner
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/foreign-owner (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/wrong-back-pointer
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/wrong-back-pointer
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/wrong-back-pointer (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/symlink-owner
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/symlink-owner
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/symlink-owner (0.15s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/symlink-gitdir
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/symlink-gitdir
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/symlink-gitdir (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/symlink-inflight
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/symlink-inflight
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/symlink-inflight (0.13s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/other-pid
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/other-pid
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/other-pid (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings/cancelled
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings/cancelled
+    localcheck_resume_environment_test.go:90: operation not permitted
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings/cancelled (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRefusesUntrustedBindings
+=== RUN   TestResumeEnvironmentRefusesUntrustedBindings
+--- FAIL: TestResumeEnvironmentRefusesUntrustedBindings (1.00s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentStopsAfterCancellationAtEveryEffect
+=== RUN   TestResumeEnvironmentStopsAfterCancellationAtEveryEffect
+    localcheck_resume_environment_test.go:501: operation not permitted
+--- FAIL: TestResumeEnvironmentStopsAfterCancellationAtEveryEffect (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard2    exit 0    801.1s  0 failed
+shard3    exit 1    832.6s  3 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRevalidatesInflightOwnerBeforeDeletion
+=== RUN   TestResumeEnvironmentRevalidatesInflightOwnerBeforeDeletion
+    localcheck_resume_environment_test.go:181: operation not permitted
+--- FAIL: TestResumeEnvironmentRevalidatesInflightOwnerBeforeDeletion (0.15s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestBootstrapResumeUsesOriginalSubjectForEveryProofRead
+=== RUN   TestBootstrapResumeUsesOriginalSubjectForEveryProofRead
+    localchecks_bootstrap_recovery_test.go:85: operation not permitted
+--- FAIL: TestBootstrapResumeUsesOriginalSubjectForEveryProofRead (2.23s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard4    exit 1    785.9s  2 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestQueueRealHelperPause
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/cmd/sdlc/../../scripts/test/test-lock-pause.test.py", line 121, in managed_operation
+            started_at='2026-10-20T10:00:00Z', boot_id=lock.queue_boot_id(), root=str(self.top.resolve()), detail='')
+                                                       ~~~~~~~~~~~~~~~~~~^^
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/scripts/test-lock.py", line 415, in queue_boot_id
+            raise OSError(ctypes.get_errno(), 'boot identity unavailable')
+        PermissionError: [Errno 1] boot identity unavailable
+        
+        ======================================================================
+        ERROR: test_managed_operation_is_borrowed_and_unknown_fields_survive_admission (__main__.QueuePause.test_managed_operation_is_borrowed_and_unknown_fields_survive_admission)
+        ----------------------------------------------------------------------
+        Traceback (most recent call last):
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/cmd/sdlc/../../scripts/test/test-lock-pause.test.py", line 191, in test_managed_operation_is_borrowed_and_unknown_fields_survive_admission
+            fd, path = self.managed_operation()
+                       ~~~~~~~~~~~~~~~~~~~~~~^^
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/cmd/sdlc/../../scripts/test/test-lock-pause.test.py", line 121, in managed_operation
+            started_at='2026-10-20T10:00:00Z', boot_id=lock.queue_boot_id(), root=str(self.top.resolve()), detail='')
+                                                       ~~~~~~~~~~~~~~~~~~^^
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/scripts/test-lock.py", line 415, in queue_boot_id
+            raise OSError(ctypes.get_errno(), 'boot identity unavailable')
+        PermissionError: [Errno 1] boot identity unavailable
+        
+        ======================================================================
+        ERROR: test_operation_id_grammar_matches_go_writer (__main__.QueuePause.test_operation_id_grammar_matches_go_writer)
+        ----------------------------------------------------------------------
+        Traceback (most recent call last):
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/cmd/sdlc/../../scripts/test/test-lock-pause.test.py", line 465, in test_operation_id_grammar_matches_go_writer
+            _, path = self.managed_operation()
+                      ~~~~~~~~~~~~~~~~~~~~~~^^
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/cmd/sdlc/../../scripts/test/test-lock-pause.test.py", line 121, in managed_operation
+            started_at='2026-10-20T10:00:00Z', boot_id=lock.queue_boot_id(), root=str(self.top.resolve()), detail='')
+                                                       ~~~~~~~~~~~~~~~~~~^^
+          File "/Volumes/TestScratch/local-checks/sdlc-local-2946152931/scripts/test-lock.py", line 415, in queue_boot_id
+            raise OSError(ctypes.get_errno(), 'boot identity unavailable')
+        PermissionError: [Errno 1] boot identity unavailable
+        
+        ----------------------------------------------------------------------
+        Ran 18 tests in 2.113s
+        
+        FAILED (errors=4)
+--- FAIL: TestQueueRealHelperPause (2.28s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard5    exit 1    843.7s  2 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentIgnoresUnrelatedScratch
+=== RUN   TestResumeEnvironmentIgnoresUnrelatedScratch
+    localcheck_resume_environment_test.go:161: operation not permitted
+--- FAIL: TestResumeEnvironmentIgnoresUnrelatedScratch (0.20s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard6    exit 1    783.7s  3 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentSkipsUnrelatedDanglingScratchOwner
+=== RUN   TestResumeEnvironmentSkipsUnrelatedDanglingScratchOwner
+    localcheck_resume_environment_test.go:360: operation not permitted
+--- FAIL: TestResumeEnvironmentSkipsUnrelatedDanglingScratchOwner (0.23s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentStopsAtFirstCleanupFailure
+=== RUN   TestResumeEnvironmentStopsAtFirstCleanupFailure
+    localcheck_resume_environment_test.go:444: operation not permitted
+--- FAIL: TestResumeEnvironmentStopsAtFirstCleanupFailure (0.30s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+shard7    exit 1    816.4s  8 failed
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRequiresPresentInitialState/missing-checkout
+=== RUN   TestResumeEnvironmentRequiresPresentInitialState/missing-checkout
+    localcheck_resume_environment_test.go:418: operation not permitted
+--- FAIL: TestResumeEnvironmentRequiresPresentInitialState/missing-checkout (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRequiresPresentInitialState/missing-registration
+=== RUN   TestResumeEnvironmentRequiresPresentInitialState/missing-registration
+    localcheck_resume_environment_test.go:418: operation not permitted
+--- FAIL: TestResumeEnvironmentRequiresPresentInitialState/missing-registration (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRequiresPresentInitialState/missing-marker
+=== RUN   TestResumeEnvironmentRequiresPresentInitialState/missing-marker
+    localcheck_resume_environment_test.go:418: operation not permitted
+--- FAIL: TestResumeEnvironmentRequiresPresentInitialState/missing-marker (0.10s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRequiresPresentInitialState/missing-lock
+=== RUN   TestResumeEnvironmentRequiresPresentInitialState/missing-lock
+    localcheck_resume_environment_test.go:418: operation not permitted
+--- FAIL: TestResumeEnvironmentRequiresPresentInitialState/missing-lock (0.11s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeEnvironmentRequiresPresentInitialState
+=== RUN   TestResumeEnvironmentRequiresPresentInitialState
+--- FAIL: TestResumeEnvironmentRequiresPresentInitialState (0.43s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeReconcileRefusesUnprovedOwner/live_incarnation
+=== RUN   TestResumeReconcileRefusesUnprovedOwner/live_incarnation
+    localcheck_resume_test.go:76: refusal: resume proof for parent aa is unavailable: incomplete evidence snapshot: /Volumes/TestScratch/tmp/sdlc-run-suite-9445-546189854/TestResumeReconcileRefusesUnprovedOwnerlive_incarnation3464044245/001/.git/sdlc/test-stats/attempts/bb.json: invalid attempt record; fix/advance the code and run a suite on a new head; want still present
+--- FAIL: TestResumeReconcileRefusesUnprovedOwner/live_incarnation (0.09s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc TestResumeReconcileRefusesUnprovedOwner
+=== RUN   TestResumeReconcileRefusesUnprovedOwner
+--- FAIL: TestResumeReconcileRefusesUnprovedOwner (0.34s)
+--- FAIL github.com/xianxu/ariadne/cmd/sdlc
+FAIL
+
+wall 856.2s  (8 shards over 2379 cmd/sdlc tests, 76 other packages)
+make: *** [test] Error 1
