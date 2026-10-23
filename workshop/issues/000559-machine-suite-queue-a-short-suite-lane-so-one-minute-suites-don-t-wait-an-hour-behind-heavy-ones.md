@@ -54,7 +54,7 @@ suite, niced) not to slow a running heavy suite measurably; measure that, don't 
 
 ## Plan
 
-Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-one-minute-suites-don-t-wait-an-hour-behind-heavy-ones-plan.md` (scope choices a–e await TL approval).
+Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-one-minute-suites-don-t-wait-an-hour-behind-heavy-ones-plan.md` (scope choices a–e approved by the TL, 10-23).
 
 - [ ] Eligibility (pure) and the attempt `lane` field
 - [ ] Helper light line (`--lane light`, `light_order`, `lane-v1`, inspect `lane`)
@@ -67,5 +67,6 @@ Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-o
 
 ### 2026-10-23
 - Claimed and planned (ariadne:5). Measured: echo's recorded suites run 61–88 s and queued 2000–4480 s today; ariadne holds 445 attempt records.
+- TL approved all five scope choices (a)–(e); add an atlas note that the lane is a third concurrent run beyond WF_TEST_SUITES=2, bounded to light suites. (scope choices a–e approved)
 
 ### 2026-10-22

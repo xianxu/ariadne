@@ -230,7 +230,7 @@ The state lives inside one local-check run; it is in memory and dies with the ru
 
 - [ ] The status output shows a "light lane" line with the holder and the waiters (Done-when 3), and a
   "not supported by this helper" line for an older inspect payload.
-- [ ] Update the atlas text.
+- [ ] Update the atlas text, stating that the light lane adds a third concurrent run beyond `WF_TEST_SUITES=2`, bounded to light suites (one slot, niced, stopped at 240 s).
 - [ ] Commit.
 
 ### Task 6: verification
@@ -241,3 +241,7 @@ The state lives inside one local-check run; it is in memory and dies with the ru
   (echo's suite if its checkout is free, otherwise a looping `go test` of a small ariadne package). Compare the wall
   time to the median of the last 5 recorded ariadne suite attempts and log both numbers. Bound: at most 10% slower.
   If the bound fails, stop and re-plan; do not land.
+
+## Revisions
+
+- 2026-10-23: TL approved scope choices (a)–(e) as written; Task 5's atlas update must state that the lane adds a third concurrent run beyond `WF_TEST_SUITES=2`, bounded to light suites.
