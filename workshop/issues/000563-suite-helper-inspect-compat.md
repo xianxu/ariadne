@@ -65,3 +65,9 @@ Built a private sdlc from the clean pushed code checkpoint using Go1.27.3; build
 Private CLI: /Volumes/TestScratch/tmp/ariadne-slot3/ariadne563-cli.Od5td0/sdlc. This worker removes that one diagnostic directory after acceptance; it is not a production artifact family. Captured producer stderr is committed and replayed in normal tests. The diagnostic depends on no agent identity or screen detector and adds no Couch harness/protocol surface.
 
 Next: queue the required recorded suite on the pushed branch; this repository has no .sdlc/affected.json, so the full named suite is required. Close review may overlap its queue under tl-worker, but a final-code recorded pass must precede landing. Keep the queue/controller through waits and restarts; no priority or staging is requested for this status-only correction.
+
+### 2026-10-22 — first-round SHIP; recorded suite retained
+
+Close review returned SHIP with no findings or revisions. Reviewer independently ran all TestSuiteQueue controls (50.734s), focused race checks (1.749s), mutation-checked the old error path to reproduce the regression, and exercised real older helpers acquiring/releasing two private slots. The binary recorded codecomplete with its evidence binding; no source fix followed review.
+
+The original recorded suite controller remains queued under lease-1824173798 on pushed head6a0b35faea2b351b5b1ec19a310f6ea1d19f1948, raw attempt2cb913014a018f68422fdf9ef52180cf. Last observed normal FIFO position12 behind the running Ariadne-slot2 suite; it has not run or passed. Retain this controller and queue position. No continuation or restart while it is queued/running. Open the PR for CI overlap; once the final-code recorded suite passes, enter central sdlc merge --yes and retain its normal landing turn. No staging or priority requested.
