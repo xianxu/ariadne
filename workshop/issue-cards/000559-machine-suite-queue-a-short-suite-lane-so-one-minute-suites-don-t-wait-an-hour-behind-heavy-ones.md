@@ -1,6 +1,6 @@
 ---
 id: 000559
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 547c6fa0e5bb7b2ede22caa970feb3dfde405be2
         evidence_commit: 8799eaffaa9799b3d320589bd96738bc09066ced
+        landed_commit: e9745e1503ad9f34319240a65e75081f3eedc8b0
 ---
 
 # Machine suite queue: a short-suite lane so one-minute suites don't wait an hour behind heavy ones
