@@ -24,10 +24,10 @@ import (
 var weaveRefresh = runInstalledWeave
 var weaveSettingsCheck = runInstalledWeaveSettings
 
-// runInstalledWeave runs gate refresh with protected settings deferred, writing its output
+// runInstalledWeave runs gate refresh with seeds and protected settings deferred, writing its output
 // to out.
 func runInstalledWeave(ctx context.Context, root string, out io.Writer) error {
-	return runInstalledWeaveArgs(ctx, root, out, "refresh", "--defer-settings")
+	return runInstalledWeaveArgs(ctx, root, out, "refresh", "--planning")
 }
 
 func runInstalledWeaveSettings(ctx context.Context, root string, out io.Writer) error {

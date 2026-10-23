@@ -16,6 +16,10 @@ peer-message type; version-pinned local stores should remain unmarked. See the
 [wire-message lint convention](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407)
 for the covered decoder chain and reasoned exceptions.
 
+Unix-socket test fixtures need short private roots even when ordinary temporary
+files follow a long `TMPDIR`. The shared catalog traces inherited temp roots to
+socket sinks; see the [socket-fixture lint boundary and exceptions](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407).
+
 For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
@@ -404,8 +408,18 @@ and origin/main remain unchanged; compilation can update generated composition.
 It cannot be combined with `--rebase`. Numbered slots refresh only their private
 substrates, with the same ownership, cleanliness and preflight safeguards.
 
-Planning gates use `weave refresh --defer-settings`: they never write the
-sandbox-protected `.claude/settings.json`. When the checkout is already current,
+Planning gates use `weave refresh --planning`: they defer all seeded entrypoints
+(Seed and SeedOnce), including tracked workflows, and the sandbox-protected
+`.claude/settings.json` before publication. A stale seed notice names the path.
+For pending regeneration, start a dedicated consumer workflow-update issue and
+branch, run `weave compile`, inspect the generated diff, then commit and publish
+it as its own SDLC PR. Local-gates configuration requires the operator to apply
+`local-gates-verified`; agents never apply that label. Planning neither stashes
+changes nor opens a regeneration PR automatically. Other generated composition
+still runs; Ship outputs, retirement and .gitignore are outside this seed policy.
+`--defer-settings` remains available for settings-only deferral.
+
+When the checkout is already current,
 `weave settings` checks it read-only without installing dependencies, building
 tools or generating outputs. Stale settings produce one notice: run
 `weave refresh --substrate` from your shell. This publishes settings while

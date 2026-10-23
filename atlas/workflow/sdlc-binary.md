@@ -1697,7 +1697,7 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 
 **Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
 resting branch fetches origin/main for the slot and each `substrateChain` repo.
-If any trails it, start-plan runs the installed `weave refresh --defer-settings` (the `weaveRefresh`
+If any trails it, start-plan runs the installed `weave refresh --planning` (the `weaveRefresh`
 seam; TestMain stubs it), which owns the all-or-nothing fast-forward and compile.
 sdlc never fast-forwards a dependency itself. A successful catch-up stops before
 the branch or card changes, because the running binary predates it; the re-run
@@ -1708,6 +1708,12 @@ that moved nothing refuses only for a checkout `freshness.Check` calls Stale,
 and otherwise warns. `claim` keeps only its #284 fast-forward of the slot's own
 rest. `couch --prepare` (pair#434) is the TL-side twin: same refresh, plus an idle
 check and a context reload.
+
+Planning refresh defers every Seed/SeedOnce action before publication (#557),
+so a newer substrate cannot regenerate tracked consumer workflows on the resting
+branch. Pending paths name the explicit `weave compile` route on a dedicated
+consumer issue branch; local-gates regeneration is a separate operator-verified
+PR. See [weave publication policy](weave.md#planning-publication-policy-557).
 
 Protected Claude settings are operator-published (#411). Gate refresh excludes
 every action producing `.claude/settings.json` and always adds
@@ -2494,6 +2500,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
+`test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
@@ -2508,6 +2515,34 @@ a second over about 1,140 files). A finding that doesn't apply is suppressed on 
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
+
+`test-socket-fixture-root` is a test-only, syntax-only provenance check. It follows
+`os.TempDir`, empty/inherited-parent `os.MkdirTemp` and visible testing
+`T`/`B`/`F`/`TB.TempDir` through local bindings, aliases, concatenation,
+`filepath.Join`/`Clean`/`Abs`/`EvalSymlinks` and `net.UnixAddr.Name`. Findings occur
+at literal-Unix-network `net.Listen`, `ListenPacket`, `Dial`, `ResolveUnixAddr`,
+`ListenUnix`, `ListenUnixgram` and `DialUnix`, or literal `COUCH_ISOLATED_ROOT`
+settings via `os.Setenv` or a visible testing receiver. Imported aliases resolve
+by exact import path; shadowed qualifiers do not count as imports. Pair's
+`SocketPath` namespace is hashed, so a long namespace alone is not a finding:
+the isolation-root setting selects its length-sensitive parent. Unrelated
+temporary data and `TMPDIR` settings remain allowed.
+
+Testing receivers may have a directly declared testing type on a parameter or
+local `var`; inferred receiver aliases and named type aliases are not resolved.
+Transparent parentheses are normalized at assignment, first-result call,
+receiver, API selector and literal-key boundaries, using one per-file cache.
+
+The rule conservatively joins all visible writes to a binding, including writes
+after a sink; it does not infer branch execution or overwrite ordering. Opaque
+helpers, function-value aliases, dynamic network/environment keys, dot imports,
+interface dispatch beyond visible testing types and arbitrary container mutations are outside its boundary;
+no finding is not a safety proof. The graph indexes syntax once and propagates
+each inherited node/edge once, with counted growth tests. Keep ordinary files on
+TMPDIR. For a socket fixture, use a short canonical private root, prefer usable
+TestScratch, register cleanup immediately, and retain a reasoned `tmp-literal`
+exception when needed. Suppress this rule only where the actual flow is proven
+bounded, explaining the proof on the sink line or the line above.
 
 Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
 comment when it receives JSON from a peer binary, agent or toolchain that may
