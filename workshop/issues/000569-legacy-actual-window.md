@@ -1,13 +1,13 @@
 ---
 id: 000569
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '4a93dae95bc7ebe64cb03be2f9658261d744e79a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7fdc6bcccc1ae1b4f1bf67e69da6d754a7bc2de3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T01:30:48-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "1963757c", done: "0f903ae5"}
+actual_hours: 0.55
 ---
 
 # Diagnose legacy actual-window refusal blocking pair#162
