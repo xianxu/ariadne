@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "973c10fd", done: "d8e95edb"}
 ---
 
 # dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands
