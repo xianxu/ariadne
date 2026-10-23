@@ -46,6 +46,10 @@ type SuiteAttempt struct {
 	ReclassifiedAt         time.Time `json:"-"` // reader projection of the verified audit, never an independent authority
 	// Version 4 binds typed runner identities to the declared runner contract.
 	RunnerContractSHA256 string `json:"runner_contract_sha256,omitempty"`
+	// Additive (#559): the lane a run took, and on the run that retried a
+	// light-lane overrun, how long the stopped light run had gone.
+	Lane               string   `json:"lane,omitempty"`
+	LaneOverrunSeconds *float64 `json:"lane_overrun_seconds,omitempty"`
 	// Reader-only projection of digest-verified raw evidence; never persisted.
 	TypedFacts *flakes.UnitFacts `json:"-"`
 }
