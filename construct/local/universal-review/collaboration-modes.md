@@ -47,6 +47,22 @@ a shadowing default: `presentation: propose` adds `presentation-mode: propose`; 
 adds `processing-mode: copy-editing` and `processing-instruction: Fix punctuation.`. Already-set canonical values
 stay untouched; preserve the old lines verbatim. Warn that aliases are deprecated.
 
+**Frontmatter presentation fallback.** The canonical key's presence wins over the legacy alias, even when its value
+is empty or unknown. Select the canonical key when present, otherwise the alias. If the selected key is absent
+or its value is empty, use highlight. An unknown nonempty frontmatter value also uses highlight with a warning
+naming the bad value and valid choices, not a refusal. Do not change that existing
+line during fill, and do not recover the alias's value merely because the canonical one is invalid. This retains
+the enforcing presentation resolver's fallback. It does not relax heading declarations: an unknown or empty
+presentation value in an adjacent mode comment fails the round without writes.
+
+| Frontmatter canonical key | Legacy presentation | Effective presentation | Fill / diagnostic |
+|---|---|---|---|
+| absent | absent | highlight | add presentation-mode: highlight |
+| absent | direct | direct | add presentation-mode: direct; retain alias and deprecation warning |
+| empty | propose | highlight | preserve both lines; canonical presence blocks alias fallback |
+| typo | propose | highlight | preserve both lines; warn about unknown canonical value, do not refuse |
+| direct | propose | direct | preserve both lines; canonical value wins |
+
 A legacy `process-instruction:` with **several leading modes** remains readable, applying all briefs in order and
 the first mode's flags, with a deprecation warning. Refuse automatic canonical fill for that document: keep all old
 bytes and ask the operator to choose one `processing-mode` and move any remaining intent to

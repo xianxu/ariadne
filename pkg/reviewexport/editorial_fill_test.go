@@ -19,6 +19,8 @@ func TestEditorialFrontmatterFillExamples(t *testing.T) {
 		{"legacy", "discussion", "propose", "copy-editing", "Fix punctuation."},
 		{"canonical-instruction", "chat", "propose", "copy-editing", "Keep the operator's exact brief."},
 		{"canonical-mode", "collaboration", "highlight", "fact-check", "Keep this legacy brief."},
+		{"presentation-unknown", "discussion", "typo", "free-form", ""},
+		{"presentation-empty", "discussion", "", "free-form", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			read := func(tree string) string {
@@ -43,8 +45,15 @@ func TestEditorialFrontmatterFillExamples(t *testing.T) {
 				}
 			}
 			for k, v := range old {
-				if got[k] != v || !strings.Contains(after, k+": "+v+"\n") {
+				if got[k] != v {
 					t.Errorf("fill changed existing field %s: %q -> %q", k, v, got[k])
+				}
+				// Preserve actual source lines, including an empty value without
+				// a post-colon space, rather than reconstructing their formatting.
+				for _, line := range strings.Split(before, "\n") {
+					if strings.HasPrefix(line, k+":") && !strings.Contains(after, "\n"+line+"\n") {
+						t.Errorf("fill changed existing source line %q", line)
+					}
 				}
 			}
 			if before[strings.Index(before, "# Note"):] != after[strings.Index(after, "# Note"):] {
