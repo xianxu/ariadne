@@ -147,6 +147,12 @@ Stopped with implementation and fixture correction reviewed SHIP, PR405 OPEN, an
 
 Exact next step for 2026-10-23: after resuming from this Log, read tl-worker --help and verify queue/landing/PR state and any retained checks; rebuild this slot's binaries after the operator's planned Go upgrade. Requeue sdlc local-check run --name suite once on the current pushed PR head, retain its exact new run ID, and read its completed result. There is no surviving #557 runner to resume or duplicate. Classify any failure before retrying. Only after a recorded pass and fresh authenticated hub authorization to lift the landing freeze, run sdlc merge --yes. A Couch-available notice alone grants neither new landing authority nor a suite pass. Take no new issue tonight; commit/push this Log and remain idle.
 
+### 2026-10-22 — authenticated post-shutdown lift and rebuild
+
+Hub instruction 54c85672-014f-406d-a416-309243378812 authenticated submitted to this resumed incarnation: shutdown is done, freeze is lifted, rebuild on Go1.27.3, requeue the suite now and land on its pass; both SHIP reviews stand. This explicitly supersedes the no-merge-tonight and requeue-tomorrow instructions.
+
+Recovery verified a clean pushed issue branch, PR405 OPEN, no owned local-check leases and no #557 landing runner. Rebuilt this worktree's tools plus weave with make tools weave-build, exit0; go version -m confirms Go1.27.3 and unmodified source revision for bin/sdlc and bin/weave. No live :0 checkout or configuration changed. No .sdlc/affected.json exists on this issue branch, so use the recorded suite. Next: push this durable lift record, start exactly one sdlc local-check run --name suite on the pushed PR head, retain/read its result, classify any failure, and enter sdlc merge --yes on pass. No new close review is needed absent code changes, per the hub.
+
 ## Revisions
 
 ### 2026-10-22 — proposed prevention at publication boundary
