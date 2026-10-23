@@ -1,13 +1,22 @@
 ---
 id: 000563
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '8bbd55df3620629d855d2d3b080a07402683a9ca' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f3e17e85086eede893e130d0dee360cb975c7168' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T21:59:41-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "13dad640", done: "14e17f19"}
 ---
 
 # Queue status must explain older supplier helper incompatibility
