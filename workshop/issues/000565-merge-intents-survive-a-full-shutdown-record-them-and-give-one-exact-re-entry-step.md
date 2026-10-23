@@ -64,5 +64,15 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
   - Mutation check: making release always remove the intent fails the lifecycle test and both reuse cases.
   - Suite reuse is end to end: the context is cancelled right after the suite records a pass, re-entry lands with 1 suite run, and it reruns (2 runs) when main moved.
   - Deviations are recorded in the plan's Revisions.
+- Close review round 1, FIX-THEN-SHIP.
+  - Important: readers took the owner's exclusive try-lock, so a re-entry during a status read or sweep refused as "already running", naming the dead pid. The fix covers the class, a reader's lock never reading as an owner:
+    - Readers take a shared lock, so they no longer see each other as live.
+    - The sweep decides from git with no lock held, then removes under a momentary exclusive lock, and only if the record still names the same run.
+    - `Hold` waits up to 2 s before refusing.
+    - Regression tests use an event hook, not a sleep. The test is mutation-checked: switching readers back to the exclusive lock fails it.
+  - Minors fixed:
+    - `Hold` refuses (naming the path) rather than overwriting an unreadable or later-version record.
+    - Root, pause owner and pause reason are printed `%q`-quoted.
+    - One `localBranchHead` helper replaces three copies of the lookup.
 
 ### 2026-10-22

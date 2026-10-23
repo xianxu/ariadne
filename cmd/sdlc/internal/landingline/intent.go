@@ -162,9 +162,20 @@ type IntentHold struct {
 	file *os.File
 }
 
+// IntentHoldPatience bounds how long Hold waits out a brief lock before
+// refusing: readers hold a shared lock only while they read, and a sweep an
+// exclusive one only while it removes, so a lock that outlasts this is a
+// running merge's.
+var IntentHoldPatience = 2 * time.Second
+
+// onHoldWait is a test seam: called each time Hold finds the lock taken and
+// waits.
+var onHoldWait = func() {}
+
 // Hold records in and locks it for this process's lifetime. An orphan for
 // the same branch is taken over in place, keeping a later sdlc's members;
-// a live one refuses with *IntentHeldError.
+// a live one refuses with *IntentHeldError. An unreadable record (corrupt,
+// or a later sdlc's version) is never overwritten: Hold refuses, naming it.
 func (s Intents) Hold(in Intent) (*IntentHold, error) {
 	in.Version = IntentVersion
 	if err := in.Valid(); err != nil {
@@ -174,12 +185,19 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 		return nil, err
 	}
 	path := s.path(in.Branch)
-	for range 8 { // a sweep may unlink the file between open and lock; retry on the new one
+	deadline := time.Now().Add(IntentHoldPatience)
+	for {
 		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
 		if err != nil {
 			return nil, err
 		}
 		if err := flock.Exclusive(f, true); err != nil {
+			if time.Now().Before(deadline) {
+				f.Close()
+				onHoldWait()
+				time.Sleep(20 * time.Millisecond)
+				continue
+			}
 			prev, err := readIntent(f) // the holder may still be writing it
 			if err != nil {
 				prev = Intent{Branch: in.Branch}
@@ -187,11 +205,22 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 			f.Close()
 			return nil, &IntentHeldError{Intent: prev}
 		}
-		if !samePath(f, path) {
+		if !samePath(f, path) { // a sweep removed it between open and lock
 			f.Close()
+			if time.Now().After(deadline) {
+				return nil, errors.New("record merge intent: the intent file kept changing under its lock")
+			}
 			continue
 		}
-		if prev, err := readIntent(f); err == nil && prev.Branch == in.Branch {
+		if info, err := f.Stat(); err == nil && info.Size() > 0 {
+			prev, err := readIntent(f)
+			if err == nil && prev.Branch != in.Branch {
+				err = fmt.Errorf("it records branch %q", prev.Branch)
+			}
+			if err != nil {
+				f.Close()
+				return nil, fmt.Errorf("unreadable merge intent %s: %v; inspect it, then remove it and rerun", path, err)
+			}
 			in.Extra = mergeExtra(prev.Extra, in.Extra)
 		}
 		data, err := json.Marshal(in)
@@ -210,7 +239,6 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 		}
 		return &IntentHold{path: path, file: f}, nil
 	}
-	return nil, errors.New("record merge intent: the intent file kept changing under its lock")
 }
 
 // Release ends the hold. A terminal outcome removes the intent; an
@@ -238,34 +266,37 @@ type ObservedIntent struct {
 	Err     error
 }
 
-// List observes every intent: it try-locks each to tell live from not.
+// List observes every intent. A reader's shared lock fails only while a
+// merge holds the intent exclusively, so readers never mistake each other
+// for a running merge, nor block one for longer than a read.
 func (s Intents) List() ([]ObservedIntent, error) {
+	paths, err := s.files()
+	var out []ObservedIntent
+	for _, path := range paths {
+		if o, ok := observeIntent(path); ok {
+			out = append(out, o)
+		}
+	}
+	return out, err
+}
+
+func (s Intents) files() ([]string, error) {
 	entries, err := os.ReadDir(s.dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	var out []ObservedIntent
+	var out []string
 	for _, e := range entries {
-		if !e.Type().IsRegular() || strings.HasPrefix(e.Name(), ".") {
-			continue
-		}
-		o, ok := s.observe(filepath.Join(s.dir, e.Name()), nil)
-		if ok {
-			out = append(out, o)
+		if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), ".") {
+			out = append(out, filepath.Join(s.dir, e.Name()))
 		}
 	}
-	return out, nil
+	return out, err
 }
 
-// observe reads one intent under a try-lock. With remove set, an unlocked
-// intent it approves is removed while the lock is held, so a merge that
-// takes it over meanwhile is never deleted from under.
-func (s Intents) observe(path string, remove func(ObservedIntent) bool) (ObservedIntent, bool) {
+func observeIntent(path string) (ObservedIntent, bool) {
 	o := ObservedIntent{Path: path}
-	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	f, err := os.Open(path)
 	if err != nil {
 		return o, false // gone meanwhile
 	}
@@ -273,48 +304,56 @@ func (s Intents) observe(path string, remove func(ObservedIntent) bool) (Observe
 	if info, err := f.Stat(); err == nil {
 		o.ModTime = info.ModTime()
 	}
-	o.Locked = flock.Exclusive(f, true) != nil
+	o.Locked = flock.Shared(f, true) != nil
 	o.Intent, o.Err = readIntent(f)
-	if !o.Locked && remove != nil && samePath(f, path) && remove(o) {
-		os.Remove(path)
-	}
 	return o, true
 }
 
 // Sweep removes unlocked intents whose branch is gone (stale) or that are
-// older than maxAge, and returns what it removed. Unreadable records are
+// older than maxAge, and returns what it removed. It decides from a read,
+// with no lock held across branchExists, then removes under a momentary
+// exclusive lock only if the record is unchanged. Unreadable records are
 // left for the operator: status names their path.
 func (s Intents) Sweep(branchExists func(string) (bool, error), now time.Time, maxAge time.Duration) ([]Intent, error) {
-	entries, err := os.ReadDir(s.dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
+	paths, err := s.files()
+	errs := []error{err}
 	var removed []Intent
-	var errs []error
-	for _, e := range entries {
-		if !e.Type().IsRegular() || strings.HasPrefix(e.Name(), ".") {
+	for _, path := range paths {
+		o, ok := observeIntent(path)
+		if !ok || o.Locked || o.Err != nil {
 			continue
 		}
-		s.observe(filepath.Join(s.dir, e.Name()), func(o ObservedIntent) bool {
-			if o.Err != nil {
-				return false
-			}
-			exists, err := branchExists(o.Intent.Branch)
-			if err != nil {
-				errs = append(errs, err)
-				return false
-			}
-			if ClassifyIntent(false, exists) == IntentStale || now.Sub(o.Intent.StartedAt) > maxAge {
-				removed = append(removed, o.Intent)
-				return true
-			}
-			return false
-		})
+		exists, err := branchExists(o.Intent.Branch)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if ClassifyIntent(false, exists) != IntentStale && now.Sub(o.Intent.StartedAt) <= maxAge {
+			continue
+		}
+		if removeUnchanged(path, o.Intent) {
+			removed = append(removed, o.Intent)
+		}
 	}
 	return removed, errors.Join(errs...)
+}
+
+// removeUnchanged unlinks path only while no merge holds it and it still
+// records the same run as seen, so a re-entry meanwhile is never deleted.
+func removeUnchanged(path string, seen Intent) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	if flock.Exclusive(f, true) != nil || !samePath(f, path) {
+		return false
+	}
+	now, err := readIntent(f)
+	if err != nil || now.Branch != seen.Branch || now.PID != seen.PID || !now.StartedAt.Equal(seen.StartedAt) {
+		return false
+	}
+	return os.Remove(path) == nil
 }
 
 func readIntent(f *os.File) (Intent, error) {

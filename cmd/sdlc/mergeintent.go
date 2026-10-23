@@ -40,7 +40,7 @@ func holdMergeIntent(ctx context.Context, r gitRunner, t landingTarget, requeste
 	}
 	store := landingline.OpenIntents(lineDir)
 	sweepMergeIntents(r, t.Root, store, stderr)
-	head, err := landingOptional(r, t.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	head, err := localBranchHead(r, t.Root, branch)
 	if err != nil || head == "" {
 		return none, err
 	}
@@ -62,12 +62,17 @@ func holdMergeIntent(ctx context.Context, r gitRunner, t landingTarget, requeste
 	}, nil
 }
 
+// localBranchHead is the branch's local head, "" when it has none.
+func localBranchHead(r gitRunner, root, branch string) (string, error) {
+	return landingOptional(r, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+}
+
 // sweepMergeIntents removes unlocked intents whose branch is gone or that
 // outlived landingline.IntentMaxAge; a failure only warns, since it leaves
 // nothing worse than a stale line in status.
 func sweepMergeIntents(r gitRunner, root string, store landingline.Intents, stderr io.Writer) {
 	exists := func(branch string) (bool, error) {
-		head, err := landingOptional(r, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+		head, err := localBranchHead(r, root, branch)
 		return head != "", err
 	}
 	if _, err := store.Sweep(exists, time.Now(), landingline.IntentMaxAge); err != nil {
@@ -109,7 +114,7 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 		if len(paused) > 0 {
 			var by []string
 			for _, p := range paused {
-				by = append(by, fmt.Sprintf("%s (%s)", p.Owner, p.Reason))
+				by = append(by, fmt.Sprintf("%q (%q)", p.Owner, p.Reason))
 			}
 			r.Note = "the machine queue is paused by " + strings.Join(by, ", ") + "; re-enter after it resumes"
 		}
@@ -121,13 +126,13 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 func formatMergeIntent(r mergeIntentReport) string {
 	switch r.State {
 	case "unreadable":
-		return fmt.Sprintf("unreadable merge intent %s: %s (inspect it, then remove it)", r.Path, r.Note)
+		return fmt.Sprintf("unreadable merge intent %s: %q (inspect it, then remove it)", r.Path, r.Note)
 	case string(landingline.IntentOrphaned):
 		issue := ""
 		if r.Issue > 0 {
 			issue = fmt.Sprintf("#%d ", r.Issue)
 		}
-		line := fmt.Sprintf("orphaned merge: %sbranch %q at %s, started %s by pid %d, which is gone; re-enter in %s: %s",
+		line := fmt.Sprintf("orphaned merge: %sbranch %q at %s, started %s by pid %d, which is gone; re-enter in %q: %s",
 			issue, r.Branch, abbrevSHA(r.Head), r.StartedAt.Format(time.RFC3339), r.PID, r.Root, r.Reentry)
 		if r.Note != "" {
 			line += "\n  " + r.Note
@@ -153,7 +158,7 @@ func observeMergeIntents(ctx context.Context, r gitRunner, root string, keep fun
 	for _, o := range observed {
 		exists := false
 		if o.Err == nil {
-			head, err := landingOptional(r, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+o.Intent.Branch)
+			head, err := localBranchHead(r, root, o.Intent.Branch)
 			if err != nil {
 				return nil, err
 			}

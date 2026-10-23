@@ -7,9 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
 )
 
 func testIntent(branch string) Intent {
@@ -68,6 +71,9 @@ func listOne(t *testing.T, s Intents) ObservedIntent {
 }
 
 func TestIntentHoldReleaseByOutcome(t *testing.T) {
+	prev := IntentHoldPatience
+	IntentHoldPatience = 50 * time.Millisecond
+	t.Cleanup(func() { IntentHoldPatience = prev })
 	s := OpenIntents(t.TempDir())
 	h, err := s.Hold(testIntent("b1"))
 	if err != nil {
@@ -206,5 +212,86 @@ func TestIntentOfAKilledRunnerIsOrphaned(t *testing.T) {
 	}
 	if ClassifyIntent(o.Locked, true) != IntentOrphaned {
 		t.Fatal("not orphaned")
+	}
+}
+
+// #565 BR: a reader's lock is not a running merge. Hold waits out a reader
+// that holds the record while Hold starts; readers do not see each other as
+// live; a sweep that decided before a re-entry does not delete it.
+func TestIntentReadersAreNotOwners(t *testing.T) {
+	s := OpenIntents(t.TempDir())
+	h, err := s.Hold(testIntent("b1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Release(true)
+	path := listOne(t, s).Path
+
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := flock.Shared(reader, true); err != nil {
+		t.Fatal(err)
+	}
+	if o := listOne(t, s); o.Locked {
+		t.Fatal("a second reader saw the first as a running merge")
+	}
+	waited := make(chan struct{})
+	var once sync.Once
+	onHoldWait = func() { once.Do(func() { close(waited) }) }
+	t.Cleanup(func() { onHoldWait = func() {} })
+	done := make(chan error, 1)
+	go func() {
+		h, err := s.Hold(testIntent("b1"))
+		if err == nil {
+			h.Release(true)
+		}
+		done <- err
+	}()
+	<-waited // Hold found the reader's lock and is waiting it out
+	reader.Close()
+	if err := <-done; err != nil {
+		t.Fatalf("re-entry refused because of a reader: %v", err)
+	}
+
+	reentered := false
+	removed, err := s.Sweep(func(string) (bool, error) {
+		// A re-entry lands between the sweep's read and its removal.
+		next := testIntent("b1")
+		next.StartedAt = next.StartedAt.Add(time.Hour)
+		h, err := s.Hold(next)
+		if err != nil {
+			return false, err
+		}
+		reentered = true
+		return false, h.Release(true)
+	}, time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC), IntentMaxAge)
+	if err != nil || !reentered || len(removed) != 0 {
+		t.Fatalf("swept a re-entered intent: removed %+v, err %v", removed, err)
+	}
+	if o := listOne(t, s); o.Err != nil || !o.Intent.StartedAt.Equal(testIntent("b1").StartedAt.Add(time.Hour)) {
+		t.Fatalf("after the sweep: %+v", o)
+	}
+}
+
+func TestIntentHoldNeverOverwritesAnUnreadableRecord(t *testing.T) {
+	prev := IntentHoldPatience
+	IntentHoldPatience = 50 * time.Millisecond
+	t.Cleanup(func() { IntentHoldPatience = prev })
+	for name, body := range map[string]string{
+		"corrupt":       "{",
+		"later version": `{"version":2,"branch":"b1"}`,
+	} {
+		s := OpenIntents(t.TempDir())
+		os.MkdirAll(s.dir, 0o755)
+		path := s.path("b1")
+		os.WriteFile(path, []byte(body), 0o644)
+		if _, err := s.Hold(testIntent("b1")); err == nil || !strings.Contains(err.Error(), "unreadable merge intent "+path) {
+			t.Errorf("%s: %v", name, err)
+		}
+		if got, _ := os.ReadFile(path); string(got) != body {
+			t.Errorf("%s: overwritten to %s", name, got)
+		}
 	}
 }

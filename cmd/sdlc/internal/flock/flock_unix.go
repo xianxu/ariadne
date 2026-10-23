@@ -18,3 +18,13 @@ func Exclusive(f *os.File, nonBlocking bool) error {
 	}
 	return syscall.Flock(int(f.Fd()), how)
 }
+
+// Shared takes a shared flock on f: readers hold it together, and it fails
+// (nonBlocking) only while an exclusive holder has the file.
+func Shared(f *os.File, nonBlocking bool) error {
+	how := syscall.LOCK_SH
+	if nonBlocking {
+		how |= syscall.LOCK_NB
+	}
+	return syscall.Flock(int(f.Fd()), how)
+}

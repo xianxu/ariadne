@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -121,13 +122,13 @@ func TestReportMergeIntent(t *testing.T) {
 		t.Fatalf("%+v", orphan)
 	}
 	line := formatMergeIntent(orphan)
-	for _, want := range []string{`orphaned merge: #565 branch "000565-x" at cccccccc`, "pid 77, which is gone", "re-enter in /w/slot5: sdlc merge --branch 000565-x --yes"} {
+	for _, want := range []string{`orphaned merge: #565 branch "000565-x" at cccccccc`, "pid 77, which is gone", `re-enter in "/w/slot5": sdlc merge --branch 000565-x --yes`} {
 		if !strings.Contains(line, want) {
 			t.Errorf("missing %q in %q", want, line)
 		}
 	}
 	paused := reportMergeIntent(o, true, []queuegate.PauseOwner{{Owner: "ops:0", Reason: "full shutdown"}})
-	if !strings.Contains(formatMergeIntent(paused), "the machine queue is paused by ops:0 (full shutdown); re-enter after it resumes") {
+	if !strings.Contains(formatMergeIntent(paused), `the machine queue is paused by "ops:0" ("full shutdown"); re-enter after it resumes`) {
 		t.Fatalf("no pause note: %q", formatMergeIntent(paused))
 	}
 	o.Locked = true
@@ -137,6 +138,10 @@ func TestReportMergeIntent(t *testing.T) {
 	o.Locked = false
 	if stale := reportMergeIntent(o, false, nil); stale.State != "stale" || stale.Reentry != "" || formatMergeIntent(stale) != "" {
 		t.Fatalf("a stale intent: %+v", stale)
+	}
+	o.Intent.Root = "/w/evil\nforged line"
+	if line := formatMergeIntent(reportMergeIntent(o, true, nil)); strings.Contains(line, "\nforged") {
+		t.Fatalf("an untrusted root broke the line: %q", line)
 	}
 	bad := reportMergeIntent(landingline.ObservedIntent{Path: "/l/intents/z", Err: errors.New("intent: not one JSON object")}, false, nil)
 	if bad.State != "unreadable" || bad.Reentry != "" || !strings.Contains(formatMergeIntent(bad), "unreadable merge intent /l/intents/z") {
@@ -153,7 +158,7 @@ func TestOrphanedMergeOnStatusSurfaces(t *testing.T) {
 	if err := runMerge(io.Discard, io.Discard, landingFlags()); !errors.Is(err, context.Canceled) {
 		t.Fatalf("want the interruption: %v", err)
 	}
-	want := "re-enter in " + canonicalRoot(roots[1]) + ": sdlc merge --branch " + landingTestBranch + " --yes"
+	want := fmt.Sprintf("re-enter in %q: sdlc merge --branch %s --yes", canonicalRoot(roots[1]), landingTestBranch)
 	var status bytes.Buffer
 	if err := runLandingStatus(&status, roots[1], defaultLandingDeps()); err != nil {
 		t.Fatal(err)
