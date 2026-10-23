@@ -1,6 +1,6 @@
 ---
 id: 000573
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.27
+tracker:
+    version: 1
+    completion:
+        token: close-410a0a79e7bc
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 5903d2db7eb2916c3f5a3ae130cd99e31d54da05
+        evidence_commit: 89825d566a3c9c0293a4d2ebbf9c00354ab62cc8
 ---
 
 # dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands
