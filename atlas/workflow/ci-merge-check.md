@@ -295,6 +295,19 @@ first-class evidence, recorded on the commit it ran on:
   - A declared `weight` reaches `test-lock.py --slots`, so `make test` under it
     holds the repository's weight. Before #332 it held one slot and went
     reentrant.
+  - Before suite/affected worktree maintenance or queueing, SDLC checks host
+    boot identity and binds a private Unix listener (`suitecapability.go`).
+    A denied or unavailable capability returns `could-not-run`, without a new
+    attempt or commit status. EPERM names the whole-call retry: invoke bare
+    `sdlc local-check run …` without a pipe, redirect or command wrapper.
+    The same helper precedes affected graph preparation, diagnostic baselines,
+    automatic flake children and eligible resume children. A completed saved-pass
+    repost does not execute and skips the probe. Short private socket scratch
+    uses the existing run-folder cleanup policy.
+    These are independent host observations, not log-text classification: a
+    passing probe does not authorize discarding later permission failures.
+    Mixed and all-denial test output retain ordinary failure attribution;
+    earlier failed attempts are never cleared by this preflight.
   - Before local-check worktree maintenance or queueing, SDLC probes the resolved
     helper's side-effect-free `acquire --help` for the required `--watch` and
     `--slots` declarations. Missing or unverifiable capability refuses without a

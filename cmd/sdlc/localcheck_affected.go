@@ -36,6 +36,11 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		// evidence nothing ran for (#473 M1 BR-2).
 		return localRunRecord{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
 	}
+	// Graph preparation can execute even for a docs-only selection, before
+	// the selected check reaches the ordinary runner.
+	if err := preflightSuite(ctx, d, localCheck{Name: affectedCheckName}, sha); err != nil {
+		return localRunRecord{}, err
+	}
 	if cfg.GraphPrepare != nil {
 		// The generator precedes runUnderSlot's signal owner. Keep its
 		// cancellation alive through graph cleanup, fallback and publication.

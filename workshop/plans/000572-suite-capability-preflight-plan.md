@@ -50,7 +50,7 @@ The sequence is fixed: context check -> boot identity read -> create private sho
 
 Use a short, canonical, mode-0700 temporary directory: `scratchdisk.Roots("tmp", "/tmp")` selects TestScratch's tmp directory or the short system temporary root, with a documented Unix-path-length exception. Name it `sdlc-run-probe-PID-RANDOM`, recognized by the existing `runDirRE` and `sweepStaleTemp`; call that existing sweep on the selected roots when preparing a subsequent probe. Do not inherit an arbitrarily long TMPDIR socket path. No connection/accept loop is needed: successful bind is the capability. Directory and listener are removed on every normal return; report cleanup errors rather than claiming readiness. A process crash can leave one tiny temporary directory/socket, reclaimed by the existing PID/dead-or-24-hour sweep policy (ARCH-FUNERAL). No new registry or scratch family.
 
-This is a local preflight with two fixed kernel operations and bounded scratch work; no network request, polling, suite queue slot, or test execution. CPU/memory are constant; disk use is one empty private directory/socket. Existing synchronous kernel calls are used without goroutine timeout wrappers. Unavailable capabilities fail closed. No credentials or persisted input are consumed; a test log cannot grant authority (ARCH-SECURE). No wire-format or vocabulary lifecycle changes (ARCH-EVOLVE).
+This is a local preflight with two fixed kernel operations and scratch work; no network request, polling, suite queue slot, or test execution. Probe CPU/memory are constant apart from the existing temporary-directory sweep, whose cost follows the directory population; disk use is one empty private directory/socket. Existing synchronous kernel calls are used without goroutine timeout wrappers. Unavailable capabilities fail closed. No credentials or persisted input are consumed; a test log cannot grant authority (ARCH-SECURE). No wire-format or vocabulary lifecycle changes (ARCH-EVOLVE).
 
 Failure prints `environment failure: could-not-run`, the denied capability and cause, and on EPERM: `run sdlc local-check run --name CHECK --rev SHA as the whole Bash call, without a pipe, redirect, or command wrapper`. Resume advice preserves its exact parent retry command. Omit the log clause when preflight created no log; do not print an empty path. Existing older failed records are neither erased nor promoted.
 
@@ -70,3 +70,9 @@ Failure prints `environment failure: could-not-run`, the denied capability and c
 ## Risky-function test strategy
 
 `probeSuiteCapabilities`: resource-owning fake plus real private listener, injected boot failures, cleanup errors, and native Seatbelt conformance. `runLocalCheck`: existing real-repository/status fixture asserts absent side effects and same-head repair. `knownFlakeStep`: preserve parent/no invalid child fixture. `resumeSavedSuite`: existing proof/link fixture asserts preflight precedes link and saved-pass repost bypasses execution. `suiteEnvironmentError.Error`: exact command and absent-log formatting table. These test behavior and state, not source-text matching (ARCH-MOCK, ARCH-PURPOSE).
+
+## Revisions
+
+### 2026-10-23 — Include affected graph generation in the execution boundary
+
+The entry-point sweep found affected's optional graph generator precedes `runLocalCheck`, even for a docs-only selection. Apply the same approved preflight before that graph call and test no graph/execution/status effects on refusal. No new mechanism. Correct the cost scope: the reused stale-temp sweep scales with its existing directory population, while the new capability operations are fixed.
