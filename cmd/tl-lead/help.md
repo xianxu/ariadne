@@ -336,12 +336,13 @@ TALKING TO THE OPERATOR
   - Keep a live status file for the operator's right pane:
     session.md at the hub repo's root, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>` (couch still reads the older `owner:`),
-    `operator: <slug>` (default: the slug of git user.name), and
-    `collaboration-mode: discussion`, `presentation-mode: highlight`, and
-    `processing-mode: free-form`. Put `<!-- collaboration-mode: chat -->`
-    directly under `## Operator instructions`, with no blank line. Existing
-    files keep their choices; the universal-review collaboration-modes.md
-    contract owns defaults, legacy aliases and lossless fill refusal.
+    and `operator: <slug>` (default: the slug of git user.name), and
+    no review mode keys, which are retired. Put `@@chat@@` on the
+    line directly above `## Operator instructions`, with no blank line, so
+    its numbered items are the operator's asks. Existing files keep what
+    they have: an older heading comment or map still means chat, and still
+    takes `-` and `*` bullets; the universal-review collaboration-modes.md
+    contract (§3, §7) owns that.
     It is state, not a log:
     rewrite it in place, about one screen, gitignored. Update it whenever a
     thread changes state, and every worker report updates it in the same
@@ -421,9 +422,10 @@ TALKING TO THE OPERATOR
     Per-issue detail lives in the issue file; the digest carries landed lists
     and friction.
   - `## Operator instructions` belongs to the operator. It is a chat section
-    (the heading comment above), so xx-universal-review's chat mode is the
-    rule for it: its collaboration-modes.md says what a bullet is, its answer
-    doc, follow-ups, closing, and what you never do to the operator's lines.
+    (the `@@chat@@` tag above), so xx-universal-review's chat carve-out is the
+    rule for it: its collaboration-modes.md §3 says what a bullet is, its
+    answer doc, follow-ups, closing, and what you never do to the operator's
+    lines. tl-lead reads bullets by that same grammar (pkg/sidedoc ChatItems).
     What is yours to add:
     - Your only write is appending ` → [answer](…)` to a bullet, through
       tl-lead, by position, since the operator reuses numbers:
@@ -439,8 +441,8 @@ TALKING TO THE OPERATOR
       needs the operator, else into Threads or a new bullet's answer.
   - New answer docs follow universal-review collaboration-modes.md §4:
     session.side/YYYY-MM/YYYY-MM-DD-NN-<slug>.md, using the round's month,
-    with type: side-doc, parent: ../../session.md, marker and all three
-    explicit default mode keys; the backlink under the title resolves to
+    with type: side-doc, parent: ../../session.md and marker, and no mode
+    keys; the backlink under the title resolves to
     the same parent. Use the common side root for nested questions too.
     Only a side doc of this session shows under it in parley's attention
     finder. Write the doc first: `link` refuses any other
@@ -448,8 +450,7 @@ TALKING TO THE OPERATOR
     Existing flat files and links remain valid, with parent: ../session.md;
     A follow-up extends the file
     its link names, without migration or changed settings.
-    New answer docs carry no inherited process-instruction; instructions
-    explicitly supplied for them use processing-instruction. The
+    New answer docs inherit no mode key from the status file. The
     folder is gitignored like the status file. An answer doc answers only the question asked;
     Needs you and status stay in the status file.
   - The older teams/<team>/qa/<operator>/ answers move into that folder once,
@@ -462,8 +463,9 @@ TALKING TO THE OPERATOR
     the finder doesn't list them all at once. A stop midway resumes when you
     rerun it. Bare qa/ mentions (sources: lists, code spans) are listed, not
     rewritten: fix those by hand, and commit the tracked files it rewrote.
-  - The rest of the status file (Needs you, Threads, …) is discussion: an
-    instruction there is carried out, and a 🤖 question opens a side doc in
+  - The rest of the status file (Needs you, Threads, …) is ordinary
+    collaborative editing: an instruction there is carried out, and a 🤖
+    question opens a side doc in
     the round's month under session.side/ (§4), linked in place
     of the marker. List such a side doc in the index yourself:
         tl-lead status index FILE --add session.side/YYYY-MM/YYYY-MM-DD-NN-<slug>.md

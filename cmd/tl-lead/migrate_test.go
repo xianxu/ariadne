@@ -148,7 +148,7 @@ func TestMigrateAnswersGolden(t *testing.T) {
 		"move     qa/op/2026-10-17-01-s4.md → tl-status-op.side/2026-10-17-01-s4.md  [registered, marker: bullet]",
 		"move     qa/op/2026-10-16-01-old.md → tl-status-op.side/2026-10-16-01-old.md  [marker: title]",
 		"left     qa/op/.claude ",
-		"mention  tl-status-op.side/2026-10-17-01-s4.md:16: The sampler's log is `qa/op/log.jsonl`.",
+		"mention  tl-status-op.side/2026-10-17-01-s4.md:15: The sampler's log is `qa/op/log.jsonl`.",
 		"mention  projects/p/project.md:3: sources: [ops:teams/x/qa/op/2026-10-17-01-s4.md]",
 		"dangling qa/op/2026-10-16-01-old.md: projects/p/project.md",
 		"summary: 6 moves (0 resumed), 1 left, 0 conflicts, 4 session edits, 2 outside files",
@@ -451,4 +451,25 @@ func TestMigrateAnswersSweepsItsTemps(t *testing.T) {
 		t.Errorf("the stale temp survived: %v", err)
 	}
 	golden(t, tree(t, root, f))
+}
+
+// #576: answerFrontmatter writes no mode key, and keeps every legacy one a
+// doc already has, verbatim and in its order.
+func TestAnswerFrontmatterWritesNoModeKeys(t *testing.T) {
+	legacy := "---\ncollaboration-mode: discussion\npresentation-mode: highlight\nprocess-instruction: \"[free-form] x\"\nowner: op\n---\n# Q\n\nA.\n"
+	got, err := answerFrontmatter(legacy, "../s.md", `"q"`, "S")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "---\ntype: side-doc\nparent: ../s.md\nmarker: \"q\"\ncollaboration-mode: discussion\npresentation-mode: highlight\nprocess-instruction: \"[free-form] x\"\nowner: op\n---\n"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("legacy doc:\n got %q\nwant prefix %q", got, want)
+	}
+	fresh, err := answerFrontmatter("# Q\n\nA.\n", "../s.md", `"q"`, "S")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(fresh, "---\ntype: side-doc\nparent: ../s.md\nmarker: \"q\"\n---\n") {
+		t.Errorf("a doc without frontmatter gains more than type/parent/marker:\n%s", fresh)
+	}
 }

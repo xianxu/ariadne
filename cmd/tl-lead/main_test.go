@@ -109,10 +109,10 @@ func TestLeadHelpCoversPlaybook(t *testing.T) {
 		// The rules #377 ported from the ops draft, one phrase each.
 		{"G1 Operator instructions is section 0", "0. `## Operator instructions`"},
 		{"G2 the TL only links answers", "Your only write is appending"},
-		// #412: the session file runs on the skill's chat mode, cited not restated.
-		{"the session file declares chat mode", "`<!-- collaboration-mode: chat -->`"},
-		{"chat mode is the rule", "xx-universal-review's chat mode is the\n    rule for it"},
-		{"the body is discussion", "The rest of the status file (Needs you, Threads, …) is discussion"},
+		// #412, #576: the session file runs on the skill's chat carve-out, cited not restated.
+		{"the session file declares chat", "Put `@@chat@@` on the\n    line directly above `## Operator instructions`"},
+		{"the chat carve-out is the rule", "xx-universal-review's chat carve-out is the\n    rule for it"},
+		{"the body is collaborative editing", "The rest of the status file (Needs you, Threads, …) is ordinary\n    collaborative editing"},
 		{"the TL writes only through tl-lead", "never by the skill's whole-document write"},
 		{"follow-ups come from the changes", "follow-ups on linked ones are in the\n      changes since your last read"},
 		// #399: other documents' submits are review requests.

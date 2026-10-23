@@ -54,7 +54,7 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 - [x] ChatSections scope additions: a linear scan (counted N/2N), the fence-based unread notice, the empty-value notice, Legacy and Innermost (laminar), and Tags.
 - [x] Task 1: shared item grammar `sidedoc.ChatItems`; tl-lead list/link pick `legacy` from ChatSections(frontmatter + section); checkChat uses it
 - [x] Task 2: sdlc scaffolds, handoff, CUE field, vocab accessors; LegacyCollaborationModes; legacy round-trip test
-- [ ] Task 3: tl-lead migrate lossless; help.md moves to @@chat@@
+- [x] Task 3: tl-lead migrate lossless; help.md moves to @@chat@@
 - [ ] Task 4: datatype rows and collabmode.go removed; writing-plans header; the guard extended to every creator's instructions
 - [ ] Task 5: atlas and comments; tests; recorded suite; close; landed revision to pair:3 and parley.nvim:3
 
@@ -66,4 +66,5 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 - pair:3 then found, by reading the source, that the fence toggle I carried over from tl-lead flipped on any fence-like line. I measured it: a tilde line inside a backtick fence, a shorter fence inside a longer one, and a backtick line inside a tilde fence each exposed an item. Fix (f8b819032): `sidedoc.CodeLines` takes code lines from goldmark, the parser CodeLiteralMask already uses. A counted N/2N test catches a per-block prefix count at about 4x. tl-lead's edge test encoded the toggle (an unindented line inside an item's fence), so it now uses the CommonMark form (8902b587b).
 - Task 2: the issue scaffold, `DetailsFromCard` and the project scaffold write no mode key; tests assert absence across every retired key. The CUE `scaffold.collaboration_mode` field is deleted and JSON regenerated (`make vocab-embed`; its final drift check exits 1 only because the regenerated JSON is not yet committed). `Scaffold.CollaborationMode` and the two accessors are deleted, and `CollaborationModes` is renamed `LegacyCollaborationModes`. `TestLegacyModeKeySurvivesSetField` pins legacy lines surviving a rewrite.
 - Task 4, in part: `cmd/datatype/collabmode.go`, its tests, `datatype lint` and the render warning are deleted. Nothing outside cmd/datatype called `datatype lint`.
+- Task 3: `answerFrontmatter` puts type/parent/marker first and keeps every other existing line verbatim and in order, legacy mode keys included, adding none. Regenerating the golden tree removed only the two lines the migration used to add; the doc that already carried the key keeps it. `TestAnswerFrontmatterWritesNoModeKeys` pins both. `help.md` now prescribes `@@chat@@` above `## Operator instructions` and no mode keys for session files and answer docs. The help tests flip: they require the tag and forbid the three keys, "explicit default mode keys" and "use processing-instruction".
 
