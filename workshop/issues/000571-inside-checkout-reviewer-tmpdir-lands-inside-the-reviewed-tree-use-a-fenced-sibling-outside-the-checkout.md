@@ -75,6 +75,7 @@ ARCH-PURE: only companion-path derivation is pure; existing filesystem/process s
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Red-first scratch ancestry/reset/close/live-sweep/collision regressions reproduced, then focused reviewbox/judge packages PASS8.866s/7.653s and race controls PASS3.715s/6.378s; lint PASS0.897s. Real production-dispatch Seatbelt Parley infra/config and infra/test_harness mappings PASS for Claude/Codex260.27s, effective outer/inner temp paths verified, source writes denied, clean clones/process census. Raw pinned host proof is workshop/plans/000571-native-conformance.md. Final recorded suite lease-970537564 on e44b9bbb0aa6caaa598168aedbd15fe4ba123916 remains queued; landing held for its PASS, review overlap authorized by tl-worker. Hub accepts documented old-sweeper rollout limit and owns shared-provider rebuild at landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 ### 2026-10-23 — claim, rebuild and bounded plan
 
