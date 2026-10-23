@@ -1,13 +1,13 @@
 ---
 id: 000557
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 1.43
 collaboration-mode: collaboration
-card_mirror: 'c81582bd533e695c20dbf4387d01018412d17e4c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fcce3a53707d07139cf511489d477f93a995e84d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T17:29:49-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 0.53
 ---
 
 # start-plan's weave refresh regenerates seeded workflows on the resting branch, then refuses
