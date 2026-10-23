@@ -1,13 +1,21 @@
 ---
 id: 000575
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '96500b38e049df6313439b4f2626b1e06e3ed7ce' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4ef3e7eeffe1e4033062400878941320b13b2020' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T11:52:48-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
@@ -49,8 +57,17 @@ ops `session.side/2026-10-23-03-mode-simplification.md`. Rewrite universal-revie
 
 ## Plan
 
-- [ ]
+Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out-plan.md) (approved by the TL 10-23, (a) to (f); decision D2 by the operator).
+
+- [ ] Task 1: Briefs and export v4 (`briefs/`, `brief` role, `exportedCases`)
+- [ ] Task 2: `chatSections` oracle
+- [ ] Task 3: Spec prose (collaboration-modes.md, round.md, SKILL.md, file-edit adapter)
+- [ ] Task 4: Examples: retire, convert, add the 13 new cases; checker side-doc rule
+- [ ] Task 5: Prose guards (the Done-when retired-phrase test) and the atlas
+- [ ] Task 6: Recorded suite, close, hand the v4 shape to parley.nvim:3 and pair
 
 ## Log
 
 ### 2026-10-23
+- Claimed after #573 landed. The plan was drafted while #573's merge ran; the TL approved (a) to (f), and the operator decided D2: the unified model applies everywhere. Consumer grep: parley.nvim is the only reader of export.json. Its build-time sync accepts v1 to v3 and refuses v4 before writing anything, and its shipped bundle is v2, so #419 migrates v2 to v4. Filed #576 for the Go writers and datatype rows.
+
