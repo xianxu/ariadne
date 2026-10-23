@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/recovery"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -64,7 +65,30 @@ func renderLong(name string) string {
 		"{{RECOVERY_CLASSES}}", recovery.ClassesText(),
 		"{{RECOVERY_TABLE}}", recovery.Table(),
 		"{{RECOVERY_EXAMPLE}}", recovery.ExampleText(),
+		// #561: the train cap ramp rule, said once.
+		"{{TRAIN_RAMP_POLICY}}", wrapHelpText(landingline.FormatTrainRampPolicy(), "  ", 78),
 	).Replace(helptext.MustGet(name))
+}
+
+// wrapHelpText fills a one-line statement to width for a help page; the
+// first line's indent comes from the placeholder's own position.
+func wrapHelpText(text, indent string, width int) string {
+	var b strings.Builder
+	n := len(indent)
+	for i, w := range strings.Fields(text) {
+		switch {
+		case i == 0:
+		case n+1+len(w) > width:
+			b.WriteString("\n" + indent)
+			n = len(indent)
+		default:
+			b.WriteByte(' ')
+			n++
+		}
+		b.WriteString(w)
+		n += len(w)
+	}
+	return b.String()
 }
 
 func main() {

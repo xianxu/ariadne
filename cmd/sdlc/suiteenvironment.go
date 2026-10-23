@@ -42,11 +42,7 @@ func (e *suiteEnvironmentError) Error() string {
 	if diagnosis.Reason != "" {
 		where += ": " + diagnosis.Reason
 	}
-	revision := ""
-	if e.Head != "" {
-		revision = " --rev " + e.Head
-	}
-	return fmt.Sprintf("environment failure: could-not-run: %s%s; repair the environment and rerun sdlc local-check run --name %s%s; log %s%s", diagnosis.Resource, where, check, revision, e.LogPath, detail)
+	return fmt.Sprintf("environment failure: could-not-run: %s%s; repair the environment and rerun %s; log %s%s", diagnosis.Resource, where, localCheckRunCommand(check, e.Head), e.LogPath, detail)
 }
 
 func (e *suiteEnvironmentError) Unwrap() error { return e.Cause }

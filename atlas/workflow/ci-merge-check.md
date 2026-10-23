@@ -364,7 +364,11 @@ The run then takes one of three paths:
   `SDLC_AFFECTED_GO_PKGS` and `SDLC_AFFECTED_GROUPS` are sorted and space-separated, passed through `env(1)` argv.
   The result is recorded as `sdlc-local/affected`, with the selection leading the status description.
 - **Full selection:** the run is the declared `suite` instead, recorded as `sdlc-local/suite`. There is never an
-  affected record that claims to be full.
+  affected record that claims to be full. In **boarding mode** (`--boarding`, #561; `affectedExecutionMode` in
+  `localcheck_affected.go`), a train car's preparation, a full selection (a `full` glob, an unclassified path, or an
+  unavailable graph/`graph_prepare`) refuses instead: nothing runs or posts, and the refusal names the reason, the
+  affected.json repair and the full-proof alternative (`--name suite --rev SHA`, then `sdlc merge --yes`). The flag
+  qualifies `--name affected` alone. Selection authority stays `affected.Plan`'s.
 - **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
 
 A head with no change against main refuses rather than recording a pass.
@@ -386,7 +390,7 @@ Where it counts (#473 M2):
   ancestor. That is how a branch that is docs-only from main boards (pair#723). Merge without a train still requires
   `suite` on the integrated head, and runs it there once.
   A train waiter missing either accepted record now stops with its exact
-  local-check command and merge retry action (#550), including while server
+  local-check command (affected is asked for with `--boarding`, #561) and merge retry action (#550), including while server
   CI is pending or failing. Its readiness pass remains read-only. Keep any
   already queued check intact and retry after its pass; refusal gives up only
   the merge ticket's position. Admitted serial/granted merges retain the

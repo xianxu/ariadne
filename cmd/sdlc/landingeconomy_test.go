@@ -254,7 +254,7 @@ func TestLandingReusesSuiteWhenProsePublishedDuringRun(t *testing.T) {
 	}
 	gitCall := func(args ...string) (string, error) { return landingGit(mergeRunner, root, args...) }
 	found, err := localRecordsOnAncestors(context.Background(), gh, gh.pr.Repo, gitCall, gh.pr.HeadOID, published, []string{suiteCheckName})
-	if err != nil || !found[suiteCheckName] {
+	if err != nil || found[suiteCheckName] == "" {
 		t.Fatalf("the authoritative integrated head did not inherit its suite record: %v %v", found, err)
 	}
 }
@@ -282,7 +282,7 @@ func TestLocalRecordsOnAncestorsRejectsNonProseDrift(t *testing.T) {
 			head := commit("workshop/parley/after-drift.md", "prose after a code/config/help change\n")
 			gitCall := func(args ...string) (string, error) { return landingGit(execGitRunner{}, root, args...) }
 			found, err := localRecordsOnAncestors(context.Background(), gh, "test/repo", gitCall, head, base, []string{suiteCheckName})
-			if err != nil || found[suiteCheckName] {
+			if err != nil || found[suiteCheckName] != "" {
 				t.Fatalf("suite reused across cumulative %s drift: %v %v", path, found, err)
 			}
 		})

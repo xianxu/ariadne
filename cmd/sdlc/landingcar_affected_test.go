@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -32,7 +33,8 @@ func carGateFixture(t *testing.T, affected bool) (root string, gh *ciFakeGH, com
 	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{NoJudge: true})
 	vouch = func(head string) error {
 		gh.setHead(1, head)
-		return gates.ci(context.Background(), landingPR{Number: 1, HeadOID: head})
+		_, err := gates.ci(context.Background(), landingPR{Number: 1, HeadOID: head})
+		return err
 	}
 	gitCall := func(args ...string) (string, error) { return landingGit(execGitRunner{}, root, args...) }
 	mergeGate = func(head string) error {
@@ -136,16 +138,51 @@ func TestCarFullSuiteFallbackReadiness(t *testing.T) {
 				t.Fatalf("%s suite authorized car", state)
 			}
 			if state == "failed" {
-				if !strings.Contains(err.Error(), "failing checks") || strings.Contains(err.Error(), "wait for the full-suite fallback") {
+				if !strings.Contains(err.Error(), "failing checks") || strings.Contains(err.Error(), "Boarding never runs the suite") {
 					t.Fatalf("failed suite should name failure, not waiting: %v", err)
 				}
 				return
 			}
-			for _, want := range []string{"affected or its full-suite fallback", "If affected fell back", "wait for the full-suite fallback", "passing suite on this head", "--name affected"} {
+			for _, want := range []string{"affected or its full-suite fallback", "Boarding never runs the suite", "passing suite on this head", "already queued or running", "--name affected --boarding"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("%s: diagnostic lacks %q: %v", state, want, err)
 				}
 			}
 		})
+	}
+}
+
+// #561: the car's proof is read off the same gate decision that vouched it:
+// the accepted check (affected or suite) and the commit carrying its record,
+// the head or a docs-only ancestor. A suite record on the head outranks an
+// affected one; no extra status lookup is made for it.
+func TestCarProofNamesTheAcceptedRecord(t *testing.T) {
+	root, gh, commit, _, _ := carGateFixture(t, true)
+	gates := productionCarGates(execGitRunner{}, gh, landingTarget{Root: root, Repo: "test/repo", Remote: "origin"}, &mergeFlags{NoJudge: true})
+	proofOf := func(head string) *landingline.BoardingProof {
+		t.Helper()
+		gh.setHead(1, head)
+		p, err := gates.ci(context.Background(), landingPR{Number: 1, HeadOID: head})
+		if err != nil {
+			t.Fatalf("vouch %s: %v", head, err)
+		}
+		return p
+	}
+	code := commit("feature.go")
+	postStatus(t, gh, code, affectedCheckName)
+	if p := proofOf(code); p == nil || p.Check != affectedCheckName || p.Head != code || p.Source != code || p.Context != "sdlc-local/affected" {
+		t.Fatalf("affected on the head: %+v", p)
+	}
+	docs := commit("atlas/notes.md")
+	if p := proofOf(docs); p == nil || p.Check != affectedCheckName || p.Head != docs || p.Source != code {
+		t.Fatalf("affected on a docs-only ancestor: %+v (ancestor %s)", p, code)
+	}
+	postStatus(t, gh, docs, suiteCheckName)
+	if p := proofOf(docs); p == nil || p.Check != suiteCheckName || p.Source != docs {
+		t.Fatalf("suite on the head: %+v", p)
+	}
+	waived := productionCarGates(execGitRunner{}, gh, landingTarget{Root: root, Repo: "test/repo", Remote: "origin"}, &mergeFlags{NoJudge: true, NoCI: true})
+	if p, err := waived.ci(context.Background(), landingPR{Number: 1, HeadOID: docs}); p != nil || err != nil {
+		t.Fatalf("a waived gate proved something: %+v %v", p, err)
 	}
 }

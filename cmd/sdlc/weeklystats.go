@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sort"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
 
 const weeklySnapshotSchemaVersion = 2
@@ -61,6 +63,10 @@ type WeeklyRepoStats struct {
 	AttemptsPerLandedIssue  *float64               `json:"attempts_per_landed_issue"`
 	UnknownAttempts         []weeklyUnknownAttempt `json:"unknown_attempts"`
 	CoverageUnknown         []string               `json:"coverage_unknown,omitempty"`
+	// TrainFilter is the week's train measurements (#561), from the same
+	// fold and formatter as landing status. A snapshot written before it has
+	// none: unmeasured, never a healthy zero.
+	TrainFilter *landingline.TrainFilterStats `json:"train_filter,omitempty"`
 }
 
 // WeeklyHeadline makes the metric's evidence coverage visible beside its value.

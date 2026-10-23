@@ -29,7 +29,9 @@ const localGatesLabel = "local-gates-verified"
 // carGates are the checks a car vouches with; tests replace them.
 type carGates struct {
 	publish func(ctx context.Context, pr landingPR) error
-	ci      func(ctx context.Context, pr landingPR) error
+	// ci returns the record that satisfied the car's suite requirement, when
+	// the gate ran and one did (#561): measurement evidence, not authority.
+	ci func(ctx context.Context, pr landingPR) (*landingline.BoardingProof, error)
 }
 
 // carReadiness reads the car's head, PR and gates now. Any read that fails is
@@ -73,7 +75,8 @@ func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarge
 	if err := g.publish(ctx, pr); err != nil {
 		return no("publish gate: %s", firstLine(err.Error()))
 	}
-	if err := g.ci(ctx, pr); err != nil {
+	proof, err := g.ci(ctx, pr)
+	if err != nil {
 		var gate *ciGateError
 		if errors.As(err, &gate) && len(gate.LocalNeeded) > 0 {
 			commands := make([]string, 0, len(gate.LocalNeeded))
@@ -91,7 +94,7 @@ func carReadiness(ctx context.Context, r gitRunner, gh landingGH, t landingTarge
 	if alone {
 		reason = "touches local-gates paths (" + localGatesLabel + ")"
 	}
-	return landingline.Readiness{Branch: branch, Head: head, PR: pr.Number, Ready: true, Alone: alone, Reason: reason, At: now}, false, nil
+	return landingline.Readiness{Branch: branch, Head: head, PR: pr.Number, Ready: true, Alone: alone, Reason: reason, At: now, Proof: proof}, false, nil
 }
 
 // errMergedWhileWaiting ends a car's wait when its own PR turned up merged:
@@ -112,18 +115,38 @@ func productionCarGates(r gitRunner, ci ghCaller, t landingTarget, f *mergeFlags
 			}
 			return runLandingPublishGate(ctx, pr, f.IssuesDir, f.PlansDir, io.Discard)
 		},
-		ci: func(ctx context.Context, pr landingPR) error {
+		ci: func(ctx context.Context, pr landingPR) (*landingline.BoardingProof, error) {
 			if f.NoCI {
-				return nil
+				return nil, nil
 			}
 			base := t.Remote + "/main"
 			facts, err := carCIGateFacts(ctx, git, base, pr.HeadOID)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			return runPreparedCIGate(ctx, ci, t.Repo, pr.Number, base, pr.HeadOID, git, nil, false, io.Discard, facts)
+			v, err := runPreparedCIGateVerdict(ctx, ci, t.Repo, pr.Number, base, pr.HeadOID, git, nil, false, io.Discard, facts)
+			if err != nil {
+				return nil, err
+			}
+			return boardingProof(v, pr.HeadOID), nil
 		},
 	}
+}
+
+// boardingProof is the record a passing verdict accepted for the suite
+// requirement (#561), or nil when the suite was not required.
+func boardingProof(v ciVerdict, head string) *landingline.BoardingProof {
+	for _, a := range v.Accepted {
+		if a.Required != suiteCheckName {
+			continue
+		}
+		source := a.Source
+		if source == "" {
+			source = head
+		}
+		return &landingline.BoardingProof{Check: a.Check, Head: head, Source: source, Context: localStatusContext(a.Check)}
+	}
+	return nil
 }
 
 // carCIGateFacts are the CI gate's facts for a car's vouch. Where main declares

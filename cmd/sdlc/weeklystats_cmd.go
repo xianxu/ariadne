@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -138,6 +139,8 @@ func runWeeklySnapshot(ctx context.Context, out io.Writer, flags weeklySnapshotF
 		stats.CoverageUnknown = attribution.CoverageUnknown
 		stats.AttemptsPerLandedIssue = attribution.AttemptsPerLandedIssue
 		stats.Headline = weeklyHeadline(evidence, window, attribution)
+		filter := landingline.AggregateTrainMeasurements(evidence.Events, window.Start, window.End)
+		stats.TrainFilter = &filter
 		snapshot.Repos = append(snapshot.Repos, stats)
 	}
 	if len(snapshot.Repos) == 0 {

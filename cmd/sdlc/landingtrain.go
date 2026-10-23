@@ -81,6 +81,9 @@ type conductor struct {
 	settled    map[int64]bool
 	selfEnd    landingline.OutcomeKind
 	selfWhy    string
+	// Measurement (#561): the tracker and the proofs the cars boarded on.
+	meter  landingline.MeasurementTracker
+	proofs map[int64]landingline.BoardingProof
 }
 
 // trainGit runs git in the repository's checkout.
@@ -128,6 +131,7 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 			c.deleteTrainBranch()
 		}
 		c.removeWorktree()
+		c.measure(landingline.MeasureFinal{At: landingNow(), Phase: string(tr.Phase)})
 		c.recordTrain(tr, cars, leftReady)
 	}()
 	tr, effects, err := landingline.Transition(tr, landingline.Boarded{Cars: cars})
@@ -137,6 +141,7 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 	if _, err = c.line.UpdateTrain(c.handle, tr); err != nil {
 		return err
 	}
+	c.measureDeparture(cars)
 	for _, car := range cars[1:] {
 		if err := c.line.BindWait(c.handle, car); err != nil {
 			fmt.Fprintf(c.stderr, "landing line: retained train wait evidence incomplete: binding ticket %d to train %d failed (%v); train continues\n", car.Seq, c.id, err)
@@ -153,7 +158,7 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		}
 		e := effects[0]
 		effects = effects[1:]
-		ev, effectErr := c.execute(e, cars)
+		ev, effectErr := c.execute(e, cars, suiteRunKind(tr))
 		// The synchronous effect has joined before its completion competes with a
 		// drop. Never feed a canceled, obsolete completion back into Transition.
 		pending, controlErr = c.trainDropsPending()
@@ -173,9 +178,11 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 		if transitionErr != nil {
 			return transitionErr
 		}
+		before := tr
 		if controlErr = c.commitTrainCompletion(&tr, next, cars, stopWatch); controlErr != nil {
 			return controlErr
 		}
+		c.measureTransition(before, tr, ev)
 		if _, built := ev.(landingline.Built); built {
 			printTrainMembership(c.stderr, c.id, "composed", tr.Cars)
 		}
@@ -190,8 +197,10 @@ func conductTrain(c *conductor, cars []landingline.Car, leftReady int) (err erro
 	return fmt.Errorf("landing train %d: this merge's PR was %s: %s", c.id, c.selfEnd, c.selfWhy)
 }
 
-// execute runs one effect and returns the event its outcome is, if any.
-func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landingline.TrainEvent, error) {
+// execute runs one effect and returns the event its outcome is, if any. kind
+// is what a RunSuite effect's run measures as (#561); "" outside the main
+// loop, where no suite runs.
+func (c *conductor) execute(e landingline.Effect, cars []landingline.Car, kind landingline.ExecutionKind) (landingline.TrainEvent, error) {
 	switch e := e.(type) {
 	case landingline.Build:
 		return c.build(e.Cars)
@@ -204,7 +213,7 @@ func (c *conductor) execute(e landingline.Effect, cars []landingline.Car) (landi
 		}
 		return nil, c.publish(e.Prefix)
 	case landingline.RunSuite:
-		return c.runSuite(e.Prefix)
+		return c.runSuite(e.Prefix, kind)
 	case landingline.AssessSplit:
 		done := c.assessSplit(e)
 		if c.ctx.Err() != nil {
@@ -457,7 +466,7 @@ func (c *conductor) deriveSuite(head string) error {
 // runSuite runs the recorded suite on prefix k. A failure of the full train
 // is compared once with main's baseline: main failing the same way is no
 // car's fault.
-func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
+func (c *conductor) runSuite(k int, kind landingline.ExecutionKind) (landingline.TrainEvent, error) {
 	head := c.heads[k-1]
 	if head == "" {
 		return nil, fmt.Errorf("unverified: prefix %d needs recomposition after main's code advance", k)
@@ -473,6 +482,7 @@ func (c *conductor) runSuite(k int) (landingline.TrainEvent, error) {
 		rec = localRunRecord{Exit: 0} // an explicit main policy intentionally has no suite
 	} else {
 		rec, err = c.run(c.ctx, c.suite, head)
+		c.measureExecution(kind, rec, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("the train suite on %s could not run: %w", shortSHA(head), err)
@@ -518,6 +528,7 @@ func (c *conductor) mainIsRed(failed localRunRecord) (bool, error) {
 	deps := c.local
 	deps.SkipRecord, deps.PR = true, 0
 	baseline, err := runLocalCheck(c.ctx, deps, c.suite, c.base)
+	c.measureExecution(landingline.ExecBaseline, baseline, err)
 	if err != nil {
 		return false, fmt.Errorf("train baseline on main could not run: %w", err)
 	}
@@ -924,7 +935,8 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	}
 	git := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
 	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
-	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, handle: turn.handle, departed: now}
+	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, handle: turn.handle, departed: now,
+		proofs: boardedProofs(tk.Seq, self, ready)}
 	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 	printTrainMembership(stderr, c.id, "candidates", cars)
 	if err := conductTrain(c, cars, b.LeftReady); err != nil {
