@@ -395,3 +395,15 @@ USAGE
   sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result
   sdlc local-check reclassify --attempt ID --reason 'cache repaired'
+
+
+SUPPLIER FRESHNESS (#574)
+  Before new managed suite allocation (including merge/train/baseline and
+  saved-resume launches), sdlc invokes weave refresh --suite-helper once.
+  Only a verified clean main-branch private sibling ariadne may fast-forward.
+  No compile or tool rebuild runs; consumer and primary fallback stay unchanged.
+  Dirty/off-main/busy/unavailable prints one path, reason and repair line and
+  keeps existing helper preflight/admission. Caller cancellation stops the run.
+  Proof-only resume repost and resource:runner do not refresh. No refresh runs
+  in ticket polling or queue status. Existing legacy waiters drain naturally;
+  updating their checkout does not change their loaded ordering policy.

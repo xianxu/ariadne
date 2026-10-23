@@ -1596,3 +1596,12 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   whole format family through Command and CommandContext and both Check entry
   points; normalize once in the shared predicate. This extends the same
   test-ps-liveness catalog rule rather than adding a second guard.
+
+
+- #574: a newly built CLI does not refresh a checkout-supplied scheduler.
+  Refresh only a verified clean-main private supplier at a new-suite boundary,
+  under weave's existing setup lease; preserve explicit skip/uncertainty and
+  existing admission. Follow both workflow and helper symlinks. Status reports
+  current checkout evidence, never invents a legacy waiter's launch revision,
+  and deduplicates probes within its deadline. Native private Git races and
+  counted repeated-supplier controls enforce this semantic ownership rule.

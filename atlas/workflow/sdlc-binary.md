@@ -1710,6 +1710,31 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 - Inconclusive (a fetch or git failure): a "could not check" warning, never a pass
   line.
 
+**Private suite-helper freshness (#574).** At each new managed suite setup,
+before helper preflight or a queue ticket, the shared local-run/resume boundary
+calls installed weave refresh --suite-helper. Weave retains mutation ownership:
+the existing environment setup lease spans Git and inherited child cleanup.
+Only the verified private sibling supplying the actual helper (including helper
+symlinks), on clean main with no active operation, may fast-forward to a captured
+origin/main OID. No compile, rebuild, generated output, consumer mutation or
+primary fallback update occurs. Revalidation, declaration/ignored-collision checks,
+safe ff-only merge and read-back preserve local work. Busy/dirty/off-main/
+unavailable/uncertain outcomes print one actionable line and preserve existing
+preflight/admission; caller cancellation still stops. Optional setup is bounded
+to ten seconds plus bounded child cleanup, once per suite, never per wait poll.
+Ordinary, merge/train, baseline and saved-resume launches use this seam;
+proof-only repost and external runner checks do not.
+
+Text queue status separately identifies each legacy ticket's current supplier
+checkout, full HEAD and dirty state. It says launch revision unknown; source
+refresh never upgrades a running waiter. Status resolves each owner once and
+reads each canonical supplier once under the existing deadline, without fetch
+or mutation. Missing/invalid worktrees and deadline exhaustion stay unavailable.
+Frozen queue JSON, grant compatibility and scheduling are unchanged. Old waiters
+drain naturally; #570 grant refusal/risk guidance remains in force. Main source
+helpers in ariadne issue branches remain source-owned, updated by integration,
+rather than silently replaced by a primary or sibling.
+
 **Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
 resting branch fetches origin/main for the slot and each `substrateChain` repo.
 If any trails it, start-plan runs the installed `weave refresh --planning` (the `weaveRefresh`

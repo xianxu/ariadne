@@ -16,6 +16,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const suiteQueueOutputLimit = 1 << 20
@@ -24,6 +25,8 @@ const suiteQueueOutputLimit = 1 << 20
 // admission policy or part of queue status's frozen JSON snapshot.
 // wire: the supplying helper may add observation fields before this binary upgrades.
 type suiteQueueObservation struct {
+	Suppliers map[int64]suiteQueueSupplier `json:"-"`
+
 	Version            int                `json:"version"`
 	Available          bool               `json:"available"`
 	PolicySeconds      float64            `json:"policy_seconds"`
@@ -92,11 +95,7 @@ func observeSuiteQueue(parent context.Context, root string) suiteQueueObservatio
 	if err := parent.Err(); err != nil {
 		return unavailable(err)
 	}
-	mk, err := workflowFile(root, "")
-	if err != nil {
-		return unavailable(fmt.Errorf("suite helper unavailable: %w", err))
-	}
-	helper, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(mk), "scripts", "test-lock.py"))
+	helper, err := workspace.SuiteHelper(root, "")
 	if err != nil {
 		return unavailable(fmt.Errorf("suite helper unavailable: %w", err))
 	}
@@ -154,6 +153,16 @@ func renderSuiteQueue(out io.Writer, observed suiteQueueObservation) {
 	}
 	compatibility := assessSuiteQueueCompatibility(slices.Values(observed.Tickets))
 	if len(compatibility.Incompatible) != 0 {
+		index := 0
+		for _, ticket := range observed.Tickets {
+			legacy, _ := suiteTicketLegacy(ticket.Record)
+			if legacy {
+				if supplier, ok := observed.Suppliers[ticket.Number]; ok {
+					compatibility.Incompatible[index] += "; " + supplier.detail()
+				}
+				index++
+			}
+		}
 		fmt.Fprintln(out, "suite queue mixed-policy / "+compatibility.detail())
 		if compatibility.Granted {
 			fmt.Fprintln(out, "  deadlock risk: a live granted waiter coexists with legacy/unknown ordering; TL must revoke the conflicting grant, then let old waiters drain")
@@ -189,5 +198,5 @@ func defaultSuiteQueueObservation(ctx context.Context) suiteQueueObservation {
 	if err != nil {
 		return suiteQueueObservation{Reason: err.Error()}
 	}
-	return observeSuiteQueue(ctx, root)
+	return annotateSuiteSuppliers(ctx, observeSuiteQueue(ctx, root), suiteSupplierIO{resolve: resolveQueueSupplier, read: readQueueSupplier})
 }

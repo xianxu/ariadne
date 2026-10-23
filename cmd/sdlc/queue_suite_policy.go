@@ -19,19 +19,26 @@ type suiteQueueCompatibility struct {
 	Revoke       []string
 }
 
+// wire: read-only projection; additive ticket metadata is never rewritten.
+type suiteTicketRecord struct {
+	Repo, Worktree string
+	Policy         string               `json:"ordering_policy"`
+	Subject        suitePrioritySubject `json:"subject"`
+}
+
+func readSuiteTicket(raw json.RawMessage) (suiteTicketRecord, error) {
+	var record suiteTicketRecord
+	err := json.Unmarshal(raw, &record)
+	return record, err
+}
+
 // One pass shared by grant preflight and text status. The caller establishes
 // inspection availability; this cannot make an old waiter change its policy.
 func assessSuiteQueueCompatibility(tickets iter.Seq[suiteQueueTicket]) suiteQueueCompatibility {
 	var result suiteQueueCompatibility
 	seen := map[string]bool{}
 	for ticket := range tickets {
-		// wire: read-only projection; additive ticket metadata is not rewritten.
-		var record struct {
-			Repo, Worktree string
-			Policy         string               `json:"ordering_policy"`
-			Subject        suitePrioritySubject `json:"subject"`
-		}
-		err := json.Unmarshal(ticket.Record, &record)
+		record, err := readSuiteTicket(ticket.Record)
 		if err != nil || record.Policy != suiteOrderingPolicy {
 			result.Incompatible = append(result.Incompatible, fmt.Sprintf("ticket %d (repo %q, worktree %q)", ticket.Number, record.Repo, record.Worktree))
 		}
