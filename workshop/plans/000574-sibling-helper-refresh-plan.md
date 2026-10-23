@@ -97,3 +97,9 @@ ARCH-DRY reuses lease, Git observations and supplier resolver. ARCH-PURE keeps e
 ## Approval
 
 Pending TL approval of suite boundary, narrow weave mode, optional fallback, current-vs-launch wording and private proof/post-land rebuild. No implementation started.
+
+## Revisions
+
+### 2026-10-23 09:08 PDT — TL approval
+
+Authenticated ops:0 approved the plan, including the narrow weave mode, new-suite setup boundary across all launch paths, existing setup lease, clean-main-only captured fast-forward, skip-and-continue behavior, read-only per-ticket current-supplier diagnostics with unknown launch revision, and private conformance plus post-land primary rebuild. Proceed to change-code. The pending statement above records the original proposal state.

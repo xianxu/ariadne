@@ -49,3 +49,5 @@ non-main one, and says so), and have queue status name the stale sibling behind 
 ### 2026-10-23
 
 Claimed and started in ariadne:3. Read the actual Spec after noting that issue show displays headings without bodies. Traced workflowFile/prepareSuiteHelper, start-plan catch-up, weave refresh, and setup lease lifetime. The proposed suite-setup boundary handles issues active across a helper rollout; a narrow weave-owned refresh avoids broad compile effects. Text status identifies each legacy ticket's current supplier, without claiming that current HEAD is the running helper's launch revision. ARCH-DRY and ARCH-ORDER shaped the seam and lifetime choices. Durable plan awaits TL approval; no implementation, suite, live checkout update or grant. Original incident TTY unavailable: only the labelled TL report of 21 siblings exists here. #533 stays parked.
+
+Authenticated TL approval received for all choices, including narrow weave mode and private conformance plus post-land rebuild. Approval recorded in the plan Revisions; entering change-code before implementation.
