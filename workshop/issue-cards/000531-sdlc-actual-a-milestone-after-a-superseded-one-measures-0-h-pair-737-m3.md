@@ -1,6 +1,6 @@
 ---
 id: 000531
-status: codecomplete
+status: done
 created: 2026-10-21
 updated: 2026-10-22
 estimate_hours: 1.38
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c5a4809156e38af982a919d4a3694bdf68b8e92b
         evidence_commit: 58f0eb60e9af5ab0ca1bbd97a1fdeade733647f3
+        landed_commit: 23206444c53270dc4b0f8baccab68b5bb7ccfd1b
 ---
 
 # sdlc actual: a milestone after a superseded one measures 0 h (pair#737 M3)
