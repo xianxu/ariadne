@@ -169,6 +169,88 @@ rounds:
       isolation: fenced
       reviewed: 5903d2db7eb2916c3f5a3ae130cd99e31d54da05
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: bbf6c2e9-452a-45c6-8610-3319a00f731a
+            repository: github.com/xianxu/ariadne
+            issue_id: "000573"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/1fcc860100633bf9
+            reviewed_head: c0cb4a5090b5b149295e422a4b558d88717a2d51
+            slot: ariadne:2
+            requested_at: "2026-10-23T16:15:30.703983Z"
+          phase: finished
+          pid: 50972
+          started_at: "2026-10-23T16:15:30.803547Z"
+          finished_at: "2026-10-23T16:16:30.467416Z"
+          session_id: 8ba5a2c1-718d-4bee-a808-93fde86ef083
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: c0cb4a5090b5b149295e422a4b558d88717a2d51
+        tracker_head: 2dd00d5bfd2c76f4d98d2421601c905d9b631ec3
+        branch_point: 3639d6162dd1ac3ea3b88ce031cecd7ba1e6136e
+        since: "2026-10-23T08:01:51-07:00"
+        until: "2026-10-23T09:15:03-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T08:01:51-07:00"
+              end: "2026-10-23T09:15:03-07:00"
+              began: "2026-10-23T08:01:51-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: a3209830796dd580e93b1dba3e64cc49f6e1964f741e14f40f4e0dd730a9a88d
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 6802469
+              windows:
+                - start: "2026-10-23T08:01:51-07:00"
+                  end: "2026-10-23T09:15:03-07:00"
+        queue_waits:
+            - attempt_id: 276b751079eec255663510761f321f91
+              slot: ariadne:2
+              record_digest: fda5634cbb50f671ec8cdeac36e14011ff4d614c9c28ba6d0d03a227b481b42b
+              start: "2026-10-23T15:14:55.719901Z"
+              end: "2026-10-23T15:53:13.207442Z"
+              queue_seconds: 2297.487541
+              raw_seconds: 2297.487541
+              exact: true
+        cuts:
+            - dispatched: "2026-10-23T09:08:23-07:00"
+              finalized: "2026-10-23T09:10:07-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T09:11:31-07:00"
+              finalized: "2026-10-23T09:13:23-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T09:16:31-07:00"
+      dispatched: "2026-10-23T09:15:30-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: 'system_command now runs only when neither shell refuses the name, and the test derives ls_want, lsalias_want and want_hops via the generator''s own follow_links plus cd -P. Reverting the skip turns the test red with "8 names: 3 readlink calls, want 2".'
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: c0cb4a5090b5b149295e422a4b558d88717a2d51
+      blocked: false
 ---
 
 # Gate ledger — ariadne#573 (boundary-review)
@@ -197,6 +279,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `test-hardcodes-host-filesystem-layout` (kind: defect) Readlink count of exactly 2 and lsalias_want both assume no host system binary reached by the fixture is a symlink
   2nd finding in this family. Rule: every test expectation that depends on the host filesystem must be derived from the host with the generator's own resolution (follow_links then cd -P), or the fixture must not reach host binaries at all. system_command runs even for names already refused as builtins (dev-aliases.sh:472). So on Debian with zsh and mailcap (/usr/bin/print is a symlink to run-mailcap) the count is 3, and on busybox (where /bin/ls is a symlink to busybox) both the count and lsalias_want are wrong. Fix: call system_command only when the bash and zsh kinds gave no reason, and derive the expected hop count and lsalias_want with that same resolution.
 
+## Round 3 — 2026-10-23T09:16:31-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — system_command now runs only when neither shell refuses the name, and the test derives ls_want, lsalias_want and want_hops via the generator's own follow_links plus cd -P. Reverting the skip turns the test red with "8 names: 3 readlink calls, want 2".
+
 ## Open findings
 
-- **BR-3** [Minor] `test-hardcodes-host-filesystem-layout` (kind: defect) Readlink count of exactly 2 and lsalias_want both assume no host system binary reached by the fixture is a symlink
+(none — every finding has been disposed)

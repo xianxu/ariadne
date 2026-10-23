@@ -175,3 +175,79 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9fc1f045-0878-4023-8d75-38beb0af90ae","repository":"github.com/xianxu/ariadne","issue_id":"000573","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/695dc5e30e4c26ff","reviewed_head":"5903d2db7eb2916c3f5a3ae130cd99e31d54da05","slot":"ariadne:2","requested_at":"2026-10-23T16:11:31.897541Z"},"phase":"finished","pid":1849,"started_at":"2026-10-23T16:11:32.000518Z","finished_at":"2026-10-23T16:13:22.543303Z","session_id":"44a4cfe1-6bf1-426b-8f0b-02cd2460bfee","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T09:16:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 573 — dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands |
+| repo | ariadne |
+| issue file | workshop/issues/000573-dev-aliases-refuses-cmd-names-that-shadow-shell-builtins-reserved-words-or.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3639d6162dd1ac3ea3b88ce031cecd7ba1e6136e..c0cb4a5090b5b149295e422a4b558d88717a2d51 |
+| command | sdlc close --issue 573 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T09:16:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert the BR-3 production fix to confirm the test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only open finding, BR-3, is fixed, and I confirmed the fix by reverting it. In production, `system_command` now runs only when neither shell already refuses the name (`construct/dev-aliases.sh`, main loop: `shadow_reason … ""` first, then `if [ -z "$reason" ]`). In the test, every expectation that depends on the host comes from the generator's own `follow_links` plus `cd -P`: `ls_want`, `lsalias_want`, and the expected readlink count from `want_hops`. That count leaves out the names a shell refuses, the same way the generator does. The new `sys/echo → /bin/echo` symlink checks that the PATH lookup is skipped. Results in this checkout:
+- `dev-aliases-shadow.test.sh` passes, and so does `dev-aliases.test.sh`.
+- I made the generator resolve PATH even for names a shell already refuses. The test then failed with `FAIL: 8 names: 3 readlink calls, want 2`, so the regression test catches the bug.
+
+Nothing new blocks the ship.
+
+1. **Strengths**
+   - `shadow_reason` is a pure rule. The test loads it from the production script and checks it against a table, including the case where a bash function name like `warn` is not refused.
+   - All the lookups happen in batches: one bash subshell for `type -t` and `type -P`, and one `zsh -f` call. They are fed to the loop on fds 4 and 5, so the cost does not grow with a subshell per name. The counting stubs check this at N and 2N names.
+   - `follow_links` is now shared by the script-path dereference and `system_command`, and it stops after 40 hops so a link cycle ends.
+   - The `family` rule for this kind of bug is now written in `workshop/lessons.md`, so it covers the whole class and not just one instance.
+   - The atlas entry `atlas/workflow/base-layer.md:150` describes the new refusal and its exemptions.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. One edge I noticed but am not raising: on a host with no `/bin/ls` at all (for example NixOS), the `lsalias` fixture link would dangle. The test's PATH contains no other match for it, so the generator would then allow `lsalias` instead of refusing it, and the test would fail. CI runs on ubuntu, where this can't happen, so it is below threshold.
+
+5. **Test coverage notes:** The tests cover:
+   - the unit table, sourcing the output in both bash and zsh, one warning per refused name, and `--list` leaving refused names out;
+   - the `$HOME` exemption and the link into the workspace being allowed;
+   - one zsh call per run and readlink calls proportional to symlink hops.
+
+   The ordering fix has a test that fails without it.
+
+6. **Architectural notes:**
+   - **ARCH-DRY:** pass (shared `follow_links` and `path_parts`).
+   - **ARCH-PURE:** pass (pure `shadow_reason`; the IO is gathered once).
+   - **ARCH-PURPOSE:** pass. Every Done-when item is delivered and the start time was measured.
+   - **ARCH-MOCK:** pass. The real bash and zsh are used, with counting stubs for zsh and readlink, which is right for a test that is about how the shells behave.
+   - **ARCH-CONSTRAINTS:** pass. The added time is within run-to-run noise, the cost is checked structurally, and the cycle cap holds.
+   - **ARCH-SECURE:** pass. Names go through argv arrays and `--`.
+   - **ARCH-ORDER:** pass. The generator holds no state between events.
+   - **ARCH-FUNERAL:** pass. The test's temporary directory is removed by an EXIT trap, and the generator writes only to stdout.
+   - **ARCH-EVOLVE:** N/A, since no persisted format changes.
+
+7. **Plan revision recommendations:** none. The existing Revisions entries already cover the Makefile change that wasn't needed and the switch from `type -ap` to `type -P`.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      system_command now runs only when neither shell refuses the name, and the test derives ls_want, lsalias_want and want_hops via the generator's own follow_links plus cd -P. Reverting the skip turns the test red with "8 names: 3 readlink calls, want 2".
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"bbf6c2e9-452a-45c6-8610-3319a00f731a","repository":"github.com/xianxu/ariadne","issue_id":"000573","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/1fcc860100633bf9","reviewed_head":"c0cb4a5090b5b149295e422a4b558d88717a2d51","slot":"ariadne:2","requested_at":"2026-10-23T16:15:30.703983Z"},"phase":"finished","pid":50972,"started_at":"2026-10-23T16:15:30.803547Z","finished_at":"2026-10-23T16:16:30.467416Z","session_id":"8ba5a2c1-718d-4bee-a808-93fde86ef083","outcome":"returned"}] -->
