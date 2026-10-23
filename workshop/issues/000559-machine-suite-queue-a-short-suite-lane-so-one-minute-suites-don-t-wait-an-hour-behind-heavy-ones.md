@@ -1,13 +1,13 @@
 ---
 id: 000559
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd0d3e0926b6c457b8f61b47a7d48ae20cfbf50d4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '043a0738510c14377d5a3260d8dd3ff63c5ab4c6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T06:42:13-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.12
 ---
 
 # Machine suite queue: a short-suite lane so one-minute suites don't wait an hour behind heavy ones
