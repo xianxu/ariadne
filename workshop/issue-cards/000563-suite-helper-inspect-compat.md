@@ -1,8 +1,8 @@
 ---
 id: 000563
-status: codecomplete
+status: done
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 estimate_hours:
 github_issue:
 started: 2026-10-22T21:59:41-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6a0b35faea2b351b5b1ec19a310f6ea1d19f1948
         evidence_commit: a3460caca2e05f9aff2566c2cf6353c452d144fd
+        landed_commit: 5636df92465811ae7451c8c2c319723ea77dd3a2
 ---
 
 # Queue status must explain older supplier helper incompatibility
