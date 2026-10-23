@@ -37,6 +37,8 @@ type SuiteLogFacts struct {
 	// persisted: records keep top-level failures, and a reader that needs
 	// subtests reads them from the log again.
 	Subtests []string `json:"-"`
+	// Typed is a transient projection; raw logs remain the evidence authority.
+	Typed flakes.UnitFacts `json:"-"`
 }
 
 const suiteLogLineLimit = 1 << 20
@@ -81,6 +83,8 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 	for _, name := range facts.Failures {
 		failures[name] = struct{}{}
 	}
+	typed := flakes.NewUnitEvidence()
+	var typedErrors []string
 	ambiguousSubtests := false
 	for index, raw := range strings.Split(log, "\n") {
 		level := suiteIndentLevel(raw)
@@ -92,6 +96,14 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			continue
 		}
 		line := strings.TrimSuffix(raw, "\r")
+		if event, recognized, err := flakes.DecodeUnitEvent(line); recognized {
+			if err != nil {
+				typedErrors = append(typedErrors, fmt.Sprintf("line %d: malformed unit event: %v", index+1, err))
+			} else {
+				_ = typed.Apply(event) // Apply retains every invalid transition as sticky evidence.
+			}
+			continue
+		}
 		if strings.HasPrefix(line, "{") && strings.Contains(line, `"Action"`) {
 			var event goTestJSONEvent
 			if err := json.Unmarshal([]byte(line), &event); err != nil {
@@ -150,6 +162,14 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			facts.Failed = true
 		}
 	}
+	goFailures := len(failures) != 0
+	facts.Typed = typed.Finish()
+	facts.Typed.Unattributed = append(facts.Typed.Unattributed, typedErrors...)
+	facts.Typed.Seen = facts.Typed.Seen || len(typedErrors) != 0
+	for _, name := range facts.Typed.Failures {
+		failures[name] = struct{}{}
+	}
+	facts.Failed = facts.Failed || len(facts.Typed.Failures) != 0 || len(facts.Typed.Unattributed) != 0
 	if len(failures) != 0 {
 		facts.Failures = facts.Failures[:0]
 		for name := range failures {
@@ -165,8 +185,8 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 		sort.Strings(facts.Subtests)
 	}
 	// Structured failure names must be complete before package attribution.
-	facts.Unattributed = unattributedFailures(log, facts.Failures)
-	if ambiguousSubtests && len(facts.Failures) != 0 {
+	facts.Unattributed = append(unattributedFailures(log, facts.Failures), facts.Typed.Unattributed...)
+	if ambiguousSubtests && goFailures {
 		facts.Warnings = append(facts.Warnings, "ambiguous indented subtest output ignored; attribution may be coarsened to a proven ancestor, which subtest-only flake registrations cannot cover")
 	}
 	return facts
@@ -206,6 +226,9 @@ func unattributedFailures(log string, failures []string) []string {
 	}
 	named := map[string]bool{}
 	for _, f := range failures {
+		if id, err := flakes.ParseIdentity(f); err == nil && id.Kind() != flakes.KindGo {
+			continue
+		}
 		if pkg, _, ok := flakes.SplitTest(f); ok {
 			named[pkg] = true
 		} else {

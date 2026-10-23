@@ -1519,4 +1519,20 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
 
+- #556 PQ-1: reusing a managed-process helper inside an already managed command
+  can create a new process group outside the outer owner's cleanup authority.
+  Name the sole group owner before reuse; inner unit adapters inherit that group.
+  A synchronized wrapper-death test must prove child membership and outer join
+  before resource retirement. Guard the inner launch seam against group creation
+  and nested managed-batch calls with a Go lint rule.
+- #556 PQ-2: plans name each risky function and one adversarial-input strategy
+  plus mechanical guard. Keep concrete case inventories in executable tests;
+  name the owner and repeat trigger for external native conformance.
+
+- #556: A shared strict process cleanup path does not imply shared evidence-marker authority. Keep the original resume owner's marker until its existing terminalization boundary; ordinary-run marker cleanup needs explicit ownership from its caller. Exercise that distinction through production CLI resume, not only helper tests.
+
+- #556 BR-1: Preserve execution scope in every evidence projection. Exact case/unit success does not turn a targeted child into a complete-suite confirmation; test the real saved-check projection as well as the pure parser, and retain explicit legacy behavior for Go.
+- #556 BR-2/BR-3: Before close, reconcile the entire Core concepts inventory with delivered symbols, paths and PURE/INTEGRATION boundaries, and map new commands/config/adoption in README as well as help/atlas. Do not leave design placeholder helpers in the acceptance inventory.
+- Cross-repo filing (ops:0, 2026-10-22): Use a temporary worktree off origin/main for issue creation; never borrow another slot's working checkout, even when the verb promises no checkout writes. A staged :0 stays detached for the operator.
+- #556 BR-4: Enumerate reporting IO entry points as well as pure aggregators when adding proof-bearing metadata. Interactive stats and weekly snapshots must use the same hash-verified log hydration before confirmation; persisted-log parity tests must cover each typed kind and missing/tampered proof.
 - #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.

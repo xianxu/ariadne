@@ -47,6 +47,12 @@ func resumeInputs(ctx context.Context, d localRunDeps, store string, p SuiteAtte
 	if err != nil {
 		return in, tail, err
 	}
+	if p.Version == 4 {
+		in.RunnerContractSHA256, err = currentTypedRunnerContract(ctx, d, p.SHA)
+		if err != nil {
+			return in, tail, err
+		}
+	}
 	in.RegistryErr = errors.New("no current flake registry")
 	if d.FlakeRegistry != nil {
 		in.Registry, in.RegistryErr = d.FlakeRegistry(ctx)
@@ -91,7 +97,16 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if state != ResumeEligible {
 		return rec, resumeSavedError(in, proof.Reason)
 	}
-	commands, err := knownFlakeRerunCommands(flakes.RerunTests(proof.Outcome.Known))
+	if in.Parent.Version == 4 {
+		d, err = bindTypedCheck(d, c, sha)
+		if err != nil {
+			return rec, err
+		}
+		if d.flakeContract != in.RunnerContractSHA256 {
+			return rec, errors.New("typed runner contract changed before resume")
+		}
+	}
+	commands, err := flakeRerunCommands(flakes.RerunTests(proof.Outcome.Known))
 	if err != nil {
 		return rec, err
 	}
@@ -184,12 +199,13 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if run.TimedOut || run.Exit < 0 {
 		facts.Unattributed = append(facts.Unattributed, "rerun did not complete ordinarily")
 	}
-	for _, test := range flakes.RerunMissingJSON(string(log), flakes.Tests(proof.Outcome.Known)) {
+	for _, test := range flakes.RerunMissingProof(string(log), flakes.Tests(proof.Outcome.Known)) {
 		facts.Unattributed = append(facts.Unattributed, test+" did not pass in the rerun log")
 	}
 	o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: in.ParentFacts.Failures, Subtests: in.ParentFacts.Subtests}, Registry: in.Registry, RegistryErr: in.RegistryErr, Policy: flakes.PolicyRerun, Rerun: &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Subtests: facts.Subtests, Unattributed: facts.Unattributed}})
 	wall, wait := run.Duration.Seconds(), run.QueueWait.Seconds()
 	child := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: d.Repo, SHA: sha, Check: suiteRerunCheck, Slot: in.Parent.Slot, Agent: in.Parent.Agent, Model: in.Parent.Model, Effort: in.Parent.Effort, StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired), QueueSeconds: &wait, WallSeconds: &wall, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA, Failures: facts.Failures, Units: facts.Units, Outcome: string(o.Kind), KnownFlakes: o.Known, RerunOf: parent}
+	d.bindSuiteAttempt(&child)
 	if err = retireCompletedResumeEnvironment(ctx, d, store, link, lock); err != nil {
 		_ = resumeAdvance(&state, ResumeUncertain, "")
 		return rec, fmt.Errorf("needs reconcile: resume inputs not confirmed retired: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))

@@ -37,8 +37,8 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 	if err != nil {
 		return fmt.Errorf("%w\n  main baseline log unreadable: %v", gateErr, err)
 	}
-	merged := failingTests(string(mergedLog))
-	base := failingTests(string(baselineLog))
+	merged := parseSuiteLogFacts(string(mergedLog)).Failures
+	base := parseSuiteLogFacts(string(baselineLog)).Failures
 	var labels []string
 	if !baseline.passed() && len(base) == 0 {
 		labels = append(labels, "main is red (unparsed); introduced failures cannot be determined")

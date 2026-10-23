@@ -29,7 +29,7 @@ func TestParseLocalChecks(t *testing.T) {
 	}
 	for _, tc := range []struct{ name, in, want string }{
 		{"unknown field", `{"version":1,"checks":[{"name":"a","command":["x"],"substitute":["y"]}]}`, "substitute"},
-		{"version", `{"version":3,"checks":[]}`, "version"},
+		{"version", `{"version":4,"checks":[]}`, "version"},
 		{"no version", `{"checks":[]}`, "version"},
 		{"bad name space", `{"version":1,"checks":[{"name":"A B","command":["x"]}]}`, "name"},
 		{"bad name path", `{"version":1,"checks":[{"name":"../x","command":["x"]}]}`, "name"},

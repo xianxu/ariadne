@@ -118,7 +118,8 @@ card: {
 		{name: "area", kind: "repo-enum", enum: "area", setter: "sdlc issue set-area"},
 		{name: "severity", kind: "enum", enum: "severity", setter: "sdlc issue set-severity"},
 		// #394: the tests a flake issue registers as known flakes, exact
-		// `<import path>.<TestName>` names. The landing gate reruns only these
+		// Go test/subtest, script:path, or lua:spec#case identities (#556).
+		// The landing gate reruns only these
 		// while the issue is open; closing it unregisters them.
 		{name: "flake_tests", kind: "test-list", setter: "sdlc flake register"},
 	]

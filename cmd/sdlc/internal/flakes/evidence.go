@@ -3,6 +3,7 @@ package flakes
 import (
 	"slices"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -25,12 +26,24 @@ type Attempt struct {
 	// #473): its failures need explaining like any run's, but its pass proves
 	// nothing about a test it may not have run, so it never confirms.
 	Subset bool
+	// Targeted marks a flake rerun. Its pass retains legacy Go confirmation,
+	// while typed registration requires a later complete-suite pass.
+	Targeted bool
+	// TypedFacts are ephemeral facts from the attempt's bounded, digest-verified
+	// saved log. They are never inferred from a passing exit or persisted as a
+	// case inventory. Nil means the typed execution has not been proved.
+	TypedFacts *UnitFacts
+	// RunnerContractSHA256 binds typed fail and pass evidence to the same
+	// declared runner contract; legacy Go evidence does not need it.
+	RunnerContractSHA256 string
 }
 
 // Confirmed reports whether a failed attempt has same-exact-head fail→pass
 // evidence: a later non-baseline attempt on the same SHA passed (#390's
 // intermittency proof), and was not a subset run (#473). It is the one rule both test-stats and registration
-// use.
+// use. Typed failures additionally need exact saved-log failure and pass proof
+// under the same declared runner contract from a complete-suite pass (never
+// a targeted flake child); every typed failure in the row must be covered.
 //
 // order must be in Sort's order; i is the failed attempt's index in it.
 // "Later" is that order (finish time, then ID), which test-stats also uses.
@@ -40,8 +53,55 @@ func Confirmed(order []Attempt, i int) (passedID string, ok bool) {
 		return "", false
 	}
 	for _, b := range order[i+1:] {
-		if b.SHA == failed.SHA && b.Passed && !b.Legacy && !b.Baseline && !b.Subset {
+		if !confirmationCandidate(failed, b) {
+			continue
+		}
+		covered := true
+		for _, name := range failed.Failures {
+			if needsTypedProof(name) && !passCoversTyped(failed, b, name) {
+				covered = false
+				break
+			}
+		}
+		if covered {
 			return b.ID, true
+		}
+	}
+	return "", false
+}
+
+func confirmationCandidate(failed, passed Attempt) bool {
+	return passed.SHA == failed.SHA && passed.Passed && !passed.Legacy && !passed.Baseline && !passed.Subset
+}
+
+func needsTypedProof(name string) bool {
+	return strings.HasPrefix(name, "script:") || strings.HasPrefix(name, "lua:")
+}
+
+// passCoversTyped requires an observed exact failure and positive execution
+// proof from a complete-suite pass. A targeted child's exact proof supports
+// resume, but cannot establish typed registration's full-suite intermittency.
+func passCoversTyped(failed, passed Attempt, name string) bool {
+	if passed.Targeted || failed.TypedFacts == nil || passed.TypedFacts == nil || failed.RunnerContractSHA256 == "" || failed.RunnerContractSHA256 != passed.RunnerContractSHA256 {
+		return false
+	}
+	if len(failed.TypedFacts.Unattributed) != 0 || len(passed.TypedFacts.Failures) != 0 || !slices.Contains(failed.TypedFacts.Failures, name) {
+		return false
+	}
+	return len(RequiredUnitProof(*passed.TypedFacts, []string{name})) == 0
+}
+
+// confirmedName applies the same timing and attempt eligibility as Confirmed,
+// but only proves the requested failure. Another typed failure in that run
+// must not erase this name's proof or tighten legacy Go registration.
+func confirmedName(order []Attempt, i int, name string) (string, bool) {
+	failed := order[i]
+	if failed.Passed || failed.Legacy || failed.Baseline || failed.Kind == CouldNotRun {
+		return "", false
+	}
+	for _, passed := range order[i+1:] {
+		if confirmationCandidate(failed, passed) && (!needsTypedProof(name) || passCoversTyped(failed, passed, name)) {
+			return passed.ID, true
 		}
 	}
 	return "", false
@@ -55,7 +115,7 @@ func SameHeadFailPass(all []Attempt, test string) (failedID, passedID string, ok
 		if !slices.Contains(a.Failures, test) {
 			continue
 		}
-		if p, ok := Confirmed(order, i); ok {
+		if p, ok := confirmedName(order, i, test); ok {
 			return a.ID, p, true
 		}
 	}

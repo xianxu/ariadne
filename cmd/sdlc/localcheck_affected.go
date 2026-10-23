@@ -85,7 +85,7 @@ func affectedLocalCheck(cfg affected.Config, sel affected.Selection, suite local
 // suite's known-flake policy (D4).
 func affectedCheckDecl(cfg affected.Config, suite localCheck) localCheck {
 	return localCheck{Name: affectedCheckName, Command: cfg.Command, TimeoutMinutes: cfg.TimeoutMinutes, Weight: cfg.Weight,
-		KnownFlakes: suite.KnownFlakes}
+		KnownFlakes: suite.KnownFlakes, DeclarationVersion: suite.DeclarationVersion, FlakeRunners: suite.FlakeRunners}
 }
 
 // affectedScope summarizes a selection for the commit status.

@@ -24,6 +24,19 @@ var knownFlakeRerunTimeout = 15 * time.Minute
 // knownFlakeRerunCommands builds the exact-package batch; tests script it.
 var knownFlakeRerunCommands = flakes.RerunCommands
 
+// Typed units are executed by the managed adapter. The trusted declaration
+// supplies the runner argv; neither a label nor a retained log supplies code.
+var knownFlakeUnitCommand = []string{"sdlc", "flake", "run"}
+
+func flakeRerunCommands(tests []string) ([][]string, error) {
+	for _, name := range tests {
+		if suiteTypedIdentity(name) {
+			return flakes.RerunPlan(tests, knownFlakeUnitCommand)
+		}
+	}
+	return knownFlakeRerunCommands(tests)
+}
+
 // suiteRerunCheck is the check name a known-flake rerun is saved under (#394
 // M2 review, BR-19): never "suite", so no reader that asks for suite runs (the
 // saved-pass reuse, test-stats, the weekly snapshot) can take a rerun of a few
@@ -65,7 +78,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		return o, nil
 	}
 	// Whole top-level tests (#466): a registered subtest reruns its test.
-	commands, err := knownFlakeRerunCommands(flakes.RerunTests(o.Known))
+	commands, err := flakeRerunCommands(flakes.RerunTests(o.Known))
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
@@ -75,10 +88,17 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	}
 	published := false
 	defer func() {
-		if !published {
+		if !published && d.runnerLifetime.mayRetire() {
 			_ = os.RemoveAll(filepath.Dir(w.LogPath))
 		}
 	}()
+	if d.flakeContract != "" {
+		// This child shares the parent's locked checkout and process lifetime.
+		// Keep its raw evidence protected if group cleanup cannot be attested.
+		if err := attachRunnerArtifactOwner(filepath.Dir(w.LogPath), g.wt); err != nil {
+			return flakes.Outcome{}, fmt.Errorf("protect typed rerun evidence: %w", err)
+		}
+	}
 	fmt.Fprintf(d.Stderr, "==> local check %s: rerunning %s on %s (known flakes %s)\n", g.check.Name, fmt.Sprintf("%d exact-package commands", len(commands)), abbrevSHA(g.sha), strings.Join(o.Issues(), ", "))
 	// Weight 1: a few named tests, not the sharded suite. Its own lease and
 	// slot, released when it exits (#383), so cancel reaches it too.
@@ -118,7 +138,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		facts.Unattributed = append(facts.Unattributed, "the rerun timed out")
 	}
 	if run.Exit == 0 && !run.TimedOut {
-		for _, t := range flakes.RerunMissingJSON(string(rerunLog), flakes.Tests(o.Known)) {
+		for _, t := range flakes.RerunMissingProof(string(rerunLog), flakes.Tests(o.Known)) {
 			facts.Unattributed = append(facts.Unattributed, t+" did not pass in the rerun log")
 		}
 	}
@@ -130,6 +150,7 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 		StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired),
 		QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA,
 		Failures: facts.Failures, Units: facts.Units, Outcome: string(o.Kind), KnownFlakes: o.Known, RerunOf: g.failedID}
+	d.bindSuiteAttempt(&attempt)
 	if _, err := publishSuiteAttempt(g.storeRoot, w, attempt); err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: its attempt was not saved: %w", err)
 	}

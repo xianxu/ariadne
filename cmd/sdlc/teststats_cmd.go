@@ -152,7 +152,7 @@ func buildTestStatsReport(flags testStatsFlags, deps testStatsDeps) (testStatsRe
 		}
 		root := filepath.Join(common, "sdlc", "test-stats")
 		snapshot, err := readSuiteEvidence(root, testStatsRecordLimit)
-		attempts := snapshot.Attempts
+		attempts := withSuiteTypedFacts(snapshot.Attempts, storeTypedFacts(root))
 		warnings := append(snapshot.Warnings, snapshot.coverageNotes("")...)
 		if err != nil {
 			report.Warnings = append(report.Warnings, name+": "+err.Error())

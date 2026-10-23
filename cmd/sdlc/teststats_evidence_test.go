@@ -47,7 +47,7 @@ func TestScopedSavedProofConsumers(t *testing.T) {
 			if _, err := publishSuiteAttempt(store, w, a); err != nil {
 				t.Fatal(err)
 			}
-			future := map[string]any{"version": 4, "id": "d3", "repo": d.Repo, "sha": sha, "check": "suite", "future": map[string]any{"opaque": true}}
+			future := map[string]any{"version": 5, "id": "d3", "repo": d.Repo, "sha": sha, "check": "suite", "future": map[string]any{"opaque": true}}
 			if tc.field != "" {
 				v := tc.value
 				if v == "parent" {
@@ -128,7 +128,7 @@ func readSuiteAttemptsBudget(root string, limit int, bytes int64) ([]SuiteAttemp
 }
 
 func futureProofFixture(id string) []byte {
-	return []byte(`{"version":4,"id":"` + id + `","repo":"x/ariadne","sha":"` + strings.Repeat("a", 40) + `","check":"suite","opaque":{"number":1e400,"array":[true,null]}}`)
+	return []byte(`{"version":5,"id":"` + id + `","repo":"x/ariadne","sha":"` + strings.Repeat("a", 40) + `","check":"suite","opaque":{"number":1e400,"array":[true,null]}}`)
 }
 
 func TestDecodeUnsupportedProof(t *testing.T) {
@@ -143,9 +143,9 @@ func TestDecodeUnsupportedProof(t *testing.T) {
 	}
 	valid = futureProofFixture("d3")
 	for name, raw := range map[string]string{
-		"supported":        strings.Replace(string(valid), `"version":4`, `"version":2`, 1),
-		"negative":         strings.Replace(string(valid), `"version":4`, `"version":-3`, 1),
-		"version type":     strings.Replace(string(valid), `"version":4`, `"version":"3"`, 1),
+		"supported":        strings.Replace(string(valid), `"version":5`, `"version":2`, 1),
+		"negative":         strings.Replace(string(valid), `"version":5`, `"version":-3`, 1),
+		"version type":     strings.Replace(string(valid), `"version":5`, `"version":"3"`, 1),
 		"missing repo":     strings.Replace(string(valid), `"repo":"x/ariadne",`, "", 1),
 		"null repo":        strings.Replace(string(valid), `"repo":"x/ariadne"`, `"repo":null`, 1),
 		"alias":            strings.Replace(string(valid), `"sha":`, `"SHA":`, 1),
@@ -154,9 +154,9 @@ func TestDecodeUnsupportedProof(t *testing.T) {
 		"invalid repo":     strings.Replace(string(valid), `x/ariadne`, `x/ariadne/extra`, 1),
 		"short sha":        strings.Replace(string(valid), strings.Repeat("a", 40), "aaaa", 1),
 		"bad check":        strings.Replace(string(valid), `"check":"suite"`, `"check":"../suite"`, 1),
-		"self parent":      strings.Replace(string(valid), `"version":4`, `"version":4,"rerun_of":"d3"`, 1),
-		"parent type":      strings.Replace(string(valid), `"version":4`, `"version":4,"rerun_of":[]`, 1),
-		"parent null":      strings.Replace(string(valid), `"version":4`, `"version":4,"rerun_of":null`, 1),
+		"self parent":      strings.Replace(string(valid), `"version":5`, `"version":5,"rerun_of":"d3"`, 1),
+		"parent type":      strings.Replace(string(valid), `"version":5`, `"version":5,"rerun_of":[]`, 1),
+		"parent null":      strings.Replace(string(valid), `"version":5`, `"version":5,"rerun_of":null`, 1),
 		"oversize":         string(valid) + strings.Repeat(" ", suiteAttemptMaxJSON),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -249,7 +249,7 @@ func TestReadSuiteEvidenceBudget(t *testing.T) {
 			}
 		})
 	}
-	write("e4.json", []byte(`{"version":4,"id":"e4"}`))
+	write("e4.json", []byte(`{"version":5,"id":"e4"}`))
 	got, err := readSuiteEvidence(root, 10)
 	if err != nil || len(got.Warnings) != 1 || len(got.Attempts) != 1 || len(got.Unsupported) != 1 {
 		t.Fatalf("unscopable read: %+v %v", got, err)
@@ -340,7 +340,7 @@ func TestScopedLinkedProofUsesParentCheck(t *testing.T) {
 			parent = w.ID
 		}
 	}
-	raw, err := json.Marshal(map[string]any{"version": 4, "id": "d3", "repo": d.Repo, "sha": sha, "check": "suite", "rerun_of": parent})
+	raw, err := json.Marshal(map[string]any{"version": 5, "id": "d3", "repo": d.Repo, "sha": sha, "check": "suite", "rerun_of": parent})
 	if err != nil {
 		t.Fatal(err)
 	}

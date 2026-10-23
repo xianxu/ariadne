@@ -13,6 +13,7 @@ import (
 // Catalog is the curated list, in the order findings are reported. Add a rule
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
+	{Name: "unit-child-process-group", Incident: "ariadne#556", Message: "inner flake unit children must inherit the outer managed helper's process group; use plain exec.CommandContext and direct-child Wait/Cancel, without process-group setup, signaling, or nested managed runners", Match: unitChildProcessGroups},
 	{Name: "resume-cleanup-effect", Incident: "ariadne#463", Message: "live-owner resume cleanup must run one effect in a literal resumeCleanupEffect(ctx, authorize, callback), so cancellation and authority are checked before every mutation", Match: resumeCleanupEffects},
 	{Name: "test-sweep-private-root", Incident: "ariadne#509", Message: "a test sweeper may delete another run when liveness is fake; pass a root derived directly from t.TempDir (or a literal relative filepath.Join), never runtime-selected scratch or temp roots", TestOnly: true, Match: testSweepPrivateRoot},
 	{

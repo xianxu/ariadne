@@ -2485,7 +2485,7 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
 `session-move-batched-reads` and `session-move-raw-fields` #504,
-`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
+`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
@@ -3083,3 +3083,55 @@ reintegration, so a later target/weight never authorizes an earlier prefix.
 The captured echo#1 inputs and native command/train regressions live in
 `testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
 See [the CI gate map](ci-merge-check.md) for evidence and authority rules.
+
+### Typed script and Lua flake evidence (#556)
+
+`internal/flakes/identity.go` keeps Go test/subtest names and adds exact
+`script:tests/check.sh` and `lua:tests/native_spec.lua#full native case label`
+identities. Typed registrations cover only themselves. Script reruns execute
+one whole script; Lua reruns execute the whole spec once and require both the
+selected case and the file to pass. A sibling's pass supplies no evidence.
+Registration, the daily list and stats share `flakes.SameHeadFailPass` and
+`Confirmed`; typed proofs read bounded hash-verified logs and match runner
+contracts. Historical Go-only failures are never upgraded or rewritten.
+
+Declaration version 3 adds suite-only `flake_runners`, with `script` and `lua`
+keys. Each command is literal argv containing exactly one complete `{path}`
+operand; Lua also declares `results: "plenary-events-v1"`. Trusted main and the
+exact tested commit must agree on the runner contract. `flake run --unit UNIT`
+requires the enclosing managed check's exact-head/contract environment. It
+observes script exit (including 124), indents child diagnostics and emits its
+own bounded control events. Lua summaries come only from a private result
+channel. `scripts/sdlc-plenary-events.lua` wraps Plenary's completed native
+result table without replacing hooks, assertions or formatting.
+
+The outer managed helper alone owns the process group, cancellation, suite
+capacity and strict descendant join; the unit child inherits that group.
+`flake_run_group_unix_test.go` synchronizes wrapper death and group join, while
+`unit-child-process-group` prevents nested managed runners in the adapter.
+Typed-capable checks write v4 attempts with `runner_contract_sha256`; Go-only
+checks keep v2. V3 remains the legacy infrastructure-audit disposition, and
+its reclassification writer refuses v4 rather than discarding its contract.
+Resume links/receipts and their one-pass cleanup authority remain unchanged.
+Live and saved proof must revalidate current runner authority and exact case
+completion; an ignored adapter failure cannot become a pass at outer exit 0.
+Train package-impact attribution conservatively refuses typed failures.
+
+Rollout is binaries first, then the separately verified ariadne#558 distribution
+row, then peer declarations/producer installation and typed registrations.
+Peer adoption follows #558; #556 edits no live local-gates declaration. In the
+actual Plenary child, install the producer before `plenary.busted.run(path)`:
+
+```lua
+local producer = dofile('scripts/sdlc-plenary-events.lua')
+producer.install(path)
+require('plenary.busted').run(path)
+```
+
+Keep ordinary direct-runner recipes outside managed checks. Managed recipes
+call `sdlc flake run --unit script:tests/check.sh` or
+`sdlc flake run --unit lua:tests/native_spec.lua`. The case label belongs only
+to registration/proof, never executable arguments. The producer is a no-op
+outside its managed private-channel environment. Re-run explicit native
+conformance after changes to the producer, wrapper or Plenary dependency:
+`SDLC_PRIVATE_TYPED_CONFORMANCE=1 SDLC_PLENARY_DIR=/path/to/plenary.nvim go test ./cmd/sdlc -run '^TestLocalCheckTypedConformance$' -count=1 -v`.
