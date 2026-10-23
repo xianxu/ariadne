@@ -67,7 +67,22 @@ func TestChatSections(t *testing.T) {
 		{
 			name:    "CRLF frontmatter is not read, and says so",
 			doc:     "---\r\ncollaboration-mode: chat\r\n---\r\n- a\r\n",
-			notices: []string{"CRLF"},
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name:    "LF frontmatter with a CR in the body is not read, and says so",
+			doc:     "---\ncollaboration-mode: chat\n---\n- a\r\n",
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name:    "a document marker inside frontmatter: not read, and says so",
+			doc:     "---\ncollaboration-mode: chat\n...\n---\n- a\n",
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name:    "YAML that does not parse: not read, and says so",
+			doc:     "---\ncollaboration-mode: {chat: [Q\n---\n## Q\n- a\n",
+			notices: []string{"frontmatter could not be read"},
 		},
 		{
 			name: "other @@tag@@ lines are parley's, not review's",

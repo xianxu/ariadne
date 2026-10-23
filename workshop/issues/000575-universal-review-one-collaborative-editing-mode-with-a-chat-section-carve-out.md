@@ -85,4 +85,5 @@ Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-e
   - BR-3: `checkChat` now requires each reply to carry `ChatSections`' notices verbatim, with line numbers counted in the submitted document. All 21 replies that lacked them were fixed, among them the paraphrases in the new legacy cases.
   - BR-4: added Revisions entries to the plan for the ChatSections location and the guard's scope.
   - Minors: a map's retired `default:` value and unread CRLF frontmatter are now noticed, and the adapter no longer says "discussion or chat mode".
+- Close round 2 returned SHIP, with one advisory Minor that repeated a family, legacy-key-notice-coverage. I fixed it as a rule, not as one more instance: any document that opens with a frontmatter fence and has keys that were not read, for any reason, gets one "frontmatter could not be read" notice. The reasons covered are CR anywhere, a `...` line, and YAML that does not parse. Test rows cover each route, and §7 states the rule.
 

@@ -341,7 +341,7 @@ them**, and a round never deletes or rewrites one of their lines.
 - **Report, never fail.** The reply carries the notice lines `pkg/sidedoc`'s `ChatSections` produces for the
   document as submitted, word for word, one per legacy form (for example "retired keys ignored: presentation-mode,
   processing-mode"); a line number in a notice counts lines of the submitted document, frontmatter included. A
-  mode key never fails a round and never makes it write nothing. Frontmatter with CRLF line endings is not read,
-  and its notice says so.
+  mode key never fails a round and never makes it write nothing. Frontmatter that cannot be read (CR line endings,
+  a `...` or `%` line inside it, YAML that does not parse) is read as having no keys, and its notice says so.
 - In a chat section, an item that ends in `→ done: …` (the TL's older form of an answered instruction) counts as
   answered, like a linked one.

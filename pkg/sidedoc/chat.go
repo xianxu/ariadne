@@ -47,6 +47,8 @@ var RetiredKeys = []string{"presentation", "presentation-mode", "process-instruc
 
 const chatTag = "@@chat@@"
 
+const unreadFrontmatter = "frontmatter could not be read, so any legacy mode keys in it were not read"
+
 var modeComment = regexp.MustCompile(`^<!--\s*(.*?)\s*-->\s*$`)
 
 // ChatSections scans a document for its chat sections: a `@@chat@@` line
@@ -64,8 +66,12 @@ func ChatSections(doc string) ChatScan {
 		total--
 	}
 	fm, body, hasFM := frontmatter(doc)
-	if !hasFM && strings.HasPrefix(doc, "---\r\n") {
-		scan.Notices = append(scan.Notices, "frontmatter has CRLF line endings, so any legacy mode keys in it were not read")
+	// One rule for every way frontmatter goes unread (CR line endings, a
+	// document marker or directive inside, YAML that does not parse): a
+	// document that opens with a fence gets the notice, so a legacy chat
+	// never vanishes silently.
+	if !hasFM && (strings.HasPrefix(doc, "---\n") || strings.HasPrefix(doc, "---\r\n")) {
+		scan.Notices = append(scan.Notices, unreadFrontmatter)
 	}
 	bodyStart := 1 // the body's first line, 1-based
 	if hasFM {
@@ -170,7 +176,8 @@ func (s *ChatScan) readFrontmatter(fm []string) (wholeChat bool, names []string)
 	}
 	var front map[string]yaml.Node
 	if yaml.Unmarshal([]byte(strings.Join(fm, "\n")), &front) != nil {
-		return false, nil // not this scanner's to judge; the frontmatter readers report it
+		s.Notices = append(s.Notices, unreadFrontmatter)
+		return false, nil
 	}
 	if cm, ok := front["collaboration-mode"]; ok {
 		switch cm.Kind {
