@@ -2662,7 +2662,14 @@ command and renders the same ordering projection: effective positions, ages,
 protected boundary and aging overrides. Inspection reads/revalidates the allocation
 snapshot without creating/pruning tickets or taking slots; provider IO occurs
 outside locks. Busy or changing snapshots, missing/old helpers and exceeded bounds
-report unavailable order with `sdlc queue status` as the retry. Go launches
+report unavailable order with `sdlc queue status` as the retry. For pre-#560
+helpers, the captured argparse `inspect`/`--supervised` incompatibility is
+diagnosed explicitly with the resolved helper path and supplying-checkout
+pin/refresh recovery (#563). Other helper errors retain the path and at most
+1024 stderr bytes; neither error becomes available ordering. The supplied
+scheduler remains authoritative: status does not replace it with a newer helper
+whose policy its acquisition path may not implement. Admission still uses the
+separate `acquire --watch --slots` protocol. Go launches
 inspection in supervised mode: provider descendants inherit its owned helper
 process group, which is collected on completion, cancellation and deadline.
 Standalone Python queries retain detached provider-group cleanup. It shares status's
