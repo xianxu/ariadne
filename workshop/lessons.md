@@ -1586,3 +1586,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   publish readiness, join the fixture on failure, and keep a leader-only-kill
   negative control. The test-ps-liveness Go catalog rule catches direct test
   state queries, with explicit suppressions reserved for diagnostic captures.
+
+- #567 BR-1: a command-format lint must cover the dependency's literal field
+  grammar, not one spelling from the incident. Native ps accepts comma and
+  whitespace field separators, including attached -o/-O formats. Exercise the
+  whole format family through Command and CommandContext and both Check entry
+  points; normalize once in the shared predicate. This extends the same
+  test-ps-liveness catalog rule rather than adding a second guard.

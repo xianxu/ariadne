@@ -144,19 +144,6 @@ common evidence directory. Central SDLC reports the primary path, current
 review, then central merge; no staging or live fleet process check is needed
 for this test-only cancellation correction and pure lint guard.
 
-## Revisions
-
-### 2026-10-23 — quick-flow implementation detail and verification
-
-The small fix plan was posted to the hub and its delivery was verified before
-change-code inferred quick flow. Named the lint's pure per-call predicate
-`psLivenessQuery` and one-pass visitor `psLivenessCalls` for counted tests;
-`psLivenessQueries` remains the catalog entry point. The native negative
-control's diagnostic observation starts after publisher return (rather than
-racing WaitDelay); all such instrumentation is restored before verification.
-The atlas catalog entry is included alongside the lesson. No change to the
-approved test-only boundary or production cancellation/deadline semantics.
-
 ### 2026-10-23 — recorded suite queued; close overlap
 
 PR #414 is open. Central `sdlc local-check run --name suite` is retained on
@@ -171,9 +158,50 @@ while this suite waits. No landing proceeds without a recorded pass on the
 final code; a code change from review requires fresh verification. This is an
 acceptance checkpoint, not a suite-pass claim.
 
+### 2026-10-23 — boundary round one; BR-1 corrected
+
+Round one returned FIX-THEN-SHIP with one Important finding, but the ledger
+correctly refused finalization while BR-1 remained open. The reviewer reran
+30 native cancellation repetitions, race controls and broader operating tests
+successfully; the defect was incomplete literal ps format recognition in the
+new lint. Independently verified `/bin/ps` accepts `pid stat=`, `pid, stat=`,
+`pid, state=` and tab separators, including attached -o and -O forms. Added a
+format-family matrix across Command/CommandContext and both Check/CheckSources;
+it failed on the original matcher. One shared predicate now normalizes comma
+and whitespace fields; full golint PASS 0.813s and expanded race controls PASS.
+
+Canceled only this slot's still-waiting recorded suite through
+`sdlc local-check cancel --name suite`; it had not acquired capacity. Its runner
+exited interrupted/canceled, and the CLI confirmed two other checkouts' runs
+were left running. The old queued code is superseded, so a fresh recorded
+suite on the pushed correction is required. No main integration or waiter
+reorder. Next: fresh push/suite, then ordinary close again as the gate names
+(not a bypass or an unfinalized fix-only close).
+
+## Revisions
+
+### 2026-10-23 — quick-flow implementation detail and verification
+
+The small fix plan was posted to the hub and its delivery was verified before
+change-code inferred quick flow. Named the lint's pure per-call predicate
+`psLivenessQuery` and one-pass visitor `psLivenessCalls` for counted tests;
+`psLivenessQueries` remains the catalog entry point. The native negative
+control's diagnostic observation starts after publisher return (rather than
+racing WaitDelay); all such instrumentation is restored before verification.
+The atlas catalog entry is included alongside the lesson. No change to the
+approved test-only boundary or production cancellation/deadline semantics.
+
 ### 2026-10-23 — plan bookkeeping revision
 
 The final Plan checkbox now describes completed implementation preparation;
 recorded-suite, review and landing outcomes remain explicit Log commitments.
 This removes a circular checkbox asking for landing before the close gate,
 without changing Done-when or claiming unfinished acceptance.
+
+### 2026-10-23 — Revisions: BR-1 literal-format family
+
+Extended the existing lint test inventory to native format separators and
+attached -O alongside -o and Linux --format=. The command/format boundary and
+Done-when remain unchanged. Concrete spelling inventory stays in the matrix;
+source-call visits remain N/2N linear. The lesson records the shared dependency
+field grammar. This is the first design correction to the lint mechanism.

@@ -57,6 +57,34 @@ func TestPSLivenessQueries(t *testing.T) {
 	}
 }
 
+func TestPSLivenessQueriesFormatSeparators(t *testing.T) {
+	rule := ruleOf(t, "test-ps-liveness")
+	for _, command := range []string{"Command", "CommandContext"} {
+		for _, prefix := range []string{"", "-o", "-O", "--format="} {
+			for _, format := range []string{"pid stat=", "pid state=", "pid, stat=", "pid,\tstate=", "  pid\t stat=  "} {
+				t.Run(command+"/"+prefix+"/"+format, func(t *testing.T) {
+					args := fmt.Sprintf("\"ps\", %q", prefix+format)
+					if prefix == "" {
+						args = fmt.Sprintf("\"ps\", \"-o\", %q", format)
+					}
+					if command == "CommandContext" {
+						args = "ctx, " + args
+					}
+					src := []byte("package p\nimport \"os/exec\"\nfunc f(){exec." + command + "(" + args + ")}\n")
+					got, err := Check("format_test.go", src, []Rule{rule})
+					if err != nil || len(got) != 1 {
+						t.Fatalf("%s: %v, %v", src, got, err)
+					}
+					all, err := CheckSources("example.org/p", map[string][]byte{"format_test.go": src}, []Rule{rule})
+					if err != nil || len(all["format_test.go"]) != 1 {
+						t.Fatalf("CheckSources: %v, %v", all, err)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestPSLivenessQueriesLinearVisits(t *testing.T) {
 	for _, n := range []int{16, 32} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {

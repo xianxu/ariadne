@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"path"
 	"strings"
+	"unicode"
 )
 
 // ps state text is a diagnostic snapshot, not a process completion oracle:
@@ -55,8 +56,13 @@ func psLivenessQuery(call *ast.CallExpr, pkg string) bool {
 	}
 	for _, arg := range call.Args[offset+1:] {
 		text, _ := stringLit(arg)
-		text = strings.TrimPrefix(strings.TrimPrefix(text, "--format="), "-o")
-		for field := range strings.SplitSeq(text, ",") {
+		for _, prefix := range []string{"--format=", "-o", "-O"} {
+			if format, ok := strings.CutPrefix(text, prefix); ok {
+				text = format
+				break
+			}
+		}
+		for _, field := range strings.FieldsFunc(text, func(r rune) bool { return r == ',' || unicode.IsSpace(r) }) {
 			key, _, _ := strings.Cut(field, "=")
 			if key == "stat" || key == "state" {
 				return true
