@@ -1,13 +1,21 @@
 ---
 id: 000576
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '4b5d05fdc51d25c4c95a808ddbb16166ee1c854b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f5948be6b6cabe15c580ee992f079c97cf17b338' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T14:24:15-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows
@@ -40,8 +48,17 @@ Remove every ariadne writer of the mode keys (`collaboration-mode`, `presentatio
 
 ## Plan
 
-- [ ]
+Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffolds-tl-lead-migrate-datatype-collaboration-plan.md) (approved by the TL 10-23, including the tl-lead ChatItems design call).
+
+- [x] ChatSections scope additions: a linear scan (counted N/2N), the fence-based unread notice, the empty-value notice, Legacy and Innermost (laminar), and Tags.
+- [ ] Task 1: shared item grammar `sidedoc.ChatItems`; tl-lead list/link pick `legacy` from ChatSections(frontmatter + section); checkChat uses it
+- [ ] Task 2: sdlc scaffolds, handoff, CUE field, vocab accessors; LegacyCollaborationModes; legacy round-trip test
+- [ ] Task 3: tl-lead migrate lossless; help.md moves to @@chat@@
+- [ ] Task 4: datatype rows and collabmode.go removed; writing-plans header; the guard extended to every creator's instructions
+- [ ] Task 5: atlas and comments; tests; recorded suite; close; landed revision to pair:3 and parley.nvim:3
 
 ## Log
 
 ### 2026-10-23
+- Claimed after #575 landed (PR #418). A mapping agent listed every writer and reader. Before change-code I committed the ChatSections scope additions agreed with the TL and pair:3: 3d109d2c8 makes it linear (a counted test catches a reverted prefix count at ratio 4.07) and adds the fence-based unread notice and the empty-value notice; e12f0fccc adds Legacy and Innermost, with a randomized laminar test; 9dbb69c87 adds Tags for pair#838. The TL acknowledged the order as agreed scope. The plan, including the ChatItems design call, was approved 10-23.
+
