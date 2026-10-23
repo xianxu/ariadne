@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
 
 func landingIntents(t *testing.T, root string) []landingline.ObservedIntent {
@@ -107,4 +110,73 @@ func TestMergeIntentLifecycle(t *testing.T) {
 			t.Fatalf("want a refusal naming pid 4242, got %v (merges %d)", err, gh.merges)
 		}
 	})
+}
+
+func TestReportMergeIntent(t *testing.T) {
+	in := landingline.Intent{Version: 1, Branch: "000565-x", Issue: 565, Head: strings.Repeat("c", 40), Root: "/w/slot5", PID: 77,
+		StartedAt: time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)}
+	o := landingline.ObservedIntent{Intent: in, Path: "/l/intents/k"}
+	orphan := reportMergeIntent(o, true, nil)
+	if orphan.State != "orphaned" || orphan.Reentry != "sdlc merge --branch 000565-x --yes" || orphan.Note != "" {
+		t.Fatalf("%+v", orphan)
+	}
+	line := formatMergeIntent(orphan)
+	for _, want := range []string{`orphaned merge: #565 branch "000565-x" at cccccccc`, "pid 77, which is gone", "re-enter in /w/slot5: sdlc merge --branch 000565-x --yes"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("missing %q in %q", want, line)
+		}
+	}
+	paused := reportMergeIntent(o, true, []queuegate.PauseOwner{{Owner: "ops:0", Reason: "full shutdown"}})
+	if !strings.Contains(formatMergeIntent(paused), "the machine queue is paused by ops:0 (full shutdown); re-enter after it resumes") {
+		t.Fatalf("no pause note: %q", formatMergeIntent(paused))
+	}
+	o.Locked = true
+	if live := reportMergeIntent(o, true, nil); live.State != "live" || live.Reentry != "" || formatMergeIntent(live) != "" {
+		t.Fatalf("a live intent: %+v", live)
+	}
+	o.Locked = false
+	if stale := reportMergeIntent(o, false, nil); stale.State != "stale" || stale.Reentry != "" || formatMergeIntent(stale) != "" {
+		t.Fatalf("a stale intent: %+v", stale)
+	}
+	bad := reportMergeIntent(landingline.ObservedIntent{Path: "/l/intents/z", Err: errors.New("intent: not one JSON object")}, false, nil)
+	if bad.State != "unreadable" || bad.Reentry != "" || !strings.Contains(formatMergeIntent(bad), "unreadable merge intent /l/intents/z") {
+		t.Fatalf("an unreadable intent: %+v", bad)
+	}
+}
+
+// #565 Done-when 1: after an interrupted merge, landing status and the
+// slot's sdlc state name the orphan and the exact re-entry command.
+func TestOrphanedMergeOnStatusSurfaces(t *testing.T) {
+	roots, _, _ := landingFixture(t, 1)
+	t.Setenv("WF_SDLC_QUEUE_ROOT", t.TempDir())
+	failFirst(t, "switch --no-overwrite-ignore", context.Canceled)
+	if err := runMerge(io.Discard, io.Discard, landingFlags()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("want the interruption: %v", err)
+	}
+	want := "re-enter in " + canonicalRoot(roots[1]) + ": sdlc merge --branch " + landingTestBranch + " --yes"
+	var status bytes.Buffer
+	if err := runLandingStatus(&status, roots[1], defaultLandingDeps()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(status.String(), "orphaned merge: #1 branch \""+landingTestBranch+"\"") || !strings.Contains(status.String(), want) {
+		t.Fatalf("landing status:\n%s", status.String())
+	}
+	t.Chdir(roots[1])
+	var prose, raw bytes.Buffer
+	if err := runState(context.Background(), &prose, &stateFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(prose.String(), want) {
+		t.Fatalf("sdlc state:\n%s", prose.String())
+	}
+	if err := runState(context.Background(), &raw, &stateFlags{JSON: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+		t.Fatal(err)
+	}
+	var s struct {
+		MergeIntents []mergeIntentReport `json:"merge_intents"`
+	}
+	if err := json.Unmarshal(raw.Bytes(), &s); err != nil || len(s.MergeIntents) != 1 || s.MergeIntents[0].State != "orphaned" ||
+		s.MergeIntents[0].Reentry != "sdlc merge --branch "+landingTestBranch+" --yes" || s.MergeIntents[0].Root != canonicalRoot(roots[1]) {
+		t.Fatalf("state --json merge_intents: %+v %v\n%s", s.MergeIntents, err, raw.String())
+	}
 }

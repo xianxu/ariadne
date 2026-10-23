@@ -105,6 +105,13 @@ func readBounded(path string) ([]byte, error) {
 	return b, err
 }
 
+// PauseOwners reads who holds the queue paused, without taking the gate or
+// sweeping anything: a read-only surface may ask it.
+func (s *Store) PauseOwners() ([]PauseOwner, error) {
+	c, err := s.control()
+	return c.PauseOwners, err
+}
+
 func (s *Store) control() (Control, error) {
 	b, err := readBounded(filepath.Join(s.Root, "pause.json"))
 	if errors.Is(err, os.ErrNotExist) {

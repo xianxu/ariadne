@@ -180,6 +180,9 @@ type State struct {
 	Drift     []DriftFinding     `json:"drift"`
 	// TrackerStale: the tracker could not be fetched; cards are as last fetched.
 	TrackerStale bool `json:"tracker_stale,omitempty"`
+	// MergeIntents: this slot's in-flight or interrupted merges (#565); an
+	// orphaned one carries the command that re-enters it.
+	MergeIntents []mergeIntentReport `json:"merge_intents"`
 }
 
 // ── command constructor ─────────────────────────────────────────────────────
@@ -256,6 +259,14 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	}
 	if claimErr != nil { // accumulated after the one assignment (#284 BR-32)
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + claimErr.Error()})
+	}
+	own := canonicalRoot(identity.WorktreeRoot)
+	s.MergeIntents, err = observeMergeIntents(ctx, execGitRunner{}, identity.WorktreeRoot, func(r mergeIntentReport) bool { return r.Root == own })
+	if err != nil {
+		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "merge intents unavailable: " + err.Error()})
+	}
+	if s.MergeIntents == nil {
+		s.MergeIntents = []mergeIntentReport{}
 	}
 	if baseRef == "" {
 		s.Drift = append(s.Drift, DriftFinding{
@@ -571,6 +582,12 @@ func renderProseAt(w io.Writer, s State, now time.Time) error {
 		fmt.Fprintf(w, "  %s  %s\n", c.SHA[:8], truncate(c.Subject, 80))
 	}
 	fmt.Fprintln(w)
+
+	for _, r := range s.MergeIntents {
+		if line := formatMergeIntent(r); line != "" {
+			fmt.Fprintf(w, "%s\n\n", line)
+		}
+	}
 
 	fmt.Fprintln(w, "Drift:")
 	if len(s.Drift) == 0 {
