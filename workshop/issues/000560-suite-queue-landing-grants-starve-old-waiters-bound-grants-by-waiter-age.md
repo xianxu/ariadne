@@ -89,6 +89,12 @@ Clean build c66fa30e12d1d12dd3897446f20266f71d444322 (modified=false) passed rea
 
 Close round2 returned SHIP with no findings; BR-1 addressed. Reviewer independently restored detached provider sessions in a disposable copy and reproduced surviving provider/child failures, then removed the copy. Close evidence commit9c821802139fd7259408a299fa49e6362208df39; card mirrord9096385cede775383ffff8b49248c18bf23edc1. Required recorded suite lease-3147671628 remains alive on exact pushed37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47 (retained terminal98827), last FIFO position16. Log: common Git dir sdlc/test-stats/inflight/f615ddb6dbd25ea386315b2508b44e3a/run.log. No suite pass claimed; close overlapped the queued check under tl-worker. Next: open PR for CI overlap, keep this queued runner, inspect its exact-head result when it finishes, then enter sdlc merge --yes after the pass. Merge owns integration and any fresh authoritative suite. Do not requeue a duplicate or restart while the runner remains queued/running.
 
+### 2026-10-22 — shutdown checkpoint; existing merge retained
+
+Branch suite lease-3147671628 completed PASS on37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47: 8 shards,2302 SDLC tests,76 other packages; wall858.5s after6558s queue wait. Saved log: common Git dir sdlc/local-checks/37a5bfda4a9c87c1ca1a6e722334f168c2c4fc47/suite.log (sha256 prefix11f820f89bf1). PR404 is open, SHIP and server CI green. Existing merge pid93795/retained terminal23091 is first waiter behind active#556 as of18:31PDT; it has not been restarted. No new merge/landing or item is started under the fleet shutdown notice (deliverya7e9b5cc-2445-454e-a42a-5368bfcdc7fa). An existing admitted/turn-holding runner may finish well before21:45; otherwise retain its queued state for the22:00–23:00 shutdown. No source changes after reviewed conformance.
+
+Exact next step: inspect retained terminal23091 and sdlc landing status/PR404 before doing anything. If the existing runner is alive, retain it and let its gate own main integration and authoritative suite. If it lands, verify the merged PR and Git-reported merge SHA and report to the hub. At shutdown/restart, verify whether the runner/turn survived before any re-entry. Only after authorized recovery, re-enter sdlc merge --yes if the original runner is actually gone/refused and PR404 remains unmerged; never create a duplicate. Do not start new items. Current issue/plan/evidence are committed and pushed for recovery.
+
 ## Revisions
 
 ### 2026-10-22 — approved aging policy and60-minute threshold
