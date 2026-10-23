@@ -1,6 +1,6 @@
 ---
 id: 000567
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 839fc18ae652343c0777a8a515ac943476fc32d3
         evidence_commit: 843549fcb391e21e27b8cd37ee66e4b1830c6b90
+        landed_commit: 9cfe06bd44267224bc87164ca72088a83e117f3a
 ---
 
 # flake: TestOperatingCancellationStopsGitHookDescendants
