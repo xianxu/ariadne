@@ -11,20 +11,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"math"
 	"path"
 	"slices"
-	"strconv"
 	"strings"
 )
 
 // Schema and Version identify the manifest format. A consumer refuses any
-// other pair, so a change to the member shape bumps Version. Version 3
-// retires the mode-level deletions field (#437); document presentation now
-// controls proposals. Version 2 added the fixture role (#424).
+// other pair, so a change to the member shape bumps Version. Version 4
+// replaces the mode role and its order/scope/frontier flags with flagless
+// briefs (#575: one collaborative mode; scope comes from the instruction).
+// Version 3 retired the mode-level deletions field (#437). Version 2 added
+// the fixture role (#424).
 const (
 	Schema  = "ariadne/universal-review-export"
-	Version = 3
+	Version = 4
 )
 
 // GrammarSource is the repository path of the one authored marker grammar,
@@ -38,100 +38,82 @@ type Manifest struct {
 	Members []Member `json:"members"`
 }
 
-// Member is one exported file. Path is relative to the skill directory. Mode
-// members carry their flags as a dense record; Name is set for adapters and
-// modes; Source only for the grammar.
+// Member is one exported file. Path is relative to the skill directory. Name
+// is set for adapters, briefs and fixtures; Source only for the grammar.
 type Member struct {
-	Role      string `json:"role"`
-	Name      string `json:"name,omitempty"`
-	Path      string `json:"path"`
-	Source    string `json:"source,omitempty"`
-	Order     int    `json:"order,omitempty"`
-	Scope     string `json:"scope,omitempty"`
-	Frontier  string `json:"frontier,omitempty"`
-	Bytes     int    `json:"bytes"`
-	SHA256    string `json:"sha256"`
+	Role   string `json:"role"`
+	Name   string `json:"name,omitempty"`
+	Path   string `json:"path"`
+	Source string `json:"source,omitempty"`
+	Bytes  int    `json:"bytes"`
+	SHA256 string `json:"sha256"`
 }
 
-var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2, "adapter": 3, "mode": 4, "fixture": 5}
+var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2, "adapter": 3, "brief": 4, "fixture": 5}
 
-// defaults are parley's values for an omitted flag; the export records the
-// resolved value, so its mode records are dense.
-var defaults = map[string]string{"scope": "markers-only", "frontier": "on"}
-
-var valid = map[string][]string{
-	"scope":     {"whole-doc", "markers-only"},
-	"frontier":  {"on", "off"},
+// exportedCases are the examples, besides the move cases, that the export
+// carries as fixtures for pair and parley to pin (#575): the one list, read
+// by Build and by TestExportCurrent.
+var exportedCases = []string{
+	"chat-tag", "chat-tag-misplaced",
+	"ask-question", "ask-command", "ask-command-unclear", "ask-unsure",
+	"scope-paragraph", "scope-section", "scope-document",
+	"legacy-chat-scalar", "legacy-chat-map", "legacy-chat-comment", "legacy-keys-ignored",
 }
 
-// Mode is a parsed modes/<name>.md frontmatter. Order 0 means the mode has
-// none, and sorts after every ordered mode.
-type Mode struct {
-	Name, Scope, Frontier string
-	Order                            int
+// Brief is a parsed briefs/<name>.md: a named brief the agent may load when
+// an instruction calls for it (#575). Its frontmatter is the name alone.
+type Brief struct {
+	Name string
 }
 
-// ParseMode reads a mode file's frontmatter by parley's rules: a leading
-// `---\n` fence (so CRLF files are refused, as parley refuses them), flat
-// `key: value` lines with values taken literally (quotes included), an
-// omitted flag taking its default, an invalid one refused, `order` optional. The name must equal the file's
-// basename (parley drops such a file; the authored source refuses it).
-func ParseMode(content, basename string) (Mode, error) {
+// retiredFlags are v3 mode keys a brief must not carry: leaving one in would
+// suggest a setting the round no longer reads.
+var retiredFlags = []string{"order", "scope", "frontier", "deletions"}
+
+// ParseBrief reads a brief's frontmatter by parley's rules: a leading `---\n`
+// fence (so CRLF files are refused, as parley refuses them) and flat
+// `key: value` lines with values taken literally (quotes included). The only
+// key is `name`, which must equal the file's basename; a retired mode flag or
+// any other key is refused.
+func ParseBrief(content, basename string) (Brief, error) {
 	rest, ok := strings.CutPrefix(content, "---\n")
 	if !ok {
-		return Mode{}, fmt.Errorf("mode %s: missing frontmatter", basename)
+		return Brief{}, fmt.Errorf("brief %s: missing frontmatter", basename)
 	}
 	// Searching from the opening fence's newline, as parley does, lets an
 	// empty block (`---\n---`) parse, and fail later for want of a name.
 	fm, _, ok := strings.Cut("\n"+rest, "\n---")
 	if !ok {
-		return Mode{}, fmt.Errorf("mode %s: unterminated frontmatter", basename)
+		return Brief{}, fmt.Errorf("brief %s: unterminated frontmatter", basename)
 	}
-	flags := map[string]string{}
+	b := Brief{}
 	for _, line := range strings.Split(fm, "\n") {
-		if k, v, ok := strings.Cut(line, ":"); ok {
-			flags[strings.TrimSpace(k)] = strings.TrimSpace(v)
+		k, v, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		switch k = strings.TrimSpace(k); {
+		case k == "name":
+			b.Name = strings.TrimSpace(v)
+		case slices.Contains(retiredFlags, k):
+			return Brief{}, fmt.Errorf("brief %s: %s is a retired mode flag (#575: the instruction sets the scope)", basename, k)
+		default:
+			return Brief{}, fmt.Errorf("brief %s: unknown frontmatter key %q; a brief has only name", basename, k)
 		}
 	}
-	m := Mode{Name: flags["name"]}
-	if _, old := flags["deletions"]; old {
-		return Mode{}, fmt.Errorf("mode %s: deletions is retired; use document presentation", basename)
+	if b.Name != basename {
+		return Brief{}, fmt.Errorf("brief %s: name %q must equal the file's basename", basename, b.Name)
 	}
-	if m.Name != basename {
-		return Mode{}, fmt.Errorf("mode %s: name %q must equal the file's basename", basename, m.Name)
-	}
-	for key, vals := range valid {
-		v := flags[key]
-		if v == "" {
-			v = defaults[key]
-		}
-		if !slices.Contains(vals, v) {
-			return Mode{}, fmt.Errorf("mode %s: %s=%q is not one of %s", basename, key, v, strings.Join(vals, ", "))
-		}
-		switch key {
-		case "scope":
-			m.Scope = v
-		case "frontier":
-			m.Frontier = v
-		}
-	}
-	if o, ok := flags["order"]; ok && o != "" {
-		order, err := strconv.Atoi(o)
-		if err != nil || order < 1 {
-			return Mode{}, fmt.Errorf("mode %s: order %q must be a positive integer", basename, o)
-		}
-		m.Order = order
-	}
-	return m, nil
+	return b, nil
 }
 
 // Build reads the skill directory and returns its manifest: round.md, the
 // grammar link, collaboration-modes.md (#412), every adapters/*.md, every
-// modes/*.md, and every file of each move case under examples/ (role
-// fixture, named by its case). The other examples are not exported. Sizes and hashes
-// cover each file's resolved contents (the grammar is a symlink). The order is
-// total: role, then mode order (unordered last), then name, then path, as
-// parley lists its modes.
+// briefs/*.md, and every file of each move case and each exportedCases case
+// under examples/ (role fixture, named by its case). The other examples are
+// not exported. Sizes and hashes cover each file's resolved contents (the
+// grammar is a symlink). The order is total: role, then name, then path.
 func Build(skill fs.FS) (Manifest, error) {
 	m := Manifest{Schema: Schema, Version: Version}
 	add := func(mem Member) error {
@@ -165,23 +147,23 @@ func Build(skill fs.FS) (Manifest, error) {
 			return Manifest{}, err
 		}
 	}
-	modes, err := fs.Glob(skill, "modes/*.md")
+	briefs, err := fs.Glob(skill, "briefs/*.md")
 	if err != nil {
 		return Manifest{}, err
 	}
-	if len(modes) == 0 {
-		return Manifest{}, fmt.Errorf("export: no modes/*.md")
+	if len(briefs) == 0 {
+		return Manifest{}, fmt.Errorf("export: no briefs/*.md")
 	}
-	for _, p := range modes {
+	for _, p := range briefs {
 		b, err := fs.ReadFile(skill, p)
 		if err != nil {
 			return Manifest{}, err
 		}
-		md, err := ParseMode(string(b), strings.TrimSuffix(path.Base(p), ".md"))
+		br, err := ParseBrief(string(b), strings.TrimSuffix(path.Base(p), ".md"))
 		if err != nil {
 			return Manifest{}, err
 		}
-		if err := add(Member{Role: "mode", Name: md.Name, Path: p, Order: md.Order, Scope: md.Scope, Frontier: md.Frontier}); err != nil {
+		if err := add(Member{Role: "brief", Name: br.Name, Path: p}); err != nil {
 			return Manifest{}, err
 		}
 	}
@@ -194,10 +176,10 @@ func Build(skill fs.FS) (Manifest, error) {
 		if err != nil {
 			return Manifest{}, err
 		}
-		if _, _, move := ParseCase(string(b)); move == nil {
+		dir := path.Dir(c)
+		if _, _, move := ParseCase(string(b)); move == nil && !slices.Contains(exportedCases, path.Base(dir)) {
 			continue
 		}
-		dir := path.Dir(c)
 		err = fs.WalkDir(skill, dir, func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
@@ -212,22 +194,12 @@ func Build(skill fs.FS) (Manifest, error) {
 		if d := roleRank[a.Role] - roleRank[b.Role]; d != 0 {
 			return d
 		}
-		if d := orderKey(a.Order) - orderKey(b.Order); d != 0 {
-			return d
-		}
 		if d := strings.Compare(a.Name, b.Name); d != 0 {
 			return d
 		}
 		return strings.Compare(a.Path, b.Path)
 	})
 	return m, nil
-}
-
-func orderKey(o int) int {
-	if o == 0 {
-		return math.MaxInt
-	}
-	return o
 }
 
 // Marshal is the manifest's one serialization: indented, newline-terminated,

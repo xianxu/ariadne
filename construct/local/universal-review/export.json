@@ -1,6 +1,6 @@
 {
   "schema": "ariadne/universal-review-export",
-  "version": 3,
+  "version": 4,
   "members": [
     {
       "role": "round",
@@ -29,64 +29,39 @@
       "sha256": "a6eca522ba7515bb27eb860d2cc7288b43b7c7eb1dcacaf51627177e38508be2"
     },
     {
-      "role": "mode",
-      "name": "developmental",
-      "path": "modes/developmental.md",
-      "order": 1,
-      "scope": "whole-doc",
-      "frontier": "off",
-      "bytes": 507,
-      "sha256": "38bb238efc36820083d208da36d4c160789725865c264731f94b04409290297e"
-    },
-    {
-      "role": "mode",
-      "name": "line-editing",
-      "path": "modes/line-editing.md",
-      "order": 2,
-      "scope": "whole-doc",
-      "frontier": "on",
-      "bytes": 434,
-      "sha256": "226a2e35dcb233fab54827b7fda371df18ff43afc5236c9d287114939755cd71"
-    },
-    {
-      "role": "mode",
+      "role": "brief",
       "name": "copy-editing",
-      "path": "modes/copy-editing.md",
-      "order": 3,
-      "scope": "whole-doc",
-      "frontier": "on",
-      "bytes": 521,
-      "sha256": "a9d41b01c0976ab3f4b3cd0bd8cd7466ee163b1a4a5ccfcdc8a570eea0fd364e"
+      "path": "briefs/copy-editing.md",
+      "bytes": 473,
+      "sha256": "853e52be9c68ad8a88013b94ea3c862b8b40ef84323b7db72be4d2f45bc084c7"
     },
     {
-      "role": "mode",
-      "name": "proofreading",
-      "path": "modes/proofreading.md",
-      "order": 4,
-      "scope": "whole-doc",
-      "frontier": "on",
-      "bytes": 447,
-      "sha256": "0b8a0d606fe9fb9e6402cabf14f9ac1d389a688ad1369d4a7d4c445ebe803a90"
+      "role": "brief",
+      "name": "developmental",
+      "path": "briefs/developmental.md",
+      "bytes": 509,
+      "sha256": "4d777505c14b0716b9cfd018b153755c03ca42b4e8e207190ca12869cd6153c9"
     },
     {
-      "role": "mode",
+      "role": "brief",
       "name": "fact-check",
-      "path": "modes/fact-check.md",
-      "order": 5,
-      "scope": "whole-doc",
-      "frontier": "on",
-      "bytes": 484,
-      "sha256": "7d3a5265e59b090b710d9a9564f9bdeebfc5599e2b0f1a92e8a246eb508f7018"
+      "path": "briefs/fact-check.md",
+      "bytes": 460,
+      "sha256": "3bf41c61af56baddc3eb0f7cd30e7fbac1c1529a1cd1efdfe24bb7f3720bb4cb"
     },
     {
-      "role": "mode",
-      "name": "free-form",
-      "path": "modes/free-form.md",
-      "order": 6,
-      "scope": "whole-doc",
-      "frontier": "off",
-      "bytes": 474,
-      "sha256": "01a3bd7e40329cf8c5c9cfa929de00e86d5922c59792b27087689c6854718071"
+      "role": "brief",
+      "name": "line-editing",
+      "path": "briefs/line-editing.md",
+      "bytes": 332,
+      "sha256": "54a7ec5c261740f3623a858f10d5856c5391ba0397c352068713b06b8706903c"
+    },
+    {
+      "role": "brief",
+      "name": "proofreading",
+      "path": "briefs/proofreading.md",
+      "bytes": 412,
+      "sha256": "c38549e8210462d0c5bc0845b3debfb4933d38e45b7976de7ac04c1ced7c1c70"
     },
     {
       "role": "fixture",
