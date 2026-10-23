@@ -1,6 +1,6 @@
 ---
 id: 000569
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.55
+tracker:
+    version: 1
+    completion:
+        token: close-054cc3df264d
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 96cd72ed248907d4cdee3a026054be87cbd47a69
+        evidence_commit: 34a72841e7e372e3b4bc4465faeb8fc8b7ca92b5
 ---
 
 # Diagnose legacy actual-window refusal blocking pair#162
