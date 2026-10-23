@@ -176,6 +176,8 @@ ARCH-DRY: existing tracker CAS, managed suite, measurement and reviewer owners a
 
 ## Revisions
 
+- 2026-10-23, hub approval `af9f0c58-1b5e-4c4c-9c02-e08286dabb30`: narrow the polling cost claim. Each five-second poll may replay at most 2,000 accepted transitions and read at most 1 MiB of public proposal audit. Transcripts are never polled; the separate one-capture/fixed-owner-pass collection claim is unchanged. `TestBenchObserverMetadataReadBounds` pins the metadata limits. No cursor/cache protocol is added. CLI registration lives in `bench_cmd.go` rather than the provisional `bench.go`; split IO modules preserve the named owners.
+
 - 2026-10-23, hub approval `897cbcae-be1b-4147-93fb-f5a83168a0d0`: supersede the state table's inspect/retry-score action for confirmed acceptance unavailable. It is terminal for this run and recorded as a bench finding; preserve the first acceptance proof and use a fresh run for another hidden evaluation. Unknown scorer shutdown still blocks record/clean. No per-score recovery state is added.
 
 - 2026-10-23, hub approval `74c78252-ff37-48a3-8e8e-47fc92fa6e1a`: use the existing trusted retirement checklist for exact-interval no-operator-input attestation. Set autonomous=true and zero operator wait only when present and exact; missing or conflicting evidence remains unverified. Couch's existing read-only API has no operator-submission history query to cross-check; do not add a Pair mechanism or infer from absent receipts.

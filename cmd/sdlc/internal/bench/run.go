@@ -130,6 +130,7 @@ func (r Run) RuntimeStopped() bool                         { return r.quiet }
 func (r Run) CanClean() bool                               { return r.phase == PhaseRecorded && r.quiet }
 func (r Run) DispatchOperation() string                    { return r.dispatchOp }
 func (r Run) CancelOperation() string                      { return r.cancelOp }
+func (r Run) ProofOperation() string                       { return r.proofOp }
 
 func Step(r Run, e Event) (Run, []Effect, error) {
 	fail := func(message string) (Run, []Effect, error) {

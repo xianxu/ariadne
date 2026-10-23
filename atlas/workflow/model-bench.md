@@ -60,6 +60,9 @@ must bind the reviewed code; metadata HEAD is not substituted for that code.
 portable store retains accepted events before effects, one observer lifetime
 lock and a short transaction lock. No redispatch or destructive cleanup follows
 an uncertain outcome. The TL cannot supply its own score or verdict proof.
+Each five-second poll may replay at most 2,000 accepted transitions and read
+at most 1 MiB of proposal audit. Transcripts are never polled; no separate
+cursor or cache protocol exists.
 
 Trusted retirement JSON names version/run, exact hub/worker identities,
 `confirmed_by`, `confirmed_at`, evidence, `processes_gone: true`, an empty

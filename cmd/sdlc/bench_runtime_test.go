@@ -204,3 +204,53 @@ func TestBenchRuntimePartialBindingNamesSafeRetirement(t *testing.T) {
 		t.Fatal("partial pre-dispatch binding has no safe recovery", err, *sends)
 	}
 }
+
+func TestBenchRuntimeResumesOnlyPendingProof(t *testing.T) {
+	s, f, d, _ := benchObserverFixture(t)
+	_ = runBenchObserver(context.Background(), s, f, d)
+	r, state, err := s.read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := loadBenchRuntime(r, state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, w := state.Bindings()
+	for _, e := range []bench.Event{
+		{ID: "dispatch-confirmed", Kind: bench.DispatchConfirmed, OperationID: state.DispatchOperation()},
+		{ID: "proof-old-begin", Kind: bench.ProposeWouldLand, OperationID: "proof-old"},
+		{ID: "proof-old-result", Kind: bench.ProofRejected, OperationID: "proof-old", Reason: "earlier candidate refused"},
+		{ID: "proof-new-begin", Kind: bench.ProposeWouldLand, OperationID: "proof-new"},
+	} {
+		e.RunID, e.Hub, e.Worker = r.ID, h, w
+		if _, _, err := s.apply(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	public, err := loadBenchContext(context.Background(), w.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"old", "new"} {
+		candidate := strings.Repeat("a", 40)
+		if id == "new" {
+			candidate = strings.Repeat("b", 40)
+		}
+		e := benchAuditEvent{Version: 1, ID: id, RunID: r.ID, Kind: "finish", At: time.Now().UTC().Format(time.RFC3339Nano), Root: h.Root, Slot: h.Slot, Session: h.Session, Generation: h.Generation, Candidate: candidate}
+		if err := appendBenchAudit(context.Background(), public, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := 0
+	d.Verify = func(_ context.Context, _ *benchStore, candidate string) (bench.WouldLandFacts, error) {
+		calls++
+		if candidate != strings.Repeat("b", 40) {
+			t.Fatal("resumed an earlier rejected proof instead of the pending operation")
+		}
+		return bench.WouldLandFacts{}, errors.New("synthetic current proof refusal")
+	}
+	if _, err := observeBenchProposals(context.Background(), s, runtime, d); err == nil || calls != 1 {
+		t.Fatal("pending proof not resumed", err, calls)
+	}
+}

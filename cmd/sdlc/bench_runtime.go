@@ -399,17 +399,7 @@ func observeBenchProposals(ctx context.Context, s *benchStore, runtime benchRunt
 				return false, errors.New("bench proof effect not authorized")
 			}
 		} else {
-			matched := false
-			for _, raw := range r.Events {
-				var old bench.Event
-				if err := json.Unmarshal(raw, &old); err != nil {
-					return false, err
-				}
-				if old.Kind == bench.ProposeWouldLand && old.OperationID == op {
-					matched = true
-				}
-			}
-			if !matched {
+			if state.ProofOperation() != op {
 				continue
 			}
 		}
