@@ -136,3 +136,25 @@ func TestRunSuiteLanesRetryErrorNamesTheOverrun(t *testing.T) {
 		t.Fatalf("lanes tried: %q", lanes)
 	}
 }
+
+// After an overrun the recorded run's queue time starts at the light request,
+// so the stopped light phase is counted as waiting, not lost.
+func TestRunSuiteLanesQueueTimeCoversTheLightPhase(t *testing.T) {
+	t0 := time.Date(2026, 10, 23, 8, 0, 0, 0, time.UTC)
+	r, overrun, err := runSuiteLanes(true, &bytes.Buffer{}, func(lane string) (suiteSlotRun, error) {
+		if lane == suiteLaneLight {
+			return suiteSlotRun{LaneOverrun: true, TimedOut: true, Duration: 240 * time.Second,
+				QueueStart: t0, Acquired: t0.Add(5 * time.Second), QueueWait: 5 * time.Second}, nil
+		}
+		return suiteSlotRun{QueueStart: t0.Add(250 * time.Second), Acquired: t0.Add(300 * time.Second), QueueWait: 50 * time.Second}, nil
+	})
+	if err != nil || overrun == nil || !r.QueueStart.Equal(t0) || r.QueueWait != 300*time.Second {
+		t.Fatalf("run %+v overrun %v err %v", r, overrun, err)
+	}
+	r, _, _ = runSuiteLanes(false, &bytes.Buffer{}, func(string) (suiteSlotRun, error) {
+		return suiteSlotRun{QueueStart: t0, Acquired: t0.Add(7 * time.Second), QueueWait: 7 * time.Second}, nil
+	})
+	if r.QueueWait != 7*time.Second {
+		t.Fatalf("a run without an overrun changed its queue time: %+v", r)
+	}
+}

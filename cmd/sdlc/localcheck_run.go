@@ -161,10 +161,11 @@ func (d localRunDeps) releaseTypedAttemptOwner(ctx context.Context, logPath stri
 // lightLaneFor decides whether this run asks for the light lane (#559): only
 // a recorded suite, measured short in this repo's own attempts, whose helper
 // declares the lane. Any failure to read or probe means the normal line.
-// A typed-runner suite never asks: its strict cleanup cannot confirm a run
-// the lane's deadline stopped, so an overrun could not be retried.
+// A run under strict group cleanup (typed runners, resume) never asks: that
+// cleanup cannot confirm a run the lane's deadline stopped, so an overrun
+// could not be retried.
 func (d localRunDeps) lightLaneFor(ctx context.Context, c localCheck, wt, helper, storeRoot string) bool {
-	if c.Name != suiteCheckName || d.SkipRecord || c.Resource == "runner" || d.flakeContract != "" {
+	if c.Name != suiteCheckName || d.SkipRecord || c.Resource == "runner" || d.StrictGroupCleanup {
 		return false
 	}
 	snapshot, err := readSuiteEvidence(storeRoot, testStatsRecordLimit)
@@ -301,17 +302,9 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	ranLight := false
 	run, laneOverrun, err := runSuiteLanes(d.lightLaneFor(ctx, c, wt, helper, storeRoot), d.Stderr, func(lane string) (suiteSlotRun, error) {
 		dl := d
 		dl.lane = lane
-		if ranLight {
-			// The retry after an overrun keeps the stopped light run's log beside it.
-			if err := os.Rename(rec.LogPath, rec.LogPath+".light"); err != nil && !os.IsNotExist(err) {
-				return suiteSlotRun{}, fmt.Errorf("keep the light run's log: %w", err)
-			}
-		}
-		ranLight = lane == suiteLaneLight
 		return runUnderResource(ctx, dl, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
 	})
 	if err != nil {

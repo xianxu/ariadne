@@ -78,7 +78,7 @@ func TestRunLocalCheckLightOverrunRetriesInNormalLine(t *testing.T) {
 	tried := filepath.Join(scratch, "tried")
 	// The first (light) run outlasts the bound; the retry finds the marker and
 	// passes at once.
-	script := fmt.Sprintf(`if [ -f %[1]q ]; then echo retried; exit 0; fi; touch %[1]q; echo stopped-run; sleep 30`, tried)
+	script := fmt.Sprintf(`if [ -f %[1]q ]; then echo retried; exit 0; fi; touch %[1]q; sleep 30`, tried)
 	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"sh", "-c", script}, TimeoutMinutes: 30}, sha)
 	if err != nil || !rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
 		t.Fatalf("retry did not pass and record: %+v %v %v\n%s", rec, err, gh.statuses[sha], stderr)
@@ -112,19 +112,16 @@ func TestRunLocalCheckLightOverrunRetriesInNormalLine(t *testing.T) {
 	if e := laneEligibility(rows, d.Repo); e.Eligible || !strings.Contains(e.Reason, "stopped at") {
 		t.Fatalf("the overrun left the repo eligible: %+v", e)
 	}
-	// The retry's log does not overwrite the stopped light run's.
-	kept, _ := filepath.Glob(filepath.Join(filepath.Dir(filepath.Dir(rec.LogPath)), "*", "*.light"))
-	if len(kept) != 1 {
-		t.Fatalf("the light run's log was not kept: %q", kept)
-	}
-	if b, err := os.ReadFile(kept[0]); err != nil || !strings.Contains(string(b), "stopped-run") {
-		t.Fatalf("kept light log: %q %v", b, err)
+	// The light phase's wait rides on the one attempt: its queue time runs
+	// from the light request, so it covers the stopped run.
+	if retry.QueueSeconds == nil || *retry.QueueSeconds < *retry.LaneOverrunSeconds {
+		t.Fatalf("queue time %v does not cover the %vs light phase", retry.QueueSeconds, *retry.LaneOverrunSeconds)
 	}
 }
 
-// A typed-runner suite's strict cleanup cannot confirm a run the light
-// deadline stopped, so it never asks for the lane, however short it measures.
-func TestLightLaneForSkipsTypedRunnerSuites(t *testing.T) {
+// Strict group cleanup (typed runners, resume) cannot confirm a run the light
+// deadline stopped, so such a run never asks for the lane, however short it measures.
+func TestLightLaneForSkipsStrictCleanupRuns(t *testing.T) {
 	d, _, _, stderr := localRunRepo(t, "acquired")
 	laneHelper(t, d, true)
 	seedSuiteAttempts(t, d, 3, 60)
@@ -140,7 +137,7 @@ func TestLightLaneForSkipsTypedRunnerSuites(t *testing.T) {
 	if !d.lightLaneFor(context.Background(), suite, d.Root, helper, suiteStoreRoot(logDir)) {
 		t.Fatalf("an untyped short suite should ask for the lane:\n%s", stderr)
 	}
-	d.flakeContract = strings.Repeat("a", 64)
+	d.StrictGroupCleanup = true
 	if d.lightLaneFor(context.Background(), suite, d.Root, helper, suiteStoreRoot(logDir)) {
 		t.Fatal("a typed-runner suite asked for the light lane")
 	}

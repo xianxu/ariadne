@@ -76,5 +76,9 @@ Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-o
   - BR-1 (Critical): a typed-runner suite's light overrun hit strict-cleanup refusal, so it neither retried nor recorded. Fixed: such suites never ask for the lane. The test is mutation-verified: dropping the guard fails it.
   - BR-2 (Important): plan drift. Recorded in a plan Revisions entry.
   - Minors fixed: the stopped light run's log is kept as `<log>.light`; a retry error names the overrun; a test that a dead light waiter's ticket is pruned; a light run against the real helper.
+- Close review round 2, REWORK.
+  - BR-5 (Critical): the round-1 `.light` log lived in the inflight directory that publishing removes, and its test failed. My `-run` filter hadn't matched that test, which is how I missed it.
+  - The fix covers the whole class: all light-phase evidence now travels on the one published attempt. `lane_overrun_seconds` holds the overrun, and the queue time runs from the light request. The partial log is discarded by decision.
+  - Minor fixed: the lane gate now tests `StrictGroupCleanup` itself, which also covers resume runs.
 
 ### 2026-10-22

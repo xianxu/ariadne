@@ -111,11 +111,15 @@ func nextSuiteLaneStep(s suiteLaneState, e suiteLaneEvent) (suiteLaneState, erro
 
 // runSuiteLanes drives one recorded suite through nextSuiteLaneStep. run
 // acquires the named lane's slot and runs the suite; a light run the lane's
-// deadline stopped is retried once in the normal line, and the overrun's
-// length rides on the run that retried it.
+// deadline stopped is retried once in the normal line. Everything the light
+// phase leaves rides on the run that retried it, the one attempt recorded:
+// the overrun's length, and its wait, as the queue time from the first
+// request. The stopped run's partial log is discarded; the retry's log is
+// the attempt's.
 func runSuiteLanes(light bool, stderr io.Writer, run func(lane string) (suiteSlotRun, error)) (suiteSlotRun, *float64, error) {
 	state, _ := nextSuiteLaneStep(laneStart, map[bool]suiteLaneEvent{true: laneEligible, false: laneIneligible}[light])
 	var overrun *float64
+	var firstQueued time.Time
 	for {
 		lane := ""
 		if state == laneWaitLight {
@@ -139,8 +143,13 @@ func runSuiteLanes(light bool, stderr io.Writer, run func(lane string) (suiteSlo
 			return r, overrun, err
 		}
 		if state == laneDone {
+			if overrun != nil {
+				r.QueueStart = firstQueued
+				r.QueueWait = r.Acquired.Sub(firstQueued)
+			}
 			return r, overrun, nil
 		}
+		firstQueued = r.QueueStart
 		stopped := r.Duration.Seconds()
 		overrun = &stopped
 		fmt.Fprintf(stderr, "==> light lane: the suite was stopped at %.0fs, over the lane's bound; retrying it in the normal line\n", stopped)

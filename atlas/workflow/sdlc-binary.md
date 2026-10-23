@@ -2652,6 +2652,13 @@ concurrent suites. Earlier overlapping suites had pushed load to 185 (#346).
   check's timeout path and retried once in the normal line (`nextSuiteLaneStep`).
   The retry's attempt carries `lane_overrun_seconds`, which removes the repo from
   the lane until three shorter suites push it out of the newest three.
+  - **One record for the whole run.** That attempt is the only record. Its
+    queue time runs from the light request, so it includes the stopped run.
+  - **The partial log is not kept.** The stopped run's log is discarded, and
+    the retry's log is the attempt's.
+  - **Runs that never ask for the lane.** A run under strict group cleanup
+    (typed runners, resume) never asks, because that cleanup can't confirm a
+    run the deadline stopped.
 - **Attempt records.** They gain the additive `lane` field (`"light"`) and
   `lane_overrun_seconds`.
 - **Status.** `sdlc queue status` prints a `light lane` line with its holder and
