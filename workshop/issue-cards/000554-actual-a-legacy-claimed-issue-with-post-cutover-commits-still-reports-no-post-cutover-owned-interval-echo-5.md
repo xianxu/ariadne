@@ -1,6 +1,6 @@
 ---
 id: 000554
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 1cfdc109eade72a3a085caf00e81e6a1f5f08393
         evidence_commit: 1e386142b62e5d97268efd52991b1ccfe8f4fff0
+        landed_commit: a33f8f6a0a5209d2fd14574d74060948a9df9c32
 ---
 
 # actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5)
