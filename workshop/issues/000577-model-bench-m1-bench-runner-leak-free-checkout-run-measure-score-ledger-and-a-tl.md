@@ -47,8 +47,9 @@ Out of M1: the second computer's setup, more than one worker model, the report.
 
 ## Done when
 
-- One corpus issue (an autonomous one, e.g. parley.nvim#403) runs end to end on this Mac in a disposable setup,
-  producing a ledger row with every field above and a hidden-acceptance score (test or recorded run).
+- One autonomous corpus issue (e.g. parley.nvim#403) runs end to end on this Mac in disposable bench slots with
+  real agents (one fixed TL model and one worker model), producing a real ledger row with every field above and
+  a hidden-acceptance score before close. Synthetic end-to-end rows are automated test evidence only.
 - The prepared checkout provably contains no trace of the landed solution (test: later commits, the archived task
   artifacts, source Git object access and original/source remote are absent). The sole remote is a new private
   bare origin per run containing only sanitized replay objects; normal tracker CAS/gates remain real.
@@ -67,7 +68,11 @@ Hub approved the isolation boundary (receipt `31b1fff2-8aec-4ae6-8764-a976764154
 
 Draft durable plan is written, awaiting hub review before code. It names the state/effect owner, failure/recovery table, bounded lifecycle, fake/native conformance, risky-function strategies and isolation limitations. Pair's existing conformance bridge can qualify native Couch service/lifetime behavior but does not launch the TL/worker replay; end-to-end automated rows are synthetic fixture evidence, while a real paid replay requires a separately provisioned disposable bench setup. No production ledger, source repo, account setting or live slot was changed. Next: send the committed plan to the hub, resolve review questions, then run full-flow change-code only after approval.
 
+Plan approved by ops:0 with a real-run acceptance condition (authenticated receipt `32918d0f-ab73-4a25-b4e7-2bc8a6633d47`). Recorded that condition in Done-when and appended a concrete disposable-slot provisioning checklist: sanitized worker/private origin, fresh operating hub, supervised Couch discovery/launch, exact hub claim, real agent profiles/models, candidate tools/transcript identities, acceptance evidence and retirement. Hub provisions together when code is ready. Next: full-flow change-code plan-quality gate; no implementation yet.
+
 ## Revisions
+
+- 2026-10-23, plan approval condition: Done-when requires a true autonomous replay with real agents in disposable bench slots on this Mac before close. Added provisioning checklist to the durable plan; ops:0 will provision together when the code is ready. Synthetic rows remain tests only.
 
 - 2026-10-23, hub-approved isolation scope: M1 proves sanitized prepared-repository isolation with trusted agents; post-run detection flags outside reads/source/scorer access, fetch/clone and GitHub access as possibly leaked. OS read/network isolation is a later milestone required before co-locating bench and development checkouts.
 - 2026-10-23, hub-approved Done-when clarification: original/source remote absent; allow exactly one fresh private bare origin holding sanitized replay objects, so real tracker CAS/gates work without production publication. Only local-check status publication uses an explicitly bench-local sink; no gate bypass or fake production success.
