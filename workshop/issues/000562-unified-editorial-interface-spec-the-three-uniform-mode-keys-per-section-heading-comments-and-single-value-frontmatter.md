@@ -78,4 +78,10 @@ Architecture: ARCH-PURE — specification and test-only checks, no new IO shell.
 
 ### 2026-10-22
 
+TL approved the plan and legacy-fill clarification via f5771e69-00d4-4f32-98e7-60dd9177f766. Preserve legacy alias lines; when canonical fields are missing, materialize their existing effective legacy mode/instruction rather than shadowing them with defaults. Pin both presentation and processing cases in the scenarios. Proceeding to change-code; the shared skill-authoring RED/GREEN checks test the contract separately from the downstream runtime implementations.
+
 Claimed and entered planning in ariadne:5 after #549 landed. Read the settled Spec and current round, collaboration modes, export/checker and value-owner seams; inspected Pair/parley read-only, no peer edits. Current source still teaches composite process-instruction, collaboration-mode maps and flat side-doc creation. This issue establishes their replacement contract; consumers implement it in pair#823/parley.nvim#419. Plan submitted to TL before change-code or contract edits. One compatibility clarification accompanies the plan: when filling frontmatter containing only a deprecated alias (e.g. presentation: propose), writing a canonical default must not silently shadow that existing choice; propose materializing the existing effective value under the canonical key and preserving the alias. Await TL confirmation of this edge and plan approval. No estimate derived and no implementation started.
+
+## Revisions
+
+2026-10-22: TL confirmed legacy-only frontmatter fill preserves effective values: copy presentation into presentation-mode, split the legacy process-instruction mode/text into processing-mode and processing-instruction, and retain old lines unchanged. Absent values receive the stated defaults; already-set canonical values stay untouched. This pins compatibility within the approved scope rather than silently overriding existing operator choices.
