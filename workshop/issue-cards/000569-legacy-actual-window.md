@@ -1,6 +1,6 @@
 ---
 id: 000569
-status: codecomplete
+status: wontfix
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,10 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 96cd72ed248907d4cdee3a026054be87cbd47a69
         evidence_commit: 34a72841e7e372e3b4bc4465faeb8fc8b7ca92b5
+    abandoned:
+        ref: refs/ariadne/abandoned/000569
+        branch: 000569-legacy-actual-window
+        head: 6ca6577e9cf620bcaef6531cf55dbcd097511828
 ---
 
 # Diagnose legacy actual-window refusal blocking pair#162
