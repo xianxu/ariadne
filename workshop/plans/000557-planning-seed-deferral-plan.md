@@ -94,3 +94,9 @@ ARCH-DRY/PURE: classifier is pure, currentness/printing is the thin IO shell, an
 ## Acceptance and review point
 
 Hub review must confirm seeded-output scope versus the stronger all-tracked-writers alternative before change-code. Request isolated native production-path proof as the live check; no consumer workflow changes or live stage are needed to demonstrate prevention. Actual consumer regeneration stays a distinct operator-verified change. If preventing all tracked writers is required, revise this plan explicitly before implementation.
+
+## Revisions
+
+### 2026-10-22 — hub-approved scope
+
+Authenticated hub approval b2a58869-feeb-45f0-b41c-973fb0167e90 confirms all Seed/SeedOnce suppression in planning mode, existing settings protection and explicit ordinary compile for the separate operator-verified consumer PR. The wider all-tracked-writers policy (Ship, managed retirement, .gitignore) is a known follow-up, not part of #557; file that follow-up if one of those families is actually observed dirtying a resting branch. No speculative follow-up issue is filed now. Proceed through change-code; no implementation preceded approval.

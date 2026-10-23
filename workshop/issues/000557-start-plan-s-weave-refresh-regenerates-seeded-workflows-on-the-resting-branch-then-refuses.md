@@ -49,7 +49,7 @@ pending regeneration to reach each consumer's main as one local-gates change.
 
 ## Plan
 
-Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral-plan.md). Awaiting hub approval; no implementation started.
+Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral-plan.md). Hub approved the seeded-output scope; entering change-code before implementation.
 
 - [ ] Add a planning-only publication policy that defers every Seed / SeedOnce destination and existing protected settings before any output effects.
 - [ ] Wire start-plan catch-up to that policy; report stale seed paths and the separate consumer regeneration action.
@@ -74,3 +74,7 @@ Proposal: a new explicit weave refresh --planning policy defers all Seed and See
 ### 2026-10-22 — proposed prevention at publication boundary
 
 Propose deferring seed / seed-once publication before effects, instead of post-refresh restoration. Preserve ordinary regeneration and route pending updates through a dedicated consumer issue and operator-verified PR. The existing Done when remains the acceptance contract; await hub review of the seeded-output scope.
+
+### 2026-10-22 — scope approved
+
+Hub approval received and authenticated (submitted delivery b2a58869-feeb-45f0-b41c-973fb0167e90). Suppress every Seed/SeedOnce before planning publication, retain protected-settings deferral, and use ordinary weave compile on a dedicated consumer issue branch for the operator-verified workflow PR. Wider Ship / retirement / .gitignore protection is a known follow-up, to file only on observed dirtying evidence. No stash, live consumer mutation, automatic PR or self-label. Proceeding to change-code with the full-flow proposal; no source edits yet.
