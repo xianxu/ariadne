@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
@@ -24,7 +25,7 @@ import (
 var (
 	datedNameRE    = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})-(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
 	numberedNameRE = regexp.MustCompile(`^(\d{2,6})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$`)
-	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\([^)#\s]+\), section "([^"]+)"\._`)
+	backlinkRE     = regexp.MustCompile(`(?m)^_From \[[^\]]*\]\(([^)#\s]+)\), section "([^"]+)"\._`)
 	foldedRE       = regexp.MustCompile(`^ \(folded \d{4}-\d{2}-\d{2}\)`)
 	foldNoteRE     = regexp.MustCompile(`(?m)^(?:Folded into|Proposed in) the parent on \d{4}-\d{2}-\d{2}: `)
 	multiTurnRE    = regexp.MustCompile(`🤖(?:<[^>\n]*>|~[^~\n]*~)?(?:\[[^]\n]*\]|\{[^}\n]*\}){2,}`)
@@ -96,6 +97,18 @@ type sideDoc struct {
 	Linked bool
 }
 
+// sideRoot returns the common .side root for both flat and month layouts.
+// Keeping it independent of the immediate directory preserves reuse identity.
+func sideRoot(p string) string {
+	parts := strings.Split(p, "/")
+	for i, part := range parts[:len(parts)-1] {
+		if strings.HasSuffix(part, ".side") {
+			return strings.Join(parts[:i+1], "/")
+		}
+	}
+	return ""
+}
+
 // checkTree checks one example tree against the side-doc contract and
 // returns its side docs by path.
 func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
@@ -111,6 +124,15 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		if d.IsDir() {
 			if strings.HasSuffix(p, ".side") && strings.Contains(dir, ".side") {
 				bad("%s: a .side/ inside a .side/", p)
+			}
+			if root := sideRoot(p + "/placeholder"); root != "" && root != p {
+				month := strings.TrimPrefix(p, root+"/")
+				if strings.Contains(month, "/") {
+					bad("%s: nested directories below a side-doc month", p)
+				}
+				if _, err := time.Parse("2006-01", month); err != nil {
+					bad("%s: invalid month directory %q", p, month)
+				}
 			}
 			return nil
 		}
@@ -128,7 +150,7 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 				bad("%s: link %s does not resolve", p, link)
 				continue
 			}
-			if !strings.HasSuffix(path.Dir(t), ".side") {
+			if sideRoot(t) == "" {
 				continue // an older qa/ answer file, not a side doc
 			}
 			if targets[t]++; targets[t] == 2 {
@@ -155,10 +177,26 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 				bad("%s: index entry %s names a side doc whose parent is %q", p, e, tfm["parent"])
 			}
 		}
-		if !strings.HasSuffix(dir, ".side") {
+		root := sideRoot(p)
+		if root == "" {
 			return nil
 		}
-		if _, _, _, ok := sideDocName(path.Base(p)); !ok {
+		modern := dir != root
+		date, _, _, validName := sideDocName(path.Base(p))
+		if modern {
+			month := strings.TrimPrefix(dir, root+"/")
+			if date == "" {
+				bad("%s: month side doc must have a dated name", p)
+			} else {
+				if _, err := time.Parse("2006-01-02", date); err != nil {
+					bad("%s: invalid date %q", p, date)
+				}
+				if !strings.HasPrefix(date, month+"-") {
+					bad("%s: date does not match month directory", p)
+				}
+			}
+		}
+		if !validName {
 			bad("%s: not an NN-slug or YYYY-MM-DD-NN-slug name", p)
 		}
 		fm, ok := frontmatter(text)
@@ -172,6 +210,13 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		if fm["collaboration-mode"] != "discussion" {
 			bad("%s: collaboration-mode is %q, want discussion", p, fm["collaboration-mode"])
 		}
+		if modern {
+			for _, key := range []string{"presentation-mode", "processing-mode"} {
+				if fm[key] == "" {
+					bad("%s: missing explicit %s", p, key)
+				}
+			}
+		}
 		parent := fm["parent"]
 		if parent == "" || strings.Contains(parent, "#") || path.IsAbs(parent) {
 			bad("%s: parent %q must be a plain relative path", p, parent)
@@ -184,7 +229,7 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 			return nil
 		}
 		pfm, _ := frontmatter(ptext)
-		if fm["process-instruction"] != pfm["process-instruction"] {
+		if !modern && fm["process-instruction"] != pfm["process-instruction"] {
 			bad("%s: process-instruction %q, the parent's is %q (copied only when it has one)", p, fm["process-instruction"], pfm["process-instruction"])
 		}
 		marker, err := quotedMarker(fm["marker"])
@@ -197,10 +242,13 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 			bad("%s: no backlink line naming the section", p)
 			return nil
 		}
+		if path.Join(dir, section[1]) != pp {
+			bad("%s: backlink does not point to parent %s", p, pp)
+		}
 		rel, _ := filepath.Rel(path.Dir(pp), p)
 		link := "](" + filepath.ToSlash(rel) + ")"
 		at := strings.Index(ptext, link)
-		sides[p] = sideDoc{Key: dir + "\x00" + pp + "\x00" + marker + "\x00" + section[1], Linked: at >= 0}
+		sides[p] = sideDoc{Key: root + "\x00" + pp + "\x00" + marker + "\x00" + section[2], Linked: at >= 0}
 		// An approval's fold marks the parent's link to the side doc it folded.
 		if foldNoteRE.MatchString(text) && (at < 0 || !foldedRE.MatchString(ptext[at+len(link):])) {
 			bad("%s: records a fold, but the parent's link to it is not marked (folded <date>)", p)
@@ -294,13 +342,13 @@ func checkCase(fsys fs.FS) []string {
 	// Side docs are never pruned; new ones take the next free numbers; and an
 	// unlinked doc for the same ask is relinked rather than duplicated.
 	before, after := trees["before"], trees["after"]
-	// Numbering counts every file in a folder, a malformed side doc's too:
+	// Numbering counts every file under the common root, a malformed side doc's too:
 	// its number is taken whether or not it meets the contract.
 	beforeFiles := treeFiles(fsys, "before")
 	byDir := map[string][]string{}
 	for p := range beforeFiles {
-		if strings.HasSuffix(path.Dir(p), ".side") {
-			byDir[path.Dir(p)] = append(byDir[path.Dir(p)], path.Base(p))
+		if root := sideRoot(p); root != "" {
+			byDir[root] = append(byDir[root], path.Base(p))
 		}
 	}
 	for p := range before {
@@ -316,7 +364,18 @@ func checkCase(fsys fs.FS) []string {
 	}
 	slices.Sort(added)
 	for _, p := range added {
-		dir, name := path.Dir(p), path.Base(p)
+		dir, name := sideRoot(p), path.Base(p)
+		if path.Dir(p) != dir {
+			fm, _ := frontmatter(afterText[p])
+			if _, legacy := fm["process-instruction"]; legacy {
+				bad("after/%s: new side doc must not copy legacy process-instruction", p)
+			}
+			for _, mode := range []struct{ key, value string }{{"collaboration-mode", "discussion"}, {"presentation-mode", "highlight"}, {"processing-mode", "free-form"}} {
+				if fm[mode.key] != mode.value {
+					bad("after/%s: new side doc %s is %q, want %s", p, mode.key, fm[mode.key], mode.value)
+				}
+			}
+		}
 		date, _, slug, _ := sideDocName(name)
 		if want := nextSideDocName(byDir[dir], date, slug); name != want {
 			bad("after/%s: a new side doc here is named %s", p, want)

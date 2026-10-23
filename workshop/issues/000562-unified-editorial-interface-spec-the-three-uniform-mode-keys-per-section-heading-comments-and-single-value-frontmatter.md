@@ -57,6 +57,13 @@ writes one heading comment per mapped section). This is the contract pair and pa
 
 **Operator addition (10-22, night):** whenever front matter is filled in for a document (a new session file or side doc, or the first Alt+Return adding missing front matter), it lists **all three mode keys with their default values written out** (`collaboration-mode: discussion`, `presentation-mode: highlight`, `processing-mode: free-form`), as a visible reminder that they can be changed. Merging into existing front matter adds any missing ones the same way and never changes values already set.
 
+**Approved legacy-fill clarification:** retain alias lines unchanged and materialize their effective values under
+missing canonical keys, not shadowing defaults. A single legacy processing selector becomes processing-mode and
+its free text becomes processing-instruction. Legacy multi-mode process-instruction stays readable with a
+deprecation warning, but automatic canonical fill refuses losslessly and asks the operator to select one
+processing-mode and express remaining intent in processing-instruction. The operator explicitly retains a single
+processing-mode value; no list support (TL receipts f5771e69, 203f1435 and 86a4d7b3).
+
 ## Done when
 - New or filled front matter lists all three mode keys with their defaults; existing values are untouched (test).
 
@@ -66,8 +73,8 @@ writes one heading comment per mapped section). This is the contract pair and pa
 
 ## Plan
 
-- [ ] Write the canonical contract in collaboration-modes.md and round.md: the three single-value keys/defaults, processing-instruction, readable deprecated aliases, immediately-adjacent heading-comment grammar and operator ownership, section/document/default precedence, legacy-map warning/migration, and required typeahead behavior. Keep every settled Spec decision; no additional editing modes or runtime parser in this issue.
-- [ ] Sweep SKILL.md, the file-edit adapter, reference examples, README and atlas pointers for contradictory instructions. New side docs use <doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md with correct relative parent/backlinks; old flat docs stay readable/reusable, without mass migration or nested .side directories. Name the existing enforcing value owners rather than adding a second enum list: collaboration parsers/vocab, Pair's sessionsync presentation resolver, and exported modes/*.md metadata; parley's frontmatter_enum consumes these owners.
+- [x] Write the canonical contract in collaboration-modes.md and round.md: the three single-value keys/defaults, processing-instruction, readable deprecated aliases, immediately-adjacent heading-comment grammar and operator ownership, section/document/default precedence, legacy-map warning/migration, and required typeahead behavior. Keep every settled Spec decision; no additional editing modes or runtime parser in this issue.
+- [x] Sweep SKILL.md, the file-edit adapter, reference examples, README and atlas pointers for contradictory instructions. New side docs use <doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md with correct relative parent/backlinks; old flat docs stay readable/reusable, without mass migration or nested .side directories. Name the existing enforcing value owners rather than adding a second enum list: collaboration parsers/vocab, Pair's sessionsync presentation resolver, and exported modes/*.md metadata; parley's frontmatter_enum consumes these owners.
 - [ ] Add worked examples for each collaboration/presentation/processing value and the precedence table, plus new/partial/existing frontmatter fill examples that make all defaults visible while preserving existing choices. Retain deprecated map/alias/flat-path cases as compatibility fixtures. Exercise the contract with fresh-context RED/GREEN review scenarios, including wrong heading placement, override precedence, aliases and non-default values, and side-doc creation from old/new locations. Extend only the existing test-only example checker as needed for the new reference shape; Pair/parley's runtime enforcement and UI tests remain pair#823/parley.nvim#419.
 - [ ] Regenerate export.json through pkg/reviewexport, run focused reviewexport/vocab/sidedoc and weave discovery checks, verify export hashes/links, then the recorded suite on the pushed head and SDLC's close review. Proposed smoke: private contract/examples only, no live fleet or :0 stage. Land and report only after these gates.
 
@@ -79,10 +86,16 @@ Architecture: ARCH-PURE — specification and test-only checks, no new IO shell.
 
 ### 2026-10-22
 
+Implementation checkpoint: baseline fresh-context skill test read only the old contract. Its exact failures included A: effective discussion/highlight/free-form, no answer path because the HTML comment had no defined semantics; B: required_uniform_mode_fields=[]; C: added=[] for legacy fill; E: chose the old month folder and NN-slug; G: no deprecation/migration action for a map. Linked old-file follow-up F already passed and is preserved. The updated source specifies all axes and the approved lossless multi-mode refusal. New before/after examples cover heading chat with a pending proposal link under propose, explicit defaults, preserved canonical/legacy choices and unchanged refused multi-mode fill. Old examples are explicitly compatibility fixtures, not new-writer templates.
+
+Test-only checker RED: modern month files were not inspected and malformed/default/reuse/collision mutations returned no errors. GREEN after extending the existing checker to inspect both layouts, validate month/date/backlinks, share retry identity/daily numbering and require written defaults only for new modern side docs. A second RED exposed the old unconditional copied-process-instruction rule on modern children of legacy parents; GREEN preserves alias readability for existing files without copying legacy instructions into new side docs. No runtime Go change. Focused reviewexport/vocab/sidedoc PASS0.262/0.253/0.083s; weave inherited skill discovery PASS0.240s. Export regenerated through its existing test-owned command and verified. Fresh-context updated-contract scenarios and full recorded suite remain outstanding.
+
 TL approved the plan and legacy-fill clarification via f5771e69-00d4-4f32-98e7-60dd9177f766. Preserve legacy alias lines; when canonical fields are missing, materialize their existing effective legacy mode/instruction rather than shadowing them with defaults. Pin both presentation and processing cases in the scenarios. Proceeding to change-code; the shared skill-authoring RED/GREEN checks test the contract separately from the downstream runtime implementations.
 
 Claimed and entered planning in ariadne:5 after #549 landed. Read the settled Spec and current round, collaboration modes, export/checker and value-owner seams; inspected Pair/parley read-only, no peer edits. Current source still teaches composite process-instruction, collaboration-mode maps and flat side-doc creation. This issue establishes their replacement contract; consumers implement it in pair#823/parley.nvim#419. Plan submitted to TL before change-code or contract edits. One compatibility clarification accompanies the plan: when filling frontmatter containing only a deprecated alias (e.g. presentation: propose), writing a canonical default must not silently shadow that existing choice; propose materializing the existing effective value under the canonical key and preserving the alias. Await TL confirmation of this edge and plan approval. No estimate derived and no implementation started.
 
 ## Revisions
+
+2026-10-22: TL and operator confirmed legacy multi-mode handling: keep the old composed read behavior with a deprecation warning, refuse automatic canonical fill without changing bytes, and name the operator's required single-mode choice. Added this explicitly to Spec and the refusal example; no list-valued processing-mode.
 
 2026-10-22: TL confirmed legacy-only frontmatter fill preserves effective values: copy presentation into presentation-mode, split the legacy process-instruction mode/text into processing-mode and processing-instruction, and retain old lines unchanged. Absent values receive the stated defaults; already-set canonical values stay untouched. This pins compatibility within the approved scope rather than silently overriding existing operator choices.

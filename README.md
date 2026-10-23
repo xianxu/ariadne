@@ -24,12 +24,22 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
-In universal review, the document's `presentation: propose` asks the edit
+Universal review uses three independent scalar settings: `collaboration-mode`
+(discussion by default), `presentation-mode` (highlight) and `processing-mode`
+(free-form), plus free text in `processing-instruction`. A single HTML comment
+directly under a heading overrides any of the three for that section, for example
+`<!-- collaboration-mode: chat; processing-mode: copy-editing -->`.
+Creators write all three defaults explicitly when filling missing frontmatter,
+preserving existing choices and readable legacy aliases. New side docs live at
+`<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`; existing flat names stay valid.
+
+In universal review, effective `presentation-mode: propose` asks the edit
 engine to show prose changes as proposals. Tracked Couch documents use
 `couch --session-sync apply`; a hosted Pair workbench uses `pair review apply`.
 An untracked document with that presentation must be tracked before editing.
 Both apply paths accept one atomic batch of explained edits and derive the
-round; see [universal review](atlas/workflow/universal-review.md).
+round; see [universal review](atlas/workflow/universal-review.md) for the contract,
+precedence, compatibility and implementation ownership (pair#823/parley.nvim#419).
 New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
 longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
 remain readable and resolve by their final human turn. See the

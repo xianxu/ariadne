@@ -56,8 +56,8 @@ One round reviews one snapshot: the text whose hash you write against.
    `--all`"). It must come before step 3, which marks everything seen and
    empties it.
 3. **The snapshot:** `couch --session-sync read --all FILE` prints the text and
-   its hash H. This text is the round's input: the instruction comes from its
-   frontmatter, and the markers from its body. The diff only points at what
+   its hash H. This text is the round's input: the settings/instruction come from its
+   frontmatter and heading comments, and the markers from its body. The diff only points at what
    moved; an edit made between steps 2 and 3 is in the snapshot even though
    the diff missed it, so read the markers from the snapshot, not the diff.
 4. **Compute** the clean result (`../round.md`) on the snapshot. For every
@@ -72,7 +72,7 @@ One round reviews one snapshot: the text whose hash you write against.
    didn't answer, and one arriving after step 1, stay owed. With no IDs,
    leave out `--fold`. Delete EDITS.json after success or refusal. Couch
    applies the entire batch or none of it, converts proposals when the
-   document says `presentation: propose`, and derives the round. Never type
+   edit's section resolves to `presentation-mode: propose`, and derives the round. Never type
    proposal-marker syntax into `new`. A record replacing the operator's own
    ready request marker with a side-doc link, or answering a `🤖[fold in]` at
    that link, applies directly even under `propose`; the engine checks the
@@ -87,7 +87,7 @@ One round reviews one snapshot: the text whose hash you write against.
    solely to fold its owed IDs; it makes no body edit. Generated content and
    frontmatter-only changes use their `write` verbs, whose changes also get
    a derived round. `write --frontmatter` is the only path for a needed
-   frontmatter change under `presentation: propose`: Pair refuses markers
+   frontmatter change under `presentation-mode: propose`: Pair refuses markers
    inside frontmatter.
 
 Refusals:
@@ -116,8 +116,9 @@ Refusals:
   the pending link as linked: do not create another side doc or answer. If the
   operator rejects it, remove its index entry in the next round. Do not
   hand-write markers.
-- **Exit 1, `operator-owned`:** the batch tried to change `presentation:` or
-  `collaboration-mode:`. These choices belong to the operator. Leave the
+- **Exit 1, `operator-owned`:** the batch tried to change an operator-owned
+  mode key (`collaboration-mode`, `presentation-mode`, `processing-mode`, or a readable legacy alias)
+  or a section's mode-comment line. These choices belong to the operator. Leave the
   document unchanged and ask the operator to set the key; do not retry that
   edit through another verb.
 
@@ -142,8 +143,8 @@ submitted document is written, so its ask stays for the next submit.
 
 ## Untracked
 
-Read the document's frontmatter before any write. If it says
-`presentation: propose`, refuse a direct edit: Couch cannot enforce proposals
+Read the document's frontmatter and heading comments before any write. If the edit's section resolves to
+`presentation-mode: propose`, refuse a direct edit: Couch cannot enforce proposals
 on an untracked file. Tell the operator to track it as `type: session-sync` or
 register it with Couch, or use a hosted Pair review workbench. Do not change
 its presentation on the operator's behalf. For `direct` or `highlight`, edit
