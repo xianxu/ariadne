@@ -680,10 +680,14 @@ join after preflight; this guarded rollout keeps FIFO/aging and requires manual
 revocation, never killing or unlocking waiters. Drain JSON stays unchanged.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
-`train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
+`train_interval_minutes`, `train_max_cars` (default 2 since #561; an explicit cap
+stays as set) and, since #475,
 `train_max_wait_minutes` (default 0: no bound). The interval is 0 when the file
 is absent, which keeps the serial line. The file is under the local-gates
-guard, so the operator verifies every change to it.
+guard, so the operator verifies every change to it. One rule governs raising a
+cap (`sdlc landing --help`): by hand, through that guarded file, after a complete
+seven-day review of the repo's train measurements; nothing raises a cap or
+enables trains automatically.
 
 With trains on:
 - **Vouching:** a waiting merge checks its own review and CI gates on its pushed
@@ -746,7 +750,14 @@ the command rather than promise a drop.
 
 `sdlc landing status` shows the setting, the next departure, each waiting
 merge's readiness, and the last trains: result, cars, train PR, split suites
-and culprit.
+and culprit. Since #561 it also shows the train filter over the last seven
+days, the measurements the cap ramp rule reviews: escapes (failures the
+train's suite found that a car's passing affected run missed) over resolved
+affected boardings, with unresolved, suite and unknown-proof boardings and
+incomplete, open and unmeasured trains beside it, each escape named (car,
+head, tests), and the split's extra suites with run, queue and wall time.
+The weekly `sdlc test-stats snapshot` carries the same numbers per repo as
+`train_filter`. See `sdlc landing --help`.
 
 A train waiter missing a required local-check record exits with
 `merge stopped: run <exact command>, then re-enter sdlc merge`.
@@ -877,7 +888,9 @@ pushed head's run depends on what changed:
   `SDLC_AFFECTED_GROUPS` set and records `sdlc-local/affected`. `SDLC_AFFECTED_GO_PKGS` holds the changed Go packages
   plus every package that imports them, test imports included (from `go list`). `SDLC_AFFECTED_GROUPS` holds the
   declared non-Go test groups the change touches. Both are sorted and space-separated.
-- **A `full` path or an unclassified file changed:** sdlc runs and records the `suite` instead.
+- **A `full` path or an unclassified file changed:** sdlc runs and records the `suite` instead. A train car
+  prepares with `--boarding` (#561): there such a selection refuses, running and posting nothing, and names the
+  `affected.json` repair and the full-suite alternative (`--name suite`, then `sdlc merge --yes`).
 - **Only docs that no package owns or embeds changed:** sdlc records `affected` without running anything.
 - **Nothing changed against main:** the run refuses.
 

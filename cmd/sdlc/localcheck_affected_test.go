@@ -79,7 +79,7 @@ var affectedFixtureSuite = localCheck{Name: suiteCheckName, Command: []string{"m
 
 func runAffectedFixture(t *testing.T, d localRunDeps, sha string) localRunRecord {
 	t.Helper()
-	rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha)
+	rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha, affectedOrdinary)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, d.Stderr)
 	}
@@ -173,7 +173,7 @@ func TestAffectedNoChangeRefuses(t *testing.T) {
 	}
 	sha = strings.TrimSpace(sha)
 	gh.setHead(9, sha)
-	_, err = runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha)
+	_, err = runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", affectedFixtureConfig(t)), affectedFixtureConfig(t), affectedFixtureSuite, sha, affectedOrdinary)
 	if err == nil || !strings.Contains(err.Error(), "no changes") {
 		t.Fatalf("err %v", err)
 	}
@@ -291,5 +291,83 @@ func TestCarWithBrokenAffectedConfigNeedsSuite(t *testing.T) {
 	postStatus(t, gh, head, suiteCheckName)
 	if err := vouch(head); err != nil {
 		t.Fatalf("suite still vouches: %v", err)
+	}
+}
+
+// #561: boarding mode never escalates a full selection to the suite: it
+// refuses before any command runs or any status is posted, naming the
+// selection's reason, the repair, and the full-proof alternative.
+func TestAffectedBoardingNeverEscalatesToSuite(t *testing.T) {
+	for name, files := range map[string]map[string]string{
+		"go.mod changed":           {"go.mod": "module example.com/m\n\ngo 1.23\n"},
+		"unclassified path":        {"tools/x.py": "print(1)\n"},
+		"package graph unloadable": {"leaf/leaf.go": "not go\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, gh, change, out, marker := affectedFixture(t)
+			sha := change(files)
+			cfg := affectedFixtureConfig(t)
+			_, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, affectedBoarding)
+			if err == nil {
+				t.Fatalf("boarding accepted a full selection\n%s", d.Stderr)
+			}
+			for _, want := range []string{"boarding", "full selection", affectedConfigPath,
+				"sdlc local-check run --name suite --rev " + sha, "sdlc merge --yes", "train_interval_minutes"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal lacks %q: %v", want, err)
+				}
+			}
+			if exists(marker) || exists(out) || len(gh.statuses[sha]) != 0 {
+				t.Fatalf("suite ran %v, consumer ran %v, statuses %v\n%s", exists(marker), exists(out), gh.statuses[sha], d.Stderr)
+			}
+		})
+	}
+	// A partial and a docs-only selection board exactly as an ordinary run does.
+	for name, files := range map[string]map[string]string{
+		"partial":   {"leaf/leaf.go": "package leaf\n\nfunc F() int { return 2 }\n"},
+		"docs-only": {"README.md": "# m\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, gh, change, _, marker := affectedFixture(t)
+			sha := change(files)
+			cfg := affectedFixtureConfig(t)
+			rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, affectedBoarding)
+			if err != nil || !rec.passed() || rec.Name != affectedCheckName || gh.statuses[sha]["sdlc-local/affected"] != "success" || exists(marker) {
+				t.Fatalf("rec %+v err %v statuses %v suite %v", rec, err, gh.statuses[sha], exists(marker))
+			}
+		})
+	}
+}
+
+// #561: --boarding qualifies affected alone; with suite, mixed names or
+// --all it refuses rather than being silently ignored.
+func TestLocalCheckBoardingFlag(t *testing.T) {
+	for _, tc := range []struct {
+		names    []string
+		all, ok  bool
+		boarding bool
+	}{
+		{names: []string{affectedCheckName}, boarding: true, ok: true},
+		{names: []string{affectedCheckName}, ok: true},
+		{names: []string{suiteCheckName}, ok: true},
+		{names: []string{suiteCheckName}, boarding: true},
+		{names: []string{affectedCheckName, suiteCheckName}, boarding: true},
+		{names: []string{affectedCheckName, "e2e"}, boarding: true},
+		{all: true, boarding: true},
+	} {
+		mode, err := affectedModeFor(tc.names, tc.all, tc.boarding)
+		if (err == nil) != tc.ok {
+			t.Errorf("%v all=%v boarding=%v: err %v", tc.names, tc.all, tc.boarding, err)
+			continue
+		}
+		if err == nil && (mode == affectedBoarding) != tc.boarding {
+			t.Errorf("%v boarding=%v: mode %v", tc.names, tc.boarding, mode)
+		}
+		if err != nil && !strings.Contains(err.Error(), "--boarding") {
+			t.Errorf("refusal does not name the flag: %v", err)
+		}
+	}
+	if run, _, err := NewLocalCheckCmd().Find([]string{"run"}); err != nil || run.Flags().Lookup("boarding") == nil {
+		t.Fatal("local-check run has no --boarding flag")
 	}
 }

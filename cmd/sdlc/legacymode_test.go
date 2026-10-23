@@ -29,6 +29,24 @@ func TestLegacyRepositoryIssueNewAllocatesFromFiles(t *testing.T) {
 	}
 }
 
+// #566: the legacy filer names files with the same capped FileSlug.
+func TestLegacyRepositoryIssueNewCapsLongTitleBasename(t *testing.T) {
+	r := legacyRepo(t)
+	out, err := slotRun(t, r.root, "issue", "new", strings.Repeat("parley lua test name that is long ", 9))
+	if err != nil {
+		t.Fatalf("issue new in a legacy repository: %v\n%s", err, out)
+	}
+	var filed string
+	for _, p := range strings.Fields(r.git("ls-files", "workshop/issues")) {
+		if strings.HasPrefix(filepath.Base(p), "000004-") {
+			filed = filepath.Base(p)
+		}
+	}
+	if filed == "" || len(filed) > len("000004-")+80+len(".md") {
+		t.Fatalf("filed %q (%d bytes)\n%s", filed, len(filed), out)
+	}
+}
+
 // #371: --details reaches the legacy path through the same Render.
 func TestLegacyRepositoryIssueNewDetails(t *testing.T) {
 	r := legacyRepo(t)

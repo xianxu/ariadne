@@ -194,11 +194,32 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	if err := line.Vouch(h2, landingline.Readiness{Branch: "000009-not-mine", Head: strings.Repeat("b", 40), PR: 80, Ready: true, At: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
+	// A measured train (#561): one of two affected boardings escaped.
+	var meter landingline.MeasurementTracker
+	departed := time.Now().Add(-time.Hour)
+	for _, e := range []landingline.MeasurementEvent{
+		landingline.MeasureDeparture{Train: 3, Departed: departed, Cars: []landingline.MeasuredCar{{Seq: 3, Head: strings.Repeat("c", 40), Proof: landingline.ProofAffected}, {Seq: 4, Head: strings.Repeat("d", 40), Proof: landingline.ProofAffected}}},
+		landingline.MeasureStartAppended{}, landingline.MeasurePrefixPassed{Seqs: []int64{3}},
+		landingline.MeasureCulprit{Seq: 4, Failures: []string{"p.TestX"}},
+		landingline.MeasureFinal{At: departed.Add(time.Minute), Phase: "landed"},
+	} {
+		rec, err := landingline.AdvanceMeasurement(&meter, e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec != nil {
+			raw, _ := landingline.EncodeMeasurement(*rec)
+			if err := line.Record(landingline.Event{Kind: landingline.EventTrainMeasure, Seq: 3, Train: 3, Measurement: raw}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	out, err = runLanding(t, d, "status", "--repo", repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"trains: every 60m, up to 4 cars; 1 ready; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
+	for _, want := range []string{"trains: every 60m, up to 4 cars; 1 ready; the first train departs at the next admission", "Train cap ramp: a repo without train_max_cars boards 2 cars", "Nothing raises a cap",
+		"train filter (7d): escapes 1/2 resolved affected boardings (50.0%)", "trains 1: 1 measured", "  escape: train 3, car #0 (dddddddd): p.TestX\n", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status lacks %q:\n%s", want, out)
 		}
@@ -275,5 +296,17 @@ func TestLandingStatusShowsGrantHold(t *testing.T) {
 	out, err = runLanding(t, hub, "status", "--repo", repo)
 	if err != nil || strings.Contains(out, "held") {
 		t.Fatalf("after revoke %q err %v", out, err)
+	}
+}
+
+// #561: every line status renders from the filter fold: the summary, each
+// named escape, and the count left unnamed.
+func TestTrainFilterLines(t *testing.T) {
+	got := trainFilterLines(landingline.TrainFilterStats{Text: "train filter (7d): …",
+		Escapes:        []landingline.TrainEscape{{Train: 5, Seq: 6, Issue: 42, Head: strings.Repeat("e", 40), Tests: []string{"p.TestA", "p.TestB"}}},
+		EscapesOmitted: 3})
+	want := "train filter (7d): …\n  escape: train 5, car #42 (eeeeeeee): p.TestA, p.TestB\n  … 3 more escape(s) in the landing log\n"
+	if got != want {
+		t.Fatalf("got\n%q\nwant\n%q", got, want)
 	}
 }

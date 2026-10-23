@@ -108,7 +108,7 @@ func (c *conductor) applyTrainDrops(tr *landingline.Train, cars []landingline.Ca
 			if err := c.line.FinishTrainControl(c.handle, c.id, control.Cleanup); err != nil {
 				return dropCleanupError(control, err)
 			}
-		} else if _, err := c.execute(effect, cars); err != nil {
+		} else if _, err := c.execute(effect, cars, ""); err != nil {
 			return err
 		}
 	}

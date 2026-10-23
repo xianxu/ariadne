@@ -35,6 +35,9 @@ const (
 	EventTrain = "train"
 	// EventCar (#449): one car's outcome on a train (landed, held, released).
 	EventCar = "car"
+	// EventTrainMeasure (#561): a train's measurement record (start or
+	// final), evidence only; Measurement holds its versioned payload.
+	EventTrainMeasure = "train_measure"
 )
 
 // Event is one line of the audit and pilot log.
@@ -59,6 +62,9 @@ type Event struct {
 	// Departed is when a train (or a lone landing) left (#475), additive: the
 	// completion time At is not the departure.
 	Departed time.Time `json:"departed,omitzero"`
+	// Measurement is a train_measure event's payload (#561), kept as raw
+	// bytes: AggregateTrainMeasurements decodes it by version.
+	Measurement json.RawMessage `json:"measurement,omitempty"`
 }
 
 // Record appends e, stamping it with the line's clock when e.At is zero.

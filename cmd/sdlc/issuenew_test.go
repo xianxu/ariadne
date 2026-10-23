@@ -228,3 +228,60 @@ func TestIssueNewRefusesDetachedHead(t *testing.T) {
 		t.Fatal("reserved a card without a branch to bind its recovery record to")
 	}
 }
+
+// #566: parley.nvim#421 was filed from two long Lua test names; its 331-byte
+// basename broke every checkout. Every filer now names files with FileSlug.
+func TestIssueNewCapsLongTitleBasename(t *testing.T) {
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	slotClaimant(t, "ariadne:0")
+	title := strings.Repeat("parley lua test name that is long ", 9)
+	var out, errs bytes.Buffer
+	if err := runIssueNew(context.Background(), &out, &errs, newIssueFlags(), []string{title}); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	assertCappedIssueFiles(t, r, strings.TrimSpace(out.String()))
+}
+
+func TestFlakeFilingCapsLongTitleBasename(t *testing.T) {
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	slotClaimant(t, "ariadne:0")
+	title := "flake: " + strings.Repeat("tests/unit/sidedoc_monthly_answers_spec.lua: resolves the month folder ", 4)
+	body := "## Problem\n\nKnown flaky tests.\n\n## Done when\n\n- The root cause is fixed.\n"
+	var out, errs bytes.Buffer
+	if _, err := fileFlakeIssue(context.Background(), &out, &errs, "workshop/issues", title, body); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	assertCappedIssueFiles(t, r, strings.TrimSpace(out.String()))
+}
+
+// assertCappedIssueFiles checks the details on main and the card share a
+// basename whose slug is within 80 bytes (a literal, independent of the cap).
+func assertCappedIssueFiles(t *testing.T, r *trackerRepo, detailPath string) {
+	t.Helper()
+	base := filepath.Base(detailPath)
+	if len(base) > len("000008-")+80+len(".md") {
+		t.Fatalf("basename %q is %d bytes", base, len(base))
+	}
+	if r.mainFile(detailPath) == "" {
+		t.Fatalf("details %s not on main", detailPath)
+	}
+	if r.card("workshop/issue-cards/"+base) == "" {
+		t.Fatalf("card %s not on the tracker", base)
+	}
+}
+
+func TestIssueNewRefusesOverlongExplicitSlugBeforeReserving(t *testing.T) {
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	slotClaimant(t, "ariadne:0")
+	trackerBefore, mainBefore := testfix.Capture(t, r.origin, "rev-parse", "issue-tracker"), r.originMain()
+	f := newIssueFlags()
+	f.Slug = strings.Repeat("a", issue.MaxSlugBytes+1)
+	var out, errs bytes.Buffer
+	err := runIssueNew(context.Background(), &out, &errs, f, []string{"Short"})
+	if err == nil || !strings.Contains(err.Error(), "at most 80 bytes") {
+		t.Fatalf("err = %v", err)
+	}
+	if testfix.Capture(t, r.origin, "rev-parse", "issue-tracker") != trackerBefore || r.originMain() != mainBefore {
+		t.Fatal("a refused slug reached origin")
+	}
+}

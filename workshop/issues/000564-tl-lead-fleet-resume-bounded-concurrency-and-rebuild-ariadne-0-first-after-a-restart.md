@@ -32,6 +32,13 @@ procedure gaps:
 each hub's fleet resume then wakes its own asleep workers **pending-work first, then the remaining asleep slots**
 (using pair#830's asleep flag once it lands).
 
+
+**Interface (TL, 10-23, from pair#830):** the asleep set comes from the existing `couch --recover-plan-from-sdlc` report:
+each per-slot row gains `asleep_at` (omitempty), next to its sdlc claim, issue branch, unlanded and dirty evidence, so
+one store read gives both the asleep set and the pending-work order. There is no `couch --wake` CLI (after a full
+shutdown no live slot exists to call it); the operator's switcher key wakes the asleep hubs, and each woken hub runs
+this resume for its own asleep workers.
+
 ## Done when
 
 - Fleet resume with concurrency N resumes N slots at once, reports each outcome, and stops on repeated identical

@@ -122,7 +122,7 @@ func TestDecideCIGateSuiteAncestor(t *testing.T) {
 	if v := decideCIGate(ciInputs{Checks: []prCheck{merge}, Local: decl}); v.Reason != ciLocalNeeded {
 		t.Fatalf("unrecorded suite: %d", v.Reason)
 	}
-	if v := decideCIGate(ciInputs{Checks: []prCheck{merge}, Local: decl, RecordedAncestors: map[string]bool{"suite": true}}); v.Reason != ciGreen {
+	if v := decideCIGate(ciInputs{Checks: []prCheck{merge}, Local: decl, RecordedAncestors: map[string]string{"suite": "ancestor"}}); v.Reason != ciGreen {
 		t.Fatalf("suite recorded on a docs-only ancestor: %d", v.Reason)
 	}
 }
@@ -239,7 +239,7 @@ func TestLocalRecordsOnAncestors(t *testing.T) {
 	record(beforeBase)
 	testfix.Git(t, dir, "branch", "base-ref")
 	head := commit("workshop/notes.md", "x\n")
-	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, head, "base-ref", []string{"suite"}); err != nil || found["suite"] {
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, head, "base-ref", []string{"suite"}); err != nil || found["suite"] != "" {
 		t.Fatalf("record before the merge base counted: %v %v", found, err)
 	}
 
@@ -250,7 +250,7 @@ func TestLocalRecordsOnAncestors(t *testing.T) {
 	head = commit("workshop/two.md", "2\n")
 	calls = 0
 	found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, head, "base-ref", []string{"suite"})
-	if err != nil || !found["suite"] || calls != 2 {
+	if err != nil || found["suite"] == "" || calls != 2 {
 		t.Fatalf("docs-only distance: %v %v, %d status calls (want 2: one.md's parent… then tested)", found, err, calls)
 	}
 
@@ -258,7 +258,7 @@ func TestLocalRecordsOnAncestors(t *testing.T) {
 	testfix.Git(t, dir, "mv", "pkg/b.go", "pkg/b.md")
 	testfix.Git(t, dir, "commit", "-qm", "rename code to docs")
 	renamed, _ := git("rev-parse", "HEAD")
-	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, renamed, "base-ref", []string{"suite"}); err != nil || found["suite"] {
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, renamed, "base-ref", []string{"suite"}); err != nil || found["suite"] != "" {
 		t.Fatalf("a rename of code to .md kept the record: %v %v", found, err)
 	}
 
@@ -269,7 +269,7 @@ func TestLocalRecordsOnAncestors(t *testing.T) {
 	far, _ := git("rev-parse", "HEAD")
 	record(renamed) // the rename commit itself, now beyond the cap
 	calls = 0
-	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, far, "base-ref", []string{"suite"}); err != nil || found["suite"] || calls > localAncestorLimit {
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", git, far, "base-ref", []string{"suite"}); err != nil || found["suite"] != "" || calls > localAncestorLimit {
 		t.Fatalf("cap: %v %v, %d calls", found, err, calls)
 	}
 
@@ -283,7 +283,7 @@ func TestLocalRecordsOnAncestors(t *testing.T) {
 	testfix.Git(t, root, "add", "-A")
 	testfix.Git(t, root, "commit", "-qm", "root")
 	only, _ := rgit("rev-parse", "HEAD")
-	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", rgit, only, only, []string{"suite"}); err != nil || found["suite"] {
+	if found, err := localRecordsOnAncestors(ctx, counting, "o/r", rgit, only, only, []string{"suite"}); err != nil || found["suite"] != "" {
 		t.Fatalf("root commit: %v %v", found, err)
 	}
 }

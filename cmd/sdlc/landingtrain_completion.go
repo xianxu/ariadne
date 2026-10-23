@@ -40,7 +40,7 @@ func (c *conductor) abortTrain(tr *landingline.Train, cars []landingline.Car, st
 				c.settle(carBySeq(cars, s), landingline.OutcomeReleased, why)
 			}
 		} else {
-			_, _ = c.execute(e, cars)
+			_, _ = c.execute(e, cars, "")
 		}
 	}
 	// Cars the machine no longer rides (none, normally) still get a word.

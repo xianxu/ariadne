@@ -356,3 +356,45 @@ func TestRender_AreaSeverity(t *testing.T) {
 		t.Fatalf("rendered classification is not card-valid: %v", err)
 	}
 }
+
+// #566: parley.nvim#421's title (two long Lua test names) made a 331-byte name.
+func TestFileSlugCapsGeneratedSlugAtWordBoundary(t *testing.T) {
+	title := strings.Repeat("parley lua test name that is long ", 9)
+	got, err := FileSlug(title, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	full := Slugify(title)
+	if len(got) > MaxSlugBytes || strings.HasSuffix(got, "-") || !strings.HasPrefix(full, got) {
+		t.Fatalf("FileSlug = %q (%d bytes)", got, len(got))
+	}
+	if full[len(got)] != '-' {
+		t.Fatalf("FileSlug cut mid-word: %q", got)
+	}
+}
+
+func TestFileSlugHardCutsOneLongWord(t *testing.T) {
+	if got, _ := FileSlug(strings.Repeat("x", 300), ""); got != strings.Repeat("x", MaxSlugBytes) {
+		t.Fatalf("got %d bytes", len(got))
+	}
+}
+
+func TestFileSlugExplicit(t *testing.T) {
+	for _, bad := range []string{strings.Repeat("a", MaxSlugBytes+1), "Upper", "a/b", "../x", "-a", "a--b"} {
+		if _, err := FileSlug("t", bad); err == nil {
+			t.Errorf("explicit slug %q accepted", bad)
+		}
+	}
+	if got, err := FileSlug("ignored", "short-name"); err != nil || got != "short-name" {
+		t.Fatal(got, err)
+	}
+	if _, err := FileSlug("!!!", ""); err == nil {
+		t.Fatal("empty slug accepted")
+	}
+}
+
+func TestFileSlugLeavesShortTitlesAsSlugify(t *testing.T) {
+	if got, _ := FileSlug("Fix the thing", ""); got != "fix-the-thing" {
+		t.Fatal(got)
+	}
+}
