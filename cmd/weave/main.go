@@ -479,10 +479,15 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 // compilePrepared composes under the caller-owned setup lease. Refresh reuses
 // this body without releasing or reacquiring that lease between Git and builds.
 func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner) (retErr error) {
-	return compilePreparedSettings(ctx, fs, root, target, dryRun, out, client, runner, false)
+	return compilePreparedWithPolicy(ctx, fs, root, target, dryRun, out, client, runner, publishAllOutputs)
 }
 
-func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner, deferSettings bool) (retErr error) {
+func compilePreparedWithPolicy(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner, policy compilePublicationPolicy) (retErr error) {
+	switch policy {
+	case publishAllOutputs, deferProtectedSettings, deferPlanningOutputs:
+	default:
+		return fmt.Errorf("invalid compile publication policy %d", policy)
+	}
 	// Preserve lexical numbered-environment evidence until discovery has
 	// rejected redirected checkouts; then normalize paths for composition.
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
@@ -571,7 +576,13 @@ func compilePreparedSettings(ctx context.Context, fs weavefs.FS, root string, ta
 		return nil
 	}
 	actions = append(actions, generated...)
-	if deferSettings {
+	if policy == deferPlanningOutputs {
+		actions, err = deferredSeedOutputs(fs, root, actions, out)
+		if err != nil {
+			return err
+		}
+	}
+	if policy != publishAllOutputs {
 		actions, err = deferredClaudeSettings(fs, root, actions, out)
 		if err != nil {
 			return err

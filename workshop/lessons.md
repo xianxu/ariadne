@@ -1560,6 +1560,12 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #556 BR-4: Enumerate reporting IO entry points as well as pure aggregators when adding proof-bearing metadata. Interactive stats and weekly snapshots must use the same hash-verified log hydration before confirmation; persisted-log parity tests must cover each typed kind and missing/tampered proof.
 - #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
 
+- #557 suite: when a production process adapter changes an argv contract, sweep
+  executable fixture parsers and expected event transcripts as well as direct
+  argv assertions. Preserve each fixture's original policy oracle while updating
+  its prerequisite contract. Settings-only compatibility remains valid, so a
+  lexical ban on the old flag would be wrong; native adapter/start-plan and
+  dependency-environment regressions enforce this semantic distinction.
 - #560 plan review: name each risky production function in the test strategy table, with one adversarial input class and independent mechanical guard; keep case inventories in executable tests. Distinguish existing read ceilings from writer enforcement when stating bounds.
 
 - #560 implementation review: when admission publishes a record and a watcher later rewrites it, retain the admitted record as the source for that final write. A direct election test misses erasure at the watcher boundary; a real acquired-slot assertion must check the immutable field and unknown nested metadata after the holder is installed. Successful-parent cleanup also needs an independent descendant test, since cancellation-only tests cannot defend post-Run cleanup.

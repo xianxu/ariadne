@@ -38,7 +38,7 @@ printf '%s|%s|%s\n' "$*" "$PWD" "${WEAVE_DEPENDENCIES_CHECK_ONLY-unset}" >> "$DE
 printf 'stdout:%s\n' "$1"
 printf 'stderr:%s\n' "$1" >&2
 case "$1" in
-refresh) test "$2" = --defer-settings ;;
+refresh) test "$2" = --planning ;;
 settings) test "$#" = 1 ;;
 compile) printf ready > "$DEPENDENCY_READY" ;;
 verify-complete) test -f "$DEPENDENCY_READY" ;;
@@ -66,7 +66,7 @@ esac
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := fmt.Sprintf("refresh --defer-settings|%s|1\nsettings|%s|1\ncompile|%s|1\nverify-complete|%s|1\n", owner, owner, leaf, leaf)
+			want := fmt.Sprintf("refresh --planning|%s|1\nsettings|%s|1\ncompile|%s|1\nverify-complete|%s|1\n", owner, owner, leaf, leaf)
 			if string(data) != want {
 				t.Errorf("installed weave calls = %q, want %q", data, want)
 			}
