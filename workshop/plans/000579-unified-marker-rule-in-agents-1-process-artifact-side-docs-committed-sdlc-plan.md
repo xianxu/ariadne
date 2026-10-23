@@ -123,3 +123,7 @@ Holds no state between events: each verb computes the census once before its fir
 
 - AGENTS §1 and the review convention state the unified rule and commit-with-artifact (doc check: read both after `weave refresh`).
 - `sdlc issue publish`, `change-code` and `close` refuse a link to an uncommitted or ignored file and pass once it is committed or removed (Task 3 tests); with D1, publish passes once the side doc is carried (Task 4 test).
+
+## Revisions
+
+- **2026-10-23** — TL (ops:0) approved the plan as written, and D1 as recommended: publish carries the side docs the details link to (regular files inside the issue's own `.side/` only, a closed set like assets), because side docs must be usable while shaping. Task 4 is in scope.
