@@ -204,6 +204,94 @@ rounds:
       isolation: checkout
       reviewed: 72459336c6d684be44f6a4cb4de15e09e71886a8
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 38bc9677-ef8b-4c9d-a736-3e15bf628e00
+            repository: github.com/xianxu/ariadne
+            issue_id: "000576"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/630ef39e4c25b48d
+            reviewed_head: 2b4928789db3a7e43f455453a4b811ff871b233c
+            slot: ariadne:2
+            requested_at: "2026-10-23T22:01:10.740419Z"
+          phase: finished
+          pid: 13711
+          started_at: "2026-10-23T22:01:10.847412Z"
+          finished_at: "2026-10-23T22:03:14.439061Z"
+          session_id: 359c08fd-e64b-4456-8da6-6e8f96f06957
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 2b4928789db3a7e43f455453a4b811ff871b233c
+        tracker_head: a9930abd4980ddc18ed429c05f5582636417afef
+        branch_point: c39d1899c04e1176d5bdce47f9f06848dd17ce2c
+        since: "2026-10-23T14:24:15-07:00"
+        until: "2026-10-23T15:00:39-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T14:24:15-07:00"
+              end: "2026-10-23T15:00:39-07:00"
+              began: "2026-10-23T14:24:15-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 128a280d6b359a399d02df9547292b7467d4f156bee50aa75efd5d61faac5317
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 12209409
+              windows:
+                - start: "2026-10-23T14:24:15-07:00"
+                  end: "2026-10-23T15:00:39-07:00"
+        cuts:
+            - dispatched: "2026-10-23T14:48:36-07:00"
+              finalized: "2026-10-23T14:52:38-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T14:57:44-07:00"
+              finalized: "2026-10-23T14:59:10-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T15:03:15-07:00"
+      dispatched: "2026-10-23T15:01:10-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: help.md:430-440 now describes the HASH:GRAMMAR token and exit 6 on a grammar change; atlas tl-skills.md:146 and the list Short match. The cobra Use and flag text are raised separately.
+          round: 3
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Minor
+          title: link's cobra Use, --hash flag help and renderOpen comment still describe a bare section hash
+          detail: 'This is the 3rd plan-code-drift finding. Sites: instructions.go:216 Use says --hash H, :226 flag help says the section hash list printed, :123 renderOpen comment says the section hash. Rule: every description of a printed or accepted token should come from one source, a const used by Use, the flag help and Short. Then sweep with grep for --hash H and section hash in cmd/tl-lead.'
+          family: plan-code-drift
+          round: 3
+        - kind: defect
+          id: BR-9
+          severity: Minor
+          title: legacyGrammar finds the Operator instructions heading by a raw line compare, not the markdown parse
+          detail: 'This is the 2nd heading-lookup-exact-match finding. A throwaway test shows three @@chat@@-tagged files returning legacy=true when they should be numbered: an earlier copy of the heading inside a fenced block, a closing ## after the heading text, and a heading indented by one space. list and link make the same choice, so no bullet is mislinked; the only effect is the wrong grammar. Rule: find a heading through the parsed AST that ChatSections already builds (for example a ChatScan heading lookup), never a raw line compare.'
+          family: heading-lookup-exact-match
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 2b4928789db3a7e43f455453a4b811ff871b233c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#576 (boundary-review)
@@ -244,6 +332,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `plan-code-drift` (kind: defect) help.md still says list prints "the section's hash"; it now prints a HASH:GRAMMAR token
   cmd/tl-lead/help.md:433-436 should say the token also pins the item grammar, and that exit 6 can mean a tag or legacy declaration changed. This is the 2nd finding in family plan-code-drift. The rule: when a fix changes a printed or accepted token, the same commit updates every prose surface that describes it (help.md, the plan, atlas). Copying H verbatim still works, so this is cosmetic.
 
+## Round 3 — 2026-10-23T15:03:15-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — help.md:430-440 now describes the HASH:GRAMMAR token and exit 6 on a grammar change; atlas tl-skills.md:146 and the list Short match. The cobra Use and flag text are raised separately.
+
+### Raised
+
+- **BR-8** [Minor] `plan-code-drift` (kind: defect) link's cobra Use, --hash flag help and renderOpen comment still describe a bare section hash
+  This is the 3rd plan-code-drift finding. Sites: instructions.go:216 Use says --hash H, :226 flag help says the section hash list printed, :123 renderOpen comment says the section hash. Rule: every description of a printed or accepted token should come from one source, a const used by Use, the flag help and Short. Then sweep with grep for --hash H and section hash in cmd/tl-lead.
+- **BR-9** [Minor] `heading-lookup-exact-match` (kind: defect) legacyGrammar finds the Operator instructions heading by a raw line compare, not the markdown parse
+  This is the 2nd heading-lookup-exact-match finding. A throwaway test shows three @@chat@@-tagged files returning legacy=true when they should be numbered: an earlier copy of the heading inside a fenced block, a closing ## after the heading text, and a heading indented by one space. list and link make the same choice, so no bullet is mislinked; the only effect is the wrong grammar. Rule: find a heading through the parsed AST that ChatSections already builds (for example a ChatScan heading lookup), never a raw line compare.
+
 ## Open findings
 
-- **BR-7** [Minor] `plan-code-drift` (kind: defect) help.md still says list prints "the section's hash"; it now prints a HASH:GRAMMAR token
+- **BR-8** [Minor] `plan-code-drift` (kind: defect) link's cobra Use, --hash flag help and renderOpen comment still describe a bare section hash
+- **BR-9** [Minor] `heading-lookup-exact-match` (kind: defect) legacyGrammar finds the Operator instructions heading by a raw line compare, not the markdown parse

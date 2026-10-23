@@ -226,3 +226,108 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"860ee805-a595-4e6b-8b5c-c18e274eed06","repository":"github.com/xianxu/ariadne","issue_id":"000576","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b6b051cb513eeb35","reviewed_head":"72459336c6d684be44f6a4cb4de15e09e71886a8","slot":"ariadne:2","requested_at":"2026-10-23T21:57:44.642944Z"},"phase":"finished","pid":2349,"started_at":"2026-10-23T21:57:44.78014Z","finished_at":"2026-10-23T21:59:09.984941Z","session_id":"78202f8f-3a2f-4dfe-b161-5d283a2cbda5","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T15:03:14-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 576 — Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows |
+| repo | ariadne |
+| issue file | workshop/issues/000576-stop-writing-review-mode-keys-scaffolds-tl-lead-migrate-datatype-collaboration.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c39d1899c04e1176d5bdce47f9f06848dd17ce2c..2b4928789db3a7e43f455453a4b811ff871b233c |
+| command | sdlc close --issue 576 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T15:03:14-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Check BR-7 first: the last commit's changes.
+
+Tests for the touched logic pass; the failures that remain are the sandbox refusing `git init`. Next I'm checking how `legacyGrammar` matches the heading, and the sidedoc chat grammar.
+
+Nearly done — checking whether any remaining non-test file still writes a mode key.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The diff does what #576 asks. Nothing writes a review mode key any more: not the sdlc scaffolds, the vocab, the datatype prototypes, the plan header or tl-lead migrate. `datatype lint` is gone, along with its render warning and every doc reference to it. tl-lead now reads `## Operator instructions` with the shared `sidedoc.ChatItems` grammar, choosing numbered or legacy items from a `Peek` of the file. `link` checks the grammar it gets back from the `HASH:GRAMMAR` token that `list` printed. BR-7 is fixed: help.md, the `list` one-liner and the atlas now describe the token and the new reason for exit 6. Nothing blocks. Two new Minor findings remain, both repeats of known families, so each comes with the rule that covers it rather than a one-line fix.
+
+**Test run:** the tests for the touched logic pass (instructions, grammar, migrate golden/resume, help, sidedoc, vocab, reviewexport, issue, project, datatype). The tl-lead failures I saw are all the review sandbox refusing `git init` ("outside the reviewer's directories (sdlc #339)"). None of them is a test this diff touches.
+
+### 1. Strengths
+- `cmd/tl-lead/instructions.go:83-88,153-163`: the `HASH:GRAMMAR` token closes the gap between `list` and `link` without a new state store. A bare token from before #576 still parses as legacy, so older output keeps working.
+- `TestInstructionsGrammarThroughTheFake` (`cmd/tl-lead/instructions_test.go:332`) covers the key ordering case through the session-sync fake. When a tag is added outside the hashed section after `list`, `link` exits 6 and writes nothing (`f.writes == 0`).
+- `cmd/sdlc/internal/issue/nomodekeys_test.go`: covers both creation paths (`Render` and `DetailsFromCard`) and checks byte-for-byte that legacy keys survive both `SetField` and the `SplitCard` card publish (ARCH-EVOLVE).
+- `pkg/reviewexport/examples_test.go:825`: the guard now covers every creator's instructions. The exemption is narrowed to the "legacy \`key\`" span instead of the whole line, which fixes BR-5's hole.
+
+### 2. Critical findings
+None.
+
+### 3. Important findings
+None.
+
+### 4. Minor findings
+- **`cmd/tl-lead/instructions.go:216,226,123`** (plan-code-drift, 3rd finding in the family): three surfaces still describe the old bare hash.
+  - The cobra `Use` still says `--hash H`.
+  - The flag help says "the section hash `list` printed".
+  - The comment on `renderOpen` says "then the section hash".
+
+  The rule: every description of the token should come from one source, a single `const` used by `Use`, the flag help and `Short`. Then sweep with `grep -n -- "--hash H\|section's hash\|section hash" cmd/tl-lead`.
+- **`cmd/tl-lead/instructions.go:41-43`** (heading-lookup-exact-match, 2nd finding in the family): `legacyGrammar` finds the heading by comparing raw lines. I checked this with a throwaway test. Each of these `@@chat@@`-tagged files returned `legacy=true` when it should be numbered:
+  - an earlier copy of the heading inside a fenced block;
+  - a closing `##` after the heading text;
+  - a heading indented by one space.
+
+  `list` and `link` make the same choice, so nothing gets linked to the wrong bullet; the only effect is the wrong grammar. The rule: find a heading through the markdown parse, never a raw line compare. `ChatSections` already builds the heading set from the AST, so expose a lookup there (for example `ChatScan.HeadingLine(name)`) and have `legacyGrammar` use it.
+
+### 5. Test coverage notes
+The behaviour this diff could break (a grammar change outside the hash, legacy keys dropped on rewrite, a creator emitting a key) is covered by tests that would fail. Not covered: the heading-match variants above.
+
+### 6. Architectural notes
+- **ARCH-DRY: pass.** `ChatItems` is the one grammar, shared by tl-lead and the checker. The token text in `Use` and the flag help is duplicated by hand; that is the Minor finding above.
+- **ARCH-PURE: pass.** The parser, the linker, `legacyGrammar` and the token are pure; the IO goes through `deps.ss`.
+- **ARCH-PURPOSE: pass.** I checked every writer of the keys: no non-test Go file still writes one, and the remaining mentions are comments or `collaboration-modes.md` paths.
+- **ARCH-MOCK: pass.** The tests go through the session-sync fake.
+- **ARCH-CONSTRAINTS: pass.** There is one extra `Peek` per `list`/`link`, a local file read.
+- **ARCH-SECURE: pass.** A malformed grammar in the token refuses with exit 6.
+- **ARCH-ORDER: pass.** The hash pins the section, the grammar check pins the rest of the file, and the write is a CAS. A grammar edit between the `Peek` and the write is accepted as advisory.
+- **ARCH-FUNERAL: pass.** Nothing new is persisted; the token lives in stdout only.
+- **ARCH-EVOLVE: pass.** Legacy keys are kept on `SetField` and card publish, and migrate keeps them.
+
+### 7. Plan revision recommendations
+None required. Plan line 55 still describes the original frontmatter-plus-section design, but the 10-23 Revisions entry supersedes it and BR-4 is already disposed.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      help.md:430-440 now describes the HASH:GRAMMAR token and exit 6 on a grammar change; atlas tl-skills.md:146 and the list Short match. The cobra Use and flag text are raised separately.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: plan-code-drift
+    title: |
+      link's cobra Use, --hash flag help and renderOpen comment still describe a bare section hash
+    detail: |
+      This is the 3rd plan-code-drift finding. Sites: instructions.go:216 Use says --hash H, :226 flag help says the section hash list printed, :123 renderOpen comment says the section hash. Rule: every description of a printed or accepted token should come from one source, a const used by Use, the flag help and Short. Then sweep with grep for --hash H and section hash in cmd/tl-lead.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: heading-lookup-exact-match
+    title: |
+      legacyGrammar finds the Operator instructions heading by a raw line compare, not the markdown parse
+    detail: |
+      This is the 2nd heading-lookup-exact-match finding. A throwaway test shows three @@chat@@-tagged files returning legacy=true when they should be numbered: an earlier copy of the heading inside a fenced block, a closing ## after the heading text, and a heading indented by one space. list and link make the same choice, so no bullet is mislinked; the only effect is the wrong grammar. Rule: find a heading through the parsed AST that ChatSections already builds (for example a ChatScan heading lookup), never a raw line compare.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"38bc9677-ef8b-4c9d-a736-3e15bf628e00","repository":"github.com/xianxu/ariadne","issue_id":"000576","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/630ef39e4c25b48d","reviewed_head":"2b4928789db3a7e43f455453a4b811ff871b233c","slot":"ariadne:2","requested_at":"2026-10-23T22:01:10.740419Z"},"phase":"finished","pid":13711,"started_at":"2026-10-23T22:01:10.847412Z","finished_at":"2026-10-23T22:03:14.439061Z","session_id":"359c08fd-e64b-4456-8da6-6e8f96f06957","outcome":"returned"}] -->
