@@ -316,6 +316,10 @@ func TestIntentCreationLeavesNoWindowOrResidue(t *testing.T) {
 	}
 	dead := s.dir + "/.tmp-dead"
 	os.WriteFile(dead, []byte("{"), 0o644)
+	old := time.Now().Add(-time.Hour)
+	os.Chtimes(dead, old, old)
+	fresh := s.dir + "/.tmp-fresh" // created, its writer not yet at flock
+	os.WriteFile(fresh, nil, 0o644)
 	live, err := os.CreateTemp(s.dir, ".tmp-")
 	if err != nil {
 		t.Fatal(err)
@@ -333,4 +337,34 @@ func TestIntentCreationLeavesNoWindowOrResidue(t *testing.T) {
 	if _, err := os.Stat(live.Name()); err != nil {
 		t.Fatal("the sweep removed a live writer's temporary record")
 	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatal("the sweep removed a fresh, not-yet-locked temporary record")
+	}
+}
+
+// The creation window, pinned: just before a first record is linked into
+// place, a reader sees no intent at all (never an empty one) and a sweep
+// leaves the locked temporary alone.
+func TestIntentFirstRecordIsInvisibleUntilComplete(t *testing.T) {
+	s := OpenIntents(t.TempDir())
+	checked := false
+	onCreateLocked = func(temp string) {
+		checked = true
+		if got, err := s.List(); err != nil || len(got) != 0 {
+			t.Errorf("a reader saw a record before it was linked: %+v %v", got, err)
+		}
+		future := time.Now().Add(time.Hour) // old enough that only its lock protects it
+		if _, err := s.Sweep(func(string) (bool, error) { return true, nil }, future, IntentMaxAge); err != nil {
+			t.Error(err)
+		}
+		if _, err := os.Stat(temp); err != nil {
+			t.Errorf("the sweep took a locked temporary record: %v", err)
+		}
+	}
+	t.Cleanup(func() { onCreateLocked = func(string) {} })
+	h, err := s.Hold(testIntent("b1"))
+	if err != nil || !checked {
+		t.Fatalf("hold: %v (seam reached %v)", err, checked)
+	}
+	h.Release(false)
 }

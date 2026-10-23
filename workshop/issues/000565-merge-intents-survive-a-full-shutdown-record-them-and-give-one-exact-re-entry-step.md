@@ -52,6 +52,7 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round-2 Minors fixed in 5f609079: first intent linked into place locked and complete, dead temps swept (TestIntentCreationLeavesNoWindowOrResidue); shared-directory path quoted (TestReportMergeIntent, TestIntentHoldNeverOverwritesAnUnreadableRecord); plan Revisions record entity names. landingline intent tests and cmd/sdlc merge-intent tests pass. (fixed-then-ship); review verdict: FIX-THEN-SHIP
 - 2026-10-23: closed — Round-1 Important fixed as a class: readers share a lock, the sweep decides unlocked and removes only an unchanged record, Hold waits out brief locks (TestIntentReadersAreNotOwners, mutation-verified); Minors fixed (TestIntentHoldNeverOverwritesAnUnreadableRecord, quoted fields, one branch-head helper). Done-when 1: TestOrphanedMergeOnStatusSurfaces, TestIntentOfAKilledRunnerIsOrphaned. Done-when 2: TestMergeReentryReusesThePassedSuite. landingline/queuegate/recovery packages pass; cmd/sdlc Landing|Merge|State|Intent|Train|Queue pass except two sandbox-only failures identical on main. Recorded suite runs on the final head before merge.; review verdict: FIX-THEN-SHIP
 - 2026-10-23: flow upgraded quick → full — 626 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed and planned (ariadne:5). What exists today:
@@ -80,5 +81,8 @@ Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-recor
   - The unreadable record's path is now quoted, so every string from the shared directory prints `%q`.
   - A first record is linked into place already locked and complete, which closes the window in which a reader found an empty file and advised removing it. The sweep collects temp files whose writer died.
   - Plan Revisions now record the entity names as built.
+- Close review round 3 (fixes only), FIX-THEN-SHIP with no blocking findings. Two Minors, both fixed:
+  - The sweep could remove a running merge's temp record between its creation and its lock; that was the third finding in the reader-lock family. Under the rule "never judge an owner dead while its file can exist unlocked", the sweep skips temp records younger than the hold patience, and `create` retries when a sweep wins the race. The fresh-temp test is mutation-checked.
+  - BR-7: the creation window is now pinned by a seam just before the link. At that point a reader sees no intent, and a sweep leaves the locked temp alone.
 
 ### 2026-10-22

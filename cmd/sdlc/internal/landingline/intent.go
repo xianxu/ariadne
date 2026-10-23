@@ -192,8 +192,8 @@ func (s Intents) Hold(in Intent) (*IntentHold, error) {
 			// A first record appears already locked and complete: it is
 			// written under a temporary name, then linked into place.
 			h, err := s.create(path, in)
-			if errors.Is(err, os.ErrExist) {
-				continue // another merge of this branch linked first
+			if errors.Is(err, os.ErrExist) || errors.Is(err, errCreateRaced) && time.Now().Before(deadline) {
+				continue // another merge linked first, or a sweep took the temp file
 			}
 			return h, err
 		}
@@ -260,13 +260,20 @@ func (s Intents) create(path string, in Intent) (*IntentHold, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = flock.Exclusive(f, true); err == nil {
-		if _, err = f.Write(data); err == nil {
-			err = f.Sync()
-		}
+	if flock.Exclusive(f, true) != nil || !samePath(f, f.Name()) {
+		f.Close() // a sweep took it in the instant before the lock
+		os.Remove(f.Name())
+		return nil, errCreateRaced
+	}
+	if _, err = f.Write(data); err == nil {
+		err = f.Sync()
 	}
 	if err == nil {
+		onCreateLocked(f.Name())
 		err = os.Link(f.Name(), path)
+		if errors.Is(err, os.ErrNotExist) {
+			err = errCreateRaced
+		}
 	}
 	os.Remove(f.Name())
 	if err != nil {
@@ -275,6 +282,12 @@ func (s Intents) create(path string, in Intent) (*IntentHold, error) {
 	}
 	return &IntentHold{path: path, file: f}, nil
 }
+
+var errCreateRaced = errors.New("record merge intent: the temporary record was swept before it was linked")
+
+// onCreateLocked is a test seam: called with a first record's temporary
+// path once it is written and locked, just before it is linked into place.
+var onCreateLocked = func(string) {}
 
 // Release ends the hold. A terminal outcome removes the intent; an
 // interrupted one (keep) only unlocks it, leaving the orphan to re-enter.
@@ -350,7 +363,7 @@ func observeIntent(path string) (ObservedIntent, bool) {
 // exclusive lock only if the record is unchanged. Unreadable records are
 // left for the operator: status names their path.
 func (s Intents) Sweep(branchExists func(string) (bool, error), now time.Time, maxAge time.Duration) ([]Intent, error) {
-	s.sweepTemps()
+	s.sweepTemps(now)
 	paths, err := s.files()
 	errs := []error{err}
 	var removed []Intent
@@ -375,11 +388,17 @@ func (s Intents) Sweep(branchExists func(string) (bool, error), now time.Time, m
 }
 
 // sweepTemps removes temporary records whose writer died between creating
-// and linking them: a live writer holds its temp file's lock.
-func (s Intents) sweepTemps() {
+// and linking them: a live writer holds its temp file's lock once it has had
+// time to take it.
+func (s Intents) sweepTemps(now time.Time) {
 	entries, _ := os.ReadDir(s.dir)
 	for _, e := range entries {
 		if !strings.HasPrefix(e.Name(), ".tmp-") {
+			continue
+		}
+		// A fresh temporary may be unlocked only because its writer has not
+		// reached flock yet: its lock state says nothing until it ages.
+		if info, err := e.Info(); err != nil || now.Sub(info.ModTime()) < IntentHoldPatience {
 			continue
 		}
 		path := filepath.Join(s.dir, e.Name())
