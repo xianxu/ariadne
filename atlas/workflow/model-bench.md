@@ -117,3 +117,10 @@ with a replacement environment and verifies cleanup. Its private Git helper
 inventory gap is tracked as pair#845; a failed pre-readiness run does not
 qualify service conformance. M1 additionally requires a true autonomous replay
 with real disposable TL/worker agents and its real ledger row before close.
+
+For pre-landing candidate tools, use command-local PATH and absolute binary
+paths only inside the disposable actors. Never prepend a candidate directory
+to the live Couch supervisor's PATH: it would affect production slots. Absolute
+TL alone is insufficient because its subprocess owner resolves bare `sdlc`.
+Observer preflight qualifies the actual tool route before task dispatch; a
+wrong-tool slip becomes an explicit workflow finding in the bound TL audit.

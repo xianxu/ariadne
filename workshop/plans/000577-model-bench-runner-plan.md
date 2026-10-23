@@ -176,6 +176,8 @@ ARCH-DRY: existing tracker CAS, managed suite, measurement and reviewer owners a
 
 ## Revisions
 
+- 2026-10-23, pre-landing provisioning correction approved by ops:0 (`d5e4ef5c-b690-465c-831f-f7d38055f8d5`): the live Couch environment stays unchanged. Observer preflight instructs each disposable actor to use command-local candidate PATH plus absolute SDK/TL binary paths. TL forwarding otherwise resolves bare SDLC from the process PATH. No public per-slot Env hook exists in Couch; do not invent one. Record a wrong-tool slip through the existing bound ruling/audit evidence as a workflow finding. This supersedes the checklist's unqualified candidate-tool PATH wording.
+
 - 2026-10-23, hub approval `af9f0c58-1b5e-4c4c-9c02-e08286dabb30`: narrow the polling cost claim. Each five-second poll may replay at most 2,000 accepted transitions and read at most 1 MiB of public proposal audit. Transcripts are never polled; the separate one-capture/fixed-owner-pass collection claim is unchanged. `TestBenchObserverMetadataReadBounds` pins the metadata limits. No cursor/cache protocol is added. CLI registration lives in `bench_cmd.go` rather than the provisional `bench.go`; split IO modules preserve the named owners.
 
 - 2026-10-23, hub approval `897cbcae-be1b-4147-93fb-f5a83168a0d0`: supersede the state table's inspect/retry-score action for confirmed acceptance unavailable. It is terminal for this run and recorded as a bench finding; preserve the first acceptance proof and use a fresh run for another hidden evaluation. Unknown scorer shutdown still blocks record/clean. No per-score recovery state is added.
