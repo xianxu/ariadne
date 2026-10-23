@@ -156,6 +156,20 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 	return err
 }
 
+// trainFilterLines is status's rendering of the filter fold (#561): its
+// summary line, then each named escape, then how many were left unnamed.
+func trainFilterLines(f landingline.TrainFilterStats) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", f.Text)
+	for _, e := range f.Escapes {
+		fmt.Fprintf(&b, "  escape: train %d, car #%d (%s): %s\n", e.Train, e.Issue, abbrevSHA(e.Head), strings.Join(e.Tests, ", "))
+	}
+	if f.EscapesOmitted > 0 {
+		fmt.Fprintf(&b, "  … %d more escape(s) in the landing log\n", f.EscapesOmitted)
+	}
+	return b.String()
+}
+
 func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	line, err := openRepoLine(repo)
 	if err != nil {
@@ -211,13 +225,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	// while trains run or while the window still holds trains.
 	now := d.now()
 	if f := landingline.AggregateTrainMeasurements(events, now.Add(-landingline.TrainRampReviewWindow), now); (serr == nil && !sched.Off()) || f.Trains > 0 {
-		fmt.Fprintf(&b, "%s\n", f.Text)
-		for _, e := range f.Escapes {
-			fmt.Fprintf(&b, "  escape: train %d, car #%d (%s): %s\n", e.Train, e.Issue, shortSHA(e.Head), strings.Join(e.Tests, ", "))
-		}
-		if f.EscapesOmitted > 0 {
-			fmt.Fprintf(&b, "  … %d more escape(s) in the landing log\n", f.EscapesOmitted)
-		}
+		b.WriteString(trainFilterLines(f))
 	}
 	for _, line := range recentTrains(events, 3) {
 		b.WriteString(line + "\n")
