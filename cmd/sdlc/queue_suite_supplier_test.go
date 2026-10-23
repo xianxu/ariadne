@@ -110,3 +110,122 @@ func TestSuiteQueueSupplierUnavailableAndCompatibleControls(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+// nativeSupplierFixture separates the ticket owner from the actual helper
+// supplier. Git's real refs/index/worktree topology back every observation.
+func nativeSupplierFixture(t *testing.T) (owner, supplier, sha string) {
+	t.Helper()
+	source, sha, _, _ := localRunRepo(t, "acquired")
+	consumer, _, _, _ := localRunRepo(t, "acquired")
+	link := filepath.Join(consumer.Root, "Makefile.workflow")
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(source.Root, "Makefile.workflow"), link); err != nil {
+		t.Fatal(err)
+	}
+	return consumer.Root, source.Root, sha
+}
+
+func nativeSupplierTickets(t *testing.T, owners ...string) suiteQueueObservation {
+	t.Helper()
+	obs := suiteQueueObservation{Available: true, PolicySeconds: 3600}
+	for i, owner := range owners {
+		raw, err := json.Marshal(map[string]any{"repo": "native-legacy", "worktree": owner})
+		if err != nil {
+			t.Fatal(err)
+		}
+		obs.Tickets = append(obs.Tickets, suiteQueueTicket{Number: int64(i + 1), Position: i + 1, Reason: "legacy", Record: raw})
+	}
+	return obs
+}
+
+func TestSuiteQueueSupplierNativeRevisionsAndLaterFastForward(t *testing.T) {
+	owner1, supplier1, old := nativeSupplierFixture(t)
+	owner2, supplier2, _ := nativeSupplierFixture(t)
+	writeRepoFile(t, supplier2, "distinct", "second supplier\n")
+	git(t, supplier2, "add", "distinct")
+	git(t, supplier2, "commit", "-qm", "distinct")
+	second := strings.TrimSpace(git(t, supplier2, "rev-parse", "HEAD"))
+	obs := nativeSupplierTickets(t, owner1, owner2)
+	io := suiteSupplierIO{resolve: resolveQueueSupplier, read: readQueueSupplier}
+	before := annotateSuiteSuppliers(context.Background(), obs, io)
+	if first, last := before.Suppliers[1], before.Suppliers[2]; first.Checkout != supplier1 || first.Revision != old || last.Checkout != supplier2 || last.Revision != second || first.Revision == last.Revision || first.Reason != "" || last.Reason != "" {
+		t.Fatalf("distinct real suppliers not observed: %+v", before.Suppliers)
+	}
+	ticket := string(obs.Tickets[0].Record)
+	git(t, supplier1, "switch", "-qc", "future")
+	writeRepoFile(t, supplier1, "advance", "new source after old waiter started\n")
+	git(t, supplier1, "add", "advance")
+	git(t, supplier1, "commit", "-qm", "future")
+	next := strings.TrimSpace(git(t, supplier1, "rev-parse", "HEAD"))
+	git(t, supplier1, "switch", "-q", "main")
+	git(t, supplier1, "merge", "--ff-only", "future")
+	after := annotateSuiteSuppliers(context.Background(), obs, io)
+	if after.Suppliers[1].Revision != next || string(obs.Tickets[0].Record) != ticket || after.Suppliers[2].Revision != second {
+		t.Fatalf("stale cache or modified waiter: %+v", after.Suppliers)
+	}
+	var out bytes.Buffer
+	renderSuiteQueue(&out, after)
+	if !strings.Contains(out.String(), next) || strings.Count(out.String(), "launch revision unknown") != 2 {
+		t.Fatal(out.String())
+	}
+}
+
+func TestSuiteQueueSupplierNativeUnavailableOwners(t *testing.T) {
+	for _, kind := range []string{"missing", "nested", "redirected", "git-failure"} {
+		t.Run(kind, func(t *testing.T) {
+			owner, supplier, _ := nativeSupplierFixture(t)
+			switch kind {
+			case "missing":
+				owner = filepath.Join(t.TempDir(), "missing")
+			case "nested":
+				owner = filepath.Join(owner, "nested")
+				if err := os.Mkdir(owner, 0700); err != nil {
+					t.Fatal(err)
+				}
+			case "redirected":
+				alias := filepath.Join(t.TempDir(), "owner")
+				if err := os.Symlink(owner, alias); err != nil {
+					t.Fatal(err)
+				}
+				owner = alias
+			case "git-failure":
+				resolved, err := resolveQueueSupplier(context.Background(), owner)
+				if err != nil || resolved != supplier {
+					t.Fatalf("fixture resolver: %s %v", resolved, err)
+				}
+				if err := os.WriteFile(filepath.Join(supplier, ".git", "HEAD"), []byte("ref: refs/heads/missing\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			obs := annotateSuiteSuppliers(context.Background(), nativeSupplierTickets(t, owner), suiteSupplierIO{resolve: resolveQueueSupplier, read: readQueueSupplier})
+			row := obs.Suppliers[1]
+			if row.Reason == "" || row.Revision != "" {
+				t.Fatalf("%s manufactured supplier proof: %+v", kind, row)
+			}
+			var out bytes.Buffer
+			renderSuiteQueue(&out, obs)
+			if !strings.Contains(out.String(), "revision unavailable") || !strings.Contains(out.String(), "launch revision unknown") {
+				t.Fatal(out.String())
+			}
+		})
+	}
+}
+
+func TestSuiteQueueSupplierNativeFollowsHelperSymlink(t *testing.T) {
+	owner, first, _ := nativeSupplierFixture(t)
+	_, actual, sha := nativeSupplierFixture(t)
+	path := filepath.Join(first, "scripts", "test-lock.py")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(actual, "scripts", "test-lock.py"), path); err != nil {
+		t.Fatal(err)
+	}
+	obs := annotateSuiteSuppliers(context.Background(), nativeSupplierTickets(t, owner), suiteSupplierIO{resolve: resolveQueueSupplier, read: readQueueSupplier})
+	row := obs.Suppliers[1]
+	if row.Reason != "" || row.Checkout != actual || row.Revision != sha {
+		t.Fatalf("workflow source mistaken for helper source: %+v", row)
+	}
+}

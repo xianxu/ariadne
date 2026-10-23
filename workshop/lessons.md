@@ -1605,3 +1605,12 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   current checkout evidence, never invents a legacy waiter's launch revision,
   and deduplicates probes within its deadline. Native private Git races and
   counted repeated-supplier controls enforce this semantic ownership rule.
+
+- #574 BR-1/BR-2: enumerate each new CLI surface across README, help and atlas.
+  A checked verification matrix needs actual production-boundary controls for
+  every claimed case; injected prepared observations only prove the projection.
+  Exercise real owner/supplier identities, distinct revisions, movement after
+  ticket creation and failed Git reads. A symlink-resolved path alone cannot
+  prove the immutable ticket owner path was not redirected; require exact path
+  identity or report unavailable. The native redirected-owner regression closes
+  this semantic class; the existing boundary review owns documentation coverage.

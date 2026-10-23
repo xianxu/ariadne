@@ -76,7 +76,7 @@ func resolveQueueSupplier(ctx context.Context, owner string) (string, error) {
 		return "", err
 	}
 	real, err := filepath.EvalSymlinks(owner)
-	if err != nil || real != v.WorktreeRoot {
+	if err != nil || real != owner || real != v.WorktreeRoot {
 		return "", fmt.Errorf("ticket does not name its exact checkout")
 	}
 	helper, err := workspace.SuiteHelper(owner, "")
