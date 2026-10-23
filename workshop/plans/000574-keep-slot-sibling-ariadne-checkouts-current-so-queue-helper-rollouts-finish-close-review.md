@@ -157,3 +157,69 @@ dispose:
 7. **Plan revision recommendations:** None. The existing revision records the earlier coverage overstatement and its correction.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0f8f657d-35c1-43f5-be1e-7dd63be7d3a5","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/ae23a5ffddc47477","reviewed_head":"bfdc338c2ba02184c25ef3a4b3ae70e5f2d0a214","slot":"ariadne:3","requested_at":"2026-10-23T16:46:21.766028Z"},"phase":"finished","pid":83156,"started_at":"2026-10-23T16:46:21.996141Z","finished_at":"2026-10-23T16:48:22.297413Z","session_id":"01a169a8-09af-7dd0-9684-194310c444f3","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T09:55:47-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 574 — Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish |
+| repo | ariadne |
+| issue file | workshop/issues/000574-keep-slot-sibling-ariadne-checkouts-current-so-queue-helper-rollouts-finish.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3f07c256af767c54c296d3ace5538e001dda4e55..bb006fcf0179f2943a51e05f5470b65624fdba27 |
+| command | sdlc close --issue 574 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T09:55:47-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff enforces the existing read-only supplier-observation contract without expanding scope. Supplier tests pass, and removing the fix through a temporary overlay makes the new regression fail on an index-cache rewrite. No new defects found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:419–446 retains the mode, automatic boundary, eligibility and recovery documentation; the added index-preservation statement matches the shared Git adapter.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The native supplier matrix remains present and passes. The added index-invariance regression also passes at head and fails when --no-optional-locks is removed through a temporary overlay.
+```
+
+1. **Strengths**
+
+   - The shared adapter applies the correction to every supplier Git query (`cmd/sdlc/queue_suite_supplier.go:67`).
+   - The regression tests real Git behavior and compares index bytes (`cmd/sdlc/queue_suite_supplier_test.go:234`).
+   - README, atlas and plan revisions accurately describe the correction.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   `go test ./cmd/sdlc -run 'TestSuiteQueue.*Supplier' -count=1` passed. The negative control failed specifically on the index-preservation assertion. `git diff --check` passed. Temporary overlay files were removed; repository files remained unchanged. The full repository suite was not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** One shared adapter enforces the rule.
+   - **ARCH-PURE — pass:** The correction stays within the existing IO boundary.
+   - **ARCH-PURPOSE — pass:** It closes the optional-write class across supplier queries.
+   - **ARCH-EVOLVE — pass:** No persisted format or rewrite behavior changes.
+
+7. **Plan revision recommendations:** None. The added revision records enforcement of the existing contract.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0376edd3-207c-4bd1-8480-6f1c2358b3e8","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/0c70b9a0ea13d21c","reviewed_head":"bb006fcf0179f2943a51e05f5470b65624fdba27","slot":"ariadne:3","requested_at":"2026-10-23T16:54:37.913623Z"},"phase":"finished","pid":79901,"started_at":"2026-10-23T16:54:38.126117Z","finished_at":"2026-10-23T16:55:46.353632Z","session_id":"01a169af-9ac4-77f3-b3eb-cd9e267d7b8a","outcome":"returned"}] -->

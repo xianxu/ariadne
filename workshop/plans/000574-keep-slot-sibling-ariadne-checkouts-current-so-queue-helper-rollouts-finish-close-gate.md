@@ -154,6 +154,85 @@ rounds:
       isolation: fenced
       reviewed: bfdc338c2ba02184c25ef3a4b3ae70e5f2d0a214
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 0376edd3-207c-4bd1-8480-6f1c2358b3e8
+            repository: github.com/xianxu/ariadne
+            issue_id: "000574"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/0c70b9a0ea13d21c
+            reviewed_head: bb006fcf0179f2943a51e05f5470b65624fdba27
+            slot: ariadne:3
+            requested_at: "2026-10-23T16:54:37.913623Z"
+          phase: finished
+          pid: 79901
+          started_at: "2026-10-23T16:54:38.126117Z"
+          finished_at: "2026-10-23T16:55:46.353632Z"
+          session_id: 01a169af-9ac4-77f3-b3eb-cd9e267d7b8a
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: bb006fcf0179f2943a51e05f5470b65624fdba27
+        tracker_head: 2164f69b3e5bbd8bbcedcfdb5e04c133b8e59d6f
+        branch_point: db77404e3257507f41c9d6fc3d819a8723bb36fa
+        since: "2026-10-23T09:02:18-07:00"
+        until: "2026-10-23T09:53:29-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T09:02:18-07:00"
+              end: "2026-10-23T09:53:29-07:00"
+              began: "2026-10-23T09:02:18-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 20cdd71f9d7d67bb66b401d1c1789b4728b49c00af6c19b9b415e8462008fb9e
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 132949112
+              windows:
+                - start: "2026-10-23T09:02:18-07:00"
+                  end: "2026-10-23T09:53:29-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 15.241266666666666
+        cuts:
+            - dispatched: "2026-10-23T09:35:27-07:00"
+              finalized: "2026-10-23T09:37:48-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T09:46:21-07:00"
+              finalized: "2026-10-23T09:48:23-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T09:55:47-07:00"
+      dispatched: "2026-10-23T09:54:37-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:419–446 retains the mode, automatic boundary, eligibility and recovery documentation; the added index-preservation statement matches the shared Git adapter.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: The native supplier matrix remains present and passes. The added index-invariance regression also passes at head and fails when --no-optional-locks is removed through a temporary overlay.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: bb006fcf0179f2943a51e05f5470b65624fdba27
+      blocked: false
 ---
 
 # Gate ledger — ariadne#574 (boundary-review)
@@ -176,6 +255,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — addressed — README.md:419–444 documents --suite-helper, automatic suite setup, eligibility, exclusions, and skip/recovery behavior; these match the refresh implementation and supplier diagnostics.
 - BR-2 — addressed — Native production-path tests cover distinct supplier revisions, fast-forward with unchanged ticket bytes, missing/nested/redirected owners, failed Git reads, and helper symlinks. Tests pass at HEAD; removing the exact-owner guard makes the redirected-owner regression fail.
+
+## Round 3 — 2026-10-23T09:55:47-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:419–446 retains the mode, automatic boundary, eligibility and recovery documentation; the added index-preservation statement matches the shared Git adapter.
+- BR-2 — addressed — The native supplier matrix remains present and passes. The added index-invariance regression also passes at head and fails when --no-optional-locks is removed through a temporary overlay.
 
 ## Open findings
 
