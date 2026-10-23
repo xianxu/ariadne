@@ -1,13 +1,21 @@
 ---
 id: 000569
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'ce2792bfce987396a28375aabc41e5b5173c9793' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4a93dae95bc7ebe64cb03be2f9658261d744e79a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T01:30:48-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Diagnose legacy actual-window refusal blocking pair#162
@@ -38,3 +46,33 @@ Diagnose the provenance and scope of the cross-issue adopted-window dependency b
 ### 2026-10-23 — dispatch
 
 Authenticated hub delivery9c270b83-96f0-4235-b536-7f809314451c assigned this after #563. #563 is now landed as PR406, so investigation can begin. The hub asks to file, claim and report; no speculative Pair evidence repair is authorized.
+
+### 2026-10-23 — reproduced and traced; no evidence restoration performed
+
+Central binary in pair-slot2 reports path=/Users/xianxu/workspace/ariadne/bin/sdlc, revision584d909713dbd858397f1330a23ee026861a5844, modified=false. sdlc actual --issue162 reproduces the exact warning (the command exits0 but produces no numeric measurement). The read-only sdlc issue migrate --repair-completions --issue151 exits1 with the same missing-finalized-whole-issue-close error. No apply, correction, exclusion, label, Pair edit or Pair commit was performed.
+
+Production path: computeActualForPurpose -> resolveOwnedActualInputsFor -> loadAdoptedExclusions -> recoverUnboundLegacyAdoption -> resolveLegacyCompletion. The adopted-actual guard protects against counting time already adopted by another issue. Its calendar-date filter deliberately widens old card dates by a timezone-safe48h; #151 updated2026-08-31 still passes for a September1 candidate. Selection does not establish a shared slot: #151 has no tracker owner, completion, legacy-adoption marker or correction, and its tracker history has only the original migration-root commit. The legacy proof errors before slot comparison and before immutable temporal disjointness can be established.
+
+A temporary Go overlay (no tracked source edit) invoked the real input resolver and exclusion loader read-only. On own source pinb10a950e2693b79fe69b1d4279f1b752c9d48162 it printed:
+
+- candidate_since=2026-09-01T14:21:09-07:00, until=2026-10-22T22:03:04-07:00, method=active-time-v3-engagement-legacy-prefix-v1;
+- legacy prefix September1 14:21:09 through September28 00:06:01 PDT;
+- tracked engagement October22 18:09:43 through22:03:04 PDT, root pair-slot2/pair;
+- immutable_archive_before_candidate=true and coarse_card_filter_may_overlap=true;
+- the original production exclusion refusal naming #151.
+
+The first boundary is the parent of the legacy #162 draft commit, not its created date or its much later tracker claim. Git independently shows parent7f85f5c4c1934f33ab23d0a0eee5e90096ffecc7 at September1 14:21:09; draft858a4452fbee8c329526adcb541fc18870f86d27 follows at14:22:14. Tracker rootc039dc4b8140f73ecc140f80e945beebadc4da7f is September28 00:05:53; marker commitd636b304405f9208a2341e8cffbcfb504f140a0c is00:06:01. This is hybrid legacy attribution, not an inferred old shared-slot claim.
+
+#151's actual20.07h was already adopted before cutover. Git close commitd5d23dcc210f8b80c7cb440e3ffd8dc2e09e31bd (August31 18:17:38 PDT) says Review-Verdict: SHIP and Review-Window:9157998f..309a9717. Its own immutable close-gate ledger has24 rounds; round24 (18:17:17) records protocol_error: no valid findings block, and no finalized whole-issue reviewed head exists. Earlier accepted rounds are milestone boundaries, so they cannot substitute for a whole-issue close. The archive commitc643b4b2638a71f82e8e4cc1363fd7c023f198f9 is August31 18:20:40, strictly before even the candidate's earliest legacy prefix. No matching finalized whole-issue record was found in the implicated immutable close/archive history. Restoring a finalized review or numeric snapshot would invent authority; the strict repair refusal is appropriate.
+
+Temporary overlay source and raw output are retained at common test-stats/evidence/000569/readonly-input-probe.go.txt and readonly-input-probe.log; the overlay and temporary build-input directory were removed. It passed9.619s; targeted existing timezone-filter, strict-disjointness and damaged-legacy-evidence controls passed1.642s. These verify the diagnosis, not an implementation fix. No full suite was started for this read-only investigation.
+
+## Revisions
+
+### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
+
+The cause is an overbroad dependency on trustworthy historical close replay even for a provably earlier imported generation. Recommend one narrow, separately proved archive/done end bound for exclusion relevance: only a numeric done issue present in the real tracker root and its exact pre-cutover archive, with matching identity/actual/started and generation continuity (no reopen, correction, modern completion or provenance substitution), may use that immutable end solely to prove end < candidate.Snapshot.Since. Since must include the entire legacy prefix/earliest engagement, not only today's owner. Print a visible diagnostic naming the issue and bound and saying its adopted number was not replay-verified. Keep its historical numeric actual unchanged.
+
+ARCH-DRY/ARCH-PURE: extract/reuse the existing immutable source/generation proof rather than duplicate a history walker; keep close/replay validation strict. This is not permission to reinterpret malformed saved modern inputs as legacy, to accept #151's review as valid, or to ignore any potentially overlapping adoption. Equal/overlapping/missing bounds, source mismatch, reopened generation, unreadable/bounded-out history and malformed modern authority still refuse. A single lifetime lease cannot prove a historical generation/time relation; immutable Git object identity and bounded complete history are the appropriate authority.
+
+Proposed acceptance strategies before implementation: reduce the captured real #151 ledger/old unmarked-import shape into a real-Git regression with #162's legacy-prefix boundary; prove the labelled disjoint skip, plus strict equality/overlap, initial/reclaimed ownership, archive/source tamper, reopened/restored generations and modern missing/corrupt completion refusal. Retain TestLegacyCompletionProofRefusesDamagedEvidence unchanged. A dedicated classifier handles only temporal relevance; no new persisted schema, hours, state store, runtime scan or production artifact family. The existing output/snapshot provenance path should carry any label. No production code has been edited; report this concrete recommendation to the hub before expanding scope.
