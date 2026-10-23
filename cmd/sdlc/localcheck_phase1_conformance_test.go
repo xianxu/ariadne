@@ -169,7 +169,7 @@ sys.exit('unexpected private gh command: ' + repr(a))
 	}
 	cli(true, "local-check", "run", "--name", "lint,smoke")
 	store := filepath.Join(d.Root, ".git", "sdlc", "test-stats")
-	future := []byte(fmt.Sprintf(`{"version":4,"id":"d3","repo":"fixture/queue","sha":%q,"check":"smoke","future":{"opaque":true}}`, sha))
+	future := []byte(fmt.Sprintf(`{"version":5,"id":"d3","repo":"fixture/queue","sha":%q,"check":"smoke","future":{"opaque":true}}`, sha))
 	futurePath := filepath.Join(store, "attempts", "d3.json")
 	if err := os.WriteFile(futurePath, future, 0600); err != nil {
 		t.Fatal(err)

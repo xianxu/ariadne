@@ -63,6 +63,12 @@ func decodeLocalObject(data []byte, fields map[string]any, required ...string) (
 }
 
 func parseLocalChecksV2(data []byte) (localCheckDecl, error) {
+	return parseModernLocalChecks(data, 2)
+}
+
+// parseModernLocalChecks shares strict known-member validation and opaque
+// additive preservation across versions; capability fields are version-gated.
+func parseModernLocalChecks(data []byte, version int) (localCheckDecl, error) {
 	d := localCheckDecl{Checks: []localCheck{}}
 	var entries []json.RawMessage
 	var err error
@@ -70,9 +76,15 @@ func parseLocalChecksV2(data []byte) (localCheckDecl, error) {
 	if err != nil {
 		return d, fmt.Errorf("%s: %w", localChecksPath, err)
 	}
+	if d.Version != version {
+		return d, fmt.Errorf("%s: version %d, want %d", localChecksPath, d.Version, version)
+	}
 	for _, raw := range entries {
 		var c localCheck
 		fields := map[string]any{"name": &c.Name, "command": &c.Command, "substitutes": &c.Substitutes, "required": &c.Required, "timeout_minutes": &c.TimeoutMinutes, "weight": &c.Weight, "known_flakes": &c.KnownFlakes, "scope": &c.RunScope, "resource": &c.Resource, "paths_file": &c.PathsFile}
+		if version == 3 {
+			fields["flake_runners"] = &c.FlakeRunners
+		}
 		c.Extra, err = decodeLocalObject(raw, fields, "name", "command")
 		if err != nil {
 			return d, fmt.Errorf("%s: %w", localChecksPath, err)

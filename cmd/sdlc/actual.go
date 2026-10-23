@@ -60,16 +60,18 @@ const (
 )
 
 type actualResult struct {
-	Status        actualStatus
-	Hours         float64
-	Issue         string
-	Peers         []string
-	Dirs          []string
-	Window        string // "<start ISO> → HEAD": the resolved left edge (#254)
-	Detail        string // diagnostic for the error path
-	Recovery      string // typed input failure's specific action; never persisted
-	Warnings      []string
-	QueueBlockers []string // complete queue refusal diagnostics, when present
+	PhaseDiagnostic string
+	CodeHead        string
+	Status          actualStatus
+	Hours           float64
+	Issue           string
+	Peers           []string
+	Dirs            []string
+	Window          string // "<start ISO> → HEAD": the resolved left edge (#254)
+	Detail          string // diagnostic for the error path
+	Recovery        string // typed input failure's specific action; never persisted
+	Warnings        []string
+	QueueBlockers   []string // complete queue refusal diagnostics, when present
 	// Split divides Hours at the boundary reviews (#234); nil unless measured.
 	Split *actualSplit
 	// Inputs is the exact admitted evidence retained by close/correction.
@@ -139,6 +141,11 @@ func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mi
 		return res
 	}
 	repoTop = identity.WorktreeRoot
+	pin, err := ownedActualGit(ctx, repoTop, "rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		res.Status, res.Detail = actualError, err.Error()
+		return res
+	}
 
 	// #252: the tracker's card commits (claim, close) are this issue's activity
 	// too, and its card holds the authoritative `started` stamp.
@@ -146,7 +153,7 @@ func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mi
 	if trackerWarning != "" {
 		res.Warnings = append(res.Warnings, trackerWarning)
 	}
-	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum, trackerRefs...)
+	firstSHA, firstISO, lastISO, _ := gitx.CommitWindowAt(ctx, repoTop, pin, issueNum, trackerRefs...)
 	if firstSHA == "" {
 		res.Status = actualNoWindow
 		return res
@@ -169,12 +176,13 @@ func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mi
 	// The label names the resolved start, not the first #N commit: since the
 	// claim anchor (#254, via #270) that commit is often the filing, outside
 	// the window.
-	res.Window = firstISO + " → HEAD"
+	res.Window = firstISO + " → " + lastISO
 
 	// #270: on an issue branch, only the branch's own commits and commits naming
 	// this issue bound segments, so integrating main can't hand this session's
 	// time to the issues main's commits name. Peers come from the same commits.
 	scope := actualScope(issueNum)
+	scope.Head = pin
 	peers, err := activetime.WindowIssues(repoTop, firstISO, lastISO, scope, trackerRefs...)
 	if err != nil {
 		res.Status, res.Detail = actualError, err.Error()
@@ -222,11 +230,27 @@ func computeLegacyActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mi
 			res.Status, res.Detail = actualError, "boundary gate ledger: "+lerr.Error()
 			return res
 		}
-		split, serr := splitActual(out, issueNum, milestone, splitRounds(ledger), firstISO, lastISO)
+		rounds, notes, perr := freshActualRounds(ctx, repoTop, pin, issueNum, milestone, splitRounds(ledger))
+		if perr != nil {
+			res.Status, res.Detail = actualError, perr.Error()
+			return res
+		}
+		res.Warnings = append(res.Warnings, notes...)
+		tl, serr := actualTimeline(out, milestone, rounds, firstISO, lastISO)
 		if serr != nil {
 			res.Status, res.Detail = actualError, serr.Error()
 			return res
 		}
+		split := splitFromTimeline(out.Segments, issueNum, tl)
+		res.PhaseDiagnostic = actualPhaseDiagnostic(tl, milestone)
+		res.CodeHead = pin
+		res.Segments = out.Segments
+		for _, phase := range tl.Phases {
+			if phase.Kind != activetime.Tail {
+				res.CountedPhases = append(res.CountedPhases, phase)
+			}
+		}
+		res.Warnings = append(res.Warnings, fmt.Sprintf("legacy contributing sessions: %d (distinct activity sources, not all necessarily contributing to this milestone)", len(out.SourceIDs)))
 		res.Hours, res.Split = split.Build+split.Converge, &split
 		if milestone != "" {
 			res.Window += " (" + milestone + "'s phases)"
@@ -361,6 +385,14 @@ func statusFromResult(out activetime.Result, issueNum string) (actualStatus, flo
 // bounded provenance diagnostics wherever a successful result is presented.
 func printActualMeasurement(w io.Writer, res actualResult) {
 	cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
+	if res.PhaseDiagnostic != "" {
+		fmt.Fprintln(w, "  "+res.PhaseDiagnostic)
+	} else {
+		fmt.Fprintln(w, "  selected phase evidence unavailable")
+	}
+	if res.CodeHead != "" {
+		fmt.Fprintln(w, "  code pin: "+res.CodeHead)
+	}
 	if s := res.Split; s != nil {
 		fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
 	}

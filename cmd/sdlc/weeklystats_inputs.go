@@ -221,7 +221,7 @@ func readWeeklyEvidence(ctx context.Context, repo, root string, window WeeklyWin
 	}
 	rootStats := filepath.Join(common, "sdlc", "test-stats")
 	snapshot, err := readSuiteEvidence(rootStats, testStatsRecordLimit)
-	attempts := snapshot.Attempts
+	attempts := withSuiteTypedFacts(snapshot.Attempts, storeTypedFacts(rootStats))
 	warnings := append(snapshot.Warnings, snapshot.coverageNotes("")...)
 	if err != nil {
 		e.CoverageUnknown = append(e.CoverageUnknown, "suite attempts: "+err.Error())

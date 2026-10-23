@@ -8,6 +8,12 @@
 
 # Lessons
 
+- #552: shell redirection creates the output file before printf/echo writes its content. A PID
+  readiness path observed by existence must be published by sibling write/close/rename; a separate
+  post-write signal is also sound. Hold a native barrier between output-open and the PID write to
+  prove the publication boundary, and cancel/await the fixture even when that assertion fails.
+  The hub approved this deterministic protocol guard instead of a lexical PID-write rule, which
+  would also flag safe validating readers and post-write FIFO consumers.
 - #550: a readiness prerequisite cannot depend on an effect available only
   after that readiness admits its owner. Preserve actionable prerequisite
   facts separately from aggregate status precedence, and exit with the full
@@ -1448,6 +1454,22 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   help before close. Updating the detailed atlas alone leaves an existing entry point teaching the same
   ambiguous procedure. Inspect those prose consumers against the tested commands; do not add wording tests.
 
+- #546: inventory completeness and import authority are separate. Observe all
+  current carriers first; keep archive evidence out of active rename inputs,
+  and preserve related-branch merge-base semantics. A stricter path classifier
+  must not silently hide filename bytes accepted by ParseFilename. Pure matching
+  tests and native root × scope/preservation regressions guard this semantic
+  contract; helper-name lint cannot establish publication completeness.
+- #546 PQ-1: use exact production function names in plan strategy tables and
+  one adversarial class plus independent guard per function. Keep finite test
+  input enumerations in executable tests rather than duplicating them in prose.
+
+- #546 recorded suite: a stricter, intended preflight can make an unrelated
+  regression fail in fixture setup before reaching its original guard. Align
+  prerequisite evidence with the new contract while preserving the exact old
+  refusal and no-mutation oracle; do not weaken production policy or label a
+  reproducible fixture failure a flake. Exercise helper tests through the live
+  consumer path instead of retaining unused compatibility code solely for tests.
 - #551 plan review: a bounded operation must name context propagation through reused creation, reset and retry APIs; a context-free callback cannot inherit the dispatch deadline by implication. Guard the actual blocked descendant and lock cleanup through production setup/retry, and keep detailed case matrices in executable tests rather than duplicating the plan's function-level strategy table.
 
 - #551 dependency review: read-only Git inspection can acquire promisor objects implicitly. Disable lazy fetch and transports across the observation/materialization family, then prove the source object store/config stays unchanged with a missing-promisor-object fixture and a remote-helper sentinel. A command-name lint cannot prove this Git behavior.
@@ -1480,6 +1502,11 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   effects. Native replaced-token, target-movement and post-archive replacement
   regressions defend these semantic contracts; lexical lint cannot prove them.
 
+- #531 plan review: name each risky selector/resolver/diagnostic function and its adversarial strategy; leave case inventories in executable tests. For immutable accounting, normalize fresh inputs before persistence rather than changing the interpretation of saved cuts. The native retired-boundary/replay matrix and pinned-read call counter defend the semantic contract; a lexical lint cannot prove correct time attribution.
+
+- #531 full suite: every new --issue recovery hint must use issue.CLIRef even when current callers pass decimal IDs. Include TestIssueHintsRenderDecimalIDs in targeted checks before queuing the full suite, and use a padded ID in the native refusal assertion. The existing source guard owns this mechanical class; do not add a parallel lint.
+
+- #531 BR-1: when a fast path skips evidence collection, test every independent reason the evidence is required. Requested milestone authority and existing open-cut filtering are separate predicates; empty, whole-issue-only and finalized-only ledgers must not bypass live target validation.
 - #553 BR-1: a structural fallback placed after selected grammar branches can
   remain message-dependent through earlier unknown returns. Apply fallback to
   the authority parser's explicit unknown result; preserve definite authority
@@ -1499,3 +1526,26 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #554 BR-1: an approved post-close addition to accepted behavior needs a full close review. Reserve fixed-then-ship for the earlier review's fixes and eligible conflict resolutions; approval of scope does not make a fix-only review sufficient. The existing scope-review guard already rejects this workflow mistake.
 
 - #554 suite: every generated --issue hint must render canonical IDs through issue.CLIRef; a padded ID can parse as octal or fail. Run the existing TestIssueHintsRenderDecimalIDs guard alongside formatter tests when adding a hint; the generic Go lint catalog does not replace specialized repository guards.
+- #556 PQ-1: reusing a managed-process helper inside an already managed command
+  can create a new process group outside the outer owner's cleanup authority.
+  Name the sole group owner before reuse; inner unit adapters inherit that group.
+  A synchronized wrapper-death test must prove child membership and outer join
+  before resource retirement. Guard the inner launch seam against group creation
+  and nested managed-batch calls with a Go lint rule.
+- #556 PQ-2: plans name each risky function and one adversarial-input strategy
+  plus mechanical guard. Keep concrete case inventories in executable tests;
+  name the owner and repeat trigger for external native conformance.
+
+- #556: A shared strict process cleanup path does not imply shared evidence-marker authority. Keep the original resume owner's marker until its existing terminalization boundary; ordinary-run marker cleanup needs explicit ownership from its caller. Exercise that distinction through production CLI resume, not only helper tests.
+
+- #556 BR-1: Preserve execution scope in every evidence projection. Exact case/unit success does not turn a targeted child into a complete-suite confirmation; test the real saved-check projection as well as the pure parser, and retain explicit legacy behavior for Go.
+- #556 BR-2/BR-3: Before close, reconcile the entire Core concepts inventory with delivered symbols, paths and PURE/INTEGRATION boundaries, and map new commands/config/adoption in README as well as help/atlas. Do not leave design placeholder helpers in the acceptance inventory.
+- Cross-repo filing (ops:0, 2026-10-22): Use a temporary worktree off origin/main for issue creation; never borrow another slot's working checkout, even when the verb promises no checkout writes. A staged :0 stays detached for the operator.
+- #556 BR-4: Enumerate reporting IO entry points as well as pure aggregators when adding proof-bearing metadata. Interactive stats and weekly snapshots must use the same hash-verified log hydration before confirmation; persisted-log parity tests must cover each typed kind and missing/tampered proof.
+- #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
+
+- #560 plan review: name each risky production function in the test strategy table, with one adversarial input class and independent mechanical guard; keep case inventories in executable tests. Distinguish existing read ceilings from writer enforcement when stating bounds.
+
+- #560 implementation review: when admission publishes a record and a watcher later rewrites it, retain the admitted record as the source for that final write. A direct election test misses erasure at the watcher boundary; a real acquired-slot assertion must check the immutable field and unknown nested metadata after the holder is installed. Successful-parent cleanup also needs an independent descendant test, since cancellation-only tests cannot defend post-Run cleanup.
+
+- #560 BR-1: a helper can escape its caller's process-group cleanup by starting a provider in a new session. Test cancellation through the actual helper/provider tree, including descendants, rather than only a same-group substitute. A supervised child keeps descendants in the external owner's group; standalone queries keep their own cleanup. Moving a signal handler alone cannot protect against SIGKILL.
