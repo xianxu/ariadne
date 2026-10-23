@@ -16,7 +16,7 @@ card_mirror: '7b8dacc967fba65b2ca2b79b8ab8ca01e7b2bc7a' # card fields mirrored f
 
 ## Spec
 
-**Settled with the operator (10-22, design chat in brain `chat.md`, section "Chat", from "The modes"):**
+**Settled with the operator (10-22, design chat in brain `chat.side/2026-10/2026-10-22-01-editorial-modes.md`):**
 - **Uniform names:** `collaboration-mode` (where an answer goes: discussion / collaboration / chat),
   `presentation-mode` (how edits are shown: highlight / direct / propose), `processing-mode` (how an edit is made:
   the review modes in `ariadne/construct/local/universal-review/modes/`: copy-editing, developmental, fact-check,
@@ -41,6 +41,9 @@ Project `unified-editorial-interface` (ops). **Spec first:** update the universa
 per heading, line directly under the heading), single-value frontmatter, precedence, and the migration rule for
 documents still using the per-section map (read as before with a deprecation warning until migrated; the migration
 writes one heading comment per mapped section). This is the contract pair and parley implement.
+
+
+**Side-doc layout (decided 10-22):** `<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`: a year-month subfolder, with the full date kept in the filename so a file still makes sense when linked, grepped or moved. **No migration:** existing flat names stay valid (readers accept both). Reason: `ops/session.side/` already holds about 270 entries, 261 from October alone. Applies to the naming rule in the universal-review spec (`collaboration-modes.md` §4) and to every side-doc creator (parley, Couch, and tl-lead's side-doc helpers).
 
 ## Done when
 
