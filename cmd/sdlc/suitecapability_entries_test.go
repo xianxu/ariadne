@@ -260,3 +260,19 @@ func TestSuiteCapabilityAffectedGraphBeforeEffects(t *testing.T) {
 		t.Fatal("affected preflight created evidence")
 	}
 }
+
+func TestSuiteCapabilityResumeRetryAfterRepair(t *testing.T) {
+	d, sha, store, link := resumeSavedFixture(t, false)
+	if err := os.Remove(filepath.Join(store, "attempts", link.ID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	d.suiteCapabilities = func(context.Context) error { return suiteCapabilityDenied() }
+	_, err := resumeSavedSuite(context.Background(), d, suiteCheck("true"), sha, "aa")
+	assertCapabilityRefusal(t, err, suiteCheckName, sha)
+	d.suiteCapabilities = func(context.Context) error { return nil }
+	scriptRerun(t, `printf '%s\n' '{"Action":"pass","Package":"example.org/p","Test":"TestOne"}' '{"Action":"pass","Package":"example.org/p","Elapsed":1}'`)
+	rec, err := resumeSavedSuite(context.Background(), d, suiteCheck("true"), sha, "aa")
+	if err != nil || !rec.passed() || rec.ResumeParent != "aa" {
+		t.Fatalf("repair did not permit exact retry: %+v %v", rec, err)
+	}
+}

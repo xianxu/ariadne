@@ -28,15 +28,16 @@ No new post-hoc log classifier or invalidate verb. The original mixed attempt st
 
 | Pure entity | Lives in | Status |
 | --- | --- | --- |
-| Capability-error diagnosis | `cmd/sdlc/suitecapability.go` | new |
 | `suiteEnvironmentError` formatting | `cmd/sdlc/suiteenvironment.go` | modified |
 
-The pure diagnosis takes an operation name and wrapped error. It distinguishes EPERM (`errors.Is`, not message matching) from other unavailable-capability errors. Only independent EPERM yields the sandbox/whole-call advice; other errors name the failed capability without asserting sandbox causation. The existing startup-only log diagnosis remains unchanged.
+The pure `suiteEnvironmentError.Error` formatter takes the stored operation diagnosis and wrapped error. It distinguishes EPERM (`errors.Is`, not message matching) from other unavailable-capability errors. Only independent EPERM yields the sandbox/whole-call advice; other errors name the failed capability without asserting sandbox causation. Its colocated tests need no IO. The existing startup-only log diagnosis remains unchanged.
 
 | Integration point | Lives in | Status | Wraps |
 | --- | --- | --- | --- |
-| Host capability probe | `cmd/sdlc/suitecapability.go` | new | `queueBootID`, private temporary directory, `net.ListenUnix`, close/remove |
+| `probeSuiteCapabilities` / `suiteHostCapabilities` | `cmd/sdlc/suitecapability.go` | new | `queueBootID`, private temporary directory, `net.ListenUnix`, close/remove |
+| `preflightSuite` | `cmd/sdlc/suitecapability.go` | new | invokes probe and binds check/head to its result |
 | Ordinary execution preflight | `cmd/sdlc/localcheck_run.go` | modified | shared probe before helper/worktree/attempt allocation |
+| Affected graph preflight | `cmd/sdlc/localcheck_affected.go` | modified | shared probe before optional generator and graph worktree |
 | Eligible resume preflight | `cmd/sdlc/localcheck_resume.go` | modified | shared probe before worktree, child writer or immutable link |
 | Automatic flake rerun preflight | `cmd/sdlc/localcheck_flakes.go` | modified | shared probe before child writer/queue |
 
@@ -76,3 +77,7 @@ Failure prints `environment failure: could-not-run`, the denied capability and c
 ### 2026-10-23 — Include affected graph generation in the execution boundary
 
 The entry-point sweep found affected's optional graph generator precedes `runLocalCheck`, even for a docs-only selection. Apply the same approved preflight before that graph call and test no graph/execution/status effects on refusal. No new mechanism. Correct the cost scope: the reused stale-temp sweep scales with its existing directory population, while the new capability operations are fixed.
+
+### 2026-10-23 — Close round 1 corrections
+
+BR-1: correct the Core concepts table to the implementation: the pure EPERM formatter is `suiteEnvironmentError.Error` in `suiteenvironment.go`; the three functions in `suitecapability.go` invoke/own IO and belong in the integration table. No additional pure helper is needed. Add the already-implemented affected graph boundary to that table. BR-2: retain the short-path explanation as an ordinary comment, removing an unused lint suppression. BR-3: document the new refusal/retry contract in README as well as help and atlas. Recorded-suite and landing gates remain outstanding.

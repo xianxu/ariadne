@@ -67,7 +67,7 @@ func suiteHostCapabilities(ctx context.Context) error {
 	return probeSuiteCapabilities(ctx, suiteCapabilityProbe{
 		bootID: queueBootID,
 		mkdir: func() (string, error) {
-			//lint:allow tmp-literal — Unix socket paths must stay short even when inherited TMPDIR is arbitrarily long.
+			// Unix socket paths must stay short even with an arbitrarily long TMPDIR.
 			root, roots, _ := scratchdisk.Roots("tmp", "/tmp")
 			for _, old := range roots {
 				sweepStaleTemp(old, true, time.Now(), processAlive)
