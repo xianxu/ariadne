@@ -276,6 +276,101 @@ rounds:
       isolation: fenced
       reviewed: 213f0fa2d58f44975260da50b823ea9f57760f41
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 46859808-70bf-4e66-88d0-9904c459b57d
+            repository: github.com/xianxu/ariadne
+            issue_id: "000575"
+            recipe: milestone-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/14574eb7300ebb4e
+            reviewed_head: 006f6dd3b2a2d0125a7594d0b5fe485b0642e544
+            slot: ariadne:2
+            requested_at: "2026-10-23T19:54:48.207961Z"
+          phase: finished
+          pid: 45740
+          started_at: "2026-10-23T19:54:48.352559Z"
+          finished_at: "2026-10-23T20:07:15.421098Z"
+          session_id: cfbe9945-fc17-47e3-bba5-24f932f47cce
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 006f6dd3b2a2d0125a7594d0b5fe485b0642e544
+        tracker_head: 1430081a35e8e4845974beb97f0749d057f45059
+        branch_point: 588a0b0af09a8965d472f7acc216581db3afa815
+        since: "2026-10-23T11:52:48-07:00"
+        until: "2026-10-23T12:54:14-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T11:52:48-07:00"
+              end: "2026-10-23T12:54:14-07:00"
+              began: "2026-10-23T11:52:48-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 0853b4fbca811d7d88337b3d7738baf898175f92a9db813f755c29b5078f29d4
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 9812493
+              windows:
+                - start: "2026-10-23T11:52:48-07:00"
+                  end: "2026-10-23T12:54:14-07:00"
+        queue_waits:
+            - attempt_id: 53212cf34ff54e94bbc5c828c645f562
+              slot: ariadne:2
+              record_digest: d3b5f0006809f76bf79820900fc8e6623a1b499588961e4af8d71ef82b0790c0
+              start: "2026-10-23T19:19:36.247598Z"
+              end: "2026-10-23T19:33:03.83328Z"
+              queue_seconds: 807.585682
+              raw_seconds: 807.585682
+              exact: true
+        cuts:
+            - dispatched: "2026-10-23T12:07:55-07:00"
+              finalized: "2026-10-23T12:11:33-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T12:16:09-07:00"
+              finalized: "2026-10-23T12:18:32-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T12:20:14-07:00"
+              finalized: "2026-10-23T12:22:02-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-23T13:07:16-07:00"
+      dispatched: "2026-10-23T12:54:48-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      findings:
+        - kind: defect
+          id: BR-8
+          severity: Minor
+          title: A document opening with a thematic break and no closing fence gets a false "frontmatter could not be read" notice
+          detail: 'This is the 3rd finding in family legacy-key-notice-coverage. chat.go:73 fires the notice whenever the document starts with a fence line, so "---\nJust a rule above prose.\n" reports unread frontmatter it does not have, and the spec requires replies to repeat that notice word for word. The rule to fix: notice only when a frontmatter block exists (an opening fence with a matching closing fence) and it could not be read. Use the same closing-fence detection as frontmatter(), not a prefix test.'
+          family: legacy-key-notice-coverage
+          round: 4
+        - kind: defect
+          id: BR-9
+          severity: Minor
+          title: 'An empty collaboration-mode value prints "collaboration-mode:  is retired and ignored"'
+          detail: chat.go:189 formats an empty scalar as a retired value, with a double space. §7 classes an empty value as empty or malformed, so the notice should say that instead.
+          family: notice-text-names-value
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 006f6dd3b2a2d0125a7594d0b5fe485b0642e544
+      blocked: false
 ---
 
 # Gate ledger — ariadne#575 (boundary-review)
@@ -321,6 +416,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-7 — addressed — chat.go:73 and chat.go:178 apply one rule for every unread fence; chat_test.go:67-86 rows go red when the pre-fix chat.go is restored (checked in this checkout).
 
+## Round 4 — 2026-10-23T13:07:16-07:00 (claude) — passed
+
+### Raised
+
+- **BR-8** [Minor] `legacy-key-notice-coverage` (kind: defect) A document opening with a thematic break and no closing fence gets a false "frontmatter could not be read" notice
+  This is the 3rd finding in family legacy-key-notice-coverage. chat.go:73 fires the notice whenever the document starts with a fence line, so "---\nJust a rule above prose.\n" reports unread frontmatter it does not have, and the spec requires replies to repeat that notice word for word. The rule to fix: notice only when a frontmatter block exists (an opening fence with a matching closing fence) and it could not be read. Use the same closing-fence detection as frontmatter(), not a prefix test.
+- **BR-9** [Minor] `notice-text-names-value` (kind: defect) An empty collaboration-mode value prints "collaboration-mode:  is retired and ignored"
+  chat.go:189 formats an empty scalar as a retired value, with a double space. §7 classes an empty value as empty or malformed, so the notice should say that instead.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-8** [Minor] `legacy-key-notice-coverage` (kind: defect) A document opening with a thematic break and no closing fence gets a false "frontmatter could not be read" notice
+- **BR-9** [Minor] `notice-text-names-value` (kind: defect) An empty collaboration-mode value prints "collaboration-mode:  is retired and ignored"

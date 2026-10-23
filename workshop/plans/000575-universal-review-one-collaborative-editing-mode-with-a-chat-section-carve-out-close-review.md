@@ -311,3 +311,87 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"aee73bfb-0a0a-4f5b-b204-58fe9f882387","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/5d4601b41e81e3d7","reviewed_head":"213f0fa2d58f44975260da50b823ea9f57760f41","slot":"ariadne:2","requested_at":"2026-10-23T19:20:14.177636Z"},"phase":"finished","pid":90290,"started_at":"2026-10-23T19:20:14.366087Z","finished_at":"2026-10-23T19:22:01.134438Z","session_id":"72d0912c-a9a2-4b2f-8b31-f1be1dd2713a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T13:07:16-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 575 — universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases |
+| repo | ariadne |
+| issue file | workshop/issues/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 588a0b0af09a8965d472f7acc216581db3afa815..006f6dd3b2a2d0125a7594d0b5fe485b0642e544 |
+| command | sdlc close --issue 575 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T13:07:16-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the new vocab fix, then running the tests and looking for any other code that reads the rewritten skill files.
+
+Core tests pass; failures in tl-lead/weave are sandbox `git init` refusals. Now probing a few edge inputs of `ChatSections`.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This is round 4. The only code change since round 3 (head 213f0fa2d) is commit 006f6dd3b. It repoints `pkg/vocab`'s `TestCollaborationModesAgreeAcrossSources` from the errors table, which the rewrite removed, to §7's legacy table. It also spells the §7 row as `collaboration-mode: collaboration` in full and regenerates the `export.json` hash to match. I checked that fix and found it correct. I also repeated the sweep the new lesson asks for: I grepped every Go file outside workshop that reads the skill files. The readers are tl-lead, sdlc, pkg/sidedoc, pkg/vocab and pkg/reviewexport. Every section they cite still exists: §3 for the item grammar, §4 and §5, and "The index" at `collaboration-modes.md:232`. `go test ./pkg/reviewexport ./pkg/sidedoc ./pkg/vocab` passes. So does `./cmd/datatype`, and so do the review-related runs of `./cmd/tl-lead` and `./cmd/weave` (`-run 'Editorial|Instruction|Chat|Help'` and `'Universal|Review|Skill'`). The full runs of those two packages fail only on tests that need `git init`, which this sandbox refuses ("outside the reviewer's directories", sdlc #339); none of those failures touch the code this issue changed. No prior findings are still open. The two new findings are both Minor, so nothing blocks SHIP.
+
+1. **Strengths**
+   - `pkg/sidedoc/chat.go`: `ChatSections` is one pure scanner. It reuses the package's existing `frontmatter`, `CodeLiteralMask` and goldmark heading parsing, so no third heading scanner was written (ARCH-DRY, ARCH-PURE). Its table tests do no IO.
+   - The code, the spec and the tests now agree that a tag counts only above an ATX heading and only outside code. A setext row and an indented-code row in `chat_test.go` pin both rules.
+   - `checkChat` requires each reply to carry `ChatSections`' notices word for word, so the fixtures are checked against the grammar code rather than against prose.
+   - The vocab fix comes with a lesson entry (`workshop/lessons.md`) on sweeping every reader of a file before rewriting it. My sweep found no reader that was missed.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `pkg/sidedoc/chat.go:73`: a document that opens with a `---` thematic break and has no closing fence gets "frontmatter could not be read". My probe confirmed this for `"---\nJust a rule above prose.\n"`. This is the 3rd finding in family `legacy-key-notice-coverage`. The rule to fix is "notice only when the frontmatter block exists, meaning an opening fence with a matching closing fence, and it could not be read". The notice condition should use the same closing-fence detection as `frontmatter()`, not a prefix check.
+   - `pkg/sidedoc/chat.go:189`: an empty `collaboration-mode:` produces "collaboration-mode:  is retired and ignored". The text has a double space and calls an empty value retired, while §7 classes it as empty or malformed.
+
+5. **Test coverage notes:** The vocab test now checks only that §7 contains each value in `vocab.CollaborationModes`. Before, it checked that the two lists were the same. That is enough while §7 is a legacy table. The `chat_test.go` rows cover every legacy form and every way frontmatter can go unread, except the thematic-break case above.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** tl-lead's own heading-name lookup is left in place on purpose; the plan defers it to #576.
+   - **ARCH-PURE: pass.**
+   - **ARCH-PURPOSE: pass.** The spec, the 13 exported cases and the Done-when guard `TestNoSpecWritesModeKeys` are all delivered. The remaining Go writers of mode keys are filed as #576.
+   - **ARCH-MOCK: N/A.** There is no new external dependency.
+   - **ARCH-CONSTRAINTS: N/A.** The changes are static docs and a scanner over a single document.
+   - **ARCH-SECURE: pass.** Malformed frontmatter turns into a notice, never a crash or an invented value.
+   - **ARCH-ORDER: N/A.** Nothing holds state between events.
+   - **ARCH-FUNERAL: pass.** The retired fixtures are deleted, and nothing durable is added.
+   - **ARCH-EVOLVE: pass.** v4 is a deliberate incompatible version, and the consumer table gives the reason. Legacy keys are read and never rewritten.
+
+   #576 should adopt `sidedoc.ChatSections` in tl-lead's `instructions.go` rather than keep its own heading-name lookup.
+
+7. **Plan revision recommendations:** none. The plan's Revisions section and the issue Log already record the move to `pkg/sidedoc`, the scope of the guard and the vocab miss.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: legacy-key-notice-coverage
+    title: |
+      A document opening with a thematic break and no closing fence gets a false "frontmatter could not be read" notice
+    detail: |
+      This is the 3rd finding in family legacy-key-notice-coverage. chat.go:73 fires the notice whenever the document starts with a fence line, so "---\nJust a rule above prose.\n" reports unread frontmatter it does not have, and the spec requires replies to repeat that notice word for word. The rule to fix: notice only when a frontmatter block exists (an opening fence with a matching closing fence) and it could not be read. Use the same closing-fence detection as frontmatter(), not a prefix test.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: notice-text-names-value
+    title: |
+      An empty collaboration-mode value prints "collaboration-mode:  is retired and ignored"
+    detail: |
+      chat.go:189 formats an empty scalar as a retired value, with a double space. §7 classes an empty value as empty or malformed, so the notice should say that instead.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"46859808-70bf-4e66-88d0-9904c459b57d","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/14574eb7300ebb4e","reviewed_head":"006f6dd3b2a2d0125a7594d0b5fe485b0642e544","slot":"ariadne:2","requested_at":"2026-10-23T19:54:48.207961Z"},"phase":"finished","pid":45740,"started_at":"2026-10-23T19:54:48.352559Z","finished_at":"2026-10-23T20:07:15.421098Z","session_id":"cfbe9945-fc17-47e3-bba5-24f932f47cce","outcome":"returned"}] -->
