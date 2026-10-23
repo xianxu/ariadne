@@ -1,13 +1,21 @@
 ---
 id: 000561
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'eb4937f47be65fa28366037eb99f9bc3290b9e83' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fede1c3a7f2ab897965fc8444a31f6d7ef3c8d81' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T00:12:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Landing trains: cars board on affected tests; full suite once per train; measure escapes and bisect cost
@@ -48,11 +56,28 @@ Scope:
 - A train failure attributable to a car whose affected run passed is recorded as an escape, with the bisect cost
   (test with a fake suite).
 - `sdlc landing status` shows the escape rate and bisect cost for the repo.
+- The weekly artifact carries the same measurement definitions and explicit unknown coverage; existing snapshots remain immutable.
+- Omitted train caps default to two, explicit caps remain unchanged, and one central seven-day measured-review rule governs manual ramp guidance without enabling trains or raising caps automatically.
 
 ## Plan
 
-- [ ]
+- [ ] M1 — Explicit boarding-only affected execution, conservative refusals and default two-car onboarding; retain ordinary fallback and train suite gates.
+- [ ] M2 — Accepted-proof provenance, confirmed escape and actual split-cost measurement, status/weekly reporting and incomplete-coverage controls.
+
+Durable design: [affected boarding and train measurements](../plans/000561-affected-boarding-and-train-measurements-plan.md).
 
 ## Log
 
 ### 2026-10-22
+
+### 2026-10-23 — Planning checkpoint
+
+- Claimed and entered planning on the issue branch. Read-only traces found that readiness already accepts affected records; `runAffectedCheck` escalates Full/graph failure into suite. Existing full integration suite, baseline, bisect attribution and reintegration remain authoritative (ARCH-DRY, ARCH-PURE).
+- Hub confirmed explicit boarding-only mode: Full/unavailable selection refuses without running suite; keep selector authority and already-passing suite proof. Omitted cap defaults to two, explicit caps survive, and a central seven-day review informs guarded manual changes only. Authenticated delivery b92915a9-f0ca-4b8f-a469-406a36ebe9de was submitted.
+- Proposed two review boundaries in the linked durable plan. Escape measurements distinguish confirmed qualifying failures from registered/untouched/unverified outcomes and disclose unresolved coverage. Count managed executions rather than scheduled `Train.Splits`; preserve immutable weekly v2 artifacts with additive optional measurement data.
+- Checked `sdlc merge --help`: there is no per-call serial flag. Recovery text will print the exact ordinary suite/retry commands and name the guarded main configuration prerequisite (zero train interval) for serial landing; no new merge flag is proposed.
+- No code edited, checks queued, PR opened or estimate supplied. Next: send the committed/pushed full plan to the hub for approval, then run `sdlc change-code --issue 561` for plan-quality and estimation before implementation. Isolated native CLI/train fixtures are the proposed live proof; no :0 or consumer settings will be touched without hub authorization.
+
+## Revisions
+
+- 2026-10-23: Refined implementation scope from the observed fallback owner, incorporated the hub's boarding/default-cap decisions, and added weekly compatibility/onboarding acceptance criteria already required by the operator's Spec. Full plan awaits approval.
