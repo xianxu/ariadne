@@ -4,6 +4,7 @@
 package tracker
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -55,9 +56,14 @@ func DetailNames(paths []string, id, newPath string) (olds []string, hasNew bool
 	return olds, hasNew
 }
 
+// ErrMoveSourceChanged: the file changed since the caller judged it.
+var ErrMoveSourceChanged = errors.New("changed since it was checked; rerun to check it again")
+
 // MovePath is the prepare step moving one file's exact bytes to a new path on
 // the candidate's pinned tip, refusing when the old is gone or the new taken.
-func MovePath(from, to string) func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
+// A non-nil expect pins the bytes the caller's checks judged: a change in
+// between refuses rather than moving what nobody checked.
+func MovePath(from, to string, expect []byte) func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
 	return func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		if taken, err := view.Exists(to); err != nil {
 			return gitx.TrunkWrite{}, err
@@ -74,14 +80,18 @@ func MovePath(from, to string) func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
 		if err != nil {
 			return gitx.TrunkWrite{}, fmt.Errorf("read %s: %w", from, err)
 		}
+		if expect != nil && !bytes.Equal(b, expect) {
+			return gitx.TrunkWrite{}, fmt.Errorf("%s %w", from, ErrMoveSourceChanged)
+		}
 		return gitx.TrunkWrite{Write: map[string][]byte{to: b}, Delete: []string{from}, ExactBytes: true}, nil
 	}
 }
 
-// MoveCard moves card id from one path to another in one tracker commit.
-func (r *Repository) MoveCard(id, from, to, token string) error {
+// MoveCard moves card id from one path to another in one tracker commit, only
+// while the card still has the bytes the caller's checks read (#566 BR-5).
+func (r *Repository) MoveCard(id string, from Record, to, token string) error {
 	if !tokenPattern.MatchString(token) {
 		return errors.New("tracker rename requires an operation token")
 	}
-	return r.trunk.UpdateMany(cardMessage(id, "rename card", token), MovePath(from, to))
+	return r.trunk.UpdateMany(cardMessage(id, "rename card", token), MovePath(from.Path, to, from.Raw))
 }

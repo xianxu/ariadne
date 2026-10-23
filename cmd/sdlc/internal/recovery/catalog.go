@@ -459,7 +459,7 @@ var Catalog = []Contract{
 		Class:         ConvergentRetry,
 		Effects:       "two compare-and-swap commits with the bytes unchanged (#566): the card moves to the new slug on issue-tracker, then the details move on main. The checkout is not touched.",
 		Evidence:      "which name each ref holds: " + observeEvidence + " for the card; `git ls-tree origin/main <issues dir>/` for the details.",
-		Preconditions: "an open issue with no issue branch locally or on the remote, owned by this workspace or unclaimed (#274); a slug FileSlug accepts; the new name free on main. A refusal writes nothing.",
+		Preconditions: "an open issue with no issue branch locally or on the remote, owned by this workspace or unclaimed (#274), checked before any moving step; a slug FileSlug accepts; the new name free on main. The card move refuses a card changed since those checks. A refusal writes nothing.",
 		Repeat:        "both refs at the new name: nothing is written, and the new details path is printed.",
 		LostResponse:  "rerun the same command: what both refs hold decides the next step (NextRenameStep), so a run stopped after the card step finishes the details.",
 		Ends:          "the issue is started (its branch is named after the new stem).",
@@ -468,6 +468,7 @@ var Catalog = []Contract{
 			{"moves both files with their bytes; derives the capped slug from the title", []string{"TestIssueRenameMovesCardAndDetails", "TestIssueRenameDerivesCappedSlugFromTitle"}},
 			{"a stopped run finishes on rerun; a finished rename commits nothing", []string{"TestIssueRenameResumesAndIsIdempotent"}},
 			{"refusals move no ref", []string{"TestIssueRenameRefusals"}},
+			{"a card changed after its checks is not moved; the rerun checks it again", []string{"TestIssueRenameRefusesACardChangedAfterItsChecks"}},
 		},
 	},
 	{

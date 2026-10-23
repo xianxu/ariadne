@@ -45,6 +45,10 @@ func newIssueRenameCmd() *cobra.Command {
 	return cmd
 }
 
+// renameBeforeStep runs between a step's checks and its write; tests use it
+// to land a concurrent change in that gap.
+var renameBeforeStep = func(tracker.RenameStep) {}
+
 func runIssueRename(ctx context.Context, stdout, stderr io.Writer, issuesDir string, issueID int, explicit string) error {
 	if issueID <= 0 {
 		return fmt.Errorf("--issue is required and must be positive (got %d)", issueID)
@@ -117,9 +121,14 @@ func runIssueRename(ctx context.Context, stdout, stderr io.Writer, issuesDir str
 		}
 		switch step {
 		case tracker.RenameCard:
-			err = env.repo.MoveCard(id, cur.Path, newCard, token)
+			renameBeforeStep(step)
+			err = env.repo.MoveCard(id, cur, newCard, token)
 		case tracker.RenameDetails:
-			err = env.main.UpdateMany(fmt.Sprintf("#%s: issue: rename details", issue.CLIRef(id)), tracker.MovePath(olds[0], newDetail))
+			// Unpinned: ownership lives on the card, which already has the new
+			// name; this step only completes what the card says. A concurrent
+			// details edit is carried whole.
+			renameBeforeStep(step)
+			err = env.main.UpdateMany(fmt.Sprintf("#%s: issue: rename details", issue.CLIRef(id)), tracker.MovePath(olds[0], newDetail, nil))
 		case tracker.RenameDone:
 			invalidateIssueRecords(env.ctx)
 			cok(stderr, fmt.Sprintf("#%s is named %s", issue.CLIRef(id), newStem))

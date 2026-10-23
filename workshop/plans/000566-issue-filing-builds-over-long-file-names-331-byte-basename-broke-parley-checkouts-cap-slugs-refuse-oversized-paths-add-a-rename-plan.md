@@ -96,7 +96,8 @@ Actions: `sdlc issue rename --issue N [--slug S]` (also its rerun). No cancel: e
 | –/new, –/new | renamed | none (`RenameDone`, rerun is a no-op) | none |
 | old and new both present on a ref, or neither old nor new on a ref | corrupt | refuse, naming both paths; operator repairs | none written |
 | unknown push outcome (network) | `UpdateMany`'s existing offline error | rerun rename: the fresh fetch decides | none |
-| concurrent `claim` between steps | card changed at its new path; CAS retries | none needed | none |
+| card changed between the checks and the card move (a claim, start-plan) | refused: "changed since it was checked"; nothing moved | rerun rename (it checks the new card: a started issue refuses) | none |
+| card changed after the card step (a claim on the new name) | half-renamed until rerun | rerun rename: the details step completes what the card names | none |
 
 Covered: every observable combination of the two refs, process death between steps, reruns and a concurrent card
 writer. Not covered: renaming started issues (scope decision 1), renaming archived issues in `workshop/history/`.
@@ -300,3 +301,5 @@ plus no local or remote issue branch covers the unstarted case. Added `tracker.D
 the card no longer names the old details file, so main's details are found by ID. The permission check (`renamable`)
 now runs before any moving step, including the details step of a half-done rename (BR-1). `PublishCommitChecked` joins
 the guarded writers. A legacy filer test pins the cap there (BR-2).
+
+2026-10-23 (close round 2, BR-5): the card move pins the bytes its checks read (`MovePath` expect, `MoveCard` takes the Record); a change in between refuses and a rerun re-checks. The details step stays unpinned: ownership lives on the card, which already has the new name. State design rows corrected.

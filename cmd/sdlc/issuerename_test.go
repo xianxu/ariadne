@@ -83,7 +83,7 @@ func TestIssueRenameDerivesCappedSlugFromTitle(t *testing.T) {
 func TestIssueRenameResumesAndIsIdempotent(t *testing.T) {
 	r := fileForRename(t, "ariadne:0", "first-slug")
 	card, detail := r.card("workshop/issue-cards/000008-first-slug.md"), r.mainFile("workshop/issues/000008-first-slug.md")
-	if err := r.tracker.UpdateMany("half", tracker.MovePath("workshop/issue-cards/000008-first-slug.md", "workshop/issue-cards/000008-short.md")); err != nil {
+	if err := r.tracker.UpdateMany("half", tracker.MovePath("workshop/issue-cards/000008-first-slug.md", "workshop/issue-cards/000008-short.md", nil)); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
@@ -117,7 +117,7 @@ func TestIssueRenameRefusals(t *testing.T) {
 		{"another owner", "only its owner", "short", func(t *testing.T, r *trackerRepo) { slotClaimant(t, "pair:2") }},
 		// The card already sits at the new name: the details step still needs the permission.
 		{"another owner finishing a half-done rename", "only its owner", "short", func(t *testing.T, r *trackerRepo) {
-			if err := r.tracker.UpdateMany("half", tracker.MovePath("workshop/issue-cards/000008-first-slug.md", "workshop/issue-cards/000008-short.md")); err != nil {
+			if err := r.tracker.UpdateMany("half", tracker.MovePath("workshop/issue-cards/000008-first-slug.md", "workshop/issue-cards/000008-short.md", nil)); err != nil {
 				t.Fatal(err)
 			}
 			slotClaimant(t, "pair:2")
@@ -165,5 +165,30 @@ func setCardField(t *testing.T, r *trackerRepo, cardPath, from, to string) {
 		return gitx.TrunkWrite{Write: map[string][]byte{cardPath: bytes.Replace(raw, []byte(from), []byte(to), 1)}, ExactBytes: true}, nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A claim landing between the checks and the card move must not be renamed
+// along with the card nobody checked (#566 BR-5); a rerun checks it again.
+func TestIssueRenameRefusesACardChangedAfterItsChecks(t *testing.T) {
+	r := fileForRename(t, "ariadne:0", "first-slug")
+	prev := renameBeforeStep
+	renameBeforeStep = func(step tracker.RenameStep) {
+		if step == tracker.RenameCard {
+			setCardField(t, r, "workshop/issue-cards/000008-first-slug.md", "status: open", "status: working")
+		}
+	}
+	t.Cleanup(func() { renameBeforeStep = prev })
+	var out, errs bytes.Buffer
+	err := runIssueRename(context.Background(), &out, &errs, "workshop/issues", 8, "short")
+	if err == nil || !strings.Contains(err.Error(), "changed since it was checked") {
+		t.Fatalf("err = %v", err)
+	}
+	if r.card("workshop/issue-cards/000008-first-slug.md") == "" || r.card("workshop/issue-cards/000008-short.md") != "" {
+		t.Fatal("the changed card was renamed")
+	}
+	renameBeforeStep = prev
+	if err := runIssueRename(context.Background(), &out, &errs, "workshop/issues", 8, "short"); err == nil || !strings.Contains(err.Error(), "rename it before start-plan") {
+		t.Fatalf("rerun err = %v", err)
 	}
 }
