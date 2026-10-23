@@ -40,11 +40,35 @@ type ChatSection struct {
 // whole-document legacy chat emits no section of its own for it, so a
 // consumer can protect each tag and its heading as operator-owned without
 // recognizing tags itself. Misplaced and Tags never share a line.
+//
+// Headings are every heading CommonMark sees (ATX or setext, never one inside
+// code), in document order: find a heading here, never by comparing raw
+// lines, which miss an indented heading or a closing `##` and match a copy
+// inside a fence.
 type ChatScan struct {
 	Sections  []ChatSection
+	Headings  []ChatHeading
 	Tags      []int
 	Misplaced []int
 	Notices   []string
+}
+
+// ChatHeading is one parsed heading: its 1-based line, its level and its text
+// without the `#` markers.
+type ChatHeading struct {
+	Line, Level int
+	Name        string
+}
+
+// Heading returns the first heading of the given level whose text is name,
+// compared with surrounding whitespace trimmed.
+func (s ChatScan) Heading(level int, name string) (ChatHeading, bool) {
+	for _, h := range s.Headings {
+		if h.Level == level && strings.TrimSpace(h.Name) == name {
+			return h, true
+		}
+	}
+	return ChatHeading{}, false
 }
 
 // Innermost returns the chat section governing a 1-based line: the
@@ -152,6 +176,7 @@ func chatSections(doc string) (ChatScan, int) {
 	isHeading := map[int]bool{}
 	for _, h := range headings {
 		isHeading[h.line] = true
+		scan.Headings = append(scan.Headings, ChatHeading{h.line, h.level, h.name})
 	}
 	// Each section ends before the next heading of the same or a higher
 	// level: one stack pass, each heading pushed and popped once.

@@ -38,21 +38,21 @@ func instructionBullets(section string) []Bullet {
 // Couch's diff baseline.
 func legacyGrammar(doc string) bool {
 	scan := sidedoc.ChatSections(doc)
-	for i, l := range strings.Split(doc, "\n") {
-		if strings.TrimRight(l, " \t\r") != "## "+instructionsHeading {
-			continue
-		}
-		// The section itself governs when it is chat; otherwise the innermost
-		// enclosing chat section, tagged or legacy, does.
-		for _, sec := range scan.Sections {
-			if sec.Heading == i+1 {
-				return sec.Source != "tag" || sec.Legacy
-			}
-		}
-		if sec, ok := scan.Innermost(i + 1); ok {
+	// The heading comes from the parse, so an indented heading or a closing
+	// `##` is found and a copy inside a fence is not.
+	h, ok := scan.Heading(2, instructionsHeading)
+	if !ok {
+		return true
+	}
+	// The section itself governs when it is chat; otherwise the innermost
+	// enclosing chat section, tagged or legacy, does.
+	for _, sec := range scan.Sections {
+		if sec.Heading == h.Line {
 			return sec.Source != "tag" || sec.Legacy
 		}
-		return true
+	}
+	if sec, ok := scan.Innermost(h.Line); ok {
+		return sec.Source != "tag" || sec.Legacy
 	}
 	return true
 }
@@ -78,6 +78,14 @@ func grammarName(legacy bool) string {
 	}
 	return "numbered"
 }
+
+// tokenName and tokenHelp are the one description of the token `list`
+// prints and `link --hash` takes back, so every surface (Use, Short, the flag
+// help, help.md's wording) names the same thing.
+const (
+	tokenName = "TOKEN"
+	tokenHelp = "the HASH:GRAMMAR token `list` printed: the section hash and the item grammar its positions were counted in"
+)
 
 // listToken is what `list` prints after `hash:` and `link --hash` takes back:
 // the section hash and the grammar its positions were counted in.
@@ -120,7 +128,7 @@ func linkBullet(section string, pos int, target string, legacy bool) (string, er
 }
 
 // renderOpen lists the open bullets as `POS<TAB>first line`, continuation
-// lines tab-indented, then the section hash that a later link must name.
+// lines tab-indented, then the list token (tokenHelp) a later link must name.
 func renderOpen(bs []Bullet, hash string) string {
 	var sb strings.Builder
 	for _, b := range bs {
@@ -196,7 +204,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	list := &cobra.Command{
 		Use:   "list [FILE]",
-		Short: "Print the open (unanswered) bullets by position, then the HASH:GRAMMAR token link needs",
+		Short: "Print the open (unanswered) bullets by position, then the " + tokenName + " link needs (" + tokenHelp + ")",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, hash, err := d.ss.ReadSection(args[0], instructionsHeading)
@@ -213,8 +221,8 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	var hash string
 	link := &cobra.Command{
-		Use:   "link [FILE] POS TARGET --hash H",
-		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
+		Use:   "link [FILE] POS TARGET --hash " + tokenName,
+		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section and its grammar still match the " + tokenName + " list printed",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos, err := strconv.Atoi(args[1])
@@ -224,7 +232,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 			return linkInstruction(d, cmd.OutOrStdout(), args[0], pos, args[2], hash)
 		},
 	}
-	link.Flags().StringVar(&hash, "hash", "", "the section hash `list` printed (required)")
+	link.Flags().StringVar(&hash, "hash", "", tokenHelp+" (required)")
 	_ = link.MarkFlagRequired("hash")
 	c.AddCommand(withDefaultStatusFile(list, 1), withDefaultStatusFile(link, 3))
 	return c

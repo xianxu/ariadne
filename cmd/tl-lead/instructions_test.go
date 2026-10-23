@@ -316,6 +316,10 @@ func TestLegacyGrammar(t *testing.T) {
 		{"legacy map", "---\ncollaboration-mode: {chat: [Operator instructions]}\n---\n# S\n\n## Operator instructions\n- a\n", true},
 		{"undeclared", "# S\n\n## Operator instructions\n- a\n", true},
 		{"an enclosing tagged section governs", "@@chat@@\n# Parent\n## Operator instructions\n1. a\n", false},
+		// The heading comes from the parse (#576 round 3): these are all tagged.
+		{"a copy of the heading inside a fence comes first", "```\n## Operator instructions\n```\n@@chat@@\n## Operator instructions\n1. a\n", false},
+		{"a closing ## on the heading", "@@chat@@\n## Operator instructions ##\n1. a\n", false},
+		{"a heading indented by one space", "@@chat@@\n ## Operator instructions\n1. a\n", false},
 	} {
 		if got := legacyGrammar(tc.doc); got != tc.want {
 			t.Errorf("%s: legacyGrammar %v, want %v", tc.name, got, tc.want)
