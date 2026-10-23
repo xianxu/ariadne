@@ -153,6 +153,33 @@ layers, 1 MiB per dependency document, 4 MiB Git output and two minutes per Git
 command; limits refuse visibly rather than truncating inputs. Conformance tests
 exercise real temporary bare Git remotes through the same injected boundary.
 
+## Planning publication policy (#557)
+
+SDLC catch-up invokes `weave refresh --planning`. The invocation-local policy in
+`cmd/weave/deferred_seeds.go` classifies every Seed and SeedOnce as
+`plan.DeferredOutput`, then compares its intended result through `OutputCurrent`.
+This happens before managed preflight and every apply pass; no seed is published,
+adopted into inventory or restored afterward. Existing ownership and displaced
+recovery evidence survive. Protected settings keep their existing deferral.
+The classifier makes one pass and currentness is observed once per seed; no
+per-seed Git subprocess or tracked-file observation race is introduced.
+
+A stale seed notice names its destination and the recovery command. Start a
+separate consumer workflow-update issue/branch, run ordinary `weave compile`,
+inspect the diff, then commit and publish through SDLC. A local-gates workflow
+change requires the operator's `local-gates-verified` label; agents never apply
+it. Neither planning nor ordinary compile creates an issue, PR or label.
+`--defer-settings` remains the settings-only compatibility mode. Other generated
+composition still runs: Ship, managed retirement and .gitignore are outside this
+seed policy, a known follow-up if observed dirtying a resting branch.
+
+`planning_refresh_test.go` replays the captured pair#809 provenance-workflow
+advance using bare remotes for Claude and Codex. It demonstrates the old dirty
+resting branch, a clean planning refresh, and ordinary regeneration on a separate
+consumer branch. `deferred_seeds_test.go` covers typed classification, native
+file/link/mode preservation, retained inventory/recovery, errors and counted
+linear observations; SDLC catch-up tests enforce the installed planning flag.
+
 ## Distribution and ownership consumers
 
 `cmd/weave/version.go` defaults to `dev`; release preparation sets it from the

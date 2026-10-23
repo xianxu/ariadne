@@ -419,8 +419,18 @@ and origin/main remain unchanged; compilation can update generated composition.
 It cannot be combined with `--rebase`. Numbered slots refresh only their private
 substrates, with the same ownership, cleanliness and preflight safeguards.
 
-Planning gates use `weave refresh --defer-settings`: they never write the
-sandbox-protected `.claude/settings.json`. When the checkout is already current,
+Planning gates use `weave refresh --planning`: they defer all seeded entrypoints
+(Seed and SeedOnce), including tracked workflows, and the sandbox-protected
+`.claude/settings.json` before publication. A stale seed notice names the path.
+For pending regeneration, start a dedicated consumer workflow-update issue and
+branch, run `weave compile`, inspect the generated diff, then commit and publish
+it as its own SDLC PR. Local-gates configuration requires the operator to apply
+`local-gates-verified`; agents never apply that label. Planning neither stashes
+changes nor opens a regeneration PR automatically. Other generated composition
+still runs; Ship outputs, retirement and .gitignore are outside this seed policy.
+`--defer-settings` remains available for settings-only deferral.
+
+When the checkout is already current,
 `weave settings` checks it read-only without installing dependencies, building
 tools or generating outputs. Stale settings produce one notice: run
 `weave refresh --substrate` from your shell. This publishes settings while
