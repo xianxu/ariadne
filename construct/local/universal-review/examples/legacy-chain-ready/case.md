@@ -9,3 +9,4 @@ is replaced. The agent does not add another turn.
 ## Reply
 
 - Shortened the title as the final operator turn requested.
+- collaboration-mode: collaboration is retired and ignored: one collaborative mode applies

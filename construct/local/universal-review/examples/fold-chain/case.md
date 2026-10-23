@@ -11,3 +11,4 @@ link there.
 
 - Folded design.side/02-cap.md into design.side/01-backoff.md (cap at one minute); its link is marked folded.
   design.md is unchanged.
+- collaboration-mode: discussion is retired and ignored: one collaborative mode applies

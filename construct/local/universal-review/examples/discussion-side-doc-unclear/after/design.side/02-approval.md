@@ -2,7 +2,6 @@
 type: side-doc
 parent: 01-scope.md
 marker: "ok"
-collaboration-mode: discussion
 ---
 
 # Which proposal does the approval cover?

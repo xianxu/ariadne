@@ -10,3 +10,4 @@ the entry back, at the end.
 ## Reply
 
 - Operator instructions 1: added the follow-up to status.side/2026-10-15-01-backlog.md; it is back in the index.
+- collaboration-mode map is a legacy key; its chat sections are read as @@chat@@

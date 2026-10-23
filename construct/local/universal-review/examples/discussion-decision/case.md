@@ -10,3 +10,4 @@ linked `→ [notes](…)`. The second is a bare acknowledgement: just the line, 
 ## Reply
 
 - Freshness: the stamp's reasoning is in design.side/01-stamp-first.md.
+- collaboration-mode: discussion is retired and ignored: one collaborative mode applies

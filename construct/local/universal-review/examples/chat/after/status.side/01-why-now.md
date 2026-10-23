@@ -2,8 +2,6 @@
 type: side-doc
 parent: ../status.md
 marker: "why now and not after #411?"
-collaboration-mode: discussion
-process-instruction: "[copy-editing]"
 ---
 
 # Why ship #412 now and not after #411?

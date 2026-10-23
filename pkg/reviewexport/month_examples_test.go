@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 const monthSide = "d.side/2026-10/2026-10-22-01-why.md"
@@ -13,7 +15,6 @@ func monthCase() fstest.MapFS {
 	m := goodCase()
 	old := "after/d.side/01-why.md"
 	body := strings.ReplaceAll(string(m[old].Data), "../d.md", "../../d.md")
-	body = strings.Replace(body, "collaboration-mode: discussion", "collaboration-mode: discussion\npresentation-mode: highlight\nprocessing-mode: free-form", 1)
 	delete(m, old)
 	m["after/"+monthSide] = &fstest.MapFile{Data: []byte(body)}
 	m["after/d.md"] = &fstest.MapFile{Data: []byte("# D\n\nText. → [discussion](" + monthSide + ")\n")}
@@ -53,9 +54,6 @@ func TestMonthSideDocChecker(t *testing.T) {
 		{"deeper directory", func(m fstest.MapFS) { renameMonth(m, "d.side/2026-10/deep/2026-10-22-01-why.md") }, "nested"},
 		{"arbitrary directory", func(m fstest.MapFS) { renameMonth(m, "d.side/archive/2026-10-22-01-why.md") }, "month"},
 		{"nested side root", func(m fstest.MapFS) { renameMonth(m, "d.side/nested.side/2026-10-22-01-why.md") }, ".side/ inside"},
-		{"missing presentation default", func(m fstest.MapFS) { mutate(m, "after/"+monthSide, "presentation-mode: highlight\n", "") }, "presentation-mode"},
-		{"missing processing default", func(m fstest.MapFS) { mutate(m, "after/"+monthSide, "processing-mode: free-form\n", "") }, "processing-mode"},
-		{"missing collaboration mode", func(m fstest.MapFS) { mutate(m, "after/"+monthSide, "collaboration-mode: discussion\n", "") }, "collaboration-mode"},
 		{"wrong parent", func(m fstest.MapFS) {
 			mutate(m, "after/"+monthSide, "parent: ../../d.md", "parent: ../../e.md")
 			m["after/e.md"] = &fstest.MapFile{Data: []byte("# E\n")}
@@ -162,59 +160,44 @@ func TestMonthSideDocMixedLayoutControls(t *testing.T) {
 	})
 }
 
-func TestMonthSideDocCanonicalDefaults(t *testing.T) {
+// #575: a side doc a round creates carries no mode key, whatever its
+// parent carries; a pre-existing side doc keeps its legacy keys unchanged.
+func TestMonthSideDocNoModeKeys(t *testing.T) {
 	legacyParent := func() fstest.MapFS {
 		m := monthCase()
 		for _, p := range []string{"before/d.md", "after/d.md"} {
-			m[p] = &fstest.MapFile{Data: []byte("---\nprocess-instruction: \"[review:direct]\"\n---\n" + string(m[p].Data))}
+			m[p] = &fstest.MapFile{Data: []byte("---\ncollaboration-mode: collaboration\nprocess-instruction: \"[review:direct]\"\n---\n" + string(m[p].Data))}
 		}
 		return m
 	}
-	t.Run("legacy parent does not pass down composite alias", func(t *testing.T) {
+	t.Run("legacy parent passes nothing down", func(t *testing.T) {
 		if errs := checkCase(legacyParent()); len(errs) != 0 {
 			t.Fatal(errs)
 		}
 	})
-	t.Run("existing month alias stays readable", func(t *testing.T) {
+	t.Run("existing legacy side doc stays readable", func(t *testing.T) {
 		m := legacyParent()
-		body := strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\nprocess-instruction: \"[review:direct]\"", 1)
+		body := strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\ncollaboration-mode: discussion\npresentation-mode: highlight\nprocess-instruction: \"[review:direct]\"", 1)
 		m["before/"+monthSide] = &fstest.MapFile{Data: []byte(body)}
 		m["after/"+monthSide] = m["before/"+monthSide]
 		if errs := checkCase(m); len(errs) != 0 {
 			t.Fatal(errs)
 		}
 	})
-	t.Run("copied composite alias rejected", func(t *testing.T) {
-		m := legacyParent()
-		m["after/"+monthSide] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\nprocess-instruction: \"[review:direct]\"", 1))}
-		if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "legacy process-instruction") {
-			t.Fatalf("errors %q, want legacy process-instruction rejection", errs)
-		}
-	})
-	t.Run("alias cannot replace canonical fields", func(t *testing.T) {
-		m := legacyParent()
-		body := string(m["after/"+monthSide].Data)
-		body = strings.Replace(body, "presentation-mode: highlight\nprocessing-mode: free-form\n", "process-instruction: \"[review:direct]\"\n", 1)
-		m["after/"+monthSide] = &fstest.MapFile{Data: []byte(body)}
-		errs := strings.Join(checkCase(m), "\n")
-		for _, want := range []string{"presentation-mode", "processing-mode"} {
-			if !strings.Contains(errs, want) {
-				t.Errorf("errors %q, want explicit %s rejection", errs, want)
+	for _, key := range append([]string{"collaboration-mode"}, sidedoc.RetiredKeys...) {
+		t.Run("new side doc writing "+key+" rejected", func(t *testing.T) {
+			m := legacyParent()
+			m["after/"+monthSide] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\n"+key+": x", 1))}
+			if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "new side doc writes retired mode key "+key) {
+				t.Fatalf("errors %q, want %s rejection", errs, key)
 			}
-		}
-	})
-	t.Run("new side doc starts with default modes", func(t *testing.T) {
+		})
+	}
+	t.Run("new side doc with an unexpected key rejected", func(t *testing.T) {
 		m := monthCase()
-		m["after/"+monthSide] = &fstest.MapFile{Data: []byte(strings.ReplaceAll(string(m["after/"+monthSide].Data), "presentation-mode: highlight", "presentation-mode: direct"))}
-		if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "new side doc presentation-mode") {
-			t.Fatalf("errors %q, want default rejection", errs)
-		}
-	})
-	t.Run("explicit processing instruction is allowed", func(t *testing.T) {
-		m := legacyParent()
-		m["after/"+monthSide] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\nprocessing-instruction: \"Compare the alternatives\"", 1))}
-		if errs := checkCase(m); len(errs) != 0 {
-			t.Fatal(errs)
+		m["after/"+monthSide] = &fstest.MapFile{Data: []byte(strings.Replace(string(m["after/"+monthSide].Data), "type: side-doc", "type: side-doc\ntone: dry", 1))}
+		if errs := strings.Join(checkCase(m), "\n"); !strings.Contains(errs, "unexpected frontmatter key tone") {
+			t.Fatalf("errors %q, want unexpected-key rejection", errs)
 		}
 	})
 }

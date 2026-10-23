@@ -11,3 +11,5 @@ parent is not touched until the operator asks for the fold from there (see fold-
 
 - Your question opened design.side/02-renames.md (same folder).
 - Your approval is now its one Decided line. To apply it, add 🤖[fold in] by its link in design.md (Names).
+- collaboration-mode: discussion is retired and ignored: one collaborative mode applies
+- retired keys ignored: process-instruction
