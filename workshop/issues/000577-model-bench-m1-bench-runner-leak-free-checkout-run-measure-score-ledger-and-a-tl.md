@@ -70,6 +70,8 @@ Draft durable plan is written, awaiting hub review before code. It names the sta
 
 Plan approved by ops:0 with a real-run acceptance condition (authenticated receipt `32918d0f-ab73-4a25-b4e7-2bc8a6633d47`). Recorded that condition in Done-when and appended a concrete disposable-slot provisioning checklist: sanitized worker/private origin, fresh operating hub, supervised Couch discovery/launch, exact hub claim, real agent profiles/models, candidate tools/transcript identities, acceptance evidence and retirement. Hub provisions together when code is ready. Next: full-flow change-code plan-quality gate; no implementation yet.
 
+Plan-quality round 1 refused on PQ-1 (external-dependency-boundary-completeness): run/republish resolve a GitHub-only repository identity and discover a PR before the proposed local sink. Independently verified the cited production code. Refined the same approved adapter with one named dependency constructor shared by both commands: validated private publication identity, no GH client/PR discovery in bench mode, ordinary production unchanged. Added actual built-CLI run/republish tests with an all-call rejecting GitHub sentinel and unchanged same-head proof guards. Next: rerun plan quality; no implementation has started.
+
 ## Revisions
 
 - 2026-10-23, plan approval condition: Done-when requires a true autonomous replay with real agents in disposable bench slots on this Mac before close. Added provisioning checklist to the durable plan; ops:0 will provision together when the code is ready. Synthetic rows remain tests only.
