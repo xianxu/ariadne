@@ -1,6 +1,6 @@
 ---
 id: 000562
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 904fc9c470c097e4624b540a788de9fa73d682d5
         evidence_commit: 9e56e8c8f7d2c5baebb4f73b779d468381056f1e
+        landed_commit: 4f10a45d038acb2324c5a19e74a78f4a593571e6
 ---
 
 # unified-editorial-interface: spec the three uniform mode keys, per-section heading comments and single-value frontmatter
