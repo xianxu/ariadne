@@ -327,6 +327,8 @@ type localRunRecord struct {
 	AttemptID string
 	QueueWait time.Duration
 	Finished  time.Time
+	// Reused marks a saved pass posted again rather than run (#431).
+	Reused bool
 }
 
 // knownFlakeOutcome is the record's gate decision, for revalidation.

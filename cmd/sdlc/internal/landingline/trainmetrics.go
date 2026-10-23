@@ -285,7 +285,7 @@ func AdvanceMeasurement(t *MeasurementTracker, e MeasurementEvent) (*TrainMeasur
 		if t.phase != measureEmpty {
 			return illegal()
 		}
-		t.m = TrainMeasurement{Version: MeasurementVersion, Train: e.Train, Departed: e.Departed}
+		t.m = TrainMeasurement{Version: MeasurementVersion, Train: e.Train, Departed: e.Departed, Cars: []MeasuredCar{}}
 		t.attempts = map[string]bool{}
 		t.phase = measureStarting
 		seen := map[int64]bool{}
@@ -392,7 +392,7 @@ func AdvanceMeasurement(t *MeasurementTracker, e MeasurementEvent) (*TrainMeasur
 			return nil, nil // repeated confirmation of one boarding counts once
 		}
 		t.m.Cars[i].Resolution = ResolutionEscaped
-		for _, f := range e.Failures {
+		for _, f := range slices.Compact(slices.Sorted(slices.Values(e.Failures))) {
 			if f == "" || len(f) > MaxMeasuredString || len(t.m.Failures) >= MaxMeasuredFailures {
 				t.overflow().Failures++
 				continue
@@ -474,8 +474,10 @@ func EncodeMeasurement(m TrainMeasurement) (json.RawMessage, error) {
 	if len(data) <= MaxMeasurementBytes {
 		return data, nil
 	}
-	min := TrainMeasurement{Version: m.Version, Train: m.Train, Record: m.Record, Departed: m.Departed, Phase: m.Phase,
-		Overflow:   &MeasureOverflow{Cars: len(m.Cars), Executions: len(m.Executions), Failures: len(m.Failures)},
+	// Cars are bounded (MaxMeasuredCars, bounded strings), so they stay:
+	// their boardings still count, as unresolved where a resolution is lost.
+	min := TrainMeasurement{Version: m.Version, Train: m.Train, Record: m.Record, Departed: m.Departed, Phase: m.Phase, Cars: m.Cars,
+		Overflow:   &MeasureOverflow{Executions: len(m.Executions), Failures: len(m.Failures)},
 		Incomplete: []string{fmt.Sprintf("record of %d bytes exceeded %d", len(data), MaxMeasurementBytes)}}
 	return json.Marshal(min)
 }
@@ -490,9 +492,12 @@ type TrainFilterStats struct {
 	// matched start and final, Incomplete have one without the other, a
 	// conflict or a sticky incompleteness, Unmeasured have no usable
 	// measurement (legacy trains, unsupported versions).
+	// Open trains have a start and neither a final nor a terminal train
+	// event: still running, or their conductor died; never complete.
 	Trains     int `json:"trains"`
 	Measured   int `json:"measured"`
 	Incomplete int `json:"incomplete"`
+	Open       int `json:"open"`
 	Unmeasured int `json:"unmeasured"`
 	// The escape rate is Escaped / ResolvedAffected; a zero denominator is
 	// unknown. Unresolved affected boardings and other proofs sit beside it.
@@ -518,7 +523,46 @@ type TrainFilterStats struct {
 	SplitTrains      int     `json:"split_trains"`
 	SplitWallSeconds float64 `json:"split_wall_seconds"`
 	CostUnknown      int     `json:"cost_unknown"`
-	Text             string  `json:"text"`
+	// Escapes name the escaped boardings, oldest first, at most
+	// MaxNamedEscapes; EscapesOmitted counts the rest.
+	Escapes        []TrainEscape `json:"escapes,omitempty"`
+	EscapesOmitted int           `json:"escapes_omitted,omitempty"`
+	Text           string        `json:"text"`
+}
+
+// MaxNamedEscapes bounds the escapes a summary names.
+const MaxNamedEscapes = 20
+
+// TrainEscape is one escaped affected boarding: the train, the car and the
+// exact failures its affected run did not catch.
+type TrainEscape struct {
+	Train int64    `json:"train"`
+	Seq   int64    `json:"seq"`
+	Issue int      `json:"issue,omitempty"`
+	Head  string   `json:"head"`
+	Tests []string `json:"tests"`
+}
+
+// measurementFields are TrainMeasurement's members, by exact name, for the
+// strict top-level decode of a hand-editable log line.
+func measurementFields(m *TrainMeasurement) map[string]any {
+	return map[string]any{"version": &m.Version, "train": &m.Train, "record": &m.Record, "departed": &m.Departed,
+		"phase": &m.Phase, "cars": &m.Cars, "failures": &m.Failures, "executions": &m.Executions,
+		"split_start": &m.SplitStart, "split_wall_seconds": &m.SplitWallSeconds, "overflow": &m.Overflow, "incomplete": &m.Incomplete}
+}
+
+// decodeMeasurement reads one record with the line's strict codec: no
+// duplicate or null known member, the record kinds only, cars present.
+// Unknown members are ignored (evidence is never rewritten).
+func decodeMeasurement(raw json.RawMessage) (TrainMeasurement, error) {
+	var m TrainMeasurement
+	if _, err := decodeStrict(raw, measurementFields(&m)); err != nil {
+		return TrainMeasurement{}, err
+	}
+	if m.Cars == nil || (m.Record != MeasureRecordStart && m.Record != MeasureRecordFinal) {
+		return TrainMeasurement{}, fmt.Errorf("train measurement %d: malformed record", m.Train)
+	}
+	return m, nil
 }
 
 // TrainFilterStatsVersion is the stats payload's format.
@@ -587,8 +631,8 @@ func aggregateTrainMeasurements(events []Event, from, to time.Time, visit func()
 				mt.unsupported = true
 				continue
 			}
-			var m TrainMeasurement
-			if json.Unmarshal(e.Measurement, &m) != nil || m.Train != e.Train {
+			m, err := decodeMeasurement(e.Measurement)
+			if err != nil || m.Train != e.Train {
 				mt.unsupported = true
 				continue
 			}
@@ -620,14 +664,18 @@ func aggregateTrainMeasurements(events []Event, from, to time.Time, visit func()
 		case mt.start == nil && mt.final == nil:
 			s.Unmeasured++
 			continue
+		case mt.final == nil && !mt.terminal && !mt.conflict:
+			s.Open++
 		case mt.conflict || mt.unsupported || mt.start == nil || mt.final == nil || len(mt.final.Incomplete) > 0:
 			s.Incomplete++
 		default:
 			s.Measured++
 		}
+		// A conflict or a missing final leaves only the cars, all unresolved:
+		// the start's when there is one, else the (conflicting) final's.
 		m := mt.final
-		if m == nil || mt.conflict {
-			m = mt.start // its cars, all unresolved
+		if m == nil || (mt.conflict && mt.start != nil) {
+			m = mt.start
 		}
 		resolved := mt.final != nil && !mt.conflict
 		for _, c := range m.Cars {
@@ -641,6 +689,11 @@ func aggregateTrainMeasurements(events []Event, from, to time.Time, visit func()
 				case c.Resolution == ResolutionEscaped:
 					s.ResolvedAffected++
 					s.Escaped++
+					if len(s.Escapes) < MaxNamedEscapes {
+						s.Escapes = append(s.Escapes, TrainEscape{Train: id, Seq: c.Seq, Issue: c.Issue, Head: c.Head})
+					} else {
+						s.EscapesOmitted++
+					}
 				default:
 					s.ResolvedAffected++
 				}
@@ -657,6 +710,9 @@ func aggregateTrainMeasurements(events []Event, from, to time.Time, visit func()
 			visit()
 			if i := slices.IndexFunc(m.Cars, func(c MeasuredCar) bool { return c.Seq == f.Seq }); i >= 0 && m.Cars[i].Proof == ProofAffected {
 				s.EscapeFailures++
+				if j := slices.IndexFunc(s.Escapes, func(x TrainEscape) bool { return x.Train == id && x.Seq == f.Seq }); j >= 0 {
+					s.Escapes[j].Tests = append(s.Escapes[j].Tests, f.Test)
+				}
 			}
 		}
 		for _, x := range m.Executions {
@@ -714,7 +770,7 @@ func FormatTrainFilterStats(s TrainFilterStats) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "train filter (%dd): escapes %d/%d resolved affected boardings (%s); %d unresolved, %d on suite, %d unknown proof",
 		days, s.Escaped, s.ResolvedAffected, rate, s.UnresolvedAffected, s.SuiteBoardings, s.UnknownProof)
-	fmt.Fprintf(&b, "; trains %d: %d measured, %d incomplete, %d unmeasured", s.Trains, s.Measured, s.Incomplete, s.Unmeasured)
+	fmt.Fprintf(&b, "; trains %d: %d measured, %d incomplete, %d open, %d unmeasured", s.Trains, s.Measured, s.Incomplete, s.Open, s.Unmeasured)
 	fmt.Fprintf(&b, "; split cost %d extra suite(s) (%d baseline, %d probe) %s run, %s queue, %s wall over %d split train(s); %d reintegration suite(s) %s",
 		s.BaselineRuns+s.SplitProbeRuns, s.BaselineRuns, s.SplitProbeRuns, minutes(s.SplitRunSeconds), minutes(s.SplitQueueSeconds),
 		minutes(s.SplitWallSeconds), s.SplitTrains, s.ReintegrationRuns, minutes(s.ReintegrationRunSeconds))

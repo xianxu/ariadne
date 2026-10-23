@@ -87,10 +87,11 @@ LANDING TRAINS (#449)
   probe, reintegration) with its run and queue time. The line reads:
     escapes E/R resolved affected boardings (rate, or unknown at R=0);
     unresolved, suite and unknown-proof boardings beside it; trains
-    measured, incomplete (a start without a final, a lost append, a
-    bound) and unmeasured (before #561); the split's extra suites (baseline
-    plus probes) with run, queue and elapsed wall time, and reintegration
-    suites apart.
+    measured, incomplete (a lost append, a conflict, a bound), open (a
+    start with no end yet: in flight, or its conductor died) and unmeasured
+    (before #561); the split's extra suites (baseline plus probes) with
+    run, queue and elapsed wall time, and reintegration suites apart.
+  Each escape is named below it: train, car, head and the exact tests.
   Registered flakes, untouched or unknown impact, a red main and released
   cars are never escapes. The weekly test-stats snapshot carries the same
   numbers and line as train_filter. Measurements never decide a landing.

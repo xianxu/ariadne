@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"io"
 	"iter"
 	"os"
@@ -96,7 +97,7 @@ func testSuiteInfrastructureFailureHasNoCodeAuthority(t *testing.T, name string)
 	if !strings.Contains(err.Error(), "could-not-run") || !strings.Contains(err.Error(), "/Volumes/AgentScratch/go-build/") {
 		t.Fatalf("resource/path missing from recovery: %v", err)
 	}
-	if !strings.Contains(err.Error(), "--name "+name+" --rev "+sha) {
+	if !strings.Contains(err.Error(), localCheckRunCommand(name, sha)) {
 		t.Fatalf("live recovery targets caller HEAD instead of executed head: %v", err)
 	}
 	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {
@@ -135,7 +136,7 @@ func testSuiteInfrastructureRecordedCacheKnownFlakeRerun(t *testing.T, name stri
 	if !errors.As(err, &infra) {
 		t.Fatalf("recorded rerun startup failure lost execution provenance: %v", err)
 	}
-	if !strings.Contains(err.Error(), "--name "+name+" --rev "+sha) {
+	if !strings.Contains(err.Error(), localCheckRunCommand(name, sha)) {
 		t.Fatalf("rerun recovery dropped parent check/executed head: %v", err)
 	}
 	rows := gateAttempts(t, d)
@@ -166,7 +167,7 @@ func TestSuiteInfrastructureBaselineCannotBlameCars(t *testing.T) {
 	}
 	c := &conductor{ctx: context.Background(), heads: []string{sha}, base: sha, suite: check, local: d}
 	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return failed, nil }
-	if event, err := c.runSuite(1); err == nil || event != nil || c.baseline != nil {
+	if event, err := c.runSuite(1, landingline.ExecInitial); err == nil || event != nil || c.baseline != nil {
 		t.Fatalf("baseline infrastructure blamed cars: event=%+v err=%v baseline=%v", event, err, c.baseline)
 	}
 	if len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {

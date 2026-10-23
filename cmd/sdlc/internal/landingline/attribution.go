@@ -95,6 +95,7 @@ func classifySplit(failures []SplitFailure, unverified string, visit func()) Spl
 	}
 	if affected != "" {
 		slices.Sort(escapes) // a copy: the caller's facts are never reordered
+		escapes = slices.Compact(escapes)
 		return SplitAttribution{Kind: AttributionAttributable, Reason: "attributable: affected package " + affected, Escapes: escapes}
 	}
 	if unknown != "" {

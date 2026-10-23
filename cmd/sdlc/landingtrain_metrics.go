@@ -31,12 +31,15 @@ func (c *conductor) measure(e landingline.MeasurementEvent) {
 	}
 }
 
+// recordMeasurement appends a measurement event; tests interrupt it.
+var recordMeasurement = func(l *landingline.Line, e landingline.Event) error { return l.Record(e) }
+
 func (c *conductor) appendMeasurement(m landingline.TrainMeasurement) error {
 	raw, err := landingline.EncodeMeasurement(m)
 	if err != nil {
 		return err
 	}
-	err = c.line.Record(landingline.Event{Kind: landingline.EventTrainMeasure, Seq: c.id, Train: c.id, Measurement: raw})
+	err = recordMeasurement(c.line, landingline.Event{Kind: landingline.EventTrainMeasure, Seq: c.id, Train: c.id, Measurement: raw})
 	if err != nil && m.Record == landingline.MeasureRecordStart {
 		fmt.Fprintf(c.stderr, "landing train %d: measurement start record not written (%v); this train's coverage is incomplete\n", c.id, err)
 	}
@@ -61,7 +64,9 @@ func (c *conductor) measureDeparture(cars []landingline.Car) {
 func (c *conductor) measureTransition(before, after landingline.Train, ev landingline.TrainEvent) {
 	switch ev := ev.(type) {
 	case landingline.SuiteDone:
-		if ev.Outcome == landingline.SuitePass && ev.Prefix >= 1 && ev.Prefix <= len(before.Cars) {
+		// A pass resolves its cars only when a suite ran: a policy with no
+		// suite command passes without testing anything.
+		if ev.Outcome == landingline.SuitePass && ev.Prefix >= 1 && ev.Prefix <= len(before.Cars) && c.evidence[ev.Prefix].Name != "" {
 			c.measure(landingline.MeasurePrefixPassed{Seqs: carSeqsOf(before.Cars[:ev.Prefix])})
 		}
 	case landingline.SplitAssessed:
@@ -71,10 +76,26 @@ func (c *conductor) measureTransition(before, after landingline.Train, ev landin
 	}
 }
 
+// suiteRunKind is what the train's next suite run is, from the reducer's
+// state when the effect was emitted.
+func suiteRunKind(tr landingline.Train) landingline.ExecutionKind {
+	switch {
+	case tr.Phase == landingline.PhaseBisecting:
+		return landingline.ExecSplitProbe
+	case tr.Reintegrated > 0:
+		return landingline.ExecReintegration
+	}
+	return landingline.ExecInitial
+}
+
 // measureExecution records one managed whole-suite execution from its
 // returned evidence. err means it gave no result: no cost, coverage
-// incomplete.
+// incomplete. A reused saved pass ran earlier, not for this train: it is no
+// execution here.
 func (c *conductor) measureExecution(kind landingline.ExecutionKind, rec localRunRecord, err error) {
+	if err == nil && rec.Reused {
+		return
+	}
 	x := landingline.ExecutionSummary{Kind: kind, Outcome: landingline.ExecUnknown, Attempt: rec.AttemptID}
 	if err == nil && rec.Exit != -1 {
 		x.Outcome = landingline.ExecFailed

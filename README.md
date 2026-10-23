@@ -728,7 +728,14 @@ the command rather than promise a drop.
 
 `sdlc landing status` shows the setting, the next departure, each waiting
 merge's readiness, and the last trains: result, cars, train PR, split suites
-and culprit.
+and culprit. Since #561 it also shows the train filter over the last seven
+days, the measurements the cap ramp rule reviews: escapes (failures the
+train's suite found that a car's passing affected run missed) over resolved
+affected boardings, with unresolved, suite and unknown-proof boardings and
+incomplete, open and unmeasured trains beside it, each escape named (car,
+head, tests), and the split's extra suites with run, queue and wall time.
+The weekly `sdlc test-stats snapshot` carries the same numbers per repo as
+`train_filter`. See `sdlc landing --help`.
 
 A train waiter missing a required local-check record exits with
 `merge stopped: run <exact command>, then re-enter sdlc merge`.

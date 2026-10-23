@@ -459,6 +459,7 @@ func newLocalCheckRunner(d localRunDeps) localCheckRunner {
 	return func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
 		// #431: a saved, verified pass on this exact head is posted, not rerun.
 		if rec, ok, err := republishSavedPass(ctx, d, c, sha); ok {
+			rec.Reused = true
 			return rec, err
 		}
 		return runLocalCheck(ctx, d, c, sha)

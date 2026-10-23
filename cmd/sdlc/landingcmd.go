@@ -209,9 +209,14 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	}
 	// The filter's measured quality over the ramp review window (#561), shown
 	// while trains run or while the window still holds trains.
-	if now := d.now(); serr == nil {
-		if f := landingline.AggregateTrainMeasurements(events, now.Add(-landingline.TrainRampReviewWindow), now); !sched.Off() || f.Trains > 0 {
-			fmt.Fprintf(&b, "%s\n", f.Text)
+	now := d.now()
+	if f := landingline.AggregateTrainMeasurements(events, now.Add(-landingline.TrainRampReviewWindow), now); (serr == nil && !sched.Off()) || f.Trains > 0 {
+		fmt.Fprintf(&b, "%s\n", f.Text)
+		for _, e := range f.Escapes {
+			fmt.Fprintf(&b, "  escape: train %d, car #%d (%s): %s\n", e.Train, e.Issue, shortSHA(e.Head), strings.Join(e.Tests, ", "))
+		}
+		if f.EscapesOmitted > 0 {
+			fmt.Fprintf(&b, "  … %d more escape(s) in the landing log\n", f.EscapesOmitted)
 		}
 	}
 	for _, line := range recentTrains(events, 3) {

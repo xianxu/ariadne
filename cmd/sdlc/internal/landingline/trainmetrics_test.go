@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"reflect"
+	"slices"
 	"os"
 	"strings"
 	"testing"
@@ -224,10 +226,11 @@ func escapeTrain(t *testing.T, id int64, at time.Time) []Event {
 		{Kind: EventTrain, At: at.Add(30 * time.Minute), Train: id, Seq: id, Result: "landed", Departed: at}}
 }
 
-// #561: the fold. One escape over two resolved affected boardings; a legacy
-// train is unmeasured; a start without a final is incomplete with its cars
-// unresolved; an identical duplicate folds once; a conflicting one is
-// incomplete; an unsupported version is unmeasured; the window is half-open.
+// #561: the fold. One escape over two resolved affected boardings, named; a
+// legacy train is unmeasured; a start with neither a final nor a terminal
+// train event is open, its cars unresolved; an identical duplicate folds
+// once; a conflicting one is incomplete; an unsupported version is
+// unmeasured; the window is half-open.
 func TestAggregateTrainMeasurements(t *testing.T) {
 	from, to := tt0, tt0.Add(7*24*time.Hour)
 	events := escapeTrain(t, 7, tt0.Add(time.Hour))
@@ -246,18 +249,21 @@ func TestAggregateTrainMeasurements(t *testing.T) {
 	events = append(events, Event{Kind: EventTrainMeasure, At: tt0.Add(5 * time.Hour), Train: 50, Measurement: json.RawMessage(`{"version":2,"train":50}`)})
 	events = append(events, escapeTrain(t, 60, to)...) // outside: the window is half-open
 	s := AggregateTrainMeasurements(events, from, to)
-	want := TrainFilterStats{Trains: 5, Measured: 1, Incomplete: 2, Unmeasured: 2,
+	want := TrainFilterStats{Trains: 5, Measured: 1, Incomplete: 1, Open: 1, Unmeasured: 2,
 		AffectedBoardings: 6, ResolvedAffected: 2, Escaped: 1, UnresolvedAffected: 4, EscapeFailures: 2,
 		InitialRuns: 1, BaselineRuns: 1, SplitRunSeconds: 300, SplitQueueSeconds: 60, SplitTrains: 1, SplitWallSeconds: 20 * 60}
 	got := s
-	got.Version, got.From, got.To, got.Text = 0, time.Time{}, time.Time{}, ""
-	if got != want {
+	got.Version, got.From, got.To, got.Text, got.Escapes = 0, time.Time{}, time.Time{}, "", nil
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("stats\n got %+v\nwant %+v", got, want)
 	}
-	for _, phrase := range []string{"train filter (7d)", "escapes 1/2 resolved affected boardings (50.0%)", "4 unresolved", "trains 5: 1 measured, 2 incomplete, 2 unmeasured", "1 extra suite(s) (1 baseline, 0 probe) 5m run, 1m queue, 20m wall"} {
+	for _, phrase := range []string{"train filter (7d)", "escapes 1/2 resolved affected boardings (50.0%)", "4 unresolved", "trains 5: 1 measured, 1 incomplete, 1 open, 2 unmeasured", "1 extra suite(s) (1 baseline, 0 probe) 5m run, 1m queue, 20m wall"} {
 		if !strings.Contains(s.Text, phrase) {
 			t.Errorf("text lacks %q: %s", phrase, s.Text)
 		}
+	}
+	if len(s.Escapes) != 1 || s.Escapes[0].Train != 7 || s.Escapes[0].Seq != 8 || !slices.Equal(s.Escapes[0].Tests, []string{"p.TestA", "p.TestB"}) {
+		t.Fatalf("named escapes %+v", s.Escapes)
 	}
 	if empty := AggregateTrainMeasurements(nil, from, to); !strings.Contains(empty.Text, "escapes 0/0 resolved affected boardings (rate unknown)") {
 		t.Fatalf("an empty window is not unknown: %s", empty.Text)

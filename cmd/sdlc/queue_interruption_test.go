@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"io"
 	"os"
 	"path/filepath"
@@ -160,7 +161,7 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 	}
 	c := &conductor{ctx: context.Background(), heads: []string{sha}}
 	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return got.rec, got.err }
-	if event, err := c.runSuite(1); event != nil || err == nil || c.baseline != nil {
+	if event, err := c.runSuite(1, landingline.ExecInitial); event != nil || err == nil || c.baseline != nil {
 		t.Fatalf("interruption blamed train: %v %v", event, err)
 	}
 	if err := s.Resume(context.Background(), "fast"); err != nil {

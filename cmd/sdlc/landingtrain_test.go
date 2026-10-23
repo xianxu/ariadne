@@ -859,7 +859,7 @@ func TestTrainSuiteOutcome(t *testing.T) {
 		"known flake, accepted":   {localRunRecord{Exit: 2, Outcome: flakes.KnownFlakeAccept}, landingline.SuitePass},
 	} {
 		c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return tc.rec, nil }
-		ev, err := c.runSuite(1)
+		ev, err := c.runSuite(1, landingline.ExecInitial)
 		if err != nil || ev.(landingline.SuiteDone).Outcome != tc.want {
 			t.Errorf("%s: %+v %v", name, ev, err)
 		}
@@ -870,12 +870,12 @@ func TestTrainSuiteOutcome(t *testing.T) {
 	c.run = func(context.Context, localCheck, string) (localRunRecord, error) {
 		return localRunRecord{Exit: 2, Outcome: flakes.Unknown}, nil
 	}
-	if ev, err := c.runSuite(1); err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuiteFail {
+	if ev, err := c.runSuite(1, landingline.ExecInitial); err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuiteFail {
 		t.Fatalf("unexplained: %+v %v", ev, err)
 	}
 	red := true
 	c.baseline = &red
-	if ev, _ := c.runSuite(1); ev.(landingline.SuiteDone).Outcome != landingline.SuiteMainRed {
+	if ev, _ := c.runSuite(1, landingline.ExecInitial); ev.(landingline.SuiteDone).Outcome != landingline.SuiteMainRed {
 		t.Fatalf("main red: %+v", ev)
 	}
 }

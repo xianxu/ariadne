@@ -169,3 +169,57 @@ func TestMeasureExecutionUnknowns(t *testing.T) {
 		t.Fatalf("stats %+v", stats)
 	}
 }
+
+// #561: with every measurement append failing inside a real train, the
+// landing is unchanged: every car lands on the train's one suite, and the
+// log holds no measurement to claim otherwise.
+func TestLandingTrainLandsDespiteLostMeasurements(t *testing.T) {
+	old := recordMeasurement
+	recordMeasurement = func(*landingline.Line, landingline.Event) error { return errors.New("injected: disk full") }
+	t.Cleanup(func() { recordMeasurement = old })
+	s := newTrainSetupBoarding(t, "train", affectedCheckName)
+	landTrainOfThree(t, s)
+	if got := lineEvents(t, s.line)[landingline.EventTrainMeasure]; len(got) != 0 {
+		t.Fatalf("measurements written through a failing append: %+v", got)
+	}
+}
+
+// #561 review: a pass from a policy with no suite command tested nothing,
+// so it resolves no boarding; a reused saved pass ran before this train, so
+// it is no execution of it.
+func TestMeasurementIgnoresUntestedPassesAndReusedRuns(t *testing.T) {
+	line, err := landingline.Open(t.TempDir(), landingline.Options{Poll: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &conductor{line: line, stderr: &strings.Builder{}, id: 9, departed: time.Now(), evidence: map[int]localRunRecord{1: {Exit: 0}}}
+	cars := []landingline.Car{{Seq: 9, Head: strings.Repeat("a", 40)}}
+	c.measureDeparture(cars)
+	c.measureExecution(landingline.ExecInitial, localRunRecord{Name: suiteCheckName, Exit: 0, Reused: true}, nil)
+	c.measureTransition(landingline.Train{Cars: cars}, landingline.Train{Cars: cars}, landingline.SuiteDone{Prefix: 1, Outcome: landingline.SuitePass})
+	c.measure(landingline.MeasureFinal{At: time.Now(), Phase: "landed"})
+	events, _, err := line.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := decodeFinal(events)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(final.Executions) != 0 || final.Cars[0].Resolution != "" {
+		t.Fatalf("final %+v", final)
+	}
+}
+
+// suiteRunKind reads the run's kind off the reducer state that emitted it.
+func TestSuiteRunKind(t *testing.T) {
+	for want, tr := range map[landingline.ExecutionKind]landingline.Train{
+		landingline.ExecInitial:       {Phase: landingline.PhaseTesting},
+		landingline.ExecSplitProbe:    {Phase: landingline.PhaseBisecting, Reintegrated: 1},
+		landingline.ExecReintegration: {Phase: landingline.PhaseTesting, Reintegrated: 1},
+	} {
+		if got := suiteRunKind(tr); got != want {
+			t.Errorf("%+v: %s, want %s", tr, got, want)
+		}
+	}
+}
