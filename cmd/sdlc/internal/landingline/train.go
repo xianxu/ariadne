@@ -35,7 +35,7 @@ type Waiters struct {
 // DefaultMaxCars bounds one train whose repository sets no train_max_cars:
 // every adopter starts with two cars, so a failing train splits once and an
 // escape is cheap to attribute (#561). Raising it is the manual, measured
-// decision TrainRampPolicy states; an explicit cap is never changed.
+// decision FormatTrainRampPolicy states; an explicit cap is never changed.
 const DefaultMaxCars = 2
 
 // MaxReadinessAge is how long a car's vouch stays current. A waiting car

@@ -231,14 +231,22 @@ func (v ciVerdict) refusal(pr int) error {
 	return &ciGateError{Reason: v.Reason, Message: b.String(), LocalNeeded: append([]string(nil), v.LocalNeeded...)}
 }
 
-// localCheckCommand is the run a refusal asks for. Affected is only ever
-// needed as a train car's stand-in for suite, so it is asked for in boarding
-// mode, which never escalates to a per-car suite (#561).
-func localCheckCommand(name string) string {
+// localCheckCommand is the run a refusal asks for, on the checked-out head.
+func localCheckCommand(name string) string { return localCheckRunCommand(name, "") }
+
+// localCheckRunCommand is every user-facing local-check run command for a
+// named check, so a check's required mode is said once (#561): affected is
+// only ever needed as a train car's stand-in for suite, so it is asked for in
+// boarding mode, which never escalates to a per-car suite. rev "" omits --rev.
+func localCheckRunCommand(name, rev string) string {
+	cmd := "sdlc local-check run --name " + name
 	if name == affectedCheckName {
-		return "sdlc local-check run --name " + name + " --boarding"
+		cmd += " --boarding"
 	}
-	return "sdlc local-check run --name " + name
+	if rev != "" {
+		cmd += " --rev " + rev
+	}
+	return cmd
 }
 
 func checkLabel(c prCheck) string {

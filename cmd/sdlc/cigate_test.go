@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -388,5 +389,36 @@ func TestLandingRedCIRefusesBeforeMerge(t *testing.T) {
 	f.NoCI = true
 	if err := runMerge(io.Discard, io.Discard, f); err != nil || gh.merges != 1 {
 		t.Fatalf("--no-ci: err %v merges %d", err, gh.merges)
+	}
+}
+
+// #561 review (recovery-command-single-source): a local-check run command
+// for a variable check is built only by localCheckRunCommand, so affected is
+// always asked for with --boarding. A literal suite command is fine.
+func TestLocalCheckRunCommandIsSingleSourced(t *testing.T) {
+	built := regexp.MustCompile(`local-check run --name (%[sv]|" *\+)`)
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if built.MatchString(line) && !strings.Contains(line, `cmd := "sdlc local-check run --name " + name`) {
+				t.Errorf("%s:%d builds a local-check run command by hand; use localCheckRunCommand: %s", f, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+	if got := localCheckRunCommand(affectedCheckName, "abc"); got != "sdlc local-check run --name affected --boarding --rev abc" {
+		t.Fatal(got)
+	}
+	if got := localCheckRunCommand(suiteCheckName, ""); got != "sdlc local-check run --name suite" {
+		t.Fatal(got)
 	}
 }

@@ -99,9 +99,9 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 func boardingRefusal(sha, reason, suite string) error {
 	return fmt.Errorf("local check %s on %s: boarding refused: full selection (%s); boarding never runs the full suite.\n"+
 		"  → repair the selection: classify the path in %s on main (or fix its graph_prepare / the package graph), push, and rerun boarding; or\n"+
-		"  → prove the full suite instead: sdlc local-check run --name %s --rev %s, then sdlc merge --yes (a passing suite also boards).\n"+
+		"  → prove the full suite instead: %s, then sdlc merge --yes (a passing suite also boards).\n"+
 		"  %s",
-		affectedCheckName, abbrevSHA(sha), reason, affectedConfigPath, suite, sha, landingline.SerialLandingPrerequisite)
+		affectedCheckName, abbrevSHA(sha), reason, affectedConfigPath, localCheckRunCommand(suite, sha), landingline.SerialLandingPrerequisite)
 }
 
 // affectedLocalCheck is the selection as a local check: the repo's command
