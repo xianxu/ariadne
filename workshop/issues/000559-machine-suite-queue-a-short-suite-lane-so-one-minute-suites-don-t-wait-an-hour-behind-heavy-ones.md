@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "cf1a9628", done: "04480520"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Machine suite queue: a short-suite lane so one-minute suites don't wait an hour behind heavy ones
@@ -67,6 +67,8 @@ Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-o
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Targeted lane tests pass (go test -run Lane|Light|SuiteLane|QueueSuite, incl. TestRunLocalCheckLightOverrunRetriesInNormalLine, real-helper light run, strict-cleanup exclusion mutation-verified); test-lock.test.sh all passed. Broader LocalCheck|Queue|Resume run: only sandbox-denied resume tests and TestQueueRealHelperPause fail, identically on main a561b0ab. Heavy-impact bound (d): 951s with an un-niced light load vs 1003s bound. Recorded suite reruns on the final head before merge.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 438 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed and planned (ariadne:5). Measured: echo's recorded suites run 61–88 s and queued 2000–4480 s today; ariadne holds 445 attempt records.
 - TL approved all five scope choices (a)–(e); add an atlas note that the lane is a third concurrent run beyond WF_TEST_SUITES=2, bounded to light suites. (scope choices a–e approved)
 - Implemented in four commits (eligibility, helper light line, local-check lane wiring, status and atlas). Targeted runs pass, plus the helper's 16 lane checks (sharing the ticket directory makes them fail). `TestQueueRealHelperPause` fails only in the agent sandbox (boot identity unreadable).
