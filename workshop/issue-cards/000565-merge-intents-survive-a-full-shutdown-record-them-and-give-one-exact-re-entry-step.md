@@ -1,6 +1,6 @@
 ---
 id: 000565
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0455eba5f1c5e3f4e8558a2e0449043185db0757
         evidence_commit: 5e9a818f9b3461097a4884e98164fcaf83011552
+        landed_commit: be2b8436a6ee6cbd271407e2cc81bf35ccb25efc
 ---
 
 # Merge intents survive a full shutdown: record them and give one exact re-entry step
