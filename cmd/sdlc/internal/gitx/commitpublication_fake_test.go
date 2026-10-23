@@ -209,6 +209,22 @@ func (f *publicationGit) run(ctx context.Context, dir string, env []string, args
 			fmt.Fprintf(&out, ":%s %s %040d %040d %s\x00%s\x00", om, nm, 0, 0, status, p)
 		}
 		return ok(out.String())
+	case "diff":
+		// diff --name-only --no-renames -z <commit> <tree>: the publication's changed paths.
+		old, new := f.files(args[len(args)-2]), f.trees[args[len(args)-1]]
+		var changed []string
+		for p, b := range new {
+			if a, present := old[p]; !present || a != b {
+				changed = append(changed, p)
+			}
+		}
+		for p := range old {
+			if _, present := new[p]; !present {
+				changed = append(changed, p)
+			}
+		}
+		sort.Strings(changed)
+		return ok(strings.Join(changed, "\x00"))
 	case "merge-base":
 		if f.failHistory {
 			return nil, nil, context.DeadlineExceeded

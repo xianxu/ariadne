@@ -1,8 +1,12 @@
 package gitx
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestCheckPathLimits(t *testing.T) {
@@ -34,6 +38,38 @@ func TestUpdateManyRefusesOverlongNameBeforePush(t *testing.T) {
 		return TrunkWrite{Write: map[string][]byte{name: []byte("x\n")}}, nil
 	})
 	if err == nil || !strings.Contains(err.Error(), "file-name limit") {
+		t.Fatalf("err = %v", err)
+	}
+	if got := commitCount(t, origin) - before; got != 0 {
+		t.Fatalf("origin gained %d commits", got)
+	}
+}
+
+// A selected commit's tree reaches main through merge-tree, not commitSet;
+// the same refusal applies before its candidate exists (#566). The name is
+// built in the index because no local filesystem could hold it.
+func TestPublishCommitRefusesOverlongName(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	before := commitCount(t, origin)
+	testfix.Git(t, repo, "checkout", "-qb", "feature")
+	content := filepath.Join(t.TempDir(), "x")
+	if err := os.WriteFile(content, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	blob := strings.TrimSpace(testfix.Capture(t, repo, "hash-object", "-w", content))
+	name := "workshop/" + strings.Repeat("y", 300) + ".md"
+	testfix.Git(t, repo, "update-index", "--add", "--cacheinfo", "100644,"+blob+","+name)
+	testfix.Git(t, repo, "commit", "-qm", "overlong")
+	source := strings.TrimSpace(testfix.Capture(t, repo, "rev-parse", "HEAD"))
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, err := tf.SelectCommit(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tf.PublishCommit(selected); err == nil || !strings.Contains(err.Error(), "file-name limit") {
 		t.Fatalf("err = %v", err)
 	}
 	if got := commitCount(t, origin) - before; got != 0 {

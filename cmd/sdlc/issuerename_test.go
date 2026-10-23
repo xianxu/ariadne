@@ -115,6 +115,13 @@ func TestIssueRenameRefusals(t *testing.T) {
 			testfix.Git(t, r.root, "push", "-q", "origin", "HEAD:refs/heads/000008-first-slug")
 		}},
 		{"another owner", "only its owner", "short", func(t *testing.T, r *trackerRepo) { slotClaimant(t, "pair:2") }},
+		// The card already sits at the new name: the details step still needs the permission.
+		{"another owner finishing a half-done rename", "only its owner", "short", func(t *testing.T, r *trackerRepo) {
+			if err := r.tracker.UpdateMany("half", tracker.MovePath("workshop/issue-cards/000008-first-slug.md", "workshop/issue-cards/000008-short.md")); err != nil {
+				t.Fatal(err)
+			}
+			slotClaimant(t, "pair:2")
+		}},
 		{"overlong slug", "at most 80 bytes", strings.Repeat("a", 81), nil},
 		{"name taken", "exactly one of the old and new names", "short", func(t *testing.T, r *trackerRepo) {
 			main, err := gitx.NewTrunkFile(r.root, "origin", "main")

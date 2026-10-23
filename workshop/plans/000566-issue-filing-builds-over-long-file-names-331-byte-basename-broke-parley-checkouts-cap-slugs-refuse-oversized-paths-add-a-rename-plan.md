@@ -30,6 +30,7 @@ idempotent compare-and-swap updates whose next step is a pure function of what b
 | `MaxSlugBytes` | `cmd/sdlc/internal/issue/scaffold.go` | new |
 | `CheckPathLimits` | `cmd/sdlc/internal/gitx/pathlimit.go` | new |
 | `RenameStep` / `NextRenameStep` | `cmd/sdlc/internal/tracker/rename.go` | new |
+| `DetailNames` | `cmd/sdlc/internal/tracker/rename.go` | new |
 
 - **FileSlug(title, explicit string) (string, error)** — the slug for an issue filename. `explicit != ""` is validated
   (must equal `Slugify(explicit)`, non-empty, at most `MaxSlugBytes`; refuses otherwise, naming the limit); else
@@ -60,6 +61,8 @@ idempotent compare-and-swap updates whose next step is a pure function of what b
 - **commitSet** — calls `CheckPathLimits(keys(set.Write))` before any git call. Every candidate on either ref passes
   through it: `UpdateMany`/`UpdateManyPrepared` (`updatemany.go:121`) and `PrepareCandidate` (`candidate.go:71`), i.e.
   creation's card reserve and details publication, `issue publish`, card setters, transfers and the new rename.
+  `PublishCommitChecked` (`commitpublication.go`) merges a selected commit's tree through `merge-tree`, bypassing
+  commitSet, so it runs the same check over `git diff --name-only base tree` before its candidate (close round 1).
   Not guarded, and why: `closetracker.go:97,263,276` re-index paths already on the issue branch (they cannot introduce a
   new name); `refbootstrap.go:166` writes the fixed tracker bootstrap files. Deletes need no check.
 - **issue rename** — reads the tracker card by id (`openTracker`, the same reader `set-title` uses), checks ownership
@@ -289,3 +292,11 @@ func NextRenameStep(o RenameObservation) (RenameStep, error) {
 - [ ] Fresh-reader check of `sdlc issue rename --help`: can a reader with no context fix a #421-style name and resume
   a half-done rename?
 - [ ] Recorded suite: `sdlc local-check run --name suite` on the pushed head, then `sdlc close`.
+
+## Revisions
+
+2026-10-23 (close round 1): Dropped the "no `workshop/plans/<stem>-*` on main" rename precondition; `status: open`
+plus no local or remote issue branch covers the unstarted case. Added `tracker.DetailNames` (pure): after the card step
+the card no longer names the old details file, so main's details are found by ID. The permission check (`renamable`)
+now runs before any moving step, including the details step of a half-done rename (BR-1). `PublishCommitChecked` joins
+the guarded writers. A legacy filer test pins the cap there (BR-2).

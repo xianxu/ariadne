@@ -77,13 +77,8 @@ func runIssueRename(ctx context.Context, stdout, stderr io.Writer, issuesDir str
 	}
 	newStem := id + "-" + slug
 	newCard, newDetail := tracker.CardPath(id, slug), path.Join(dirs.Rel[0], newStem+".md")
-	if card.Path != newCard {
-		// A finished rename needs no permission to be observed as finished.
-		if err := renamable(env, card); err != nil {
-			return err
-		}
-	}
 	token := operationToken("rename")
+	checked := false
 	// Card, details, then the observation that both are done.
 	for range 3 {
 		snap, err := env.repo.Snapshot()
@@ -111,6 +106,14 @@ func runIssueRename(ctx context.Context, stdout, stderr io.Writer, issuesDir str
 		}
 		if err != nil {
 			return fmt.Errorf("#%s: the card is %s and main holds %v (new name present: %v); %w", issue.CLIRef(id), cur.Path, olds, mainNew, err)
+		}
+		// Any step that moves a file needs the permission, including the
+		// details step of a half-done rename; observing a finished one does not.
+		if step != tracker.RenameDone && !checked {
+			if err := renamable(env, cur); err != nil {
+				return err
+			}
+			checked = true
 		}
 		switch step {
 		case tracker.RenameCard:
