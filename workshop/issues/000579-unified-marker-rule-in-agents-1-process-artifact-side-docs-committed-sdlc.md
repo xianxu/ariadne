@@ -1,13 +1,21 @@
 ---
 id: 000579
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '70217de39837627aed7a79f69e9b8fa2b9ba8b7f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8736228a3a72ab9975e8e25a57238031fabffba9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T16:38:06-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files
@@ -38,8 +46,16 @@ Discussion: ops `session.side/2026-10-23-07-side-docs-in-process-artifacts.md`.
 
 ## Plan
 
-- [ ]
+Durable plan: [000579 plan](../plans/000579-unified-marker-rule-in-agents-1-process-artifact-side-docs-committed-sdlc-plan.md).
+
+- [ ] The rule in prose: AGENTS.base.md §1, review convention §6, collaboration-modes §4
+- [ ] `sidedoc.LocalLinks` extracted; `RebaseLinks` over it
+- [ ] `linkguard` census; the side-links gate in change-code, close and issue publish
+- [ ] (D1) publish carries the side docs the details link to
+- [ ] atlas, targeted runs, recorded suite
 
 ## Log
 
 ### 2026-10-23
+- Claimed and started from ariadne:5 after #565 landed. Survey: publish carries only details and `assets/`; change-code's checkpoint commits issue, plan and gate ledger; nothing commits `.side/` before the archive. So a refusal at publish from a resting branch has no "commit it" fix unless publish carries linked side docs: decision D1 to the TL.
+- The link grammar already lives in `sidedoc.RebaseLinks`; the guard reuses it via an extracted `LocalLinks` (ARCH-DRY).
