@@ -43,7 +43,7 @@ non-main one, and says so), and have queue status name the stale sibling behind 
 
 ## Plan
 
-- [ ] Implement and verify the [supplier-refresh plan](../plans/000574-sibling-helper-refresh-plan.md) after TL approval.
+- [x] Implement and verify the [supplier-refresh plan](../plans/000574-sibling-helper-refresh-plan.md) after TL approval.
 
 ## Log
 
