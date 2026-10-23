@@ -40,4 +40,28 @@ Raw combined output (verbatim):
 PASS
 ok  	github.com/xianxu/ariadne/cmd/sdlc	0.727s
 ```
++
+## Final source refresh after round 1
+
+Command as above, exit 0 on Go 1.27.3 / Darwin. Tested HEAD `f65dc200e9fb967eaf02af9c38730eddfc6727d0`. Only `suitecapability.go` changed among the production/probe pins above: blob `d6a4e35099207c188cbd29903605d1d228d584b4` removes the unused suppression directive, retaining its explanatory comment. The native probe and other production blobs are identical to the first measurement. Raw combined output:
+
+```text
+=== RUN   TestSuiteCapabilityNativeSandbox
+=== RUN   TestSuiteCapabilityNativeSandbox/boot_identity
+    suitecapability_native_test.go:63: === RUN   TestSuiteCapabilityNativeSandbox
+            suitecapability_native_test.go:33: native boot identity denial: environment failure: could-not-run: suite host boot identity; run sdlc local-check run --name suite --rev 0448b9fb79b0eb88165f0b5e57c66c09ae47406f as the whole Bash call, without a pipe, redirect, or command wrapper; host preflight: operation not permitted; queue/attempt/status unchanged
+        --- PASS: TestSuiteCapabilityNativeSandbox (0.07s)
+        PASS
+=== RUN   TestSuiteCapabilityNativeSandbox/Unix_listener
+    suitecapability_native_test.go:63: === RUN   TestSuiteCapabilityNativeSandbox
+            suitecapability_native_test.go:33: native Unix listener denial: environment failure: could-not-run: suite private Unix listener; run sdlc local-check run --name suite --rev 0448b9fb79b0eb88165f0b5e57c66c09ae47406f as the whole Bash call, without a pipe, redirect, or command wrapper; host preflight: listen unix /Volumes/TestScratch/tmp/sdlc-run-probe-31950-645191016/s: bind: operation not permitted; queue/attempt/status unchanged
+        --- PASS: TestSuiteCapabilityNativeSandbox (0.13s)
+        PASS
+--- PASS: TestSuiteCapabilityNativeSandbox (0.60s)
+    --- PASS: TestSuiteCapabilityNativeSandbox/boot_identity (0.27s)
+    --- PASS: TestSuiteCapabilityNativeSandbox/Unix_listener (0.31s)
+PASS
+ok  	github.com/xianxu/ariadne/cmd/sdlc	1.011s
+```
+
 
