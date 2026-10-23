@@ -1,6 +1,6 @@
 ---
 id: 000572
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b31c13c6e55df5a6ea7343173b0c9f4b127071a1
         evidence_commit: 86bf63812891319383cf5e55e412b429d3fc280e
+        landed_commit: 5e3efa5e9c85bb4eb77913826e78c4050febca1a
 ---
 
 # local-check: refuse to record a suite attempt invalidated by sandbox denials
