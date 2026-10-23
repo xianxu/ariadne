@@ -102,16 +102,13 @@ type Section struct {
 // that sdlc's `issue new` renders from (#145) instead of a hardcoded Go template.
 type Scaffold struct {
 	Sections []Section `json:"sections"`
-	// CollaborationMode is the default collaboration mode a new record's
-	// frontmatter declares (#415), one of CollaborationModes.
-	CollaborationMode string `json:"collaboration_mode"`
 }
 
-// CollaborationModes are xx-universal-review's collaboration modes
-// (construct/local/universal-review/collaboration-modes.md): where the answer
-// to an ask in a section goes. Every managed document type declares one as its
-// default (#415).
-var CollaborationModes = []string{"discussion", "collaboration", "chat"}
+// LegacyCollaborationModes are the retired `collaboration-mode:` values
+// (#415) that older documents still carry. Since #575 they are read, never
+// written: collaboration-modes.md §7 says what each means, and pensive.cue's
+// optional enum keeps accepting old pensive files that carry one (#576).
+var LegacyCollaborationModes = []string{"discussion", "collaboration", "chat"}
 
 // IssueModel is the read-only, parsed `issue` noun: status categories, the
 // lifecycle transition graph, and per-status semantics. Derived from
@@ -201,10 +198,6 @@ func ArchiveSubdir(root string, kind ArchiveKind) string {
 // scaffolder derives the section list from the model instead of hardcoding it
 // (ariadne#145).
 func (m *IssueModel) Sections() []Section { return m.Scaf.Sections }
-
-// CollaborationMode is the collaboration mode a new issue's frontmatter
-// declares (#415).
-func (m *IssueModel) CollaborationMode() string { return m.Scaf.CollaborationMode }
 
 // InitialStatus returns the status a newly-created issue carries — the sole
 // member of the `open` category — so the scaffolder's `status:` line derives from

@@ -58,9 +58,6 @@ discovery: {
 	seed?:     string
 	optional?: bool // written by `project new`; `project validate` does not require it
 }
-// collaboration_mode: the default collaboration mode a new project's
-// frontmatter declares (#415); see issue.cue's scaffold.
-scaffold: collaboration_mode: "collaboration"
 scaffold: sections: [...#ScaffoldSection] & [
 	{name: "Charter"},
 	{name: "Trains", seed: "| Train | Cars, in order | Slot |\n|---|---|---|"},
