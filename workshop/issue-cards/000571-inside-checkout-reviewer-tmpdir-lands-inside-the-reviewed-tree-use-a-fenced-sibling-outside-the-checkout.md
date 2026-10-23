@@ -1,6 +1,6 @@
 ---
 id: 000571
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c13bf1c5d8f513a4b3f40c5db9d7e33525d79257
         evidence_commit: b39101b3daeec8aef1b0b82b35128ccacc0111f3
+        landed_commit: 9852f25d1636eeb8e815b1c678b5ec2d54853e6b
 ---
 
 # Inside-checkout reviewer TMPDIR lands inside the reviewed tree; use a fenced sibling outside the checkout
