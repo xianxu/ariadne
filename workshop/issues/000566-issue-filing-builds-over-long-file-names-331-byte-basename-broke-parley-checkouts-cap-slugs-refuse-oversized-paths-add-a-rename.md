@@ -49,7 +49,9 @@ Durable plan: `workshop/plans/000566-issue-filing-builds-over-long-file-names-33
 - [x] CheckPathLimits in gitx commitSet: refuse any component over 255 bytes before a candidate exists
 - [x] NextRenameStep state machine + MovePath
 - [x] `sdlc issue rename --issue N [--slug S]`, help + atlas
-- [ ] Verification: targeted tests, fresh-reader help check, recorded suite
+- [x] Verification: targeted tests, fresh-reader help check
+
+Release gates (binary-owned, not plan items): the recorded suite on the pushed head precedes landing; `sdlc merge` enforces it.
 
 ## Log
 
@@ -62,3 +64,7 @@ TL approved the plan and all four scope choices (9e66382f); change-code inferred
 Claimed and planned in ariadne:5. All filers reach one slug site per mode (`runIssueNew`, legacy `issue new`; `flake register` calls `runIssueNew`). Every tracker/main candidate tree is built by `gitx.TrunkFile.commitSet`, so the 255-byte refusal sits there (closetracker re-indexes existing paths; refbootstrap writes fixed names). `Slugify` stays uncapped because gate family slugs use it. Branch, plan and sidecar names derive from the stem, so rename is scoped to unstarted issues; four scope decisions sent to TL with the plan. No estimate yet (full flow: after plan-quality).
 
 ### 2026-10-22
+
+## Revisions
+
+2026-10-23: Split the recorded suite out of the Verification plan item into the binary-owned release gates; no scope change.
