@@ -441,6 +441,8 @@ revision and dirty state, while saying its launch revision is unknown. A later
 source fast-forward cannot upgrade an existing waiter; those waiters drain
 naturally. Missing or redirected owners and unavailable Git evidence stay
 unavailable. These diagnostics do not change queue policy or frozen status JSON.
+The observation adapter disables optional Git writes, including index-cache
+refreshes, so inspecting a supplier also preserves its index bytes.
 
 Planning gates use `weave refresh --planning`: they defer all seeded entrypoints
 (Seed and SeedOnce), including tracked workflows, and the sandbox-protected

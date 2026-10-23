@@ -1730,6 +1730,8 @@ checkout, full HEAD and dirty state. It says launch revision unknown; source
 refresh never upgrades a running waiter. Status resolves each owner once and
 reads each canonical supplier once under the existing deadline, without fetch
 or mutation. Missing/invalid worktrees and deadline exhaustion stay unavailable.
+The supplier Git adapter uses --no-optional-locks on every query: even status
+must preserve index-cache bytes when unchanged tracked files have new stat data.
 Frozen queue JSON, grant compatibility and scheduling are unchanged. Old waiters
 drain naturally; #570 grant refusal/risk guidance remains in force. Main source
 helpers in ariadne issue branches remain source-owned, updated by integration,

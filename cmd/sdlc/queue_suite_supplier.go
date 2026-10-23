@@ -65,7 +65,10 @@ func annotateSuiteSuppliers(ctx context.Context, observed suiteQueueObservation,
 type suiteSupplierGit struct{ context.Context }
 
 func (g suiteSupplierGit) GitInDir(dir string, args ...string) ([]byte, error) {
-	out, _, err := gitx.RunGitBoundedContext(g.Context, dir, nil, 64<<10, args...)
+	// Even status can refresh the index cache. Every query through this
+	// read-only adapter disables optional writes, not merely checkout changes.
+	readArgs := append([]string{"--no-optional-locks"}, args...)
+	out, _, err := gitx.RunGitBoundedContext(g.Context, dir, nil, 64<<10, readArgs...)
 	return out, err
 }
 

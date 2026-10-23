@@ -1614,3 +1614,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   prove the immutable ticket owner path was not redirected; require exact path
   identity or report unavailable. The native redirected-owner regression closes
   this semantic class; the existing boundary review owns documentation coverage.
+
+- #574 read-only proof: Git status is observational at the content level but
+  can rewrite index-cache bytes after stat changes. Disable optional Git writes
+  once in the shared read-only adapter, and defend the whole seam with a native
+  unchanged-content / changed-stat / byte-identical-index control. A blanket ban
+  on status syntax would reject legitimate mutating callers; authority belongs
+  to the observation seam rather than the command's name.

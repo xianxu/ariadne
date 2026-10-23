@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSuiteQueueSupplierCurrentRevisionIsNotLaunchProof(t *testing.T) {
@@ -227,5 +228,31 @@ func TestSuiteQueueSupplierNativeFollowsHelperSymlink(t *testing.T) {
 	row := obs.Suppliers[1]
 	if row.Reason != "" || row.Checkout != actual || row.Revision != sha {
 		t.Fatalf("workflow source mistaken for helper source: %+v", row)
+	}
+}
+
+func TestSuiteQueueSupplierReadDoesNotRewriteIndexCache(t *testing.T) {
+	_, supplier, sha := nativeSupplierFixture(t)
+	index := filepath.Join(supplier, ".git", "index")
+	before, err := os.ReadFile(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Unchanged contents with changed stat data makes ordinary git status refresh
+	// its index cache. The observer must opt out of that optional write.
+	touch := time.Now().Add(time.Hour)
+	if err := os.Chtimes(filepath.Join(supplier, "scripts", "test-lock.py"), touch, touch); err != nil {
+		t.Fatal(err)
+	}
+	row := readQueueSupplier(context.Background(), supplier)
+	if row.Reason != "" || row.Revision != sha || row.Dirty {
+		t.Fatalf("unchanged source misreported: %+v", row)
+	}
+	after, err := os.ReadFile(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("read-only supplier observation rewrote its Git index cache")
 	}
 }
