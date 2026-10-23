@@ -1,6 +1,6 @@
 ---
 id: 000556
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 6.18
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d746d269c29d95856ebaf718bf396d29cf7662a3
         evidence_commit: 8ef9a70a0db1afdff8b1fed72ddc634907a9dcfd
+        landed_commit: 82913b61d6a906fbef60040f7635bbac2ed1c489
 ---
 
 # flake register and local-check resume accept only Go test identities; give shell-script and Lua cases typed identities
