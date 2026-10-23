@@ -50,7 +50,7 @@ pre-existing hold and excludes later work.
 - [x] Distinguish missing tracker ownership from an owned interval outside the pinned measurement window; carry the exact claim action through preview and close diagnostics.
 - [x] State the unowned cutover-to-claim gap explicitly in refusal and successful hybrid measurement output, including retained replay.
 - [x] Add the captured Echo refusal and real migration, reconcile, claim, owned-work regression path; preserve historical and correction pins and all attribution arithmetic.
-- [ ] Update docs and verify focused/race/recorded checks; obtain ops-echo's owner-run live actual proof before landing.
+- [x] Update docs and verify focused/race/recorded checks; obtain ops-echo's owner-run live actual proof before landing.
 
 Implementation design: [explicit ownership recovery](../plans/000554-cutover-ownership-recovery-plan.md).
 
@@ -120,7 +120,7 @@ Revision Plan:
 
 - [x] Add the unchanged real Echo suite capture and a native Claude/Codex real migration→reconcile→claim fixture. Observe the straddling attempt fail under the old attachment edge, then prove only claim→pinned-right-edge wait is selected; retain raw duration and excluded-gap warning.
 - [x] Apply the bounded attachment-edge fix and preserve release/reclaim, foreign/unknown head, malformed evidence and immutable replay controls.
-- [ ] Verify corrected head, publish, queue its recorded suite and re-close with the fixed-then-ship review. Retain the owner-run Echo live-proof hold before landing.
+- [x] Verify corrected head, publish, queue its recorded suite and re-close with the fixed-then-ship review. Retain the owner-run Echo live-proof hold before landing.
 
 The original queued suite `lease-3451749813` on the superseded source head was cancelled through `sdlc local-check cancel --run lease-3451749813` before code changes; the CLI confirmed cancellation. Do not revive or duplicate that obsolete run. Copied the live JSON read-only from Echo's common Git evidence into `cmd/sdlc/testdata/actual/echo5-claim-straddling-suite.json`; SHA256 `830e2848c584132315e093e2b4699a8667891ed7ce03ee257fdd342a1ff53b5e`. It records exact queued/acquired endpoints, raw queue 5204.94009 seconds and passing outcome. No peer card, tracker, attempt or checkout was changed.
 
@@ -177,3 +177,11 @@ Next: stage the final committed build, report exact vcs.revision lines to the hu
 `sdlc stage --build` completed exit0. Ariadne:0 is detached at Git-verified `4f645b36a95906b1560f55227fbcc9986fcc1529`; ariadne:4 retains this issue branch. Every built binary (`datatype`, `doc-review`, `sdlc`, `tl-lead`, `tl-worker`, `vocabulary`, `weave`) reports exactly that `vcs.revision` and `vcs.modified=false`. The sentinel-skipped sdlc was explicitly built and verified by the stage command. Source changes since the recorded passing head are only workshop proof/plan prose.
 
 Sent the complete build-evidence lines and request for owner-run `sdlc actual --issue 5` to hub receipt `5a3c911a-305c-4756-92c0-cd3c7e03d0c3`. Await the authenticated command/output proving measurement with the explicit excluded cutover→claim gap and no claim-straddling zero-owner refusal. Keep #554's stage until that live check is complete; do not clear, restage, merge or write Echo/operator files while waiting. Then append the proof, clear through `sdlc stage --clear`, and enter `sdlc merge --yes` promptly. No suite/review is still running; only the live-proof hold remains before landing admission.
+
+### 2026-10-22 — authenticated owner-run Echo proof PASS
+
+Ops-echo:0 supplied authenticated receipt `26450bd8-478e-40a7-979d-3517207beccc`, verdict PASS. The hub ran the command read-only from echo:2's issue checkout while that worker remained under its pair#728 hold; no worker mutation was requested. Command: `/Users/xianxu/workspace/ariadne/bin/sdlc actual --issue 5`, in `/Users/xianxu/workspace/worktree/echo-slot2/echo`, branch `000005-pkgload-agent-packages-room-manifests-grants-persona-prose-guard`. Read-only Git verification confirms code HEAD `4c1c8c409b517e04d0d7a324a99714d035c7fe3c`. The operator-tested binary reports staged revision `4f645b36a95906b1560f55227fbcc9986fcc1529`, modified=false; command exit0.
+
+Read the full captured output at `/tmp/claude-501/actual5b.JW7OeU`, SHA256 `3691ef924043c17b931ee78515fda740d5563d49ca364d35540a6e7bd9b66d4a`. Durable result: measured actual for Echo #5 is 0.25h; build 0.25h, converge/tail 0.00h, no-review cuts. The measurement explicitly says work between cutover `2026-10-21T20:25:53-07:00` and claim `2026-10-22T11:04:20-07:00` is unowned and not counted. It labels the legacy prefix separately from tracker ownership through `2026-10-22T11:20:08-07:00`, with hybrid queue provenance, one engagement and three admitted sessions. Reported queue coverage is 15.80 raw minutes / 15.79 excluded activity minutes across one recorded wait. No zero-owner or unmatched-engagement refusal for the claim-straddling attempt. Normal skipped-source/excluded-session and legacy mention-fallback warnings remain visible; the foreign Ariadne reference is ignored.
+
+The approved live-proof hold is satisfied. Next: clear #554's stage through the supported CLI and enter `sdlc merge --yes`; any integrated code still requires the merge gate's authoritative checks. Source since the recorded passing head remains unchanged apart from workshop proof/plan prose.
