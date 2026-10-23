@@ -23,8 +23,8 @@ import (
 // $HOME, and ran `git init` and `git add -A` there.
 //
 // Lifecycle (ARCH-FUNERAL): judge.Dispatch makes it before the first attempt
-// and removes it after the last. Inside a review checkout the base also dies
-// with the checkout; outside one it is a small directory in the OS temp dir.
+// and removes it after the last. Beside a review checkout the base shares
+// its lock and cleanup; outside one it is a small directory in the OS temp dir.
 type Confinement struct {
 	Root          string // the directory the reviewer owns: the review checkout or the repository it reviews
 	Base          string // tmp/ (TMPDIR) and bin/ (the git shim)
@@ -38,7 +38,7 @@ type Confinement struct {
 const confineBaseName = ".sdlc-review"
 
 // Confine prepares a reviewer's confinement around root. With inside, root is
-// a disposable review checkout and the base lives in it; otherwise root is
+// a disposable review checkout and the base is its sibling; otherwise root is
 // resolved to its repository's top level and the base is a fresh directory
 // under the OS temp dir. Any failure to create or write the base is an error:
 // a reviewer never falls back to a directory outside.
@@ -76,7 +76,12 @@ func ConfineWithDependencies(ctx context.Context, root string, inside bool, deps
 	if realGit, err = filepath.Abs(realGit); err != nil {
 		return nil, err
 	}
-	base := filepath.Join(r, confineBaseName)
+	base := companionBase(r)
+	if inside {
+		if err := checkCompanion(base); err != nil {
+			return nil, err
+		}
+	}
 	if !inside {
 		if base, err = os.MkdirTemp("", "sdlc-review-"); err != nil {
 			return nil, fmt.Errorf("create the reviewer's temp dir: %w", err)
@@ -111,6 +116,11 @@ func (c *Confinement) BinDir() string { return filepath.Join(c.Base, "bin") }
 // Prepare (re)creates the base: the temp dir, proven writable, and the shim.
 // Idempotent; a retried review calls it again after the checkout was reset.
 func (c *Confinement) Prepare() error {
+	if c.inside {
+		if err := checkCompanion(c.Base); err != nil {
+			return err
+		}
+	}
 	for _, d := range []string{c.Tmp(), c.BinDir()} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			return fmt.Errorf("create the reviewer's temp dir: %w", err)
@@ -134,8 +144,23 @@ func (c *Confinement) Prepare() error {
 	if err := os.WriteFile(c.envFile(), []byte(claudeEnvFile(c.BinDir(), os.Getenv("CLAUDE_ENV_FILE"), c.Env())), 0o600); err != nil {
 		return fmt.Errorf("write the reviewer's env file: %w", err)
 	}
-	if c.inside {
-		return excludeFromCheckout(c.Root, "/"+confineBaseName+"/")
+	return nil
+}
+
+// A checkout's existing lock owns this sibling too. Never follow a substituted
+// sibling into another tree while setting up reviewer scratch (#571).
+func companionBase(checkout string) string { return checkout + confineBaseName }
+
+func checkCompanion(base string) error {
+	info, err := os.Lstat(base)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect reviewer confinement %s: %w", base, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("reviewer confinement %s must be a directory, not a symlink or file", base)
 	}
 	return nil
 }
@@ -402,28 +427,4 @@ func userHome() string {
 		return c
 	}
 	return h
-}
-
-// excludeFromCheckout keeps the base out of the checkout's `git status`.
-func excludeFromCheckout(dir, pattern string) error {
-	path := filepath.Join(dir, ".git", "info", "exclude")
-	data, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("exclude the reviewer's temp dir: %w", err)
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		if line == pattern {
-			return nil
-		}
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("exclude the reviewer's temp dir: %w", err)
-	}
-	if len(data) > 0 && !strings.HasSuffix(string(data), "\n") {
-		data = append(data, '\n')
-	}
-	if err := os.WriteFile(path, append(data, pattern+"\n"...), 0o644); err != nil {
-		return fmt.Errorf("exclude the reviewer's temp dir: %w", err)
-	}
-	return nil
 }

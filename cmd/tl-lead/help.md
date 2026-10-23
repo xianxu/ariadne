@@ -337,7 +337,11 @@ TALKING TO THE OPERATOR
     session.md at the hub repo's root, frontmatter `type: session-sync`,
     `couch-owner: <hub slot>` (couch still reads the older `owner:`),
     `operator: <slug>` (default: the slug of git user.name), and
-    `collaboration-mode: {chat: ["Operator instructions"]}` (ariadne#412).
+    `collaboration-mode: discussion`, `presentation-mode: highlight`, and
+    `processing-mode: free-form`. Put `<!-- collaboration-mode: chat -->`
+    directly under `## Operator instructions`, with no blank line. Existing
+    files keep their choices; the universal-review collaboration-modes.md
+    contract owns defaults, legacy aliases and lossless fill refusal.
     It is state, not a log:
     rewrite it in place, about one screen, gitignored. Update it whenever a
     thread changes state, and every worker report updates it in the same
@@ -417,7 +421,7 @@ TALKING TO THE OPERATOR
     Per-issue detail lives in the issue file; the digest carries landed lists
     and friction.
   - `## Operator instructions` belongs to the operator. It is a chat section
-    (the frontmatter line above), so xx-universal-review's chat mode is the
+    (the heading comment above), so xx-universal-review's chat mode is the
     rule for it: its collaboration-modes.md says what a bullet is, its answer
     doc, follow-ups, closing, and what you never do to the operator's lines.
     What is yours to add:
@@ -433,16 +437,21 @@ TALKING TO THE OPERATOR
       discussions: index (the operator's review queue), before the link.
     - A later follow-up on a deleted bullet's topic goes to Needs you if it
       needs the operator, else into Threads or a new bullet's answer.
-  - Answer docs live in session.side/, named
-    YYYY-MM-DD-NN-<slug>.md, with the skill's side-doc frontmatter (type,
-    parent: ../session.md, marker, collaboration-mode), and the
-    backlink under the title. Only such a doc shows under the status file in
-    parley's attention finder. Write the doc first: `link` refuses any other
-    target (ariadne#455). New answer docs carry no process-instruction, since
-    the status file has none; answers migrated from qa/ keep their own. The
-    folder is gitignored like the status file. A follow-up extends the file
-    its link names. An answer doc answers only the question asked; Needs you
-    and status stay in the status file.
+  - New answer docs follow universal-review collaboration-modes.md §4:
+    session.side/YYYY-MM/YYYY-MM-DD-NN-<slug>.md, using the round's month,
+    with type: side-doc, parent: ../../session.md, marker and all three
+    explicit default mode keys; the backlink under the title resolves to
+    the same parent. Use the common side root for nested questions too.
+    Only a side doc of this session shows under it in parley's attention
+    finder. Write the doc first: `link` refuses any other
+    target (ariadne#455).
+    Existing flat files and links remain valid, with parent: ../session.md;
+    A follow-up extends the file
+    its link names, without migration or changed settings.
+    New answer docs carry no inherited process-instruction; instructions
+    explicitly supplied for them use processing-instruction. The
+    folder is gitignored like the status file. An answer doc answers only the question asked;
+    Needs you and status stay in the status file.
   - The older teams/<team>/qa/<operator>/ answers move into that folder once,
     with every link, the discussions: index and couch's registrations:
         tl-lead status migrate-answers FILE           (a dry run: the plan)
@@ -455,9 +464,9 @@ TALKING TO THE OPERATOR
     rewritten: fix those by hand, and commit the tracked files it rewrote.
   - The rest of the status file (Needs you, Threads, …) is discussion: an
     instruction there is carried out, and a 🤖 question opens a side doc in
-    the same session.side/ folder (NN-<slug>.md), linked in place
+    the round's month under session.side/ (§4), linked in place
     of the marker. List such a side doc in the index yourself:
-        tl-lead status index FILE --add session.side/NN-<slug>.md
+        tl-lead status index FILE --add session.side/YYYY-MM/YYYY-MM-DD-NN-<slug>.md
     The index is one-way (ariadne#424): the operator removes an entry to mark
     it reviewed (never add it back unless you write something new for them in
     that side doc: then --add it again), and deleting a bullet or a link drops
@@ -520,9 +529,10 @@ TALKING TO THE OPERATOR
   - A submit arrives as an owed event. Run `tl-lead status submit FILE`: it
     prints the operator's edits, the lines holding 🤖 markers, any
     `.clobbered` copy, and the owed events (recording them as seen). Resolve
-    the markers per xx-fix (act, fold the result into the state, remove the
-    marker; a reply in the file only for a one-line question back; discussion
-    stays in chat), clear the event with a write passing `--fold-owed`, then
+    the markers per xx-fix and the section's effective collaboration mode:
+    act on instructions, route questions to indexed side docs, and keep
+    Operator instructions answers in their linked answer docs. Remove ready
+    markers after answering; clear the event with a write passing `--fold-owed`, then
     `tl-lead status seen FILE`. `--fold-owed` folds only events an earlier
     `submit` or `tl-lead status owed FILE` listed, so a submit landing
     mid-turn stays owed until you read it.
