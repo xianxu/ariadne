@@ -65,7 +65,7 @@ Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-e
 - [x] Task 3: Spec prose (collaboration-modes.md, round.md, SKILL.md, file-edit adapter)
 - [x] Task 4: Examples: retire, convert, add the 13 new cases; checker side-doc rule
 - [x] Task 5: Prose guards (the Done-when retired-phrase test) and the atlas
-- [ ] Task 6: Recorded suite, close, hand the v4 shape to parley.nvim:3 and pair
+- [x] Task 6: Recorded suite and close (the v4 handoff to parley.nvim:3 and pair follows the landing; it needs the landed commit)
 
 ## Log
 
