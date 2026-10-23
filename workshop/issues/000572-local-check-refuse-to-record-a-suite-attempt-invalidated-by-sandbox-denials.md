@@ -1,13 +1,13 @@
 ---
 id: 000572
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'b272525ae2e819c2531aadde3853ae4243d20ca8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1a004ad36b6542352175ada8c92804c565fca478' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T04:39:43-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.49
 ---
 
 # local-check: refuse to record a suite attempt invalidated by sandbox denials
