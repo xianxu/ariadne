@@ -340,7 +340,15 @@ func deleteLandingBranch(r gitRunner, t landingTarget, branch, head string, stde
 	cleanupBranchConfig(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, branch, stderr)
 	return nil
 }
-func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) error {
+func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) (err error) {
+	if !f.DryRun {
+		ctx := commandContext(f.Context)
+		release, holdErr := holdMergeIntent(ctx, boundedLandingGit(ctx, mergeRunner), t, f.Branch, stderr)
+		if holdErr != nil {
+			return holdErr
+		}
+		defer func() { release(err) }() // the merge's own result decides the intent's end
+	}
 	return retryTrainReformation(commandContext(f.Context), stderr, func(ctx context.Context) error {
 		attempt := *f
 		attempt.Context = ctx

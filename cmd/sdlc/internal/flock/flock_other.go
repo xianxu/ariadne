@@ -12,3 +12,7 @@ import (
 func Exclusive(*os.File, bool) error {
 	return errors.New("flock is unix only")
 }
+
+func Shared(*os.File, bool) error {
+	return errors.New("flock is unix only")
+}
