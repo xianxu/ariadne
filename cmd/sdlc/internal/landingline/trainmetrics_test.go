@@ -71,12 +71,12 @@ func TestAdvanceMeasurementTwoCarEscape(t *testing.T) {
 // a complete record; nothing is invented.
 func TestAdvanceMeasurementStickyIncomplete(t *testing.T) {
 	for name, events := range map[string][]MeasurementEvent{
-		"start append failed": {MeasureStartAppended{Err: errors.New("disk full")}},
-		"unknown execution": {MeasureStartAppended{}, MeasureExecution{Summary: ExecutionSummary{Kind: ExecInitial, Outcome: ExecUnknown}}},
-		"contradiction": {MeasureStartAppended{}, MeasureCulprit{Seq: 7, Failures: []string{"p.TestX"}}, MeasurePrefixPassed{Seqs: []int64{7}}},
-		"unknown car":   {MeasureStartAppended{}, MeasurePrefixPassed{Seqs: []int64{99}}},
-		"illegal order": {MeasureExecution{Summary: ExecutionSummary{Kind: ExecInitial, Outcome: ExecPassed}}, MeasureStartAppended{}},
-		"no start ack":  {},
+		"start append failed":     {MeasureStartAppended{Err: errors.New("disk full")}},
+		"unknown execution":       {MeasureStartAppended{}, MeasureExecution{Summary: ExecutionSummary{Kind: ExecInitial, Outcome: ExecUnknown}}},
+		"contradiction":           {MeasureStartAppended{}, MeasureCulprit{Seq: 7, Failures: []string{"p.TestX"}}, MeasurePrefixPassed{Seqs: []int64{7}}},
+		"unknown car":             {MeasureStartAppended{}, MeasurePrefixPassed{Seqs: []int64{99}}},
+		"illegal order":           {MeasureExecution{Summary: ExecutionSummary{Kind: ExecInitial, Outcome: ExecPassed}}, MeasureStartAppended{}},
+		"no start ack":            {},
 		"culprit without failure": {MeasureStartAppended{}, MeasureCulprit{Seq: 8}},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -339,12 +339,12 @@ func TestAcceptedProofBinding(t *testing.T) {
 		t.Fatal("bound proof rejected")
 	}
 	for name, mutate := range map[string]func(*Readiness){
-		"older rewrite":  func(r *Readiness) { r.At = tt0.Add(time.Minute) },
-		"another head":   func(r *Readiness) { r.Head = oid('b') },
-		"unknown check":  func(r *Readiness) { p := *r.Proof; p.Check = "e2e"; r.Proof = &p },
-		"short source":   func(r *Readiness) { p := *r.Proof; p.Source = "abc"; r.Proof = &p },
-		"not ready":      func(r *Readiness) { r.Ready = false },
-		"no proof":       func(r *Readiness) { r.Proof = nil },
+		"older rewrite": func(r *Readiness) { r.At = tt0.Add(time.Minute) },
+		"another head":  func(r *Readiness) { r.Head = oid('b') },
+		"unknown check": func(r *Readiness) { p := *r.Proof; p.Check = "e2e"; r.Proof = &p },
+		"short source":  func(r *Readiness) { p := *r.Proof; p.Source = "abc"; r.Proof = &p },
+		"not ready":     func(r *Readiness) { r.Ready = false },
+		"no proof":      func(r *Readiness) { r.Proof = nil },
 	} {
 		r := base
 		mutate(&r)

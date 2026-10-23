@@ -64,6 +64,17 @@ type ciVerdict struct {
 	Offender    []prCheck // the checks that are not green, in report order
 	LocalNeeded []string  // declared local checks with no recorded pass on the head (#345)
 	Substituted []string  // "CI label ← local status" pairs the gate accepted (#345)
+	// Accepted is, for each required local check the gate counted as
+	// recorded, the record that satisfied it (#561): measurement evidence,
+	// read off this decision rather than a second lookup.
+	Accepted []ciAccepted
+}
+
+// ciAccepted is the record that satisfied one required local check: the
+// check itself or its stand-in, on the head (Source "") or on the docs-only
+// ancestor Source.
+type ciAccepted struct {
+	Required, Check, Source string
 }
 
 // ciInputs is everything decideCIGate reads: the checks on the head, whether the
@@ -74,10 +85,11 @@ type ciInputs struct {
 	HeadHasWorkflows bool
 	Local            localCheckDecl
 	Runnerless       map[string]bool
-	// RecordedAncestors names local checks with a passing record on an
-	// ancestor of the head whose difference from it is docs-only (#332):
-	// close's own commits do not invalidate the suite run before close.
-	RecordedAncestors map[string]bool
+	// RecordedAncestors maps local checks with a passing record on an
+	// ancestor of the head whose difference from it is docs-only (#332) to
+	// that ancestor: close's own commits do not invalidate the suite run
+	// before close.
+	RecordedAncestors map[string]string
 	// StandIn maps a required check to another whose record satisfies it
 	// (#473 D3): a train car vouches on affected in place of suite, because
 	// the train runs the full suite on its prefix before anything lands.
@@ -100,17 +112,20 @@ func isCommitStatus(c prCheck) bool {
 // satisfied by a passing recorded local run on the head (#345); a job that ran
 // and was cancelled or failed stays red whatever was recorded locally.
 func decideCIGate(in ciInputs) ciVerdict {
-	recorded := map[string]bool{}
+	// recorded maps a passing status context to the commit carrying it: ""
+	// for the head itself, which outranks any ancestor.
+	recorded := map[string]string{}
+	for name, source := range in.RecordedAncestors {
+		if source != "" {
+			recorded[localStatusContext(name)] = source
+		}
+	}
 	for _, c := range in.Checks {
 		if c.Bucket == "pass" && isCommitStatus(c) {
-			recorded[c.Name] = true
+			recorded[c.Name] = ""
 		}
 	}
-	for name, ok := range in.RecordedAncestors {
-		if ok {
-			recorded[localStatusContext(name)] = true
-		}
-	}
+	has := func(name string) bool { _, ok := recorded[localStatusContext(name)]; return ok }
 	var v ciVerdict
 	need := func(name string) {
 		for _, n := range v.LocalNeeded {
@@ -121,14 +136,20 @@ func decideCIGate(in ciInputs) ciVerdict {
 		v.LocalNeeded = append(v.LocalNeeded, name)
 	}
 	for _, c := range headLocalChecks(in.Local).Checks {
-		if !c.Required || recorded[localStatusContext(c.Name)] {
+		if !c.Required {
+			continue
+		}
+		if has(c.Name) {
+			v.Accepted = append(v.Accepted, ciAccepted{Required: c.Name, Check: c.Name, Source: recorded[localStatusContext(c.Name)]})
 			continue
 		}
 		switch s := in.StandIn[c.Name]; {
 		case s == "":
 			need(c.Name)
-		case !recorded[localStatusContext(s)]:
+		case !has(s):
 			need(s) // the stand-in is the run to ask for: it falls back to c itself when it must
+		default:
+			v.Accepted = append(v.Accepted, ciAccepted{Required: c.Name, Check: s, Source: recorded[localStatusContext(s)]})
 		}
 	}
 	if len(in.Checks) == 0 {
@@ -156,7 +177,7 @@ func decideCIGate(in ciInputs) ciVerdict {
 		case "cancel":
 			label := checkLabel(c)
 			if sub, ok := in.Local.substituteFor(label); ok && in.Runnerless[label] {
-				if recorded[localStatusContext(sub.Name)] {
+				if has(sub.Name) {
 					v.Substituted = append(v.Substituted, label+" ← "+localStatusContext(sub.Name))
 				} else {
 					need(sub.Name)
@@ -553,8 +574,8 @@ const localAncestorLimit = 30
 // first-parent ancestor of head whose difference from head is docs-only (the
 // publish gate's line: embedded docs count as code). The walk stops at the
 // first ancestor with a code difference: an older one only differs by more.
-func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git func(args ...string) (string, error), head, base string, names []string) (map[string]bool, error) {
-	found := map[string]bool{}
+func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git func(args ...string) (string, error), head, base string, names []string) (map[string]string, error) {
+	found := map[string]string{} // check → the nearest ancestor carrying its passing record
 	if len(names) == 0 {
 		return found, nil
 	}
@@ -589,8 +610,8 @@ func localRecordsOnAncestors(ctx context.Context, gh ghCaller, repo string, git 
 			return nil, err
 		}
 		for _, n := range names {
-			if statuses[localStatusContext(n)] == "success" {
-				found[n] = true
+			if _, done := found[n]; !done && statuses[localStatusContext(n)] == "success" {
+				found[n] = a
 			}
 		}
 		if len(found) == len(names) {
@@ -609,9 +630,16 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 }
 
 func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer, facts *ciGateFacts) error {
+	_, err := runPreparedCIGateVerdict(ctx, gh, repo, number, base, head, git, run, noCI, stderr, facts)
+	return err
+}
+
+// runPreparedCIGateVerdict is the gate, returning the passing decision it
+// made (#561: which records satisfied it). A waived gate returns no verdict.
+func runPreparedCIGateVerdict(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), run localCheckRunner, noCI bool, stderr io.Writer, facts *ciGateFacts) (ciVerdict, error) {
 	if noCI {
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
-		return nil
+		return ciVerdict{}, nil
 	}
 	// gh pr checks reads the checks of whatever head GitHub records for the
 	// PR, which can lag a fresh push. Reading that head before and after the
@@ -623,7 +651,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 		var err error
 		facts, err = prepareCIGateFactsContext(ctx, git, base, head)
 		if err != nil {
-			return err
+			return ciVerdict{}, err
 		}
 	}
 	if facts.bootstrap {
@@ -658,7 +686,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 	}
 	checks, v, err := read()
 	if err != nil {
-		return err
+		return ciVerdict{}, err
 	}
 	missing := func(checks []prCheck) error {
 		for _, name := range required {
@@ -671,7 +699,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 	// A refusal already known is given before any local run spends minutes.
 	if v.Reason == ciLocalNeeded {
 		if err := missing(checks); err != nil {
-			return err
+			return ciVerdict{}, err
 		}
 	}
 	if v.Reason == ciLocalNeeded && run != nil {
@@ -680,27 +708,27 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 			if !ok {
 				// A stand-in is not runnable from here (#473): refuse rather
 				// than run a zero check.
-				return fmt.Errorf("CI gate: %s is not a declared check this gate can run; run `%s`", name, localCheckCommand(name))
+				return ciVerdict{}, fmt.Errorf("CI gate: %s is not a declared check this gate can run; run `%s`", name, localCheckCommand(name))
 			}
 			rec, err := run(ctx, c, head)
 			if err != nil {
-				return fmt.Errorf("CI gate: %w", err)
+				return ciVerdict{}, fmt.Errorf("CI gate: %w", err)
 			}
 			if !rec.passed() {
-				return &localCheckFailure{Check: c, Run: rec, Head: head, Bootstrap: facts.bootstrap}
+				return ciVerdict{}, &localCheckFailure{Check: c, Run: rec, Head: head, Bootstrap: facts.bootstrap}
 			}
 		}
 		// The run took minutes: read again, so a push or a new failure since
 		// counts, and the recorded statuses are what passes the gate.
 		if checks, v, err = read(); err != nil {
-			return err
+			return ciVerdict{}, err
 		}
 	}
 	if !v.Reason.passes() {
-		return v.refusal(number)
+		return ciVerdict{}, v.refusal(number)
 	}
 	if err := missing(checks); err != nil {
-		return err
+		return ciVerdict{}, err
 	}
 	for _, s := range v.Substituted {
 		cwarn(stderr, "CI job never got a runner; accepted the recorded local run instead: "+s)
@@ -710,7 +738,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 	} else {
 		cok(stderr, fmt.Sprintf("CI checks: %d green on PR #%d", len(checks), number))
 	}
-	return nil
+	return v, nil
 }
 
 func hasCheck(checks []prCheck, name string) bool {

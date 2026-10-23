@@ -505,13 +505,13 @@ type TrainFilterStats struct {
 	EscapeFailures     int `json:"escape_failures"`
 	// Managed whole-suite executions by kind. The split's extra suites are
 	// baseline plus split probes; reintegration is a separate extra cost.
-	InitialRuns       int     `json:"initial_runs"`
-	BaselineRuns      int     `json:"baseline_runs"`
-	SplitProbeRuns    int     `json:"split_probe_runs"`
-	ReintegrationRuns int     `json:"reintegration_runs"`
-	UnknownRuns       int     `json:"unknown_runs"`
-	SplitRunSeconds   float64 `json:"split_run_seconds"`
-	SplitQueueSeconds float64 `json:"split_queue_seconds"`
+	InitialRuns             int     `json:"initial_runs"`
+	BaselineRuns            int     `json:"baseline_runs"`
+	SplitProbeRuns          int     `json:"split_probe_runs"`
+	ReintegrationRuns       int     `json:"reintegration_runs"`
+	UnknownRuns             int     `json:"unknown_runs"`
+	SplitRunSeconds         float64 `json:"split_run_seconds"`
+	SplitQueueSeconds       float64 `json:"split_queue_seconds"`
 	ReintegrationRunSeconds float64 `json:"reintegration_run_seconds"`
 	// SplitWallSeconds is elapsed recovery, first failed initial outcome to
 	// the train's exit, including registered targeted reruns.
@@ -526,13 +526,13 @@ const TrainFilterStatsVersion = 1
 
 // measuredTrain joins one train's records.
 type measuredTrain struct {
-	terminal      bool
-	at            time.Time
-	start, final  *TrainMeasurement
-	startRaw      json.RawMessage
-	finalRaw      json.RawMessage
-	conflict      bool
-	unsupported   bool
+	terminal     bool
+	at           time.Time
+	start, final *TrainMeasurement
+	startRaw     json.RawMessage
+	finalRaw     json.RawMessage
+	conflict     bool
+	unsupported  bool
 }
 
 // AggregateTrainMeasurements folds the line's events over [from, to): one

@@ -94,14 +94,14 @@ func TestCarReadinessRecordsGeneration(t *testing.T) {
 				// a per-issue refresh would fail, rather than reuse one generation.
 				r.git("remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
 				return nil
-			}, ci: func(pass context.Context, _ landingPR) error {
+			}, ci: ciGate(func(pass context.Context, _ landingPR) error {
 				for i := 0; i < reads; i++ {
 					if rs := load(pass); rs.Ref != generation {
 						t.Fatal("mixed generations")
 					}
 				}
 				return nil
-			}}
+			})}
 			ready, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 			if !ready.Ready {
 				t.Fatalf("first pass: %+v", ready)
@@ -195,7 +195,7 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 	gh := &landingFakeGH{pr: pr}
 	target := landingTarget{Root: r.root, Remote: "origin", Repo: "test/repo"}
 	gates := productionCarGates(execGitRunner{}, gh, target, &mergeFlags{IssuesDir: "workshop/issues", NoCI: true})
-	gates.ci = func(ctx context.Context, _ landingPR) error {
+	gates.ci = ciGate(func(ctx context.Context, _ landingPR) error {
 		for _, reads := range []int{8, 16} {
 			for i := 0; i < reads; i++ {
 				for _, dir := range []string{"workshop/issues", "custom/issues"} {
@@ -218,7 +218,7 @@ func TestCarReadinessPublishChecksShareGeneration(t *testing.T) {
 			}
 		}
 		return nil
-	}
+	})
 	ctx := withIssueRecordsScope(context.Background())
 	ready, _, _ := carReadiness(ctx, execGitRunner{}, gh, target, branch, gates, time.Now())
 	if !changed || !ready.Ready {

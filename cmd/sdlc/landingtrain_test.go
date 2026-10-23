@@ -374,7 +374,12 @@ func (s *trainSetup) queuedCar(t *testing.T, branch string, issue, number int) *
 		t.Fatal(err)
 	}
 	t.Cleanup(h.Release)
-	if err := s.line.Vouch(h, landingline.Readiness{Branch: branch, Head: s.heads[branch], PR: number, Ready: true}); err != nil {
+	// The proof a car's own gate would attach for its posted record (#561).
+	proof := &landingline.BoardingProof{Check: s.boardOn, Head: s.heads[branch], Source: s.heads[branch], Context: localStatusContext(s.boardOn)}
+	if s.boardOn == "" {
+		proof = nil
+	}
+	if err := s.line.Vouch(h, landingline.Readiness{Branch: branch, Head: s.heads[branch], PR: number, Ready: true, Proof: proof}); err != nil {
 		t.Fatal(err)
 	}
 	return h

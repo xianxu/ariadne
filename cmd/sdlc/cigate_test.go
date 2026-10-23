@@ -104,7 +104,7 @@ func TestDecideCIGateLocalChecks(t *testing.T) {
 		// #473 D3: a car's stand-in. affected satisfies a required suite, on the head or a docs-only ancestor; the
 		// refusal asks for the stand-in. Without StandIn (merge) the same record does not count.
 		{"stand-in recorded satisfies suite", ciInputs{Checks: []prCheck{merge, local("affected", "pass")}, Local: suiteReq, StandIn: carStandIn}, ciGreen, nil, nil},
-		{"stand-in on a docs-only ancestor", ciInputs{Checks: []prCheck{merge}, Local: suiteReq, StandIn: carStandIn, RecordedAncestors: map[string]bool{"affected": true}}, ciGreen, nil, nil},
+		{"stand-in on a docs-only ancestor", ciInputs{Checks: []prCheck{merge}, Local: suiteReq, StandIn: carStandIn, RecordedAncestors: map[string]string{"affected": "ancestor"}}, ciGreen, nil, nil},
 		{"nothing recorded asks for the stand-in", ciInputs{Checks: []prCheck{merge}, Local: suiteReq, StandIn: carStandIn}, ciLocalNeeded, nil, []string{"affected"}},
 		{"suite itself still counts with a stand-in", ciInputs{Checks: []prCheck{merge, local("suite", "pass")}, Local: suiteReq, StandIn: carStandIn}, ciGreen, nil, nil},
 		{"merge: affected does not stand in", ciInputs{Checks: []prCheck{merge, local("affected", "pass")}, Local: suiteReq}, ciLocalNeeded, nil, []string{"suite"}},

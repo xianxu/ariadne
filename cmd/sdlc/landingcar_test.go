@@ -183,7 +183,12 @@ func carFixture(t *testing.T) (landingTarget, *landingFakeGH, string) {
 
 func passGates() carGates {
 	ok := func(context.Context, landingPR) error { return nil }
-	return carGates{publish: ok, ci: ok}
+	return carGates{publish: ok, ci: ciGate(ok)}
+}
+
+// ciGate adapts an error-only CI gate double to carGates.ci (no proof).
+func ciGate(f func(context.Context, landingPR) error) func(context.Context, landingPR) (*landingline.BoardingProof, error) {
+	return func(ctx context.Context, pr landingPR) (*landingline.BoardingProof, error) { return nil, f(ctx, pr) }
 }
 
 func TestCarReadiness(t *testing.T) {
@@ -220,7 +225,7 @@ func TestCarReadiness(t *testing.T) {
 		target, gh, _ := carFixture(t)
 		for name, g := range map[string]carGates{
 			"publish gate": {publish: func(context.Context, landingPR) error { return errors.New("HEAD moved since review\nmore") }, ci: passGates().ci},
-			"CI gate":      {publish: passGates().publish, ci: func(context.Context, landingPR) error { return errors.New("needs recorded local checks: suite") }},
+			"CI gate":      {publish: passGates().publish, ci: ciGate(func(context.Context, landingPR) error { return errors.New("needs recorded local checks: suite") })},
 		} {
 			r, _, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, g, now)
 			if r.Ready || !strings.HasPrefix(r.Reason, name) || strings.Contains(r.Reason, "\n") {

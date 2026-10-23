@@ -320,6 +320,13 @@ type localRunRecord struct {
 	Outcome     flakes.Kind
 	KnownFlakes []flakes.Entry
 	Scope       string // what the run covered (#473), leading its status
+	// The managed execution's identity and timing (#561), for train
+	// measurements: the saved attempt (when one was written), the time
+	// queued for a suite slot, and when the command finished (zero when it
+	// never reported).
+	AttemptID string
+	QueueWait time.Duration
+	Finished  time.Time
 }
 
 // knownFlakeOutcome is the record's gate decision, for revalidation.
