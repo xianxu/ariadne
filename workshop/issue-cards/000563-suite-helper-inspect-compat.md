@@ -1,6 +1,6 @@
 ---
 id: 000563
-status: working
+status: codecomplete
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.13
+tracker:
+    version: 1
+    completion:
+        token: close-f4bd46a3cba9
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 6a0b35faea2b351b5b1ec19a310f6ea1d19f1948
+        evidence_commit: a3460caca2e05f9aff2566c2cf6353c452d144fd
 ---
 
 # Queue status must explain older supplier helper incompatibility
