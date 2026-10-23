@@ -1,6 +1,6 @@
 ---
 id: 000572
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.49
+tracker:
+    version: 1
+    completion:
+        token: close-bf86b0f70402
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 7dad3c36d67a7f86404356c9b2b2cf9888c5b12a
+        evidence_commit: e7fea7115d276acf7afab6cdc6d08bb0ef283e34
 ---
 
 # local-check: refuse to record a suite attempt invalidated by sandbox denials
