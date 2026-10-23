@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "973c10fd", done: "d8e95edb"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands
@@ -76,6 +76,8 @@ Checking both shells means a name that is a builtin in either one is refused in 
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round 2 head 5903d2db7: BR-1 fixed. The test derives the expected system paths with the generator's own cd -P resolution, so merged-usr Linux expects /usr/bin/ls and macOS /bin/ls. The minors are fixed: shared follow_links with a cycle cap, and the atlas wording. dev-aliases-shadow, dev-aliases, -path and -slot tests and pkg/shelllint pass, with the recorded suite queued on this head. Earlier evidence still holds: suite on d8789eaa 0 failed; over the real ~/workspace only cmd/echo is refused, the other 26 functions unchanged; generator CPU main 641ms (sd 38) against branch 624ms (sd 41). The TL took the real-fleet run as the live check, with no stage. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 106 added lines in code files (limit 100)
 - Plan approved by the hub (ops:0), with the $HOME exemption on rule 3.
 - Built: `shadow_reason` (pure; sets `reason`) and `system_command`/`outside_user_trees` in `construct/dev-aliases.sh`. One bash subshell gathers every name's `type -t` and `type -P`, and one `zsh -f` call gathers every `whence -w`. Symlinks are resolved only when a PATH match lies outside the workspace and $HOME, so `~/.local/bin/sdlc` costs no `readlink`. Refused names warn once and are dropped from the definitions and from `--list`.
 - The first cut walked PATH in shell and called readlink for every `~/.local/bin` link: about 31ms per run, over budget. Batching the lookups and resolving only outside matches cut the block to about 13ms wall under load average 20. By CPU: zsh 3.9ms, the bash batch subshell about 2.6ms, plus the loop.
