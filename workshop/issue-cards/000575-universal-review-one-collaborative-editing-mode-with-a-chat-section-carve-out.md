@@ -1,6 +1,6 @@
 ---
 id: 000575
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 006f6dd3b2a2d0125a7594d0b5fe485b0642e544
         evidence_commit: 32efa3969e5820fb02cf540ad611695db27e95fb
+        landed_commit: df49c55b9c768a37dfbf4455d13f3ff63543539b
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
