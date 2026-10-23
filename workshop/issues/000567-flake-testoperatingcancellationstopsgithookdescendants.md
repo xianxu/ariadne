@@ -180,6 +180,28 @@ suite on the pushed correction is required. No main integration or waiter
 reorder. Next: fresh push/suite, then ordinary close again as the gate names
 (not a bypass or an unfinalized fix-only close).
 
+### 2026-10-23 — SHIP and retained final-code suite
+
+Round two returned SHIP, disposed BR-1 and raised no new findings. The reviewer
+independently repeated 30 native cancellation cases, race and operating checks,
+matched the captured source to the pinned base, and reproduced the leader-only
+negative control. Close finalized codecomplete with evidence commit
+843549fcb391e21e27b8cd37ee66e4b1830c6b90 and mirror
+3a57c1470686b8fbb8d423d335ea9ecb6b20f5af, automatically measured actual 0.35h.
+CI is green on that pushed close head.
+
+The sole retained branch-suite controller is the central local-check on
+839fc18ae652343c0777a8a515ac943476fc32d3, run `lease-2618842037`, exact-head
+worktree `/Volumes/TestScratch/local-checks/sdlc-local-4107304242`, inflight log
+`61fe807ebaf6fc547a0cd20c7e4c708e/run.log`. It is now next in line after over
+one hour of normal FIFO waiting, with two Echo suites running. Nothing has
+started in this attempt yet; preserve it. The old e2b301d6 attempt was canceled
+and is not acceptance evidence. No code has changed since the final reviewed
+and queued 839fc18a head. After this retained suite passes, push the final
+bookkeeping if needed and run central `sdlc merge --yes`; report only after
+Git, PR and tracker landing evidence agree. Do not manually chase newer main
+or restart a retained waiter.
+
 ## Revisions
 
 ### 2026-10-23 — quick-flow implementation detail and verification
