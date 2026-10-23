@@ -23,6 +23,15 @@ ariadne#575 rewrites universal-review to one collaborative editing mode with a `
 
 Remove every ariadne writer of the mode keys (`collaboration-mode`, `presentation-mode`/`presentation`, `processing-mode`, `processing-instruction`, `process-instruction`), as well as the datatype rows and the vocab list that exist only to feed them. Old documents must stay readable. Issue, project and side-doc files that already carry the keys still parse and round-trip unchanged: no reader refuses a document because a mode key is present, and no rewrite drops one. The `@@chat@@` carve-out is the only routing signal new documents carry. Land right after #575.
 
+
+**Scope additions (TL, 10-23, deferred from ariadne#575's round-4 review):**
+- ChatSections notice: "frontmatter could not be read" fires on a document that merely opens with a `---` thematic
+  break and no closing fence. Notice only when a frontmatter block exists (an opening fence and a matching close,
+  using frontmatter()'s fence detection, not a prefix test) and couldn't be read.
+- An empty `collaboration-mode:` value prints "collaboration-mode:  is retired and ignored" (double space); say empty
+  or malformed instead, as the spec's section 7 classes it.
+- Adopt `sidedoc.ChatSections` in tl-lead's instructions.go (the review's recommendation).
+
 ## Done when
 
 - New issues, projects (`sdlc issue new`, handoff, the project scaffold) and tl-lead side docs carry no mode keys. Tests assert their absence.
