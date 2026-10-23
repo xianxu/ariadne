@@ -27,6 +27,11 @@ procedure gaps:
    (`make tools`, verify `go version -m bin/sdlc`)" as the first post-restart step in tl-lead's restart/fleet-resume
    guidance, before the fleet notice.
 
+
+**Operator refinement (10-22, night), with pair#830:** after a full shutdown the operator wakes only the asleep hubs;
+each hub's fleet resume then wakes its own asleep workers **pending-work first, then the remaining asleep slots**
+(using pair#830's asleep flag once it lands).
+
 ## Done when
 
 - Fleet resume with concurrency N resumes N slots at once, reports each outcome, and stops on repeated identical
