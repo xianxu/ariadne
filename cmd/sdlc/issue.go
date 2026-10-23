@@ -398,12 +398,9 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if strings.TrimSpace(title) == "" {
 		return errors.New("a title is required (positional arg, or --from-github N to derive it)")
 	}
-	slug := f.Slug
-	if slug == "" {
-		slug = issue.Slugify(title)
-	}
-	if slug == "" {
-		return fmt.Errorf("title %q produced an empty slug; pass --slug", title)
+	slug, err := issue.FileSlug(title, f.Slug)
+	if err != nil {
+		return err
 	}
 	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {

@@ -87,12 +87,9 @@ func runLegacyIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNe
 		die(stderr, "a title is required (positional arg, or --from-github N to derive it)")
 	}
 
-	slug := f.Slug
-	if slug == "" {
-		slug = issue.Slugify(title)
-	}
-	if slug == "" {
-		die(stderr, fmt.Sprintf("title %q produced an empty slug; pass --slug", title))
+	slug, err := issue.FileSlug(title, f.Slug)
+	if err != nil {
+		die(stderr, err.Error())
 	}
 
 	// Resolve the issue directory ONCE, against the repo top level, and use the
