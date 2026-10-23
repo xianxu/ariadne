@@ -40,7 +40,7 @@ Raw combined output (verbatim):
 PASS
 ok  	github.com/xianxu/ariadne/cmd/sdlc	0.727s
 ```
-+
+
 ## Final source refresh after round 1
 
 Command as above, exit 0 on Go 1.27.3 / Darwin. Tested HEAD `f65dc200e9fb967eaf02af9c38730eddfc6727d0`. Only `suitecapability.go` changed among the production/probe pins above: blob `d6a4e35099207c188cbd29903605d1d228d584b4` removes the unused suppression directive, retaining its explanatory comment. The native probe and other production blobs are identical to the first measurement. Raw combined output:
@@ -63,5 +63,3 @@ Command as above, exit 0 on Go 1.27.3 / Darwin. Tested HEAD `f65dc200e9fb967eaf0
 PASS
 ok  	github.com/xianxu/ariadne/cmd/sdlc	1.011s
 ```
-
-
