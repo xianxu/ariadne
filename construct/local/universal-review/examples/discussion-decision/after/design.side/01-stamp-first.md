@@ -2,7 +2,6 @@
 type: side-doc
 parent: ../design.md
 marker: "first in the section"
-collaboration-mode: discussion
 ---
 
 # Notes: the update stamp goes first in the section

@@ -207,16 +207,6 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		if fm["type"] != "side-doc" {
 			bad("%s: type is %q, want side-doc", p, fm["type"])
 		}
-		if fm["collaboration-mode"] != "discussion" {
-			bad("%s: collaboration-mode is %q, want discussion", p, fm["collaboration-mode"])
-		}
-		if modern {
-			for _, key := range []string{"presentation-mode", "processing-mode"} {
-				if fm[key] == "" {
-					bad("%s: missing explicit %s", p, key)
-				}
-			}
-		}
 		parent := fm["parent"]
 		if parent == "" || strings.Contains(parent, "#") || path.IsAbs(parent) {
 			bad("%s: parent %q must be a plain relative path", p, parent)
@@ -227,10 +217,6 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		if ptext == "" {
 			bad("%s: parent %s does not resolve", p, parent)
 			return nil
-		}
-		pfm, _ := frontmatter(ptext)
-		if !modern && fm["process-instruction"] != pfm["process-instruction"] {
-			bad("%s: process-instruction %q, the parent's is %q (copied only when it has one)", p, fm["process-instruction"], pfm["process-instruction"])
 		}
 		marker, err := quotedMarker(fm["marker"])
 		if err != nil {
@@ -365,15 +351,16 @@ func checkCase(fsys fs.FS) []string {
 	slices.Sort(added)
 	for _, p := range added {
 		dir, name := sideRoot(p), path.Base(p)
-		if path.Dir(p) != dir {
-			fm, _ := frontmatter(afterText[p])
-			if _, legacy := fm["process-instruction"]; legacy {
-				bad("after/%s: new side doc must not copy legacy process-instruction", p)
-			}
-			for _, mode := range []struct{ key, value string }{{"collaboration-mode", "discussion"}, {"presentation-mode", "highlight"}, {"processing-mode", "free-form"}} {
-				if fm[mode.key] != mode.value {
-					bad("after/%s: new side doc %s is %q, want %s", p, mode.key, fm[mode.key], mode.value)
-				}
+		// #575: a side doc a round creates carries type, parent and marker
+		// (and, later, its own index) and never a mode key; a pre-existing
+		// one keeps whatever legacy keys it has.
+		fm, _ := frontmatter(afterText[p])
+		for key := range fm {
+			switch {
+			case slices.Contains(sidedoc.RetiredKeys, key) || key == "collaboration-mode":
+				bad("after/%s: new side doc writes retired mode key %s", p, key)
+			case key != "type" && key != "parent" && key != "marker" && key != "discussions":
+				bad("after/%s: new side doc has unexpected frontmatter key %s", p, key)
 			}
 		}
 		date, _, slug, _ := sideDocName(name)
@@ -532,7 +519,7 @@ func TestQuotedMarker(t *testing.T) {
 // goodCase is a minimal valid case the mutation test breaks one way at a time.
 func goodCase() fstest.MapFS {
 	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
-	side := "---\ntype: side-doc\nparent: ../d.md\nmarker: \"why?\"\ncollaboration-mode: discussion\n---\n\n# Why?\n\n_From [D](../d.md), section \"D\"._\n"
+	side := "---\ntype: side-doc\nparent: ../d.md\nmarker: \"why?\"\n---\n\n# Why?\n\n_From [D](../d.md), section \"D\"._\n"
 	return fstest.MapFS{
 		"case.md":                f("submitted: d.md\noutcome: ok\n"),
 		"before/d.md":            f("# D\n\nText. 🤖[why?]\n"),
@@ -571,7 +558,7 @@ func TestCheckCaseCatches(t *testing.T) {
 		{"anchored parent", edit(side, "../d.md", "../d.md#x"), "plain relative path"},
 		{"unresolved parent", edit(side, "../d.md", "../e.md"), "does not resolve"},
 		{"unquoted marker", edit(side, `"why?"`, `why?`), "double-quoted"},
-		{"wrong mode", edit(side, "mode: discussion", "mode: chat"), "want discussion"},
+		{"a new side doc writes a mode key", edit(side, "type: side-doc", "type: side-doc\ncollaboration-mode: discussion"), "retired mode key collaboration-mode"},
 		{"copied process-instruction from nowhere", edit(side, "---\n\n", "process-instruction: \"[free-form]\"\n---\n\n"), "process-instruction"},
 		{"dangling link", edit("after/d.md", "01-why", "02-why"), "does not resolve"},
 		{"skipped number", func(m fstest.MapFS) {
@@ -706,6 +693,73 @@ func skillDir(t *testing.T) string {
 }
 
 // Every committed case satisfies the contract.
+// numberedItem starts a `@@chat@@` section's item (collaboration-modes.md §3).
+var numberedItem = regexp.MustCompile(`^\d+\. `)
+
+// checkChat holds a case to the chat grammar through sidedoc.ChatSections
+// (#575), the oracle pair and parley copy: every answer link the round adds
+// sits in a chat section, every numbered item of a @@chat@@ section ends the
+// round answered, each misplaced tag is named in the reply, and the reply
+// carries the oracle's legacy-key notices verbatim.
+func checkChat(fsys fs.FS) []string {
+	var errs []string
+	cm, err := fs.ReadFile(fsys, "case.md")
+	if err != nil {
+		return nil // checkCase reports it
+	}
+	submitted, _, move := ParseCase(string(cm))
+	if move != nil {
+		return nil
+	}
+	before, _ := fs.ReadFile(fsys, path.Join("before", submitted))
+	after, err := fs.ReadFile(fsys, path.Join("after", submitted))
+	if err != nil {
+		return nil
+	}
+	scan := sidedoc.ChatSections(string(after))
+	had := map[string]bool{}
+	for _, l := range strings.Split(string(before), "\n") {
+		had[l] = true
+	}
+	lines := strings.Split(string(after), "\n")
+	for i, l := range lines {
+		if strings.Contains(l, "→ [answer](") && !had[l] && !scan.InChat(i+1) {
+			errs = append(errs, fmt.Sprintf("after/%s line %d: an answer link outside every chat section", submitted, i+1))
+		}
+	}
+	for _, sec := range scan.Sections {
+		if sec.Source != "tag" {
+			continue
+		}
+		for i := sec.Heading; i < sec.End; i++ {
+			if !numberedItem.MatchString(lines[i]) {
+				continue
+			}
+			answered := false
+			for j := i; j < sec.End && (j == i || !numberedItem.MatchString(lines[j])) && lines[j] != ""; j++ {
+				answered = answered || strings.Contains(lines[j], "→ [answer](")
+			}
+			if !answered {
+				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, i+1))
+			}
+		}
+	}
+	// The reply carries ChatSections' notices verbatim, read from the document
+	// as submitted (its line numbers count in before/), so the fixtures pair
+	// and parley pin agree with the oracle word for word.
+	for _, n := range sidedoc.ChatSections(string(before)).Notices {
+		if !strings.Contains(strings.Join(strings.Fields(string(cm)), " "), n) {
+			errs = append(errs, fmt.Sprintf("the reply lacks the notice %q", n))
+		}
+	}
+	for _, n := range scan.Misplaced {
+		if !strings.Contains(string(cm), fmt.Sprintf("`@@chat@@` at line %d", n)) {
+			errs = append(errs, fmt.Sprintf("the reply does not name the misplaced tag at line %d", n))
+		}
+	}
+	return errs
+}
+
 func TestExamples(t *testing.T) {
 	root := filepath.Join(skillDir(t), "examples")
 	cases, err := os.ReadDir(root)
@@ -721,9 +775,12 @@ func TestExamples(t *testing.T) {
 		for _, e := range checkCase(os.DirFS(filepath.Join(root, c.Name()))) {
 			t.Errorf("%s: %s", c.Name(), e)
 		}
+		for _, e := range checkChat(os.DirFS(filepath.Join(root, c.Name()))) {
+			t.Errorf("%s: %s", c.Name(), e)
+		}
 	}
-	if n < 12 {
-		t.Errorf("%d cases, want the twelve the plan's test list names", n)
+	if n < 30 {
+		t.Errorf("%d cases, want at least the thirty #575 leaves", n)
 	}
 }
 
@@ -736,26 +793,69 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 	doc := string(b)
 	flat := strings.Join(strings.Fields(doc), " ")
-	for i := 1; i <= 29; i++ {
+	for i := 1; i <= 31; i++ {
 		if !strings.Contains(doc, fmt.Sprintf("\n| %d | ", i)) {
 			t.Errorf("the state table lacks row %d", i)
 		}
 	}
 	for _, phrase := range []string{
+		"Direct edits by the operator are content",                                  // #575 rule 1
+		"When unsure, it is a question",                                             // #575 rule 2
+		"A **`@@chat@@`** line directly above a heading makes that section chat",    // the carve-out
+		"nothing new writes them",                                                   // the legacy rule
+		"A mode key never fails a round",                                            // report, never fail
 		"add a closing record at the end of the side doc",                           // row 9
-		"leaves its answer doc in place",                                            // row 15
+		"leaves its answer doc in place",                                            // row 16
 		"Deleting a link drops its entry; removing an entry never touches the link", // the one-way rule
 		"Rename the orphan to `spec_1.side/`",                                       // the orphan suffix
 		"Folded into the parent on <date>:",                                         // the fold's closing note the checker reads
-		"the adapter's exit 3",                                                      // row 17
+		"the adapter's exit 3",                                                      // row 18
 		"Never create a `.side/` inside a `.side/`",                                 // the flat folder
-		"Swapping a marker for its link is an edit through `apply`",                 // presentation owns proposals
+		"Swapping a marker for its link is an edit through `apply`",                 // the link write
 		"don't fold again",                                                          // a refused side-doc write after the fold landed
 		"a plain relative path with no `#anchor`",                                   // the body's backlink
 	} {
 		// Compared with whitespace collapsed, so rewrapping the prose doesn't break it.
 		if !strings.Contains(flat, phrase) {
 			t.Errorf("collaboration-modes.md lacks %q", phrase)
+		}
+	}
+}
+
+// #575's Done-when: no skill text asks a creator or filler to write a mode
+// key. The retired keys may be named only in collaboration-modes.md §7 (the
+// legacy table), and in the adapter's Couch-transition note and its
+// legacy propose mechanics, which describe Couch until pair#838.
+func TestNoSpecWritesModeKeys(t *testing.T) {
+	dir := skillDir(t)
+	keys := append([]string{"collaboration-mode:"}, "presentation-mode", "processing-mode", "processing-instruction", "process-instruction")
+	files := []string{"round.md", "SKILL.md", "collaboration-modes.md"}
+	briefs, _ := filepath.Glob(filepath.Join(dir, "briefs", "*.md"))
+	for _, b := range briefs {
+		files = append(files, filepath.Join("briefs", filepath.Base(b)))
+	}
+	for _, f := range files {
+		b, err := os.ReadFile(filepath.Join(dir, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(b)
+		if f == "collaboration-modes.md" {
+			legacy := strings.Index(text, "## 7. Legacy mode keys")
+			if legacy < 0 {
+				t.Fatal("collaboration-modes.md lacks §7")
+			}
+			text = text[:legacy]
+		}
+		for _, k := range keys {
+			if strings.Contains(text, k) {
+				t.Errorf("%s names the retired key %q outside the legacy table", f, k)
+			}
+		}
+		for _, retired := range []string{"Written defaults", "write all three keys", "Whenever frontmatter is created or filled"} {
+			if strings.Contains(text, retired) {
+				t.Errorf("%s still instructs writers: %q", f, retired)
+			}
 		}
 	}
 }

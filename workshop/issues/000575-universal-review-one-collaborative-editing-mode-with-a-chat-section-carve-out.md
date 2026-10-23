@@ -1,13 +1,23 @@
 ---
 id: 000575
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '96500b38e049df6313439b4f2626b1e06e3ed7ce' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd60993021453fe879862f7064935d82fe87a8469' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T11:52:48-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.54
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
@@ -49,8 +59,34 @@ ops `session.side/2026-10-23-03-mode-simplification.md`. Rewrite universal-revie
 
 ## Plan
 
-- [ ]
+Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out-plan.md) (approved by the TL 10-23, (a) to (f); decision D2 by the operator).
+
+- [x] Task 1: Briefs and export v4 (`briefs/`, `brief` role, `exportedCases`)
+- [x] Task 2: `chatSections` oracle
+- [x] Task 3: Spec prose (collaboration-modes.md, round.md, SKILL.md, file-edit adapter)
+- [x] Task 4: Examples: retire, convert, add the 13 new cases; checker side-doc rule
+- [x] Task 5: Prose guards (the Done-when retired-phrase test) and the atlas
+- [x] Task 6: Recorded suite and close (the v4 handoff to parley.nvim:3 and pair follows the landing; it needs the landed commit)
 
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round 4 head 006f6dd3b: the recorded suite on 213f0fa2d failed on pkg/vocab TestCollaborationModesAgreeAcrossSources (attempt 53212cf3), a cross-source test that read the removed errors table. Fixed: it now reads the section 7 legacy table, and that row spells each value in full. A sweep of every Go reader of the skill files found no other consumer; go test ./pkg/... pass, apart from a sandbox-only golint socket bind. Rounds 1-3 hold (SHIP at round 3). The recorded suite is queued on 006f6dd3b.; review verdict: SHIP
+- 2026-10-23: closed — Round 3 head 213f0fa2d: the round-2 advisory (family legacy-key-notice-coverage, second finding) is fixed as a rule. Any fenced document whose frontmatter was not read gets one notice; test rows cover CR, a ... marker and malformed YAML. Rounds 1-2 hold: ATX-only, code-masked tags; replies held to ChatSections notices verbatim. The spec is the one collaborative mode with the @@chat@@ carve-out and the legacy table (D2). Export v4 has flagless briefs plus 13 exported cases. TestNoSpecWritesModeKeys is the Done-when guard. go test ./pkg/reviewexport ./pkg/sidedoc pass, and earlier ./cmd/tl-lead ./cmd/weave ./cmd/datatype. The recorded suite is queued on 213f0fa2d.; review verdict: SHIP
+- 2026-10-23: closed — Round 2 head f1e4752bd: all round-1 findings fixed. BR-1: tags only above ATX headings (setext pinned as misplaced). BR-2: code mask on the tag line (indented-code row fails on the old code). BR-3: checkChat requires ChatSections notices verbatim in every reply, and 21 replies were fixed. BR-4: plan Revisions. Minors: the map default notice, the CRLF notice, the adapter wording. Spec rewritten to the one collaborative mode with the @@chat@@ carve-out and the legacy table (D2). Export v4 has flagless briefs plus 13 exported cases. TestNoSpecWritesModeKeys guards Done-when 2. go test ./pkg/reviewexport ./pkg/sidedoc ./cmd/tl-lead ./cmd/weave ./cmd/datatype pass. The recorded suite is queued on f1e4752bd. Consumers: only parley.nvim (refuses v4 before writing; shipped v2), confirmed by parley.nvim:3.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 705 added lines in code files (limit 100); an earlier round of this close already ran the full review
+- Claimed after #573 landed. The plan was drafted while #573's merge ran; the TL approved (a) to (f), and the operator decided D2: the unified model applies everywhere. Consumer grep: parley.nvim is the only reader of export.json. Its build-time sync accepts v1 to v3 and refuses v4 before writing anything, and its shipped bundle is v2, so #419 migrates v2 to v4. Filed #576 for the Go writers and datatype rows.
+- Task 1: export v4 with five flagless briefs. `free-form` is retired: it only meant "follow processing-instruction". A leftover v3 flag or unknown key refuses the build (`TestParseBrief`). `TestExportCurrent` stays red until Task 4 adds the exported cases.
+- Task 2, deviating from the plan on purpose (ARCH-DRY): the scanner lives in `pkg/sidedoc/chat.go` as `ChatSections`, not in `pkg/reviewexport`. pkg/sidedoc is the shared side-doc library tl-lead and sdlc already import, so #576's tl-lead adoption reuses it instead of growing a third heading scanner. Headings come from goldmark (a fenced "heading" is code). Legacy forms that meant chat (scalar, map names, heading comment) still make chat sections. Every other mode key or value is a notice, never an error.
+- Task 3: rewrote collaboration-modes.md (title "Collaborative editing"; path kept for its citers), round.md and SKILL.md. The adapter keeps Couch's propose mechanics, marked as legacy until pair#838, because they describe what Couch does today.
+- Task 4: the checker's rule is that a side doc a round creates has only type/parent/marker (plus a later index), and pre-existing side docs keep their legacy keys. 13 new cases are generated by a script (scratchpad gen/cases.py), and 16 cases retired (editorial-fill-*, error-*, propose-*, untracked-propose-refused). `collaboration` became `legacy-collaboration` under D2; `editorial-heading-chat` became `legacy-chat-comment`; `chat` stays as the legacy-map case, since tl-lead's tests read it. `checkChat` cross-checks every case with `ChatSections`. Mutations: dropping an answer link → "a @@chat@@ item left unanswered"; dropping the misplaced-tag reply line → "does not name the misplaced tag".
+- Task 5: added `TestNoSpecWritesModeKeys`, the Done-when guard. round.md, SKILL.md, the briefs and collaboration-modes.md before §7 name no retired key and no writer instruction ("Written defaults", "write all three keys"). Mutation: appending a write instruction to round.md fails it. `TestCollaborationModesProse` now checks the 31-row table and the new rules. Atlas `universal-review.md` and the root README describe the one mode, export v4, and #576 as owner of the remaining writers. Tests pass for `pkg/reviewexport`, `pkg/sidedoc`, `cmd/weave`, `cmd/datatype` and `cmd/tl-lead`.
+- Close review round 1 returned FIX-THEN-SHIP with four Important findings and two Minors, all fixed this round.
+  - BR-1: a tag counts only above an ATX heading, because CommonMark folds the line above a setext heading into it; spec and doc corrected, and a test row pins it as misplaced.
+  - BR-2: a tag inside indented code no longer makes a section chat, because the code mask now applies to the tag line. The new test row fails on the old code.
+  - BR-3: `checkChat` now requires each reply to carry `ChatSections`' notices verbatim, with line numbers counted in the submitted document. All 21 replies that lacked them were fixed, among them the paraphrases in the new legacy cases.
+  - BR-4: added Revisions entries to the plan for the ChatSections location and the guard's scope.
+  - Minors: a map's retired `default:` value and unread CRLF frontmatter are now noticed, and the adapter no longer says "discussion or chat mode".
+- Close round 2 returned SHIP, with one advisory Minor that repeated a family, legacy-key-notice-coverage. I fixed it as a rule, not as one more instance: any document that opens with a frontmatter fence and has keys that were not read, for any reason, gets one "frontmatter could not be read" notice. The reasons covered are CR anywhere, a `...` line, and YAML that does not parse. Test rows cover each route, and §7 states the rule.
+- The recorded suite on 213f0fa2d failed on `pkg/vocab` `TestCollaborationModesAgreeAcrossSources` (attempt 53212cf34ff54e94bbc5c828c645f562). It is a genuine miss: that test cross-checks `vocab.CollaborationModes` against collaboration-modes.md's old errors table, which the rewrite removed. I never ran `pkg/vocab` while iterating, because I hadn't swept for every Go reader of the skill files before rewriting them. Fix: the test now checks that §7's legacy table reads each value (the three are legacy-readable until #576 retires the writers), and the §7 row spells `collaboration-mode: collaboration` in full. The sweep found the other readers are tl-lead's (passing) and pkg/reviewexport.
+

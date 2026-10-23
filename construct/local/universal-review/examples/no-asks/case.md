@@ -16,3 +16,4 @@ unchanged, which still folds the submit.
 ## Reply
 
 - Read your edits; no asks.
+- collaboration-mode: collaboration is retired and ignored: one collaborative mode applies

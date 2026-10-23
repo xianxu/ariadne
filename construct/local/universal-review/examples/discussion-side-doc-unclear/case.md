@@ -11,3 +11,4 @@ is illustrative. Neither document has a process-instruction, so the side doc car
 
 - Your "ok" is ambiguous: asked which proposal it approves in 02-approval.md.
 - Filed parley.nvim#999 for the visual cues; the side doc records it.
+- collaboration-mode: discussion is retired and ignored: one collaborative mode applies

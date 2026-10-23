@@ -29,6 +29,12 @@ Decide in this order, and edit directly only on a confirmed **untracked**:
 
 ## Routing decisions
 
+New documents are always highlight (`../collaboration-modes.md` §1). The
+propose rows below and the propose passages in this file describe Couch until
+pair#838: it still converts edits to proposals in an older document whose
+legacy `presentation-mode: propose` it honors. Never write that key, and follow
+these rows only when Couch reports such a document.
+
 Apply this table to **every existing document changed by the round**, including
 the submitted file and any parent. The action is the body-write path; a tracked
 frontmatter-only exception remains in the Tracked section below.
@@ -56,8 +62,8 @@ One round reviews one snapshot: the text whose hash you write against.
    `--all`"). It must come before step 3, which marks everything seen and
    empties it.
 3. **The snapshot:** `couch --session-sync read --all FILE` prints the text and
-   its hash H. This text is the round's input: the settings/instruction come from its
-   frontmatter and heading comments, and the markers from its body. The diff only points at what
+   its hash H. This text is the round's input: its `@@chat@@` tags and any legacy
+   mode keys come from it (`../collaboration-modes.md` §3, §7), and the markers from its body. The diff only points at what
    moved; an edit made between steps 2 and 3 is in the snapshot even though
    the diff missed it, so read the markers from the snapshot, not the diff.
 4. **Compute** the clean result (`../round.md`) on the snapshot. For every
@@ -131,8 +137,8 @@ the reply rather than inventing a list of edits.
 
 ## Side docs and a parent
 
-A round in discussion or chat mode may create side docs and may fold into a
-parent document (`../collaboration-modes.md` §4 orders the writes). A new side
+A round that answers a question or a chat item may create side docs, and a
+fold-in changes a parent document (`../collaboration-modes.md` §4 orders the writes). A new side
 doc keeps the existing create/write path: no one holds a lock on a file that
 doesn't exist yet. Every existing document the round changes, the submitted
 one and a parent alike, takes its own path above or below by its own tracked

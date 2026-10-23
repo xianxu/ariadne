@@ -2,8 +2,6 @@
 type: side-doc
 parent: 01-naming.md
 marker: "how does this interact with files that already name a mode?"
-collaboration-mode: discussion
-process-instruction: "[developmental]"
 ---
 
 # How does the rename interact with files that already name a mode?

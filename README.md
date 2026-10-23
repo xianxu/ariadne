@@ -24,23 +24,20 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
-Universal review uses three independent scalar settings: `collaboration-mode`
-(discussion by default), `presentation-mode` (highlight) and `processing-mode`
-(free-form), plus free text in `processing-instruction`. A single HTML comment
-directly under a heading overrides any of the three for that section, for example
-`<!-- collaboration-mode: chat; processing-mode: copy-editing -->`.
-Creators write all three defaults explicitly when filling missing frontmatter,
-preserving existing choices and readable legacy aliases. New side docs live at
-`<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`; existing flat names stay valid.
-`tl-lead status instructions link` accepts both layouts and checks the corresponding parent before publishing.
-
-In universal review, effective `presentation-mode: propose` asks the edit
-engine to show prose changes as proposals. Tracked Couch documents use
+Universal review has one collaborative editing mode (ariadne#575): the operator's
+direct edits are content, and each `🤖` marker is a question, answered in a linked
+side doc, or a command, an edit scoped to its paragraph unless it says "this
+section" or sits before the first heading. A `@@chat@@` line directly above a
+heading makes that section a chat, whose numbered items each get an answer doc.
+The old `collaboration-mode`, `presentation-mode` and `processing-mode` keys stay
+readable (a legacy chat still means chat) and are never written; until pair#838,
+Couch still honors a legacy `presentation-mode: propose` by showing prose changes
+as proposals. New side docs live at `<doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md`;
+existing flat names stay valid. Tracked Couch documents use
 `couch --session-sync apply`; a hosted Pair workbench uses `pair review apply`.
-An untracked document with that presentation must be tracked before editing.
 Both apply paths accept one atomic batch of explained edits and derive the
 round; see [universal review](atlas/workflow/universal-review.md) for the contract,
-precedence, compatibility and implementation ownership (pair#823/parley.nvim#418/#419).
+compatibility and implementation ownership (pair#838, parley.nvim#419).
 New `🤖` markers carry at most one `[]` or `{}` turn. A clarification or
 longer exchange moves to an indexed `→ [discussion](…)` side doc; old chains
 remain readable and resolve by their final human turn. See the

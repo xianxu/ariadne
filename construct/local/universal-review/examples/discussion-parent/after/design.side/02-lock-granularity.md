@@ -2,8 +2,6 @@
 type: side-doc
 parent: ../design.md
 marker: "why do we lock per file, not per section?"
-collaboration-mode: discussion
-process-instruction: "[free-form]"
 ---
 
 # Why lock per file, not per section?

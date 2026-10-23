@@ -11,29 +11,27 @@ import (
 	"testing/fstest"
 )
 
-func TestParseMode(t *testing.T) {
-	m, err := ParseMode("---\nname: a\norder: 2\nscope: whole-doc\nfrontier: off\n---\nBrief.\n", "a")
-	if err != nil || m != (Mode{Name: "a", Order: 2, Scope: "whole-doc", Frontier: "off"}) {
-		t.Fatalf("got %+v, %v", m, err)
-	}
-	// Omitted flags take parley's defaults; order is optional.
-	m, err = ParseMode("---\nname: b\n---\nBrief.\n", "b")
-	if err != nil || m != (Mode{Name: "b", Scope: "markers-only", Frontier: "on"}) {
-		t.Fatalf("defaults: got %+v, %v", m, err)
+func TestParseBrief(t *testing.T) {
+	b, err := ParseBrief("---\nname: a\n---\nBrief.\n", "a")
+	if err != nil || b != (Brief{Name: "a"}) {
+		t.Fatalf("got %+v, %v", b, err)
 	}
 	for _, c := range []struct{ name, text, want string }{
 		{"no frontmatter", "name: a\n", "missing frontmatter"},
 		{"unterminated", "---\nname: a\n", "unterminated"},
 		{"name mismatch", "---\nname: b\n---\n", "basename"},
-		{"bad flag", "---\nname: a\nscope: everything\n---\n", "scope="},
-		{"retired deletion flag", "---\nname: a\ndeletions: propose-strike\n---\n", "deletions"},
-		{"bad order", "---\nname: a\norder: first\n---\n", "order"},
+		// #575: the v3 mode flags are retired; a leftover one refuses the build.
+		{"retired scope", "---\nname: a\nscope: whole-doc\n---\n", "scope"},
+		{"retired frontier", "---\nname: a\nfrontier: on\n---\n", "frontier"},
+		{"retired order", "---\nname: a\norder: 2\n---\n", "order"},
+		{"retired deletions", "---\nname: a\ndeletions: propose-strike\n---\n", "deletions"},
+		{"unknown key", "---\nname: a\ntone: dry\n---\n", "tone"},
 		// Parity with parley's parser at the edges.
 		{"crlf", "---\r\nname: a\r\n---\r\n", "missing frontmatter"},
 		{"quoted value is literal", "---\nname: \"a\"\n---\n", "basename"},
 		{"empty frontmatter", "---\n---\nBody\n", "basename"},
 	} {
-		if _, err := ParseMode(c.text, "a"); err == nil || !strings.Contains(err.Error(), c.want) {
+		if _, err := ParseBrief(c.text, "a"); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err %v, want %q", c.name, err, c.want)
 		}
 	}
@@ -46,15 +44,14 @@ func fixture() fstest.MapFS {
 		"review-convention.md":   f("grammar\n"),
 		"collaboration-modes.md": f("collaboration modes\n"),
 		"adapters/file-edit.md":  f("adapter\n"),
-		"modes/zeta.md":          f("---\nname: zeta\n---\nZ\n"),
-		"modes/beta.md":          f("---\nname: beta\norder: 2\n---\nB\n"),
-		"modes/alpha.md":         f("---\nname: alpha\norder: 2\n---\nA\n"),
-		"modes/first.md":         f("---\nname: first\norder: 1\n---\nF\n"),
+		"briefs/zeta.md":         f("---\nname: zeta\n---\nZ\n"),
+		"briefs/beta.md":         f("---\nname: beta\n---\nB\n"),
+		"briefs/alpha.md":        f("---\nname: alpha\n---\nA\n"),
 	}
 }
 
-// The order is total and matches parley's listing: role, then mode order
-// with unordered modes last, then name.
+// The order is total: role, then name, then path. Briefs carry no order
+// (#575), so they sort by name.
 func TestBuildOrder(t *testing.T) {
 	m, err := Build(fixture())
 	if err != nil {
@@ -64,20 +61,21 @@ func TestBuildOrder(t *testing.T) {
 	for _, mem := range m.Members {
 		got = append(got, mem.Role+":"+mem.Path)
 	}
-	want := "round:round.md grammar:review-convention.md collaboration-modes:collaboration-modes.md adapter:adapters/file-edit.md mode:modes/first.md mode:modes/alpha.md mode:modes/beta.md mode:modes/zeta.md"
+	want := "round:round.md grammar:review-convention.md collaboration-modes:collaboration-modes.md adapter:adapters/file-edit.md brief:briefs/alpha.md brief:briefs/beta.md brief:briefs/zeta.md"
 	if strings.Join(got, " ") != want {
 		t.Errorf("order\n got %s\nwant %s", strings.Join(got, " "), want)
 	}
 	if g := m.Members[1]; g.Source != GrammarSource || g.Bytes != len("grammar\n") {
 		t.Errorf("grammar member %+v", g)
 	}
-	if z := m.Members[7]; z.Scope != "markers-only" || z.Order != 0 {
-		t.Errorf("an unordered mode records its defaults: %+v", z)
+	if z := m.Members[6]; z.Name != "zeta" {
+		t.Errorf("a brief is named by its file: %+v", z)
 	}
 }
 
-// The move cases' files are exported as fixtures, for parley's mover
-// (#424); the other examples are not. Fixtures sort last, by case, then path.
+// The move cases' files (#424) and the named exportedCases (#575) are
+// exported as fixtures; the other examples are not. Fixtures sort last, by
+// case, then path.
 func TestBuildFixtures(t *testing.T) {
 	fs := fixture()
 	f := func(s string) *fstest.MapFile { return &fstest.MapFile{Data: []byte(s)} }
@@ -87,12 +85,13 @@ func TestBuildFixtures(t *testing.T) {
 	fs["examples/move-a/case.md"] = f("move: x.md y.md\n")
 	fs["examples/chat/case.md"] = f("submitted: s.md\noutcome: ok\n")
 	fs["examples/chat/before/s.md"] = f("S\n")
+	fs["examples/chat-tag/case.md"] = f("submitted: s.md\noutcome: ok\n")
 	m, err := Build(fs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Version != 3 {
-		t.Errorf("version %d, want 3 (mode deletion flag retired)", m.Version)
+	if m.Version != 4 {
+		t.Errorf("version %d, want 4 (flagless briefs, #575)", m.Version)
 	}
 	var got []string
 	for _, mem := range m.Members {
@@ -100,7 +99,7 @@ func TestBuildFixtures(t *testing.T) {
 			got = append(got, mem.Name+":"+mem.Path)
 		}
 	}
-	want := "move-a:examples/move-a/case.md move-b:examples/move-b/after/e.md move-b:examples/move-b/before/d.md move-b:examples/move-b/case.md"
+	want := "chat-tag:examples/chat-tag/case.md move-a:examples/move-a/case.md move-b:examples/move-b/after/e.md move-b:examples/move-b/before/d.md move-b:examples/move-b/case.md"
 	if strings.Join(got, " ") != want {
 		t.Errorf("fixtures\n got %s\nwant %s", strings.Join(got, " "), want)
 	}
@@ -109,7 +108,8 @@ func TestBuildFixtures(t *testing.T) {
 	}
 }
 
-func TestV3ExportOmitsModeDeletionKnob(t *testing.T) {
+// #575: v4 has no mode role and no mode flags; v3 readers refuse it.
+func TestV4ExportHasNoModeFlags(t *testing.T) {
 	m, err := Build(fixture())
 	if err != nil {
 		t.Fatal(err)
@@ -118,15 +118,22 @@ func TestV3ExportOmitsModeDeletionKnob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(data, []byte(`"deletions"`)) || !bytes.Contains(data, []byte(`"version": 3`)) {
-		t.Fatalf("v3 still exports the retired deletion knob: %s", data)
+	for _, retired := range []string{`"deletions"`, `"order"`, `"scope"`, `"frontier"`, `"role": "mode"`} {
+		if bytes.Contains(data, []byte(retired)) {
+			t.Errorf("v4 export still carries %s", retired)
+		}
+	}
+	if !bytes.Contains(data, []byte(`"version": 4`)) {
+		t.Errorf("not version 4: %s", data)
 	}
 }
 
 func TestBuildRefusesMissingMembers(t *testing.T) {
-	for _, drop := range []string{"round.md", "review-convention.md", "collaboration-modes.md", "adapters/file-edit.md"} {
+	for _, drop := range []string{"round.md", "review-convention.md", "collaboration-modes.md", "adapters/file-edit.md", "briefs/alpha.md briefs/beta.md briefs/zeta.md"} {
 		fs := fixture()
-		delete(fs, drop)
+		for _, p := range strings.Fields(drop) {
+			delete(fs, p)
+		}
 		if _, err := Build(fs); err == nil {
 			t.Errorf("built without %s", drop)
 		}
@@ -193,26 +200,35 @@ func TestExportCurrent(t *testing.T) {
 	if m.Members[1].Bytes != len(canon) {
 		t.Errorf("grammar member covers %d bytes, the source has %d", m.Members[1].Bytes, len(canon))
 	}
-	var modes []string
+	var briefs []string
 	collab := 0
+	exported := map[string]bool{}
 	for _, mem := range m.Members {
 		switch mem.Role {
-		case "mode":
-			modes = append(modes, mem.Name)
+		case "brief":
+			briefs = append(briefs, mem.Name)
 		case "collaboration-modes":
 			collab++
+		case "fixture":
+			exported[mem.Name] = true
 		}
-		// Only the move cases are exported, as parley's fixtures (#424).
-		if strings.HasPrefix(mem.Path, "examples/") != (mem.Role == "fixture") || mem.Role == "fixture" && !strings.HasPrefix(mem.Name, "move-") {
-			t.Errorf("%s exported as %s/%s; only the move cases are, as fixtures", mem.Path, mem.Role, mem.Name)
+		// Only the move cases and exportedCases are exported, as fixtures (#424, #575).
+		if strings.HasPrefix(mem.Path, "examples/") != (mem.Role == "fixture") || mem.Role == "fixture" && !strings.HasPrefix(mem.Name, "move-") && !slices.Contains(exportedCases, mem.Name) {
+			t.Errorf("%s exported as %s/%s; only the move cases and exportedCases are, as fixtures", mem.Path, mem.Role, mem.Name)
+		}
+	}
+	// Every named case exists: a renamed or missing one would silently drop a fixture pair and parley pin.
+	for _, c := range exportedCases {
+		if !exported[c] {
+			t.Errorf("exportedCases names %q, which is not an example", c)
 		}
 	}
 	// #412: parley's sync requires exactly one collaboration-modes member.
 	if collab != 1 {
 		t.Errorf("%d collaboration-modes members, want exactly one", collab)
 	}
-	if got := strings.Join(modes, ","); got != "developmental,line-editing,copy-editing,proofreading,fact-check,free-form" {
-		t.Errorf("stock modes in order: %s", got)
+	if got := strings.Join(briefs, ","); got != "copy-editing,developmental,fact-check,line-editing,proofreading" {
+		t.Errorf("stock briefs by name: %s", got)
 	}
 }
 
@@ -243,8 +259,8 @@ func TestReviewSkillApplyContract(t *testing.T) {
 			[]string{"pair review apply EDITS.json FILE", "docflow round --side agent", "propose-too-large", "operator-owned", "operator-lock", "stale", "Body"},
 			[]string{"PAIR_REVIEW_HANDOFF_PATH", "PAIR_REVIEW_LANDED_PATH", "[reconcile —", "applied N edits"}},
 		{"review round", round,
-			[]string{"presentation:", "highlight", "propose", "never type"},
-			[]string{"deletions:", "propose-strike"}},
+			[]string{"highlight", "Never type proposal marker syntax", "@@chat@@", "question", "command"},
+			[]string{"deletions:", "propose-strike", "presentation-mode:", "processing-mode:", "frontier"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, phrase := range tc.want {

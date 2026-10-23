@@ -1600,3 +1600,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   whole format family through Command and CommandContext and both Check entry
   points; normalize once in the shared predicate. This extends the same
   test-ps-liveness catalog rule rather than adding a second guard.
+
+- #575 suite: before rewriting a document other code parses (a spec, a skill, a datatype), grep every reader of its path, tests included (`grep -rln '<file>' --include='*.go'`), and run those packages while iterating. A cross-source agreement test in an unrelated package (`pkg/vocab` reading collaboration-modes.md's errors table) failed only in the recorded suite, costing a 20-minute run and a second one.

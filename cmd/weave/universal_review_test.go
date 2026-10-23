@@ -82,7 +82,7 @@ func TestUniversalReviewSkillDiscoveredInDerivedRepo(t *testing.T) {
 		if err != nil || !bytes.Equal(grammar, canon) {
 			t.Errorf("%s: the grammar link does not reach the canonical review-convention.md (err=%v)", dir, err)
 		}
-		for _, f := range []string{"round.md", "adapters/file-edit.md", "modes/free-form.md", "export.json"} {
+		for _, f := range []string{"round.md", "adapters/file-edit.md", "briefs/copy-editing.md", "export.json"} {
 			if _, err := os.Stat(filepath.Join(skill, f)); err != nil {
 				t.Errorf("%s: %s: %v", dir, f, err)
 			}
