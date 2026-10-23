@@ -469,8 +469,12 @@ while IFS="$(printf '\t')" read -r bin repo; do
 	IFS= read -r zsh_line <&5 || zsh_line=""
 	zsh_kind=""
 	case "$zsh_line" in "$bin: "*) zsh_kind="${zsh_line#"$bin: "}" ;; esac
-	system_command "$first_path"
-	shadow_reason "$bin" "$bash_kind" "$zsh_kind" "$system_path"
+	# A name a shell already refuses never pays for resolving its PATH match.
+	shadow_reason "$bin" "$bash_kind" "$zsh_kind" ""
+	if [ -z "$reason" ]; then
+		system_command "$first_path"
+		shadow_reason "$bin" "$bash_kind" "$zsh_kind" "$system_path"
+	fi
 	if [ -n "$reason" ]; then
 		warn "not defining $bin (cmd/$bin in $repo): it would shadow $reason; run $repo/bin/$bin by its path or rename the command"
 		continue

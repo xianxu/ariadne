@@ -43,6 +43,7 @@ executable "$home/bin/homedup"                # the user's own install
 executable "$ws/tools/bin/linked"
 ln -s "$ws/tools/bin/linked" "$fixture/sys/linked"  # resolves into the workspace
 ln -s /bin/ls "$fixture/sys/lsalias"                # resolves to a system command
+ln -s /bin/echo "$fixture/sys/echo"  # refused by the shells: its link is never followed
 # Counting stubs: zsh once per run, readlink once per symlink hop.
 for tool in zsh readlink; do
 	real="$(command -v "$tool" || true)"
@@ -51,11 +52,27 @@ for tool in zsh readlink; do
 	chmod +x "$fixture/stubs/$tool"
 done
 test_path="$fixture/stubs:$home/bin:$fixture/sys:/usr/bin:/bin"
-# The host's physical system paths: merged-usr Linux finds /usr/bin/ls first and
-# resolves /bin to /usr/bin; macOS keeps /bin/ls.
-canonical() { (cd -P "$(dirname "$1")" && printf '%s/%s\n' "$PWD" "$(basename "$1")"); }
-ls_want="$(canonical "$(PATH="$test_path" type -P ls)")"
-lsalias_want="$(canonical /bin/ls)"
+# Host-dependent expectations come from the generator's own resolution
+# (follow_links, then cd -P), never a literal layout: merged-usr Linux finds
+# /usr/bin/ls first and resolves /bin to /usr/bin, Debian's /usr/bin/print can
+# be a link, busybox's /bin/ls is one. The hops file counts its readlinks.
+eval "$(sed -n '/^path_parts() {/,/^}/p; /^follow_links() {/,/^}/p' "$generator")"
+readlink() { echo hop >> "$fixture/hops"; command readlink "$@"; }
+resolved() { follow_links "$1"; path_parts "$link_path"; (cd -P "$path_dir" && printf '%s/%s\n' "$PWD" "$path_base"); }
+ls_want="$(resolved "$(PATH="$test_path" type -P ls)")"
+lsalias_want="$(resolved "$fixture/sys/lsalias")"
+# The readlinks a run spends: one per hop of each first PATH match outside the
+# workspace and HOME, for the names no shell refuses.
+want_hops() {
+	local n p
+	: > "$fixture/hops"
+	for n in "$@"; do
+		p="$(PATH="$test_path" type -P "$n" || true)"
+		case "$p" in ''|"$ws"/*|"$home"/*) continue ;; esac
+		follow_links "$p"
+	done
+	grep -c . "$fixture/hops" || true
+}
 run() {
 	(cd "$fixture/caller" && HOME="$home" PATH="$test_path" \
 		bash "$generator" --workspace "$ws" "$@")
@@ -89,7 +106,7 @@ else
 fi
 
 # N and 2N more ordinary names: one zsh call per run, and readlink only for the
-# two symlink hops, never per name.
+# hops of outside PATH matches, never per name.
 for count in 8 16; do
 	for ((i=0; i<count; i++)); do command_dir "tool_$i"; done
 	: > "$fixture/calls"
@@ -97,6 +114,11 @@ for count in 8 16; do
 	zsh_calls="$(grep -c '^zsh$' "$fixture/calls" || true)"
 	readlink_calls="$(grep -c '^readlink$' "$fixture/calls" || true)"
 	[ "$zsh_calls" -eq "$have_zsh" ] || fail "$count names: $zsh_calls zsh calls, want $have_zsh"
-	[ "$readlink_calls" -eq 2 ] || fail "$count names: $readlink_calls readlink calls, want 2"
+	tools=""
+	for ((i=0; i<count; i++)); do tools="$tools tool_$i"; done
+	# shellcheck disable=SC2086
+	want="$(want_hops ls sysdup lsalias linked oktool homedup $tools)"
+	[ "$want" -ge 2 ] || fail "fixture links not counted: want_hops $want"
+	[ "$readlink_calls" -eq "$want" ] || fail "$count names: $readlink_calls readlink calls, want $want"
 done
 echo 'PASS shadowing names refused with one warning each; bash and zsh keep builtins; zsh once, readlink per hop'
