@@ -1,13 +1,13 @@
 ---
 id: 000570
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '41a6b9aa2719ce1cf06a853a71fc35f81a47160e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f16d034d46cb78f36f2d601aa2e7af39d175cd7c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T02:36:18-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.39
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
