@@ -13,6 +13,7 @@ import (
 // Catalog is the curated list, in the order findings are reported. Add a rule
 // with the fix for the mistake class it catches (tl-worker, tl-lead).
 var Catalog = []Rule{
+	{Name: "test-ps-liveness", Incident: "ariadne#567", Message: "ps state text races asynchronous process exit; wait on the owned process group's terminal condition (procgroup) or the resource's release, and reserve state snapshots for justified diagnostics", TestOnly: true, Match: psLivenessQueries},
 	{Name: "test-socket-fixture-root", Incident: "ariadne#549, pair#792", Message: "an inherited temporary root can exceed the Unix socket path limit; use a short canonical private socket root with immediate cleanup, and justify any tmp-literal exception", TestOnly: true, Match: socketFixtureRoots},
 	{Name: "unit-child-process-group", Incident: "ariadne#556", Message: "inner flake unit children must inherit the outer managed helper's process group; use plain exec.CommandContext and direct-child Wait/Cancel, without process-group setup, signaling, or nested managed runners", Match: unitChildProcessGroups},
 	{Name: "resume-cleanup-effect", Incident: "ariadne#463", Message: "live-owner resume cleanup must run one effect in a literal resumeCleanupEffect(ctx, authorize, callback), so cancellation and authority are checked before every mutation", Match: resumeCleanupEffects},

@@ -45,13 +45,9 @@ func (e *suiteEnvironmentError) Error() string {
 	if diagnosis.Reason != "" {
 		where += ": " + diagnosis.Reason
 	}
-	revision := ""
-	if e.Head != "" {
-		revision = " --rev " + e.Head
-	}
 	command := e.RetryCommand
 	if command == "" {
-		command = fmt.Sprintf("sdlc local-check run --name %s%s", check, revision)
+		command = localCheckRunCommand(check, e.Head)
 	}
 	advice := "; repair the environment and rerun " + command
 	if errors.Is(e.Cause, syscall.EPERM) {

@@ -246,6 +246,15 @@ THE AFFECTED SUITE (#473)
   failed test). A train car boards on it in place of `suite`; merge without a
   train still runs `suite` on the integrated head.
 
+    sdlc local-check run --name affected --boarding   # a train car (#561)
+
+  --boarding is a train car's preparation and qualifies --name affected
+  alone. A full selection (a `full` glob, an unclassified path, or a package
+  graph or graph_prepare that is unavailable) then refuses: nothing runs and
+  nothing is posted. The refusal names the reason, the affected.json repair,
+  and the full-proof alternative (run --name suite, then sdlc merge --yes).
+  Partial and docs-only selections behave as above.
+
   Known flakes (#394). A test is a known flake while an open issue's card
   lists it in flake_tests (`sdlc flake register`). When the suite fails and
   every failure is a named, known-flake test, the run reruns just those tests

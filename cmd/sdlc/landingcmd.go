@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ type landingDeps struct {
 	couchTree    func() (slot *int, ok bool)
 	name         func() string
 	dropIdentity func(string) (workspace.Identity, error)
+	suite        func(context.Context, string) suiteQueueObservation
 }
 
 func defaultLandingDeps() landingDeps {
@@ -34,7 +36,8 @@ func defaultLandingDeps() landingDeps {
 		return id, err == nil
 	}
 	return landingDeps{
-		now: func() time.Time { return landingNow() },
+		suite: observeSuiteQueue,
+		now:   func() time.Time { return landingNow() },
 		caller: func() (string, *int, bool) {
 			id, ok := resolve(".")
 			if !ok {
@@ -85,7 +88,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 		Use: "grant", Short: "Give an issue fleet-blocking priority (operator or :0 only)",
 		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLandingGrant(cmd.OutOrStdout(), repo, issueN, reason, hours, false, d)
+			return runLandingGrant(cmd.Context(), cmd.OutOrStdout(), repo, issueN, reason, hours, false, d)
 		},
 	}
 	grant.Flags().IntVar(&issueN, "issue", 0, "the fleet-blocking issue's number")
@@ -99,7 +102,7 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 		Use: "revoke", Short: "End an issue's fleet-blocking priority (operator or :0 only)",
 		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLandingGrant(cmd.OutOrStdout(), repo, revokeIssue, revokeReason, 0, true, d)
+			return runLandingGrant(cmd.Context(), cmd.OutOrStdout(), repo, revokeIssue, revokeReason, 0, true, d)
 		},
 	}
 	revoke.Flags().IntVar(&revokeIssue, "issue", 0, "the issue whose priority ends")
@@ -118,7 +121,7 @@ func openRepoLine(repo string) (*landingline.Line, error) {
 	return line, err
 }
 
-func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hours float64, revoke bool, d landingDeps) error {
+func runLandingGrant(ctx context.Context, out io.Writer, repo string, issueN int, reason string, hours float64, revoke bool, d landingDeps) error {
 	if issueN <= 0 {
 		return errors.New("--issue N is required")
 	}
@@ -136,6 +139,32 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 	if err := landingline.Authorize(slot, tree); err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !revoke {
+		observe := d.suite
+		if observe == nil {
+			observe = observeSuiteQueue
+		}
+		check, cancel := context.WithTimeout(ctx, 3*time.Second)
+		observed := observe(check, repo)
+		err := check.Err()
+		cancel()
+		if err != nil {
+			return fmt.Errorf("suite ordering compatibility unavailable; no grant written: %w", err)
+		}
+		if !observed.Available {
+			return fmt.Errorf("suite ordering compatibility unavailable; no grant written: %s; refresh the supplying helper and retry", observed.Reason)
+		}
+		compatibility := assessSuiteQueueCompatibility(slices.Values(observed.Tickets))
+		if len(compatibility.Incompatible) != 0 {
+			return fmt.Errorf("grant refused: %s; let these waiters drain and refresh their supplying helpers before retrying", compatibility.detail())
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	line, err := openRepoLine(repo)
 	if err != nil {
 		return err
@@ -144,6 +173,9 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 	g := landingline.Grant{Issue: issueN, Grantor: landingline.Grantor{Address: address, Slot: slot, Name: d.name()}, Reason: reason, Granted: now, Revoked: revoke}
 	if !revoke {
 		g.Expires = now.Add(time.Duration(hours * float64(time.Hour)))
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if err := line.AddGrant(g); err != nil {
 		return err
@@ -154,6 +186,20 @@ func runLandingGrant(out io.Writer, repo string, issueN int, reason string, hour
 		_, err = fmt.Fprintf(out, "#%d: fleet-blocking until %s, granted by %s: %s\n", issueN, g.Expires.Format(time.RFC3339), address, reason)
 	}
 	return err
+}
+
+// trainFilterLines is status's rendering of the filter fold (#561): its
+// summary line, then each named escape, then how many were left unnamed.
+func trainFilterLines(f landingline.TrainFilterStats) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", f.Text)
+	for _, e := range f.Escapes {
+		fmt.Fprintf(&b, "  escape: train %d, car #%d (%s): %s\n", e.Train, e.Issue, abbrevSHA(e.Head), strings.Join(e.Tests, ", "))
+	}
+	if f.EscapesOmitted > 0 {
+		fmt.Fprintf(&b, "  … %d more escape(s) in the landing log\n", f.EscapesOmitted)
+	}
+	return b.String()
 }
 
 func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
@@ -201,10 +247,17 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 			bound = fmt.Sprintf(", or when a car has waited %dm", int(sched.MaxWait/time.Minute))
 		}
 		fmt.Fprintf(&b, "trains: every %dm, up to %d cars%s; %d ready; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, bound, w.Ready, next)
+		fmt.Fprintf(&b, "  %s\n", landingline.FormatTrainRampPolicy())
 		fmt.Fprintf(&b, "departure grid: %s\n", planNote)
 		if planErr != nil {
 			fmt.Fprintf(&b, "  [!] %v\n", planErr)
 		}
+	}
+	// The filter's measured quality over the ramp review window (#561), shown
+	// while trains run or while the window still holds trains.
+	now := d.now()
+	if f := landingline.AggregateTrainMeasurements(events, now.Add(-landingline.TrainRampReviewWindow), now); (serr == nil && !sched.Off()) || f.Trains > 0 {
+		b.WriteString(trainFilterLines(f))
 	}
 	for _, line := range recentTrains(events, 3) {
 		b.WriteString(line + "\n")

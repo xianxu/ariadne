@@ -28,6 +28,8 @@ LANDING TRAINS (#449)
   above. It is under the local-gates guard, so the operator verifies every
   change to it.
 
+  {{TRAIN_RAMP_POLICY}}
+
   With trains on:
 
   - A waiting merge checks its own publish and CI gates, read-only, on its
@@ -35,6 +37,10 @@ LANDING TRAINS (#449)
     .sdlc/affected.json (#473), a recorded `affected` run stands in for
     `suite` here: the train runs the full suite on its prefix before anything
     lands. A docs-only branch boards on its docs-only `affected` record.
+    Prepare a car with `sdlc local-check run --name affected --boarding`: a
+    full selection refuses there rather than running a per-car suite (#561),
+    and names its repair and the full-suite alternative. A passing `suite`
+    record on the head still boards.
   - A merge departs only when the train is due and its vouch is current. The
     train is due:
     - on the first train;
@@ -70,6 +76,25 @@ LANDING TRAINS (#449)
   (slot, interval, max wait, full, cars left ready), each
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
+
+  It also shows the train filter over the last seven days (#561), the
+  measurements the cap ramp rule reviews. Each train records a start and a
+  final measurement in the landing log: the proof each car boarded on
+  (affected, suite or unknown), which boardings a passing prefix resolved,
+  which an exact attributed split confirmed as escapes (a failure the
+  train's suite found in a package the car changed, its affected run having
+  passed), and every whole-suite run it made (initial, main baseline, split
+  probe, reintegration) with its run and queue time. The line reads:
+    escapes E/R resolved affected boardings (rate, or unknown at R=0);
+    unresolved, suite and unknown-proof boardings beside it; trains
+    measured, incomplete (a lost append, a conflict, a bound), open (a
+    start with no end yet: in flight, or its conductor died) and unmeasured
+    (before #561); the split's extra suites (baseline plus probes) with
+    run, queue and elapsed wall time, and reintegration suites apart.
+  Each escape is named below it: train, car, head and the exact tests.
+  Registered flakes, untouched or unknown impact, a red main and released
+  cars are never escapes. The weekly test-stats snapshot carries the same
+  numbers and line as train_filter. Measurements never decide a landing.
 
 DROP A COMPOSED CAR (#526)
 
@@ -134,6 +159,11 @@ FLEET-BLOCKING PRIORITY
   and the slot rule is checked again when it is read. Trust is cooperative:
   this guards against agents' mistakes on one machine, not against forgery.
 
+  New grants require a fresh suite-queue compatibility observation (#570).
+  Legacy/unknown live waiters or unavailable inspection refuse the grant and
+  name the blocked evidence. Let waiters drain and refresh their supplying
+  helpers before retrying. Revoke never depends on inspection.
+
 SUITE QUEUE PRIORITY (#452)
 
   The same active grant puts the issue's suite ahead of waiting normal suites
@@ -151,6 +181,16 @@ SUITE QUEUE PRIORITY (#452)
   prints a priority-unavailable warning and uses normal FIFO for every suite;
   priority never prevents a suite running. Old sticky helper waiters drain
   naturally during rollout; they are never killed or unlocked.
+
+  New tickets mark the exact fifo-grant-aging-v1 ordering contract. Helpers
+  predating that marker count as legacy/unknown, even if they already implement
+  aging. Text sdlc queue status flags this and names a deadlock risk when an
+  active granted waiter coexists; the TL revokes conflicting grants with its
+  printed command and lets old waiters drain. A legacy waiter can join after
+  grant preflight: this is a guarded rollout, not a universal deadlock guarantee.
+  Status sees grants on waiting subjects, including train cars; it does not
+  inventory grants with no queued suite. FIFO and aging are unchanged, and
+  queue status --json keeps its existing drain schema.
 
 RETENTION
 

@@ -133,7 +133,7 @@ func TestAffectedGraphPreparationFallbacks(t *testing.T) {
 				cfg.GraphPrepare.TimeoutMinutes = 1
 				d.minute = 100 * time.Millisecond
 			}
-			rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha)
+			rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, affectedOrdinary)
 			if err != nil || !rec.passed() {
 				t.Fatalf("rec %+v err %v\n%s", rec, err, d.Stderr)
 			}
@@ -145,5 +145,35 @@ func TestAffectedGraphPreparationFallbacks(t *testing.T) {
 				t.Fatalf("unsafe or unexplained fallback: %+v statuses %v\n%s", rec, gh.statuses, d.Stderr)
 			}
 		})
+	}
+}
+
+// #561 review: the CLI threads --boarding into the affected run. A full
+// selection then refuses with nothing run or posted; the same head without
+// the flag falls back to the suite as before.
+func TestLocalCheckCmdBoardingRefusesFullSelection(t *testing.T) {
+	dir := tempRepoWith(t, map[string]string{
+		affectedConfigPath:     `{"version":1,"command":["make","test-affected"]}`,
+		localChecksPath:        `{"version":1,"checks":[{"name":"suite","command":["sh","-c","echo suite"],"required":true}]}`,
+		"Makefile.workflow":    "# fake\n",
+		"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
+		"go.mod":               "module example.com/m\n\ngo 1.22\n",
+		"leaf/leaf.go":         "package leaf\n",
+	})
+	writeRepoFile(t, dir, "tools/x.py", "print(1)\n") // an unclassified path: a full selection
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-qm", "unclassified change")
+	git(t, dir, "push", "-q", "origin", "feature")
+	head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
+	ci := newCIFakeGH()
+	ci.setHead(5, head)
+	swapMergeDeps(t, &e2eGH{openPR: "5", ciSeamGH: ciSeamGH{ci: ci}}, nil)
+	var stderr bytes.Buffer
+	err := runLocalCheckCmd(context.Background(), &stderr, localCheckFlags{Names: []string{affectedCheckName}, Rev: "HEAD", Boarding: true})
+	if err == nil || !strings.Contains(err.Error(), "boarding refused") || len(ci.statuses[head]) != 0 {
+		t.Fatalf("boarding: err %v statuses %v\n%s", err, ci.statuses[head], &stderr)
+	}
+	if err := runLocalCheckCmd(context.Background(), &stderr, localCheckFlags{Names: []string{affectedCheckName}, Rev: "HEAD"}); err != nil || ci.statuses[head]["sdlc-local/suite"] != "success" {
+		t.Fatalf("ordinary: err %v statuses %v\n%s", err, ci.statuses[head], &stderr)
 	}
 }

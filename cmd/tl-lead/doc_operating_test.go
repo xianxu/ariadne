@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/procgroup"
 )
 
 type operatingFixture struct{ root, remote, target string }
@@ -367,14 +369,36 @@ func TestOperatingCancellationStopsGitHookDescendants(t *testing.T) {
 	}
 	defer signal.Close()
 	childFile := filepath.Join(d, "child")
-	hook := "#!/bin/sh\ncat '" + blocked + "' &\nprintf '%s' $! > '" + childFile + "'\nprintf r > '" + ready + "'\nwait\n"
+	childScript := filepath.Join(d, "child.sh")
+	// Readiness comes from the executing child, after its PID has been written.
+	child := "#!/bin/sh\nprintf '%s' \"$$\" > " + operatingShellQuote(childFile) + "\nprintf r > " + operatingShellQuote(ready) + "\nexec cat " + operatingShellQuote(blocked) + "\n"
+	if err = os.WriteFile(childScript, []byte(child), 0755); err != nil {
+		t.Fatal(err)
+	}
+	hook := "#!/bin/sh\n" + operatingShellQuote(childScript) + " &\nwait\n"
 	if err = os.WriteFile(filepath.Join(f.root, ".git", "hooks", "pre-commit"), []byte(hook), 0755); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, e := publishOperatingWorkingdoc(ctx, f.root, f.target, []byte("snapshot"), ""); done <- e }()
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		_, e := publishOperatingWorkingdoc(ctx, f.root, f.target, []byte("snapshot"), "")
+		done <- e
+	}()
+	pid := 0
+	defer func() {
+		cancel()
+		if pid > 1 {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+		select {
+		case <-finished:
+		case <-time.After(3 * time.Second):
+			t.Error("publisher did not stop during fixture cleanup")
+		}
+	}()
 	arrived := make(chan error, 1)
 	go func() { b := make([]byte, 1); _, e := signal.Read(b); arrived <- e }()
 	deadline, _ := t.Deadline()
@@ -397,15 +421,18 @@ func TestOperatingCancellationStopsGitHookDescendants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pid, err := strconv.Atoi(string(pidBytes))
+	pid, err = strconv.Atoi(string(pidBytes))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	pgid, err := syscall.Getpgid(pid)
+	if err != nil || pgid <= 1 || pgid == syscall.Getpgrp() {
+		t.Fatalf("descendant is not in a private group: pgid=%d err=%v", pgid, err)
+	}
 	cancel()
-	// Git's child inherits the output pipes. Killing Git alone takes the
-	// one-second WaitDelay and reports ErrWaitDelay; killing its group closes
-	// them and reports the cancellation promptly without surviving work.
+	// Git's child inherits the output pipes. Group cancellation must fail
+	// the operation without relying on WaitDelay to abandon those pipes;
+	// the owned-group probe below independently excludes surviving work.
 	select {
 	case err = <-done:
 		if err == nil || strings.Contains(err.Error(), "WaitDelay") {
@@ -414,9 +441,25 @@ func TestOperatingCancellationStopsGitHookDescendants(t *testing.T) {
 	case <-guard.C:
 		t.Fatal("cancellation did not return")
 	}
-	state, _ := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "stat=").Output()
-	if strings.TrimSpace(string(state)) != "" && !strings.HasPrefix(strings.TrimSpace(string(state)), "Z") {
-		t.Fatalf("Git descendant %d remains runnable: %s", pid, state)
+	// A leader/pipe join is not a snapshot barrier for descendant teardown.
+	// Reuse the shared owned-group terminal condition (Darwin exiting/zombies
+	// included), bounded by the same test deadline instead of parsing ps (#567).
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		err := procgroup.Kill(pgid, syscall.Signal(0))
+		if errors.Is(err, os.ErrProcessDone) {
+			pid = 0 // no live child remains to clean up by numeric PID
+			break
+		}
+		if err != nil {
+			t.Fatalf("probe owned group %d: %v", pgid, err)
+		}
+		select {
+		case <-guard.C:
+			t.Fatalf("Git descendant group %d remains runnable", pgid)
+		case <-ticker.C:
+		}
 	}
 }
 

@@ -57,6 +57,7 @@ from typing import TypedDict
 
 REPORT_EVERY = 30
 GRANT_MAX_WAIT_SECONDS = 3600
+ORDERING_POLICY = "fifo-grant-aging-v1"
 INSPECT_MAX_RECORDS = 4096
 INSPECT_MAX_RECORD_BYTES = 64 << 10
 INSPECT_MAX_OUTPUT_BYTES = 1 << 20
@@ -804,7 +805,7 @@ class Tickets:
             self.path = os.path.join(self.dir, f"{self.number:012d}")
             self.fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o644)
             fcntl.flock(self.fd, fcntl.LOCK_EX)
-            rec = dict(rec, enqueue_monotonic=time.monotonic())
+            rec = dict(rec, enqueue_monotonic=time.monotonic(), ordering_policy=ORDERING_POLICY)
             os.pwrite(self.fd, json.dumps(rec).encode(), 0)
 
     @contextlib.contextmanager
@@ -1159,7 +1160,7 @@ def inspection_snapshot(directory):
                 if total_bytes > INSPECT_MAX_OUTPUT_BYTES:
                     raise InspectionUnavailable('output_limit')
                 try:
-                    record = json.loads(raw)
+                    record = json.loads(raw, object_pairs_hook=_queue_pairs)
                     json.dumps(record, allow_nan=False)
                 except (ValueError, UnicodeError):
                     raise InspectionUnavailable('record_invalid')

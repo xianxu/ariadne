@@ -102,13 +102,14 @@ staging or move rights. See `sdlc stage --help` and the
 | `local-check cancel` | (new #400)                  | Select one owned run with `--run ID` (printed at run start), all owned runs of `--name N`, or all this checkout's checks; ID/name are exclusive and foreign/invalid/inactive IDs refuse. Same-check/different-head overlap prints a notice and exact existing-run cancellation command, preserving both FIFO places until explicit cancellation. Each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `local-check reclassify` | (new #530) | Correct one exact startup infrastructure attempt with immutable original-record audit and a nonpassing v3 disposition. Recorded owner or repository :0 only; no status rewrite or saved-pass promotion; repair and genuinely rerun |
-| `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. |
+| `test-stats`      | (new #376, #392, #402)      | Local-fleet suite wall, queue, slow-unit and flake summary (`--since`, `--repo`, `--json`). `snapshot` joins exact attempts to confirmed landing cohorts, separates physical weekly attempts, and atomically publishes a versioned weekly JSON artifact in brain. Schema v2 adds inventory-backed resource sizes and machine gauges with actual `observed_at`; point-resource deltas require observations 6–8 days apart, while suite deltas use exact weekly windows. Device `observed` validity is separate from comparison state, so a valid reading remains usable after an unknown delta. Unknown evidence leaves the ratio null; legacy logs are partial. Each repo also carries an optional `train_filter` (#561, the landing-status train measurement fold); a snapshot written before it has none and is never rewritten. |
 | `flake`           | (new #394)                  | Known-flake registry verbs. A test is a known flake while an open issue's **card** lists it in `flake_tests` (kind `test-list`, mirrored into details). `flake register --test PKG.TestX [--issue N] [--evidence TEXT]` writes it only with same-head fail→pass evidence from this machine's test-stats store (`internal/flakes.SameHeadFailPass`, the rule test-stats' "confirmed" flakes also use), or `--evidence` for a CI run; without `--issue` it files an unclaimed flake issue. It is a card setter, with no owner check. `flake list` is the TL's local daily view: the registry, unregistered same-head flakes, and unexplained failures older than a day. #458 filters already-fixed same-head rows using one terminal issue's card `flake_tests`, landing merge and Git ancestry (never issue Markdown); since #479 each row is an uncovered failing leaf (`flakes.Uncovered`), matched to a terminal issue by the same `Covers` rule, nearest name first (`fixedCandidates`); `flake list -v` reveals them, while post-fix recurrences stay visible. Ambiguous or unreadable evidence cannot hide a row. CI is shown as `not covered` until #451. The registry is built from a Fresh tracker read (`loadFlakeRegistry`), so a stale or unreadable card makes the rule unavailable, never an empty registry. One owner per test is enforced where the registry is read (`BuildRegistry` refuses a test two open issues name), not only at registration. **The gate (M2):** `runLocalCheck` classifies a failed suite attempt (`knownFlakeStep`, `internal/flakes.Classify`). When only registered tests failed, it reruns them once through the shared `runUnderSlotBatch` (weight 1, its own lease, the #383 slot release), saved as a v2 attempt of check `suite-rerun` (`rerun_of` the failed one; never read as a suite run), and posts "pass · known flake #N rerun". `known_flakes` (`rerun`\|`accept`\|`off`) on the declared suite is the operator's policy. merge's `diagnoseSuiteFailure` labels a shared failure as a persistent main failure. **Schema note:** suite attempts are written as version 2; an sdlc built before #394 refuses them as an unsupported version, so the fleet runs ariadne:0's rebuilt binaries once #394 lands. **Subtests (#466):** a name may carry a subtest path (`flakes.ParseName`: the leftmost dot that yields an import path and a Test function, then validated segments). A failing top-level test is judged by its failing leaf subtests (`Leaves`), each covered (`Covers`, `Registry.Cover`) by the leaf or an ancestor, never a sibling; the gate, the success guard (`Unexplained`) and `flake list` share that one rule (`flakes.Explained`), with attempts carrying the subtests read from their saved logs (`withLogSubtests`; an unreadable log fails closed). `SuiteLogFacts.Subtests` is never persisted, and records keep top-level failures. The rerun is the owning top-level tests (`RerunTests`), each entry's package-bound JSON PASS event required; overlapping names on two issues are ambiguous. `flake narrow` and `flake unregister` are owner-only compare-and-swap edits under the details-publish rule (`requireOwnedToEdit`). Rollout: an sdlc built before #466 refuses a subtest name in `flake_tests` (its known-flake rule is then off) and an attempt whose `known_flakes` names one (its success guard fails closed), so rebuild :0 before registering one. |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files unless `--no-claim` (#252, #308; `--from-github N` seeds from GitHub; `--details FILE\|-` gives the body as `## <Section>` blocks, parsed by `issue.ParseDetails` before any ID is reserved, #371) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
+| `issue rename`    | (new #566)                  | Move an unstarted issue's card (issue-tracker) then details (main) to a new slug, bytes unchanged; the next step is `tracker.NextRenameStep` over what both refs hold, so a rerun finishes or no-ops. Slugs come from `issue.FileSlug` (every filer: 80-byte cap at a word boundary), and `gitx.CheckPathLimits` in `TrunkFile.commitSet` refuses any name over 255 bytes before a candidate exists |
 | `issue set-area` / `set-severity` | (new #348) | Classification setters: areas must be declared (or ancestors of declared values) in main's `.sdlc/vocabulary.json`; severity is the shared enum ([vocabulary](vocabulary.md#repo-defined-enums-348)) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
 | `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
@@ -516,8 +517,12 @@ slot.
 
 **Landing train (#449).** `.sdlc/landing.json` on main
 (`train_interval_minutes`, `train_max_cars`; local-gates guarded) turns the line
-into trains. Absent, or an interval of 0, keeps the serial line above. With
-trains on:
+into trains. Absent, or an interval of 0, keeps the serial line above. An
+omitted `train_max_cars` is `landingline.DefaultMaxCars`, two (#561): every
+adopter starts small. `FormatTrainRampPolicy` (`internal/landingline/trainpolicy.go`)
+is the one ramp rule, rendered in `sdlc landing --help` and status: raise a cap
+by hand through the guarded file after a complete seven-day measured review;
+nothing raises a cap or enables trains automatically. With trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
@@ -542,8 +547,10 @@ trains on:
   #473 D3): the train's prefix suite is the one full run. Merge without a
   train sets no stand-in. A passing full-suite record already satisfies the
   car directly; the affected stand-in is an alternative. The missing-record
-  message names affected or its full-suite fallback and explains conditionally
-  to wait if affected fell back (#513), without asserting a queued run exists.
+  message names affected or its full-suite fallback, asks for
+  `local-check run --name affected --boarding` (#561: boarding never escalates
+  to a per-car suite), and says to retain an affected or suite run already
+  queued, without asserting one exists.
   Missing local evidence ends the retained wait (#550): `ciVerdict.LocalNeeded`
   survives aggregate pending/red/unknown/unregistered/guard refusals through
   `ciGateError.LocalNeeded`. `carReadiness` returns a separate terminal error
@@ -597,6 +604,7 @@ trains on:
 - **Splits:** an unexplained suite failure is bisected over the prefixes (at most ⌈log₂ n⌉ more suites). The culprit is held, the clean prefix lands, and the cars behind it are released, so the next train departs at once. A known flake's #394 rerun is a pass. Main's baseline failing the same way refuses the train.
 - **Refusals:** red CI on the train PR refuses the whole train (no CI bisect). A fleet-blocking grant, or a PR with the local-gates label, lands alone.
 - **Report:** `sdlc landing status` lists the last trains from the `train` events: result, cars, train PR, split suites and culprit.
+- **Train measurements (#561):** evidence for the cap ramp rule, never landing authority. A car's vouch carries `Readiness.Proof` (`landingline.BoardingProof`): the record the CI gate's passing verdict accepted for the suite requirement (`ciVerdict.Accepted`, from the same decision, with `localRecordsOnAncestors` naming the docs-only ancestor), bound to that vouch's `At` (`AcceptedProof`; an older sdlc's rewrite leaves it unknown, never the vouch invalid; `carryProof` keeps a later sdlc's nested members only for the same check/head/source). `landingline.AdvanceMeasurement` (`trainmetrics.go`) is the one transition of a train's `MeasurementTracker`; the conductor (`landingtrain_metrics.go`) feeds it departure proofs, each physical whole-suite run (`localRunRecord.AttemptID/QueueWait/Finished`; kinds initial, baseline, split probe, reintegration), and the reducer's committed facts (a passing prefix resolves its cars; an attributable split's culprit escapes with `SplitAttribution.Escapes`, every exact unregistered affected-package failure). It appends a `train_measure` event (start once cars are fixed, final on every controlled exit; bounded per record). `AggregateTrainMeasurements` folds a window in one pass (escape rate = escapes / resolved affected boardings, unknown at zero; unresolved, suite, unknown-proof boardings, incomplete, open and unmeasured trains beside it; named escapes, bounded; split and reintegration costs; payloads decoded with the strict top-level codec), and `FormatTrainFilterStats` is the one line status and the weekly snapshot's `train_filter` share. A dead conductor's start without a final reads as incomplete; nothing is reconstructed.
 - **The train's state machine as built** (`internal/landingline/trainstate.go`; `TestPlanNamesEveryTrainEventAndEffect` keeps the events and effects in step with the code):
   - Events: `Boarded`, `Built`, `SuiteDone`, `SplitAssessed`, `LandingChecksDone`, `CIDone`, `MainMoved`, `Reintegrated`, `Merged`, `MergeUnknown`, `Probed`, `Aborted`, `CarsDropped`.
   - Effects: `Build`, `Publish`, `RunSuite`, `AssessSplit`, `RunLandingChecks`, `WaitCI`, `Merge`, `Probe`, `Reintegrate`, `Hold`, `Release`, `Refuse`, `LandCars`, `ClosePR`.
@@ -2506,7 +2514,8 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 2N; `TestKnownFlakeGateQuotedNestedOutput` exercises the registered outer retry.
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
-that taught it (`test-landing-completion-wait` #498/#500,
+that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagnostics, not completion barriers; use the owned group or resource release),
+`test-landing-completion-wait` #498/#500,
 `test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
@@ -2664,6 +2673,32 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   A composed train suite inherits any active grant on a car in its exact tested
   prefix (#535), including a grant added while queued. Removed/conflicting cars
   and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
+- **Mixed-helper grant rollout (#570).** New tickets carry the exact
+  `ordering_policy: "fifo-grant-aging-v1"` contract marker, stamped under `alloc`
+  with their monotonic age and retained through admitted holder publication.
+  Missing, malformed or other policy values are legacy/unknown; enqueue age
+  alone never proves policy compatibility. The constant names the current
+  FIFO/grant/3,600-second aging semantics; incompatible future changes need a
+  different marker and rollout decision. The pure Go compatibility assessment
+  consumes the inspector's raw records once for both grant preflight and status.
+  New `landing grant` calls observe the supplying helper with a three-second
+  budget, refuse legacy/unknown held waiters with ticket/repository/worktree
+  identities, and refuse incomplete/unavailable observations. Revoke skips
+  inspection, so broken or old helpers cannot block recovery. No grant-log or
+  frozen drain-JSON format changes.
+
+  Text `queue status` names incompatible ordering; if a live granted waiter
+  coexists, it flags **deadlock risk** and prints a revoke command for each
+  observed granted subject (including train cars). These hints address the
+  subject's Git common directory explicitly. Status does not inventory every
+  repository's grants when no corresponding suite waits. The TL revokes the
+  conflicting grant manually, leaves the waiters unchanged, lets them drain,
+  and refreshes supplying checkouts through normal pins before regranting.
+  Existing grants and legacy waiters joining after preflight remain possible:
+  the fresh observation is not authority over future joins or old running code.
+  Do not claim universal deadlock prevention or fall back to old grant-first
+  policy. Once legacy waiters are absent, current FIFO and aging apply unchanged.
+  No automatic revocation, ticket rewriting, hot reload or live waiter teardown.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it

@@ -254,7 +254,7 @@ func TestSuiteCapabilityAffectedGraphBeforeEffects(t *testing.T) {
 		},
 		post: func(context.Context, localRunRecord) error { t.Fatal("affected status before preflight"); return nil },
 	}
-	_, err := runAffectedCheck(context.Background(), d, ad, affected.Config{}, suiteCheck("true"), sha)
+	_, err := runAffectedCheck(context.Background(), d, ad, affected.Config{}, suiteCheck("true"), sha, affectedOrdinary)
 	assertCapabilityRefusal(t, err, affectedCheckName, sha)
 	if len(gateAttempts(t, d)) != 0 || len(gh.statuses[sha]) != 0 {
 		t.Fatal("affected preflight created evidence")

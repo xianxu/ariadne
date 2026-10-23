@@ -19,9 +19,10 @@ import (
 )
 
 type localCheckFlags struct {
-	Names []string
-	All   bool
-	Rev   string
+	Names    []string
+	All      bool
+	Rev      string
+	Boarding bool
 }
 
 // NewLocalCheckCmd is `sdlc local-check`: `run`, and `cancel` (#400).
@@ -41,6 +42,7 @@ func NewLocalCheckCmd() *cobra.Command {
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
 	run.Flags().BoolVar(&f.All, "all", false, "run every head-scoped check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
+	run.Flags().BoolVar(&f.Boarding, "boarding", false, "with --name affected only: a train car's preparation; a full selection refuses instead of running the suite (#561)")
 	var cancelName, cancelRun string
 	cancel := &cobra.Command{
 		Use:           "cancel",
@@ -138,6 +140,10 @@ func selectLocalChecks(decl localCheckDecl, names []string, all bool) ([]localCh
 }
 
 func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) error {
+	mode, err := affectedModeFor(f.Names, f.All, f.Boarding)
+	if err != nil {
+		return err
+	}
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -233,7 +239,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		if !ok {
 			return fmt.Errorf("local-check run: %s needs a %s check to fall back on for a full selection", affectedCheckName, suiteCheckName)
 		}
-		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, mainHead, affectedCfg), affectedCfg, suite, sha)
+		rec, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, mainHead, affectedCfg), affectedCfg, suite, sha, mode)
 		if err != nil {
 			return err
 		}

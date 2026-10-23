@@ -105,7 +105,9 @@ func TestSuiteCapabilityAdvice(t *testing.T) {
 		if strings.Contains(out, "; log ") {
 			t.Fatalf("preflight invented a log path: %s", out)
 		}
-		if !strings.Contains(out, "sdlc local-check run --name affected --rev abc") {
+		// Main's canonical command keeps affected retries in boarding mode;
+		// the preflight's whole-call advice must preserve that mode too.
+		if !strings.Contains(out, "sdlc local-check run --name affected --boarding --rev abc") {
 			t.Fatal(out)
 		}
 	}

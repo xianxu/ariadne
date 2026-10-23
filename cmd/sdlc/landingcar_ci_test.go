@@ -175,7 +175,7 @@ func TestCarProductionCIPair779Capture(t *testing.T) {
 		if "landing train: not ready: "+ready.Reason != want || ready.Ready || merged || terminal == nil {
 			t.Fatalf("historical step %d: ready=%+v merged=%v error=%v", i, ready, merged, terminal)
 		}
-		for _, action := range []string{"merge stopped: run sdlc local-check run --name affected, then re-enter sdlc merge", "If affected fell back", "passing suite on this head", head} {
+		for _, action := range []string{"merge stopped: run sdlc local-check run --name affected --boarding, then re-enter sdlc merge", "Boarding never runs the suite", "passing suite on this head", head} {
 			if !strings.Contains(terminal.Error(), action) {
 				t.Errorf("step %d lacks %q: %v", i, action, terminal)
 			}
@@ -219,7 +219,7 @@ func TestCarProductionCIMergeReturnsMissingAction(t *testing.T) {
 	f.Context, f.NoJudge, f.NoCI = ctx, true, false
 	output := &watchWriter{want: "unused", seen: make(chan struct{})}
 	err := runMerge(output, output, f)
-	if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected, then re-enter sdlc merge") || bounded.reads != 1 {
+	if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected --boarding, then re-enter sdlc merge") || bounded.reads != 1 {
 		t.Fatalf("reads=%d error=%v\n%s", bounded.reads, err, output.String())
 	}
 	if current, waiting, statusErr := line.Status(); statusErr != nil || current == nil || current.Seq != held.Ticket().Seq || len(waiting) != 0 {

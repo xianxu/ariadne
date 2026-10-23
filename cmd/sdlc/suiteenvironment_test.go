@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"iter"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestSuiteEnvironmentFailureDoesNotPoisonRepair(t *testing.T) {
 	}
 	cTrain := &conductor{ctx: context.Background(), heads: []string{sha}}
 	cTrain.run = func(context.Context, localCheck, string) (localRunRecord, error) { return rec, err }
-	if event, trainErr := cTrain.runSuite(1); event != nil || trainErr == nil || cTrain.baseline != nil {
+	if event, trainErr := cTrain.runSuite(1, landingline.ExecInitial); event != nil || trainErr == nil || cTrain.baseline != nil {
 		t.Fatalf("direct startup blamed train cars: %v %v", event, trainErr)
 	}
 	if len(gh.statuses[sha]) != 0 || len(gh.comments[9]) != 0 {
@@ -76,7 +77,7 @@ func TestSuiteEnvironmentBaselineIsNotRedMain(t *testing.T) {
 	}
 	c := &conductor{ctx: context.Background(), heads: []string{sha}, base: sha, suite: check, local: d}
 	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return failed, nil }
-	if ev, err := c.runSuite(1); err == nil || ev != nil || !strings.Contains(err.Error(), "environment") || !strings.Contains(err.Error(), "GOTMPDIR") {
+	if ev, err := c.runSuite(1, landingline.ExecInitial); err == nil || ev != nil || !strings.Contains(err.Error(), "environment") || !strings.Contains(err.Error(), "GOTMPDIR") {
 		t.Fatalf("train baseline blamed code: %+v %v", ev, err)
 	}
 	if gh.statuses[sha] != nil || len(gh.comments[9]) != 0 {

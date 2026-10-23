@@ -135,7 +135,7 @@ func TestLandingDropCleanupRequiresPositiveExternalProof(t *testing.T) {
 func TestLandingDropDeadConductorBlocksSerialUntilCleanupConfirmed(t *testing.T) {
 	root, server, original := integrationFixture(t)
 	gh := newTrainFakeGH(t, original.remote, original.ci, "train")
-	s := &trainSetup{first: root, server: server, gh: gh, heads: map[string]string{}}
+	s := &trainSetup{first: root, server: server, gh: gh, heads: map[string]string{}, boardOn: suiteCheckName}
 	s.addCar(t, landingTestBranch, 1)
 	const droppedBranch = "000002-dropped"
 	droppedRoot := s.pushCar(t, droppedBranch, "dropped", 2, 2)

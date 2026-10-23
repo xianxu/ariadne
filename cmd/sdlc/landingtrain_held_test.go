@@ -95,7 +95,7 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 		return landingline.Readiness{Branch: landingTestBranch, Head: pr.HeadOID, PR: pr.Number, Ready: true}, false, nil
 	}
 	target := landingTarget{Root: s.first, Remote: "upstream", Repo: "test/repo"}
-	_, _, err = maybeConductTrain(ctx, execGitRunner{}, s.gh, s.gh, target, landingFlags(), turn, landingTestBranch, pr.HeadOID, pr, landingline.Schedule{Interval: time.Hour}, self, &stderr)
+	_, _, err = maybeConductTrain(ctx, execGitRunner{}, s.gh, s.gh, target, landingFlags(), turn, landingTestBranch, pr.HeadOID, pr, landingline.Schedule{Interval: time.Hour, MaxCars: 8}, self, &stderr)
 	if err == nil || !strings.Contains(err.Error(), "held") || !strings.Contains(err.Error(), "conflicts") {
 		t.Fatalf("conductor result: %v\n%s", err, &stderr)
 	}

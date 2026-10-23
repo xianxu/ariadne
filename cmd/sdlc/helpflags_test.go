@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
 
@@ -97,6 +98,27 @@ func TestLocalCheckHelpKeepsIntegrationInLandingTurn(t *testing.T) {
 	} {
 		if !strings.Contains(help, want) {
 			t.Errorf("local-check help omits landing safeguard %q", want)
+		}
+	}
+}
+
+// #561 review: landing help renders the one ramp rule, wrapped to the page
+// with every word kept and no line past the width.
+func TestLandingHelpRendersTrainRampPolicy(t *testing.T) {
+	help := renderLong("landing")
+	if strings.Contains(help, "{{TRAIN_RAMP_POLICY}}") {
+		t.Fatal("placeholder left unrendered")
+	}
+	if got, want := strings.Join(strings.Fields(help), " "), strings.Join(strings.Fields(landingline.FormatTrainRampPolicy()), " "); !strings.Contains(got, want) {
+		t.Fatalf("landing help lacks the ramp policy:\n%s", help)
+	}
+	wrapped := wrapHelpText("alpha beta gamma delta epsilon", "  ", 14)
+	if strings.Join(strings.Fields(wrapped), " ") != "alpha beta gamma delta epsilon" {
+		t.Fatalf("wrapping lost words: %q", wrapped)
+	}
+	for i, line := range strings.Split(wrapped, "\n") {
+		if n := len(line); (i == 0 && n+2 > 14) || (i > 0 && n > 14) {
+			t.Fatalf("line %d too long: %q", i, line)
 		}
 	}
 }

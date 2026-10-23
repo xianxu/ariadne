@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
@@ -47,6 +49,9 @@ func decodeSuiteQueue(raw []byte) (suiteQueueObservation, error) {
 	var observed suiteQueueObservation
 	if len(raw) > suiteQueueOutputLimit {
 		return observed, fmt.Errorf("suite inspection exceeds output bound")
+	}
+	if err := jsonstrict.RejectDuplicateKeys(raw); err != nil {
+		return observed, err
 	}
 	if err := json.Unmarshal(raw, &observed); err != nil {
 		return observed, err
@@ -146,6 +151,16 @@ func renderSuiteQueue(out io.Writer, observed suiteQueueObservation) {
 	if !observed.Available {
 		fmt.Fprintf(out, "suite queue order unavailable: %q; retry: sdlc queue status\n", observed.Reason)
 		return
+	}
+	compatibility := assessSuiteQueueCompatibility(slices.Values(observed.Tickets))
+	if len(compatibility.Incompatible) != 0 {
+		fmt.Fprintln(out, "suite queue mixed-policy / "+compatibility.detail())
+		if compatibility.Granted {
+			fmt.Fprintln(out, "  deadlock risk: a live granted waiter coexists with legacy/unknown ordering; TL must revoke the conflicting grant, then let old waiters drain")
+			for _, hint := range compatibility.Revoke {
+				fmt.Fprintln(out, "  recovery: "+hint)
+			}
+		}
 	}
 	fmt.Fprintf(out, "suite queue: GRANT_MAX_WAIT_SECONDS=%.0f (%.0f min grant overtaking limit); protected through ticket %d\n", observed.PolicySeconds, observed.PolicySeconds/60, observed.ProtectedThrough)
 	if observed.PriorityOverridden {
