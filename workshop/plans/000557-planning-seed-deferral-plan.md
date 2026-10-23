@@ -76,7 +76,7 @@ ARCH-DRY/PURE: classifier is pure, currentness/printing is the thin IO shell, an
 | Function / seam | Adversarial strategy and mechanical guard |
 |---|---|
 | planDeferredSeeds | Generate mixed action orders; assert every Seed/SeedOnce destination is represented only by DeferredOutput, all other actions/order unchanged, and repeated classification is stable. Pure tests, no IO mocks. |
-| OutputCurrent | cmd/weave/internal/plan/current.go | existing, reused | native currentness observation |
+| OutputCurrent | Reuse ordinary currentness semantics; native seed-state fixtures independently preserve actual bytes/mode/link. |
 | deferredSeedOutputs | Native current/stale/absent/edited/mode/symlink/missing-source inputs; independently compare destination bytes/mode/link and index before/after, and count constant-per-seed FS observations at N/2N. |
 | compilePreparedWithPolicy | Run real managed publication with deferred seeds and unchanged ignored composition; force failure/cancellation around publication and require no deferred-path mutation or lost inventory evidence. Existing settings deferral remains covered. |
 | refresh RunWithOptions callback | Bare-remote consumer/substrate capture reproduces the actual compiler-provenance pipeline diff, advances sources and continues; tracked consumer bytes/index remain unchanged and every pending path is named. |
@@ -85,10 +85,10 @@ ARCH-DRY/PURE: classifier is pure, currentness/printing is the thin IO shell, an
 
 ## Implementation and proof — one atomic boundary
 
-- [ ] Capture the verified 2dc46703 → 5785330c workflow change in a sanitized fixture. Add native planning refresh/start-plan regression first and observe the current dirty-tree refusal.
-- [ ] Add typed publication policy and pure seed classification; add --planning to refresh while retaining --defer-settings. Wire installed SDLC catch-up to refresh --planning. Defer before publication, compare/report through existing helpers; red-to-green, then commit the coherent behavior.
-- [ ] Exercise policy, ownership, partial failure/cancellation, counted observations and explicit regeneration contracts. Keep ordinary compile/refresh and settings protection controls; no live :0 touch.
-- [ ] Document the dedicated consumer workflow-update issue/branch, weave compile, diff inspection and separate local-gates PR. Say the operator applies local-gates-verified; agents never do. Include README and help discovery pointers.
+- [x] Capture the verified 2dc46703 → 5785330c workflow change in a sanitized fixture. Add native planning refresh/start-plan regression first and observe the current dirty-tree refusal.
+- [x] Add typed publication policy and pure seed classification; add --planning to refresh while retaining --defer-settings. Wire installed SDLC catch-up to refresh --planning. Defer before publication, compare/report through existing helpers; red-to-green, then commit the coherent behavior.
+- [x] Exercise policy, ownership, partial failure/cancellation, counted observations and explicit regeneration contracts. Keep ordinary compile/refresh and settings protection controls; no live :0 touch.
+- [x] Document the dedicated consumer workflow-update issue/branch, weave compile, diff inspection and separate local-gates PR. Say the operator applies local-gates-verified; agents never do. Include README and help discovery pointers.
 - [ ] Push the code head, retain the recorded suite, then close through the mandatory review and land through sdlc merge --yes. Any local-gates guard refusal is reported to the hub; never self-label or bypass it.
 
 ## Acceptance and review point

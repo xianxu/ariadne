@@ -82,8 +82,8 @@ total: 1.43
 
 Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral-plan.md). Hub approved the seeded-output scope; entering change-code before implementation.
 
-- [ ] Add a planning-only publication policy that defers every Seed / SeedOnce destination and existing protected settings before any output effects.
-- [ ] Wire start-plan catch-up to that policy; report stale seed paths and the separate consumer regeneration action.
+- [x] Add a planning-only publication policy that defers every Seed / SeedOnce destination and existing protected settings before any output effects.
+- [x] Wire start-plan catch-up to that policy; report stale seed paths and the separate consumer regeneration action.
 - [ ] Prove native catch-up cleanliness and explicit consumer-branch regeneration, document the operator-verified PR route, then complete suite/review/landing.
 
 ## Log
@@ -103,6 +103,16 @@ Proposal: a new explicit weave refresh --planning policy defers all Seed and See
 ### 2026-10-22 — plan gate and estimate
 
 Plan-quality round 1 CLEAN, no findings. Only after that acceptance, derived provisional Method-A v3.1 estimate 1.43h from the shared grammar and local calibration; recording card estimate through its setter before retrying change-code.
+
+### 2026-10-22 — implementation and isolated production proof
+
+Second change-code admitted the full flow: plan-quality CLEAN; estimate-quality INFO (the native proof allowance is ambitious; colocated tests are included in the implementation units, and queue wait is separate). No gate bypass. Implemented invocation-local publication policy, pure Seed/SeedOnce classification and observation/reporting before CheckManaged/every ApplyManaged. Installed SDLC catch-up now uses refresh --planning; settings-only compatibility remains. README, command help and atlas explain the dedicated consumer issue/branch, ordinary weave compile, separate PR and operator-only local-gates-verified label. No actual workflow configuration, live consumer checkout or :0 stage changed.
+
+Captured the actual before/after merge-check bytes in cmd/weave/testdata/planning-refresh. Red-before native regression failed for Claude/Codex because --planning did not exist; its legacy --defer-settings controls reproduced the dirty tracked workflow. After implementation, those controls still reproduce the original defect while planning mode fast-forwards captured Git targets, preserves the clean resting checkout/index, names the deferred workflow, and ordinary compile produces exactly that pending workflow diff on a separate temporary consumer branch without committing or changing HEAD.
+
+Targeted proof returned PASS: native SDLC installed-weave/start-plan tests plus existing catch-up/argv controls (19.711s); weave mixed-action property, destination/evidence preservation, N=8/16 counted observations, failure/cancellation at real managed publication, captured refresh, settings-deferral and ordinary refresh controls (41.402s). Real private Git repositories and OSFS exercise both Claude and Codex. Source-unreadable no-op, missing/current/edited/mode/symlink and prior-owned recovery states preserve ordinary seed semantics and zero protected mutation attempts. Observation/writer errors propagate without publication. The ownership oracle normalizes absent versus empty inventories but compares every retained identity; no seed ownership is introduced.
+
+No speculative generic tracked-writer issue filed: Ship, retirement and .gitignore remain the approved known follow-up only if observed. This fix is a publication-policy ordering invariant, defended by production-path fixtures rather than a lexical lint rule. Next: tracked-file catalog, commit/push, recorded suite, mandatory close review and landing. No recorded check or merge runner is active at this checkpoint.
 
 ## Revisions
 
