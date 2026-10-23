@@ -672,7 +672,7 @@ func runPreparedCIGate(ctx context.Context, gh ghCaller, repo string, number int
 			if !ok {
 				// A stand-in is not runnable from here (#473): refuse rather
 				// than run a zero check.
-				return fmt.Errorf("CI gate: %s is not a declared check this gate can run; run `sdlc local-check run --name %s`", name, name)
+				return fmt.Errorf("CI gate: %s is not a declared check this gate can run; run `%s`", name, localCheckCommand(name))
 			}
 			rec, err := run(ctx, c, head)
 			if err != nil {
