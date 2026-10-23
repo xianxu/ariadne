@@ -77,6 +77,7 @@ Durable design: [affected boarding and train measurements](../plans/000561-affec
 - Proposed two review boundaries in the linked durable plan. Escape measurements distinguish confirmed qualifying failures from registered/untouched/unverified outcomes and disclose unresolved coverage. Count managed executions rather than scheduled `Train.Splits`; preserve immutable weekly v2 artifacts with additive optional measurement data.
 - Checked `sdlc merge --help`: there is no per-call serial flag. Recovery text will print the exact ordinary suite/retry commands and name the guarded main configuration prerequisite (zero train interval) for serial landing; no new merge flag is proposed.
 - No code edited, checks queued, PR opened or estimate supplied. Next: send the committed/pushed full plan to the hub for approval, then run `sdlc change-code --issue 561` for plan-quality and estimation before implementation. Isolated native CLI/train fixtures are the proposed live proof; no :0 or consumer settings will be touched without hub authorization.
+- Hub approved both boundaries and the measurement definitions in submitted delivery 7014fc79-c66e-4c72-9189-3c38b303d775; isolated real-CLI, bare-remote and train-fake proof suffices, with no :0 change. Proceeding to `change-code`; the binary's plan-quality review and estimate gates still precede implementation.
 
 ## Revisions
 
