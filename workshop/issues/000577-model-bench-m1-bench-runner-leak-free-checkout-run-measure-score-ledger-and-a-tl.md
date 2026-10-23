@@ -1,13 +1,21 @@
 ---
 id: 000577
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '0e9a6f883227bf796450c42f7c0003f5d987a2cb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b0baec0c48570e83b995404637781eac3b7d292b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T12:35:23-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # model-bench M1: bench runner (leak-free checkout, run, measure, score, ledger) and a tl-lead bench mode
@@ -41,13 +49,25 @@ Out of M1: the second computer's setup, more than one worker model, the report.
 
 - One corpus issue (an autonomous one, e.g. parley.nvim#403) runs end to end on this Mac in a disposable setup,
   producing a ledger row with every field above and a hidden-acceptance score (test or recorded run).
-- The prepared checkout provably contains no trace of the landed solution (test: later commits, the archived issue
-  and the remote are absent).
+- The prepared checkout provably contains no trace of the landed solution (test: later commits, the archived task
+  artifacts, source Git object access and original/source remote are absent). The sole remote is a new private
+  bare origin per run containing only sanitized replay objects; normal tracker CAS/gates remain real.
 
 ## Plan
 
-- [ ]
+- [ ] Deliver the approved project M1 through the [durable implementation plan](../plans/000577-model-bench-runner-plan.md): sanitized preparation/private tracker, observer runtime and TL mode, measurement/leak diagnostics, hidden acceptance and ledger, disposable conformance, full suite and close.
 
 ## Log
 
 ### 2026-10-23
+
+After landing #572 (PR #412), read the ops model-bench project and local charter before claiming #577. `sdlc claim` and `sdlc start-plan` created this dedicated branch from current main. No implementation has started. Using brainstorming/writing-plans; bounded read-only explorations verified existing Git isolation, runtime and measurement seams. The existing review clone is unsuitable because it shares source objects and restores current main; prepare a new repository from pinned parent-tree bytes instead (ARCH-SECURE).
+
+Hub approved the isolation boundary (receipt `31b1fff2-8aec-4ae6-8764-a97676415460`): M1 uses trusted agents and prepared-repository isolation, with post-run transcript/tool detection and a visible possibly-leaked ledger result; OS read/network isolation is deferred until before the bench machine also hosts development checkouts. Hub also approved a private sanitized bare origin (receipt `9606d6e4-388f-48b4-a1a0-3f8be1af8271`), preserving real claim/start-plan/change-code/close CAS and only adding a bench-local check status sink. Default production behavior stays unchanged (ARCH-DRY, ARCH-PURPOSE).
+
+Draft durable plan is written, awaiting hub review before code. It names the state/effect owner, failure/recovery table, bounded lifecycle, fake/native conformance, risky-function strategies and isolation limitations. Pair's existing conformance bridge can qualify native Couch service/lifetime behavior but does not launch the TL/worker replay; end-to-end automated rows are synthetic fixture evidence, while a real paid replay requires a separately provisioned disposable bench setup. No production ledger, source repo, account setting or live slot was changed. Next: send the committed plan to the hub, resolve review questions, then run full-flow change-code only after approval.
+
+## Revisions
+
+- 2026-10-23, hub-approved isolation scope: M1 proves sanitized prepared-repository isolation with trusted agents; post-run detection flags outside reads/source/scorer access, fetch/clone and GitHub access as possibly leaked. OS read/network isolation is a later milestone required before co-locating bench and development checkouts.
+- 2026-10-23, hub-approved Done-when clarification: original/source remote absent; allow exactly one fresh private bare origin holding sanitized replay objects, so real tracker CAS/gates work without production publication. Only local-check status publication uses an explicitly bench-local sink; no gate bypass or fake production success.
