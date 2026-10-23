@@ -808,7 +808,11 @@ machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
 resume --owner TOKEN` removes only that hold and never restarts interrupted work.
 Text `sdlc queue status` additionally shows suite waiter ages, the grant-overtaking
 limit and aging overrides from the supplying scheduler. Inspection is read-only;
-unavailable ordering is explicit. `sdlc queue status --json` reports the unchanged
+unavailable ordering is explicit. An older supplying helper may support `acquire`
+without `inspect`: status names that helper and the supplying Ariadne checkout
+to update through its normal pin/refresh workflow before retrying. This optional
+display failure does not change suite admission. Other inspection failures retain
+a bounded stderr excerpt for diagnosis. `sdlc queue status --json` reports the unchanged
 frozen v1 owner/activity schema. Incomplete
 or unknown observations never prove quiescence. Isolated conformance supplies
 private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and

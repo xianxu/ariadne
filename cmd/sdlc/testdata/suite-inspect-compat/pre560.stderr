@@ -1,0 +1,2 @@
+usage: test-lock.py [-h] --watch WATCH [--slots SLOTS] {acquire}
+test-lock.py: error: argument cmd: invalid choice: 'inspect' (choose from 'acquire')

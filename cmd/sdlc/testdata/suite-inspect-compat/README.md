@@ -1,0 +1,3 @@
+# Pre-560 helper inspection capture
+
+Captured on 2026-10-22 from pair-slot1's supplying Ariadne test-lock.py by invoking `python3 HELPER inspect --supervised`. Argparse exited 2 before any lock or provider operation; the helper only declared acquire. Central current-helper inspection succeeded from the same Pair cwd. Private lock/queue roots independently proved the old acquire command still acquired and released slots. The fixture contains only the real stderr, without host paths, queue records or process identities. The ordinary queue observation regression replays it through the production helper subprocess seam.
