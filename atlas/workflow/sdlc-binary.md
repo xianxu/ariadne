@@ -1419,7 +1419,7 @@ evidence after the existing stale-state checks.
 repository only, and some rounds run clone-only, so `judge.Dispatch` confines
 every agent it starts: the boundary review, plan-quality, estimate-quality and
 `sdlc judge` (`reviewbox.Confine`). Before the first attempt it makes a base,
-`<clone>/.sdlc-review/` (excluded from the clone's status), or a fresh
+`<clone>.sdlc-review/` beside the clone (#571), or a fresh
 `$TMPDIR/sdlc-review-*` for agents that run in the caller's checkout. It proves
 `tmp/` writable; a failure means the review did not run. The agent's
 environment (through the run context, so argv and the `Run` seam are
@@ -1440,7 +1440,14 @@ the gate halts. The shims stop accidents, not a reviewer that calls the real
 binaries by path. Without an OS fence, the check is what catches the rest.
 
 Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
-plus `<id>.lock`.
+plus `<id>.sdlc-review/` and their shared `<id>.lock`. The companion keeps test
+scratch outside the reviewed project's marker ancestry. Reset, close and dead-owner
+reclaim remove both trees; a concurrent sweep preserves both while the lock is held.
+Companion symlinks and non-directories refuse before confinement writes.
+Rollout limit: an older binary's sweep does not recognize this companion and
+can delete it during a live review; that review fails and must rerun. At #571
+landing the hub rebuilds ariadne:0's shared tools immediately and notifies slots
+using private Ariadne builds to rebuild. No lock alias or versioned root is added.
 - The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
   the round.
 - `dispatchBoundaryReview` removes both in a defer once the reviewer has

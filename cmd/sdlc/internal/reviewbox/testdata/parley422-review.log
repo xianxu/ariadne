@@ -1,0 +1,409 @@
+owned process census verified
+Running tests/integration/zero_config_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/integration/zero_config_spec.lua	
+[31mFail[0m	||	zero-config setup boots with setup({}) and no keys, without warnings, and creates a chat	
+            ...tScratch/tmp/r422/tests/integration/zero_config_spec.lua:29: [string ":lua"]:13: chat outside default dir: /Volumes/TestScratch/tmp/r422/workshop/parley/2026-10-23.02-01-46.408.md
+            Expected objects to be equal.
+            Passed in:
+            (number) 1
+            Expected:
+            (number) 0
+            
+            stack traceback:
+            	...tScratch/tmp/r422/tests/integration/zero_config_spec.lua:29: in function 'run'
+            	...tScratch/tmp/r422/tests/integration/zero_config_spec.lua:33: in function <...tScratch/tmp/r422/tests/integration/zero_config_spec.lua:32>
+            	
+
+[32mSuccess[0m	||	zero-config setup keeps keyless provider defaults when the user supplies other keys	
+
+[32mSuccess[0m	||	zero-config setup drops a default key set to false	
+
+[32mSuccess[0m	||	zero-config setup keeps a provider disabled by an empty table even when a default key exists	
+
+[32mSuccess[0m	||	zero-config setup reports a missing key when it is first used, not at startup	
+
+[32mSuccess[0m	||	zero-config setup detects the nearest marked project when chat_dir is set	
+
+[32mSuccess[0m	||	zero-config setup stays out of repo mode with repo_root = false	
+
+[32mSuccess[0m	||	zero-config setup stays out of repo mode with PARLEY_REPO_MODE=0	
+
+[32mSuccess[0m	||	zero-config setup lets an explicit repo_root win over PARLEY_REPO_MODE=0	
+
+	
+[32mSuccess: [0m	8	
+[31mFailed : [0m	1	
+[31mErrors : [0m	0	
+========================================	
+Tests Failed. Exit: 1	
+Running tests/unit/chat_dirs_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/unit/chat_dirs_spec.lua	
+[32mSuccess[0m	||	chat roots: derivation and persistence contract get_chat_roots returns config.chat_dir as the only root in plain mode	
+
+[32mSuccess[0m	||	chat roots: derivation and persistence contract does not write chat_roots / chat_dirs to state.json	
+
+[32mSuccess[0m	||	chat roots: derivation and persistence contract ignores chat_roots / chat_dirs when loading from state.json	
+
+[32mSuccess[0m	||	chat roots: derivation and persistence contract removes chat_roots / chat_dirs from state.json on next persist	
+
+	
+[32mSuccess: [0m	4	
+[31mFailed : [0m	0	
+[31mErrors : [0m	0	
+========================================	
+Running tests/unit/chat_finder_logic_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/unit/chat_finder_logic_spec.lua	
+[32mSuccess[0m	||	ChatFinder logic does not borrow a newer picker's insertion target for an older callback	
+
+Parley.nvim: Inserted chat reference: 2026-09-15.12-00-00.000_choice.md[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) config <C-d> confirmation y	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) config <C-d> confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) config <C-g>D confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) registry fallback <C-d> confirmation y	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) registry fallback <C-d> confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) registry fallback <C-g>D confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) starter <C-d> confirmation y	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) starter <C-d> confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic finder delete keys (#249) starter <C-g>D confirmation n	
+
+[32mSuccess[0m	||	ChatFinder logic Group A: Timestamp parsing from filename A1: parses timestamp from valid YYYY-MM-DD-HH-MM-SS filename	
+
+[32mSuccess[0m	||	ChatFinder logic Group A: Timestamp parsing from filename A2: returns nil for non-timestamp filename	
+
+[32mSuccess[0m	||	ChatFinder logic Group A: Timestamp parsing from filename A3: handles YYYY-MM-DD format (without time)	
+
+[32mSuccess[0m	||	ChatFinder logic Group B: Recency cycling B1: resolves configured presets and keeps all as the final state	
+
+[32mSuccess[0m	||	ChatFinder logic Group B: Recency cycling B2: uses configured default month when opening in filtered mode	
+
+[32mSuccess[0m	||	ChatFinder logic Group B: Recency cycling B3: cycles left and right across presets and all	
+
+[32mSuccess[0m	||	ChatFinder logic Group B: Recency cycling B4: files within recency cutoff are included	
+
+[32mSuccess[0m	||	ChatFinder logic Group B: Recency cycling B5: files older than recency cutoff are excluded	
+
+[32mSuccess[0m	||	ChatFinder logic Group C: Entry sorting by timestamp C1: entries are sorted newest first	
+
+[32mSuccess[0m	||	ChatFinder logic Group C: Entry sorting by timestamp C2: equal timestamps maintain stable order	
+
+[32mSuccess[0m	||	ChatFinder logic Group D: Display formatting D1: formats display with filename, topic, date, no tags	
+
+[32mSuccess[0m	||	ChatFinder logic Group D: Display formatting D2: formats display with tags	
+
+[32mSuccess[0m	||	ChatFinder logic Group D: Display formatting D3: formats searchable ordinal with filename, topic, tags	
+
+[32mSuccess[0m	||	ChatFinder logic Group D: Display formatting D4: ordinal with no tags has no trailing space	
+
+[32mSuccess[0m	||	ChatFinder logic Group E: Delete confirmation reopen behavior reopens ChatFinder on Esc during delete confirmation	
+
+[32mSuccess[0m	||	ChatFinder logic Group E: Delete confirmation reopen behavior reopens on the item that moves into the deleted visual row	
+
+[32mSuccess[0m	||	ChatFinder logic Group E: Delete confirmation reopen behavior opens delete confirmation from the source window	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings opens a loading picker before asynchronous acquisition starts	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings animates the real picker while Chat acquisition remains delayed	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings cancels loading acquisition before a recency mapping reopens Chat	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings joins a matching retained prewarm instead of starting a second scan	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings cancels picker-owned acquisition and ignores late root delivery	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings keeps recency outside the exact discovery fingerprint	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings settles all-absent optional roots as a successful empty picker	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings keeps a bounded error status when every Chat root fails	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings keeps successful Chat records and warns once for record failures	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings replaces a mismatched retained prewarm instead of joining it	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings reuses unchanged cached metadata without requesting another read	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings prunes cache only for roots that enumerate successfully	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings opens with the active recency label and all four cycle mappings	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings <Tab> cycles left (aliases <C-a>), <S-Tab> right (aliases <C-s>) (#159)	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings prefers restoring selection by item value when reopening after delete	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings includes chat files from secondary chat roots	
+
+Parley.nvim: Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-secondary-bd4bd0/2026-02-04-10-00-00-move-me.md
+Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-secondary-bd4bd0/2026-02-04-10-00-00-move-me.md[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings keeps a moved chat visible when moving it from ChatFinder	
+
+
+Parley.nvim: Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-[archive]-425c5b/2026-02-04-10-00-00-escaped-root.md
+Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-[archive]-425c5b/2026-02-04-10-00-00-escaped-root.md[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings finds moved chats in roots whose paths contain glob characters	
+
+
+Parley.nvim: Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-tilde-e7100a/2026-02-04-10-00-00-tilde-root.md
+Moved chat tree to: /Volumes/TestScratch/tmp/r422/.sdlc-review/tmp/parley-test-env/r422-3003832399/tmp/claude/parley-test-chatfinder-tilde-e7100a/2026-02-04-10-00-00-tilde-root.md[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings reopens on moved chats when the destination root was configured with a tilde path	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings passes filename, tags, and topic as search text for matcher ranking	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings keeps canonical facet behavior across toggles and rediscovery	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings includes extra-root labels in finder search text	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings includes empty braces in primary-root search text	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings passes preserved tag filters back into the picker prompt	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings preserves only bracket-tag and brace-label fragments from finder queries	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings matches extra-root labels when the query uses brace syntax	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings preserves empty brace filters for the primary root	
+
+[32mSuccess[0m	||	ChatFinder logic Group F: Chat finder picker mappings falls back to the newer visual neighbor when deleting the oldest item	
+
+[32mSuccess[0m	||	ChatFinder logic default_sticky_query_for_repo_mode returns {} in plain repo mode	
+
+[32mSuccess[0m	||	ChatFinder logic default_sticky_query_for_repo_mode returns nil when not in repo mode	
+
+[32mSuccess[0m	||	ChatFinder logic default_sticky_query_for_repo_mode returns nil in super-repo mode (don't override aggregation intent)	
+
+	
+[32mSuccess: [0m	58	
+[31mFailed : [0m	0	
+[31mErrors : [0m	0	
+========================================	
+
+Parley.nvim: Chat finder: partial scan (1 roots, 0 files failed)Running tests/unit/helper_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/unit/helper_spec.lua	
+[32mSuccess[0m	||	helper.uuid returns a string	
+
+[32mSuccess[0m	||	helper.uuid matches the expected xxxxxxxx_xxxx_4xxx_yxxx_xxxxxxxxxxxx pattern	
+
+[32mSuccess[0m	||	helper.uuid returns unique values on successive calls	
+
+[32mSuccess[0m	||	helper.starts_with returns true when string starts with prefix	
+
+[32mSuccess[0m	||	helper.starts_with returns true for empty prefix (always matches)	
+
+[32mSuccess[0m	||	helper.starts_with returns false when string does not start with prefix	
+
+[32mSuccess[0m	||	helper.starts_with returns false for partial prefix mismatch	
+
+[32mSuccess[0m	||	helper.starts_with returns true when string equals prefix exactly	
+
+[32mSuccess[0m	||	helper.starts_with returns false when prefix is longer than string	
+
+[32mSuccess[0m	||	helper.ends_with returns true when string ends with suffix	
+
+[32mSuccess[0m	||	helper.ends_with returns true for empty suffix (always matches)	
+
+[32mSuccess[0m	||	helper.ends_with returns false when string does not end with suffix	
+
+[32mSuccess[0m	||	helper.ends_with returns true when string equals suffix exactly	
+
+[32mSuccess[0m	||	helper.ends_with returns false when suffix is longer than string	
+
+[32mSuccess[0m	||	helper.ends_with works with file extension patterns	
+
+[32mSuccess[0m	||	helper.last_content_line returns 0 when buffer has only whitespace	
+
+[32mSuccess[0m	||	helper.last_content_line returns the last non-whitespace line with trailing blanks	
+
+[32mSuccess[0m	||	helper.last_content_line returns the last line when the tail has content	
+
+[32mSuccess[0m	||	helper.last_content_line invalidates cache when buffer content changes	
+
+	
+[32mSuccess: [0m	19	
+[31mFailed : [0m	0	
+[31mErrors : [0m	0	
+========================================	
+Running tests/unit/provider_params_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/unit/provider_params_spec.lua	
+[32mSuccess[0m	||	get_schema returns base schema for known provider	
+
+[32mSuccess[0m	||	get_schema returns empty params for unknown provider	
+
+[32mSuccess[0m	||	get_schema returns openai-compatible schema for cliproxyapi provider	
+
+[32mSuccess[0m	||	get_schema applies o-series override: removes temperature/top_p/max_tokens, adds reasoning_effort	
+
+[32mSuccess[0m	||	get_schema applies gpt-5 override: max_tokens gets api_name=max_completion_tokens	
+
+[32mSuccess[0m	||	get_schema applies gpt-5 override to gpt-5.2	
+
+[32mSuccess[0m	||	get_schema applies Claude Sonnet 4.6 exclusive group override	
+
+[32mSuccess[0m	||	get_schema does NOT apply Claude 4.6 override to Claude Sonnet 4 (non-4.6)	
+
+[32mSuccess[0m	||	resolve_params returns empty table for string model_config	
+
+[32mSuccess[0m	||	resolve_params uses user-provided values	
+
+[32mSuccess[0m	||	resolve_params applies defaults only when user omits param	
+
+[32mSuccess[0m	||	resolve_params does not send params with nil default when user doesn't set them	
+
+[32mSuccess[0m	||	resolve_params clamps values to declared range	
+
+[32mSuccess[0m	||	resolve_params uses api_name for Gemini params	
+
+[32mSuccess[0m	||	resolve_params omits unsupported params for o-series models	
+
+[32mSuccess[0m	||	resolve_params uses max_completion_tokens api_name for gpt-5	
+
+[32mSuccess[0m	||	resolve_params uses max_completion_tokens api_name for gpt-5.2	
+
+[32mSuccess[0m	||	resolve_params applies gpt-5 param mapping for cliproxyapi provider	
+
+[32mSuccess[0m	||	resolve_tool_overrides returns allowed_callers={direct} for anthropic haiku 4.5 web_search	
+
+[32mSuccess[0m	||	resolve_tool_overrides returns allowed_callers={direct} for anthropic haiku 4.5 web_fetch	
+
+[32mSuccess[0m	||	resolve_tool_overrides returns empty overrides for non-haiku models	
+
+[32mSuccess[0m	||	resolve_tool_overrides returns empty overrides for unknown provider/tool	
+
+[32mSuccess[0m	||	validate_agent returns no errors for valid openai agent	
+
+[32mSuccess[0m	||	validate_agent errors when provider is missing	
+
+[32mSuccess[0m	||	validate_agent skips validation for string model	
+
+[32mSuccess[0m	||	validate_agent warns about unknown parameters	
+
+[32mSuccess[0m	||	validate_agent errors on exclusive group at_most_one violation	
+
+[32mSuccess[0m	||	validate_agent no error when only one of exclusive group is set	
+
+[32mSuccess[0m	||	validate_agent no error when neither of exclusive group is set	
+
+[32mSuccess[0m	||	validate_agent errors on require_one when none set	
+
+[32mSuccess[0m	||	validate_agent warns on range violation	
+
+[32mSuccess[0m	||	validate_agent does not warn when value is within range	
+
+[32mSuccess[0m	||	max_tokens default for Claude models (#228) is 64000 for Claude, on every transport that carries it	
+
+[32mSuccess[0m	||	max_tokens default for Claude models (#228) leaves non-Claude models alone, including behind the same proxy	
+
+[32mSuccess[0m	||	max_tokens default for Claude models (#228) does not disturb the gpt-5 rename to max_completion_tokens	
+
+	
+[32mSuccess: [0m	35	
+[31mFailed : [0m	0	
+[31mErrors : [0m	0	
+========================================	
+Running tests/unit/pure_functions_spec.lua
+
+========================================	
+Testing: 	/Volumes/TestScratch/tmp/r422/tests/unit/pure_functions_spec.lua	
+[32mSuccess[0m	||	find_exchange_at_line returns (index, 'question') when line is in question range	
+
+[32mSuccess[0m	||	find_exchange_at_line returns (index, 'answer') when line is in answer range	
+
+[32mSuccess[0m	||	find_exchange_at_line returns (nil, nil) when line is in gap between exchanges	
+
+[32mSuccess[0m	||	find_exchange_at_line returns (nil, nil) when line is before all exchanges	
+
+[32mSuccess[0m	||	find_exchange_at_line returns (nil, nil) when line is after all exchanges	
+
+[32mSuccess[0m	||	find_exchange_at_line finds correct index in multi-exchange chat (not always first)	
+
+[32mSuccess[0m	||	find_exchange_at_line returns exchange when line is in margin after question with no answer	
+
+[32mSuccess[0m	||	find_exchange_at_line includes line at exact question boundary (line_start)	
+
+[32mSuccess[0m	||	find_exchange_at_line includes line at exact question boundary (line_end)	
+
+[32mSuccess[0m	||	find_exchange_at_line includes line at exact answer boundary (line_start)	
+
+[32mSuccess[0m	||	find_exchange_at_line includes line at exact answer boundary (line_end)	
+
+[32mSuccess[0m	||	simple_markdown_to_html escapes HTML special characters	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts fenced code block with language to <pre><code> with class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts fenced code block without language to <pre><code>	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts inline code to <code> with inline-code class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts # H1 to <h1> with main-header class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts ## H2 to <h2> with section-header class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts ### H3 to <h3> with sub-header class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts **bold** to <strong> with bold-text class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts __bold__ to <strong> with bold-text class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts *italic* to <em> with italic-text class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts _italic_ to <em> with italic-text class	
+
+[32mSuccess[0m	||	simple_markdown_to_html converts - list item to <li> with list-item class	
+
+[32mSuccess[0m	||	simple_markdown_to_html wraps list items in <ul> with bullet-list class	
+
+[32mSuccess[0m	||	simple_markdown_to_html blockquote conversion is broken (escapes > before matching)	
+
+[32mSuccess[0m	||	simple_markdown_to_html wraps content in paragraph tags	
+
+[32mSuccess[0m	||	simple_markdown_to_html splits multiple paragraphs on double newlines	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns plain agent name when web_search is disabled	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎] for openai model with search_model when web_search is enabled	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎?] for openai model without search_model when web_search is enabled	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎?] for cliproxyapi when strategy is none	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎] for cliproxyapi claude model in anthropic_tools_route	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search uses per-model strategy override for cliproxyapi labels	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎?] for cliproxyapi openai_search_model without search_model	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🌎] for cliproxyapi openai_tools_route without search_model	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🔧🌎] when tool-enabled agent also has web_search supported	
+
+[32mSuccess[0m	||	agent_display_name_with_web_search returns [🔧] when tool-enabled agent has web_search disabled	
+
+[32mSuccess[0m	||	simple_markdown_to_html fence handling (#218) closes an INDENTED fence — the shape the prompt convention produces	
+
+[32mSuccess[0m	||	simple_markdown_to_html fence handling (#218) an unterminated fence does not consume the following turns	
+
+[32mSuccess[0m	||	simple_markdown_to_html fence handling (#218) a code block after prose is NOT nested inside a paragraph	
+
+[32mSuccess[0m	||	simple_markdown_to_html fence handling (#218) still converts a well-formed flush-left block	
+
+	
+[32mSuccess: [0m	41	
+[31mFailed : [0m	0	
+[31mErrors : [0m	0	
+========================================	
+owned process census verified
+clean: no surviving test processes
+make[1]: *** [parley-test-body-test-spec] Error 1
+make: *** [test-spec] Error 2

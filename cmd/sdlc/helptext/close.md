@@ -219,7 +219,9 @@ MODES
   `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
   Every reviewer (this one, plan-quality and `sdlc judge` alike) also runs
   confined (#339): its own TMPDIR, made and proven writable first (else the
-  review did not run); git can neither find a repository above its root nor
+  review did not run). In a review clone it is under the sibling
+  <clone>.sdlc-review, outside the project tree, with the clone's existing
+  lock owning reset and cleanup (#571). Git can neither find a repository above its root nor
   init/clone outside its directories; and a new `.git` above its root or a new
   entry in $HOME afterward fails the review, naming the paths.
 
