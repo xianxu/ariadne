@@ -1,6 +1,6 @@
 ---
 id: 000570
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 401723f03420ca4d9e774917d64001bc3a60e5d5
         evidence_commit: c8d0c66de52845bc0c1f2405c3c28919572fd3d2
+        landed_commit: b5ab524a83665c635e60d4e694c7b46cc0805069
 ---
 
 # Suite queue deadlocks when old and new helpers mix (grant priority vs grant aging); fall back to FIFO
