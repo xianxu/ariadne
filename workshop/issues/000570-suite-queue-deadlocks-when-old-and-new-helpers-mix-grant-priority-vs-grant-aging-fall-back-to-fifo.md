@@ -133,6 +133,14 @@ PR411 is open: https://github.com/xianxu/ariadne/pull/411. Central sdlc local-ch
 
 TL-worker permits fresh close review to overlap a queued recorded suite; run that review now on the same code with explicit pending-suite evidence. Final-code recorded pass still precedes landing. The last issue Plan checkbox now covers the completed design/implementation/private-conformance work, while the durable plan and this Log keep recorded suite/close/landing visibly pending. This is bookkeeping, not an acceptance waiver or scope change. A review requiring code changes supersedes this candidate and needs new verification/recorded suite.
 
+### 2026-10-23 — first-round SHIP and recorded suite pass; enter landing
+
+Full close review returned SHIP with zero findings, evidence commitc8d0c66de52845bc0c1f2405c3c28919572fd3d2 and mirrored card2b6ce6f98ddb54746bafbc10b1132f4770d5549b. The binary upgraded quick to full for138 added shipping lines; no bypass or forced flow. The independent reviewer also ran native helper/Go controls56.013s, race2.235s and TL guidance0.164s, and compared all captured historical definitions to their cited Git source. Both hosted checks passed; local-gates guard confirms no protected paths touched.
+
+Retained suite controller39881 completed exit0 on pushed head64f5f670c94a88a896e92b74c68f8e05b7d22361 after1690s queue wait and849.4s execution:2373 cmd/sdlc tests across8 shards plus76 other packages, zero failures/reruns. Central recorded sdlc-local/suite success with log SHA256 prefixa11f83e5c193, saved at common sdlc/local-checks/64f5f670c94a88a896e92b74c68f8e05b7d22361/suite.log. No code changed after that tested head, only close evidence/bookkeeping. No background check remains before merge. Actual running make and fresh shard events were verified separately from the cat lease keeper; no peer process or lock was touched.
+
+Enter normal central sdlc merge --yes promptly on SHIP; preserve its landing order and integration check. Main integration may require a new authoritative suite. No continuation/restart while the merge is queued/running. Report the actual PR/merge outcome to the hub; the hub performs primary rebuild and operational rollout.
+
 ## Revisions
 
 ### 2026-10-23 — hub-approved acceptance replaces universal historical fallback
