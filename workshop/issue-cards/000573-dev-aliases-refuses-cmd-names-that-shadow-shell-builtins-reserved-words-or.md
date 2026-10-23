@@ -1,6 +1,6 @@
 ---
 id: 000573
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c0cb4a5090b5b149295e422a4b558d88717a2d51
         evidence_commit: f65427b86f5b97d2d811f7a2e29da3f3a6a1591b
+        landed_commit: b3698daadae08b642eb00957a8f3f56d3dc8b0d5
 ---
 
 # dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands
