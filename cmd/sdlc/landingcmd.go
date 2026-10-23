@@ -201,6 +201,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 			bound = fmt.Sprintf(", or when a car has waited %dm", int(sched.MaxWait/time.Minute))
 		}
 		fmt.Fprintf(&b, "trains: every %dm, up to %d cars%s; %d ready; %s\n", int(sched.Interval/time.Minute), sched.MaxCars, bound, w.Ready, next)
+		fmt.Fprintf(&b, "  %s\n", landingline.FormatTrainRampPolicy())
 		fmt.Fprintf(&b, "departure grid: %s\n", planNote)
 		if planErr != nil {
 			fmt.Fprintf(&b, "  [!] %v\n", planErr)

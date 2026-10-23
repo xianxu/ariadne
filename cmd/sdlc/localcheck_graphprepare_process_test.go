@@ -35,7 +35,7 @@ func TestAffectedGraphPreparationCancellationAndPipeDrain(t *testing.T) {
 			defer cancel()
 			done := make(chan error, 1)
 			go func() {
-				_, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha)
+				_, err := runAffectedCheck(ctx, d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, affectedOrdinary)
 				done <- err
 			}()
 			finished := false

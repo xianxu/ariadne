@@ -50,7 +50,7 @@ func TestCarMissingCheckStopsRetainedWait(t *testing.T) {
 			if turn != nil {
 				turn.leave(errors.New("unexpected admission"))
 			}
-			if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected, then re-enter sdlc merge") || calls != 1 {
+			if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected --boarding, then re-enter sdlc merge") || calls != 1 {
 				t.Fatalf("calls=%d turn=%v err=%v", calls, turn, err)
 			}
 			if head, waiting, err := line.Status(); err != nil || head == nil || head.Seq != held.Ticket().Seq || len(waiting) != 0 {

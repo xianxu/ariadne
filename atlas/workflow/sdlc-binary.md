@@ -516,8 +516,12 @@ slot.
 
 **Landing train (#449).** `.sdlc/landing.json` on main
 (`train_interval_minutes`, `train_max_cars`; local-gates guarded) turns the line
-into trains. Absent, or an interval of 0, keeps the serial line above. With
-trains on:
+into trains. Absent, or an interval of 0, keeps the serial line above. An
+omitted `train_max_cars` is `landingline.DefaultMaxCars`, two (#561): every
+adopter starts small. `FormatTrainRampPolicy` (`internal/landingline/trainpolicy.go`)
+is the one ramp rule, rendered in `sdlc landing --help` and status: raise a cap
+by hand through the guarded file after a complete seven-day measured review;
+nothing raises a cap or enables trains automatically. With trains on:
 - A waiting merge vouches its readiness in `ready/<seq>` beside its ticket
   (`landingcar.go`): its own publish and CI gates, read-only, for its exact
   pushed head. Each `carReadiness` pass gets a nested issue-records scope
@@ -542,8 +546,10 @@ trains on:
   #473 D3): the train's prefix suite is the one full run. Merge without a
   train sets no stand-in. A passing full-suite record already satisfies the
   car directly; the affected stand-in is an alternative. The missing-record
-  message names affected or its full-suite fallback and explains conditionally
-  to wait if affected fell back (#513), without asserting a queued run exists.
+  message names affected or its full-suite fallback, asks for
+  `local-check run --name affected --boarding` (#561: boarding never escalates
+  to a per-car suite), and says to retain an affected or suite run already
+  queued, without asserting one exists.
   Missing local evidence ends the retained wait (#550): `ciVerdict.LocalNeeded`
   survives aggregate pending/red/unknown/unregistered/guard refusals through
   `ciGateError.LocalNeeded`. `carReadiness` returns a separate terminal error

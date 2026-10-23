@@ -22,10 +22,15 @@ func TestParseLandingConfig(t *testing.T) {
 		cars     int
 		err      string
 	}{
-		{`{}`, 0, landingline.DefaultMaxCars, ""},
-		{`{"train_interval_minutes": 0}`, 0, landingline.DefaultMaxCars, ""},
+		// #561: an omitted cap is the literal onboarding default, two; an
+		// explicit cap, even above it, is the repo's own decision and stays.
+		{`{}`, 0, 2, ""},
+		{`{"train_interval_minutes": 0}`, 0, 2, ""},
+		{`{"train_interval_minutes": 60}`, time.Hour, 2, ""},
 		{`{"train_interval_minutes": 60, "train_max_cars": 4}`, time.Hour, 4, ""},
-		{`{"train_interval_minutes": 60, "a_later_key": {"x": 1}}`, time.Hour, landingline.DefaultMaxCars, ""},
+		{`{"train_interval_minutes": 60, "train_max_cars": 8}`, time.Hour, 8, ""},
+		{`{"train_interval_minutes": 60, "train_max_cars": 1}`, time.Hour, 1, ""},
+		{`{"train_interval_minutes": 60, "a_later_key": {"x": 1}}`, time.Hour, 2, ""},
 		{`{"train_interval_minutes": -1}`, 0, 0, "outside 0..1440"},
 		{`{"train_interval_minutes": 1441}`, 0, 0, "outside 0..1440"},
 		{`{"train_max_cars": 0}`, 0, 0, "outside 1..16"},

@@ -225,8 +225,19 @@ func trainCar(t *testing.T, root, branch, file string, issue int) {
 // mergeCommit variant GitHub might report for a car runs end to end.
 func TestLandingTrainLandsEveryCarOnOneSuite(t *testing.T) {
 	for _, variant := range []string{"train", "null", "head"} {
-		t.Run(variant, func(t *testing.T) { landTrainOfThree(t, variant) })
+		t.Run(variant, func(t *testing.T) { landTrainOfThree(t, newTrainSetup(t, variant)) })
 	}
+	// #561: cars that board on affected records alone (no per-car suite)
+	// land on the train's one suite, which still gates.
+	t.Run("affected boarding", func(t *testing.T) {
+		s := newTrainSetupBoarding(t, "train", affectedCheckName)
+		landTrainOfThree(t, s)
+		for _, h := range s.heads {
+			if _, ok := s.gh.ciFakeGH.statuses[h][localStatusContext(suiteCheckName)]; ok {
+				t.Fatalf("car %s carries a suite record; it should have boarded on affected", h)
+			}
+		}
+	})
 }
 
 // trainSetup is a repository with trains on: the first slot's car (PR #1,
@@ -243,20 +254,34 @@ type trainSetup struct {
 	// turns it off); see gateInstancesByReading.
 	validate bool
 	noCI     bool // explicit CI waiver still owes selected landing checks
+	// boardOn is the local check each car's readiness records: suite, or
+	// affected where main declares it (#561).
+	boardOn string
 }
 
 type trainRootKey struct{}
 
 func newTrainSetup(t *testing.T, variant string) *trainSetup {
 	t.Helper()
+	return newTrainSetupBoarding(t, variant, suiteCheckName)
+}
+
+// newTrainSetupBoarding is newTrainSetup whose cars record boardOn; for
+// affected, main also declares .sdlc/affected.json. The cap is explicit (8):
+// these fixtures exercise multi-car trains, not the onboarding default.
+func newTrainSetupBoarding(t *testing.T, variant, boardOn string) *trainSetup {
+	t.Helper()
 	first, server, gh1 := integrationFixture(t)
-	procedureWrite(t, server, landingConfigPath, `{"train_interval_minutes": 60}`+"\n")
+	procedureWrite(t, server, landingConfigPath, `{"train_interval_minutes": 60, "train_max_cars": 8}`+"\n")
+	if boardOn == affectedCheckName {
+		procedureWrite(t, server, affectedConfigPath, `{"version":1,"command":["make","test-affected"]}`+"\n")
+	}
 	git(t, server, "add", ".")
 	git(t, server, "commit", "-qm", "trains on")
 	git(t, server, "push", "-q", "origin", "main")
 	git(t, first, "fetch", "-q", "upstream")
 	gh := newTrainFakeGH(t, gh1.remote, gh1.ci, variant)
-	s := &trainSetup{first: first, server: server, gh: gh, heads: map[string]string{}, rootKey: trainRootKey{}}
+	s := &trainSetup{first: first, server: server, gh: gh, heads: map[string]string{}, rootKey: trainRootKey{}, boardOn: boardOn}
 	s.addCar(t, landingTestBranch, 1)
 	ghClient = gh
 	oldResolve := resolveLandingWorkspace
@@ -298,7 +323,7 @@ func newTrainSetup(t *testing.T, variant string) *trainSetup {
 func (s *trainSetup) addCar(t *testing.T, branch string, number int) {
 	t.Helper()
 	pr := s.gh.addPR(number, branch)
-	if err := s.gh.ciFakeGH.PostStatus(context.Background(), "test/repo", pr.HeadOID, localStatusContext(suiteCheckName), "success", "branch suite"); err != nil {
+	if err := s.gh.ciFakeGH.PostStatus(context.Background(), "test/repo", pr.HeadOID, localStatusContext(s.boardOn), "success", "branch "+s.boardOn); err != nil {
 		t.Fatal(err)
 	}
 	s.heads[branch] = pr.HeadOID
@@ -392,8 +417,7 @@ func trainEvents(t *testing.T, line *landingline.Line, result string) []landingl
 	return out
 }
 
-func landTrainOfThree(t *testing.T, variant string) {
-	s := newTrainSetup(t, variant)
+func landTrainOfThree(t *testing.T, s *trainSetup) {
 	second := filepath.Join(filepath.Dir(filepath.Dir(s.first)), "sample-slot2", "sample")
 	git(t, second, "fetch", "-q", "upstream")
 	git(t, second, "reset", "-q", "--hard", "upstream/main")

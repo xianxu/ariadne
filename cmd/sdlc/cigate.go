@@ -218,7 +218,7 @@ func (v ciVerdict) refusal(pr int) error {
 		for _, n := range v.LocalNeeded {
 			fmt.Fprintf(&b, "\n  → %s", localCheckCommand(n))
 			if n == affectedCheckName {
-				b.WriteString("\n  If affected fell back, wait for the full-suite fallback; a passing suite on this head satisfies affected.")
+				b.WriteString("\n  Boarding never runs the suite: a full selection refuses and names its alternative. A passing suite on this head satisfies affected; retain an affected or suite run already queued or running on it.")
 			}
 		}
 		b.WriteString("\n  then re-run `sdlc merge` (" + localChecksPath + " on main declares them).")
@@ -231,7 +231,15 @@ func (v ciVerdict) refusal(pr int) error {
 	return &ciGateError{Reason: v.Reason, Message: b.String(), LocalNeeded: append([]string(nil), v.LocalNeeded...)}
 }
 
-func localCheckCommand(name string) string { return "sdlc local-check run --name " + name }
+// localCheckCommand is the run a refusal asks for. Affected is only ever
+// needed as a train car's stand-in for suite, so it is asked for in boarding
+// mode, which never escalates to a per-car suite (#561).
+func localCheckCommand(name string) string {
+	if name == affectedCheckName {
+		return "sdlc local-check run --name " + name + " --boarding"
+	}
+	return "sdlc local-check run --name " + name
+}
 
 func checkLabel(c prCheck) string {
 	if c.Workflow != "" && c.Workflow != c.Name {

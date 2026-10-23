@@ -133,7 +133,7 @@ func TestAffectedGraphPreparationFallbacks(t *testing.T) {
 				cfg.GraphPrepare.TimeoutMinutes = 1
 				d.minute = 100 * time.Millisecond
 			}
-			rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha)
+			rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, affectedOrdinary)
 			if err != nil || !rec.passed() {
 				t.Fatalf("rec %+v err %v\n%s", rec, err, d.Stderr)
 			}

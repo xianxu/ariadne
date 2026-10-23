@@ -192,6 +192,16 @@ func TestBoard(t *testing.T) {
 			t.Fatalf("cars %v left %d", got, b.LeftReady)
 		}
 	})
+	t.Run("an omitted cap boards two cars, an explicit one its own count", func(t *testing.T) {
+		b := Board(head, false, tickets(4), ready(2, 3, 4, 5), nil, Schedule{Interval: time.Hour}, tt0)
+		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2}) || b.LeftReady != 3 {
+			t.Fatalf("default cap: cars %v left %d", got, b.LeftReady)
+		}
+		b = Board(head, false, tickets(4), ready(2, 3, 4, 5), nil, Schedule{Interval: time.Hour, MaxCars: 5}, tt0)
+		if got := boardedSeqs(b); !slices.Equal(got, []int64{1, 2, 3, 4, 5}) || b.LeftReady != 0 {
+			t.Fatalf("explicit cap: cars %v left %d", got, b.LeftReady)
+		}
+	})
 	t.Run("trains off: the head rides alone", func(t *testing.T) {
 		b := Board(head, false, tickets(2), ready(2, 3), nil, Schedule{}, tt0)
 		if got := boardedSeqs(b); !slices.Equal(got, []int64{1}) {

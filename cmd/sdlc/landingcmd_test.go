@@ -196,7 +196,7 @@ func TestLandingStatusShowsTrainsAndReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"trains: every 60m, up to 4 cars; 1 ready; the first train departs at the next admission", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
+	for _, want := range []string{"trains: every 60m, up to 4 cars; 1 ready; the first train departs at the next admission", "Train cap ramp: a repo without train_max_cars boards 2 cars", "Nothing raises a cap", "ready at aaaaaaa", "(PR #70)", `not counted: vouch names branch "000009-not-mine"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status lacks %q:\n%s", want, out)
 		}

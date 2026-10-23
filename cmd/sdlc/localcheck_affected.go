@@ -10,6 +10,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
 
 // affectedDeps are runAffectedCheck's seams (#473); production wires git,
@@ -21,12 +22,35 @@ type affectedDeps struct {
 	post    func(ctx context.Context, rec localRunRecord) error
 }
 
+// affectedExecutionMode decides what a full selection does (#561); selection
+// itself stays affected.Plan's. Ordinary falls back to the suite; boarding,
+// a train car's preparation, refuses instead, because the train runs the full
+// suite on its prefix and a per-car suite is the cost trains exist to avoid.
+type affectedExecutionMode int
+
+const (
+	affectedOrdinary affectedExecutionMode = iota
+	affectedBoarding
+)
+
+// affectedModeFor validates --boarding (#561): it qualifies a run of affected
+// alone, never suite, a mix of names or --all, where it would be ignored.
+func affectedModeFor(names []string, all, boarding bool) (affectedExecutionMode, error) {
+	if !boarding {
+		return affectedOrdinary, nil
+	}
+	if all || len(names) != 1 || names[0] != affectedCheckName {
+		return affectedOrdinary, fmt.Errorf("local-check run: --boarding qualifies --name %s alone (got --name %s, --all %v)", affectedCheckName, strings.Join(names, ","), all)
+	}
+	return affectedBoarding, nil
+}
+
 // runAffectedCheck is the affected suite (#473): it plans the head's change
 // against base and runs the repo's affected command on the selection. A full
 // selection runs and records suite instead (D5), never an affected record that
-// claims to be full; a docs-only change records affected without running
-// anything.
-func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg affected.Config, suite localCheck, sha string) (localRunRecord, error) {
+// claims to be full, unless mode is boarding, which refuses (#561); a
+// docs-only change records affected without running anything.
+func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg affected.Config, suite localCheck, sha string, mode affectedExecutionMode) (localRunRecord, error) {
 	paths, err := ad.changed(sha)
 	if err != nil {
 		return localRunRecord{}, fmt.Errorf("local check %s: changed paths of %s: %w", affectedCheckName, abbrevSHA(sha), err)
@@ -56,6 +80,8 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		sel = affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
 	}
 	switch {
+	case sel.Full && mode == affectedBoarding:
+		return localRunRecord{}, boardingRefusal(sha, sel.Reason, suite.Name)
 	case sel.Full:
 		fmt.Fprintf(d.Stderr, "==> local check %s on %s: full selection (%s); running %s instead\n", affectedCheckName, abbrevSHA(sha), sel.Reason, suite.Name)
 		return ad.run(ctx, suite, sha)
@@ -65,6 +91,17 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		return rec, ad.post(ctx, rec)
 	}
 	return ad.run(ctx, affectedLocalCheck(cfg, sel, suite), sha)
+}
+
+// boardingRefusal is a full selection in boarding mode (#561): nothing ran
+// and nothing was posted. It names the reason, where to repair the selection,
+// and the full-proof alternative a car may board on instead.
+func boardingRefusal(sha, reason, suite string) error {
+	return fmt.Errorf("local check %s on %s: boarding refused: full selection (%s); boarding never runs the full suite.\n"+
+		"  → repair the selection: classify the path in %s on main (or fix its graph_prepare / the package graph), push, and rerun boarding; or\n"+
+		"  → prove the full suite instead: sdlc local-check run --name %s --rev %s, then sdlc merge --yes (a passing suite also boards).\n"+
+		"  %s",
+		affectedCheckName, abbrevSHA(sha), reason, affectedConfigPath, suite, sha, landingline.SerialLandingPrerequisite)
 }
 
 // affectedLocalCheck is the selection as a local check: the repo's command

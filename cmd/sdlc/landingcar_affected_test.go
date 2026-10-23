@@ -136,12 +136,12 @@ func TestCarFullSuiteFallbackReadiness(t *testing.T) {
 				t.Fatalf("%s suite authorized car", state)
 			}
 			if state == "failed" {
-				if !strings.Contains(err.Error(), "failing checks") || strings.Contains(err.Error(), "wait for the full-suite fallback") {
+				if !strings.Contains(err.Error(), "failing checks") || strings.Contains(err.Error(), "Boarding never runs the suite") {
 					t.Fatalf("failed suite should name failure, not waiting: %v", err)
 				}
 				return
 			}
-			for _, want := range []string{"affected or its full-suite fallback", "If affected fell back", "wait for the full-suite fallback", "passing suite on this head", "--name affected"} {
+			for _, want := range []string{"affected or its full-suite fallback", "Boarding never runs the suite", "passing suite on this head", "already queued or running", "--name affected --boarding"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("%s: diagnostic lacks %q: %v", state, want, err)
 				}

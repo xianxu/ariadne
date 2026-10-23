@@ -28,6 +28,8 @@ LANDING TRAINS (#449)
   above. It is under the local-gates guard, so the operator verifies every
   change to it.
 
+  {{TRAIN_RAMP_POLICY}}
+
   With trains on:
 
   - A waiting merge checks its own publish and CI gates, read-only, on its
@@ -35,6 +37,10 @@ LANDING TRAINS (#449)
     .sdlc/affected.json (#473), a recorded `affected` run stands in for
     `suite` here: the train runs the full suite on its prefix before anything
     lands. A docs-only branch boards on its docs-only `affected` record.
+    Prepare a car with `sdlc local-check run --name affected --boarding`: a
+    full selection refuses there rather than running a per-car suite (#561),
+    and names its repair and the full-suite alternative. A passing `suite`
+    record on the head still boards.
   - A merge departs only when the train is due and its vouch is current. The
     train is due:
     - on the first train;
