@@ -92,3 +92,91 @@ findings:
    Add a `## Revisions` entry correcting the pure diagnosis location/classification and naming the actual functions. Include affected graph preflight in the integration table. Keep the outstanding recorded-suite and landing gates explicitly pending.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3c09dc2b-aeb5-421c-8509-7db103d3f721","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/db28c916f831cd4a","reviewed_head":"214e4300379c9dded9180059db910a9a02232be1","slot":"ariadne:4","requested_at":"2026-10-23T11:58:00.170968Z"},"phase":"finished","pid":72330,"started_at":"2026-10-23T11:58:00.335119Z","finished_at":"2026-10-23T12:00:28.757222Z","session_id":"01a168a0-084b-7812-b4ba-816e2d6c6f72","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T05:08:49-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 572 — local-check: refuse to record a suite attempt invalidated by sandbox denials |
+| repo | ariadne |
+| issue file | workshop/issues/000572-local-check-refuse-to-record-a-suite-attempt-invalidated-by-sandbox-denials.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ee4dd7fa1e8488e3230dc462971be8796f317e41..7dad3c36d67a7f86404356c9b2b2cf9888c5b12a |
+| command | sdlc close --issue 572 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T05:08:49-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the revised Spec: independent host-capability failures refuse execution without creating attempt or status evidence, while denial-looking test output remains ordinary failure evidence. All three prior findings are addressed; no new findings. The recorded final-source suite remains a separate prerequisite before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan lines 27–42 now identify the pure suiteEnvironmentError formatter in suiteenvironment.go and separately enumerate the actual integration functions and entry points. The formatter and its direct, IO-free advice tests support the corrected classification.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      suitecapability.go:70 retains the short-path explanation without the unused suppression. The existing TestTrackedGoFilesPassTheCatalog regression check passes; pkg/golint/check.go:132–135 still rejects unused suppressions.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:772–777 now documents could-not-run, whole-call retry, preservation of earlier failures, and normal attribution on healthy hosts. These statements match preflightSuite, the error formatter, and the passing execution tests.
+```
+
+1. **Strengths**
+
+   - Shared preflight precedes execution allocation, affected graph preparation, and flake/resume child creation.
+   - Tests verify absent side effects, same-head repair, genuine-parent preservation, and saved-pass repost bypass.
+   - Hash-checked captured mixed output and synthetic all-denial output both retain failure attribution.
+   - Deferred cleanup joins errors rather than reporting false readiness.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - PASS: focused capability/environment/infrastructure/resume tests — 35.559s.
+   - PASS: affected and baseline tests — 46.057s.
+   - PASS: `go test ./pkg/golint -count=1` — 1.554s.
+   - Native rerun was unavailable: both children failed at `sandbox_apply: Operation not permitted`. Retained host-run evidence matches the pinned production/probe blobs; this review does not claim a local native PASS.
+   - Checkout remained clean at the pinned head.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** one shared probe across the enumerated entry points.
+   - **ARCH-PURE — pass:** pure formatting is directly tested; IO remains in integration functions.
+   - **ARCH-PURPOSE — pass:** fulfills the revised independent-evidence contract without granting log text waiver authority.
+   - **ARCH-MOCK — pass:** stateful resource fixtures and repository/status doubles exercise production seams; native conformance covers kernel behavior.
+   - **ARCH-CONSTRAINTS — pass:** fixed capability operations; sweep population cost is explicitly acknowledged.
+   - **ARCH-SECURE — pass:** wrapped error identity controls advice; scratch is private; captured output cannot authorize invalidation.
+   - **ARCH-ORDER — pass:** synchronous resource lifetime, cleanup ordering, and resume proof-before-child behavior are covered.
+   - **ARCH-FUNERAL — pass:** normal cleanup and existing stale-directory reclamation cover probe residue.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+
+7. **Plan revision recommendations**
+
+   None. The existing revisions accurately describe the implementation and preserve the outstanding suite and landing gates.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2d5e394d-436d-4718-8dfb-aa5bdfaf00e5","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/64d08af6eb9061eb","reviewed_head":"7dad3c36d67a7f86404356c9b2b2cf9888c5b12a","slot":"ariadne:4","requested_at":"2026-10-23T12:06:01.958125Z"},"phase":"finished","pid":41180,"started_at":"2026-10-23T12:06:02.107042Z","finished_at":"2026-10-23T12:08:48.670038Z","session_id":"01a168a7-6215-70e2-8e96-899ad48bf7ba","outcome":"returned"}] -->
