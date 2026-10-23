@@ -19,6 +19,25 @@ reviewer_runs:
       finished_at: "2026-10-23T07:38:53.041281Z"
       session_id: 01a167b1-cacb-7f63-ad15-9a2f3efef053
       outcome: returned
+    - version: 1
+      intent:
+        id: 02f3ef0f-a184-4d63-9246-ae90b1cecfc2
+        repository: github.com/xianxu/ariadne
+        issue_id: "000561"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: claude
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: 15faa6d01a89a7b5a784125a3f4b7d8a42e2c575
+        slot: ariadne:2
+        requested_at: "2026-10-23T07:50:03.373008Z"
+      phase: finished
+      pid: 37049
+      started_at: "2026-10-23T07:50:03.462245Z"
+      finished_at: "2026-10-23T07:50:22.963894Z"
+      session_id: 35e15fe2-8f0d-4566-952d-248079e77abe
+      outcome: returned
 gate: plan-quality
 issue: 561
 id_prefix: PQ
