@@ -77,4 +77,5 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
   - BR-3: `TestLegacyModeKeysSurviveCardPublish`.
   - Minors: plan Revisions added. The guard excuses only `legacy `key`` spans, and an instruction like "on a legacy document, write `presentation-mode`" now fails it. legacyGrammar resolves enclosing sections through Innermost.
   - The landed-revision message to pair:3 and parley.nvim:3 follows the landing.
+- Close round 2 returned SHIP, with one advisory Minor in a repeating family (plan-code-drift: help.md still described `list`'s output as "the section's hash"). I fixed it as a rule: the help, the list command's one-liner and the atlas now describe the HASH:GRAMMAR token, and a lesson records the rule. I cancelled the just-started suite on 72459336c so it reruns on the fixed head.
 

@@ -196,7 +196,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	list := &cobra.Command{
 		Use:   "list [FILE]",
-		Short: "Print the open (unanswered) bullets by position, then the section hash",
+		Short: "Print the open (unanswered) bullets by position, then the HASH:GRAMMAR token link needs",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, hash, err := d.ss.ReadSection(args[0], instructionsHeading)

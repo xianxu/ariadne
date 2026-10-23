@@ -430,10 +430,14 @@ TALKING TO THE OPERATOR
     - Your only write is appending ` → [answer](…)` to a bullet, through
       tl-lead, by position, since the operator reuses numbers:
         tl-lead status instructions list FILE
-        tl-lead status instructions link FILE POS TARGET --hash H
-      `list` prints the open bullets with their positions and the section's
-      hash; `link` refuses (exit 6) if the section changed since that hash,
-      because the positions may now name other bullets: list again. `list`
+        tl-lead status instructions link FILE POS TARGET --hash TOKEN
+      `list` prints the open bullets with their positions and a token,
+      HASH:GRAMMAR: the section's hash and the item grammar it counted
+      positions in (numbered for a `@@chat@@` section, legacy otherwise).
+      Pass the token as printed. `link` refuses (exit 6) if the section
+      changed since that hash, or if a tag or legacy declaration outside
+      it changed the grammar, because the positions may now name other
+      bullets: list again. `list`
       shows only unlinked bullets; follow-ups on linked ones are in the
       changes since your last read. `link` also lists TARGET in the file's
       discussions: index (the operator's review queue), before the link.
