@@ -14,14 +14,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.99
+actual_hours: 4.49
 tracker:
     version: 1
     completion:
-        token: close-e716c3cb7193
+        token: close-500302bd2761
         repository: github.com/xianxu/ariadne
-        reviewed_head: c677d1f53ba04b9fcbed79490981f9a0e0d7abfa
-        evidence_commit: 40535f3d15e0d8a56be3289e97645a31ddb5b036
+        reviewed_head: d32c7b0811908755c8cdbb0ce2d7a3b8b17d2cda
+        evidence_commit: 3e6762c94afc23dc3305c2906449d3236d674bc4
 ---
 
 # Lint inherited temp roots used for Unix socket fixtures
