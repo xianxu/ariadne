@@ -1,13 +1,13 @@
 ---
 id: 000571
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '686df5216293458e36b057f97a182e7b35675a2b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5f9281408609cea2a78c42a07c4a9f18b85ff3b8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T02:04:07-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "96f72894", done: "43ce81e8"}
+actual_hours: 0.50
 ---
 
 # Inside-checkout reviewer TMPDIR lands inside the reviewed tree; use a fenced sibling outside the checkout
