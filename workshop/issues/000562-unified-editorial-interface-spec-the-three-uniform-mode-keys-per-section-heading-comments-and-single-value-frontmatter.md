@@ -1,13 +1,21 @@
 ---
 id: 000562
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '7b8dacc967fba65b2ca2b79b8ab8ca01e7b2bc7a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8b2b057be97f57a9c8e7a730e86af252384b07cd' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-22T22:48:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # unified-editorial-interface: spec the three uniform mode keys, per-section heading comments and single-value frontmatter
@@ -57,8 +65,17 @@ writes one heading comment per mapped section). This is the contract pair and pa
 
 ## Plan
 
-- [ ]
+- [ ] Write the canonical contract in collaboration-modes.md and round.md: the three single-value keys/defaults, processing-instruction, readable deprecated aliases, immediately-adjacent heading-comment grammar and operator ownership, section/document/default precedence, legacy-map warning/migration, and required typeahead behavior. Keep every settled Spec decision; no additional editing modes or runtime parser in this issue.
+- [ ] Sweep SKILL.md, the file-edit adapter, reference examples, README and atlas pointers for contradictory instructions. New side docs use <doc>.side/YYYY-MM/YYYY-MM-DD-NN-slug.md with correct relative parent/backlinks; old flat docs stay readable/reusable, without mass migration or nested .side directories. Name the existing enforcing value owners rather than adding a second enum list: collaboration parsers/vocab, Pair's sessionsync presentation resolver, and exported modes/*.md metadata; parley's frontmatter_enum consumes these owners.
+- [ ] Add worked examples for each collaboration/presentation/processing value and the precedence table, plus new/partial/existing frontmatter fill examples that make all defaults visible while preserving existing choices. Retain deprecated map/alias/flat-path cases as compatibility fixtures. Exercise the contract with fresh-context RED/GREEN review scenarios, including wrong heading placement, override precedence, aliases and non-default values, and side-doc creation from old/new locations. Extend only the existing test-only example checker as needed for the new reference shape; Pair/parley's runtime enforcement and UI tests remain pair#823/parley.nvim#419.
+- [ ] Regenerate export.json through pkg/reviewexport, run focused reviewexport/vocab/sidedoc and weave discovery checks, verify export hashes/links, then the recorded suite on the pushed head and SDLC's close review. Proposed smoke: private contract/examples only, no live fleet or :0 stage. Land and report only after these gates.
+
+Sizing: quick-flow contract/docs/fixtures, no planned production Go change and no separate milestone boundaries. Keep the design within the shell; re-plan before adding runtime behavior. Preferred approach is one shared exported contract plus examples and named enforcing owners (ARCH-DRY); a new central configuration API or independent consumer implementation here would duplicate the separately assigned runtime work.
+
+Architecture: ARCH-PURE — specification and test-only checks, no new IO shell. ARCH-PURPOSE — cover all settled axes, defaults, typeahead and side-doc layout, not only renamed keys. ARCH-EVOLVE — old aliases, section maps and flat side docs remain readable with explicit migration/deprecation rules; no automatic destructive rewrite. ARCH-MOCK — no new external service/binary integration. ARCH-CONSTRAINTS — bounded document/export authoring, no new runtime work or performance promises. ARCH-SECURE — mode comments/values remain operator-owned, existing lock/CAS semantics preserved. ARCH-ORDER — this issue adds no stateful runtime; contract examples retain existing submit/write ordering. ARCH-FUNERAL — creates only version-controlled reference artifacts; existing side-doc lifetime and archive/move ownership remain intact.
 
 ## Log
 
 ### 2026-10-22
+
+Claimed and entered planning in ariadne:5 after #549 landed. Read the settled Spec and current round, collaboration modes, export/checker and value-owner seams; inspected Pair/parley read-only, no peer edits. Current source still teaches composite process-instruction, collaboration-mode maps and flat side-doc creation. This issue establishes their replacement contract; consumers implement it in pair#823/parley.nvim#419. Plan submitted to TL before change-code or contract edits. One compatibility clarification accompanies the plan: when filling frontmatter containing only a deprecated alias (e.g. presentation: propose), writing a canonical default must not silently shadow that existing choice; propose materializing the existing effective value under the canonical key and preserving the alias. Await TL confirmation of this edge and plan approval. No estimate derived and no implementation started.
