@@ -84,7 +84,7 @@ Proposed design: [planning seed deferral](../plans/000557-planning-seed-deferral
 
 - [x] Add a planning-only publication policy that defers every Seed / SeedOnce destination and existing protected settings before any output effects.
 - [x] Wire start-plan catch-up to that policy; report stale seed paths and the separate consumer regeneration action.
-- [ ] Prove native catch-up cleanliness and explicit consumer-branch regeneration, document the operator-verified PR route, then complete suite/review/landing.
+- [x] Prove native catch-up cleanliness and explicit consumer-branch regeneration, and document the operator-verified PR route.
 
 ## Log
 
@@ -114,6 +114,10 @@ Targeted proof returned PASS: native SDLC installed-weave/start-plan tests plus 
 
 No speculative generic tracked-writer issue filed: Ship, retirement and .gitignore remain the approved known follow-up only if observed. This fix is a publication-policy ordering invariant, defended by production-path fixtures rather than a lexical lint rule. Next: tracked-file catalog, commit/push, recorded suite, mandatory close review and landing. No recorded check or merge runner is active at this checkpoint.
 
+### 2026-10-22 — published, recorded suite retained
+
+Tracked Go catalog PASS (1.171s), staged diff whitespace check clean. PR405 opened; GitHub local-gates-guard and its verdict SUCCESS. Recorded suite lease-1202838612 retained on pushed code head c9ee0844b3d9251a082eb821db4229d1195ed472, initially FIFO position 15, not started yet. No duplicate runner or cancellation. Hub authenticated approval fdcf2149-b38f-4d13-8b20-cdada682c4a8 accepts the isolated native installed-weave/start-plan proof and pair#809 replay; no live :0 stage. Mandatory close review may overlap this queued suite under tl-worker; a recorded pass covering final code still precedes landing. If review changes code, run a new recorded suite on that pushed code head. Next: finish close review, read this retained suite's result, then enter sdlc merge --yes on SHIP. No continuation or restart while the check is retained.
+
 ## Revisions
 
 ### 2026-10-22 — proposed prevention at publication boundary
@@ -124,3 +128,7 @@ Propose deferring seed / seed-once publication before effects, instead of post-r
 
 Hub approval received and authenticated (submitted delivery b2a58869-feeb-45f0-b41c-973fb0167e90). Suppress every Seed/SeedOnce before planning publication, retain protected-settings deferral, and use ordinary weave compile on a dedicated consumer issue branch for the operator-verified workflow PR. Wider Ship / retirement / .gitignore protection is a known follow-up, to file only on observed dirtying evidence. No stash, live consumer mutation, automatic PR or self-label. Proceeding to change-code with the full-flow proposal; no source edits yet.
 
+
+### 2026-10-22 — implementation checklist complete
+
+The issue checklist now tracks delivered implementation, proof and docs. Suite/review/landing execution remains outstanding in the Log, avoiding a checklist item that would require landing before the close gate can run. No scope or acceptance change.
