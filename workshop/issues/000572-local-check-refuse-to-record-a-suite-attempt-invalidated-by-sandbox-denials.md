@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "2d30e3cd", done: "8c0d851f"}
 ---
 
 # local-check: refuse to record a suite attempt invalidated by sandbox denials
