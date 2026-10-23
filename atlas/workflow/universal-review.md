@@ -35,7 +35,9 @@ skill carries the rest.
   `vocab.CollaborationModes` is the Go copy of the three values. Under #562's fill contract, creators
   (Parley, Couch and tl-lead's side-doc helpers) write all three mode keys explicitly, preserving set values.
   Legacy-only choices are materialized under canonical keys without rewriting aliases; there is no blanket
-  rewrite of existing documents. Runtime adoption belongs to the corresponding consumer implementation.
+  rewrite of existing documents. Runtime adoption: parley.nvim#418 owns canonical/legacy presentation,
+  processing-mode and processing-instruction readers plus fill; #419 owns completion, concealment,
+  section comments and monthly side-doc layout. Pair/Couch readers belong to pair#823.
   Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section publication: new
   month paths require a real filename date matching the sole month directory and a parent resolved from
   that directory; legacy dated flat targets remain accepted. It does not fill or rewrite answer documents.

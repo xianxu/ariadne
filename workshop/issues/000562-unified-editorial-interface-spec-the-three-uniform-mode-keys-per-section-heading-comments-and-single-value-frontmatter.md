@@ -87,6 +87,12 @@ Architecture: ARCH-PURE — specification and test-only checks, no new IO shell.
 
 ## Log
 
+### 2026-10-23
+
+TL allocated consumer reader migration via 722ee72d: parley.nvim#418 owns canonical/legacy presentation, processing-mode and processing-instruction resolution plus fill; #419 keeps completion, concealment, section comments and monthly side-doc layout; Couch readers remain pair#823. No executable fill API is introduced here: export.json carries protocol/mode metadata, and editorial-fill-* before/after examples are source conformance references, not manifest fixture members (only move fixtures are exported). README/atlas name the current owners. No further spec decision is pending.
+
+Main integrated cleanly at Git-verified 00d83976e0b7b371abe0974f76e8385fc2e9a3a9. Integrated-head CI passed; retained merge now queues suite lease-3458412957 on that head (initial FIFO position 7). Branch suite lease-2734898691 acquired both slots after 3013 seconds and is running. Preserve both exact-head runs; no duplicate launch. Next: collect their recorded results and let the retained merge runner finish.
+
 ### 2026-10-22
 
 Close round 2 SHIP: both BR-1 and BR-2 addressed, no new findings; reviewer independently reverted prompts/validator and mutated preserved values to confirm RED, then restored passing source. Measured actual adopted 0.83h (build 0.59/converge 0.23); no typed estimate. Corrected branch suite remains queued on Git-verified 2a40b9e992ed64dddb675af0beff4026b012fa1e, lease-2734898691, initial position 10 and observed advancing to 9. Retained merge runner entered landing line 2026-10-22T23:27:14-07:00, position 1 behind #557, pid 65475. Next step: keep the exact suite and merge runners; observe recorded suite result, let merge integrate/test current main and land PR407, then verify/archive/cleanup and report to hub. Do not duplicate or manually cancel/reorder these runners. The suite has not passed yet.
