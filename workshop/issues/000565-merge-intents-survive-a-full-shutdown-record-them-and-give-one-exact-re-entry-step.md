@@ -1,13 +1,21 @@
 ---
 id: 000565
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '7af06a10c69a15393562f4b3cec441abf2ca6ebe' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '604340d3227fc50870b0ab7442c7a975e703f52d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T10:46:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Merge intents survive a full shutdown: record them and give one exact re-entry step
@@ -31,8 +39,23 @@ No automatic merge without the slot re-entering it; just a durable record and an
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000565-merge-intents-survive-a-full-shutdown-record-them-and-give-one-exact-re-entry-step-plan.md` (scope choices a–e for the TL).
+
+- [ ] `MergeIntent` record and `ClassifyIntent` (pure)
+- [ ] `IntentStore`: hold, release by outcome, list, stale and age sweep
+- [ ] `sdlc merge` holds the intent; an interruption keeps it, a terminal outcome removes it
+- [ ] Surfaces: `sdlc landing status`, `sdlc state`, `--json` `merge_intents`
+- [ ] End-to-end: a SIGKILLed runner, the printed command, the suite reused on an unchanged head
+- [ ] Atlas, recovery catalog, recorded suite
 
 ## Log
+
+### 2026-10-23
+- Claimed and planned (ariadne:5). What exists today:
+  - Nothing on the landing line survives a shutdown: tickets and head.lock are flock-only.
+  - The queue op survives as `unresolved`, but it has no branch and a reboot erases it.
+  - The recovery command goes only to the dead runner's stderr.
+  - Re-entry is already correct (it resumes from Git/GitHub), and #332 suite reuse reads GitHub statuses, so it survives a shutdown.
+  - The gap is a durable, lock-classified intent record plus a surface that prints the command.
 
 ### 2026-10-22
