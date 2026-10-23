@@ -172,3 +172,73 @@ dispose:
    None. Existing `## Revisions` entries capture both corrections and their remaining analysis limits. Core-concept entities and classifications match the implementation.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7610a9e7-1229-4b89-bace-0b643f674870","repository":"github.com/xianxu/ariadne","issue_id":"000549","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/0351ca0f625590d6","reviewed_head":"c677d1f53ba04b9fcbed79490981f9a0e0d7abfa","slot":"ariadne:5","requested_at":"2026-10-22T21:50:12.7083Z"},"phase":"finished","pid":61776,"started_at":"2026-10-22T21:50:12.986045Z","finished_at":"2026-10-22T21:51:47.671904Z","session_id":"01a16597-dc12-72e0-8e90-75d1113a8afe","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T20:30:49-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 549 — Lint inherited temp roots used for Unix socket fixtures |
+| repo | ariadne |
+| issue file | workshop/issues/000549-socket-fixture-root.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 574f43955f3f845e2b1b4b3278778cef510d2d47..d32c7b0811908755c8cdbb0ce2d7a3b8b17d2cda |
+| command | sdlc close --issue 549 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T20:30:49-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both independent lint rules when resolving the catalog conflict. The remaining changes record review and verification results without changing acceptance scope. No new defects found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Parenthesis normalization and Check/CheckSources regressions remain unchanged in this window; those regressions pass at the pinned head.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Explicit local testing receiver recognition and positive/unrelated-type controls remain unchanged in this window; those regressions pass at the pinned head.
+```
+
+1. **Strengths**
+
+   - `pkg/golint/rules.go:17–18` preserves both catalog registrations, including their original matchers and metadata.
+   - Existing engine tests exercise both registrations through the actual catalog.
+   - The plan separates completed verification from subsequent merge/report work without dropping that obligation.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Passed `go test ./pkg/golint -count=1`.
+   - Passed focused socket and child-process-group tests with `-race`.
+   - Pinned-range `git diff --check` passed; checkout remained clean.
+   - Whole-module suite was not independently rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** reuses existing catalog entries and matchers.
+   - **ARCH-PURE — pass:** registration introduces no IO or mixed business logic.
+   - **ARCH-PURPOSE — pass:** conflict resolution retains both sides’ enforcement; revisions only record verification.
+   - **ARCH-EVOLVE — pass:** no persisted-format or reader/writer contract changes.
+   - No new surface requires additional atlas or README changes in this interdiff.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d54fdd75-b51a-4227-b865-456663167e3a","repository":"github.com/xianxu/ariadne","issue_id":"000549","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/402dfbbabf77178e","reviewed_head":"d32c7b0811908755c8cdbb0ce2d7a3b8b17d2cda","slot":"ariadne:5","requested_at":"2026-10-23T03:29:51.751302Z"},"phase":"finished","pid":24544,"started_at":"2026-10-23T03:29:51.843393Z","finished_at":"2026-10-23T03:30:49.063712Z","session_id":"01a166ce-cff7-7c73-b2e4-d9849ce84561","outcome":"returned"}] -->
