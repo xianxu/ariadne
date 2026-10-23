@@ -1,6 +1,6 @@
 ---
 id: 000549
-status: codecomplete
+status: done
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours: 0.882
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d32c7b0811908755c8cdbb0ce2d7a3b8b17d2cda
         evidence_commit: 3e6762c94afc23dc3305c2906449d3236d674bc4
+        landed_commit: 06565d94af4dfef4e859c334092e34d885573a93
 ---
 
 # Lint inherited temp roots used for Unix socket fixtures
