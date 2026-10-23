@@ -63,7 +63,7 @@ Scope:
 ## Plan
 
 - [x] M1 — Explicit boarding-only affected execution, conservative refusals and default two-car onboarding; retain ordinary fallback and train suite gates.
-- [ ] M2 — Accepted-proof provenance, confirmed escape and actual split-cost measurement, status/weekly reporting and incomplete-coverage controls.
+- [x] M2 — Accepted-proof provenance, confirmed escape and actual split-cost measurement, status/weekly reporting and incomplete-coverage controls.
 
 Durable design: [affected boarding and train measurements](../plans/000561-affected-boarding-and-train-measurements-plan.md).
 
@@ -72,6 +72,7 @@ Durable design: [affected boarding and train measurements](../plans/000561-affec
 ### 2026-10-22
 
 ### 2026-10-23 — Planning checkpoint
+- 2026-10-23: closed M2 — on d3bbe8a5: landingline ok incl FuzzBoardingProof and FuzzTrainMeasurementAggregate (30s each; found inputs kept as seeds); ./cmd/sdlc M2 set ok (436s) plus suiteinfrastructure/bootstrap/environment ok after recovery-string update; TestLandingTrainLandsDespiteLostMeasurements, TestMeasurementIgnoresUntestedPassesAndReusedRuns, TestSuiteRunKind new; review verdict: SHIP
 - 2026-10-23: closed M1 — go test ./cmd/sdlc/internal/landingline ok; go test ./cmd/sdlc -run TestCar|TestAffected|TestLocalCheck|TestParseLandingConfig|TestLanding|TestReadLanding ok (1339s) on 2e6f906c; review round 1 fixes on ac4b48a6: README cap/boarding (BR-1), localCheckCommand for undeclared stand-in, TestLandingHelpRendersTrainRampPolicy, TestLocalCheckCmdBoardingRefusesFullSelection ok; review verdict: SHIP
 
 - Claimed and entered planning on the issue branch. Read-only traces found that readiness already accepts affected records; `runAffectedCheck` escalates Full/graph failure into suite. Existing full integration suite, baseline, bisect attribution and reintegration remain authoritative (ARCH-DRY, ARCH-PURE).

@@ -149,3 +149,119 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f0835410-4eb2-4880-8c4f-36c6901f18c3","repository":"github.com/xianxu/ariadne","issue_id":"000561","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/ebe409e06f42128e","reviewed_head":"1b6dd98e497c24edbbfe8a05b53e8690b168d8e2","slot":"ariadne:2","requested_at":"2026-10-23T09:01:12.299943Z"},"phase":"finished","pid":90799,"started_at":"2026-10-23T09:01:12.404177Z","finished_at":"2026-10-23T09:10:54.982306Z","session_id":"2f3ba45e-c27f-462b-aaff-a3123e3fc736","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T02:40:27-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 561 — Landing trains: cars board on affected tests; full suite once per train; measure escapes and bisect cost |
+| repo | ariadne |
+| issue file | workshop/issues/000561-landing-trains-cars-board-on-affected-tests-full-suite-once-per-train-measure-escapes-and-bisect-cost.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 07bdeb79d37bc188b3f65b96c5cbfdaf4be8617e..d3bbe8a5aba0e7b08481ff7e168c6d91857b77a8 |
+| command | sdlc milestone-close --issue 561 --milestone M2 |
+| reviewer | claude (anthropic; author anthropic,openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T02:40:27-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still reviewing: the landingline package tests pass, and the cmd/sdlc tests are running. In the meantime I'm checking the formatter and the decoder.
+
+The broad test run hit Go's 10-minute timeout. I'm now running the test that was still in progress on its own, to tell a hang from slowness.
+
+The M2 tests pass. Next I'm reverting two of the claimed fixes, to confirm their tests go red without them.
+
+All three reverted fixes turn their tests red. Last, a quick check of the atlas and help-text changes.
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+All seven prior findings are fixed, and the M2 fixes hold up when tested by reverting them. I reverted three of them in the checkout and each one's test went red:
+
+- the fold's nil dereference on a conflicting final with no start (`FuzzTrainMeasurementAggregate` panics);
+- the guard that stops a reused saved pass counting as a run (`TestMeasurementIgnoresUntestedPassesAndReusedRuns` fails);
+- the guard that stops a no-suite pass resolving a boarding (the same test fails).
+
+Build passes. The `landingline` package tests pass. The M2 tests in `cmd/sdlc` pass (172s): measurement, weekly, status, `TestSuiteRunKind`, `TestLandingTrainLandsDespiteLostMeasurements` and `TestLandingTrainLandsEveryCarOnOneSuite`. A broader `cmd/sdlc` run hit Go's default 10-minute timeout while inside `TestLandingDropReformsRealTrain`. Run alone, that test passes in 36s, so the timeout came from total run time, not a hang. Even so, I did not see a full green `cmd/sdlc` run, which is why confidence is medium. Nothing blocks shipping. I'm raising one new Minor item.
+
+1. **Strengths**
+   - `suiteRunKind` (`cmd/sdlc/landingtrain_metrics.go:81`) takes the run kind from the reducer state that emitted `RunSuite`, and `execute` and `runSuite` receive it as an argument. The old mutable `c.suiteKind` field is gone, so a stale kind can no longer reach a measurement.
+   - `FuzzTrainMeasurementAggregate` checks the one-pass fold against a simple reference fold that rescans every event. It already found a real nil dereference, and the crashing input is committed as a seed.
+   - `decodeMeasurement` now reads log payloads with the package's strict `decodeStrict`. It also rejects a missing `cars` field and any record kind other than start or final.
+   - `EncodeMeasurement`'s fallback for oversized records keeps the cars, which are already size-bounded. Their boardings still count, as unresolved, so they no longer disappear from the denominator.
+   - The status output, help text, README and weekly `train_filter` all come from the same `AggregateTrainMeasurements` and `FormatTrainFilterStats`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/sdlc/landingcmd.go:215-220`: the per-escape `escape: train …` lines and the "more escapes" overflow line in `sdlc landing status` are not checked by any test. `TestLandingStatusShowsTrainsAndReadiness` records an escape but only checks the summary line. This is the 2nd finding in the `derived-surface-untested` family; the rule is in the findings block below.
+
+5. **Test coverage notes**
+   - The planned "interrupted append" is tested as *every* append failing. A start that succeeds followed by a final that fails is only covered at the tracker level, not in a native train. That is acceptable.
+   - `DecodeReadiness` and `Vouch` keeping unknown fields is covered by example tests (`TestVouchProofBinding`), not by fuzzing. The proof codec underneath them is fuzzed, which covers the risk.
+   - The reference fold copies the implementation's classification order, so it checks consistency, not an independently stated rule.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** There is one fold and one formatter.
+   - **ARCH-PURE: pass.** `AdvanceMeasurement` and the fold are pure. The conductor only executes the append effects.
+   - **ARCH-PURPOSE: pass.** The escape rate, split cost and named escapes are delivered on status and weekly.
+   - **ARCH-MOCK: pass.** The tests use the native train fixture, and the append failure is injected at `recordMeasurement`.
+   - **ARCH-CONSTRAINTS: pass.** Records, cars and failures are capped, named escapes are capped at 20, and a test checks the work is linear.
+   - **ARCH-SECURE: pass.** Hand-editable payloads are decoded strictly, and a bad payload marks the train as incomplete rather than fabricating data.
+   - **ARCH-ORDER: pass.** The tracker is the only place state changes, and the random-sequence test covers it.
+   - **ARCH-FUNERAL: pass.** Measurements use the existing 30-day log sweep, and each record is capped.
+   - **ARCH-EVOLVE: pass.** `train_filter`, `open` and `escapes` are optional additions, and old snapshots without them read as unmeasured.
+   - **Watch item:** a train whose conductor died stays "open" for good, including in frozen weekly snapshots. The plan revision and help text document this. If it turns out to be misleading, a later version could mark a train as abandoned once it is older than its interval.
+
+7. **Plan revisions:** none beyond the 2026-10-23 entry already added.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      README.md:729-738 now names the seven-day filter line, coverage counts, named escapes and the weekly train_filter.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      FuzzBoardingProof and FuzzTrainMeasurementAggregate against referenceTrainCounts added; the fold's nil-deref fix goes red when reverted; TestLandingTrainLandsDespiteLostMeasurements runs a native train with every append failing.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Plan Revisions entry dated 2026-10-23 records BoardingProof/AcceptedProof/carryProof in trainmetrics.go and assessSplit unchanged; matches code.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      TrainFilterStats.Open separates a start with no final and no terminal event from incomplete; shown in the status line and help.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Fold names up to MaxNamedEscapes with tests; status prints each escape (landingcmd.go:215); weekly JSON carries escapes.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      decodeMeasurement uses decodeStrict at the top level (duplicate or null members rejected) and requires cars and a known record kind.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Kind passed explicitly via suiteRunKind (TestSuiteRunKind); reused pass skipped in measureExecution; reverting the guard fails TestMeasurementIgnoresUntestedPassesAndReusedRuns.
+findings:
+  - id: new
+    severity: Minor
+    family: derived-surface-untested
+    title: |
+      Status escape and overflow lines are not checked by any test
+    detail: |
+      2nd finding in family derived-surface-untested. Rule: every line a human surface renders from a fold field needs a test asserting that line, not just the fold. landingcmd.go:215-220 prints the escape and overflow lines, but TestLandingStatusShowsTrainsAndReadiness only checks the summary text.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"75fc43c6-e0a7-483f-b7c0-f004acb62ab8","repository":"github.com/xianxu/ariadne","issue_id":"000561","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/cd706fe8d90917a4","reviewed_head":"d3bbe8a5aba0e7b08481ff7e168c6d91857b77a8","slot":"ariadne:2","requested_at":"2026-10-23T09:24:48.314599Z"},"phase":"finished","pid":4226,"started_at":"2026-10-23T09:24:48.465305Z","finished_at":"2026-10-23T09:40:26.534751Z","session_id":"3ae39a16-55de-45c7-a26d-d2cfb5e6a787","outcome":"returned"}] -->
