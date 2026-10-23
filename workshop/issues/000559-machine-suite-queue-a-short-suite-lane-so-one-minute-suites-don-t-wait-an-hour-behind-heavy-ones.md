@@ -72,5 +72,9 @@ Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-o
 - Implemented in four commits (eligibility, helper light line, local-check lane wiring, status and atlas). Targeted runs pass, plus the helper's 16 lane checks (sharing the ticket directory makes them fail). `TestQueueRealHelperPause` fails only in the agent sandbox (boot identity unreadable).
 - Heavy-impact bound (d): the recorded suite on 6c0e952e ran 951 s (shards 914/936/948 s) with a light load busy throughout: 31 back-to-back `go test ./pkg/...` runs of 21–42 s from start to finish. The bound is 1003 s, 10% over the 912 s median of ariadne's last 5 recorded suites, so it holds. The load ran un-niced (the agent sandbox denies setpriority), which is harsher than the lane's nice +10.
 - That suite failed on two tests. My new `TestSuiteQueueRealHelperShowsLightLane` polled with a fixed sleep, which the golint catalog refuses; it now waits on the helper's own wait line through `testfix.Watch` (ARCH-ORDER: wait on events, not time). `TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize` saw a transient `~/sh-thd-*` heredoc temp file appear in $HOME during its review window. That file wasn't from this change and was gone afterwards. Rerunning the recorded suite on the fixed head.
+- Close review round 1, REWORK.
+  - BR-1 (Critical): a typed-runner suite's light overrun hit strict-cleanup refusal, so it neither retried nor recorded. Fixed: such suites never ask for the lane. The test is mutation-verified: dropping the guard fails it.
+  - BR-2 (Important): plan drift. Recorded in a plan Revisions entry.
+  - Minors fixed: the stopped light run's log is kept as `<log>.light`; a retry error names the overrun; a test that a dead light waiter's ticket is pruned; a light run against the real helper.
 
 ### 2026-10-22

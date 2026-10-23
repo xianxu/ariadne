@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -113,5 +114,25 @@ func TestSuiteAttemptLaneFieldsRoundTrip(t *testing.T) {
 		if _, err := decodeSuiteAttempt([]byte(bad)); err == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+}
+
+// A retry that cannot run still names the overrun that led to it, since no
+// attempt records it.
+func TestRunSuiteLanesRetryErrorNamesTheOverrun(t *testing.T) {
+	interrupted := errors.New("interrupted")
+	var lanes []string
+	_, overrun, err := runSuiteLanes(true, &bytes.Buffer{}, func(lane string) (suiteSlotRun, error) {
+		lanes = append(lanes, lane)
+		if lane == suiteLaneLight {
+			return suiteSlotRun{LaneOverrun: true, TimedOut: true, Duration: 240 * time.Second}, nil
+		}
+		return suiteSlotRun{}, interrupted
+	})
+	if !errors.Is(err, interrupted) || !strings.Contains(err.Error(), "stopped the suite at 240s") || overrun == nil || *overrun != 240 {
+		t.Fatalf("err=%v overrun=%v", err, overrun)
+	}
+	if strings.Join(lanes, ",") != "light," {
+		t.Fatalf("lanes tried: %q", lanes)
 	}
 }

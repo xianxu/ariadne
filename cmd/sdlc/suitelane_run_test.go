@@ -78,7 +78,7 @@ func TestRunLocalCheckLightOverrunRetriesInNormalLine(t *testing.T) {
 	tried := filepath.Join(scratch, "tried")
 	// The first (light) run outlasts the bound; the retry finds the marker and
 	// passes at once.
-	script := fmt.Sprintf(`if [ -f %[1]q ]; then echo retried; exit 0; fi; touch %[1]q; sleep 30`, tried)
+	script := fmt.Sprintf(`if [ -f %[1]q ]; then echo retried; exit 0; fi; touch %[1]q; echo stopped-run; sleep 30`, tried)
 	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"sh", "-c", script}, TimeoutMinutes: 30}, sha)
 	if err != nil || !rec.passed() || gh.statuses[sha]["sdlc-local/suite"] != "success" {
 		t.Fatalf("retry did not pass and record: %+v %v %v\n%s", rec, err, gh.statuses[sha], stderr)
@@ -111,6 +111,38 @@ func TestRunLocalCheckLightOverrunRetriesInNormalLine(t *testing.T) {
 	}
 	if e := laneEligibility(rows, d.Repo); e.Eligible || !strings.Contains(e.Reason, "stopped at") {
 		t.Fatalf("the overrun left the repo eligible: %+v", e)
+	}
+	// The retry's log does not overwrite the stopped light run's.
+	kept, _ := filepath.Glob(filepath.Join(filepath.Dir(filepath.Dir(rec.LogPath)), "*", "*.light"))
+	if len(kept) != 1 {
+		t.Fatalf("the light run's log was not kept: %q", kept)
+	}
+	if b, err := os.ReadFile(kept[0]); err != nil || !strings.Contains(string(b), "stopped-run") {
+		t.Fatalf("kept light log: %q %v", b, err)
+	}
+}
+
+// A typed-runner suite's strict cleanup cannot confirm a run the light
+// deadline stopped, so it never asks for the lane, however short it measures.
+func TestLightLaneForSkipsTypedRunnerSuites(t *testing.T) {
+	d, _, _, stderr := localRunRepo(t, "acquired")
+	laneHelper(t, d, true)
+	seedSuiteAttempts(t, d, 3, 60)
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	helper, err := prepareSuiteHelper(context.Background(), d.Root, d.WorkflowAnchor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	suite := localCheck{Name: "suite", Command: []string{"true"}}
+	if !d.lightLaneFor(context.Background(), suite, d.Root, helper, suiteStoreRoot(logDir)) {
+		t.Fatalf("an untyped short suite should ask for the lane:\n%s", stderr)
+	}
+	d.flakeContract = strings.Repeat("a", 64)
+	if d.lightLaneFor(context.Background(), suite, d.Root, helper, suiteStoreRoot(logDir)) {
+		t.Fatal("a typed-runner suite asked for the light lane")
 	}
 }
 
@@ -154,6 +186,29 @@ func TestRunLocalCheckLightLaneChoice(t *testing.T) {
 		if len(calls) != 1 || strings.Contains(calls[0], "--lane") || a == nil || a.Lane != "" || !strings.Contains(stderr, "has no --lane; using the normal line") {
 			t.Fatalf("%q %+v\n%s", calls, a, stderr)
 		}
+	})
+	t.Run("the real helper grants the light slot", func(t *testing.T) {
+		d, sha, _, stderr := localRunRepo(t, "acquired")
+		real, err := os.ReadFile(filepath.Join("..", "..", "scripts", "test-lock.py"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d.Root, "scripts", "test-lock.py"), real, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("WF_TEST_LOCK_FILE", filepath.Join(t.TempDir(), "suite.lock"))
+		seedSuiteAttempts(t, d, 3, 60)
+		rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "suite", Command: []string{"true"}, TimeoutMinutes: 30}, sha)
+		if err != nil || !rec.passed() {
+			t.Fatalf("%+v %v\n%s", rec, err, stderr)
+		}
+		rows, _, _ := readSuiteAttempts(filepath.Join(d.Root, ".git", "sdlc", "test-stats"), 100)
+		for _, a := range rows {
+			if a.SHA == sha && a.Lane == suiteLaneLight {
+				return
+			}
+		}
+		t.Fatalf("no light attempt recorded:\n%s", stderr)
 	})
 	t.Run("other checks never ask", func(t *testing.T) {
 		_, calls, _ := run(t, 3, 60, true, "lint")

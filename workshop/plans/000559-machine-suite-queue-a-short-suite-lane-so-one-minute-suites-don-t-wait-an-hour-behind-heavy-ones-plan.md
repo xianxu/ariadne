@@ -245,3 +245,8 @@ The state lives inside one local-check run; it is in memory and dies with the ru
 ## Revisions
 
 - 2026-10-23: TL approved scope choices (a)–(e) as written; Task 5's atlas update must state that the lane adds a third concurrent run beyond `WF_TEST_SUITES=2`, bounded to light suites.
+- 2026-10-23 (close review round 1, BR-1 and BR-2): what was built differs from the text above in four places.
+  - The overrun is evidence on the attempt that retried it: `lane_overrun_seconds`, beside `lane`. There is no separate light attempt and no `lane_overrun` outcome (ARCH-EVOLVE: no new outcome value). Eligibility reads the field, so an overrun still takes the repo out of the lane by measurement. The stopped light run's log is kept beside the retry's, as `<log>.light`. A retry that cannot run names the overrun in its error.
+  - The capability probe reads `--lane` in the helper's `acquire --help`, through the same `probeHelperHelp` grammar as the other options (`helperSupportsLane`). There is no `lane-v1` token. The inspect `lane` object carries `version` for the status view.
+  - The eligibility function is `laneEligibility`, returning `suiteLaneEligibility`.
+  - Typed-runner suites (local-checks v3 with flake runners, `StrictGroupCleanup`) never ask for the lane. Their strict cleanup cannot confirm a run that the light deadline stopped, so an overrun could be neither retried nor recorded. No repo declares typed runners today: echo is on v1, pair on v2, ariadne on v1.

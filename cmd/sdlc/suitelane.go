@@ -123,6 +123,9 @@ func runSuiteLanes(light bool, stderr io.Writer, run func(lane string) (suiteSlo
 		}
 		r, err := run(lane)
 		if err != nil {
+			if overrun != nil {
+				err = fmt.Errorf("after the light lane stopped the suite at %.0fs: %w", *overrun, err)
+			}
 			return r, overrun, err // cancelled or could not run: nothing more to try
 		}
 		if state, err = nextSuiteLaneStep(state, laneAcquired); err != nil {

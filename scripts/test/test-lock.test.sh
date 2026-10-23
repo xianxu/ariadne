@@ -235,6 +235,12 @@ check "lane: the heavy waiter is still waiting only for the normal slots" 'kill 
 release $lh; wait $whw
 check "lane: the heavy waiter takes both normal slots while the light slot is held" '[ "$(cat "$tmp/hw.out")" = acquired ] && kill -0 $lc'
 check "lane: the light line leaves no ticket behind" '[ "$(light_tickets)" = 0 ]'
+sleep 60 & ld=$!; sleep 60 & le=$!
+python3 scripts/test-lock.py acquire --watch $ld --lane light >/dev/null 2>&1 & wld=$!; await_light 1
+kill -9 $wld; wait $wld 2>/dev/null
+python3 scripts/test-lock.py acquire --watch $le --lane light >"$tmp/le.out" 2>"$tmp/le.err" & wle=$!; sleep 1.5
+check "lane: a dead light waiter's ticket is pruned, and the next heads the line" '[ "$(light_tickets)" = 1 ] && grep -q "position 1 in line: next to run" "$tmp/le.err"'
+kill $wle; wait $wle 2>/dev/null; kill $ld $le
 check "lane: an unknown lane is refused" '! python3 scripts/test-lock.py acquire --watch $ln --lane heavy >/dev/null 2>&1'
 release $lc; release $hw; kill $ln
 
