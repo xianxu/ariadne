@@ -1,13 +1,13 @@
 ---
 id: 000575
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '4ef3e7eeffe1e4033062400878941320b13b2020' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2332a1cac1bb476596f9a36c48bee82d2b95491b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T11:52:48-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.37
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
