@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "96f72894", done: "43ce81e8"}
 ---
 
 # Inside-checkout reviewer TMPDIR lands inside the reviewed tree; use a fenced sibling outside the checkout
