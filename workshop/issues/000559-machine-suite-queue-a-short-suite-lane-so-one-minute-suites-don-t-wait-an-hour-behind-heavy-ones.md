@@ -1,13 +1,21 @@
 ---
 id: 000559
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'de9e1f4444edbc94113977091b4658a4bc1f6c9d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd0d3e0926b6c457b8f61b47a7d48ae20cfbf50d4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T06:42:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Machine suite queue: a short-suite lane so one-minute suites don't wait an hour behind heavy ones
@@ -46,8 +54,18 @@ suite, niced) not to slow a running heavy suite measurably; measure that, don't 
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000559-machine-suite-queue-a-short-suite-lane-so-one-minute-suites-don-t-wait-an-hour-behind-heavy-ones-plan.md` (scope choices a–e await TL approval).
+
+- [ ] Eligibility (pure) and the attempt `lane` field
+- [ ] Helper light line (`--lane light`, `light_order`, `lane-v1`, inspect `lane`)
+- [ ] Capability probe and lane-aware acquisition
+- [ ] Run order and overrun requeue
+- [ ] Status and atlas
+- [ ] Verification: targeted tests, recorded suite, heavy-impact measurement
 
 ## Log
+
+### 2026-10-23
+- Claimed and planned (ariadne:5). Measured: echo's recorded suites run 61–88 s and queued 2000–4480 s today; ariadne holds 445 attempt records.
 
 ### 2026-10-22
