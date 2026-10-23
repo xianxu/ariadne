@@ -1,13 +1,13 @@
 ---
 id: 000561
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours: 4.46
 collaboration-mode: collaboration
-card_mirror: '28881f06522dad33442dc98746c0e324f65405a8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e0a3364cd9f94f0ae8673812a2bb2efae338ab67' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T00:12:42-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.18
 ---
 
 # Landing trains: cars board on affected tests; full suite once per train; measure escapes and bisect cost
