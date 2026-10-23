@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6359504e", done: "8c7cc7bf"}
 ---
 
 # unified-editorial-interface: spec the three uniform mode keys, per-section heading comments and single-value frontmatter
