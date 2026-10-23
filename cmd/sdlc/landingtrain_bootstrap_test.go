@@ -58,7 +58,7 @@ func TestTrainBootstrapDerivesEachExactPrefix(t *testing.T) {
 		return localRunRecord{SHA: head, Exit: 0}, nil
 	}
 	for _, k := range []int{3, 2, 3} {
-		ev, err := c.runSuite(k)
+		ev, err := c.runSuite(k, landingline.ExecInitial)
 		if err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuitePass {
 			t.Fatalf("prefix %d: %v %v", k, ev, err)
 		}
@@ -71,7 +71,7 @@ func TestTrainBootstrapDerivesEachExactPrefix(t *testing.T) {
 			t.Fatalf("prefix policy %d: %+v", i, got[i])
 		}
 	}
-	if ev, err := c.runSuite(1); err == nil || !strings.Contains(err.Error(), "unverified") || ev != nil {
+	if ev, err := c.runSuite(1, landingline.ExecInitial); err == nil || !strings.Contains(err.Error(), "unverified") || ev != nil {
 		t.Fatalf("absent target virtually passed: %v %v", ev, err)
 	}
 	if len(heads) != 3 || c.suiteReady[1] {
@@ -86,7 +86,7 @@ func TestTrainBootstrapFailureCannotInventMainBaseline(t *testing.T) {
 	c.run = func(_ context.Context, _ localCheck, subject string) (localRunRecord, error) {
 		return splitRecord(t, subject, "bootstrap failed\n", 1), nil
 	}
-	ev, err := c.runSuite(1)
+	ev, err := c.runSuite(1, landingline.ExecInitial)
 	if err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuiteFail {
 		t.Fatalf("bootstrap failure %v %v", ev, err)
 	}
@@ -123,7 +123,7 @@ func TestTrainBootstrapRecordsNativeExactHead(t *testing.T) {
 	gh := c.local.GH.(*ciFakeGH)
 	gh.setHead(9, head)
 	c.heads = []string{head}
-	ev, err := c.runSuite(1)
+	ev, err := c.runSuite(1, landingline.ExecInitial)
 	if err != nil || ev.(landingline.SuiteDone).Outcome != landingline.SuitePass {
 		t.Fatalf("native bootstrap: %v %v", ev, err)
 	}

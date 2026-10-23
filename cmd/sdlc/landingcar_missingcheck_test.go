@@ -35,9 +35,9 @@ func TestCarMissingCheckStopsRetainedWait(t *testing.T) {
 			target.RepoIdentity = "github.com/test/repo"
 			calls := 0
 			gates := passGates()
-			gates.ci = func(context.Context, landingPR) error {
+			gates.ci = ciGate(func(context.Context, landingPR) error {
 				return fmt.Errorf("wrapped: %w", (ciVerdict{Reason: ciLocalNeeded, LocalNeeded: []string{affectedCheckName}}).refusal(535))
-			}
+			})
 			readiness := func(ctx context.Context) (landingline.Readiness, bool, error) {
 				calls++
 				if calls > 1 {
@@ -50,7 +50,7 @@ func TestCarMissingCheckStopsRetainedWait(t *testing.T) {
 			if turn != nil {
 				turn.leave(errors.New("unexpected admission"))
 			}
-			if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected, then re-enter sdlc merge") || calls != 1 {
+			if err == nil || !strings.Contains(err.Error(), "merge stopped: run sdlc local-check run --name affected --boarding, then re-enter sdlc merge") || calls != 1 {
 				t.Fatalf("calls=%d turn=%v err=%v", calls, turn, err)
 			}
 			if head, waiting, err := line.Status(); err != nil || head == nil || head.Seq != held.Ticket().Seq || len(waiting) != 0 {
@@ -190,10 +190,10 @@ func TestCarMissingCheckNamesStayOnePass(t *testing.T) {
 				names[i] = fmt.Sprintf("check-%02d", i)
 			}
 			probes := 0
-			gates.ci = func(context.Context, landingPR) error {
+			gates.ci = ciGate(func(context.Context, landingPR) error {
 				probes++
 				return (ciVerdict{Reason: ciPending, LocalNeeded: names}).refusal(1)
-			}
+			})
 			_, _, err := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, gates, landingNow())
 			if err == nil || probes != 1 {
 				t.Fatalf("probes=%d err=%v", probes, err)

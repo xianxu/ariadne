@@ -18,7 +18,7 @@ import (
 // tree like the local-check declaration: a branch never sets its own train.
 // It sits under .sdlc/, which local-gates-guard protects, because the
 // interval decides how often the authoritative suite runs.
-const landingConfigPath = ".sdlc/landing.json"
+const landingConfigPath = landingline.ConfigPath
 
 // landingConfig is the file's shape. Absent, or an interval of 0, is the
 // serial line of #393. Unknown members are ignored: sdlc only reads this file.

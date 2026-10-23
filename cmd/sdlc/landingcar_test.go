@@ -22,10 +22,15 @@ func TestParseLandingConfig(t *testing.T) {
 		cars     int
 		err      string
 	}{
-		{`{}`, 0, landingline.DefaultMaxCars, ""},
-		{`{"train_interval_minutes": 0}`, 0, landingline.DefaultMaxCars, ""},
+		// #561: an omitted cap is the literal onboarding default, two; an
+		// explicit cap, even above it, is the repo's own decision and stays.
+		{`{}`, 0, 2, ""},
+		{`{"train_interval_minutes": 0}`, 0, 2, ""},
+		{`{"train_interval_minutes": 60}`, time.Hour, 2, ""},
 		{`{"train_interval_minutes": 60, "train_max_cars": 4}`, time.Hour, 4, ""},
-		{`{"train_interval_minutes": 60, "a_later_key": {"x": 1}}`, time.Hour, landingline.DefaultMaxCars, ""},
+		{`{"train_interval_minutes": 60, "train_max_cars": 8}`, time.Hour, 8, ""},
+		{`{"train_interval_minutes": 60, "train_max_cars": 1}`, time.Hour, 1, ""},
+		{`{"train_interval_minutes": 60, "a_later_key": {"x": 1}}`, time.Hour, 2, ""},
 		{`{"train_interval_minutes": -1}`, 0, 0, "outside 0..1440"},
 		{`{"train_interval_minutes": 1441}`, 0, 0, "outside 0..1440"},
 		{`{"train_max_cars": 0}`, 0, 0, "outside 1..16"},
@@ -178,7 +183,12 @@ func carFixture(t *testing.T) (landingTarget, *landingFakeGH, string) {
 
 func passGates() carGates {
 	ok := func(context.Context, landingPR) error { return nil }
-	return carGates{publish: ok, ci: ok}
+	return carGates{publish: ok, ci: ciGate(ok)}
+}
+
+// ciGate adapts an error-only CI gate double to carGates.ci (no proof).
+func ciGate(f func(context.Context, landingPR) error) func(context.Context, landingPR) (*landingline.BoardingProof, error) {
+	return func(ctx context.Context, pr landingPR) (*landingline.BoardingProof, error) { return nil, f(ctx, pr) }
 }
 
 func TestCarReadiness(t *testing.T) {
@@ -215,7 +225,7 @@ func TestCarReadiness(t *testing.T) {
 		target, gh, _ := carFixture(t)
 		for name, g := range map[string]carGates{
 			"publish gate": {publish: func(context.Context, landingPR) error { return errors.New("HEAD moved since review\nmore") }, ci: passGates().ci},
-			"CI gate":      {publish: passGates().publish, ci: func(context.Context, landingPR) error { return errors.New("needs recorded local checks: suite") }},
+			"CI gate":      {publish: passGates().publish, ci: ciGate(func(context.Context, landingPR) error { return errors.New("needs recorded local checks: suite") })},
 		} {
 			r, _, _ := carReadiness(context.Background(), execGitRunner{}, gh, target, landingTestBranch, g, now)
 			if r.Ready || !strings.HasPrefix(r.Reason, name) || strings.Contains(r.Reason, "\n") {

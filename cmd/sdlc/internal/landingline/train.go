@@ -32,8 +32,11 @@ type Waiters struct {
 	OldestSince time.Time
 }
 
-// DefaultMaxCars bounds one train; a log2 bisect of 8 costs at most 3 suites.
-const DefaultMaxCars = 8
+// DefaultMaxCars bounds one train whose repository sets no train_max_cars:
+// every adopter starts with two cars, so a failing train splits once and an
+// escape is cheap to attribute (#561). Raising it is the manual, measured
+// decision FormatTrainRampPolicy states; an explicit cap is never changed.
+const DefaultMaxCars = 2
 
 // MaxReadinessAge is how long a car's vouch stays current. A waiting car
 // re-vouches on every poll that its gates still hold; one older than this is
@@ -192,6 +195,10 @@ type Readiness struct {
 	// mismatch marks that Since stale: it is trusted only on a vouch written
 	// by an sdlc that maintains it (#475).
 	SinceStamp time.Time `json:"since_stamp,omitzero"`
+	// Proof is the record that satisfied the car's CI gate (#561), for train
+	// measurements only: AcceptedProof trusts it only when bound to this
+	// vouch, and it never decides readiness.
+	Proof *BoardingProof `json:"proof,omitempty"`
 	// Extra holds members a later sdlc wrote that this one doesn't know.
 	// They survive a rewrite of the same ticket's vouch (ARCH-EVOLVE).
 	Extra map[string]json.RawMessage `json:"-"`
@@ -202,6 +209,7 @@ func readinessFields(r *Readiness) map[string]any {
 	return map[string]any{
 		"version": &r.Version, "seq": &r.Seq, "branch": &r.Branch, "head": &r.Head, "pr": &r.PR,
 		"ready": &r.Ready, "alone": &r.Alone, "reason": &r.Reason, "at": &r.At, "since": &r.Since, "since_stamp": &r.SinceStamp,
+		"proof": &r.Proof,
 	}
 }
 

@@ -330,6 +330,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	rec.Exit, rec.TimedOut, rec.Duration = run.Exit, run.TimedOut, run.Duration
 	start, finished, queueStart, queueAcquired, queueWait := run.Start, run.Finished, run.QueueStart, run.Acquired, run.QueueWait
+	rec.QueueWait, rec.Finished = queueWait, finished
+	if writer != nil {
+		rec.AttemptID = writer.ID
+	}
 	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
 		return rec, err
 	}

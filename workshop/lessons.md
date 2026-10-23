@@ -1572,6 +1572,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #560 BR-1: a helper can escape its caller's process-group cleanup by starting a provider in a new session. Test cancellation through the actual helper/provider tree, including descendants, rather than only a same-group substitute. A supervised child keeps descendants in the external owner's group; standalone queries keep their own cleanup. Moving a signal handler alone cannot protect against SIGKILL.
 
+- #561 suite: never pipe, redirect or prefix an `sdlc` (or `couch`) call, not even `| tail`. The whole-call form is what matches the sandbox exemption; a piped `sdlc local-check run --name suite` ran sandboxed, every failure was operation-not-permitted, and the bogus failed attempt blocked recording the clean rerun on that head (no honest flake, so it cost a new head and a second suite). Read long output from the background task's output file instead.
 - #562 BR-1/BR-2: A shared prompt contract changes through its full composition: canonical prose, action tables, exported grammar, hosted adapters and rendered consumer help. Sweep all active creation instructions and the validator they reach; keep legacy fixtures distinct. Preservation examples must start with each independently owned field already set, including instructions, rather than proving only that absent fields receive defaults.
 - #563: a newly built CLI can call a legitimately older helper selected by a consumer's pinned workflow. Keep optional observation capability separate from admission; preserve the resolved supplier and bounded stderr, and never replace its scheduler to invent support or policy. Captured-reply replay plus an acquire-only supplier control defend this semantic compatibility rule; exit status alone cannot establish a minimum version.
 - #566 BR-5: a permission or status check that reads one snapshot and a compare-and-swap write that re-reads the fresh tip are a check-then-act race even though each step is atomic. Pass the bytes the check judged into the write's prepare step and refuse a mismatch, so a rerun checks again; then enumerate every write that follows a check and state why each other one needs no pin.
@@ -1579,3 +1580,19 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #570: a shared projection in new code cannot impose agreement on an older running scheduler. Version metadata is evidence only for readers that recognize it. Gate new grants on a fresh compatible held-ticket snapshot, expose existing/later mixed-policy grant risks, and keep revoke independent of inspection. Native old/new flock admission with real private grant/revoke commands guards the temporal rollout contract; a lexical lint cannot prove cross-version agreement.
 - #571: scratch hidden from Git status can still be inside a project's marker ancestry. Keep reviewer scratch beside the checkout, under its existing lifetime lock; update reset, close and dead-owner sweep together. Assert real marker discovery and effective native temp paths, since Neovim can silently fall back on long paths. A clean status or a lexical temp-path rule alone cannot prove placement.
+
+- #567: a killed descendant can still appear as Darwin `?E` after its leader
+  and output pipes finish. A one-shot `ps stat=` snapshot is not a completion
+  barrier. Capture the private owned group before cancellation and wait on
+  `procgroup`'s terminal condition under the existing test deadline; resource
+  release still requires the resource's own proof. Let the executing child
+  publish readiness, join the fixture on failure, and keep a leader-only-kill
+  negative control. The test-ps-liveness Go catalog rule catches direct test
+  state queries, with explicit suppressions reserved for diagnostic captures.
+
+- #567 BR-1: a command-format lint must cover the dependency's literal field
+  grammar, not one spelling from the incident. Native ps accepts comma and
+  whitespace field separators, including attached -o/-O formats. Exercise the
+  whole format family through Command and CommandContext and both Check entry
+  points; normalize once in the shared predicate. This extends the same
+  test-ps-liveness catalog rule rather than adding a second guard.
