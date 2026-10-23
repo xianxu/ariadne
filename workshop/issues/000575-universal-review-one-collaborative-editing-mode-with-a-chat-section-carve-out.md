@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "87b18cbb", done: "e3ecd833"}
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
