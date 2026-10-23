@@ -47,7 +47,7 @@ confinement property.
 - [x] Move the inside confinement base to the deterministic sibling `<checkout>.sdlc-review`, derived by one pure helper. Keep the existing temp/bin/env layout, Git ceilings/shims, dependency environment and all protected paths. Remove the now-unneeded checkout ignore insertion. Outside-checkout dispatch remains unchanged.
 - [x] Bind sibling lifetime to the existing `<checkout>.lock`: checkout reset, close and dead-owner reclaim remove both trees; Sweep recognizes the sibling and consults that same owner lock rather than treating it as unowned debris. A live concurrent sweep preserves it. Retry removes prior scratch and recreates shims/env at the same path. Refuse a sibling symlink or non-directory before writing through it.
 - [x] Verify real filesystem ownership/reset/close/crash-sweep and confinement failures; run existing Git-shim, dependency-env and preparation/retry controls. Run a real fence probe proving sibling scratch writable while source/common Git remain protected. In a short disposable Parley clone, run both supported mappings with the actual derived TMPDIR: `make test-spec SPEC=infra/config` and `make test-spec SPEC=infra/test_harness`; require scratch outside the clone, no fallback, and clean Git status. Save raw command/output bound to source revisions.
-- [ ] Update atlas/help comments and prevention lesson, publish the pushed head, run its declared affected check (suite if required), close through the binary-owned review and merge on SHIP. Confirm the owner-run disposable probe satisfies live conformance with the hub; do not stage on :0 without that approval.
+- [x] Update atlas/help comments and prevention lesson, publish the pushed head, run its declared affected check (suite if required), close through the binary-owned review and merge on SHIP. Confirm the owner-run disposable probe satisfies live conformance with the hub; do not stage on :0 without that approval.
 
 Design: reuse the existing checkout lock as the single lifetime owner (ARCH-DRY/ORDER/FUNERAL). A fresh random sibling with no shared lock would be swept while live; putting checkout and scratch in a new enclosing container would change every clone path. The deterministic companion is the narrower correction. No new journal, lock type, metadata format, environment flag or fence allowance is introduced. The current OS fence denies protected source/common-Git paths and already permits this sibling; it is not an allowlist limited to the checkout.
 
@@ -101,6 +101,12 @@ Focused race controls PASS: reviewbox3.715s, judge6.378s. Go lint catalog PASS0.
 ### 2026-10-23 — text-only evidence publication
 
 The asset attach verb refused this repository's text-only policy before copying anything. Preserved the host evidence as an ordinary linked Markdown document under workshop/plans instead; no asset-policy change or attachment bypass. The committed text carries metadata and the unchanged raw combined output for independent review.
+
+### 2026-10-23 — final head published; recorded suite retained
+
+PR409 is open on source `e44b9bbb0aa6caaa598168aedbd15fe4ba123916`. Exactly one recorded suite is retained: terminal68032, lease-970537564, attemptda762f03dc128f47005122d50a07b374; log `.git/sdlc/test-stats/inflight/da762f03dc128f47005122d50a07b374/run.log`. Initial FIFO position5, held by ariadne:5. Keep this runner; no duplicate or restart. All implementation/checklist preparation is complete; the binary-owned close and final suite/merge gates remain outstanding.
+
+The worker contract permits boundary review to overlap this queued suite, provided a pass on the final source still precedes landing and any code correction gets fresh verification. Run close with the focused/race/native evidence above; do not claim a recorded PASS until this retained runner returns it. On SHIP plus green, merge promptly and notify hub for provider rollout, then Parley owner for #422. This Log-only checkpoint does not alter the suite source.
 
 ## Revisions
 
