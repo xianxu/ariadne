@@ -7,6 +7,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 const LedgerRowLimit = 16 << 10
@@ -34,6 +35,10 @@ type TLDecision struct {
 }
 
 type Measurements struct {
+	// Empty/omitted validity means unverified for legacy records. Keep it
+	// omitted on rewrite so additive diagnostics do not reclassify old rows.
+	Validity          string                     `json:"validity,omitempty"`
+	ValidityIssues    []string                   `json:"validity_issues,omitempty"`
 	ActiveHours       *float64                   `json:"active_hours"`
 	GrossNanos        int64                      `json:"gross_nanos"`
 	OperatorWaitNanos int64                      `json:"operator_wait_nanos"`
@@ -149,6 +154,9 @@ func BuildRow(task Task, run Run, m Measurements, a Acceptance, rawDigest string
 	if run.Candidate() != "" {
 		outcome = "would-land"
 	}
+	if m.Validity == "invalid" {
+		outcome = "invalid"
+	}
 	row := LedgerRow{Version: 1, CorpusVersion: task.CorpusVersion, Repo: task.Repo, TaskID: task.ID, Type: task.Type, Repeat: task.Repeat, RunID: run.ID(), ParentOID: task.ParentOID, LandingOID: task.LandingOID, OriginalIssueOID: task.OriginalIssueOID, Candidate: run.Candidate(), Outcome: outcome, Worker: task.Worker, TL: task.TL, Reviewer: task.Reviewer, OriginalHours: task.OriginalHours, Measurements: m, Acceptance: a, RawDigest: rawDigest, Synthetic: synthetic}
 	if err := ValidateLedgerRow(row); err != nil {
 		return LedgerRow{}, err
@@ -223,6 +231,21 @@ func validResultIDs(ids []string) error {
 }
 
 func validateMeasurements(m Measurements) error {
+	if m.Validity != "" && m.Validity != "unverified" && m.Validity != "valid" && m.Validity != "invalid" {
+		return fmt.Errorf("unknown measurement validity")
+	}
+	if m.Validity == "invalid" && len(m.ValidityIssues) == 0 || m.Validity == "valid" && len(m.ValidityIssues) != 0 {
+		return fmt.Errorf("measurement validity disagrees with diagnostic issues")
+	}
+	if len(m.ValidityIssues) > 2000 {
+		return fmt.Errorf("too many validity diagnostic issues")
+	}
+	for _, issue := range m.ValidityIssues {
+		source, reason, labelled := strings.Cut(issue, ":")
+		if !labelled || strings.TrimSpace(source) == "" || len(source) > 256 || strings.TrimSpace(reason) == "" || !boundedResultText(issue, 4096) || !utf8.ValidString(issue) {
+			return fmt.Errorf("validity issue needs a bounded source label and reason")
+		}
+	}
 	if m.ActiveHours != nil && (math.IsNaN(*m.ActiveHours) || math.IsInf(*m.ActiveHours, 0) || *m.ActiveHours < 0) {
 		return fmt.Errorf("invalid active hours")
 	}
@@ -334,7 +357,16 @@ func ValidateLedgerRow(r LedgerRow) error {
 	if math.IsNaN(r.OriginalHours) || math.IsInf(r.OriginalHours, 0) || r.OriginalHours <= 0 {
 		return fmt.Errorf("invalid original measured hours")
 	}
-	if r.Outcome == "would-land" {
+	if r.Outcome == "invalid" {
+		if r.Measurements.Validity != "invalid" || r.Acceptance.Status != "unavailable" {
+			return fmt.Errorf("invalid run requires explicit diagnostic validity and unavailable acceptance")
+		}
+		if r.Candidate != "" && (!objectID.MatchString(r.Candidate) || len(r.Candidate) != len(r.ParentOID)) {
+			return fmt.Errorf("invalid run candidate must retain an exact object pin")
+		}
+	} else if r.Measurements.Validity == "invalid" {
+		return fmt.Errorf("invalid measurements cannot claim would-land or stopped outcome")
+	} else if r.Outcome == "would-land" {
 		if !objectID.MatchString(r.Candidate) || len(r.Candidate) != len(r.ParentOID) {
 			return fmt.Errorf("would-land row requires admitted candidate pin")
 		}
@@ -466,14 +498,28 @@ func (v *TLDecision) UnmarshalJSON(raw []byte) error {
 
 func (v Measurements) MarshalJSON() ([]byte, error) {
 	type plain Measurements
+	// omitempty removes absent new fields from plain's JSON. They remain known
+	// schema members and cannot be supplied through an extension map instead.
+	for key := range v.Unknown {
+		if strings.EqualFold(key, "validity") || strings.EqualFold(key, "validity_issues") {
+			return nil, fmt.Errorf("extension shadows field %q", key)
+		}
+	}
 	return encodeObject(plain(v), v.Unknown)
 }
 func (v *Measurements) UnmarshalJSON(raw []byte) error {
 	type plain Measurements
 	var p plain
-	u, err := resultObject(raw, &p, []string{"active_hours", "gross_nanos", "operator_wait_nanos", "autonomous", "worker", "tl", "reviewer", "gate_refusals", "review_rounds", "review_findings", "gate_refusal_ids", "review_ids", "review_finding_ids", "decisions", "leaks"}, []string{"active_hours", "gate_refusals", "review_rounds", "review_findings", "gate_refusal_ids", "review_ids", "review_finding_ids", "decisions"}, nil)
+	u, err := resultObject(raw, &p, []string{"active_hours", "gross_nanos", "operator_wait_nanos", "autonomous", "worker", "tl", "reviewer", "gate_refusals", "review_rounds", "review_findings", "gate_refusal_ids", "review_ids", "review_finding_ids", "decisions", "leaks", "validity", "validity_issues"}, []string{"active_hours", "gate_refusals", "review_rounds", "review_findings", "gate_refusal_ids", "review_ids", "review_finding_ids", "decisions"}, []string{"validity", "validity_issues"})
 	if err != nil {
 		return err
+	}
+	var members map[string]json.RawMessage
+	if err = json.Unmarshal(raw, &members); err != nil {
+		return err
+	}
+	if value, present := members["validity"]; present && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		return fmt.Errorf("validity must be a string when present")
 	}
 	p.Unknown = u
 	if err = validateMeasurements(Measurements(p)); err != nil {

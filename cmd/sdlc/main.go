@@ -180,6 +180,7 @@ func buildRoot() *cobra.Command {
 	add(newTrunkCmd(), "", "Publish selected non-issue workshop prose to main")
 	add(NewProjectCmd(), "project", "Create + manage projects (new / list / show / set-status / validate)")
 	add(NewUsageCmd(), "usage", "Report local tokens, fleet burn and issue cost")
+	add(NewBenchCmd(), "", "Prepare, observe and score a pinned model replay")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")
 	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")

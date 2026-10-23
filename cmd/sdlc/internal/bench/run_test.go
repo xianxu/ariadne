@@ -40,6 +40,38 @@ func runningRun(t *testing.T) Run {
 	r, _ = apply(t, r, DispatchConfirmed, "dispatch")
 	return r
 }
+
+func TestBenchPreparedRunCanStopWithoutInventingRuntimeBindings(t *testing.T) {
+	r := preparedRun(t)
+	n, effects, err := Step(r, Event{ID: "cancel-before-dispatch", RunID: r.ID(), Kind: Stop, OperationID: "cancel", Reason: "no dispatch authorized; prepared roots independently retired"})
+	if err != nil || len(effects) != 0 || n.Phase() != PhaseStopped || !n.RuntimeStopped() {
+		t.Fatalf("prepared cancellation: %s quiet=%t %v %v", n.Phase(), n.RuntimeStopped(), effects, err)
+	}
+	h, w := n.Bindings()
+	if h != (RuntimeIdentity{}) || w != (RuntimeIdentity{}) {
+		t.Fatal("unlaunched cancellation invented actors")
+	}
+}
+
+func TestBenchUnavailableAcceptanceIsTerminalForRun(t *testing.T) {
+	r := runningRun(t)
+	r, _ = apply(t, r, ProposeWouldLand, "proof")
+	h, w := identities()
+	var err error
+	r, _, err = Step(r, Event{ID: "accepted", RunID: r.ID(), Kind: ProofAccepted, OperationID: "proof", Hub: h, Worker: w, Facts: admittedFacts()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range []struct {
+		kind EventKind
+		op   string
+	}{{BeginCancel, "cancel"}, {CancelConfirmed, "cancel"}, {BeginScore, "score"}, {ScoreUnavailable, "score"}} {
+		r, _ = apply(t, r, e.kind, e.op)
+	}
+	if _, fx, err := Step(r, Event{ID: "score-again", RunID: r.ID(), Kind: BeginScore, OperationID: "new-score", Hub: h, Worker: w}); err == nil || len(fx) != 0 {
+		t.Fatal("confirmed unavailable acceptance was re-executed")
+	}
+}
 func TestBenchUnknownDeliveryNeverRedispatches(t *testing.T) {
 	r := preparedRun(t)
 	r, e := apply(t, r, BeginDispatch, "dispatch")

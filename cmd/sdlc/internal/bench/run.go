@@ -226,6 +226,14 @@ func Step(r Run, e Event) (Run, []Effect, error) {
 			n.phase = PhaseWouldLand
 		}
 	case BeginCancel, Timeout, Stop, RuntimeLost:
+		if r.phase == PhasePrepared && e.Kind == Stop {
+			if e.Hub != (RuntimeIdentity{}) || e.Worker != (RuntimeIdentity{}) {
+				return fail("undispatched stop cannot invent runtime bindings")
+			}
+			n.phase = PhaseStopped
+			n.quiet = true // No external dispatch effect was ever authorized.
+			break
+		}
 		if r.phase != PhaseDispatching && r.phase != PhaseDispatchUnknown && r.phase != PhaseRunning && r.phase != PhaseProving && r.phase != PhaseWouldLand {
 			return fail("no cancellable run")
 		}
@@ -252,7 +260,7 @@ func Step(r Run, e Event) (Run, []Effect, error) {
 			}
 		}
 	case BeginScore:
-		if (r.phase != PhaseWouldLand && r.phase != PhaseAcceptanceUnavailable) || !r.quiet || r.candidate == "" {
+		if r.phase != PhaseWouldLand || !r.quiet || r.candidate == "" {
 			return fail("scoring needs admitted candidate and confirmed shutdown")
 		}
 		n.phase = PhaseScoring

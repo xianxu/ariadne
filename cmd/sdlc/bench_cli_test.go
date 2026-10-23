@@ -20,4 +20,7 @@ func TestBenchCLIExecutionBoundaryRefusesPublicationAndCapturesGateFailure(t *te
 	if err != nil || len(events) != 2 || events[1].Success == nil || *events[1].Success {
 		t.Fatalf("boundary failure lost: %+v %v", events, err)
 	}
+	if len(events[0].Route) != 1 || events[0].Route[0] != "merge" || events[0].Command[0] != "ship" {
+		t.Fatalf("canonical gate route lost: %+v", events[0])
+	}
 }

@@ -33,6 +33,7 @@ type benchAuditEvent struct {
 	Session      string   `json:"session"`
 	Generation   string   `json:"generation"`
 	Command      []string `json:"command"`
+	Route        []string `json:"route,omitempty"`
 	ParentID     string   `json:"parent_id"`
 	Success      *bool    `json:"success"`
 	Error        string   `json:"error"`
@@ -65,6 +66,9 @@ func withBenchCommand(ctx context.Context, c *benchPublicContext, root string, a
 		args = []string{"help"}
 	}
 	start := benchAuditEvent{Version: 1, ID: id, RunID: c.RunID, Kind: "command-start", At: time.Now().UTC().Format(time.RFC3339Nano), Root: root, Command: append([]string(nil), args...)}
+	if route, ok := ctx.Value(benchCommandRouteKey{}).([]string); ok {
+		start.Route = append([]string(nil), route...)
+	}
 	if err := appendBenchAudit(ctx, c, start); err != nil {
 		return fmt.Errorf("bench audit unavailable before command: %w", err)
 	}

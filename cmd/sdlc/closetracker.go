@@ -28,6 +28,131 @@ import (
 // gitx.CommitsWithCloseToken reads the same key.
 const closeTokenTrailer = "Close-Token"
 
+// verifyCloseEvidenceChain is the strict replay form of the close owner's
+// evidence/mirror contract. It normalizes only the directly authored close and
+// optional exact card mirror; publication's broader docs-only drift policy is
+// intentionally not authority for an exact reviewed code head. Projects,
+// intervening commits and deferred FIX-THEN-SHIP layouts require a new review.
+func verifyCloseEvidenceChain(env *trackerEnv, current tracker.Record, binding issue.Completion, candidate, head, detailRel, plansRel string) error {
+	if err := env.ctx.Err(); err != nil {
+		return err
+	}
+	fullOID := func(value string) bool { return (len(value) == 40 || len(value) == 64) && isResolvedSHA(value) }
+	if !fullOID(candidate) || !fullOID(head) || !fullOID(binding.EvidenceCommit) || binding.ReviewedHEAD != candidate || binding.Repository != env.target.Repository || binding.Token == "" {
+		return errors.New("close evidence binding does not name the exact reviewed candidate")
+	}
+	actual, ok, err := issue.CardCompletion(current.Raw)
+	if err != nil {
+		return err
+	}
+	if !ok || actual != binding {
+		return errors.New("close evidence binding differs from current card")
+	}
+	if path.Clean(detailRel) != detailRel || path.IsAbs(detailRel) || strings.HasPrefix(detailRel, "../") || path.Clean(plansRel) != plansRel || path.IsAbs(plansRel) || strings.HasPrefix(plansRel, "../") {
+		return errors.New("close evidence paths must be canonical and repository-relative")
+	}
+	parentOf := func(commit string) (string, error) {
+		out, err := env.git("rev-list", "--parents", "-n", "1", commit)
+		if err != nil {
+			return "", err
+		}
+		parts := strings.Fields(out)
+		if len(parts) != 2 || parts[0] != commit {
+			return "", errors.New("close evidence requires a direct single-parent commit")
+		}
+		return parts[1], nil
+	}
+	parent, err := parentOf(binding.EvidenceCommit)
+	if err != nil {
+		return err
+	}
+	if parent != candidate {
+		return errors.New("close evidence is not directly on the reviewed candidate")
+	}
+	token, err := env.git("show", "-s", "--format=%(trailers:key=Close-Token,valueonly,separator=%x00)", binding.EvidenceCommit)
+	if err != nil {
+		return err
+	}
+	if token != binding.Token {
+		return errors.New("close evidence token differs from card generation")
+	}
+	diffPaths := func(base, tip string) ([]string, error) {
+		raw, err := env.gitRaw(nil, "diff-tree", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", base, tip)
+		if err != nil {
+			return nil, err
+		}
+		if len(raw) == 0 {
+			return nil, nil
+		}
+		if raw[len(raw)-1] != 0 {
+			return nil, errors.New("truncated close evidence path list")
+		}
+		return strings.Split(string(raw[:len(raw)-1]), "\x00"), nil
+	}
+	reviewRel := filepath.ToSlash(sidecarPath(plansRel, path.Base(detailRel), ""))
+	gateRel := filepath.ToSlash(boundaryGatePath(plansRel, path.Base(detailRel)))
+	allowed := map[string]bool{detailRel: true, reviewRel: true, gateRel: true}
+	changed, err := diffPaths(candidate, binding.EvidenceCommit)
+	if err != nil {
+		return err
+	}
+	for _, p := range changed {
+		if !allowed[p] {
+			return fmt.Errorf("unsupported close evidence path %s; re-review exact candidate", p)
+		}
+	}
+	evidence := gitEvidence{env: env, stderr: io.Discard}
+	for p := range allowed {
+		_, mode, err := evidence.treeEntry(binding.EvidenceCommit, p)
+		if err != nil {
+			return err
+		}
+		if mode != "100644" {
+			return fmt.Errorf("close evidence %s must be an ordinary nonexecutable file", p)
+		}
+	}
+	if head == binding.EvidenceCommit {
+		return nil
+	}
+	parent, err = parentOf(head)
+	if err != nil {
+		return err
+	}
+	if parent != binding.EvidenceCommit {
+		return errors.New("unapproved commits follow the close evidence")
+	}
+	changed, err = diffPaths(binding.EvidenceCommit, head)
+	if err != nil {
+		return err
+	}
+	if len(changed) != 1 || changed[0] != detailRel {
+		return errors.New("close mirror must change only task details")
+	}
+	_, mode, err := evidence.treeEntry(head, detailRel)
+	if err != nil {
+		return err
+	}
+	if mode != "100644" {
+		return errors.New("close mirror details must remain an ordinary nonexecutable file")
+	}
+	before, err := env.gitRaw(nil, "cat-file", "blob", binding.EvidenceCommit+":"+detailRel)
+	if err != nil {
+		return err
+	}
+	expected, err := refreshMirrorFrom(env, current, before)
+	if err != nil {
+		return err
+	}
+	after, err := env.gitRaw(nil, "cat-file", "blob", head+":"+detailRel)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(expected, after) {
+		return errors.New("post-close details are not the exact current-card mirror")
+	}
+	return env.ctx.Err()
+}
+
 // gitEvidence commits a close's files on the source branch. It builds the
 // commit in a temporary index from HEAD, so staged unrelated work is neither
 // committed nor disturbed, and moves the branch by compare-and-swap. A pinned

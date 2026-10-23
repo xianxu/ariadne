@@ -248,3 +248,102 @@ func TestBenchResultRecordedUnavailableCannotAcquireScore(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBenchResultValidityInvalidatesAdmittedAndStoppedRuns(t *testing.T) {
+	m := resultMeasurements()
+	m.Validity = "invalid"
+	m.ValidityIssues = []string{"worker/session-ws: actual model differs from provisioned profile"}
+	unavailable := Acceptance{Status: "unavailable", Reason: "invalid profile"}
+	for _, candidate := range []bool{false, true} {
+		r := resultRun(t, candidate, true)
+		row, err := BuildRow(validTask(), r, m, unavailable, strings.Repeat("e", 64), false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.Outcome != "invalid" || row.Candidate != r.Candidate() || row.Measurements.ValidityIssues[0] != m.ValidityIssues[0] {
+			t.Fatalf("invalid result concealed: %+v", row)
+		}
+	}
+	if _, err := BuildRow(validTask(), resultRun(t, true), m, resultAcceptance(), strings.Repeat("e", 64), false); err == nil {
+		t.Fatal("invalid run claims a scored acceptance")
+	}
+	if _, err := BuildRow(validTask(), resultRun(t, true), m, unavailable, strings.Repeat("e", 64), false); err == nil {
+		t.Fatal("invalid diagnostic erased an accepted score outcome")
+	}
+	task := validTask()
+	task.Worker.Model = "different-provisioned-binding"
+	if _, err := BuildRow(task, resultRun(t, true, true), m, unavailable, strings.Repeat("e", 64), false); err == nil {
+		t.Fatal("validity bypassed immutable runtime bindings")
+	}
+}
+
+func TestBenchResultValidityCompatibilityAndStrictAdditiveFields(t *testing.T) {
+	legacy, err := BuildRow(validTask(), resultRun(t, true), resultMeasurements(), resultAcceptance(), strings.Repeat("e", 64), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := EncodeLedgerRow(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(old), `"validity"`) || strings.Contains(string(old), `"validity_issues"`) {
+		t.Fatal("omitted legacy fields normalized into new record bytes")
+	}
+	decoded, err := DecodeLedgerRow(old)
+	if err != nil || decoded.Outcome != "would-land" || decoded.Measurements.Validity != "" {
+		t.Fatalf("legacy meaning changed: %+v %v", decoded, err)
+	}
+	again, err := EncodeLedgerRow(decoded)
+	if err != nil || string(again) != string(old) {
+		t.Fatal("legacy canonical bytes changed")
+	}
+	for _, validity := range []string{"valid", "unverified", ""} {
+		m := resultMeasurements()
+		m.Validity = validity
+		row, err := BuildRow(validTask(), resultRun(t, true), m, resultAcceptance(), strings.Repeat("e", 64), false)
+		if err != nil || row.Outcome != "would-land" {
+			t.Fatalf("validity %q reclassified old outcome: %v", validity, err)
+		}
+	}
+	for name, mutate := range map[string]func(*Measurements){
+		"unknown enum":           func(m *Measurements) { m.Validity = "unknown" },
+		"invalid without issues": func(m *Measurements) { m.Validity = "invalid" },
+		"valid with issues":      func(m *Measurements) { m.Validity = "valid"; m.ValidityIssues = []string{"worker/session: mismatch"} },
+		"unlabelled issue":       func(m *Measurements) { m.Validity = "unverified"; m.ValidityIssues = []string{"missing source label"} },
+		"empty reason":           func(m *Measurements) { m.ValidityIssues = []string{"worker/session: "} },
+		"oversized issue":        func(m *Measurements) { m.ValidityIssues = []string{"worker/session: " + strings.Repeat("x", 4096)} },
+		"extension shadows omitted validity": func(m *Measurements) {
+			m.Unknown = map[string]json.RawMessage{"validity": json.RawMessage(`"invalid"`)}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := resultMeasurements()
+			mutate(&m)
+			if _, err := BuildRow(validTask(), resultRun(t, true, true), m, Acceptance{Status: "unavailable", Reason: "not scored"}, strings.Repeat("e", 64), false); err == nil {
+				t.Fatal("invalid diagnostic schema accepted")
+			}
+		})
+	}
+	raw := strings.Replace(string(old), `"autonomous":true`, `"autonomous":true,"validity":"unverified","validity_issues":["worker/session: transcript model missing"]`, 1)
+	withFuture, err := DecodeLedgerRow([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withFuture.Measurements.Validity != "unverified" || len(withFuture.Measurements.ValidityIssues) != 1 {
+		t.Fatal("new fields lost")
+	}
+	withFuture.Measurements.Unknown = map[string]json.RawMessage{"future_validity_evidence": json.RawMessage(`{"proof":{"n":1e400}}`)}
+	newRaw, err := EncodeLedgerRow(withFuture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	redecoded, err := DecodeLedgerRow(newRaw)
+	if err != nil || redecoded.Measurements.Unknown["future_validity_evidence"] == nil {
+		t.Fatal("future evidence lost", err)
+	}
+	for _, bad := range []string{strings.Replace(raw, `"validity":"unverified"`, `"validity":null`, 1), strings.Replace(raw, `"validity":"unverified"`, `"VALIDITY":"unverified"`, 1), strings.Replace(raw, `"validity":"unverified"`, `"validity":true`, 1), strings.Replace(raw, `"validity":"unverified"`, `"validity":"unverified","validity":"valid"`, 1)} {
+		if _, err := DecodeLedgerRow([]byte(bad)); err == nil {
+			t.Fatal("malformed additive validity accepted")
+		}
+	}
+}

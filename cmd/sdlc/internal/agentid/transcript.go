@@ -5,6 +5,21 @@ import (
 	"encoding/json"
 )
 
+// FromTranscript reads identity only from caller-selected transcript bytes. It
+// performs no discovery or environment fallback. The latest supported native
+// record wins; absent model/effort remain empty. Callers requiring a stable
+// profile across a run must check each record, not only a whole-file tail.
+func FromTranscript(agent string, data []byte) Identity {
+	id := Identity{Agent: agent}
+	switch agent {
+	case "claude":
+		id.Model, id.Effort = claudeFromTail(data)
+	case "codex":
+		id.Model, id.Effort = codexFromTail(data)
+	}
+	return id
+}
+
 // claudeFromTail reads the model and effort of the latest assistant record in
 // the tail of a Claude Code session transcript. The tail is input this process
 // did not write (ARCH-SECURE): a cut first line or a record of an unknown

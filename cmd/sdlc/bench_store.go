@@ -38,6 +38,55 @@ type benchRecord struct {
 
 type benchStore struct{ root string }
 
+// Observations are write-once inputs/receipts, not a second phase owner. Retry
+// accepts the same canonical JSON and never overwrites conflicting evidence.
+func (s *benchStore) putData(key string, value any) error {
+	if key == "" || len(key) > 128 || strings.ContainsAny(key, "\x00\r\n") {
+		return errors.New("invalid bench observation key")
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	release, err := s.lock("transaction.lock")
+	if err != nil {
+		return err
+	}
+	defer release()
+	r, _, err := s.read()
+	if err != nil {
+		return err
+	}
+	if previous, present := r.Data[key]; present {
+		var p, n any
+		decode := func(input []byte, target *any) error {
+			d := json.NewDecoder(strings.NewReader(string(input)))
+			d.UseNumber()
+			return d.Decode(target)
+		}
+		if err := decode(previous, &p); err != nil {
+			return err
+		}
+		if err := decode(raw, &n); err != nil {
+			return err
+		}
+		old, err := json.Marshal(p)
+		if err != nil {
+			return err
+		}
+		next, err := json.Marshal(n)
+		if err != nil {
+			return err
+		}
+		if string(old) != string(next) {
+			return fmt.Errorf("bench observation %s already has different evidence", key)
+		}
+		return nil
+	}
+	r.Data[key] = raw
+	return s.write(r)
+}
+
 func createBenchStore(root string, task bench.Task) (_ *benchStore, retErr error) {
 	if err := bench.ValidateTask(task); err != nil {
 		return nil, err
