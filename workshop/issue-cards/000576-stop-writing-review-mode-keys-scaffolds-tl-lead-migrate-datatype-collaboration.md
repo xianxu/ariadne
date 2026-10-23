@@ -1,6 +1,6 @@
 ---
 id: 000576
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.54
+tracker:
+    version: 1
+    completion:
+        token: close-0e7815f0c02b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 72459336c6d684be44f6a4cb4de15e09e71886a8
+        evidence_commit: d7df2ea3bb5ec4788b4d5b68ad1de687d6bcf11a
 ---
 
 # Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows
