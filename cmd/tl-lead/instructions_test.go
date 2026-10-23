@@ -84,8 +84,10 @@ A note, not a bullet.
 	}
 	// Fenced code starts no bullet and a tab indents. A link ending any line
 	// answers a bullet, so a follow-up added after it keeps it answered
-	// (row 14); a link inside a fence is code, not an answer.
-	const edge = "1. q\n   ```\n- not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
+	// (row 14); a link inside a fence is code, not an answer. Code follows
+	// CommonMark (#576): this fence belongs to item 1, so its contents are
+	// indented under it; an unindented line would end item 1 and its fence.
+	const edge = "1. q\n   ```\n   - not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
 	bs := instructionBullets(edge)
 	if len(bs) != 3 || len(bs[0].Lines) != 6 || bs[0].Answered || !bs[1].Answered || !bs[2].Answered {
 		t.Errorf("edges: %+v", bs)
