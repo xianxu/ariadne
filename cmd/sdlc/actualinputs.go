@@ -269,7 +269,12 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Prefixes[s.File] = activetime.SourcePrefix{Bytes: s.Length, Digest: s.Digest}
 		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
 	}
-	out.Snapshot.Cuts = ownedMeasurementCuts(ledger)
+	rounds, notes, err := freshActualRounds(ctx, repoTop, head, issueNum, milestone, splitRounds(ledger))
+	if err != nil {
+		return nil, err
+	}
+	out.Warnings = append(out.Warnings, notes...)
+	out.Snapshot.Cuts = measurementCuts(rounds)
 	if err := attachOwnedQueueEvidence(ctx, repoTop, repo, rec.Card.Path, target.Repository, id, out, purpose, gitx.RemoteTrackingRef(target.Remote, "main")); err != nil {
 		return nil, err
 	}
@@ -458,8 +463,12 @@ func ownedMeasurementSource(s transcripts.SessionEvidence, windows []activetime.
 }
 
 func ownedMeasurementCuts(l gatestate.Ledger) []gatestate.MeasurementCut {
+	return measurementCuts(splitRounds(l))
+}
+
+func measurementCuts(rounds []activetime.BoundaryRound) []gatestate.MeasurementCut {
 	var out []gatestate.MeasurementCut
-	for _, r := range splitRounds(l) {
+	for _, r := range rounds {
 		cut := gatestate.MeasurementCut{Boundary: r.Boundary, Finalized: r.Finalized.Format(time.RFC3339Nano), Finalizing: r.Finalizing}
 		if !r.Dispatched.IsZero() {
 			cut.Dispatched = r.Dispatched.Format(time.RFC3339Nano)

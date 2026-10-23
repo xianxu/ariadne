@@ -92,18 +92,27 @@ func SplitTest(name string) (pkg, test string, ok bool) {
 	return n.Pkg, n.Test, true
 }
 
-// ValidTest refuses a name that is not an exact test or subtest name.
+// ValidTest refuses anything other than a registrable Go test or subtest,
+// whole script, or exact Lua case identity.
 func ValidTest(name string) error {
-	if _, ok := ParseName(name); !ok {
-		return fmt.Errorf("%q is not a test name like github.com/x/y/pkg.TestName or …/pkg.TestName/subtest", name)
-	}
-	return nil
+	_, err := ParseIdentity(name)
+	return err
 }
 
-// Covers reports whether registered name r explains failing name f: f is r,
-// or one of r's subtests. A registered subtest never covers a sibling or its
-// parent; a registered top-level test covers all of its subtests.
-func Covers(r, f string) bool { return f == r || strings.HasPrefix(f, r+"/") }
+// Covers reports whether registered name r explains failing name f. Script
+// and Lua identities cover only themselves. Go identities also cover their
+// subtests; a registered subtest never covers a sibling or its parent.
+func Covers(r, f string) bool {
+	id, err := ParseIdentity(r)
+	if err != nil {
+		return false
+	}
+	if id.Kind() != KindGo {
+		return f == r
+	}
+	// Emitted Go descendants may contain labels outside registration grammar.
+	return f == r || strings.HasPrefix(f, r+"/")
+}
 
 // Nearest is the name among names that covers failing name f most closely:
 // f itself or its nearest ancestor; "" when none does. Two names covering one
@@ -118,10 +127,14 @@ func Nearest(names iter.Seq[string], f string) string {
 	return best
 }
 
-// Leaves are a failing top-level test's failing leaf subtests: those listed
+// Leaves returns a typed script or Lua identity unchanged. For Go, it returns
+// a failing top-level test's failing leaf subtests: those listed
 // under it with no failing subtest of their own. With none listed, the test
 // itself is the leaf (it failed on its own, or its log names no subtests).
 func Leaves(top string, failing []string) []string {
+	if id, err := ParseIdentity(top); err == nil && id.Kind() != KindGo {
+		return []string{top}
+	}
 	var under []string
 	for _, f := range failing {
 		if strings.HasPrefix(f, top+"/") {
