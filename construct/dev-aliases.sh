@@ -50,6 +50,11 @@
 # function only builds + runs — it does NOT manage services (no `launchctl
 # bootout`); use the owner's `make <name>-dev` target for stop-prod-then-serve.
 #
+# A name that would shadow what the operator's shell already means by it gets
+# no function, only a warning (#573): a bash or zsh builtin or reserved word,
+# or a first PATH match outside the workspace and $HOME. shadow_reason below
+# holds the rule.
+#
 # Ownership = location: a binary's source physically in a repo → that repo owns
 # it. Re-export symlinks and non-buildable dirs are skipped, so a derivative
 # that merely points at an ancestor's source never shadows the owner.
@@ -384,9 +389,89 @@ REPLACES
 	printf '[ -z "$(find %s \\( %s \\) -prune -o -newer bin/%s -print -quit 2>/dev/null || echo stale)" ]' "$roots" "$prune" "$bin"
 }
 
+# shadow_reason NAME BASHKIND ZSHKIND SYSTEM (#573): sets reason to what a
+# function named NAME would shadow in the operator's shell, or to empty.
+# BASHKIND is bash's `type -t`, ZSHKIND zsh's `whence -w` kind, SYSTEM the
+# name's first PATH match when it resolves outside both the workspace and $HOME
+# (else empty). Both shells count, whichever sources the output: a builtin in
+# either is a bad name. $HOME is exempt so a user's own install (a stale
+# ~/go/bin/sdlc) never costs the fleet a dev function. Pure; the facts are
+# gathered below, once per run rather than a subshell per name.
+shadow_reason() {
+	reason=""
+	case "$2" in
+		builtin) reason="the bash builtin $1" ;;
+		keyword) reason="the bash keyword $1" ;;
+		*)
+			case "$3" in
+				builtin) reason="the zsh builtin $1" ;;
+				reserved) reason="the zsh reserved word $1" ;;
+				*) [ -z "$4" ] || reason="the system command $4" ;;
+			esac ;;
+	esac
+}
+
+# system_command PATH: sets system_path to PATH, a name's first match on PATH,
+# when it lies outside the workspace and $HOME both as found and once its
+# symlink hops are followed (one readlink each, so only for such matches:
+# ~/.local/bin/sdlc, a link into the workspace, is exempt as found).
+system_command() {
+	local p="$1" t here="$PWD"
+	system_path=""
+	outside_user_trees "$p" || return 0
+	while [ -L "$p" ]; do
+		t="$(readlink "$p")" || return 0
+		case "$t" in /*) p="$t" ;; *) path_parts "$p"; p="$path_dir/$t" ;; esac
+	done
+	path_parts "$p"
+	CDPATH= cd -P -- "$path_dir" 2>/dev/null || return 0
+	p="$PWD/$path_base"
+	cd -- "$here" || return 0
+	outside_user_trees "$p" || return 0
+	system_path="$p"
+}
+outside_user_trees() {
+	[ -n "$1" ] || return 1
+	case "$1" in "$workspace"/*) return 1 ;; esac
+	[ -z "$home_real" ] && return 0
+	case "$1" in "$home_real"/*|"${HOME:-/nonexistent}"/*) return 1 ;; esac
+	return 0
+}
+home_real="$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P)" || home_real=""
+
+# Each shell's facts for every name in one call, in $final's order: from bash
+# two lines per name, `type -t` ("none" when unknown) and the first PATH match
+# (empty when none); from zsh a "NAME: KIND" line, skipped when zsh is absent
+# (bash's kinds still apply).
+names=()
+while IFS="$(printf '\t')" read -r bin repo; do
+	[ -n "$bin" ] && names+=("$bin")
+done <<EOF
+$final
+EOF
+bash_kinds=""
+if [ "${#names[@]}" -gt 0 ]; then
+	bash_kinds="$(for n in ${names[@]+"${names[@]}"}; do type -t -- "$n" || echo none; type -P -- "$n" || echo; done)"
+fi
+zsh_kinds=""
+if [ "${#names[@]}" -gt 0 ] && command -v zsh >/dev/null 2>&1; then
+	zsh_kinds="$(zsh -f -c 'whence -w -- "$@"' zsh ${names[@]+"${names[@]}"} 2>/dev/null)"
+fi
+
 prepared="|"
-printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
+while IFS="$(printf '\t')" read -r bin repo; do
 	[ -n "$bin" ] || continue
+	IFS= read -r bash_kind <&4 || bash_kind=""
+	IFS= read -r first_path <&4 || first_path=""
+	IFS= read -r zsh_line <&5 || zsh_line=""
+	zsh_kind=""
+	case "$zsh_line" in "$bin: "*) zsh_kind="${zsh_line#"$bin: "}" ;; esac
+	system_command "$first_path"
+	shadow_reason "$bin" "$bash_kind" "$zsh_kind" "$system_path"
+	if [ -n "$reason" ]; then
+		warn "not defining $bin (cmd/$bin in $repo): it would shadow $reason; run $repo/bin/$bin by its path or rename the command"
+		continue
+	fi
 	if [ "$list" -eq 1 ]; then
 		printf '%s\t%s\n' "$bin" "$repo"
 	else
@@ -413,7 +498,13 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 		printf '%s() { ( cd %s && { %s || { %smkdir -p bin && d="$(mktemp -d bin/.%s.XXXXXX)" && : > "$d/.start" && { go build -trimpath -o "$d/%s" ./cmd/%s && touch -r "$d/.start" "$d/%s" && mv -f "$d/%s" bin/%s; s=$?; rm -rf "${d:?}"; exit $s; }; }; } ) || return; %s/bin/%s "$@"; }\n' \
 			"$bin" "$repo_q" "$skip" "$prep" "$bin" "$bin" "$bin" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
-done
+done <<EOF 4<<BASH_KINDS 5<<ZSH_KINDS
+$final
+EOF
+$bash_kinds
+BASH_KINDS
+$zsh_kinds
+ZSH_KINDS
 
 if [ "$strict" -eq 1 ] && [ "$had_dup" -eq 1 ]; then
 	warn "strict: duplicate binary names found — exiting non-zero"

@@ -66,12 +66,19 @@ Checking both shells means a name that is a builtin in either one is refused in 
 - **ARCH-ORDER, ARCH-FUNERAL, ARCH-EVOLVE, ARCH-MOCK, ARCH-SECURE:** N/A. Holds no state between events and creates nothing durable; the generator emits text to stdout. Its inputs are the caller's own PATH and shells.
 
 **Tests**, in a new `construct/scripts/test/dev-aliases-shadow.test.sh`:
-- [ ] Use a fixture workspace with `cmd/echo`, `cmd/test`, `cmd/ls`, `cmd/print` (zsh-only builtin) and `cmd/oktool`. Source the output in bash and in zsh. Assert that echo, test and print still resolve to the builtin, `ls` to `/bin/ls`, and `oktool` to a function. Stderr must hold exactly one warning per refused name; `--list` must omit the refused names.
-- [ ] Symlink case: put a PATH directory under a fake HOME with a symlink into the workspace, and a direct symlink to `/bin/ls`. The first is allowed, the second refused.
-- [ ] Unit table for `shadow_reason`, loaded with the existing sed-eval pattern.
-- [ ] Counted test at N and 2N owners: zsh is invoked exactly once, and `readlink` only once per PATH symlink hop.
-- [ ] Wire the test into the Makefile next to `dev-aliases.test.sh`, update the script's header and `atlas/workflow/base-layer.md`, and measure the start time.
+- [x] Use a fixture workspace with `cmd/echo`, `cmd/test`, `cmd/ls`, `cmd/print` (zsh-only builtin) and `cmd/oktool`. Source the output in bash and in zsh. Assert that echo, test and print still resolve to the builtin, `ls` to `/bin/ls`, and `oktool` to a function. Stderr must hold exactly one warning per refused name; `--list` must omit the refused names.
+- [x] Symlink case: put a PATH directory under a fake HOME with a symlink into the workspace, and a direct symlink to `/bin/ls`. The first is allowed, the second refused.
+- [x] Unit table for `shadow_reason`, loaded with the existing sed-eval pattern.
+- [x] Counted test at N and 2N owners: zsh is invoked exactly once, and `readlink` only once per PATH symlink hop.
+- [x] Wire the test into the Makefile next to `dev-aliases.test.sh`, update the script's header and `atlas/workflow/base-layer.md`, and measure the start time.
 
 ## Log
 
 ### 2026-10-23
+- Plan approved by the hub (ops:0), with the $HOME exemption on rule 3.
+- Built: `shadow_reason` (pure; sets `reason`) and `system_command`/`outside_user_trees` in `construct/dev-aliases.sh`. One bash subshell gathers every name's `type -t` and `type -P`, and one `zsh -f` call gathers every `whence -w`. Symlinks are resolved only when a PATH match lies outside the workspace and $HOME, so `~/.local/bin/sdlc` costs no `readlink`. Refused names warn once and are dropped from the definitions and from `--list`.
+- The first cut walked PATH in shell and called readlink for every `~/.local/bin` link: about 31ms per run, over budget. Batching the lookups and resolving only outside matches cut the block to about 13ms wall under load average 20. By CPU: zsh 3.9ms, the bash batch subshell about 2.6ms, plus the loop.
+- End-to-end, generator CPU over `--workspace ~/workspace` (27 names, 30 runs each, interleaved): main 641ms (sd 38), branch 624ms (sd 41). Wall medians 1108ms against 1107ms. The added work is inside the run-to-run noise.
+- Real fleet: `--workspace ~/workspace` now refuses only echo's `cmd/echo` ("it would shadow the bash builtin echo"). The other 26 functions are unchanged.
+- Tests: `dev-aliases-shadow.test.sh` passes. Disabling the refusal turns it red ("echo: 0 warnings"). `dev-aliases`, `-path`, `-slot` and `portable-makefile` all pass under /bin/bash 3.2, as do `go test ./scripts/test -run TestConstructScripts` and `./pkg/shelllint`. An empty workspace exits 0 under `set -u`.
+
