@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: operator}
 ---
 
 # start-plan's weave refresh regenerates seeded workflows on the resting branch, then refuses
