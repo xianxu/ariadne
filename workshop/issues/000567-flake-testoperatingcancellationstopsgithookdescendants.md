@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/tl-lead.TestOperatingCancellationStopsGitHookDescendants]
+flow: {kind: quick, provenance: inferred, spec: "cbf89813", done: "c4b06df2"}
 ---
 
 # flake: TestOperatingCancellationStopsGitHookDescendants
