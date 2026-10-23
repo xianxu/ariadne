@@ -34,6 +34,7 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
+	suiteCapabilities  func(context.Context) error // nil probes the real host; test seam only
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
 	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
 	StrictGroupCleanup bool               // resume retains its suite capacity but confirms descendant cleanup
@@ -213,6 +214,9 @@ var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
 func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
 	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1, Scope: c.Scope}
 	rec.Host = hostName()
+	if err := preflightSuite(ctx, d, c, sha); err != nil {
+		return rec, err
+	}
 	var bindingErr error
 	d, bindingErr = bindTypedCheck(d, c, sha)
 	if bindingErr != nil {

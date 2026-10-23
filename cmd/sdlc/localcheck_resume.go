@@ -97,6 +97,13 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if state != ResumeEligible {
 		return rec, resumeSavedError(in, proof.Reason)
 	}
+	if err := preflightSuite(ctx, d, c, sha); err != nil {
+		var environment *suiteEnvironmentError
+		if errors.As(err, &environment) {
+			environment.RetryCommand = fmt.Sprintf("sdlc local-check resume --name suite --attempt %s --rev %s", parent, sha)
+		}
+		return rec, err
+	}
 	if in.Parent.Version == 4 {
 		d, err = bindTypedCheck(d, c, sha)
 		if err != nil {

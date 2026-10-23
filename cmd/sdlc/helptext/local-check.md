@@ -353,6 +353,20 @@ REPUBLISH (#431)
   never stands in). Under merge the post's retry holds the landing turn, which
   still beats a rerun.
 
+HOST CAPABILITIES (#572)
+
+  Before suite/affected execution or queueing, SDLC reads the host boot identity
+  and binds a short private Unix listener. A denial returns could-not-run and
+  creates no attempt or status. On EPERM, run the printed command as the whole
+  Bash call, without a pipe, redirect or command wrapper: wrappers can put the
+  command back inside the agent sandbox. Other capability errors name the
+  resource to repair. Diagnostic baselines, affected graph preparation and
+  new flake/resume children use the same preflight; a saved-pass repost skips it.
+
+  Test output cannot grant an environmental waiver. On a capability-healthy
+  host, even all-denial output remains a failed attempt. This does not clear
+  earlier failures or broaden startup-only reclassify.
+
 CANCEL (#400, #510)
 
   `sdlc local-check cancel [--run ID | --name N]` stops the runs started from this

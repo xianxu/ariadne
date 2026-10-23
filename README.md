@@ -786,6 +786,12 @@ a CI job that never got a runner (never one that ran and failed), requires it
 for checks declared `required`, and after admission runs a missing one itself, unless a saved
 pass of it on that exact head can be posted instead. See
 [recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+Suite and affected execution first check host boot identity and a private Unix
+listener. An unavailable capability returns `could-not-run` without a new attempt
+or status. On EPERM, rerun the printed command as the whole Bash call, without a
+pipe, redirect or command wrapper, so it can use the agent's sandbox exemption.
+This independent preflight never clears earlier failures; denial-looking test
+output on a capability-healthy host remains ordinary failure evidence.
 Commands receive `SDLC_CALLER_ROOT` and caller-resolved `SDLC_DEP_SUBSTRATE` /
 `SDLC_DEP_DATA` from the tested tree's `construct/deps`, while running in their
 detached checkout. Dependency paths are read-only inputs; see the environment

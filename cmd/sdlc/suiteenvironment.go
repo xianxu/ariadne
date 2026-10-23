@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"iter"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 // suiteEnvironmentError is execution evidence, never a failed code-suite result.
@@ -13,6 +15,7 @@ type suiteEnvironmentError struct {
 	Check, Head, LogPath string
 	Cause                error
 	Diagnosis            suiteStartupDiagnosis
+	RetryCommand         string
 }
 
 // suiteStartupDiagnosis is a confirmed startup failure, never test evidence.
@@ -42,7 +45,19 @@ func (e *suiteEnvironmentError) Error() string {
 	if diagnosis.Reason != "" {
 		where += ": " + diagnosis.Reason
 	}
-	return fmt.Sprintf("environment failure: could-not-run: %s%s; repair the environment and rerun %s; log %s%s", diagnosis.Resource, where, localCheckRunCommand(check, e.Head), e.LogPath, detail)
+	command := e.RetryCommand
+	if command == "" {
+		command = localCheckRunCommand(check, e.Head)
+	}
+	advice := "; repair the environment and rerun " + command
+	if errors.Is(e.Cause, syscall.EPERM) {
+		advice = "; run " + command + " as the whole Bash call, without a pipe, redirect, or command wrapper"
+	}
+	log := ""
+	if e.LogPath != "" {
+		log = "; log " + e.LogPath
+	}
+	return fmt.Sprintf("environment failure: could-not-run: %s%s%s%s%s", diagnosis.Resource, where, advice, log, detail)
 }
 
 func (e *suiteEnvironmentError) Unwrap() error { return e.Cause }
