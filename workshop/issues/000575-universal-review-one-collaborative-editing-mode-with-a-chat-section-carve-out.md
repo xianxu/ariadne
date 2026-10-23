@@ -60,8 +60,8 @@ ops `session.side/2026-10-23-03-mode-simplification.md`. Rewrite universal-revie
 
 Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out-plan.md) (approved by the TL 10-23, (a) to (f); decision D2 by the operator).
 
-- [ ] Task 1: Briefs and export v4 (`briefs/`, `brief` role, `exportedCases`)
-- [ ] Task 2: `chatSections` oracle
+- [x] Task 1: Briefs and export v4 (`briefs/`, `brief` role, `exportedCases`)
+- [x] Task 2: `chatSections` oracle
 - [ ] Task 3: Spec prose (collaboration-modes.md, round.md, SKILL.md, file-edit adapter)
 - [ ] Task 4: Examples: retire, convert, add the 13 new cases; checker side-doc rule
 - [ ] Task 5: Prose guards (the Done-when retired-phrase test) and the atlas
@@ -71,4 +71,6 @@ Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-e
 
 ### 2026-10-23
 - Claimed after #573 landed. The plan was drafted while #573's merge ran; the TL approved (a) to (f), and the operator decided D2: the unified model applies everywhere. Consumer grep: parley.nvim is the only reader of export.json. Its build-time sync accepts v1 to v3 and refuses v4 before writing anything, and its shipped bundle is v2, so #419 migrates v2 to v4. Filed #576 for the Go writers and datatype rows.
+- Task 1: export v4 with five flagless briefs. `free-form` is retired: it only meant "follow processing-instruction". A leftover v3 flag or unknown key refuses the build (`TestParseBrief`). `TestExportCurrent` stays red until Task 4 adds the exported cases.
+- Task 2, deviating from the plan on purpose (ARCH-DRY): the scanner lives in `pkg/sidedoc/chat.go` as `ChatSections`, not in `pkg/reviewexport`. pkg/sidedoc is the shared side-doc library tl-lead and sdlc already import, so #576's tl-lead adoption reuses it instead of growing a third heading scanner. Headings come from goldmark (a fenced "heading" is code). Legacy forms that meant chat (scalar, map names, heading comment) still make chat sections. Every other mode key or value is a notice, never an error.
 
