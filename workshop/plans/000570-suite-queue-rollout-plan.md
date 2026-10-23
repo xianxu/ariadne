@@ -89,11 +89,11 @@ Use the existing Python private-lock harness and Go suite-priority provider fixt
 
 ## Tasks — one atomic close boundary
 
-- [ ] Add native mixed-version regression/fixture and command tests first; observe the refusal/risk expectations fail on current code. Existing diagnostic already proves the deadlock and grant-removal control.
-- [ ] Stamp ticket policy, implement one assessment, wire fresh grant preflight and text status risk. Preserve admission and revoke behavior.
-- [ ] Update README command map, atlas/workflow/sdlc-binary.md queue/grants sections, embedded landing help and cmd/tl-lead/help.md grant guidance. Add tl-lead phrase guards and a semantic lesson; no lexical rule can prove agreement between independently executing old schedulers.
-- [ ] Run targeted Python/Go normal and race checks, metadata round-trip, frozen JSON, issue-hint and relevant lint guards. Freeze checkout edits during cmd/sdlc tests.
-- [ ] Build a private clean CLI and run grant/refusal/status/revoke against only private fixture paths and a fake authorized caller seam. Ask hub to accept this private proof plus post-land primary rebuild; no staging or live grant.
+- [x] Add native mixed-version regression/fixture and command tests first; observe the refusal/risk expectations fail on current code. Existing diagnostic already proves the deadlock and grant-removal control.
+- [x] Stamp ticket policy, implement one assessment, wire fresh grant preflight and text status risk. Preserve admission and revoke behavior.
+- [x] Update README command map, atlas/workflow/sdlc-binary.md queue/grants sections, embedded landing help and cmd/tl-lead/help.md grant guidance. Add tl-lead phrase guards and a semantic lesson; no lexical rule can prove agreement between independently executing old schedulers.
+- [x] Run targeted Python/Go normal and race checks, metadata round-trip, frozen JSON, issue-hint and relevant lint guards. Freeze checkout edits during cmd/sdlc tests.
+- [x] Build a private clean CLI and run grant/refusal/status/revoke against only private fixture paths and a fake authorized caller seam. Ask hub to accept this private proof plus post-land primary rebuild; no staging or live grant.
 - [ ] Push final code, central recorded suite, fresh close review and normal central merge on SHIP. Report PR and exact Git merge to the hub; hub handles primary rebuild/real rollout.
 
 This likely exceeds the 100-added-code-line quick shell once command wiring and diagnostics are included. Let change-code infer full flow and run plan-quality/estimate before implementation; no flow pin or waiver. No Mx split: the marker, refusal and diagnostics must land together.

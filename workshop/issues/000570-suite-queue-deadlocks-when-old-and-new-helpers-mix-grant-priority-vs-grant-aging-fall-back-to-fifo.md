@@ -58,7 +58,7 @@ manual rollout responsibility, without automatic cancellation or policy changes.
 
 - [x] Claim and start-plan from fresh main; reproduce both historical and current admission against one private native lock root.
 - [x] Trace the grant provider/cache and distinguish a new-helper decision from agreement by already-running old code.
-- [ ] Resolve the rollout choice with the hub before implementation (proposal below).
+- [x] Resolve the rollout choice with the hub before implementation (approved guarded rollout recorded below).
 - [ ] After agreement, write final function-level adversarial plan, enter change-code, observe regression RED, implement, and run isolated mixed-version conformance plus normal recorded gates.
 
 ### Proposed rollout boundary — awaits hub
@@ -115,6 +115,14 @@ Observed RED: Python marker test retained caller-forgery rather than the exact m
 The broader focused run passed cmd/sdlc48.597s (including the real helper harness), tl-lead0.240s, Go lint0.903s; full shell lint passed0.283s. Race controls for mixed-policy text, counted N/2N iterator visits, grant/cancel/revoke lifecycle, native supplied snapshot, duplicate authority, frozen JSON and decoder/cancellation passed1.739s. Checkout stayed frozen during cmd/sdlc commands. No full suite has been started. README, atlas, landing help, TL phrase guards and lessons now describe the guarded rollout and its remaining risk.
 
 Next: commit clean implementation, rebuild own slot tools once with Go1.27.3, verify private CLI build metadata, then private executable grant/status/revoke proof. Checkpoint that proof, push and queue the central recorded branch suite; fresh close and normal central merge on SHIP. No :0 staging or live grants; hub owns post-land rebuild.
+
+### 2026-10-23 — clean executable conformance; prepare recorded gates
+
+Committed implementation7a9eca2651111298b817fe72c36ebb0cbd3b0278, rebuilt this slot's six tools with make tools after the fleet's Go1.27.3 upgrade, and verified bin/sdlc build metadata: Go1.27.3, trimpath=true, exact revision7a9eca2651111298b817fe72c36ebb0cbd3b0278, modified=false. Bare lifecycle sdlc still resolves central /Users/xianxu/workspace/ariadne/bin/sdlc (observed revisione9e960c70a0513ad3235edd6ba7e1f56de188545).
+
+Private executable conformance passed all seven public CLI calls against a temporary bare repo and explicit private lock, queue and fleet roots: grant an empty queue; introduce real old/current held tickets; refuse another grant with ticket identity and byte-unchanged grants log; show existing deadlock risk and exact832 revoke hint; preserve frozen JSON; revoke despite legacy waiters; prove old/new native FIFO admission after revoke and allow regrant when only compatible metadata remains. COUCH_TREE was absent only for the approved private operator-shell fixture, never for a live grant. All temporary fixtures were removed by their owner; no production queue, grant, process or :0 checkout was changed. Raw argv/exit/stdout/stderr evidence is retained at common sdlc/test-stats/evidence/000570/private-executable-conformance.json.
+
+Next: push/open PR, central recorded final-code suite, close with a fresh binary-owned review and measured actual, then normal central merge on SHIP. Do not restart/checkpoint a continuation while the suite is queued or running; preserve its controller. If the close review changes code, reverify and record a new suite on that final code. Hub owns post-land rebuild and operational guarded rollout.
 
 ## Revisions
 
