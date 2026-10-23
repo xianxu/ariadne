@@ -153,6 +153,12 @@ Hub instruction 54c85672-014f-406d-a416-309243378812 authenticated submitted to 
 
 Recovery verified a clean pushed issue branch, PR405 OPEN, no owned local-check leases and no #557 landing runner. Rebuilt this worktree's tools plus weave with make tools weave-build, exit0; go version -m confirms Go1.27.3 and unmodified source revision for bin/sdlc and bin/weave. No live :0 checkout or configuration changed. No .sdlc/affected.json exists on this issue branch, so use the recorded suite. Next: push this durable lift record, start exactly one sdlc local-check run --name suite on the pushed PR head, retain/read its result, classify any failure, and enter sdlc merge --yes on pass. No new close review is needed absent code changes, per the hub.
 
+### 2026-10-22 — corrected-head recorded suite PASS; entering landing
+
+Retained lease-1345235871 completed successfully on pushed head 273573580cfba232439d73d20082c85b5947c21c: all eight shards passed, 2303 SDLC tests and 76 other packages, zero failures, wall1092.6s (18m13s). Recorded sdlc-local/suite success; raw log in Git common dir sdlc/local-checks/273573580cfba232439d73d20082c85b5947c21c/suite.log, reported SHA256 prefix de2878c817db. This is the first full passing proof after the stale dependency-fixture correction. No flake registration, blind retry or gate waiver.
+
+Hub notice 8be377b6-3a6e-41ee-b6df-6b64b1ceb948 identifies the remaining helper-inspect warning as an older checkout's queue-display incompatibility; admission is unaffected and another slot owns the fix. No further warning reports. Both SHIP reviews stand under the authenticated post-shutdown authorization. Next: push this documentation-only evidence, enter sdlc merge --yes promptly and retain its runner; let landing own current-main integration and any authoritative integrated suite. No manual main chasing and no bypass flags.
+
 ## Revisions
 
 ### 2026-10-22 — proposed prevention at publication boundary
