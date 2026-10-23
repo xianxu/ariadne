@@ -1,13 +1,13 @@
 ---
 id: 000563
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-22
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'f3e17e85086eede893e130d0dee360cb975c7168' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1ab1484e9fcefa337719855d33c8b7d447192ce5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-22T21:59:41-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "13dad640", done: "14e17f19"}
+actual_hours: 0.13
 ---
 
 # Queue status must explain older supplier helper incompatibility
