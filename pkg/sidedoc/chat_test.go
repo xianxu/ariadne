@@ -333,3 +333,36 @@ func TestChatItemsWorkIsLinear(t *testing.T) {
 	}
 }
 
+// Code lines come from CommonMark (goldmark), not a toggle on any fence-like
+// line: a fence closes only on its own kind and at least its length, and an
+// indented code block is code too (pair#838's review of cbdced604).
+func TestChatItemsCodeFollowsCommonMark(t *testing.T) {
+	for _, tc := range []struct {
+		name, section string
+		want          []string
+	}{
+		{"tilde line inside a backtick fence", "```\n~~~\n1. inside\n```\n2. real\n", []string{"2. real"}},
+		{"shorter fence inside a longer one", "````\n```\n1. inside\n````\n2. real\n", []string{"2. real"}},
+		{"backtick line inside a tilde fence", "~~~\n```\n1. inside\n~~~\n2. real\n", []string{"2. real"}},
+		{"indented code block", "Prose.\n\n    1. code, not an item\n\n2. real\n", []string{"2. real"}},
+		{"blank line inside a fence does not end an item", "1. ask\n   ```\n   x\n\n   y\n   ```\n   tail\n2. next\n", []string{"1. ask", "2. next"}},
+	} {
+		var got []string
+		for _, it := range ChatItems(tc.section, false) {
+			got = append(got, strings.TrimSpace(it.Lines[0]))
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: items %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// CodeLines stays linear in the number of code blocks: a per-block prefix
+// count would quadruple from N to 2N.
+func TestCodeLinesWorkIsLinear(t *testing.T) {
+	doc := func(n int) string { return strings.Repeat("```\nx\n```\n1. item\n", n) }
+	_, w1 := codeLines(doc(1000))
+	if _, w2 := codeLines(doc(2000)); w2 > 2*w1+w1/10 {
+		t.Errorf("work %d then %d: superlinear", w1, w2)
+	}
+}

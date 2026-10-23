@@ -348,8 +348,8 @@ var (
 // ChatSection.Legacy reports), and it runs over its sub-items and
 // continuation lines until the next such line, or until a blank line
 // followed by prose indented no deeper than that indent (prose belongs to no
-// item). Fenced code starts no item; a tab indents to the next multiple of
-// four. Trailing blank lines are dropped. An item is answered by a link
+// item). Code (fenced or indented, by CommonMark via CodeLines) starts no
+// item; a tab indents to the next multiple of four. Trailing blank lines are dropped. An item is answered by a link
 // ending any of its lines outside fences, so a follow-up added after the link
 // keeps it answered; `→ done:` is the TL's older form. It is one linear pass
 // over the section, the shared grammar of the review checker, tl-lead and
@@ -366,16 +366,7 @@ func chatItems(section string, legacy bool) ([]ChatItem, int) {
 		itemStart = legacyItemStart
 	}
 	lines := strings.Split(section, "\n")
-	fenced := make([]bool, len(lines))
-	in := false
-	for i, l := range lines {
-		t := strings.TrimSpace(l)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fenced[i], in = true, !in
-			continue
-		}
-		fenced[i] = in
-	}
+	fenced, codeWork := codeLines(section) // CommonMark's code blocks, not a fence toggle
 	start := func(i int) (int, bool) {
 		if fenced[i] || !itemStart.MatchString(strings.TrimLeft(lines[i], " \t")) {
 			return 0, false
@@ -411,7 +402,7 @@ func chatItems(section string, legacy bool) ([]ChatItem, int) {
 		}
 		blank = false
 	}
-	work := 3 * len(lines) // the fence, indent and item passes
+	work := codeWork + 2*len(lines) // the code scan, then the indent and item passes
 	for i := range out {
 		it := &out[i]
 		work += len(it.Lines)
