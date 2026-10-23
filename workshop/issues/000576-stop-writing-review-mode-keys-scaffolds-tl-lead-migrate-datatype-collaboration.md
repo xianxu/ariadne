@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "6885b2d3", done: "5b823e98"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows
@@ -61,6 +61,8 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round 2 head 72459336c: all round-1 findings fixed. BR-1: the list token carries the grammar, and link refuses a change (fake race test gives exit 6 with no write; the mutant writes the wrong bullet). BR-2: fake-backed tests for tagged and heading-comment files. BR-3: card-publish round trip. Minors: plan Revisions; guard narrowed to "legacy `key`" spans (the mutation is caught); Innermost for an enclosing section. Round 1 evidence holds: the writers are removed with absence asserted, the legacy round trips pass, the creator guard holds, and the linear, CommonMark-correct chat grammar is shared. The recorded suite is queued on 72459336c.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 382 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed after #575 landed (PR #418). A mapping agent listed every writer and reader. Before change-code I committed the ChatSections scope additions agreed with the TL and pair:3: 3d109d2c8 makes it linear (a counted test catches a reverted prefix count at ratio 4.07) and adds the fence-based unread notice and the empty-value notice; e12f0fccc adds Legacy and Innermost, with a randomized laminar test; 9dbb69c87 adds Tags for pair#838. The TL acknowledged the order as agreed scope. The plan, including the ChatItems design call, was approved 10-23.
 - Task 1: `sidedoc.ChatItems(section, legacy)` holds the item grammar, with a counted N/2N test. tl-lead's `Bullet` is now an alias of `sidedoc.ChatItem`, and its private splitter, regexps and `indentOf` are gone. `checkChat` uses ChatItems too, and the chat-tag mutation still fails on the same line. One deviation from the approved wording, same spirit and one read: `list` and `link` choose `legacy` with `ChatSections` over `Peek(file)`, the whole file read without moving Couch's diff baseline (the interface documents Peek for exactly this kind of decision), instead of over frontmatter plus section. ReadFrontmatter would also mark the frontmatter seen as a side effect, and Peek lets the tag itself count. The rule: a tag alone gives numbered items; any legacy form, or none, keeps `-`, `*` and `N.` (`TestLegacyGrammar`). I also piped `sdlc change-code` through `tail` once more, though it only had to confirm the branch.
 - pair:3 then found, by reading the source, that the fence toggle I carried over from tl-lead flipped on any fence-like line. I measured it: a tilde line inside a backtick fence, a shorter fence inside a longer one, and a backtick line inside a tilde fence each exposed an item. Fix (f8b819032): `sidedoc.CodeLines` takes code lines from goldmark, the parser CodeLiteralMask already uses. A counted N/2N test catches a per-block prefix count at about 4x. tl-lead's edge test encoded the toggle (an unindented line inside an item's fence), so it now uses the CommonMark form (8902b587b).

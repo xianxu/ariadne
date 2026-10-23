@@ -128,3 +128,101 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"393a7478-9e0e-474a-bb19-c380e18fe64a","repository":"github.com/xianxu/ariadne","issue_id":"000576","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e94d3ba9daee6b13","reviewed_head":"4096b2e43bf00d217e1c4afdfb8384eed34bd4b1","slot":"ariadne:2","requested_at":"2026-10-23T21:48:36.873152Z"},"phase":"finished","pid":11238,"started_at":"2026-10-23T21:48:36.983063Z","finished_at":"2026-10-23T21:52:37.732996Z","session_id":"96bfb0ed-07f1-4de9-b80c-2fb9ee8570c3","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T14:59:10-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 576 — Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows |
+| repo | ariadne |
+| issue file | workshop/issues/000576-stop-writing-review-mode-keys-scaffolds-tl-lead-migrate-datatype-collaboration.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c39d1899c04e1176d5bdce47f9f06848dd17ce2c..72459336c6d684be44f6a4cb4de15e09e71886a8 |
+| command | sdlc close --issue 576 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | checkout |
+| timestamp | 2026-10-23T14:59:10-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Focus on the last commit (fixes), plus plan.
+
+Status: the relevant tests pass, and reverting each fix turns its regression test red. Here is the review.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All six findings from round 1 are dealt with, and the four that change behaviour have tests that fail without the fix. I checked this in the disposable checkout:
+
+- **BR-1:** I disabled the grammar check in `linkInstruction`. `TestInstructionsGrammarThroughTheFake/a_tag_added_after_list` then fails with "exit 0, writes 1; want exit 6 and no write".
+- **BR-6:** I removed the `Innermost` fallback. `TestLegacyGrammar` "an enclosing tagged section governs" then fails.
+
+The source is restored; `git status` is clean. The affected packages pass: `sidedoc`, `vocab`, `reviewexport`, `sdlc/internal/issue`, `datatype`, and the instruction, legacy-grammar, migrate and help tests in `tl-lead`. The other `cmd/tl-lead` failures (team, fleet, operating, session-move and a few others) come from the review sandbox refusing `git init` ("outside the reviewer's directories (sdlc #339)"). They are not caused by this diff. Nothing blocks SHIP; one new Minor doc nit remains.
+
+1. **Strengths**
+   - `cmd/tl-lead/instructions.go:84-93`: the `hash:grammar` token carries the grammar from `list` to `link`, so `link` refuses instead of guessing. A bare hash from before #576 means legacy, which keeps older callers working. A tagged file then refuses them, and the test covers that.
+   - `cmd/tl-lead/instructions_test.go:332-372`: the tests run list → change → link through the session-sync fake and assert both the exit code and that nothing was written.
+   - `pkg/reviewexport/examples_test.go:816,851-856`: the guard now excuses only the "legacy `key`" span, not any line containing "legacy". The Log records that an instruction phrased as "on a legacy document, write `presentation-mode`" now fails the guard.
+   - `cmd/sdlc/internal/issue/nomodekeys_test.go:50-71`: checks that a card publish keeps the legacy keys in the details byte for byte and leaves them off the card.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/tl-lead/help.md:433-436` still says `list` prints "the section's hash", but `list` now prints the token `HASH:GRAMMAR`. Callers who copy H verbatim still work. The help should say the token also pins the grammar, and that exit 6 can mean "the grammar changed".
+
+5. **Test coverage notes:** each behaviour fix was checked by reverting it (see above). BR-3's test pins existing `SplitCard` behaviour, so it guards against regressions rather than testing a new fix; that is what Task 2 promised.
+
+6. **Architecture**
+   - **Pass:** ARCH-DRY (link reuses `ChatItems`, `ChatSections` and `Innermost`), ARCH-PURE (the grammar helpers are pure and IO stays in `sectionBullets` and `linkInstruction`), ARCH-PURPOSE (the guard covers every creator's instructions), ARCH-MOCK (tested through the fake), ARCH-CONSTRAINTS (linear scans), ARCH-SECURE (an unknown grammar value refuses instead of being trusted).
+   - **ARCH-ORDER — pass:** the race between list, an outside edit and link now goes through the explicit token check, and a test covers it.
+   - **ARCH-FUNERAL — pass:** nothing durable is added.
+   - **ARCH-EVOLVE — pass:** legacy keys survive SetField and card publish byte for byte. The token format is additive (a bare hash is still accepted).
+
+7. **Plan revisions:** none needed. The Revisions entries dated 2026-10-23 match the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The token is now hash:grammar and link refuses with exit 6 on a change. Disabling the check makes TestInstructionsGrammarThroughTheFake fail (exit 0, writes 1).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestInstructionsGrammarThroughTheFake runs list and link through the fake for a tagged session file and a heading-comment one.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestLegacyModeKeysSurviveCardPublish checks that the details frontmatter keeps a byte prefix and all three legacy keys, and that the card has none.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Plan Revisions entries record Peek(file), legacy=true for an undeclared section, and workingdoc.md's key removal; each matches instructions.go:39-57.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The guard now excuses only the "legacy `key`" span (examples_test.go:816,855); the rest of the line is still checked.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      An enclosing chat section now governs through Innermost, and a revert check confirms the test goes red. A trailing annotation on the heading itself still uses the legacy grammar, a known low-value gap.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: plan-code-drift
+    title: |
+      help.md still says list prints "the section's hash"; it now prints a HASH:GRAMMAR token
+    detail: |
+      cmd/tl-lead/help.md:433-436 should say the token also pins the item grammar, and that exit 6 can mean a tag or legacy declaration changed. This is the 2nd finding in family plan-code-drift. The rule: when a fix changes a printed or accepted token, the same commit updates every prose surface that describes it (help.md, the plan, atlas). Copying H verbatim still works, so this is cosmetic.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"860ee805-a595-4e6b-8b5c-c18e274eed06","repository":"github.com/xianxu/ariadne","issue_id":"000576","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b6b051cb513eeb35","reviewed_head":"72459336c6d684be44f6a4cb4de15e09e71886a8","slot":"ariadne:2","requested_at":"2026-10-23T21:57:44.642944Z"},"phase":"finished","pid":2349,"started_at":"2026-10-23T21:57:44.78014Z","finished_at":"2026-10-23T21:59:09.984941Z","session_id":"78202f8f-3a2f-4dfe-b161-5d283a2cbda5","outcome":"returned"}] -->
