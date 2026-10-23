@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -177,5 +180,99 @@ func TestSuiteQueueStatusObservationsOverlapAndJoin(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "aging overrode grant") || strings.Contains(out.String(), "observations serialized") {
 		t.Fatalf("observation lifetime: %s", out.String())
+	}
+}
+
+func TestSuiteQueueInspectionCompatibilityDiagnostic(t *testing.T) {
+	raw, err := os.ReadFile("testdata/suite-inspect-compat/pre560.stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, diagnostic string
+		code             int
+		unsupported      bool
+	}{
+		{"captured acquire-only helper", string(raw), 2, true},
+		{"missing supervised option", "usage: test-lock.py\ntest-lock.py: error: unrecognized arguments: --supervised\n", 2, true},
+		{"other usage error", "test-lock.py: error: invalid slots value\n", 2, false},
+		{"runtime failure", "provider could not read state\n", 1, false},
+		{"misleading runtime text", string(raw), 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := suiteQueueHelperFixture(t, "import sys\nsys.stderr.write("+fmt.Sprintf("%q", tc.diagnostic)+")\nsys.exit("+fmt.Sprint(tc.code)+")\n")
+			helper := filepath.Join(filepath.Dir(mustSuiteWorkflow(t, root)), "scripts", "test-lock.py")
+			got := observeSuiteQueue(context.Background(), root)
+			if got.Available || !strings.Contains(got.Reason, helper) || !strings.Contains(got.Reason, strings.TrimSpace(tc.diagnostic)) {
+				t.Fatalf("lost helper diagnostic: %+v", got)
+			}
+			unsupported := strings.Contains(got.Reason, "does not support queue inspection")
+			if unsupported != tc.unsupported {
+				t.Fatalf("unsupported=%v want %v: %s", unsupported, tc.unsupported, got.Reason)
+			}
+			if unsupported && !strings.Contains(got.Reason, "update the supplying ariadne checkout") {
+				t.Fatal("missing supplier recovery")
+			}
+		})
+	}
+}
+
+func mustSuiteWorkflow(t *testing.T, root string) string {
+	t.Helper()
+	mk, err := filepath.EvalSymlinks(filepath.Join(root, "Makefile.workflow"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return mk
+}
+
+func TestSuiteQueueInspectionDiagnosticBound(t *testing.T) {
+	for _, n := range []int{1024, 2048} {
+		got := suiteQueueInspectFailure("/supplier/scripts/test-lock.py", errors.New("run failure"), []byte(strings.Repeat("x", n))).Error()
+		if strings.Count(got, "x") != 1024 || (strings.Contains(got, "[truncated]") != (n > 1024)) {
+			t.Fatalf("diagnostic bound at %d: %s", n, got)
+		}
+	}
+}
+
+func TestSuiteQueueAcquireOnlySupplierStillAdmits(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "acquire-argv")
+	script := `import argparse, json, sys
+p=argparse.ArgumentParser()
+p.add_argument('cmd',choices=['acquire'])
+p.add_argument('--watch',type=int,required=True)
+p.add_argument('--slots',type=int,default=1)
+a=p.parse_args()
+open(` + fmt.Sprintf("%q", marker) + `, 'w').write(json.dumps(sys.argv[1:]))
+print('acquired')
+`
+	root := suiteQueueHelperFixture(t, script)
+	helper := filepath.Join(filepath.Dir(mustSuiteWorkflow(t, root)), "scripts", "test-lock.py")
+	observed := observeSuiteQueue(context.Background(), root)
+	if observed.Available || !strings.Contains(observed.Reason, "does not support queue inspection") {
+		t.Fatalf("old helper status: %+v", observed)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("status attempted admission: %v", err)
+	}
+	d := localRunDeps{Root: root, Stderr: io.Discard}
+	held, release, err := acquireSuiteSlot(context.Background(), d, root, 2, helper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if held == "" {
+		t.Fatal("no lifetime holder")
+	}
+	raw, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var argv []string
+	if err := json.Unmarshal(raw, &argv); err != nil {
+		t.Fatal(err)
+	}
+	if len(argv) != 5 || argv[0] != "acquire" || argv[1] != "--watch" || argv[3] != "--slots" || argv[4] != "2" {
+		t.Fatalf("admission argv changed: %v", argv)
 	}
 }
