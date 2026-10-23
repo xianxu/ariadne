@@ -77,6 +77,24 @@ LANDING TRAINS (#449)
   waiting merge's readiness, and the last trains (result, cars, train PR,
   split suites, culprit).
 
+  It also shows the train filter over the last seven days (#561), the
+  measurements the cap ramp rule reviews. Each train records a start and a
+  final measurement in the landing log: the proof each car boarded on
+  (affected, suite or unknown), which boardings a passing prefix resolved,
+  which an exact attributed split confirmed as escapes (a failure the
+  train's suite found in a package the car changed, its affected run having
+  passed), and every whole-suite run it made (initial, main baseline, split
+  probe, reintegration) with its run and queue time. The line reads:
+    escapes E/R resolved affected boardings (rate, or unknown at R=0);
+    unresolved, suite and unknown-proof boardings beside it; trains
+    measured, incomplete (a start without a final, a lost append, a
+    bound) and unmeasured (before #561); the split's extra suites (baseline
+    plus probes) with run, queue and elapsed wall time, and reintegration
+    suites apart.
+  Registered flakes, untouched or unknown impact, a red main and released
+  cars are never escapes. The weekly test-stats snapshot carries the same
+  numbers and line as train_filter. Measurements never decide a landing.
+
 DROP A COMPOSED CAR (#526)
 
   sdlc landing drop --issue N [--reason WHY] [--repo DIR]

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -189,5 +190,96 @@ func TestReadExistingWeeklySnapshotRejectsIncompatibleOrCorrupt(t *testing.T) {
 		if _, exists, err := readExistingWeeklySnapshot(root, window); err == nil || exists {
 			t.Fatalf("invalid existing artifact accepted: %s (%v)", body, err)
 		}
+	}
+}
+
+// #561: the weekly artifact carries the week's train measurements from the
+// same fold and formatter as landing status, and a snapshot written before
+// the field existed is returned untouched, byte for byte.
+func TestRunWeeklySnapshotCarriesTrainFilter(t *testing.T) {
+	end := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	newBrain := func() string {
+		brain := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(brain, ".brain"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(brain, ".brain", "config.md"), []byte("local-only"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return brain
+	}
+	var meter landingline.MeasurementTracker
+	departed := end.Add(-48 * time.Hour)
+	var events []landingline.Event
+	for _, e := range []landingline.MeasurementEvent{
+		landingline.MeasureDeparture{Train: 3, Departed: departed, Cars: []landingline.MeasuredCar{{Seq: 3, Head: strings.Repeat("c", 40), Proof: landingline.ProofAffected}, {Seq: 4, Head: strings.Repeat("d", 40), Proof: landingline.ProofSuite}}},
+		landingline.MeasureStartAppended{}, landingline.MeasurePrefixPassed{Seqs: []int64{3, 4}},
+		landingline.MeasureFinal{At: departed.Add(time.Minute), Phase: "landed"},
+	} {
+		rec, err := landingline.AdvanceMeasurement(&meter, e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec != nil {
+			raw, _ := landingline.EncodeMeasurement(*rec)
+			events = append(events, landingline.Event{Kind: landingline.EventTrainMeasure, At: departed, Seq: 3, Train: 3, Measurement: raw})
+		}
+	}
+	events = append(events, landingline.Event{Kind: landingline.EventTrain, At: departed, Seq: 9, Train: 9, Result: "landed", Departed: departed}) // legacy
+	deps := weeklySnapshotDeps{
+		now:      func() time.Time { return end.Add(time.Hour) },
+		identity: func() (workspace.Identity, error) { return workspace.Identity{}, nil },
+		discover: func(workspace.Identity) ([]string, error) { return []string{"/fake/ariadne"}, nil },
+		read: func(context.Context, string, string, WeeklyWindow) weeklyRepoEvidence {
+			return weeklyRepoEvidence{Repo: "ariadne", Root: "/fake/ariadne", Events: events}
+		},
+		previous: func(string, WeeklyWindow) previousResourceResult {
+			return previousResourceResult{State: "baseline", Reason: "previous week missing"}
+		},
+		resources: func(context.Context, workspace.Identity, []string, weeklySnapshotFlags) (ResourceCollection, ResourceMachine) {
+			return ResourceCollection{}, fakeWeeklyResourceMachine()
+		},
+		publish: publishBrainSnapshot,
+	}
+	brain := newBrain()
+	var out bytes.Buffer
+	if err := runWeeklySnapshot(context.Background(), &out, weeklySnapshotFlags{End: end.Format(time.RFC3339), BrainRoot: brain}, deps); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(strings.TrimSpace(out.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got WeeklySnapshot
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	f := got.Repos[0].TrainFilter
+	want := landingline.AggregateTrainMeasurements(events, end.Add(-7*24*time.Hour), end)
+	if f == nil || f.Text != want.Text || f.Trains != 2 || f.Measured != 1 || f.Unmeasured != 1 || f.ResolvedAffected != 1 || f.SuiteBoardings != 1 {
+		t.Fatalf("train filter %+v\nwant %+v", f, want)
+	}
+	// A pre-#561 artifact for the week is the immutable result: returned
+	// as is, its missing train_filter never filled in.
+	old := newBrain()
+	var legacy map[string]any
+	_ = json.Unmarshal(data, &legacy)
+	for _, r := range legacy["repos"].([]any) {
+		delete(r.(map[string]any), "train_filter")
+	}
+	legacyBytes, _ := json.MarshalIndent(legacy, "", "  ")
+	path := weeklySnapshotPath(old, end)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, legacyBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := runWeeklySnapshot(context.Background(), &out, weeklySnapshotFlags{End: end.Format(time.RFC3339), BrainRoot: old}, deps); err != nil || strings.TrimSpace(out.String()) != path {
+		t.Fatalf("legacy rerun: %v %q", err, out.String())
+	}
+	if after, _ := os.ReadFile(path); !bytes.Equal(after, legacyBytes) {
+		t.Fatal("a pre-change snapshot was rewritten")
 	}
 }
