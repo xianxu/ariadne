@@ -5,9 +5,9 @@ deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
-estimate_hours:
+estimate_hours: 6.51
 collaboration-mode: collaboration
-card_mirror: 'b0baec0c48570e83b995404637781eac3b7d292b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2d9e79546c407ab395bb3c62cfac9c233ce6823c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T12:35:23-07:00
 claimant:
     operator: Xian Xu
@@ -58,6 +58,49 @@ Out of M1: the second computer's setup, more than one worker model, the report.
 
 - [ ] Deliver the approved project M1 through the [durable implementation plan](../plans/000577-model-bench-runner-plan.md): sanitized preparation/private tracker, observer runtime and TL mode, measurement/leak diagnostics, hidden acceptance and ledger, disposable conformance, full suite and close.
 
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only. Calibration is reported stale by `sdlc estimate-source`; treat this as provisional focused ship-time, excluding suite-queue and operator-provisioning idle time.
+
+Thorough approved plan: design discount ×0.2 and +15% design buffer. Existing Git/tracker/Couch/usage/managed-test owners replace novel platform work (library-availability reduction applied to the reused portions). Implementation values below already use v3.1's 40% scale; familiarity 1.5 reflects the new but bounded multi-role observer orchestration. No new external library or service is assumed.
+
+| Primitive rows, in block order | Scope |
+|---|---|
+| issue-spec | project interpretation, approvals and executable plan |
+| typed-data-prototype | typed manifest/public projection/phase/result contracts |
+| greenfield-go-module ×2 | pure event/admission core; sanitized preparation and portable store |
+| smaller-go-module | bench-local dependency construction and guarded receipts |
+| api-integration | Couch identity/receipt/watch/cancellation adapter and stateful fake |
+| greenfield-go-module ×2 | attributed measurements/leak detector; acceptance scoring/ledger |
+| skill-or-dispatcher | TL bench mode, decisions and finish proposals |
+| real-api-discovery | native Couch bridge and actual agent/runtime conformance |
+| smaller-go-module | end-to-end fixture and real-run acceptance integration |
+| atlas-docs | help, README, atlas and recovery contracts |
+| milestone-review | one whole-issue close review, not an extra milestone boundary |
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.5
+item: issue-spec design=0.15 impl=0.08
+item: typed-data-prototype design=0.10 impl=0.20
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.05 impl=0.20
+item: api-integration design=0.20 impl=0.60
+item: greenfield-go-module design=0.15 impl=0.32
+item: greenfield-go-module design=0.15 impl=0.32
+item: skill-or-dispatcher design=0.10 impl=0.20
+item: real-api-discovery design=0.00 impl=0.24
+item: smaller-go-module design=0.05 impl=0.20
+item: atlas-docs design=0.03 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 6.51
+```
+
+Design 1.38h ×1.15 + implementation 3.28h ×1.5 = 6.507h, rounded 6.51h. Main uncertainties are true-runtime provisioning/conformance and historic task/tool compatibility. A larger required mechanism goes back to the hub rather than being hidden in a new multiplier.
+
 ## Log
 
 ### 2026-10-23
@@ -71,6 +114,8 @@ Draft durable plan is written, awaiting hub review before code. It names the sta
 Plan approved by ops:0 with a real-run acceptance condition (authenticated receipt `32918d0f-ab73-4a25-b4e7-2bc8a6633d47`). Recorded that condition in Done-when and appended a concrete disposable-slot provisioning checklist: sanitized worker/private origin, fresh operating hub, supervised Couch discovery/launch, exact hub claim, real agent profiles/models, candidate tools/transcript identities, acceptance evidence and retirement. Hub provisions together when code is ready. Next: full-flow change-code plan-quality gate; no implementation yet.
 
 Plan-quality round 1 refused on PQ-1 (external-dependency-boundary-completeness): run/republish resolve a GitHub-only repository identity and discover a PR before the proposed local sink. Independently verified the cited production code. Refined the same approved adapter with one named dependency constructor shared by both commands: validated private publication identity, no GH client/PR discovery in bench mode, ordinary production unchanged. Added actual built-CLI run/republish tests with an all-call rejecting GitHub sentinel and unchanged same-head proof guards. Next: rerun plan quality; no implementation has started.
+
+Plan-quality round 2 CLEAN: PQ-1 disposed, no remaining blockers. The gate now requires the estimate. Derived the itemized v3.1 estimate only after plan approval, using the named source and baseline; 6.51h with stale-calibration caveat. Next: record the card estimate and clear estimate quality/change-code; no code before admission.
 
 ## Revisions
 
