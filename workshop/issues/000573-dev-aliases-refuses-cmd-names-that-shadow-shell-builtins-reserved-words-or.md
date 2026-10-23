@@ -1,13 +1,21 @@
 ---
 id: 000573
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '86ce5b83effc6755c7992a6b0b37727ab43e4863' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f238b63c38d89743987972fa5b15e7966f399292' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T08:01:51-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # dev-aliases refuses cmd names that shadow shell builtins, reserved words or system commands
@@ -36,7 +44,33 @@ binary stays reachable by its path.
 
 ## Plan
 
-- [ ]
+Quick flow: about 60 added lines in `construct/dev-aliases.sh`, no milestones.
+
+**Where the check runs.** In the generator, not in the sourcing shell. The generator already runs at shell start, as a bash child of the operator's shell. A name refused there emits no function at all, warns once from one place, and stays out of `--list`. Checking inside the sourcing shell would need two shell dialects in the emitted text and a symlink resolution that bash can't do without forking.
+
+**Rule.** Refuse `cmd/X` when any of these holds:
+1. X is a builtin or keyword in bash (`type -t`, in the generator's own process).
+2. X is a builtin or reserved word in zsh. One batched `zsh -f -c 'whence -w -- "$@"'` call covers every candidate name, about 6ms. If zsh is absent, this check is skipped.
+3. X is on PATH (`type -ap`) as a file whose resolved path lies outside both the workspace and `$HOME`. That covers /bin, /usr/bin, /sbin, /opt/homebrew and similar. Symlinks are resolved first, so `~/.local/bin/sdlc` (a symlink into `workspace/ariadne/bin`) stays allowed.
+
+Checking both shells means a name that is a builtin in either one is refused in both. That is stricter than checking only the sourcing shell, and it's deliberate: such a name is a bad CLI name anywhere.
+
+**Why rule 3 exempts `$HOME`.** A user-installed copy such as a stale `go install` in `~/go/bin/sdlc` must not cost the fleet its dev functions. The cost of this choice: a name that matches a tool installed under `$HOME` (`~/.cargo/bin/rg`, say) is not refused.
+
+**Warning.** One line per refused name: `dev-aliases: not defining X (cmd/X in REPO): it would shadow the zsh builtin X; run REPO/bin/X by its path or rename the command`. The reason is one of: bash builtin, bash keyword, zsh builtin, zsh reserved word, or system command PATH.
+
+**Shape (ARCH-PURE).** The pure function `shadow_reason NAME BASHKIND ZSHKIND PATHS` returns the reason or nothing. The IO is gathered once per run: the zsh batch call, and `type -ap` plus symlink resolution per name. Symlinks are resolved only for PATH matches, so in practice there are a handful of `readlink` forks.
+
+**ARCH notes.**
+- **ARCH-CONSTRAINTS (shell start):** the baseline generator takes about 0.21s. The budget for the change is at most 10ms of median added time, measured over 20 runs, main against the branch, and recorded in the Log. Growth: one zsh fork per run (constant), one PATH scan per name, and readlink forks only on PATH symlink hops.
+- **ARCH-ORDER, ARCH-FUNERAL, ARCH-EVOLVE, ARCH-MOCK, ARCH-SECURE:** N/A. Holds no state between events and creates nothing durable; the generator emits text to stdout. Its inputs are the caller's own PATH and shells.
+
+**Tests**, in a new `construct/scripts/test/dev-aliases-shadow.test.sh`:
+- [ ] Use a fixture workspace with `cmd/echo`, `cmd/test`, `cmd/ls`, `cmd/print` (zsh-only builtin) and `cmd/oktool`. Source the output in bash and in zsh. Assert that echo, test and print still resolve to the builtin, `ls` to `/bin/ls`, and `oktool` to a function. Stderr must hold exactly one warning per refused name; `--list` must omit the refused names.
+- [ ] Symlink case: put a PATH directory under a fake HOME with a symlink into the workspace, and a direct symlink to `/bin/ls`. The first is allowed, the second refused.
+- [ ] Unit table for `shadow_reason`, loaded with the existing sed-eval pattern.
+- [ ] Counted test at N and 2N owners: zsh is invoked exactly once, and `readlink` only once per PATH symlink hop.
+- [ ] Wire the test into the Makefile next to `dev-aliases.test.sh`, update the script's header and `atlas/workflow/base-layer.md`, and measure the start time.
 
 ## Log
 
