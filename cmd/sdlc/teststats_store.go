@@ -47,6 +47,7 @@ var suiteAttemptJSONFields = map[string]bool{
 	"outcome": true, "known_flakes": true, "rerun_of": true, // version 2 only (#394)
 	"reclassification_sha256": true,
 	"runner_contract_sha256":  true,
+	"lane":                    true, "lane_overrun_seconds": true, // additive (#559)
 }
 
 // suiteAttemptVersion is the version the writer records. Version 2 (#394)
@@ -182,6 +183,9 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	}
 	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && !suiteOutcomes[flakes.Kind(a.Outcome)] {
 		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
+	}
+	if (a.Lane != "" && a.Lane != suiteLaneLight) || (a.LaneOverrunSeconds != nil && !(*a.LaneOverrunSeconds > 0 && *a.LaneOverrunSeconds < 1e9)) {
+		return a, errors.New("invalid lane evidence")
 	}
 	if a.RerunOf != "" && (!suiteHex.MatchString(a.RerunOf) || len(a.RerunOf) < 2 || len(a.RerunOf) > 64 || a.RerunOf == a.ID) {
 		return a, errors.New("invalid rerun_of")

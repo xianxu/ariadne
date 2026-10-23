@@ -147,7 +147,14 @@ function* — not on PATH and not reachable from cron/launchd; a derivative that
 needs one of these binaries non-interactively must provide the owner bin on
 PATH or use its absolute path. Filters: skips re-export
 symlinks and non-buildable dirs (so a derivative never shadows the owner), and
-`cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
+`cmd/X/.private` opts a binary out. A name that would shadow what the
+operator's shell already means by it gets no function and one warning (#573):
+a bash or zsh builtin or reserved word (`echo`, `test`, zsh's `print`;
+echo's `cmd/echo` once broke the operator's prompt), or a first PATH match
+outside the workspace and `$HOME` (`/bin/ls`). Anything under `$HOME`
+(`~/.local/bin/sdlc`, a stale `~/go/bin` install) is exempt, and so is a
+link from a system directory into the workspace, whose hops are followed. The binary stays runnable by its path; `dev-aliases-shadow.test.sh`
+sources the output in bash and zsh. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
 with its hermetic test under
 `construct/scripts/test/dev-aliases.test.sh`, which `make test` and the CI merge

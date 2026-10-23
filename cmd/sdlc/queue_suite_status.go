@@ -24,13 +24,24 @@ const suiteQueueOutputLimit = 1 << 20
 // admission policy or part of queue status's frozen JSON snapshot.
 // wire: the supplying helper may add observation fields before this binary upgrades.
 type suiteQueueObservation struct {
-	Version            int                `json:"version"`
-	Available          bool               `json:"available"`
-	PolicySeconds      float64            `json:"policy_seconds"`
-	ProtectedThrough   int64              `json:"protected_through"`
-	PriorityOverridden bool               `json:"priority_overridden"`
-	Reason             string             `json:"reason"`
-	Tickets            []suiteQueueTicket `json:"tickets"`
+	Version            int                   `json:"version"`
+	Available          bool                  `json:"available"`
+	PolicySeconds      float64               `json:"policy_seconds"`
+	ProtectedThrough   int64                 `json:"protected_through"`
+	PriorityOverridden bool                  `json:"priority_overridden"`
+	Reason             string                `json:"reason"`
+	Tickets            []suiteQueueTicket    `json:"tickets"`
+	Lane               *suiteLaneObservation `json:"lane"` // absent from helpers before #559
+}
+
+// wire: the light lane's holder and FIFO waiters (#559), observed beside the line.
+type suiteLaneObservation struct {
+	Version   int                `json:"version"`
+	Available bool               `json:"available"`
+	Reason    string             `json:"reason"`
+	Busy      bool               `json:"busy"`
+	Holder    json.RawMessage    `json:"holder"`
+	Waiters   []suiteQueueTicket `json:"waiters"`
 }
 
 // wire: ticket observations retain additive helper metadata across binary versions.
@@ -59,27 +70,40 @@ func decodeSuiteQueue(raw []byte) (suiteQueueObservation, error) {
 	if observed.Version != 1 || observed.PolicySeconds <= 0 || math.IsInf(observed.PolicySeconds, 0) || math.IsNaN(observed.PolicySeconds) || observed.Tickets == nil || len(observed.Tickets) > 4096 || observed.ProtectedThrough < 0 {
 		return observed, fmt.Errorf("invalid suite inspection version, policy or ticket bound")
 	}
+	if lane := observed.Lane; lane != nil {
+		if lane.Version != 1 || (!lane.Available && lane.Reason == "") || len(lane.Waiters) > 4096 {
+			return observed, fmt.Errorf("invalid light lane observation")
+		}
+		if err := validateSuiteTickets(lane.Waiters); err != nil {
+			return observed, fmt.Errorf("light lane: %w", err)
+		}
+	}
 	if !observed.Available {
 		if observed.Reason == "" || len(observed.Tickets) != 0 {
 			return observed, fmt.Errorf("invalid unavailable suite inspection")
 		}
 		return observed, nil
 	}
+	return observed, validateSuiteTickets(observed.Tickets)
+}
+
+// validateSuiteTickets checks a line's observed identity, order and records.
+func validateSuiteTickets(tickets []suiteQueueTicket) error {
 	seen := map[int64]bool{}
-	for i, ticket := range observed.Tickets {
+	for i, ticket := range tickets {
 		if ticket.Number <= 0 || seen[ticket.Number] || ticket.Position != i+1 || ticket.Reason == "" {
-			return observed, fmt.Errorf("invalid suite inspection ticket identity or position")
+			return fmt.Errorf("invalid suite inspection ticket identity or position")
 		}
 		seen[ticket.Number] = true
 		if age := ticket.AgeSeconds; age != nil && (*age < 0 || math.IsInf(*age, 0) || math.IsNaN(*age)) {
-			return observed, fmt.Errorf("invalid suite ticket age")
+			return fmt.Errorf("invalid suite ticket age")
 		}
 		var record map[string]json.RawMessage
 		if err := json.Unmarshal(ticket.Record, &record); err != nil || record == nil {
-			return observed, fmt.Errorf("invalid suite ticket record")
+			return fmt.Errorf("invalid suite ticket record")
 		}
 	}
-	return observed, nil
+	return nil
 }
 
 // observeSuiteQueue resolves the same workflow supplier as make/local-check.
@@ -148,6 +172,7 @@ func suiteQueueInspectFailure(helper string, err error, stderr []byte) error {
 }
 
 func renderSuiteQueue(out io.Writer, observed suiteQueueObservation) {
+	defer renderSuiteLane(out, observed.Lane)
 	if !observed.Available {
 		fmt.Fprintf(out, "suite queue order unavailable: %q; retry: sdlc queue status\n", observed.Reason)
 		return
@@ -181,6 +206,44 @@ func renderSuiteQueue(out io.Writer, observed suiteQueueObservation) {
 			override = "; aging overrode grant priority"
 		}
 		fmt.Fprintf(out, "  ticket %d: position %d; age %s; %q; protected=%t; granted=%t%s; repo %q, worktree %q\n", ticket.Number, ticket.Position, age, ticket.Reason, ticket.Protected, ticket.Granted, override, record.Repo, record.Worktree)
+	}
+}
+
+// renderSuiteLane shows the light lane (#559): its holder and FIFO waiters.
+func renderSuiteLane(out io.Writer, lane *suiteLaneObservation) {
+	switch {
+	case lane == nil:
+		fmt.Fprintln(out, "light lane: not supported by this suite helper (it predates #559)")
+		return
+	case !lane.Available:
+		fmt.Fprintf(out, "light lane: observation unavailable: %q\n", lane.Reason)
+		return
+	}
+	var holder struct {
+		Repo     string `json:"repo"`
+		Worktree string `json:"worktree"`
+		Started  string `json:"started"`
+	}
+	state := "free"
+	if lane.Busy {
+		state = "held by an unidentified holder (record not yet written)"
+		if json.Unmarshal(lane.Holder, &holder) == nil && holder.Repo != "" {
+			state = fmt.Sprintf("held by repo %q, worktree %q, since %s", holder.Repo, holder.Worktree, holder.Started)
+		}
+	}
+	fmt.Fprintf(out, "light lane (one extra slot for suites measured under %.0fs, niced, stopped at %.0fs): %s; %d waiting\n",
+		suiteLaneThreshold.Seconds(), suiteLaneBound.Seconds(), state, len(lane.Waiters))
+	for _, ticket := range lane.Waiters {
+		var record struct {
+			Repo     string `json:"repo"`
+			Worktree string `json:"worktree"`
+		}
+		_ = json.Unmarshal(ticket.Record, &record)
+		age := "unknown"
+		if ticket.AgeSeconds != nil {
+			age = fmt.Sprintf("%.0fs", *ticket.AgeSeconds)
+		}
+		fmt.Fprintf(out, "  light ticket %d: position %d; age %s; repo %q, worktree %q\n", ticket.Number, ticket.Position, age, record.Repo, record.Worktree)
 	}
 }
 
