@@ -776,6 +776,204 @@ rounds:
       isolation: fenced
       reviewed: d3bbe8a5aba0e7b08481ff7e168c6d91857b77a8
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ba02a67d-1cd4-484d-9522-5abf43a50450
+            repository: github.com/xianxu/ariadne
+            issue_id: "000561"
+            recipe: milestone-review
+            round: 5
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/97fc2cc0acbfa234
+            reviewed_head: d58219e00d87c953bcbc3b6ec7ed345a1bad9185
+            slot: ariadne:2
+            requested_at: "2026-10-23T12:27:03.494487Z"
+          phase: finished
+          pid: 31454
+          started_at: "2026-10-23T12:27:03.643398Z"
+          finished_at: "2026-10-23T12:28:02.907198Z"
+          session_id: 5b1f1d8a-4e75-4ce7-a4ee-8ec566f24059
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: d58219e00d87c953bcbc3b6ec7ed345a1bad9185
+        tracker_head: e88c0251ada207a1677845165571c17a29a1f08a
+        branch_point: 6318fc7bc700173acdcea67f3993d326f8947845
+        since: "2026-10-23T00:12:42-07:00"
+        until: "2026-10-23T04:34:43-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T00:12:42-07:00"
+              end: "2026-10-23T04:34:43-07:00"
+              began: "2026-10-23T00:12:42-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: 35e15fe2-8f0d-4566-952d-248079e77abe
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 0851f315479769063bc9ac22dcb62b5561890d2be8b96e0c2ae9b939592c9403
+              started: "2026-10-23T07:50:04.212Z"
+              spawned: false
+              bytes: 392978
+              windows:
+                - start: "2026-10-23T07:50:04.212Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ad9a5b67f9eb77a7c4e41d512d073a68eb7b687ca0131da4282d7ff823422151
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 5239690
+              windows:
+                - start: "2026-10-23T07:49:37.819Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 209724edab26b675f92f1d17f3b4efd6d07e87ff44f2088fdbe20366b9b231f1
+              started: "2026-10-20T18:21:54.178Z"
+              spawned: false
+              bytes: 70313740
+              windows:
+                - start: "2026-10-23T00:12:42-07:00"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a1679b-daf3-7670-8b64-92acffdd9912
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              parent_id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              digest: 8600e756d7e557ec4b2e56aa6102e78a69d16bfebd0d438c358850dda70634f5
+              started: "2026-10-23T07:13:49.893Z"
+              spawned: true
+              bytes: 704561
+              windows:
+                - start: "2026-10-23T07:13:49.893Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a1679c-0bce-73c3-a3b1-deb7349cfd29
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              parent_id: 01a15a8b-4413-79d1-8ce1-b0de05e9b8ca
+              digest: e1cd9dde0d2f0ecbbd3440c6e23d690c09e3ea0f6a31707c3d0473f44b497004
+              started: "2026-10-23T07:14:02.415Z"
+              spawned: true
+              bytes: 804726
+              windows:
+                - start: "2026-10-23T07:14:02.415Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a167a9-1cfd-7c42-b326-59702214ac99
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 8dedd1bfe31983481bc0d4586b86f5df76dbf124a81decce1ce6f6037421c922
+              started: "2026-10-23T07:28:19.079Z"
+              spawned: false
+              bytes: 919808
+              windows:
+                - start: "2026-10-23T07:28:19.079Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a167af-04b8-7e72-81d0-27b0a05cb910
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 6a38189077060d4a9682ad7e4e739a16d36542f9442b52793311f9297f86f4cb
+              started: "2026-10-23T07:34:46.026Z"
+              spawned: false
+              bytes: 501476
+              windows:
+                - start: "2026-10-23T07:34:46.026Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a167b1-2df2-7dd1-9ce4-befd102b8266
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: ba8418ea76d3828851c4914c761562d877653459f8d0a3ef9591e956bdc02f30
+              started: "2026-10-23T07:37:07.828Z"
+              spawned: false
+              bytes: 454992
+              windows:
+                - start: "2026-10-23T07:37:07.828Z"
+                  end: "2026-10-23T04:34:43-07:00"
+            - harness: codex
+              id: 01a167b1-cacb-7f63-ad15-9a2f3efef053
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: d6391bbc2ddf0bc306e40693531bc098f3f3f129848d59e87215614ee803e1ac
+              started: "2026-10-23T07:37:47.761Z"
+              spawned: false
+              bytes: 413051
+              windows:
+                - start: "2026-10-23T07:37:47.761Z"
+                  end: "2026-10-23T04:34:43-07:00"
+        queue_waits:
+            - attempt_id: c5fff316216ec03a781b4796f770a3e5
+              slot: ariadne:2
+              record_digest: 233864a27d662308af7776741a71a83e1a1beaf3024e771b8b7a352ea06241e1
+              start: "2026-10-23T09:41:55.339899Z"
+              end: "2026-10-23T10:12:11.044293Z"
+              queue_seconds: 1815.704394
+              raw_seconds: 1815.704394
+              exact: true
+            - attempt_id: f3122a02c4fdbbaba2e5dd1f03b2b89f
+              slot: ariadne:2
+              record_digest: 1fd58a9cec4967b8e984e4ae578e06079fc44d30b47bf284525b7824745cf346
+              start: "2026-10-23T10:26:47.871507Z"
+              end: "2026-10-23T11:19:58.646573Z"
+              queue_seconds: 3190.775066
+              raw_seconds: 3190.775066
+              exact: true
+        cuts:
+            - boundary: M1
+              dispatched: "2026-10-23T01:29:48-07:00"
+              finalized: "2026-10-23T01:34:49-07:00"
+              finalizing: false
+            - boundary: M1
+              dispatched: "2026-10-23T01:36:12-07:00"
+              finalized: "2026-10-23T01:39:56-07:00"
+              finalizing: true
+            - boundary: M2
+              dispatched: "2026-10-23T02:01:12-07:00"
+              finalized: "2026-10-23T02:10:56-07:00"
+              finalizing: false
+            - boundary: M2
+              dispatched: "2026-10-23T02:24:48-07:00"
+              finalized: "2026-10-23T02:40:27-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-23T05:28:03-07:00"
+      dispatched: "2026-10-23T05:27:03-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic,openai)
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: cigate.go:240/712 use localCheckCommand; TestLocalCheckRunCommandIsSingleSourced scans non-test sources and rejects hand-built forms, so restoring the old string goes red.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: suiteenvironment.go:45 and localcheck_reclassify.go:70 call localCheckRunCommand(check, rev); verified reverting reclassify.go:70 turns TestLocalCheckRunCommandIsSingleSourced red.
+          round: 5
+        - id: BR-13
+          disposition: addressed
+          note: Rendering extracted to pure trainFilterLines (landingcmd.go:161); TestTrainFilterLines asserts summary, escape and overflow lines exactly; status test also asserts the escape line.
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: d58219e00d87c953bcbc3b6ec7ed345a1bad9185
+      blocked: false
 ---
 
 # Gate ledger — ariadne#561 (boundary-review)
@@ -846,8 +1044,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Minor] `derived-surface-untested` Status escape and overflow lines are not checked by any test
   2nd finding in family derived-surface-untested. Rule: every line a human surface renders from a fold field needs a test asserting that line, not just the fold. landingcmd.go:215-220 prints the escape and overflow lines, but TestLandingStatusShowsTrainsAndReadiness only checks the summary text.
 
+## Round 5 — 2026-10-23T05:28:03-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — cigate.go:240/712 use localCheckCommand; TestLocalCheckRunCommandIsSingleSourced scans non-test sources and rejects hand-built forms, so restoring the old string goes red.
+- BR-5 — addressed — suiteenvironment.go:45 and localcheck_reclassify.go:70 call localCheckRunCommand(check, rev); verified reverting reclassify.go:70 turns TestLocalCheckRunCommandIsSingleSourced red.
+- BR-13 — addressed — Rendering extracted to pure trainFilterLines (landingcmd.go:161); TestTrainFilterLines asserts summary, escape and overflow lines exactly; status test also asserts the escape line.
+
 ## Open findings
 
-- **BR-2** [Minor] `recovery-command-single-source` (kind: defect) cigate.go:675 hand-builds a local-check command bypassing localCheckCommand
-- **BR-5** [Minor] `recovery-command-single-source` (kind: defect) Recovery advice still hand-builds local-check run commands outside localCheckCommand
-- **BR-13** [Minor] `derived-surface-untested` Status escape and overflow lines are not checked by any test
+(none — every finding has been disposed)
