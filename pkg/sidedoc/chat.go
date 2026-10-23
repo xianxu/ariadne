@@ -324,3 +324,122 @@ func normalizeHeading(s string) string {
 	s = strings.Join(strings.Fields(strings.ToLower(s)), " ")
 	return strings.TrimSpace(trailingAnnotation.ReplaceAllString(s, ""))
 }
+
+// ChatItem is one item of a chat section (collaboration-modes.md §3). Pos is
+// its 1-based position in the section: the operator reuses numbers, so the
+// number never identifies an item. Start indexes its first line in the
+// section text.
+type ChatItem struct {
+	Pos      int
+	Start    int
+	Lines    []string
+	Answered bool
+}
+
+var (
+	numberedItemStart = regexp.MustCompile(`^\d+\.\s`)
+	legacyItemStart   = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
+	answeredItem      = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
+)
+
+// ChatItems splits a chat section's text into its items, by the grammar of
+// collaboration-modes.md §3: a `N.` line at the section's shallowest list
+// indent starts one (also `-` and `*` lines when legacy is set, as
+// ChatSection.Legacy reports), and it runs over its sub-items and
+// continuation lines until the next such line, or until a blank line
+// followed by prose indented no deeper than that indent (prose belongs to no
+// item). Fenced code starts no item; a tab indents to the next multiple of
+// four. Trailing blank lines are dropped. An item is answered by a link
+// ending any of its lines outside fences, so a follow-up added after the link
+// keeps it answered; `→ done:` is the TL's older form. It is one linear pass
+// over the section, the shared grammar of the review checker, tl-lead and
+// pair#838.
+func ChatItems(section string, legacy bool) []ChatItem {
+	items, _ := chatItems(section, legacy)
+	return items
+}
+
+// chatItems is ChatItems with its work count: one unit per line per pass.
+func chatItems(section string, legacy bool) ([]ChatItem, int) {
+	itemStart := numberedItemStart
+	if legacy {
+		itemStart = legacyItemStart
+	}
+	lines := strings.Split(section, "\n")
+	fenced := make([]bool, len(lines))
+	in := false
+	for i, l := range lines {
+		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fenced[i], in = true, !in
+			continue
+		}
+		fenced[i] = in
+	}
+	start := func(i int) (int, bool) {
+		if fenced[i] || !itemStart.MatchString(strings.TrimLeft(lines[i], " \t")) {
+			return 0, false
+		}
+		return IndentOf(lines[i]), true
+	}
+	shallow := -1
+	for i := range lines {
+		if n, ok := start(i); ok && (shallow < 0 || n < shallow) {
+			shallow = n
+		}
+	}
+	var out []ChatItem
+	open, blank := false, false
+	for i, l := range lines {
+		n, isItem := start(i)
+		switch {
+		case strings.TrimSpace(l) == "" && !fenced[i]:
+			blank = true
+			if open {
+				it := &out[len(out)-1]
+				it.Lines = append(it.Lines, l)
+			}
+			continue
+		case isItem && n == shallow:
+			out = append(out, ChatItem{Pos: len(out) + 1, Start: i, Lines: []string{l}})
+			open = true
+		case open && blank && !fenced[i] && IndentOf(l) <= shallow:
+			open = false
+		case open:
+			it := &out[len(out)-1]
+			it.Lines = append(it.Lines, l)
+		}
+		blank = false
+	}
+	work := 3 * len(lines) // the fence, indent and item passes
+	for i := range out {
+		it := &out[i]
+		work += len(it.Lines)
+		for len(it.Lines) > 1 && strings.TrimSpace(it.Lines[len(it.Lines)-1]) == "" {
+			it.Lines = it.Lines[:len(it.Lines)-1]
+		}
+		for j, l := range it.Lines {
+			if !fenced[it.Start+j] && answeredItem.MatchString(l) {
+				it.Answered = true
+			}
+		}
+	}
+	return out, work
+}
+
+// IndentOf is a line's leading indent in columns, a tab reaching the next
+// multiple of four.
+func IndentOf(l string) int {
+	n := 0
+	for _, r := range l {
+		switch r {
+		case ' ':
+			n++
+		case '\t':
+			n += 4 - n%4
+		default:
+			return n
+		}
+	}
+	return n
+}

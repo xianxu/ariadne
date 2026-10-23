@@ -693,9 +693,6 @@ func skillDir(t *testing.T) string {
 }
 
 // Every committed case satisfies the contract.
-// numberedItem starts a `@@chat@@` section's item (collaboration-modes.md §3).
-var numberedItem = regexp.MustCompile(`^\d+\. `)
-
 // checkChat holds a case to the chat grammar through sidedoc.ChatSections
 // (#575), the oracle pair and parley copy: every answer link the round adds
 // sits in a chat section, every numbered item of a @@chat@@ section ends the
@@ -731,16 +728,10 @@ func checkChat(fsys fs.FS) []string {
 		if sec.Source != "tag" {
 			continue
 		}
-		for i := sec.Heading; i < sec.End; i++ {
-			if !numberedItem.MatchString(lines[i]) {
-				continue
-			}
-			answered := false
-			for j := i; j < sec.End && (j == i || !numberedItem.MatchString(lines[j])) && lines[j] != ""; j++ {
-				answered = answered || strings.Contains(lines[j], "→ [answer](")
-			}
-			if !answered {
-				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, i+1))
+		body := strings.Join(lines[sec.Heading:sec.End], "\n")
+		for _, it := range sidedoc.ChatItems(body, sec.Legacy) {
+			if !it.Answered {
+				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, sec.Heading+it.Start+1))
 			}
 		}
 	}

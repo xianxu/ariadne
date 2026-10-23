@@ -52,7 +52,7 @@ Remove every ariadne writer of the mode keys (`collaboration-mode`, `presentatio
 Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffolds-tl-lead-migrate-datatype-collaboration-plan.md) (approved by the TL 10-23, including the tl-lead ChatItems design call).
 
 - [x] ChatSections scope additions: a linear scan (counted N/2N), the fence-based unread notice, the empty-value notice, Legacy and Innermost (laminar), and Tags.
-- [ ] Task 1: shared item grammar `sidedoc.ChatItems`; tl-lead list/link pick `legacy` from ChatSections(frontmatter + section); checkChat uses it
+- [x] Task 1: shared item grammar `sidedoc.ChatItems`; tl-lead list/link pick `legacy` from ChatSections(frontmatter + section); checkChat uses it
 - [ ] Task 2: sdlc scaffolds, handoff, CUE field, vocab accessors; LegacyCollaborationModes; legacy round-trip test
 - [ ] Task 3: tl-lead migrate lossless; help.md moves to @@chat@@
 - [ ] Task 4: datatype rows and collabmode.go removed; writing-plans header; the guard extended to every creator's instructions
@@ -62,4 +62,5 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 
 ### 2026-10-23
 - Claimed after #575 landed (PR #418). A mapping agent listed every writer and reader. Before change-code I committed the ChatSections scope additions agreed with the TL and pair:3: 3d109d2c8 makes it linear (a counted test catches a reverted prefix count at ratio 4.07) and adds the fence-based unread notice and the empty-value notice; e12f0fccc adds Legacy and Innermost, with a randomized laminar test; 9dbb69c87 adds Tags for pair#838. The TL acknowledged the order as agreed scope. The plan, including the ChatItems design call, was approved 10-23.
+- Task 1: `sidedoc.ChatItems(section, legacy)` holds the item grammar, with a counted N/2N test. tl-lead's `Bullet` is now an alias of `sidedoc.ChatItem`, and its private splitter, regexps and `indentOf` are gone. `checkChat` uses ChatItems too, and the chat-tag mutation still fails on the same line. One deviation from the approved wording, same spirit and one read: `list` and `link` choose `legacy` with `ChatSections` over `Peek(file)`, the whole file read without moving Couch's diff baseline (the interface documents Peek for exactly this kind of decision), instead of over frontmatter plus section. ReadFrontmatter would also mark the frontmatter seen as a side effect, and Peek lets the tag itself count. The rule: a tag alone gives numbered items; any legacy form, or none, keeps `-`, `*` and `N.` (`TestLegacyGrammar`). I also piped `sdlc change-code` through `tail` once more, though it only had to confirm the branch.
 

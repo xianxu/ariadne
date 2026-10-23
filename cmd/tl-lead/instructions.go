@@ -6,132 +6,77 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // instructionsHeading is the operator's section of the status file: their
 // numbered questions and instructions, which the TL only links answers to.
 const instructionsHeading = "Operator instructions"
 
-var (
-	itemStartRE = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
-	answeredRE  = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
-)
+// Bullet is one operator bullet: a chat item of the shared grammar
+// (pkg/sidedoc ChatItems, collaboration-modes.md §3). Pos is its 1-based
+// position in the section: the operator reuses numbers, so the number never
+// identifies a bullet.
+type Bullet = sidedoc.ChatItem
 
-// Bullet is one operator bullet. Pos is its 1-based position in the section:
-// the operator reuses numbers, so the number never identifies a bullet.
-type Bullet struct {
-	Pos      int
-	Start    int // index of its first line in the section
-	Lines    []string
-	Answered bool
-}
-
-// instructionBullets splits the section body into bullets, by the chat-mode
-// item of xx-universal-review's collaboration-modes.md §3 (#412): a `-`, `*`
-// or `N.` line at the section's shallowest list indent starts one, and it
-// runs over its sub-items and continuation lines until the next such line, or
-// until a blank line followed by prose indented no deeper than that indent
-// (prose belongs to no bullet). Fenced code starts no bullet; a tab indents to
-// the next multiple of four. Trailing blank lines are dropped. A bullet is
-// answered by a link ending any of its lines outside fences, so a follow-up
-// added after the link keeps it answered; `→ done:` is the older form.
+// instructionBullets splits the section by the legacy item grammar (`-`, `*`
+// and `N.` items), which older session files and migrate use.
 func instructionBullets(section string) []Bullet {
-	lines := strings.Split(section, "\n")
-	fenced := make([]bool, len(lines))
-	in := false
-	for i, l := range lines {
-		t := strings.TrimSpace(l)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fenced[i], in = true, !in
-			continue
-		}
-		fenced[i] = in
-	}
-	start := func(i int) (int, bool) {
-		if fenced[i] || !itemStartRE.MatchString(strings.TrimLeft(lines[i], " \t")) {
-			return 0, false
-		}
-		return indentOf(lines[i]), true
-	}
-	shallow := -1
-	for i := range lines {
-		if n, ok := start(i); ok && (shallow < 0 || n < shallow) {
-			shallow = n
-		}
-	}
-	var out []Bullet
-	open, blank := false, false
-	for i, l := range lines {
-		n, isItem := start(i)
-		switch {
-		case strings.TrimSpace(l) == "" && !fenced[i]:
-			blank = true
-			if open {
-				b := &out[len(out)-1]
-				b.Lines = append(b.Lines, l)
-			}
-			continue
-		case isItem && n == shallow:
-			out = append(out, Bullet{Pos: len(out) + 1, Start: i, Lines: []string{l}})
-			open = true
-		case open && blank && !fenced[i] && indentOf(l) <= shallow:
-			open = false
-		case open:
-			b := &out[len(out)-1]
-			b.Lines = append(b.Lines, l)
-		}
-		blank = false
-	}
-	for i := range out {
-		b := &out[i]
-		for len(b.Lines) > 1 && strings.TrimSpace(b.Lines[len(b.Lines)-1]) == "" {
-			b.Lines = b.Lines[:len(b.Lines)-1]
-		}
-		for j, l := range b.Lines {
-			if !fenced[b.Start+j] && answeredRE.MatchString(l) {
-				b.Answered = true
-			}
-		}
-	}
-	return out
+	return sidedoc.ChatItems(section, true)
 }
 
-// indentOf is a line's leading indent in columns, a tab reaching the next
-// multiple of four.
-func indentOf(l string) int {
-	n := 0
-	for _, r := range l {
-		switch r {
-		case ' ':
-			n++
-		case '\t':
-			n += 4 - n%4
-		default:
-			return n
+// legacyGrammar reports whether the operator's section takes the legacy item
+// grammar: every form but a `@@chat@@` tag alone does, which takes numbered
+// items only (#576). A session file that declares nothing keeps the legacy
+// grammar it always had. doc is the whole file, peeked without moving
+// Couch's diff baseline.
+func legacyGrammar(doc string) bool {
+	scan := sidedoc.ChatSections(doc)
+	for i, l := range strings.Split(doc, "\n") {
+		if strings.TrimRight(l, " \t\r") != "## "+instructionsHeading {
+			continue
 		}
+		for _, sec := range scan.Sections {
+			if sec.Heading == i+1 {
+				return sec.Source != "tag" || sec.Legacy
+			}
+		}
+		return true
 	}
-	return n
+	return true
+}
+
+// sectionBullets splits the operator's section by the grammar its file
+// declares.
+func sectionBullets(d deps, file, section string) ([]Bullet, bool, error) {
+	doc, err := d.ss.Peek(file)
+	if err != nil {
+		return nil, false, err
+	}
+	legacy := legacyGrammar(doc)
+	return sidedoc.ChatItems(section, legacy), legacy, nil
 }
 
 // errAlreadyLinked: the bullet already carries an answer; nothing to write.
 var errAlreadyLinked = errors.New("already answered")
 
 // linkBullet appends ` → [answer](target)` to bullet pos's last non-blank
-// line and returns the new section body.
-func linkBullet(section string, pos int, target string) (string, error) {
+// line, splitting the section by the given grammar, and returns the new
+// section body.
+func linkBullet(section string, pos int, target string, legacy bool) (string, error) {
 	// The target lands inside the operator's section as a link: whitespace
 	// could start a new line (even a fake bullet) and a paren would end the
 	// link early.
 	if target == "" || strings.ContainsAny(target, "()") || strings.IndexFunc(target, unicode.IsSpace) >= 0 {
 		return "", fmt.Errorf("refused: TARGET %q must be a relative path with no whitespace or parentheses", target)
 	}
-	bs := instructionBullets(section)
+	bs := sidedoc.ChatItems(section, legacy)
 	if pos < 1 || pos > len(bs) {
 		return "", fmt.Errorf("refused: no bullet %d in ## %s (%d bullets)", pos, instructionsHeading, len(bs))
 	}
@@ -179,7 +124,11 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 	if h != hash {
 		return moved
 	}
-	body, err := linkBullet(cur, pos, target)
+	doc, err := ss.Peek(file)
+	if err != nil {
+		return refusal(file, instructionsHeading, err)
+	}
+	body, err := linkBullet(cur, pos, target, legacyGrammar(doc))
 	if errors.Is(err, errAlreadyLinked) {
 		fmt.Fprintf(out, "bullet %d is already answered; nothing written\n", pos)
 		return nil
@@ -220,7 +169,11 @@ func newInstructionsCmd(d deps) *cobra.Command {
 			if err != nil {
 				return refusal(args[0], instructionsHeading, err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), renderOpen(instructionBullets(body), hash))
+			bs, _, err := sectionBullets(d, args[0], body)
+			if err != nil {
+				return refusal(args[0], instructionsHeading, err)
+			}
+			fmt.Fprint(cmd.OutOrStdout(), renderOpen(bs, hash))
 			return nil
 		},
 	}

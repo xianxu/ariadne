@@ -295,3 +295,41 @@ func TestChatSectionsTags(t *testing.T) {
 	}
 }
 
+func TestChatItems(t *testing.T) {
+	section := "1. why?\n   - a sub-item\n- a dash line\n2. how? → [answer](a.md)\n   follow-up\n\nprose after a blank\n3. third → done: filed\n```\n4. fenced\n```\n"
+	pos := func(items []ChatItem) []string {
+		var out []string
+		for _, it := range items {
+			out = append(out, fmt.Sprintf("%d:%s:%v", it.Pos, strings.TrimSpace(it.Lines[0]), it.Answered))
+		}
+		return out
+	}
+	if got, want := pos(ChatItems(section, false)), []string{"1:1. why?:false", "2:2. how? → [answer](a.md):true", "3:3. third → done: filed:true"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("numbered grammar %q, want %q", got, want)
+	}
+	if got, want := pos(ChatItems(section, true)), []string{"1:1. why?:false", "2:- a dash line:false", "3:2. how? → [answer](a.md):true", "4:3. third → done: filed:true"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("legacy grammar %q, want %q", got, want)
+	}
+	// The blank line then prose ends item 2; its follow-up line stays in it.
+	if items := ChatItems(section, false); len(items[1].Lines) != 2 || !strings.Contains(items[1].Lines[1], "follow-up") {
+		t.Errorf("item 2 lines %q", items[1].Lines)
+	}
+}
+
+func TestChatItemsWorkIsLinear(t *testing.T) {
+	section := func(n int) string {
+		var b strings.Builder
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, "%d. ask %d\n   - sub\n   more\n", i+1, i)
+		}
+		return b.String()
+	}
+	items, w1 := chatItems(section(500), true)
+	if len(items) != 500 {
+		t.Fatalf("%d items, want 500", len(items))
+	}
+	if _, w2 := chatItems(section(1000), true); w2 > 2*w1+w1/10 {
+		t.Errorf("work %d then %d: superlinear", w1, w2)
+	}
+}
+

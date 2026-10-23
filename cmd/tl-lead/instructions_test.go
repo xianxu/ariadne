@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ A note, not a bullet.
 		t.Errorf("bullets\n got %q\nwant %q", got, want)
 	}
 	// Linking bullet 2 lands on its own line, never on the line before it.
-	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md"); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
+	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md", true); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
 		t.Errorf("link 2: %v\n%s", err, out)
 	}
 	// Fenced code starts no bullet and a tab indents. A link ending any line
@@ -119,7 +120,7 @@ func TestLinkBullet(t *testing.T) {
 		{2, "1. Rename the train → [answer](" + target + ")"},
 		{4, "   ![](assets/tl-status-op/shot.png) → [answer](" + target + ")"},
 	} {
-		got, err := linkBullet(opSection, c.pos, target)
+		got, err := linkBullet(opSection, c.pos, target, true)
 		if err != nil {
 			t.Fatalf("pos %d: %v", c.pos, err)
 		}
@@ -137,25 +138,25 @@ func TestLinkBullet(t *testing.T) {
 			t.Errorf("pos %d: %d lines changed (of %d→%d), want exactly 1", c.pos, changed, len(wl), len(gl))
 		}
 	}
-	if got, err := linkBullet(opSection, 3, target); err != errAlreadyLinked || got != opSection {
+	if got, err := linkBullet(opSection, 3, target, true); err != errAlreadyLinked || got != opSection {
 		t.Errorf("an answered bullet: err %v, changed %v; want errAlreadyLinked and no change", err, got != opSection)
 	}
 	for _, bad := range []string{"", "qa/a b.md", "qa/a.md\n9. fake", "qa/(x).md"} {
-		if _, err := linkBullet(opSection, 1, bad); err == nil {
+		if _, err := linkBullet(opSection, 1, bad, true); err == nil {
 			t.Errorf("target %q: want a refusal", bad)
 		}
 	}
 	// #412: chat mode's answer docs live in the status file's .side/ folder.
 	const side = "tl-status-op.side/2026-10-16-01-s4-cost.md"
-	if got, err := linkBullet("1. what does S4 cost?", 1, side); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
+	if got, err := linkBullet("1. what does S4 cost?", 1, side, true); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
 		t.Errorf("a .side/ target: %q, %v", got, err)
 	}
 	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
-	if got, _ := linkBullet("1. a\r", 1, target); got != "1. a → [answer]("+target+")" {
+	if got, _ := linkBullet("1. a\r", 1, target, true); got != "1. a → [answer]("+target+")" {
 		t.Errorf("CRLF line: %q", got)
 	}
 	for _, pos := range []int{0, 6} {
-		if _, err := linkBullet(opSection, pos, target); err == nil || !strings.Contains(err.Error(), "no bullet") {
+		if _, err := linkBullet(opSection, pos, target, true); err == nil || !strings.Contains(err.Error(), "no bullet") {
 			t.Errorf("pos %d: err %v, want a no-bullet refusal", pos, err)
 		}
 	}
@@ -297,5 +298,27 @@ func TestInstructionsLinkOnlySideDocAnswers(t *testing.T) {
 	ok := write("tl-status-op.side/2026-10-18-07-kept.md", fm("parent: \"../tl-status-op.md\"\nprocess-instruction: \"[free-form] x\"\n"))
 	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "1", ok, "--hash", fakeHash(opSection)); err != nil {
 		t.Errorf("a valid answer refused: %v", err)
+	}
+}
+
+// #576: a @@chat@@ tag alone gives the numbered grammar; any legacy
+// declaration, or none, keeps `-`, `*` and `N.` items.
+func TestLegacyGrammar(t *testing.T) {
+	for _, tc := range []struct {
+		name, doc string
+		want      bool
+	}{
+		{"tag alone", "# S\n\n@@chat@@\n## Operator instructions\n1. a\n", false},
+		{"tag and legacy comment", "# S\n\n@@chat@@\n## Operator instructions\n<!-- collaboration-mode: chat -->\n- a\n", true},
+		{"legacy comment", "# S\n\n## Operator instructions\n<!-- collaboration-mode: chat -->\n- a\n", true},
+		{"legacy map", "---\ncollaboration-mode: {chat: [Operator instructions]}\n---\n# S\n\n## Operator instructions\n- a\n", true},
+		{"undeclared", "# S\n\n## Operator instructions\n- a\n", true},
+	} {
+		if got := legacyGrammar(tc.doc); got != tc.want {
+			t.Errorf("%s: legacyGrammar %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	if bs := sidedoc.ChatItems("1. ask\n- a note, not an ask\n2. another", legacyGrammar("@@chat@@\n## Operator instructions\n")); len(bs) != 2 {
+		t.Errorf("a tagged section takes numbered items only: %d bullets", len(bs))
 	}
 }
