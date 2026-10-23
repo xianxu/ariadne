@@ -180,3 +180,87 @@ dispose:
    None. The existing revisions accurately describe the implementation and preserve the outstanding suite and landing gates.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2d5e394d-436d-4718-8dfb-aa5bdfaf00e5","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/64d08af6eb9061eb","reviewed_head":"7dad3c36d67a7f86404356c9b2b2cf9888c5b12a","slot":"ariadne:4","requested_at":"2026-10-23T12:06:01.958125Z"},"phase":"finished","pid":41180,"started_at":"2026-10-23T12:06:02.107042Z","finished_at":"2026-10-23T12:08:48.670038Z","session_id":"01a168a7-6215-70e2-8e96-899ad48bf7ba","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T06:22:44-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 572 — local-check: refuse to record a suite attempt invalidated by sandbox denials |
+| repo | ariadne |
+| issue file | workshop/issues/000572-local-check-refuse-to-record-a-suite-attempt-invalidated-by-sandbox-denials.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 48b621314745466eb9f5c9c92c76614ca42a4633..37a4536e423b774dd71d6ca746783de445b5b3c4 |
+| command | sdlc close --issue 572 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T06:22:44-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff repairs the existing short-socket contract without expanding scope. Canonical paths are checked before bind, rejected directories are removed, and operational errors still refuse immediately. All prior dispositions remain valid; no new defects found. A recorded suite PASS remains required before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The plan identifies suiteEnvironmentError.Error in suiteenvironment.go as pure and separately lists the IO functions and execution boundaries. Direct advice tests exercise formatting without IO.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      suitecapability.go retains an ordinary explanatory comment without the unused suppression. The tracked-file golint regression passes; unused suppressions remain rejected.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:772–777 documents could-not-run, whole-call retry, preservation of earlier failures, and healthy-host failure attribution, matching the formatter and execution contract.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/suitecapability.go:87–95` checks the canonical final socket path and removes rejected scratch before fallback.
+   - `cmd/sdlc/suitecapability.go:79–101` bounds placement selection and preserves creation, canonicalization, and cleanup errors.
+   - Regression coverage exercises long configured roots and symlink targets. Removing the production fix makes the new test fail with `bind: invalid argument`.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - Focused capability, environment, infrastructure, and original scratch tests: PASS, 23.209s.
+   - `go test ./pkg/golint -count=1`: PASS, 1.242s.
+   - Without-fix regression: expected FAIL in a disposable clone; clone removed afterward.
+   - Native conformance rerun could not apply Seatbelt: `sandbox_apply: Operation not permitted`. Retained host evidence pins production and native-test blobs matching this head; no local native PASS is claimed.
+   - Reviewed checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared probe remains the single owner; no duplicated caller logic.
+   - **ARCH-PURE — pass:** filesystem placement remains in the existing IO boundary.
+   - **ARCH-PURPOSE — pass:** covers canonical configured-root lengths, including symlinks, while preserving denial refusal.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+
+   The correction adds no user-facing command, flag, or architectural surface requiring further README or atlas changes.
+
+7. **Plan revision recommendations**
+
+   None. The appended revision records the bounded correction; Spec and Done-when remain unchanged.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"20e3d60d-2989-460e-a207-a60c08db42d7","repository":"github.com/xianxu/ariadne","issue_id":"000572","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/454dc8e333029bbd","reviewed_head":"37a4536e423b774dd71d6ca746783de445b5b3c4","slot":"ariadne:4","requested_at":"2026-10-23T13:20:47.524863Z"},"phase":"finished","pid":73874,"started_at":"2026-10-23T13:20:47.652634Z","finished_at":"2026-10-23T13:22:42.567384Z","session_id":"01a168eb-d359-7693-9ba7-aa22f8080541","outcome":"returned"}] -->
