@@ -813,6 +813,8 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 }
 
+var legacyKeyNote = regexp.MustCompile("legacy `[^`]*`")
+
 var retiredKeyMention = regexp.MustCompile(`(?:collaboration|presentation|processing)-mode(?:[^s]|$)|process(?:ing)?-instruction|\bpresentation:`)
 
 // #575's Done-when, extended to every creator's instructions by #576: no
@@ -830,9 +832,9 @@ func TestNoSpecWritesModeKeys(t *testing.T) {
 	}
 	// Every creator's instructions outside the review skill (#576): the
 	// datatype prototypes, the plan header, tl-lead's help and the Pair
-	// workbench skill. Lines that say "legacy" (and the operator-owned refusal
-	// row) describe what happens to an older document's key, so they are
-	// skipped.
+	// workbench skill. A "legacy `key`" span (and the operator-owned refusal
+	// row) describes what happens to an older document's key, so it is
+	// excused.
 	root := moduleRoot(t)
 	creators, _ := filepath.Glob(filepath.Join(root, "construct", "datatype", "*.md"))
 	creators = append(creators,
@@ -846,10 +848,11 @@ func TestNoSpecWritesModeKeys(t *testing.T) {
 		}
 		var kept []string
 		for _, l := range strings.Split(string(b), "\n") {
-			// A line describing what happens to an older document's legacy key
-			// is a reader's note, not a writer's instruction.
-			if !strings.Contains(l, "`operator-owned`") && !strings.Contains(l, "legacy") {
-				kept = append(kept, l)
+			// A key named as "legacy `key`" describes what happens to an older
+			// document's line, a reader's note rather than a writer's
+			// instruction; only that span is excused, not the whole line.
+			if !strings.Contains(l, "`operator-owned`") {
+				kept = append(kept, legacyKeyNote.ReplaceAllString(l, ""))
 			}
 		}
 		text := strings.Join(kept, "\n")

@@ -99,3 +99,11 @@ ARCH-CONSTRAINTS: `ChatSections` and `ChatItems` are linear and counted. tl-lead
 - No datatype rows, nothing in Go reads them, the vocab list reduced to a legacy reader → Tasks 2 and 4.
 - Legacy fixtures parse and survive the rewrite verbs byte for byte → the Task 2 round-trip test, the Task 3 migrate test, and the existing index/rebase/link tests.
 - The TL's scope additions (the two notices, ChatSections in tl-lead, legacy provenance) → already on the branch, plus Task 1.
+
+## Revisions
+
+- 2026-10-23 (implementation): tl-lead chooses the grammar with `ChatSections` over `Peek(file)`, the whole file read without moving Couch's baseline. The plan said frontmatter plus section. ReadFrontmatter marks the frontmatter seen as a side effect, and Peek lets the tag count. An undeclared section keeps the legacy grammar (`legacy=true`, not false as the plan said), so older session files behave as before. A section enclosed by a chat section takes that section's grammar.
+- 2026-10-23 (implementation): workingdoc.md's own `collaboration-mode` key was removed too. It is our authored prototype, not a legacy user document, and the extended guard covers it.
+- 2026-10-23 (pair#838's review): `ChatItems` takes code lines from goldmark (`CodeLines`), not a fence toggle. `ChatScan.Tags` was added for pair.
+- 2026-10-23 (close review round 1): `link` now reuses the grammar `list` counted in. The token `list` prints is `hash:grammar`, and `link` refuses with exit 6 when the file's grammar changed outside the hashed section, which delivers the ARCH-ORDER promise above. A bare pre-#576 hash means legacy.
+

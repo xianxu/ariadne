@@ -46,3 +46,26 @@ func TestLegacyModeKeySurvivesSetField(t *testing.T) {
 		t.Errorf("SetField rewrote a legacy key:\n got %q\nwant %q", got, want)
 	}
 }
+
+// #576: a card publish (SplitCard) keeps an older issue's legacy mode keys
+// in its details byte for byte, and the card never carries them.
+func TestLegacyModeKeysSurviveCardPublish(t *testing.T) {
+	legacy := strings.Replace(cardDetailFixture, "deps: [pair#17]\n", "deps: [pair#17]\ncollaboration-mode: collaboration\npresentation-mode: propose\nprocess-instruction: \"[copy-edit] x\"\n", 1)
+	card, details, err := SplitCard([]byte(legacy))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hits := modeKeyLines(string(card)); len(hits) != 0 {
+		t.Errorf("the card carries %q", hits)
+	}
+	fm, _, _ := Parse(legacy)
+	gotFM, _, _ := Parse(string(details))
+	if !strings.HasPrefix(gotFM, fm) {
+		t.Errorf("details frontmatter lost bytes:\n got %q\nwant prefix %q", gotFM, fm)
+	}
+	for _, k := range []string{"collaboration-mode: collaboration\n", "presentation-mode: propose\n", "process-instruction: \"[copy-edit] x\"\n"} {
+		if !strings.Contains(string(details), k) {
+			t.Errorf("details lost %q", k)
+		}
+	}
+}

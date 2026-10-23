@@ -172,7 +172,7 @@ func TestInstructionsListAndLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := fakeHash(opSection)
-	if !strings.HasSuffix(out, "hash: "+h+"\n") || !strings.HasPrefix(out, "1\t1. Why") {
+	if !strings.HasSuffix(out, "hash: "+h+":legacy\n") || !strings.HasPrefix(out, "1\t1. Why") {
 		t.Fatalf("list output:\n%s", out)
 	}
 	a, b, c := answerDoc(t, file, "2026-10-18-01-a.md"), answerDoc(t, file, "2026-10-18-02-b.md"), answerDoc(t, file, "2026-10-18-03-c.md")
@@ -315,6 +315,7 @@ func TestLegacyGrammar(t *testing.T) {
 		{"legacy comment", "# S\n\n## Operator instructions\n<!-- collaboration-mode: chat -->\n- a\n", true},
 		{"legacy map", "---\ncollaboration-mode: {chat: [Operator instructions]}\n---\n# S\n\n## Operator instructions\n- a\n", true},
 		{"undeclared", "# S\n\n## Operator instructions\n- a\n", true},
+		{"an enclosing tagged section governs", "@@chat@@\n# Parent\n## Operator instructions\n1. a\n", false},
 	} {
 		if got := legacyGrammar(tc.doc); got != tc.want {
 			t.Errorf("%s: legacyGrammar %v, want %v", tc.name, got, tc.want)
@@ -323,4 +324,50 @@ func TestLegacyGrammar(t *testing.T) {
 	if bs := sidedoc.ChatItems("1. ask\n- a note, not an ask\n2. another", legacyGrammar("@@chat@@\n## Operator instructions\n")); len(bs) != 2 {
 		t.Errorf("a tagged section takes numbered items only: %d bullets", len(bs))
 	}
+}
+
+// #576 through the session-sync fake: list counts bullets in the grammar the
+// file declares and prints it in its token; link refuses when the grammar
+// changed outside the hashed section since that list, writing nothing.
+func TestInstructionsGrammarThroughTheFake(t *testing.T) {
+	t.Run("tagged file: numbered items only", func(t *testing.T) {
+		f := newFake(map[string]string{instructionsHeading: "1. a\n- a note, not an ask\n2. b\n"})
+		f.pre = "# S\n\n@@chat@@"
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil || !strings.Contains(out, "1\t1. a") || !strings.Contains(out, "2\t2. b") || !strings.HasSuffix(out, ":numbered\n") {
+			t.Fatalf("list: err %v\n%s", err, out)
+		}
+		tok := strings.TrimSpace(strings.TrimPrefix(out[strings.LastIndex(out, "hash: "):], "hash: "))
+		target := answerDoc(t, file, "2026-10-23-01-b.md")
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", tok); err != nil || !strings.Contains(f.sections[instructionsHeading], "2. b → [answer]("+target+")") {
+			t.Fatalf("link 2: err %v\n%s", err, f.sections[instructionsHeading])
+		}
+	})
+	t.Run("heading-comment file: legacy items", func(t *testing.T) {
+		f := newFake(map[string]string{instructionsHeading: "<!-- collaboration-mode: chat -->\n- a\n1. b\n"})
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil || !strings.Contains(out, "1\t- a") || !strings.Contains(out, "2\t1. b") || !strings.HasSuffix(out, ":legacy\n") {
+			t.Fatalf("list: err %v\n%s", err, out)
+		}
+	})
+	t.Run("a tag added after list: link refuses, no write", func(t *testing.T) {
+		section := "- note\n1. a\n2. b\n"
+		f := newFake(map[string]string{instructionsHeading: section})
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tok := strings.TrimSpace(strings.TrimPrefix(out[strings.LastIndex(out, "hash: "):], "hash: "))
+		f.pre = "# S\n\n@@chat@@" // outside the hashed section
+		target := answerDoc(t, file, "2026-10-23-01-a.md")
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", tok); exitCode(err) != 6 || f.writes != 0 {
+			t.Errorf("exit %d, writes %d; want exit 6 and no write (position 2 was \"1. a\" when listed)", exitCode(err), f.writes)
+		}
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", fakeHash(section)); exitCode(err) != 6 || f.writes != 0 {
+			t.Errorf("a bare pre-#576 hash on a tagged file: exit %d, writes %d; want exit 6", exitCode(err), f.writes)
+		}
+	})
 }

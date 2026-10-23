@@ -56,7 +56,7 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 - [x] Task 2: sdlc scaffolds, handoff, CUE field, vocab accessors; LegacyCollaborationModes; legacy round-trip test
 - [x] Task 3: tl-lead migrate lossless; help.md moves to @@chat@@
 - [x] Task 4: datatype rows and collabmode.go removed; writing-plans header; the guard extended to every creator's instructions
-- [ ] Task 5: atlas and comments; tests; recorded suite; close; landed revision to pair:3 and parley.nvim:3
+- [x] Task 5: atlas and comments; tests; recorded suite; close; landed revision to pair:3 and parley.nvim:3
 
 ## Log
 
@@ -68,4 +68,10 @@ Durable plan: [000576 plan](../plans/000576-stop-writing-review-mode-keys-scaffo
 - Task 4, in part: `cmd/datatype/collabmode.go`, its tests, `datatype lint` and the render warning are deleted. Nothing outside cmd/datatype called `datatype lint`.
 - Task 3: `answerFrontmatter` puts type/parent/marker first and keeps every other existing line verbatim and in order, legacy mode keys included, adding none. Regenerating the golden tree removed only the two lines the migration used to add; the doc that already carried the key keeps it. `TestAnswerFrontmatterWritesNoModeKeys` pins both. `help.md` now prescribes `@@chat@@` above `## Operator instructions` and no mode keys for session files and answer docs. The help tests flip: they require the tag and forbid the three keys, "explicit default mode keys" and "use processing-instruction".
 - Task 4: removed the 11 datatype `collaboration-mode` rows and workingdoc.md's own key; type.md now says prototypes carry no mode key. The writing-plans header no longer writes `collaboration-mode: discussion`. In the fix skill and the grammar, the retired "written-defaults" and "effective collaboration mode" wording is gone; Pair's legacy propose behavior is labeled legacy (until pair#838) and its operator-owned row no longer asks the operator to set a key. `TestNoSpecWritesModeKeys` now also covers the datatypes, the writing-plans skill, tl-lead's help and the fix skill, matching a key in any form but not the file name collaboration-modes.md, and skipping lines that describe legacy handling. My first version missed shape-table rows (no colon), and the mutation caught that; the fixed guard catches it.
+- Close round 1 returned FIX-THEN-SHIP, with three Important findings and three Minors, all fixed in this round.
+  - BR-1: list's token is now `hash:grammar` and link refuses on a grammar change. A fake-backed race test (list, add a tag, link) gives exit 6 with no write; removing the check writes to the wrong bullet.
+  - BR-2: fake-backed tests cover a tagged and a heading-comment session file.
+  - BR-3: `TestLegacyModeKeysSurviveCardPublish`.
+  - Minors: plan Revisions added. The guard excuses only `legacy `key`` spans, and an instruction like "on a legacy document, write `presentation-mode`" now fails it. legacyGrammar resolves enclosing sections through Innermost.
+  - The landed-revision message to pair:3 and parley.nvim:3 follows the landing.
 

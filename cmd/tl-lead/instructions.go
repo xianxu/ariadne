@@ -42,10 +42,15 @@ func legacyGrammar(doc string) bool {
 		if strings.TrimRight(l, " \t\r") != "## "+instructionsHeading {
 			continue
 		}
+		// The section itself governs when it is chat; otherwise the innermost
+		// enclosing chat section, tagged or legacy, does.
 		for _, sec := range scan.Sections {
 			if sec.Heading == i+1 {
 				return sec.Source != "tag" || sec.Legacy
 			}
+		}
+		if sec, ok := scan.Innermost(i + 1); ok {
+			return sec.Source != "tag" || sec.Legacy
 		}
 		return true
 	}
@@ -61,6 +66,30 @@ func sectionBullets(d deps, file, section string) ([]Bullet, bool, error) {
 	}
 	legacy := legacyGrammar(doc)
 	return sidedoc.ChatItems(section, legacy), legacy, nil
+}
+
+// grammarName names the item grammar in the token `list` prints, so `link`
+// numbers bullets the way that list did (#576): the section hash covers only
+// the section, and a tag or legacy declaration outside it can change the
+// grammar between the two.
+func grammarName(legacy bool) string {
+	if legacy {
+		return "legacy"
+	}
+	return "numbered"
+}
+
+// listToken is what `list` prints after `hash:` and `link --hash` takes back:
+// the section hash and the grammar its positions were counted in.
+func listToken(hash string, legacy bool) string { return hash + ":" + grammarName(legacy) }
+
+// parseListToken splits a `--hash` token. A bare hash, from a list before
+// #576, counted positions in the legacy grammar.
+func parseListToken(tok string) (hash, grammar string) {
+	if h, g, ok := strings.Cut(tok, ":"); ok {
+		return h, g
+	}
+	return tok, grammarName(true)
 }
 
 // errAlreadyLinked: the bullet already carries an answer; nothing to write.
@@ -121,6 +150,7 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 		return refusal(file, instructionsHeading, err)
 	}
 	moved := exitError{6, fmt.Errorf("refused: ## %s changed since list; list again", instructionsHeading)}
+	hash, listed := parseListToken(hash)
 	if h != hash {
 		return moved
 	}
@@ -128,7 +158,11 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 	if err != nil {
 		return refusal(file, instructionsHeading, err)
 	}
-	body, err := linkBullet(cur, pos, target, legacyGrammar(doc))
+	legacy := legacyGrammar(doc)
+	if grammarName(legacy) != listed {
+		return exitError{6, fmt.Errorf("refused: ## %s now counts bullets in the %s grammar, list used %s (a @@chat@@ tag or legacy declaration changed); list again", instructionsHeading, grammarName(legacy), listed)}
+	}
+	body, err := linkBullet(cur, pos, target, legacy)
 	if errors.Is(err, errAlreadyLinked) {
 		fmt.Fprintf(out, "bullet %d is already answered; nothing written\n", pos)
 		return nil
@@ -169,11 +203,11 @@ func newInstructionsCmd(d deps) *cobra.Command {
 			if err != nil {
 				return refusal(args[0], instructionsHeading, err)
 			}
-			bs, _, err := sectionBullets(d, args[0], body)
+			bs, legacy, err := sectionBullets(d, args[0], body)
 			if err != nil {
 				return refusal(args[0], instructionsHeading, err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), renderOpen(bs, hash))
+			fmt.Fprint(cmd.OutOrStdout(), renderOpen(bs, listToken(hash, legacy)))
 			return nil
 		},
 	}
