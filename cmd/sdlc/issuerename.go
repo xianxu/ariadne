@@ -21,7 +21,8 @@ const issueRenameLong = `Rename an unstarted issue's card and details to a new s
 
 Without --slug the slug is derived from the card's title, cut at a word
 boundary within 80 bytes: the fix for a filer-made name too long to check out.
---slug must be lowercase words joined by single hyphens, at most 80 bytes.
+--slug must be lowercase words joined by single hyphens, at most 80 bytes;
+any other slug is refused, never corrected.
 
 The card moves on issue-tracker, then the details move on main, each in one
 compare-and-swap commit with its bytes unchanged. If the run stops between the
@@ -29,7 +30,7 @@ two, run it again: it reads what both refs hold and finishes, and a finished
 rename is a no-op. Only an open issue with no issue branch renames: the issue
 branch, plan and review files are named after it. The issue's owner may rename
 it, or anyone while it is unclaimed. This checkout is not changed; a resting
-branch picks the new names up with its next fast-forward.`
+branch picks the new names up with its next fast-forward (sdlc claim makes one).`
 
 func newIssueRenameCmd() *cobra.Command {
 	var issueID int
