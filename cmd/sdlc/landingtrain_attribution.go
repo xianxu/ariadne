@@ -78,6 +78,9 @@ func (c *conductor) assessSplit(e landingline.AssessSplit) landingline.SplitAsse
 	var packages []string
 	for _, top := range facts.Failures {
 		for _, leaf := range flakes.Leaves(top, facts.Subtests) {
+			if id, err := flakes.ParseIdentity(leaf); err == nil && id.Kind() != flakes.KindGo {
+				return unverified(fmt.Errorf("typed failure has no Go package impact: %s", leaf))
+			}
 			name, valid := flakes.ParseName(leaf)
 			if !valid {
 				return unverified(fmt.Errorf("invalid failing test %q", leaf))

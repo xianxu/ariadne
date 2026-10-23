@@ -1766,6 +1766,16 @@ ownership intervals and pinned source evidence described above. No-tracker
 repositories retain the explicitly labelled brain/repo cwd heuristic and the
 issue's `CommitWindow` plus `activetime.WindowIssues` peers.
 
+A migrated working issue with no tracker owner refuses with
+`no owner since cutover: run sdlc claim --issue N from the slot doing the work`.
+Reconcile does not create ownership. Work between cutover and claim is unowned
+and not counted; successful hybrid measurements and retained replay expose that
+gap beside the legacy prefix and owned suffix. Claim does not retroactively
+credit it. Existing activity continuity may cross claim, but only its portion
+inside ownership can count. For a suite queued before first ownership,
+hybrid measurement clips queue-idle exclusion to the owned portion, preserving
+its raw endpoints. Waits crossing release/reclaim still refuse.
+
 Source selection uses `internal/transcripts.Harness`: `Name()` and
 `Sources(ctx, cwds) → (Sources{Dirs,Files,Warnings}, error)`.
 `DefaultHarnesses()` registers Claude, Codex and Qoder; `Select` merges their
@@ -2490,8 +2500,9 @@ historical logs. `TestFailingNamesLineVisits` counts one line traversal at N and
 
 `pkg/golint` is the curated list of mechanical Go mistakes: each rule names the incident
 that taught it (`test-landing-completion-wait` #498/#500,
+`test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
-`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
+`resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
@@ -2504,6 +2515,34 @@ a second over about 1,140 files). A finding that doesn't apply is suppressed on 
 above with `//lint:allow <rule> — <reason>`; a suppression without a reason, naming an
 unknown rule, or matching nothing is itself a finding. A fix for a mechanical mistake class
 adds its rule here (the shared planning block in `tl-worker`/`tl-lead` help says so).
+
+`test-socket-fixture-root` is a test-only, syntax-only provenance check. It follows
+`os.TempDir`, empty/inherited-parent `os.MkdirTemp` and visible testing
+`T`/`B`/`F`/`TB.TempDir` through local bindings, aliases, concatenation,
+`filepath.Join`/`Clean`/`Abs`/`EvalSymlinks` and `net.UnixAddr.Name`. Findings occur
+at literal-Unix-network `net.Listen`, `ListenPacket`, `Dial`, `ResolveUnixAddr`,
+`ListenUnix`, `ListenUnixgram` and `DialUnix`, or literal `COUCH_ISOLATED_ROOT`
+settings via `os.Setenv` or a visible testing receiver. Imported aliases resolve
+by exact import path; shadowed qualifiers do not count as imports. Pair's
+`SocketPath` namespace is hashed, so a long namespace alone is not a finding:
+the isolation-root setting selects its length-sensitive parent. Unrelated
+temporary data and `TMPDIR` settings remain allowed.
+
+Testing receivers may have a directly declared testing type on a parameter or
+local `var`; inferred receiver aliases and named type aliases are not resolved.
+Transparent parentheses are normalized at assignment, first-result call,
+receiver, API selector and literal-key boundaries, using one per-file cache.
+
+The rule conservatively joins all visible writes to a binding, including writes
+after a sink; it does not infer branch execution or overwrite ordering. Opaque
+helpers, function-value aliases, dynamic network/environment keys, dot imports,
+interface dispatch beyond visible testing types and arbitrary container mutations are outside its boundary;
+no finding is not a safety proof. The graph indexes syntax once and propagates
+each inherited node/edge once, with counted growth tests. Keep ordinary files on
+TMPDIR. For a socket fixture, use a short canonical private root, prefer usable
+TestScratch, register cleanup immediately, and retain a reasoned `tmp-literal`
+exception when needed. Suppress this rule only where the actual flow is proven
+bounded, explaining the proof on the sink line or the line above.
 
 Mark a named type with `// wire: <why it can evolve separately>` in its type-doc
 comment when it receives JSON from a peer binary, agent or toolchain that may
@@ -2607,8 +2646,12 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   pruned under a short allocation lock (`alloc`), so a new ticket is never mistaken
   for a dead one.
 - **Grant priority (#452).** A suite for an issue holding a currently valid
-  fleet-blocking landing grant precedes waiting normal suites. FIFO holds within
-  each class; no running suite is preempted. Expiry or revocation returns the
+  fleet-blocking landing grant precedes younger waiting normal suites. The single
+  helper setting `GRANT_MAX_WAIT_SECONDS=3600` bounds overtaking (#560): immutable
+  monotonic enqueue age is stamped under `alloc`; FIFO is protected through the
+  last ticket at or above 60 minutes, or with unknown/invalid age. Only the younger
+  suffix is grant-partitioned. Renewal never resets age. FIFO holds within that
+  suffix's classes; no running suite is preempted. Expiry or revocation returns the
   waiter to normal FIFO at its original ticket number. A priority head needing
   two slots waits for both; light normal suites cannot backfill ahead of it.
   A composed train suite inherits any active grant on a car in its exact tested
@@ -2621,7 +2664,11 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   effective order. A stopped live waiter keeps its FIFO position within its class.
   Old helpers already holding the sticky queue token drain naturally; never kill
   or unlock them for rollout. Next-free priority is guaranteed after those old
-  waiting helpers have drained and participating helpers are upgraded.
+  waiting helpers have drained and participating helpers are upgraded. Aging
+  likewise takes effect at the next helper process start, without hot reload or
+  forced cutover. A protected heavy head still requires all slots at once;
+  pauses, stopped live heads and running holders can delay it beyond the limit,
+  which bounds overtaking rather than wall-clock admission.
 - **Evidence and failure.** Recorded suite identity is the original checkout's
   issue branch only when its HEAD equals the tested commit. Baselines, other
   checks and unknown identities remain normal. Direct make uses its supplying
@@ -2643,7 +2690,19 @@ The wait names each holder once, then `position K in line; next in line: …` (t
 waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
 normal FIFO or fleet-blocking issue/train cars and deadline, and reports class/position changes
-immediately rather than waiting for the periodic diagnostic.
+immediately rather than waiting for the periodic diagnostic. It also reports its
+immutable age (or unknown), grant-overtaking limit and any protected-prefix reason.
+Text `sdlc queue status` invokes the actual supplying helper's bounded `inspect`
+command and renders the same ordering projection: effective positions, ages,
+protected boundary and aging overrides. Inspection reads/revalidates the allocation
+snapshot without creating/pruning tickets or taking slots; provider IO occurs
+outside locks. Busy or changing snapshots, missing/old helpers and exceeded bounds
+report unavailable order with `sdlc queue status` as the retry. Go launches
+inspection in supervised mode: provider descendants inherit its owned helper
+process group, which is collected on completion, cancellation and deadline.
+Standalone Python queries retain detached provider-group cleanup. It shares status's
+3-second budget, caps 4096 records, 64KiB per record and 1MiB response. The frozen
+`--json` schema_version1 remains unchanged and does not run this supplementary read.
 If contention or a pause prevents validating order, it reports `position unknown`
 until an observation is available, then explicitly labels reused diagnostics
 `last observed`. Missing order is never treated as zero predecessors. Switching
@@ -3089,3 +3148,55 @@ reintegration, so a later target/weight never authorizes an earlier prefix.
 The captured echo#1 inputs and native command/train regressions live in
 `testdata/bootstrap-suite/echo-1` and the bootstrap test files under `cmd/sdlc`.
 See [the CI gate map](ci-merge-check.md) for evidence and authority rules.
+
+### Typed script and Lua flake evidence (#556)
+
+`internal/flakes/identity.go` keeps Go test/subtest names and adds exact
+`script:tests/check.sh` and `lua:tests/native_spec.lua#full native case label`
+identities. Typed registrations cover only themselves. Script reruns execute
+one whole script; Lua reruns execute the whole spec once and require both the
+selected case and the file to pass. A sibling's pass supplies no evidence.
+Registration, the daily list and stats share `flakes.SameHeadFailPass` and
+`Confirmed`; typed proofs read bounded hash-verified logs and match runner
+contracts. Historical Go-only failures are never upgraded or rewritten.
+
+Declaration version 3 adds suite-only `flake_runners`, with `script` and `lua`
+keys. Each command is literal argv containing exactly one complete `{path}`
+operand; Lua also declares `results: "plenary-events-v1"`. Trusted main and the
+exact tested commit must agree on the runner contract. `flake run --unit UNIT`
+requires the enclosing managed check's exact-head/contract environment. It
+observes script exit (including 124), indents child diagnostics and emits its
+own bounded control events. Lua summaries come only from a private result
+channel. `scripts/sdlc-plenary-events.lua` wraps Plenary's completed native
+result table without replacing hooks, assertions or formatting.
+
+The outer managed helper alone owns the process group, cancellation, suite
+capacity and strict descendant join; the unit child inherits that group.
+`flake_run_group_unix_test.go` synchronizes wrapper death and group join, while
+`unit-child-process-group` prevents nested managed runners in the adapter.
+Typed-capable checks write v4 attempts with `runner_contract_sha256`; Go-only
+checks keep v2. V3 remains the legacy infrastructure-audit disposition, and
+its reclassification writer refuses v4 rather than discarding its contract.
+Resume links/receipts and their one-pass cleanup authority remain unchanged.
+Live and saved proof must revalidate current runner authority and exact case
+completion; an ignored adapter failure cannot become a pass at outer exit 0.
+Train package-impact attribution conservatively refuses typed failures.
+
+Rollout is binaries first, then the separately verified ariadne#558 distribution
+row, then peer declarations/producer installation and typed registrations.
+Peer adoption follows #558; #556 edits no live local-gates declaration. In the
+actual Plenary child, install the producer before `plenary.busted.run(path)`:
+
+```lua
+local producer = dofile('scripts/sdlc-plenary-events.lua')
+producer.install(path)
+require('plenary.busted').run(path)
+```
+
+Keep ordinary direct-runner recipes outside managed checks. Managed recipes
+call `sdlc flake run --unit script:tests/check.sh` or
+`sdlc flake run --unit lua:tests/native_spec.lua`. The case label belongs only
+to registration/proof, never executable arguments. The producer is a no-op
+outside its managed private-channel environment. Re-run explicit native
+conformance after changes to the producer, wrapper or Plenary dependency:
+`SDLC_PRIVATE_TYPED_CONFORMANCE=1 SDLC_PLENARY_DIR=/path/to/plenary.nvim go test ./cmd/sdlc -run '^TestLocalCheckTypedConformance$' -count=1 -v`.

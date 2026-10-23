@@ -120,6 +120,10 @@ func selectSavedAttempt(storeRoot string, snapshot SuiteEvidenceSnapshot, repo, 
 			}
 			continue
 		}
+		if a.Version == 4 {
+			refusals = append(refusals, "attempt "+a.ID+" requires current typed runner and raw-log proof")
+			continue
+		}
 		path := suiteAttemptLogFile(storeRoot, a)
 		if path == "" {
 			refusals = append(refusals, "attempt "+a.ID+" names no log")
@@ -232,7 +236,7 @@ func guardSuitePassRecord(ctx context.Context, d localRunDeps, check, sha string
 		}
 		if a.Repo == d.Repo && a.SHA == sha && isFlakeEvidence(a) {
 			ev = append(ev, a)
-			failed = failed || isTestCheck(a.Check) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut)
+			failed = failed || isTestCheck(a.Check) && !a.MainBaseline && (a.Exit != 0 || a.TimedOut || a.Version == 4 && !resolved[a.ID].passed())
 		}
 	}
 	if !failed {
@@ -276,7 +280,7 @@ func guardSuitePassRecord(ctx context.Context, d localRunDeps, check, sha string
 			"  Registering a flake cannot explain it: fix it, and land a commit whose suite passes (#394)", why)
 	}
 	return refuse("an earlier failure on this head is unexplained: %s.\n"+
-		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <PKG.TestName[/sub…]>`, then %q.\n"+
+		"  If it is intermittent, this fail→pass is its evidence: `sdlc flake register --test <IDENTITY>`, then %q.\n"+
 		"  Otherwise fix it; a passing rerun alone never lands (#394)", why, republishCommand(check, sha))
 }
 

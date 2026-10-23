@@ -1790,7 +1790,9 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 	var head []string
 	legacy := len(legacyQueueAttemptIDs(res.QueueBlockers)) > 0
 	excluded := res.Status == actualEmptyWindow && len(res.Exclusions) > 0
-	if legacy || excluded {
+	if res.Recovery != "" {
+		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — record ownership below.%s", ansiRed, mode, ansiReset), "")
+	} else if legacy || excluded {
 		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
 	} else {
 		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")

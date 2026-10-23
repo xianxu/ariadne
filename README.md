@@ -16,6 +16,10 @@ peer-message type; version-pinned local stores should remain unmarked. See the
 [wire-message lint convention](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407)
 for the covered decoder chain and reasoned exceptions.
 
+Unix-socket test fixtures need short private roots even when ordinary temporary
+files follow a long `TMPDIR`. The shared catalog traces inherited temp roots to
+socket sinks; see the [socket-fixture lint boundary and exceptions](atlas/workflow/sdlc-binary.md#the-go-lint-catalog-407).
+
 For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
@@ -647,7 +651,11 @@ issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
 releases the hold; a successful landing ends its grant. A train's queued integration
 suite inherits any active grant on a car in its exact tested prefix; later grants,
-revocation and expiry update its queue class without restarting it.
+revocation and expiry update its queue class without restarting it. Machine-suite
+priority is bounded by waiter age: a ticket waiting 60 minutes protects its entire
+FIFO prefix from further grant overtaking. Missing or invalid ages protect the
+prefix too. The younger suffix still gives grants priority; running suites keep
+their slots. This does not change repository landing-line grant holds.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
@@ -798,7 +806,10 @@ the invoker owns removing that directory after inspection.
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
 resume --owner TOKEN` removes only that hold and never restarts interrupted work.
-`sdlc queue status --json` reports the frozen v1 owner/activity schema. Incomplete
+Text `sdlc queue status` additionally shows suite waiter ages, the grant-overtaking
+limit and aging overrides from the supplying scheduler. Inspection is read-only;
+unavailable ordering is explicit. `sdlc queue status --json` reports the unchanged
+frozen v1 owner/activity schema. Incomplete
 or unknown observations never prove quiescence. Isolated conformance supplies
 private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
 `WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
@@ -887,6 +898,29 @@ trailers cannot change its package.
   `known_flakes` names a subtest, so its success guard and test-stats fail
   closed until it is rebuilt.
 
+Typed non-Go identities (#556) are exact: `script:tests/check.sh` and
+`lua:tests/native_spec.lua#full native case label`. Register them with
+`sdlc flake register --test IDENTITY --issue N` after a new typed-capable
+same-head failure followed by a **complete suite pass**. A targeted retry or
+an unrelated case cannot supply that confirmation. Scripts rerun whole; Lua
+reruns the whole spec and requires both the exact selected case and file pass.
+
+Declaration version 3 adds suite-only `flake_runners`: `script.command` and
+`lua.command` are literal argv with one complete `{path}` operand, and Lua
+sets `results: "plenary-events-v1"`. Managed recipes call
+`sdlc flake run --unit script:tests/check.sh` or
+`sdlc flake run --unit lua:tests/native_spec.lua`. The actual Plenary child
+installs the distributed producer before its native run; its private channel
+supplies case proof. Normal direct make behavior remains available outside
+managed checks. Typed-capable attempts use v4; historical raw evidence stays
+unchanged.
+
+Deploy capable fleet binaries first, then ariadne#558's producer distribution,
+then the operator-verified peer declaration/recipe adoption (pair#816 and
+parley.nvim#415). See [typed flake evidence and adoption](atlas/workflow/sdlc-binary.md#typed-script-and-lua-flake-evidence-556)
+for the runner, producer and compatibility contract. This implementation does
+not activate peer local-gates configuration.
+
 `sdlc flake list` is the TL's local daily view: the registry with each
 issue's owner and age, same-head flakes not yet registered, and failures nothing
 explains, each with its log. A same-head failure is omitted from the default
@@ -898,8 +932,8 @@ with the fixing issue and merge. A failure on a head containing that merge stays
 visible as a recurrence; ambiguous or unreadable evidence also stays visible,
 with a coverage reason when the uncertainty is specific to a row. CI failures
 are shown as not covered until #451.
-When a recorded suite (`local-check run`, or merge's) fails only on known flakes, it
-reruns just those tests once on the same head, grouped into exact-package
+For Go names, when a recorded suite (`local-check run`, or merge's) fails only
+on known flakes, it reruns those tests once on the same head, grouped into exact-package
 commands under one weight-1 lease and total timeout. Registered subtests run
 their whole top-level test, including siblings. Each required test and package
 must have a matching structured JSON PASS event, and its
@@ -1097,6 +1131,17 @@ for the TL.
 Issue actuals are measured from ownership intervals and the owning slots' agent
 sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
+
+A migrated working issue with no tracker owner refuses with
+`no owner since cutover: run sdlc claim --issue N from the slot doing the work`.
+Reconcile does not create ownership. Work between cutover and claim is unowned
+and not counted; successful hybrid measurements and retained replay expose that
+gap beside the legacy prefix and owned suffix. Claim does not retroactively
+credit it. Existing activity continuity may cross claim, but only its portion
+inside ownership can count. For a suite queued before first ownership,
+hybrid measurement clips queue-idle exclusion to the owned portion, preserving
+its raw endpoints. Waits crossing release/reclaim still refuse.
+
 Each new close, including `--fixed-then-ship`, measures its current candidate
 head and tracker authority rather than adopting a prior completion's snapshot.
 Retained train waits appear as counted **unverified coverage** beside hours;

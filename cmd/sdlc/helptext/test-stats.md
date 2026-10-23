@@ -12,7 +12,11 @@ measurements. Slow package and shard rows rank by p90; package groups are kept
 distinct from individual packages. A confirmed flake is a named failure
 followed by a passing suite on the same exact head. Failures during a diagnostic
 main-baseline suite are listed separately as suspected. The confirmed flake
-rate denominator includes only complete per-attempt records.
+rate denominator includes only complete per-attempt records. For script:PATH
+and lua:SPEC#CASE, v4 raw logs must verify their hashes and prove the exact
+failed identity, followed by the exact unit/case and whole-file pass under the
+same runner contract. An unrelated passing suite cannot confirm a typed name.
+Go evidence retains its existing semantics; missing typed logs supply no proof.
 
 Older per-head logs are partial: they cannot recover queue time or overwritten
 retries, and some formats do not report total wall time. The command labels

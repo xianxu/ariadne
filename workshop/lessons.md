@@ -8,6 +8,22 @@
 
 # Lessons
 
+- #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
+  every recognition boundary, including assignment targets and tuple-return
+  calls, rather than only expression propagation. Recognize directly declared
+  receiver types on both parameters and local var declarations; state inferred
+  aliases as a separate limit. Check/CheckSources regressions guard the class,
+  and counted shared-type normalization prevents repeated deep walks. This is
+  the existing mechanical lint's own behavioral contract, not a second lint.
+
+- #549 / pair#792: Unix-socket length depends on the actual path parent, not
+  every input called a namespace. Pair hashes SocketPath's namespace, while
+  COUCH_ISOLATED_ROOT supplies its parent. Trace inherited temp roots only into
+  length-sensitive sinks; a function-wide TempDir ban rejects legitimate long
+  TMPDIR controls. The shared test-socket-fixture-root catalog rule and recorded
+  original/corrected Pair source replay guard this mechanical class. Native
+  long-TMPDIR listener tests verify bounded short-root selection and cleanup.
+
 - #552: shell redirection creates the output file before printf/echo writes its content. A PID
   readiness path observed by existence must be published by sibling write/close/rename; a separate
   post-write signal is also sound. Hold a native barrier between output-open and the PID write to
@@ -1519,6 +1535,29 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   for proof selection. Cross-repository qualified/ref-list controls exercise the
   production seam and prevent another instance of this message-dependent class.
 
+- #554: code commits and migration reconciliation do not establish tracker ownership. Derive recovery from pinned owner history, never from diagnostic prose or current claimant absence alone. Test the real migrate/reconcile/claim path. For gap exclusion, check credited intersections with the unowned window; a pre-claim event may shape continuity inside ownership without crediting the gap. Equal-hours invariance belongs to immutable historical replay, not changed source evidence.
+
+- #554 live follow-up: when a measurement joins a legacy prefix to an owned suffix, every evidence consumer must share the suffix's left edge. Queue-idle selection clips at max(cutover, first ownership), while retaining raw endpoints; a queue crossing initial claim differs from a queue crossing release/reclaim. Test both through the production attachment path, not only the pure selector with an already-correct bound.
+
+- #554 BR-1: an approved post-close addition to accepted behavior needs a full close review. Reserve fixed-then-ship for the earlier review's fixes and eligible conflict resolutions; approval of scope does not make a fix-only review sufficient. The existing scope-review guard already rejects this workflow mistake.
+
+- #554 suite: every generated --issue hint must render canonical IDs through issue.CLIRef; a padded ID can parse as octal or fail. Run the existing TestIssueHintsRenderDecimalIDs guard alongside formatter tests when adding a hint; the generic Go lint catalog does not replace specialized repository guards.
+- #556 PQ-1: reusing a managed-process helper inside an already managed command
+  can create a new process group outside the outer owner's cleanup authority.
+  Name the sole group owner before reuse; inner unit adapters inherit that group.
+  A synchronized wrapper-death test must prove child membership and outer join
+  before resource retirement. Guard the inner launch seam against group creation
+  and nested managed-batch calls with a Go lint rule.
+- #556 PQ-2: plans name each risky function and one adversarial-input strategy
+  plus mechanical guard. Keep concrete case inventories in executable tests;
+  name the owner and repeat trigger for external native conformance.
+
+- #556: A shared strict process cleanup path does not imply shared evidence-marker authority. Keep the original resume owner's marker until its existing terminalization boundary; ordinary-run marker cleanup needs explicit ownership from its caller. Exercise that distinction through production CLI resume, not only helper tests.
+
+- #556 BR-1: Preserve execution scope in every evidence projection. Exact case/unit success does not turn a targeted child into a complete-suite confirmation; test the real saved-check projection as well as the pure parser, and retain explicit legacy behavior for Go.
+- #556 BR-2/BR-3: Before close, reconcile the entire Core concepts inventory with delivered symbols, paths and PURE/INTEGRATION boundaries, and map new commands/config/adoption in README as well as help/atlas. Do not leave design placeholder helpers in the acceptance inventory.
+- Cross-repo filing (ops:0, 2026-10-22): Use a temporary worktree off origin/main for issue creation; never borrow another slot's working checkout, even when the verb promises no checkout writes. A staged :0 stays detached for the operator.
+- #556 BR-4: Enumerate reporting IO entry points as well as pure aggregators when adding proof-bearing metadata. Interactive stats and weekly snapshots must use the same hash-verified log hydration before confirmation; persisted-log parity tests must cover each typed kind and missing/tampered proof.
 - #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.
 
 - #557 suite: when a production process adapter changes an argv contract, sweep
@@ -1527,3 +1566,8 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   its prerequisite contract. Settings-only compatibility remains valid, so a
   lexical ban on the old flag would be wrong; native adapter/start-plan and
   dependency-environment regressions enforce this semantic distinction.
+- #560 plan review: name each risky production function in the test strategy table, with one adversarial input class and independent mechanical guard; keep case inventories in executable tests. Distinguish existing read ceilings from writer enforcement when stating bounds.
+
+- #560 implementation review: when admission publishes a record and a watcher later rewrites it, retain the admitted record as the source for that final write. A direct election test misses erasure at the watcher boundary; a real acquired-slot assertion must check the immutable field and unknown nested metadata after the holder is installed. Successful-parent cleanup also needs an independent descendant test, since cancellation-only tests cannot defend post-Run cleanup.
+
+- #560 BR-1: a helper can escape its caller's process-group cleanup by starting a provider in a new session. Test cancellation through the actual helper/provider tree, including descendants, rather than only a same-group substitute. A supervised child keeps descendants in the external owner's group; standalone queries keep their own cleanup. Moving a signal handler alone cannot protect against SIGKILL.

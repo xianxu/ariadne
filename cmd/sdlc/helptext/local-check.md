@@ -30,9 +30,37 @@ DECLARATION (.sdlc/local-checks.json, read from origin/main)
   known_flakes     the suite only: rerun (default) | accept | off, what a
                    failure only known flakes explain does (#394, below)
 
-  Version1 rejects unknown fields; version2 preserves unknown metadata while
+  Version1 rejects unknown fields; version2 and version3 preserve unknown metadata while
   keeping known fields, required members and duplicate keys strict. Unsupported
   versions or malformed entries refuse until main's declaration is fixed.
+
+TYPED SCRIPT AND LUA FLAKES (#556)
+
+  Version3 adds suite-only flake_runners. For example:
+
+    {"version":3,"checks":[{"name":"suite","command":["make","test"],
+      "flake_runners":{
+        "script":{"command":["bash","{path}"]},
+        "lua":{"command":["scripts/run-plenary","{path}"],
+               "results":"plenary-events-v1"}}}]}
+
+  Runner commands are literal argv, with exactly one complete {path} operand.
+  Trusted main and the exact tested commit must agree on the contract.
+  Managed recipes call sdlc flake run --unit script:tests/check.sh or
+  sdlc flake run --unit lua:tests/native_spec.lua; ordinary make keeps its
+  direct-runner fallback outside local-check. Lua's actual Plenary child must
+  install scripts/sdlc-plenary-events.lua before plenary.busted.run(path).
+  Native hooks/assertions/formatting stay native; a private channel supplies
+  completed case results, and stdout is only diagnostic.
+
+  Register script:tests/check.sh or lua:tests/native_spec.lua#full native label.
+  Script exit 124 identifies the script. Lua retries the whole spec and must
+  prove the exact selected case and whole-file pass. Missing/ambiguous output
+  refuses; a sibling's pass never substitutes. Paths are repository-relative.
+  Typed-capable checks write v4 attempts bound to the runner contract; Go-only
+  checks keep v2, old raw evidence stays unchanged, and links/receipts keep v3.
+  Upgrade fleet binaries before declaration/producer adoption. Distribution
+  and peer activation follow the separate operator-verified ariadne#558.
 
 LANDING CHECKS (#509)
 
@@ -262,9 +290,11 @@ RESUME A SAVED SUITE FAILURE (#463)
 
   Explicitly select an ordinary completed failed suite on its original pushed
   commit. Current main policy and open flake registrations must explain every
-  failure. The command runs one exact-package batch of whole top-level tests,
+  failure. Go names run one exact-package batch of whole top-level tests;
+  script and Lua names run each declared whole file once,
   under one weight-1 suite lease and aggregate timeout. Even policy accept
-  requires actual package-bound JSON PASS proof here. The original record,
+  requires actual positive proof here: package-bound JSON for Go, observed
+  script success, or both exact Lua case and whole-file success. The original record,
   log and full-suite duration remain unchanged; status names parent/child IDs
   and the registered issues. Repeat resume or republish validates current proof
   without execution. A changed registry, policy or raw log refuses success.

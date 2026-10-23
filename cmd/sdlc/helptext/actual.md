@@ -73,6 +73,16 @@ OUTPUT
   - no window           → commit the issue's work with #N in its subject, then
                             re-run sdlc actual --issue N. Do not invent hours.
 
+A migrated working issue with no tracker owner refuses with
+`no owner since cutover: run sdlc claim --issue N from the slot doing the work`.
+Reconcile does not create ownership. Work between cutover and claim is unowned
+and not counted; successful hybrid measurements and retained replay expose that
+gap beside the legacy prefix and owned suffix. Claim does not retroactively
+credit it. Existing activity continuity may cross claim, but only its portion
+inside ownership can count. For a suite queued before first ownership,
+hybrid measurement clips queue-idle exclusion to the owned portion, preserving
+its raw endpoints. Waits crossing release/reclaim still refuse.
+
 Completed issues replay the measurement inputs retained with their close evidence:
 code/tracker pins, source byte prefixes and digests, ownership windows, and phase
 cuts. Later transcript appends and bookkeeping cannot move that measurement.
