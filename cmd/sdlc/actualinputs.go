@@ -203,7 +203,17 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	if err != nil {
 		return nil, err
 	}
-	sourceWindows, err := ownershipSourceWindows(ctx, repo, trackerPin, rec.Card.Path, target.Repository, until)
+	claimIssue := ""
+	if !completed && rec.Status() == "working" {
+		_, hasOwner, err := issue.CardClaimant(rec.Card.Raw)
+		if err != nil {
+			return nil, err
+		}
+		if !hasOwner {
+			claimIssue = issueNum
+		}
+	}
+	sourceWindows, err := ownershipSourceWindows(ctx, repo, trackerPin, rec.Card.Path, target.Repository, until, claimIssue)
 	if err != nil {
 		return nil, err
 	}
@@ -403,6 +413,11 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		if err != nil {
 			return err
 		}
+		// The legacy prefix can precede the first owner. Queue idle may
+		// exclude only the owned suffix, even when queuing began earlier.
+		if len(engagements) > 0 && since.Before(engagements[0].Start) {
+			since = engagements[0].Start
+		}
 	}
 	attachCarWaitInputs(ctx, repoTop, common, repository, issueID, engagements, out)
 	attempts, err = potentialIssueQueueAttempts(attempts, engagements, repository, since, until)
@@ -503,7 +518,7 @@ func actualInputRecords(ctx context.Context, repo *tracker.Repository, root, det
 
 // ownershipSourceWindows is shared authority for active time and token usage.
 // Each caller supplies its own explicit right edge; tokens include the review tail.
-func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, cardPath, repository string, until time.Time) ([]transcripts.SourceWindow, error) {
+func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, cardPath, repository string, until time.Time, claimIssue string) ([]transcripts.SourceWindow, error) {
 	events, err := repo.EngagementHistory(pin, cardPath)
 	if err != nil {
 		return nil, err
@@ -513,6 +528,16 @@ func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, 
 		return nil, err
 	}
 	if len(engagements) == 0 {
+		neverOwned := true
+		for _, event := range events {
+			if event.Owner != nil {
+				neverOwned = false
+				break
+			}
+		}
+		if neverOwned && claimIssue != "" {
+			return nil, &unownedActualError{Issue: claimIssue}
+		}
 		return nil, fmt.Errorf("no post-cutover owned interval yet: measurement has no verified owned interval before its pinned right edge; reconcile and record post-cutover work before closing")
 	}
 	machine, _, err := localMachine()

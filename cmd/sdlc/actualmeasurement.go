@@ -79,7 +79,15 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			return fail(err)
 		}
 		m.LegacyPrefix = pinned
-		res.Warnings = append(res.Warnings, fmt.Sprintf("legacy repository-plus-brain heuristic: %s → %s; tracker ownership: %s → %s", pinned.Since, pinned.Until, pinned.Until, m.Until))
+		ownedSince := m.Engagements[0].Start
+		claimAt, err := time.Parse(time.RFC3339Nano, ownedSince)
+		if err != nil {
+			return fail(err)
+		}
+		if claimAt.After(cutover) {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("work between cutover %s and claim %s is unowned and not counted", pinned.Until, ownedSince))
+		}
+		res.Warnings = append(res.Warnings, fmt.Sprintf("legacy repository-plus-brain heuristic: %s → %s; tracker ownership: %s → %s", pinned.Since, pinned.Until, ownedSince, m.Until))
 	}
 	res.Status, res.Hours = statusFromResult(out, id)
 	res.Segments = out.Segments

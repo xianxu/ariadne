@@ -1,0 +1,42 @@
+Terminal capture: sdlc close refusal for echo#5 (slot echo:2), 2026-10-22.
+Branch: 000005-pkgload-agent-packages-room-manifests-grants-persona-prose-guard
+HEAD at close: 350a62dbd75b4ff0c406ee770a23cdd484359708 (pushed; verified with git ls-remote)
+
+Command:
+sdlc close --issue 5 --verified 'go test ./... green (echo, cmd/persona-guard, contracts, persona, pkgload) and persona-guard clean on the real tree at 350a62d; TestVocabFromProto pins the fixture vocab to echo#3 proto; recorded suite running on pushed head 350a62d; movability test proves no echo code names agents/ or rooms/'
+
+Exit code: 1
+
+Output (ANSI colour codes kept as they were printed):
+waiting for sdlc repo lock held by pid 47328: sdlc change-code: on Xians-MacBook-Pro.local
+[1;36m── close-issue contract ── (warmup 1/1)[0m
+
+  Closing an issue records two values that feed into velocity
+  calibration. Both must be earned, not guessed:
+
+  [1;36mACTUAL[0m   = focused dev-hours on this issue (not wall-clock).
+             sdlc measures it — omit --actual and close ADOPTS the measured
+             value (#178), or run `sdlc actual --issue N` to preview.
+             (method: 42shots/velocity/baseline-v3.md)
+             Pass --no-actual (or --force) only if there's genuinely nothing
+             to measure; close records actual_hours: N/A and skips calibration.
+
+  [1;36mVERIFIED[0m = one-line evidence of behavior matching done-when.
+             'tests pass' beats 'code written'. See AGENTS.md §5.
+
+  This warmup auto-suppresses after 1 invocations per shell session.
+
+[1;31mMeasured actual unavailable for issue close — recover the evidence below.[0m
+
+  [1;36mSemantic:[0m  focused dev-hours on this issue (#5) — not wall-clock.
+             (a measured value is adopted automatically; you only land here
+             when the engine can't measure — the status below says why)
+
+  [1;33m[!][0m can't auto-compute (no post-cutover owned interval yet: measurement has no verified owned interval before its pinned right edge; reconcile and record post-cutover work before closing).
+  → ask the TL/hub to restore the named measurement evidence, then re-run sdlc actual --issue 5.
+
+  [1;36mThen re-run:[0m
+    sdlc close --issue 5 --verified '<evidence>'
+
+  (Re-measure anytime: sdlc actual --issue 5)
+  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.
