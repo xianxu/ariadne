@@ -261,7 +261,7 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + claimErr.Error()})
 	}
 	own := canonicalRoot(identity.WorktreeRoot)
-	s.MergeIntents, err = observeMergeIntents(ctx, execGitRunner{}, identity.WorktreeRoot, func(r mergeIntentReport) bool { return r.Root == own })
+	s.MergeIntents, err = observeMergeIntents(execGitRunner{}, identity.WorktreeRoot, func(r mergeIntentReport) bool { return r.Root == own })
 	if err != nil {
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "merge intents unavailable: " + err.Error()})
 	}

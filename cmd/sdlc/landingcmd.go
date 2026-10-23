@@ -267,7 +267,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	if lineDir, err := landingLineDir(execGitRunner{}, repo); err == nil {
 		sweepMergeIntents(execGitRunner{}, repo, landingline.OpenIntents(lineDir), &b)
 	}
-	intents, err := observeMergeIntents(context.Background(), execGitRunner{}, repo, func(r mergeIntentReport) bool { return formatMergeIntent(r) != "" })
+	intents, err := observeMergeIntents(execGitRunner{}, repo, func(r mergeIntentReport) bool { return formatMergeIntent(r) != "" })
 	if err != nil {
 		fmt.Fprintf(&b, "merge intents: unreadable (%v)\n", err)
 	}

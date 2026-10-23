@@ -144,7 +144,7 @@ func formatMergeIntent(r mergeIntentReport) string {
 
 // observeMergeIntents reads the repository's intents for the status
 // surfaces; keep selects which to report (all, or one slot's own).
-func observeMergeIntents(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
+func observeMergeIntents(r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
 	lineDir, err := landingLineDir(r, root)
 	if err != nil {
 		return nil, err
