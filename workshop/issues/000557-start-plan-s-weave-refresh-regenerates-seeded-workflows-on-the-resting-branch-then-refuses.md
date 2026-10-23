@@ -129,6 +129,16 @@ The first retained suite (attempt 156235e802caa27cb038ef76c568b30b, lease-120283
 
 Updated exactly that fake contract and its expected argv to --planning, keeping checks-only environment, unchanged parent environment, propagation sequence and stdout/stderr assertions intact. Swept all remaining --defer-settings references: they are intentional compatibility controls/help; no other stale SDLC adapter expectation remains. Targeted dependency context + installed argv + native start-plan tests PASS (14.306s). No production behavior or approved scope changed after SHIP. Next: push this fixture correction, queue a fresh full suite on the pushed head, and narrow re-close; retain that check without restart. After it passes, commit/push a final handoff and remain idle under the merge pause. After authenticated permission to resume new landings, rebuild tools following the Go upgrade, inspect state/PR/check evidence, then sdlc merge --yes. Never infer that permission from Couch merely being available.
 
+### 2026-10-22 19:52 — durable freeze handoff; check still retained
+
+Authenticated hub follow-up 0949d13f-9cbf-4fc1-be07-48bee4643338 requires no merge tonight, no new item, and committed/pushed state before 21:45. This supersedes any earlier instruction to enter merge immediately on SHIP. No new capacity error was observed during this resumed work; report one if it repeats.
+
+Verified sdlc state: original issue branch retained, #557 codecomplete; working tree clean before this Log update. Fixed-then-ship review round 2 SHIP with zero findings; close evidence 089a7041d7013b627b808639d46dad949cb74e1a, mirrored by 20c851ac9e4a6df6c61af8fd8e8d60bde742a42e. PR405 remains OPEN, merge-check and local-gates-guard (including verdict) SUCCESS on that PR head. No #557 merge/landing runner exists.
+
+Retained recorded suite: lease-2459060446, attempt b4fa6c947bd70ef4d22947d0e2252993, exact pushed fix head 63a9053009e44fb1b1fcffb2dfebcfd9ab88e7b4. Owner PID95656 incarnation 1792722500.451295, initiating checkout ariadne:2. Detached worktree /Volumes/TestScratch/local-checks/sdlc-local-4118944290. Latest queue observation position 2; no run.log yet under Git common dir sdlc/test-stats/inflight/b4fa6c947bd70ef4d22947d0e2252993. No duplicate runner, cancellation or blind retry. Preserve this waiter; read the completed result before assuming it passed. Do not restart/checkpoint a continuation while it is queued/running.
+
+Exact next step: finish reading this retained suite; on pass append its result here, commit/push and remain idle for the night. On failure inspect every failure, preserving its raw evidence; no flake registration or rerun without classification. Before any restart verify the run/result on its exact SHA. After the planned Go upgrade, rebuild this slot's tools as directed and re-read tl-worker help, sdlc state, PR405 and queue/landing evidence. New landing requires fresh authenticated hub authorization after tonight's freeze; only then run sdlc merge --yes (never duplicate a surviving merge runner). A Couch-available notice alone is not authorization. No new issue is accepted while waiting.
+
 ## Revisions
 
 ### 2026-10-22 — proposed prevention at publication boundary
