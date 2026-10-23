@@ -1,6 +1,6 @@
 ---
 id: 000567
-status: working
+status: codecomplete
 created: 2026-10-22
 updated: 2026-10-23
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.35
+tracker:
+    version: 1
+    completion:
+        token: close-8b65c838c39c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 839fc18ae652343c0777a8a515ac943476fc32d3
+        evidence_commit: 843549fcb391e21e27b8cd37ee66e4b1830c6b90
 ---
 
 # flake: TestOperatingCancellationStopsGitHookDescendants
