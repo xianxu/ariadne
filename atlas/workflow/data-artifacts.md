@@ -38,12 +38,10 @@ The dispatcher fires on three triggers, in priority order:
 4. Result: a new `<name>.md` written to `construct/datatype/` (shared) or `<repo>/datatype/` (project-local), depending on scope.
 5. Available immediately as a type — no skill change, no propagation step beyond the existing construct flow.
 
-**Default collaboration mode (#415).** Every prototype's Frontmatter shape table carries a `collaboration-mode` row
-whose notes start with the type's default (`discussion`, `collaboration` or `chat`; see
-[Universal review](universal-review.md)), so each new instance declares where an operator's 🤖 asks are answered.
-`datatype lint` fails on a resolved type without one; `TestEveryTypeDeclaresACollaborationMode` runs it over this
-repository. Defaults: collaboration for project, roadmap, continuation, meeting-notes and procedure; discussion for
-target, product, prose, pensive and type.
+**No review mode key (#576).** #415 once gave every prototype a `collaboration-mode` row so each instance declared
+where 🤖 asks are answered. [Universal review](universal-review.md) now has one collaborative mode (#575), so
+prototypes carry no mode key and instances never declare one; older instances keep theirs, read as legacy.
+`TestNoSpecWritesModeKeys` (`pkg/reviewexport`) fails if a prototype's text names a retired key again.
 
 ## Built-in types
 
@@ -96,7 +94,7 @@ Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and dev
 
 - Skill (generated, per-repo + gitignored): `construct/generated/datatype/SKILL.md` — **codegen; do not hand-edit**
 - Skill prose source: `cmd/datatype/SKILL.md.tmpl` (the generator's `go:embed` template — **edit here**)
-- Generator: `cmd/datatype/` (the `datatype` binary; `weave compile` execs the marker to materialize `SKILL.md` with the live datatype-noun list; also serves `datatype list`/`datatype show <name>` at apply time, and `datatype lint`, #415)
+- Generator: `cmd/datatype/` (the `datatype` binary; `weave compile` execs the marker to materialize `SKILL.md` with the live datatype-noun list; also serves `datatype list`/`datatype show <name>` at apply time; #576 retired #415's `datatype lint`)
 - Dynamic-skill marker (tracked): `construct/local/datatype/.dynamic-skill` (weave execs it at compile)
 - Determinism guard: `make weave-drift-check` (asserts the render is byte-deterministic across runs; the #111 committed-file drift guard is retired)
 - Mechanism: [weave atlas → Dynamic skills](weave.md) (#111, reshaped by #115)
