@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "48209606", done: "ed3a978f"}
 ---
 
 # Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish
