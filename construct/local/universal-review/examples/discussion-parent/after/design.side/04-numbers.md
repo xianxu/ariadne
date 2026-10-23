@@ -2,8 +2,6 @@
 type: side-doc
 parent: ../design.md
 marker: "add the numbers"
-collaboration-mode: discussion
-process-instruction: "[free-form]"
 ---
 
 # Which numbers?

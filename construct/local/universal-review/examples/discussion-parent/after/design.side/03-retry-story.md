@@ -2,8 +2,6 @@
 type: side-doc
 parent: ../design.md
 marker: "the retry story feels off"
-collaboration-mode: discussion
-process-instruction: "[free-form]"
 ---
 
 # What is off in the retry story?
