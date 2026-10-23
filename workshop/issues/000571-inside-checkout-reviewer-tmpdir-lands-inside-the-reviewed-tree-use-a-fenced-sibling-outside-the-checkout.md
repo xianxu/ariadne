@@ -110,6 +110,14 @@ PR409 is open on source `e44b9bbb0aa6caaa598168aedbd15fe4ba123916`. Exactly one 
 
 The worker contract permits boundary review to overlap this queued suite, provided a pass on the final source still precedes landing and any code correction gets fresh verification. Run close with the focused/race/native evidence above; do not claim a recorded PASS until this retained runner returns it. On SHIP plus green, merge promptly and notify hub for provider rollout, then Parley owner for #422. This Log-only checkpoint does not alter the suite source.
 
+### 2026-10-23 — SHIP and final recorded suite PASS
+
+Boundary round1 returned SHIP with no findings, independently passing reviewbox/judge and boundary isolation/retry/cancellation/dependency controls. It verified production/probe blob IDs and the unchanged host-output hash. Git-verified evidence commit `b39101b3daeec8aef1b0b82b35128ccacc0111f3`, mirror `ce1ebf9e27e2a30c6a913dcad3d4c570760234f2`; close measured/adopted0.50h without a typed number.
+
+Retained suite68032 completed exit0 on `e44b9bbb0aa6caaa598168aedbd15fe4ba123916`: all8shards PASS,2369 cmd/sdlc tests,76other packages, wall872.8s (14m33s). Attemptda762f03dc128f47005122d50a07b374, lease-970537564; queue1539s. Saved log `.git/sdlc/local-checks/e44b9bbb0aa6caaa598168aedbd15fe4ba123916/suite.log`, SHA256 prefixcc88c865172f; recorded sdlc-local/suite PASS. No code changes since that source, only close/workshop proof bookkeeping. No review or suite runner remains active.
+
+Next: enter normal sdlc merge promptly; retain its authoritative integration/suite runner if main code moved. On confirmed landing, report PR409 and Git-verified merge to hub for immediate shared-provider rebuild/fleet notice, and to parley.nvim:1 so #422 can follow. No :0 stage or additional mechanism is needed.
+
 ## Revisions
 
 ### 2026-10-23 — mixed-binary rollout limit accepted
