@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ func slotPtr(n int) *int { return &n }
 func testLandingDeps(callerSlot, treeSlot *int) landingDeps {
 	now := time.Date(2026, 10, 16, 1, 0, 0, 0, time.UTC)
 	return landingDeps{
+		suite:     func(context.Context, string) suiteQueueObservation { return suiteQueueObservation{Available: true} },
 		now:       func() time.Time { return now },
 		caller:    func() (string, *int, bool) { return "ops:0", callerSlot, true },
 		couchTree: func() (*int, bool) { return treeSlot, treeSlot != nil },

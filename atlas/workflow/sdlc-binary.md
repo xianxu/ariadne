@@ -1420,7 +1420,7 @@ evidence after the existing stale-state checks.
 repository only, and some rounds run clone-only, so `judge.Dispatch` confines
 every agent it starts: the boundary review, plan-quality, estimate-quality and
 `sdlc judge` (`reviewbox.Confine`). Before the first attempt it makes a base,
-`<clone>/.sdlc-review/` (excluded from the clone's status), or a fresh
+`<clone>.sdlc-review/` beside the clone (#571), or a fresh
 `$TMPDIR/sdlc-review-*` for agents that run in the caller's checkout. It proves
 `tmp/` writable; a failure means the review did not run. The agent's
 environment (through the run context, so argv and the `Run` seam are
@@ -1441,7 +1441,14 @@ the gate halts. The shims stop accidents, not a reviewer that calls the real
 binaries by path. Without an OS fence, the check is what catches the rest.
 
 Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
-plus `<id>.lock`.
+plus `<id>.sdlc-review/` and their shared `<id>.lock`. The companion keeps test
+scratch outside the reviewed project's marker ancestry. Reset, close and dead-owner
+reclaim remove both trees; a concurrent sweep preserves both while the lock is held.
+Companion symlinks and non-directories refuse before confinement writes.
+Rollout limit: an older binary's sweep does not recognize this companion and
+can delete it during a live review; that review fails and must rerun. At #571
+landing the hub rebuilds ariadne:0's shared tools immediately and notifies slots
+using private Ariadne builds to rebuild. No lock alias or versioned root is added.
 - The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
   the round.
 - `dispatchBoundaryReview` removes both in a defer once the reviewer has
@@ -2658,6 +2665,32 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   A composed train suite inherits any active grant on a car in its exact tested
   prefix (#535), including a grant added while queued. Removed/conflicting cars
   and cars beyond a split prefix confer nothing; revoke/expiry restore FIFO.
+- **Mixed-helper grant rollout (#570).** New tickets carry the exact
+  `ordering_policy: "fifo-grant-aging-v1"` contract marker, stamped under `alloc`
+  with their monotonic age and retained through admitted holder publication.
+  Missing, malformed or other policy values are legacy/unknown; enqueue age
+  alone never proves policy compatibility. The constant names the current
+  FIFO/grant/3,600-second aging semantics; incompatible future changes need a
+  different marker and rollout decision. The pure Go compatibility assessment
+  consumes the inspector's raw records once for both grant preflight and status.
+  New `landing grant` calls observe the supplying helper with a three-second
+  budget, refuse legacy/unknown held waiters with ticket/repository/worktree
+  identities, and refuse incomplete/unavailable observations. Revoke skips
+  inspection, so broken or old helpers cannot block recovery. No grant-log or
+  frozen drain-JSON format changes.
+
+  Text `queue status` names incompatible ordering; if a live granted waiter
+  coexists, it flags **deadlock risk** and prints a revoke command for each
+  observed granted subject (including train cars). These hints address the
+  subject's Git common directory explicitly. Status does not inventory every
+  repository's grants when no corresponding suite waits. The TL revokes the
+  conflicting grant manually, leaves the waiters unchanged, lets them drain,
+  and refreshes supplying checkouts through normal pins before regranting.
+  Existing grants and legacy waiters joining after preflight remain possible:
+  the fresh observation is not authority over future joins or old running code.
+  Do not claim universal deadlock prevention or fall back to old grant-first
+  policy. Once legacy waiters are absent, current FIFO and aging apply unchanged.
+  No automatic revocation, ticket rewriting, hot reload or live waiter teardown.
 - **One elected head.** Under `alloc`, every attempt reevaluates grant evidence,
   elects the head, takes `test-suite.lock.queue` and scans weighted capacity.
   A failed scan releases the queue token, so a normal waiter cannot reserve it

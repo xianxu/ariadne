@@ -1,0 +1,201 @@
+# Immutable unmodified definitions selected from scripts/test-lock.py
+# source Git 32e6177751fb5936be76207b1888372325536207 (before #560); unrelated lifecycle code omitted.
+# Data for private native admission conformance, not operator instructions.
+import contextlib, fcntl, json, os, time
+
+def scan(fds, want):
+    """Takes `want` free slots at once (their indices), or none, and reads the busy slots' records."""
+    free, busy = [], []
+    for k, fd in enumerate(fds):
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            busy.append(holder(fd))
+            continue
+        free.append(k)
+    taken = free[:want] if want and len(free) >= want else []
+    for k in free:
+        if k not in taken:
+            fcntl.flock(fds[k], fcntl.LOCK_UN)
+    return taken, busy
+
+def live_tickets(tdir):
+    """The live tickets, oldest first, as (number, path); prunes dead waiters' tickets.
+
+    Call under the allocation mutex: a ticket is created and locked under it, so an
+    unlocked ticket seen here belongs to a waiter that has died."""
+    live = []
+    for name in os.listdir(tdir):
+        if not name.isdigit():
+            continue
+        path = os.path.join(tdir, name)
+        try:
+            fd = os.open(path, os.O_RDWR)
+        except FileNotFoundError:
+            continue
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            live.append((int(name), path))  # its waiter holds it
+        else:
+            try:
+                os.unlink(path)  # its waiter is gone: skip it for good
+            except FileNotFoundError:
+                pass
+        finally:
+            os.close(fd)
+    return sorted(live)
+
+class Tickets:
+    """This waiter's place in the FIFO line (#357)."""
+
+    def __init__(self, base, rec):
+        self.dir = base + ".tickets"
+        os.makedirs(self.dir, exist_ok=True)
+        self.mutex = os.open(os.path.join(self.dir, "alloc"), os.O_RDWR | os.O_CREAT, 0o644)
+        with self.locked():
+            live = live_tickets(self.dir)
+            self.number = (live[-1][0] if live else 0) + 1
+            self.path = os.path.join(self.dir, f"{self.number:012d}")
+            self.fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o644)
+            fcntl.flock(self.fd, fcntl.LOCK_EX)
+            os.pwrite(self.fd, json.dumps(rec).encode(), 0)
+
+    @contextlib.contextmanager
+    def locked(self, blocking=True):
+        if blocking:
+            fcntl.flock(self.mutex, fcntl.LOCK_EX)
+        elif not try_lock(self.mutex):
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(self.mutex, fcntl.LOCK_UN)
+
+    def records(self):
+        records = []
+        for number, path in live_tickets(self.dir):
+            try:
+                with open(path, "rb") as stream:
+                    records.append((number, holder(stream.fileno())))
+            except FileNotFoundError:
+                continue
+        return records
+
+    def elect(self, records, deadlines, fds, queue, want):
+        order = effective_order(records, deadlines, time.time())
+        index = next(i for i, (n, _) in enumerate(order) if n == self.number)
+        ahead = [r for _, r in order[:index]]
+        head = index == 0 and try_lock(queue)
+        if head:
+            try:
+                os.ftruncate(queue, 0)
+                os.pwrite(queue, json.dumps(order[0][1]).encode(), 0)
+                taken, busy = scan(fds, want)
+                if taken:
+                    rec = dict(order[0][1], slot=taken[0], slots=taken)
+                    raw = json.dumps(rec).encode()
+                    try:
+                        for slot in taken:
+                            os.ftruncate(fds[slot], 0)
+                            os.pwrite(fds[slot], raw, 0)
+                    except BaseException:
+                        for slot in taken:
+                            fcntl.flock(fds[slot], fcntl.LOCK_UN)
+                        raise
+            finally:
+                fcntl.flock(queue, fcntl.LOCK_UN)
+        else:
+            taken, busy = scan(fds, 0)
+        deadline = subject_deadline(order[index][1], deadlines)
+        return taken, busy, ahead, head, deadline
+
+    def admission(self, fds, queue, want, evidence, gate=None):
+        """Prepare slow priority evidence outside global gate; revalidate inside."""
+        if gate is None:  # old direct unit callers share the same scheduler
+            with self.locked():
+                records = self.records()
+                deadlines = evidence.deadlines(records, time.time())
+                return self.elect(records, deadlines, fds, queue, want)
+        if gate.paused():
+            return [], scan(fds, 0)[1], None, False, 0
+        with self.locked():
+            records = self.records()
+        # Never call a provider while holding the machine gate. New/vanished
+        # tickets invalidate this snapshot and retry without taking any slot.
+        deadlines = evidence.deadlines(records, time.time())
+        # None means no validated order, unlike an observed empty ahead list.
+        result = ([], scan(fds, 0)[1], None, False, 0)
+        def attempt():
+            nonlocal result
+            with self.locked(blocking=False) as acquired:
+                if not acquired:
+                    return False  # Release the global gate before retrying.
+                current = self.records()
+                if current != records:
+                    return False
+                result = self.elect(current, deadlines, fds, queue, want)
+                return bool(result[0])
+        gate.try_admit(attempt)
+        return result
+
+    def release(self):
+        try:
+            os.unlink(self.path)
+        except FileNotFoundError:
+            pass
+        os.close(self.fd)
+        os.close(self.mutex)
+
+def valid_subject(subject):
+    """Validate untrusted persisted identity before any filesystem/protocol use."""
+    if not isinstance(subject, dict):
+        return False
+    common, issue = subject.get("common_dir"), subject.get("issue")
+    if (not isinstance(common, str) or not os.path.isabs(common) or
+            "\x00" in common or common.startswith("//") or os.path.normpath(common) != common or
+            type(issue) is not int or issue < 0):
+        return False
+    if "issues" in subject and (not isinstance(subject["issues"], list) or
+            any(type(n) is not int or n <= 0 for n in subject["issues"])):
+        return False
+    try:
+        return len(os.fsencode(common)) <= 4096
+    except UnicodeError:
+        return False
+
+def subject_keys(rec):
+    subject = rec.get("subject") if isinstance(rec, dict) else None
+    if not valid_subject(subject):
+        return []
+    issues = subject.get("issues", [])
+    if subject["issue"]:
+        issues = [subject["issue"], *issues]
+    return [(subject["common_dir"], issue) for issue in issues]
+
+def subject_deadline(rec, deadlines):
+    return max((deadlines.get(key, 0) for key in subject_keys(rec)), default=0)
+
+def effective_order(records, deadlines, now):
+    """Stable partition of numeric FIFO; expired evidence confers nothing."""
+    priority, normal = [], []
+    for item in records:
+        (priority if subject_deadline(item[1], deadlines) > now else normal).append(item)
+    return priority + normal
+
+def try_lock(fd):
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except BlockingIOError:
+        return False
+
+def holder(fd):
+    """The holder's record, or None while it is unwritten or not one of ours."""
+    try:
+        rec = json.loads(os.pread(fd, 65536, 0) or b"null")
+    except ValueError:
+        return None
+    keys = ("repo", "worktree", "pid", "started")
+    return rec if isinstance(rec, dict) and all(k in rec for k in keys) else None

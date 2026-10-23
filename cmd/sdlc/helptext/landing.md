@@ -134,6 +134,11 @@ FLEET-BLOCKING PRIORITY
   and the slot rule is checked again when it is read. Trust is cooperative:
   this guards against agents' mistakes on one machine, not against forgery.
 
+  New grants require a fresh suite-queue compatibility observation (#570).
+  Legacy/unknown live waiters or unavailable inspection refuse the grant and
+  name the blocked evidence. Let waiters drain and refresh their supplying
+  helpers before retrying. Revoke never depends on inspection.
+
 SUITE QUEUE PRIORITY (#452)
 
   The same active grant puts the issue's suite ahead of waiting normal suites
@@ -151,6 +156,16 @@ SUITE QUEUE PRIORITY (#452)
   prints a priority-unavailable warning and uses normal FIFO for every suite;
   priority never prevents a suite running. Old sticky helper waiters drain
   naturally during rollout; they are never killed or unlocked.
+
+  New tickets mark the exact fifo-grant-aging-v1 ordering contract. Helpers
+  predating that marker count as legacy/unknown, even if they already implement
+  aging. Text sdlc queue status flags this and names a deadlock risk when an
+  active granted waiter coexists; the TL revokes conflicting grants with its
+  printed command and lets old waiters drain. A legacy waiter can join after
+  grant preflight: this is a guarded rollout, not a universal deadlock guarantee.
+  Status sees grants on waiting subjects, including train cars; it does not
+  inventory grants with no queued suite. FIFO and aging are unchanged, and
+  queue status --json keeps its existing drain schema.
 
 RETENTION
 

@@ -1,0 +1,21 @@
+{
+  "source": "ariadne#570 Spec, incident 2026-10-23 about 01:30; minimized replay, not raw TTY bytes",
+  "legacy_tickets": [
+    32,
+    33,
+    34,
+    35,
+    36
+  ],
+  "granted_ticket": 37,
+  "granted_issue": 832,
+  "legacy_order_head": 37,
+  "aging_order_head": 32,
+  "native_probe": {
+    "legacy_admitted": false,
+    "aging_admitted": false,
+    "slots_free": 2,
+    "grant_removed_admits_fifo": true
+  },
+  "old_helper_revision": "32e6177751fb5936be76207b1888372325536207"
+}

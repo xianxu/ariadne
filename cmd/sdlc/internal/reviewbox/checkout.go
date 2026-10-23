@@ -155,7 +155,7 @@ func (c *Checkout) ResetContext(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := removeTree(c.Dir); err != nil {
+	if err := removeCheckoutTrees(c.Dir); err != nil {
 		problems = append(problems, fmt.Errorf("reset review checkout %s: %w", c.Dir, err))
 	} else if err := c.populate(ctx); err != nil {
 		problems = append(problems, err)
@@ -277,7 +277,7 @@ func (c *Checkout) Close() error {
 	if c.lock == nil {
 		return errors.Join(problems...)
 	}
-	err := removeTree(c.Dir)
+	err := removeCheckoutTrees(c.Dir)
 	if err == nil {
 		if rerr := os.Remove(c.lockPath()); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
 			err = rerr
@@ -324,8 +324,15 @@ func Sweep(root string) (removed int, problems []error) {
 			gone, err = reclaim(root, strings.TrimSuffix(name, tmpLockSuffix), name)
 		case strings.HasSuffix(name, lockSuffix):
 			gone, err = reclaim(root, strings.TrimSuffix(name, lockSuffix), name)
+		case strings.HasSuffix(name, confineBaseName):
+			id := strings.TrimSuffix(name, confineBaseName)
+			if present[id] || present[id+lockSuffix] || present[id+tmpLockSuffix] {
+				continue // the owner's lock case reclaims both trees, or preserves both
+			}
+			err = removeTree(filepath.Join(root, name))
+			gone = err == nil
 		case e.IsDir() && !present[name+lockSuffix] && !present[name+tmpLockSuffix]:
-			if err = removeTree(filepath.Join(root, name)); err == nil {
+			if err = removeCheckoutTrees(filepath.Join(root, name)); err == nil {
 				gone = true
 			}
 		}
@@ -353,13 +360,17 @@ func reclaim(root, id, lockName string) (bool, error) {
 	if err := flock.Exclusive(f, true); err != nil {
 		return false, nil // held: a live review owns it
 	}
-	if err := removeTree(filepath.Join(root, id)); err != nil {
+	if err := removeCheckoutTrees(filepath.Join(root, id)); err != nil {
 		return false, err // the lock stays, so a later sweep retries
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return false, err
 	}
 	return true, nil
+}
+
+func removeCheckoutTrees(dir string) error {
+	return errors.Join(removeTree(dir), removeTree(companionBase(dir)))
 }
 
 // removeTree removes dir even where a reviewer left read-only directories
