@@ -40,7 +40,7 @@ Detect a run invalidated by its environment and refuse to record it as a failure
 
 ## Plan
 
-- [ ] Implement the [host capability preflight plan](../plans/000572-suite-capability-preflight-plan.md), then focused/native conformance, recorded suite and one close review.
+- [x] Implement the [host capability preflight plan](../plans/000572-suite-capability-preflight-plan.md) and focused/native conformance. Recorded-suite and review/landing gates remain separately tracked below.
 
 ## Revisions
 
@@ -63,3 +63,5 @@ Focused verification: capability controls PASS (3.582s); expanded environment, i
 Implementation checkpoint `560df628f1d09836d86b0d3845f32a5097c7b52c`. Final native conformance on that source PASS (0.727s); [raw output and exact production/probe blob pins](../plans/000572-native-conformance.md) are committed text evidence so a contained reviewer can inspect the host-only check. Capability controls under `-race` PASS (5.221s). Whitespace check passes outside the byte-identical captured original log, whose four whitespace-only lines are intentionally preserved for hash verification. Next: recorded full suite on the pushed checkpoint, then close review and normal landing; no stage required.
 
 Recorded suite retained on `c67660c1c`: attempt `91c394cba1738bdea7c3ddc0f4eaa204`, lease `lease-1362897573`, initially position 6 behind the existing FIFO holders. No second runner or priority request. Per the explicit tl-worker overlap rule, close review may run while this suite is queued; a final-head recorded PASS still precedes landing, and any code correction requires a fresh recorded suite. Outstanding: retained suite, close verdict, normal merge. No restart/continuation while the retained check is live.
+
+The first close invocation stopped at the checklist before dispatch: its only row bundled completed implementation with the close review itself and the still-queued suite. Corrected that row to state completed implementation/conformance; the future gates remain explicitly outstanding in this Log and the durable plan. No bypass flag used. The actual 162-line production addition upgrades close to the full boundary review automatically.
