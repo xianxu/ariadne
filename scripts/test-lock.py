@@ -1494,7 +1494,7 @@ def main():
     ap.add_argument("cmd", choices=["acquire", "inspect"])
     ap.add_argument("--watch", type=int, help="pid whose exit releases the lock (make); required for acquire")
     ap.add_argument("--slots", type=int, default=1, help="this suite's weight: slots it takes at once (#346)")
-    ap.add_argument("--lane", choices=[LANE_LIGHT],
+    ap.add_argument("--lane", choices=[LANE_LIGHT], metavar="LANE",  # sdlc's capability probe reads LANE
                     help="acquire only: wait in the light lane for its one slot (#559)")
     ap.add_argument("--supervised", action="store_true",
                     help="inspect only: external caller owns process-group cleanup")

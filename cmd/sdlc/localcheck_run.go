@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -64,6 +65,8 @@ type localRunDeps struct {
 	ordinaryTypedOwner bool   // only the ordinary run owner releases its transient log marker
 	runnerLifetime     *runnerArtifactLifetime
 	runnerCleanup      func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
+	lane               string                       // suiteLaneLight asks the helper for the light lane (#559)
+	laneBound          time.Duration                // the light deadline; zero is suiteLaneBound (tests shrink it)
 }
 
 // bindTypedCheck verifies runner authority before allocating any execution
@@ -153,6 +156,29 @@ func (d localRunDeps) releaseTypedAttemptOwner(ctx context.Context, logPath stri
 		return errors.Join(err, &runnerCleanupUnconfirmed{Detail: "typed owner release unconfirmed; inputs retained"})
 	}
 	return nil
+}
+
+// lightLaneFor decides whether this run asks for the light lane (#559): only
+// a recorded suite, measured short in this repo's own attempts, whose helper
+// declares the lane. Any failure to read or probe means the normal line.
+func (d localRunDeps) lightLaneFor(ctx context.Context, c localCheck, wt, helper, storeRoot string) bool {
+	if c.Name != suiteCheckName || d.SkipRecord || c.Resource == "runner" {
+		return false
+	}
+	snapshot, err := readSuiteEvidence(storeRoot, testStatsRecordLimit)
+	if err != nil {
+		return false
+	}
+	e := laneEligibility(snapshot.Attempts, d.Repo)
+	if !e.Eligible {
+		return false
+	}
+	if !helperSupportsLane(ctx, wt, helper) {
+		fmt.Fprintf(d.Stderr, "[!] light lane: %s, but the suite lock helper %s has no --lane; using the normal line\n", e.Reason, helper)
+		return false
+	}
+	fmt.Fprintf(d.Stderr, "==> light lane: %s\n", e.Reason)
+	return true
 }
 
 // callerRoot names the initiating checkout, independently of suite contents.
@@ -273,7 +299,11 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}
 	}
 	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
-	run, err := runUnderResource(ctx, d, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
+	run, laneOverrun, err := runSuiteLanes(d.lightLaneFor(ctx, c, wt, helper, storeRoot), d.Stderr, func(lane string) (suiteSlotRun, error) {
+		dl := d
+		dl.lane = lane
+		return runUnderResource(ctx, dl, wt, helper, logDir, c.Name, sha, c.Weight, subject, c.Command, rec.LogPath, time.Duration(c.TimeoutMinutes)*d.minute, c.Resource)
+	})
 	if err != nil {
 		var startup *suiteEnvironmentError
 		if errors.As(err, &startup) {
@@ -335,7 +365,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
 			QueuedAt: ptrTime(queueStart.UTC()), AcquiredAt: ptrTime(queueAcquired.UTC()),
 			QueueSeconds: &queueSeconds, WallSeconds: &wallSeconds,
-			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256, Outcome: string(rec.Outcome)}
+			Exit: rec.Exit, TimedOut: rec.TimedOut, LogSHA256: rec.LogSHA256, Outcome: string(rec.Outcome),
+			Lane: run.Lane, LaneOverrunSeconds: laneOverrun}
 		d.bindSuiteAttempt(&attempt)
 		if identity, idErr := workspace.Resolve(execGitRunner{}, d.callerRoot(), ""); idErr == nil && identity.Address != nil {
 			attempt.Slot = *identity.Address
@@ -419,6 +450,8 @@ type suiteSlotRun struct {
 	TimedOut                              bool
 	Duration, QueueWait                   time.Duration
 	QueueStart, Acquired, Start, Finished time.Time
+	Lane                                  string // the lane the run was admitted to (#559)
+	LaneOverrun                           bool   // the light deadline, not the check's timeout, stopped it
 }
 
 // runUnderSlot runs argv in wt under one of the machine-wide suite slots
@@ -509,7 +542,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	heldBy := ""
 	release := func() {}
 	if resource != "runner" {
-		heldBy, release, err = acquireSuiteSlot(ownedCtx, d, wt, weight, helper, subject)
+		heldBy, run.Lane, release, err = acquireSuiteSlotLane(ownedCtx, d, wt, weight, helper, subject)
 	}
 	if err != nil {
 		var interrupted *queueInterruptedError
@@ -560,6 +593,14 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		return run, err
 	}
 	defer logf.Close()
+	// A light run (#559) is niced and stopped at the lane's bound, unless the
+	// check's own timeout comes first; only the lane's deadline is an overrun.
+	laneDeadline := false
+	if run.Lane == suiteLaneLight {
+		bound := cmp.Or(d.laneBound, suiteLaneBound)
+		laneDeadline, timeout = bound < timeout, min(timeout, bound)
+		commands = nicedCommands(commands)
+	}
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
 	if resource == "runner" {
@@ -650,7 +691,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	var exitErr *exec.ExitError
 	switch {
 	case runCtx.Err() == context.DeadlineExceeded:
-		run.TimedOut = true
+		run.TimedOut, run.LaneOverrun = true, laneDeadline
 	case interrupted != nil:
 		return run, &queueInterruptedError{ID: q.op.ID, Reason: "managed suite cancelled", LogPath: logPath, Cause: interrupted}
 	case runErr == nil:
@@ -799,14 +840,21 @@ func localCheckLogDir(d localRunDeps) (string, error) {
 // make test inside it, which then sees WF_TEST_LOCK_HELD_BY and goes reentrant,
 // still runs at its declared weight (#332).
 func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight int, helper string, subjects ...suitePrioritySubject) (string, func(), error) {
+	heldBy, _, release, err := acquireSuiteSlotLane(ctx, d, dir, weight, helper, subjects...)
+	return heldBy, release, err
+}
+
+// acquireSuiteSlotLane is acquireSuiteSlot that also names the lane granted:
+// suiteLaneLight when d.lane asked for the light lane and the helper gave it.
+func acquireSuiteSlotLane(ctx context.Context, d localRunDeps, dir string, weight int, helper string, subjects ...suitePrioritySubject) (string, string, func(), error) {
 	holder := exec.Command("cat")
 	processgroup.Configure(holder)
 	pipe, err := holder.StdinPipe()
 	if err != nil {
-		return "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
+		return "", "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
 	}
 	if err := holder.Start(); err != nil {
-		return "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
+		return "", "", nil, fmt.Errorf("%w: suite slot holder: %v", errUnboundedSuite, err)
 	}
 	var once sync.Once
 	release := func() {
@@ -816,7 +864,11 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 		})
 	}
 	pid := fmt.Sprint(holder.Process.Pid)
-	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1)))
+	argv := []string{helper, "acquire", "--watch", pid, "--slots", strconv.Itoa(max(weight, 1))}
+	if d.lane == suiteLaneLight {
+		argv = append(argv, "--lane", suiteLaneLight)
+	}
+	cmd := exec.CommandContext(ctx, "python3", argv...)
 	processgroup.Configure(cmd)
 	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.WaitDelay = time.Second
@@ -845,27 +897,43 @@ func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string, weight in
 	if err != nil {
 		release()
 		if ctx.Err() != nil {
-			return "", nil, fmt.Errorf("%w: suite lock interrupted: %w", errUnboundedSuite, ctx.Err())
+			return "", "", nil, fmt.Errorf("%w: suite lock interrupted: %w", errUnboundedSuite, ctx.Err())
 		}
-		return "", nil, fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
+		return "", "", nil, fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
 	}
 	switch state {
 	case "paused":
 		release()
-		return "", nil, &queueInterruptedError{Reason: "admitted merge reached a paused new-suite boundary"}
+		return "", "", nil, &queueInterruptedError{Reason: "admitted merge reached a paused new-suite boundary"}
 	case "acquired":
-		return pid, release, nil
+		return pid, "", release, nil
+	case "acquired-light":
+		if d.lane != suiteLaneLight {
+			release()
+			return "", "", nil, fmt.Errorf("%w: suite lock answered %q to a normal request", errUnboundedSuite, state)
+		}
+		return pid, suiteLaneLight, release, nil
 	case "reentrant":
 		// Nested under a make that holds the slot: no slot of ours to hold.
 		release()
-		return os.Getenv("WF_TEST_LOCK_HELD_BY"), func() {}, nil
+		return os.Getenv("WF_TEST_LOCK_HELD_BY"), "", func() {}, nil
 	case "skipped":
 		release()
-		return "", func() {}, nil
+		return "", "", func() {}, nil
 	default:
 		release()
-		return "", nil, fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
+		return "", "", nil, fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
 	}
+}
+
+// nicedCommands runs each command of a light run under nice (#559), so the
+// lane's extra suite yields the CPU to the heavy suites beside it.
+func nicedCommands(commands [][]string) [][]string {
+	niced := make([][]string, len(commands))
+	for i, argv := range commands {
+		niced[i] = append([]string{"nice", "-n", suiteLaneNice}, argv...)
+	}
+	return niced
 }
 
 // hashAndTail reads the log once: its sha256 and its last n lines.

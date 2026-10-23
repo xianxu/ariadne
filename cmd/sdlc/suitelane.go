@@ -6,6 +6,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
@@ -106,4 +107,39 @@ func nextSuiteLaneStep(s suiteLaneState, e suiteLaneEvent) (suiteLaneState, erro
 		return laneDone, nil
 	}
 	return s, errLaneEvent
+}
+
+// runSuiteLanes drives one recorded suite through nextSuiteLaneStep. run
+// acquires the named lane's slot and runs the suite; a light run the lane's
+// deadline stopped is retried once in the normal line, and the overrun's
+// length rides on the run that retried it.
+func runSuiteLanes(light bool, stderr io.Writer, run func(lane string) (suiteSlotRun, error)) (suiteSlotRun, *float64, error) {
+	state, _ := nextSuiteLaneStep(laneStart, map[bool]suiteLaneEvent{true: laneEligible, false: laneIneligible}[light])
+	var overrun *float64
+	for {
+		lane := ""
+		if state == laneWaitLight {
+			lane = suiteLaneLight
+		}
+		r, err := run(lane)
+		if err != nil {
+			return r, overrun, err // cancelled or could not run: nothing more to try
+		}
+		if state, err = nextSuiteLaneStep(state, laneAcquired); err != nil {
+			return r, overrun, err
+		}
+		event := laneExited
+		if r.LaneOverrun {
+			event = laneOverran
+		}
+		if state, err = nextSuiteLaneStep(state, event); err != nil {
+			return r, overrun, err
+		}
+		if state == laneDone {
+			return r, overrun, nil
+		}
+		stopped := r.Duration.Seconds()
+		overrun = &stopped
+		fmt.Fprintf(stderr, "==> light lane: the suite was stopped at %.0fs, over the lane's bound; retrying it in the normal line\n", stopped)
+	}
 }
