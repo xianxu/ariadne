@@ -45,6 +45,7 @@ Keep selecting the workflow supplier shared with admission; do not silently subs
 ## Log
 
 ### 2026-10-22 — diagnosis before code
+- 2026-10-22: closed — Captured real argparse stderr RED then GREEN; TestSuiteQueue passed 50.636s, focused race 1.985s, Go/shell lint pass. Private production CLI confirms graceful old-supplier diagnostics from Pair/Parley/older Ariadne and available order on current Ariadne; private old-helper acquire/release succeeds. Central recorded final-code suite is queued and must pass before landing (tl-worker permitted overlap).; review verdict: SHIP
 
 Reproduced from pair-slot1 using ariadne:0 sdlc. Selected helper is pair-slot1/ariadne/scripts/test-lock.py, reached via Makefile.workflow symlink. Its stderr: usage: test-lock.py [-h] --watch WATCH [--slots SLOTS] {acquire}; error: argument cmd: invalid choice: inspect (choose from acquire). ariadne-slot2 gives the same result. Explicit central helper inspect succeeds from the identical Pair cwd, excluding cwd/weight/declaration as the cause. Source observation invokes inspect --supervised; acquireSuiteSlot separately invokes acquire --watch PID --slots WEIGHT. Both old helpers acquired and released slots in private WF_TEST_LOCK_FILE/WF_SDLC_QUEUE_ROOT paths with exit0/acquired; native release confirmed. No live admission or merge was driven. Cause reported to ops:0 before implementation.
 
