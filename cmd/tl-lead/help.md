@@ -623,6 +623,13 @@ WATCHING
     operator asks.
 
 LANDING AND SMOKE TESTS
+  - New grants refuse legacy/unknown ordering among live suite waiters; let
+    those waiters drain and refresh their supplying helpers before retrying.
+    If queue status names a mixed-policy deadlock risk, revoke the conflicting grant
+    with its printed recovery command; never kill or unlock a waiter for rollout.
+    A legacy waiter can join after preflight, so keep checking queue status while
+    a grant is live. FIFO and aging remain the policy; do not switch to old
+    grant-first ordering or claim a one-time check prevents every deadlock.
   - Let the landing line order integration and authoritative suites. Do not
     hold main by hand or tell slots to integrate newer main before close.
     Workers run the required branch suite, close that tested branch, and enter

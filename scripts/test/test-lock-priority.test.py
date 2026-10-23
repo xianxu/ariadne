@@ -33,6 +33,66 @@ class SuiteQueuePriority(unittest.TestCase):
         self.streams = []
         self.addCleanup(self.cleanup)
 
+    def test_mixed_historical_policy_guard_and_private_revoke(self):
+        import fcntl
+        import types
+        old = types.ModuleType('pre_aging_lock')
+        capture = ROOT / 'scripts/test/fixtures/test-lock-pre-aging.py.txt'
+        exec(compile(capture.read_text(), str(capture), 'exec'), old.__dict__)
+        incident = json.loads((capture.parent / 'suite-queue-570.json').read_text())
+        self.grant(incident['granted_issue'])
+        record = dict(repo='legacy', worktree=str(self.root), pid=os.getpid(), started='fixture',
+                      subject=dict(common_dir=str(self.common), issue=1))
+        older = old.Tickets(self.env['WF_TEST_LOCK_FILE'], record)
+        younger = module.Tickets(self.env['WF_TEST_LOCK_FILE'], dict(record, repo='current',
+            subject=dict(common_dir=str(self.common), issue=incident['granted_issue'])))
+        descriptors = []
+        def fd(suffix):
+            result = os.open(self.env['WF_TEST_LOCK_FILE'] + suffix, os.O_RDWR | os.O_CREAT, 0o600)
+            descriptors.append(result)
+            return result
+        old_slots, new_slots = [fd(''), fd('.1')], [fd(''), fd('.1')]
+        old_queue, new_queue = fd('.queue'), fd('.queue')
+        evidence = module.GrantEvidence(self.provider)
+        try:
+            self.assertEqual(older.admission(old_slots, old_queue, 2, evidence)[0], [])
+            self.assertEqual(younger.admission(new_slots, new_queue, 2, evidence)[0], [])
+            snapshot = module.inspect_queue(self.env['WF_TEST_LOCK_FILE'], evidence)
+            self.assertTrue(snapshot['available'])
+            self.assertEqual([r['record'].get('ordering_policy') for r in snapshot['tickets']],
+                             [None, 'fifo-grant-aging-v1'])
+            # Run actual public grant/revoke commands through Go's executable
+            # adapter, with only private lock/grant paths and no Couch caller.
+            subprocess.run(['git', 'init', '--bare', '-q', str(self.common)], check=True)
+            (self.common / 'Makefile.workflow').symlink_to(ROOT / 'Makefile.workflow')
+            command_env = dict(self.env)
+            command_env.pop('COUCH_TREE', None)
+            command = [self.provider, 'landing', 'grant', '--repo', str(self.common),
+                       '--issue', '833', '--reason', 'private mixed-policy fixture']
+            refused = subprocess.run(command, cwd=self.common, env=command_env, capture_output=True, text=True)
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertIn('ticket 1', refused.stderr)
+            self.assertIn('legacy/unknown ordering', refused.stderr)
+            self.assertNotIn('"issue":833', self.log.read_text())
+            revoked = subprocess.run([self.provider, 'landing', 'revoke', '--repo', str(self.common),
+                '--issue', str(incident['granted_issue'])], cwd=self.common, env=command_env,
+                capture_output=True, text=True)
+            self.assertEqual(revoked.returncode, 0, revoked.stderr)
+            taken = older.admission(old_slots, old_queue, 2, evidence)[0]
+            self.assertEqual(taken, [0, 1])
+            for k in taken:
+                fcntl.flock(old_slots[k], fcntl.LOCK_UN)
+            older.release()
+            older = None
+            self.assertEqual(younger.admission(new_slots, new_queue, 2, evidence)[0], [0, 1])
+            # Slots are owned only by this fixture's descriptors; close releases them.
+        finally:
+            if older is not None:
+                older.release()
+            younger.release()
+            for descriptor in descriptors:
+                os.close(descriptor)
+
     def cleanup(self):
         for child in self.children:
             if child.poll() is None:
@@ -164,6 +224,7 @@ class SuiteQueuePriority(unittest.TestCase):
         actual = next(record for record in held if record['pid'] == owner.pid)
         self.assertIn('enqueue_monotonic', actual, 'final watcher rewrite erased ticket age')
         self.assertEqual(actual['enqueue_monotonic'], queued['enqueue_monotonic'])
+        self.assertEqual(actual.get('ordering_policy'), 'fifo-grant-aging-v1')
         self.assertEqual(actual['future_metadata'], queued['future_metadata'])
         self.assertEqual(actual['subject'], queued['subject'])
         self.assertIn('holder', actual, 'slot assertion must inspect the final watcher-owned record')
@@ -681,11 +742,12 @@ class SuiteAgingResources(unittest.TestCase):
             return 1000
         with mock.patch.object(module.time, 'monotonic', side_effect=clock):
             ticket = module.Tickets(self.base, dict(repo='fixture',worktree='/fixture',pid=os.getpid(),started='fixture',
-                                                  enqueue_monotonic=-1,future={'nested':[1]}))
+                                                  enqueue_monotonic=-1,ordering_policy='caller-forgery',future={'nested':[1]}))
         self.records.append(ticket)
         self.assertEqual(len(calls), 1)
         rec = json.loads(Path(ticket.path).read_text())
         self.assertEqual(rec['enqueue_monotonic'], 1000)
+        self.assertEqual(rec.get('ordering_policy'), 'fifo-grant-aging-v1')
         self.assertEqual(rec['future'], {'nested': [1]})
         slot, token = self.fd(''), self.fd('.queue')
         with mock.patch.object(module.time, 'monotonic', return_value=5000):
@@ -694,6 +756,7 @@ class SuiteAgingResources(unittest.TestCase):
         self.assertEqual(ahead, [])
         held = module.holder(slot)
         self.assertEqual(held['enqueue_monotonic'], 1000)
+        self.assertEqual(held.get('ordering_policy'), 'fifo-grant-aging-v1')
         self.assertEqual(held['future'], {'nested': [1]})
         self.assertIn('FIFO protected', module.format_suite_wait(ticket.observation))
 
@@ -717,6 +780,14 @@ class SuiteAgingResources(unittest.TestCase):
             self.assertEqual(old.admission(slots, token, 2, evidence)[0], [0, 1])
         self.assertTrue(young.observation['priority_overridden'])
         self.assertEqual(old.observation['reason'], 'aged_fifo')
+
+    def test_inspection_refuses_duplicate_ticket_policy(self):
+        ticket = self.ticket(1)
+        raw = Path(ticket.path).read_text().rstrip()
+        Path(ticket.path).write_text(raw[:-1] + ',"ordering_policy":"fifo-grant-aging-v1"}')
+        observed = module.inspect_queue(self.base, self.evidence())
+        self.assertFalse(observed['available'])
+        self.assertEqual(observed['reason'], 'record_invalid')
 
     def test_inspection_no_creation_or_dead_ticket_pruning(self):
         missing = str(self.root / 'absent')

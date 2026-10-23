@@ -47,6 +47,13 @@ fall back to plain FIFO.
   helper versions against one lock root).
 - Status names a mixed-policy queue explicitly.
 
+The original universal mixed-version progress bullet above is superseded by the
+approved guarded-rollout contract in Revisions. Current acceptance: new grants
+refuse legacy/unknown held waiters or unavailable observation; status names an
+existing granted-waiter/legacy coexistence risk with explicit revoke recovery;
+compatible queues retain FIFO and aging. Old helpers and later joins remain a
+manual rollout responsibility, without automatic cancellation or policy changes.
+
 ## Plan
 
 - [x] Claim and start-plan from fresh main; reproduce both historical and current admission against one private native lock root.
@@ -99,6 +106,16 @@ Final executable plan: workshop/plans/000570-suite-queue-rollout-plan.md. It add
 
 Authenticated hub deliveryfbba1f6b-67d8-452d-89ba-6c8a1271f693 approves workshop/plans/000570-suite-queue-rollout-plan.md as written, including private conformance plus post-land hub rebuild and no live grants. Proceed to inferred change-code gates. No permanent implementation has begun; preserve the read-only RED diagnosis and add behavior-specific RED tests after entry.
 
+### 2026-10-23 — implementation and focused verification checkpoint
+
+sdlc change-code --issue570 admitted inferred quick flow (within design limits); close may upgrade the final code diff to full review, as the binary specifies. No flow pin or bypass. Implementation stamps fifo-grant-aging-v1 under the ticket allocation mutex and preserves existing admission. One pure iterator-based assessment supplies grant refusal and text risk/revoke hints. A fresh three-second supplied-inspector preflight runs after caller/argument authorization and before grant append; cancellation after a successful observation still prevents mutation. Revoke never inspects. Frozen queue JSON is unchanged.
+
+Observed RED: Python marker test retained caller-forgery rather than the exact marker; Go risk text omitted warnings/hints and the public grant command accepted a legacy snapshot. The minimal implementation made these pass (Go0.702s). Additional duplicate-policy controls observed RED in both Go and native Python before routing each to the existing strict duplicate-key parser. TL grant guidance phrase guards were observed RED before updating help. Captured historical definitions and the minimized incident fixture are committed test data; the native two-version test runs actual Tickets.admission plus public Go grant/revoke commands against only private lock/grant roots. It reproduces disagreement, refusal and restored progress after revoke, without changing live queues.
+
+The broader focused run passed cmd/sdlc48.597s (including the real helper harness), tl-lead0.240s, Go lint0.903s; full shell lint passed0.283s. Race controls for mixed-policy text, counted N/2N iterator visits, grant/cancel/revoke lifecycle, native supplied snapshot, duplicate authority, frozen JSON and decoder/cancellation passed1.739s. Checkout stayed frozen during cmd/sdlc commands. No full suite has been started. README, atlas, landing help, TL phrase guards and lessons now describe the guarded rollout and its remaining risk.
+
+Next: commit clean implementation, rebuild own slot tools once with Go1.27.3, verify private CLI build metadata, then private executable grant/status/revoke proof. Checkpoint that proof, push and queue the central recorded branch suite; fresh close and normal central merge on SHIP. No :0 staging or live grants; hub owns post-land rebuild.
+
 ## Revisions
 
 ### 2026-10-23 — hub-approved acceptance replaces universal historical fallback
@@ -108,3 +125,7 @@ Delivery0d18f5fd-7569-444d-a57a-100cee559713 supersedes the original first Done-
 ### 2026-10-23 — implementation approval
 
 Deliveryfbba1f6b-67d8-452d-89ba-6c8a1271f693 approves the concrete final plan. The earlier proposed alternatives are retained history; only the durable guarded-rollout plan is executable scope. Revoke and suite admission remain independent of compatibility inspection.
+
+### 2026-10-23 — implementation details within approved contract
+
+Use a counted iterator for the shared pure assessment so N/2N tests prove one record visit, and reuse existing duplicate-key parsers at both inspection boundaries; conflicting policy members cannot create compatibility by last-value-wins decoding. No additional rollout state or authority is introduced. The current marker is stamped by the supplying helper, never accepted from its caller. Native private conformance also verifies holder publication retains the marker and unrelated nested metadata.

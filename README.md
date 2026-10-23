@@ -656,6 +656,12 @@ priority is bounded by waiter age: a ticket waiting 60 minutes protects its enti
 FIFO prefix from further grant overtaking. Missing or invalid ages protect the
 prefix too. The younger suffix still gives grants priority; running suites keep
 their slots. This does not change repository landing-line grant holds.
+New grants refuse live suite waiters with legacy/unknown ordering metadata, or
+unavailable inspection. Let them drain and refresh their supplying helpers before
+retrying. Text `sdlc queue status` flags incompatible ordering and existing
+mixed-policy grant deadlock risk with a TL revoke command. A legacy waiter can
+join after preflight; this guarded rollout keeps FIFO/aging and requires manual
+revocation, never killing or unlocking waiters. Drain JSON stays unchanged.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
