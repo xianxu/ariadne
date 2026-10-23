@@ -35,12 +35,24 @@ WHAT IT DOES
      final test run and review) is the uncounted **tail**, at every boundary.
      The actual is build + converge. With `--milestone Mx` it is Mx's phases
      only, the increment `milestone-close` adopts.
+     Fresh cuts use the exact code pin's executable issue Plan. An absent,
+     never-finalized named boundary contributes no cut; the replacement owns
+     work since the last finalized boundary (or issue start). Finalized history,
+     still-executable open boundaries and whole-issue rounds remain. This
+     accounting fallback does not mark a review SHIP or clear findings/caps.
+     A requested unfinalized milestone must be executable in that pinned Plan,
+     even with no open review rounds. Missing or ambiguous required Plan evidence
+     refuses with recovery guidance.
 
 OUTPUT
 
   - measured            → "measured actual for #N: <h>h", then the build /
                             converge / uncounted-tail line and which evidence cut it
-                            (dispatch stamps, finalize times, or no-review).
+                            (dispatch stamps, finalize times, or no-review). The effective
+                            selected phase interval and code pin are shown;
+                            provenance distinguishes admitted sessions from
+                            actual contributing sources. Empty selected phases
+                            and retained executable open boundaries stay visible.
   - telemetry unavailable → window has commits but no transcript events (work
                             lived in cwds/worktrees not under brain/repo, or aged
                             out / in an unsupported harness transcript shape).
@@ -64,6 +76,8 @@ OUTPUT
 Completed issues replay the measurement inputs retained with their close evidence:
 code/tracker pins, source byte prefixes and digests, ownership windows, and phase
 cuts. Later transcript appends and bookkeeping cannot move that measurement.
+Saved cuts are replayed exactly: retiring a Plan row later does not rewrite an
+already-adopted sample. The fresh-cut fallback is not a historical repair.
 Legacy closes without retained inputs reconstruct their historical completion
 binding and report that limitation.
 

@@ -22,7 +22,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			m.Protected = append(m.Protected, gatestate.MeasurementCredit{Issue: credit.Issue, Slot: credit.Slot, Start: credit.Start.Format(time.RFC3339Nano), End: credit.End.Format(time.RFC3339Nano)})
 		}
 	}
-	res := actualResult{Issue: id, Window: m.Since + " → " + m.Until, Warnings: actualExclusionWarnings(inputs.Warnings)}
+	res := actualResult{Issue: id, CodeHead: m.CodeHead, Window: m.Since + " → " + m.Until, Warnings: actualExclusionWarnings(inputs.Warnings)}
 	fail := func(err error) actualResult { res.Status, res.Detail = actualError, err.Error(); return res }
 	if err := ctx.Err(); err != nil {
 		return fail(err)
@@ -93,6 +93,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	if err != nil {
 		return fail(err)
 	}
+	res.PhaseDiagnostic = actualPhaseDiagnostic(tl, milestone)
 	split := splitFromTimeline(out.Segments, id, tl)
 	res.Hours, res.Split = split.Build+split.Converge, &split
 	for _, phase := range tl.Phases {

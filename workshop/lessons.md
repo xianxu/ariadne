@@ -8,6 +8,12 @@
 
 # Lessons
 
+- #552: shell redirection creates the output file before printf/echo writes its content. A PID
+  readiness path observed by existence must be published by sibling write/close/rename; a separate
+  post-write signal is also sound. Hold a native barrier between output-open and the PID write to
+  prove the publication boundary, and cancel/await the fixture even when that assertion fails.
+  The hub approved this deterministic protocol guard instead of a lexical PID-write rule, which
+  would also flag safe validating readers and post-write FIFO consumers.
 - #550: a readiness prerequisite cannot depend on an effect available only
   after that readiness admits its owner. Preserve actionable prerequisite
   facts separately from aggregate status precedence, and exit with the full
@@ -1496,6 +1502,11 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   effects. Native replaced-token, target-movement and post-archive replacement
   regressions defend these semantic contracts; lexical lint cannot prove them.
 
+- #531 plan review: name each risky selector/resolver/diagnostic function and its adversarial strategy; leave case inventories in executable tests. For immutable accounting, normalize fresh inputs before persistence rather than changing the interpretation of saved cuts. The native retired-boundary/replay matrix and pinned-read call counter defend the semantic contract; a lexical lint cannot prove correct time attribution.
+
+- #531 full suite: every new --issue recovery hint must use issue.CLIRef even when current callers pass decimal IDs. Include TestIssueHintsRenderDecimalIDs in targeted checks before queuing the full suite, and use a padded ID in the native refusal assertion. The existing source guard owns this mechanical class; do not add a parallel lint.
+
+- #531 BR-1: when a fast path skips evidence collection, test every independent reason the evidence is required. Requested milestone authority and existing open-cut filtering are separate predicates; empty, whole-issue-only and finalized-only ledgers must not bypass live target validation.
 - #553 BR-1: a structural fallback placed after selected grammar branches can
   remain message-dependent through earlier unknown returns. Apply fallback to
   the authority parser's explicit unknown result; preserve definite authority
@@ -1524,3 +1535,4 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #556 BR-2/BR-3: Before close, reconcile the entire Core concepts inventory with delivered symbols, paths and PURE/INTEGRATION boundaries, and map new commands/config/adoption in README as well as help/atlas. Do not leave design placeholder helpers in the acceptance inventory.
 - Cross-repo filing (ops:0, 2026-10-22): Use a temporary worktree off origin/main for issue creation; never borrow another slot's working checkout, even when the verb promises no checkout writes. A staged :0 stays detached for the operator.
 - #556 BR-4: Enumerate reporting IO entry points as well as pure aggregators when adding proof-bearing metadata. Interactive stats and weekly snapshots must use the same hash-verified log hydration before confirmation; persisted-log parity tests must cover each typed kind and missing/tampered proof.
+- #555 incident diagnosis: process elapsed time does not establish lock-held duration. Correlate the waiter diagnostic with recorded suite start/end and owner identity before changing synchronization. Existing helper-level unlock coverage should be complemented by actual CLI construction/wrapping when that wiring controls lock scope; keep a whole-command-lock mutation check and independent locked-mutation control.

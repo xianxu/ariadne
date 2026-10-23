@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -700,5 +702,76 @@ func TestOwnedActualUnsupportedRecordKeepsSupportedMeasurements(t *testing.T) {
 	}
 	if after.Snapshot.CodeHead != before.Snapshot.CodeHead || len(after.Snapshot.Sources) != len(before.Snapshot.Sources) || len(after.Snapshot.QueueWaits) != len(before.Snapshot.QueueWaits) || strings.Contains(strings.Join(after.Warnings, " "), "needs a newer sdlc") {
 		t.Fatalf("unsupported record discarded measurements or hid coverage: %+v", after)
+	}
+}
+
+func TestOwnedActualRetiredBoundaryCutsAndImmutableReplay(t *testing.T) {
+	r, _, _, _, source := ownedResolverFixture(t)
+	body := "---\nid: 000335\nstatus: working\n---\n# owned\n\n## Plan\n- [x] M1 — done\n- M2 — superseded\n- [ ] M3 — replacement\n"
+	path := filepath.Join(r.root, "workshop/issues/000335-owned.md")
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ts := func(m int) string { return fmt.Sprintf("2026-10-14T00:%02d:00Z", m) }
+	ledger := gatestate.Ledger{Gate: "boundary-review", IssueNum: 335, IDPrefix: "BR", Rounds: []gatestate.Round{{N: 1, Boundary: "M1", Dispatched: ts(2), Timestamp: ts(3), Reviewed: strings.Repeat("a", 40), Agent: "claude"}}}
+	for i := 0; i < 4; i++ {
+		ledger.Rounds = append(ledger.Rounds, gatestate.Round{N: i + 2, Boundary: "M2", Dispatched: ts(4 + i), Timestamp: ts(5 + i), Agent: "claude"})
+	}
+	if err := writeBoundaryGateLedger(filepath.Join(r.root, "workshop/plans"), "000335-owned.md", ledger, r.root); err != nil {
+		t.Fatal(err)
+	}
+	ownedFixtureAt(t, 10)
+	testfix.Git(t, r.root, "add", ".")
+	testfix.Git(t, r.root, "commit", "-qm", "#335: retire M2 and build M3")
+	f, err := os.OpenFile(source, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range []int{3, 9} {
+		if _, err := fmt.Fprintf(f, "{\"timestamp\":%q,\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"#335 M3\"}}\n", ts(m)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	in, err := resolveOwnedActualInputs(context.Background(), r.root, "", "335", "", "M3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(in.Snapshot.Cuts) != 1 || in.Snapshot.Cuts[0].Boundary != "M1" {
+		t.Fatalf("retired cuts persisted: %+v", in.Snapshot.Cuts)
+	}
+	got := computeOwnedActualFor(context.Background(), r.root, "335", "M3", in)
+	if got.Status != actualMeasured || math.Abs(got.Hours-0.1) > 1e-6 || got.Inputs == nil {
+		t.Fatalf("M3 lost: %+v", got)
+	}
+	var rendered bytes.Buffer
+	printActualMeasurement(&rendered, got)
+	for _, want := range []string{"effective M3 phases", ts(3), ts(10), "retired unfinalized boundaries M2", "1 admitted sessions", got.Inputs.CodeHead} {
+		if !strings.Contains(rendered.String(), want) {
+			t.Errorf("missing %q in %s", want, rendered.String())
+		}
+	}
+	// A new snapshot contains ordinary cuts. Old snapshots retain the old open
+	// M2 interpretation, even though the exact same code pin now retires M2.
+	for _, old := range []bool{false, true} {
+		saved := *got.Inputs
+		if old {
+			saved.Cuts = ownedMeasurementCuts(ledger)
+		}
+		replay, err := ownedReplaySources(saved, in.Sessions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		replay.Scope.Issue = "335"
+		again := computeOwnedActualFor(context.Background(), r.root, "335", "M3", replay)
+		want := 0.1
+		if old {
+			want = 0
+		}
+		if again.Status != actualMeasured || math.Abs(again.Hours-want) > 1e-6 {
+			t.Fatalf("old=%v replay=%+v", old, again)
+		}
 	}
 }

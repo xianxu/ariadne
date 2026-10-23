@@ -1555,6 +1555,18 @@ evidence refuses adoption; legacy no-tracker repositories retain a labeled old
 heuristic. Completed historical closes without snapshots are reconstructed from
 their exact completion binding and diagnosed explicitly.
 
+**Retired review boundaries (#531).** Fresh measurement cuts use executable
+milestone membership from the canonical issue Plan at the exact code pin.
+`actualplan.go` omits only absent, unfinalized named boundaries; finalized
+history, executable open boundaries and whole-issue rounds remain. A replacement
+milestone includes post-last-finalized work, including the discarded approach;
+this changes accounting, not review findings, caps or verdicts. Required missing
+or ambiguous Plan authority refuses. Actual/close output shows the selected
+phase bounds, code pin and source provenance; retained open boundaries and empty
+selection are visible. Saved ordinary Cuts replay unchanged even when a later
+Plan retires a boundary. The native suite captures pair#737 before M3's first
+review and verifies old/new replay independently.
+
 **Parked claims (#443).** A claim can remain open while its slot works another
 issue. For a new actual candidate, `actualexclusion.go` first compares each
 numeric adoption's completion-pinned measurement window with the candidate's:

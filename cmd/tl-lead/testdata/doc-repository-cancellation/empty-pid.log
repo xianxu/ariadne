@@ -1,0 +1,7 @@
+--- FAIL github.com/xianxu/ariadne/cmd/tl-lead TestDocRepositoryCancellation
+=== RUN   TestDocRepositoryCancellation
+    doc_repository_test.go:280: strconv.Atoi: parsing "": invalid syntax
+--- FAIL: TestDocRepositoryCancellation (0.48s)
+--- FAIL github.com/xianxu/ariadne/cmd/tl-lead
+FAIL
+FAIL	github.com/xianxu/ariadne/cmd/tl-lead	91.783s
