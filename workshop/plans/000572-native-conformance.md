@@ -63,3 +63,26 @@ Command as above, exit 0 on Go 1.27.3 / Darwin. Tested HEAD `f65dc200e9fb967eaf0
 PASS
 ok  	github.com/xianxu/ariadne/cmd/sdlc	1.011s
 ```
+
+## Canonical short-root correction
+
+Command as above, exit 0 on Go 1.27.3 / Darwin. Tested source HEAD `4086e5373c5460ab9b967ecec1a51751b0dfb556`. Updated blobs: `cmd/sdlc/suitecapability.go` = `64b7c8c877a0997aa6840d37b8464ae1e40cfc89`; `cmd/sdlc/suitecapability_native_test.go` = `9562a8786dbee0b88cef5ebace43eef733233726`. Other production blobs remain as pinned above. Each denied child now supplies a deliberately long configured scratch root; the listener case reaches EPERM on the short canonical path instead of EINVAL. Raw combined output:
+
+```text
+=== RUN   TestSuiteCapabilityNativeSandbox
+=== RUN   TestSuiteCapabilityNativeSandbox/boot_identity
+    suitecapability_native_test.go:71: === RUN   TestSuiteCapabilityNativeSandbox
+            suitecapability_native_test.go:41: native boot identity denial: environment failure: could-not-run: suite host boot identity; run sdlc local-check run --name suite --rev 2fb4fc56b598ee57f5e24528d7f95900cf4c62ce as the whole Bash call, without a pipe, redirect, or command wrapper; host preflight: operation not permitted; queue/attempt/status unchanged
+        --- PASS: TestSuiteCapabilityNativeSandbox (0.05s)
+        PASS
+=== RUN   TestSuiteCapabilityNativeSandbox/Unix_listener
+    suitecapability_native_test.go:71: === RUN   TestSuiteCapabilityNativeSandbox
+            suitecapability_native_test.go:41: native Unix listener denial: environment failure: could-not-run: suite private Unix listener; run sdlc local-check run --name suite --rev c20db23c80a1de8629b7ad7f70375d44dce52d5b as the whole Bash call, without a pipe, redirect, or command wrapper; host preflight: listen unix /private/tmp/sdlc-run-probe-46091-662013380/s: bind: operation not permitted; queue/attempt/status unchanged
+        --- PASS: TestSuiteCapabilityNativeSandbox (0.06s)
+        PASS
+--- PASS: TestSuiteCapabilityNativeSandbox (0.44s)
+    --- PASS: TestSuiteCapabilityNativeSandbox/boot_identity (0.20s)
+    --- PASS: TestSuiteCapabilityNativeSandbox/Unix_listener (0.21s)
+PASS
+ok  	github.com/xianxu/ariadne/cmd/sdlc	0.795s
+```
