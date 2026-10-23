@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "87b18cbb", done: "e3ecd833"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases
@@ -70,6 +70,8 @@ Durable plan: [000575 plan](../plans/000575-universal-review-one-collaborative-e
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Round 2 head f1e4752bd: all round-1 findings fixed. BR-1: tags only above ATX headings (setext pinned as misplaced). BR-2: code mask on the tag line (indented-code row fails on the old code). BR-3: checkChat requires ChatSections notices verbatim in every reply, and 21 replies were fixed. BR-4: plan Revisions. Minors: the map default notice, the CRLF notice, the adapter wording. Spec rewritten to the one collaborative mode with the @@chat@@ carve-out and the legacy table (D2). Export v4 has flagless briefs plus 13 exported cases. TestNoSpecWritesModeKeys guards Done-when 2. go test ./pkg/reviewexport ./pkg/sidedoc ./cmd/tl-lead ./cmd/weave ./cmd/datatype pass. The recorded suite is queued on f1e4752bd. Consumers: only parley.nvim (refuses v4 before writing; shipped v2), confirmed by parley.nvim:3.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 705 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed after #573 landed. The plan was drafted while #573's merge ran; the TL approved (a) to (f), and the operator decided D2: the unified model applies everywhere. Consumer grep: parley.nvim is the only reader of export.json. Its build-time sync accepts v1 to v3 and refuses v4 before writing anything, and its shipped bundle is v2, so #419 migrates v2 to v4. Filed #576 for the Go writers and datatype rows.
 - Task 1: export v4 with five flagless briefs. `free-form` is retired: it only meant "follow processing-instruction". A leftover v3 flag or unknown key refuses the build (`TestParseBrief`). `TestExportCurrent` stays red until Task 4 adds the exported cases.
 - Task 2, deviating from the plan on purpose (ARCH-DRY): the scanner lives in `pkg/sidedoc/chat.go` as `ChatSections`, not in `pkg/reviewexport`. pkg/sidedoc is the shared side-doc library tl-lead and sdlc already import, so #576's tl-lead adoption reuses it instead of growing a third heading scanner. Headings come from goldmark (a fenced "heading" is code). Legacy forms that meant chat (scalar, map names, heading comment) still make chat sections. Every other mode key or value is a notice, never an error.

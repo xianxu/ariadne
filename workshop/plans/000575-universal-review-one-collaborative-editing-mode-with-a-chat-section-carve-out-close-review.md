@@ -131,3 +131,111 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"985e0dd7-a2f5-48ad-a9a9-c0669fd0e544","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/c4e5cd8ddb547d5b","reviewed_head":"10bd1d202c13536678cf5e194b733b002c5fcae5","slot":"ariadne:2","requested_at":"2026-10-23T19:07:55.921707Z"},"phase":"finished","pid":48460,"started_at":"2026-10-23T19:07:56.080757Z","finished_at":"2026-10-23T19:11:32.750156Z","session_id":"e1cb1cda-78ca-4e26-8f83-555fd09b50a1","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T12:18:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 575 — universal-review: one collaborative editing mode with a @@chat@@ section carve-out; mode keys become read-only aliases |
+| repo | ariadne |
+| issue file | workshop/issues/000575-universal-review-one-collaborative-editing-mode-with-a-chat-section-carve-out.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 588a0b0af09a8965d472f7acc216581db3afa815..f1e4752bd9b7920606ada1739383c73ffc1575f6 |
+| command | sdlc close --issue 575 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T12:18:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Focus on the last fix commit, then chat.go.
+
+I'm checking the fixes by reverting each one. The BR-3 revert went red as expected. The BR-2 revert didn't compile, so I'm redoing it.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All six prior findings are fixed, and I checked each one in the code, not from the commit message. For the two behavior fixes (BR-2, BR-3) I reverted the fix in this checkout and the regression tests failed; with the fixes restored, `pkg/sidedoc` and `pkg/reviewexport` pass. `TestUniversalReviewSkillDiscoveredInDerivedRepo` in `cmd/weave` passes. The other `cmd/weave` failures come from this review sandbox refusing `git init` ("outside the reviewer's directories (sdlc #339)") and are unrelated to this diff. I found one new problem, Minor and so not blocking: legacy frontmatter can still go unread with no notice, by routes other than CRLF frontmatter. It is the second finding in family `legacy-key-notice-coverage`, so it is written up as a general rule. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `pkg/sidedoc/chat.go:109-127`: tags are found once in `tagLine`, checked against the code mask, and the same set is used both for misplaced tags and for tagged sections. Before, two different checks did this, and that is how BR-2 happened. Reverting the mask check fails both the fenced-code and the indented-code test rows.
+   - `pkg/reviewexport/examples_test.go:747-754`: `checkChat` now compares every case's reply against `ChatSections(before).Notices`. The fixtures are now checked against the oracle itself, so they can't drift from it again, rather than one fixture being fixed by hand. Restoring the old `legacy-chat-comment/case.md` makes it fail with the exact missing notices.
+   - `collaboration-modes.md` §7 now says line numbers count lines of the submitted document, frontmatter included. That matches the code: `readComment` gets `h.line+1`, and line 10 in `before/design.md` is the comment.
+   - The plan has `## Revisions` entries covering the new location of `ChatSections` and the guard's real scope (plan lines 189-191).
+
+2. **Critical**: none.
+
+3. **Important**: none.
+
+4. **Minor**
+   - `pkg/sidedoc/chat.go:66-74`, `index.go:42`: a legacy `collaboration-mode: chat` scalar is dropped with no notice in three cases I probed:
+     - LF frontmatter where some body line has a CR (`frontmatter()` refuses any doc containing `\r`);
+     - unparseable YAML (`readFrontmatter` returns silently);
+     - a `...` marker inside the frontmatter.
+
+     Each probe returned `{Sections:[] Notices:[]}`. The CRLF fix only covered docs that start with `---\r\n`. This belongs to family `legacy-key-notice-coverage`; see the findings block for the rule.
+   - `checkChat` looks for notices anywhere in `case.md`, not only under `## Reply`. That's low risk because the notice strings are long and specific.
+   - Plan Task 1 (lines 114, 126) still names `pkg/reviewexport/chat.go`. The Revisions entry covers it.
+
+5. **Test coverage**
+   - Setext-tag-is-misplaced, indented-code tag, map `default:` notice and CRLF notice each have a row in `chat_test.go`.
+   - Every case's reply is now checked against the oracle's notices.
+   - Nothing tests frontmatter that is refused for reasons other than CRLF.
+
+6. **Architecture**
+   - ARCH-DRY pass: reuses `frontmatter`, `CodeLiteralMask` and shared `RetiredKeys`.
+   - ARCH-PURE pass: `ChatSections` is a pure string-to-value function, tested with no IO.
+   - ARCH-PURPOSE pass: every fixture is checked against the oracle, and the stale-mode prose sweep of `construct/local/universal-review`, the atlas and README found nothing left.
+   - ARCH-MOCK N/A: no external dependency.
+   - ARCH-CONSTRAINTS pass: work grows with the number of headings over document-sized input, which is fine.
+   - ARCH-SECURE flag (Minor): unreadable frontmatter in an untrusted doc is silently treated as having no keys (the item above).
+   - ARCH-ORDER N/A: it keeps no state between events, because it is a one-shot scan.
+   - ARCH-FUNERAL pass: it creates nothing durable, and `modes/` and the retired cases are deleted.
+   - ARCH-EVOLVE pass: legacy keys are read around and never rewritten, and `export.json` is regenerated (`TestExportCurrent` is green).
+
+7. **Plan revisions**: none required. Optionally, add a line to the round-1 Revisions entry once the frontmatter-notice rule lands.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Spec line 107 and the chat.go:53 doc now say ATX only; a chat_test.go row pins a setext-adjacent tag as misplaced.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      tagLine applies the CodeLiteralMask; reverting the mask check fails the indented-code and fenced test rows.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      checkChat asserts the oracle notices verbatim; reverting legacy-chat-comment/case.md fails TestExamples; spec section 7 states the line-number basis.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The Core concepts row now says pkg/sidedoc/chat.go; Revisions lines 189-190 record the move and the guard's actual scope.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Map default notice and CRLF-prefix notice added, with test rows; the remaining unread-frontmatter routes are raised below as the family rule.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      file-edit.md:140 reworded; a grep sweep of construct/local/universal-review, the atlas and README finds no remaining mode-era phrasing.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: legacy-key-notice-coverage
+    title: |
+      Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
+    detail: |
+      This is the 2nd finding in family legacy-key-notice-coverage, so fix the rule, not this instance. Rule: when the doc opens with a --- fence and its keys were not read for any reason (frontmatter() refused, any CR in the doc, a ... or % line, or yaml.Unmarshal error), ChatSections emits one notice. Probes in which a legacy chat scalar vanished silently: LF frontmatter plus a CR in the body, a malformed flow sequence, a ... marker. Replace the CRLF-prefix check at chat.go:67 and the silent return at chat.go:173 with that one rule, and add rows for each route.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7ff57d0e-7ef2-4b9e-86b6-5124415082f0","repository":"github.com/xianxu/ariadne","issue_id":"000575","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e8a01914f50112e4","reviewed_head":"f1e4752bd9b7920606ada1739383c73ffc1575f6","slot":"ariadne:2","requested_at":"2026-10-23T19:16:09.565549Z"},"phase":"finished","pid":67873,"started_at":"2026-10-23T19:16:09.774686Z","finished_at":"2026-10-23T19:18:30.916027Z","session_id":"2135aa92-3250-486d-8fb1-ce9cbfadad1d","outcome":"returned"}] -->

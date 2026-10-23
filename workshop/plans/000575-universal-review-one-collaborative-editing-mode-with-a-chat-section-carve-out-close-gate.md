@@ -105,6 +105,104 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 7ff57d0e-7ef2-4b9e-86b6-5124415082f0
+            repository: github.com/xianxu/ariadne
+            issue_id: "000575"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/e8a01914f50112e4
+            reviewed_head: f1e4752bd9b7920606ada1739383c73ffc1575f6
+            slot: ariadne:2
+            requested_at: "2026-10-23T19:16:09.565549Z"
+          phase: finished
+          pid: 67873
+          started_at: "2026-10-23T19:16:09.774686Z"
+          finished_at: "2026-10-23T19:18:30.916027Z"
+          session_id: 2135aa92-3250-486d-8fb1-ce9cbfadad1d
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: f1e4752bd9b7920606ada1739383c73ffc1575f6
+        tracker_head: 7d6eb4f6643322154a6495910fb09412c6bb893d
+        branch_point: 588a0b0af09a8965d472f7acc216581db3afa815
+        since: "2026-10-23T11:52:48-07:00"
+        until: "2026-10-23T12:15:18-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T11:52:48-07:00"
+              end: "2026-10-23T12:15:18-07:00"
+              began: "2026-10-23T11:52:48-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        sources:
+            - harness: claude
+              id: a26a620a-c2f7-4a53-b072-dec0ffd89fd2
+              slot: ariadne:2
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+              digest: 999083a4040e194897332f4151003d54c068f3b1819474f13dc9bff2c8aa40f3
+              started: "2026-10-23T07:49:37.819Z"
+              spawned: false
+              bytes: 9477615
+              windows:
+                - start: "2026-10-23T11:52:48-07:00"
+                  end: "2026-10-23T12:15:18-07:00"
+        cuts:
+            - dispatched: "2026-10-23T12:07:55-07:00"
+              finalized: "2026-10-23T12:11:33-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-23T12:18:32-07:00"
+      dispatched: "2026-10-23T12:16:09-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Spec line 107 and the chat.go:53 doc now say ATX only; a chat_test.go row pins a setext-adjacent tag as misplaced.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: tagLine applies the CodeLiteralMask; reverting the mask check fails the indented-code and fenced test rows.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: checkChat asserts the oracle notices verbatim; reverting legacy-chat-comment/case.md fails TestExamples; spec section 7 states the line-number basis.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The Core concepts row now says pkg/sidedoc/chat.go; Revisions lines 189-190 record the move and the guard's actual scope.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: Map default notice and CRLF-prefix notice added, with test rows; the remaining unread-frontmatter routes are raised below as the family rule.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: file-edit.md:140 reworded; a grep sweep of construct/local/universal-review, the atlas and README finds no remaining mode-era phrasing.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-7
+          severity: Minor
+          title: Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
+          detail: 'This is the 2nd finding in family legacy-key-notice-coverage, so fix the rule, not this instance. Rule: when the doc opens with a --- fence and its keys were not read for any reason (frontmatter() refused, any CR in the doc, a ... or % line, or yaml.Unmarshal error), ChatSections emits one notice. Probes in which a legacy chat scalar vanished silently: LF frontmatter plus a CR in the body, a malformed flow sequence, a ... marker. Replace the CRLF-prefix check at chat.go:67 and the silent return at chat.go:173 with that one rule, and add rows for each route.'
+          family: legacy-key-notice-coverage
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: f1e4752bd9b7920606ada1739383c73ffc1575f6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#575 (boundary-review)
@@ -128,11 +226,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   readFrontmatter emits only the generic map notice for default discussion or debate. frontmatter() refuses CRLF, so a legacy chat scalar is dropped with no notice.
 - **BR-6** [Minor] `stale-mode-prose` (kind: defect) adapters/file-edit.md:140 still says "A round in discussion or chat mode"
 
+## Round 2 — 2026-10-23T12:18:32-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Spec line 107 and the chat.go:53 doc now say ATX only; a chat_test.go row pins a setext-adjacent tag as misplaced.
+- BR-2 — addressed — tagLine applies the CodeLiteralMask; reverting the mask check fails the indented-code and fenced test rows.
+- BR-3 — addressed — checkChat asserts the oracle notices verbatim; reverting legacy-chat-comment/case.md fails TestExamples; spec section 7 states the line-number basis.
+- BR-4 — addressed — The Core concepts row now says pkg/sidedoc/chat.go; Revisions lines 189-190 record the move and the guard's actual scope.
+- BR-5 — addressed — Map default notice and CRLF-prefix notice added, with test rows; the remaining unread-frontmatter routes are raised below as the family rule.
+- BR-6 — addressed — file-edit.md:140 reworded; a grep sweep of construct/local/universal-review, the atlas and README finds no remaining mode-era phrasing.
+
+### Raised
+
+- **BR-7** [Minor] `legacy-key-notice-coverage` (kind: defect) Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
+  This is the 2nd finding in family legacy-key-notice-coverage, so fix the rule, not this instance. Rule: when the doc opens with a --- fence and its keys were not read for any reason (frontmatter() refused, any CR in the doc, a ... or % line, or yaml.Unmarshal error), ChatSections emits one notice. Probes in which a legacy chat scalar vanished silently: LF frontmatter plus a CR in the body, a malformed flow sequence, a ... marker. Replace the CRLF-prefix check at chat.go:67 and the silent return at chat.go:173 with that one rule, and add rows for each route.
+
 ## Open findings
 
-- **BR-1** [Important] `chat-grammar-oracle-parity` (kind: defect) Spec and ChatSections doc claim setext headings, but a tag above a setext heading is always misplaced
-- **BR-2** [Important] `chat-grammar-oracle-parity` (kind: defect) Indented-code @@chat@@ directly above a heading makes the section chat
-- **BR-3** [Important] `fixture-oracle-crosscheck` (kind: defect) Reply notices are not cross-checked with ChatSections and the exported fixtures already diverge
-- **BR-4** [Important] `plan-table-drift` (kind: defect) Plan Core concepts and Task 5 no longer match the code: ChatSections location and guard scope
-- **BR-5** [Minor] `legacy-key-notice-coverage` (kind: defect) Map default of a retired or unknown value is not named, and CRLF frontmatter legacy chat is silently unread
-- **BR-6** [Minor] `stale-mode-prose` (kind: defect) adapters/file-edit.md:140 still says "A round in discussion or chat mode"
+- **BR-7** [Minor] `legacy-key-notice-coverage` (kind: defect) Frontmatter that frontmatter() refuses or YAML cannot parse drops legacy keys with no notice
