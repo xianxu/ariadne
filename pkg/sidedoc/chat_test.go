@@ -2,6 +2,7 @@ package sidedoc
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ func TestChatSections(t *testing.T) {
 	type sec struct {
 		Heading, End int
 		Source       string
+		Legacy       bool
 	}
 	for _, tc := range []struct {
 		name      string
@@ -24,12 +26,12 @@ func TestChatSections(t *testing.T) {
 		{
 			name: "tag above a heading: through the next same-level heading, subsections included",
 			doc:  "# T\n\n@@chat@@\n## Ops\n1. a\n### Sub\n2. b\n## Next\ntext\n",
-			want: []sec{{4, 7, "tag"}},
+			want: []sec{{4, 7, "tag", false}},
 		},
 		{
 			name: "tag with surrounding spaces",
 			doc:  "  @@chat@@  \n## Ops\n1. a\n",
-			want: []sec{{2, 3, "tag"}},
+			want: []sec{{2, 3, "tag", false}},
 		},
 		{
 			name:      "blank line between tag and heading: ordinary text, reported",
@@ -62,7 +64,7 @@ func TestChatSections(t *testing.T) {
 		{
 			name:    "a map default of a retired or unknown value is named",
 			doc:     "---\ncollaboration-mode: {default: debate, chat: [Q]}\n---\n## Q\n- a\n",
-			want:    []sec{{4, 5, "legacy-map"}},
+			want:    []sec{{4, 5, "legacy-map", true}},
 			notices: []string{"collaboration-mode map", "map default: debate"},
 		},
 		{
@@ -101,19 +103,19 @@ func TestChatSections(t *testing.T) {
 		{
 			name:    "legacy scalar chat: the whole document",
 			doc:     "---\ncollaboration-mode: chat\n---\n# T\n1. a\n",
-			want:    []sec{{0, 5, "legacy-scalar"}},
+			want:    []sec{{0, 5, "legacy-scalar", true}},
 			notices: []string{"collaboration-mode: chat"},
 		},
 		{
 			name:    "legacy block map: named sections by normalized name",
 			doc:     "---\ncollaboration-mode:\n  default: discussion\n  chat: [\"operator  Instructions\"]\n---\n# T\n### Operator instructions (open)\n- a\n## Next\n",
-			want:    []sec{{7, 8, "legacy-map"}},
+			want:    []sec{{7, 8, "legacy-map", true}},
 			notices: []string{"collaboration-mode map", "map default: discussion"},
 		},
 		{
 			name:    "legacy flow map",
 			doc:     "---\ncollaboration-mode: {chat: [Notes]}\n---\n## Notes\n- a\n",
-			want:    []sec{{4, 5, "legacy-map"}},
+			want:    []sec{{4, 5, "legacy-map", true}},
 			notices: []string{"collaboration-mode map"},
 		},
 		{
@@ -124,13 +126,13 @@ func TestChatSections(t *testing.T) {
 		{
 			name:    "legacy heading comment",
 			doc:     "## Q\n<!-- collaboration-mode: chat -->\n- a\n",
-			want:    []sec{{1, 3, "legacy-comment"}},
+			want:    []sec{{1, 3, "legacy-comment", true}},
 			notices: []string{"<!-- collaboration-mode: chat -->"},
 		},
 		{
-			name:    "tag and legacy comment on one heading: one section, no conflict",
+			name:    "tag and legacy comment on one heading: one section, the tag's, keeping legacy provenance",
 			doc:     "@@chat@@\n## Q\n<!-- collaboration-mode: chat -->\n1. a\n",
-			want:    []sec{{2, 4, "tag"}},
+			want:    []sec{{2, 4, "tag", true}},
 			notices: []string{"<!-- collaboration-mode: chat -->"},
 		},
 		{
@@ -153,7 +155,7 @@ func TestChatSections(t *testing.T) {
 			got := ChatSections(tc.doc)
 			var secs []sec
 			for _, s := range got.Sections {
-				secs = append(secs, sec{s.Heading, s.End, s.Source})
+				secs = append(secs, sec{s.Heading, s.End, s.Source, s.Legacy})
 			}
 			if !reflect.DeepEqual(secs, tc.want) {
 				t.Errorf("sections %+v, want %+v", secs, tc.want)
@@ -204,5 +206,62 @@ func TestChatSectionsWorkIsLinear(t *testing.T) {
 	_, w2 := chatSections(doc(400))
 	if w2 > 2*w1+w1/10 {
 		t.Errorf("work %d at N=200, %d at N=400: superlinear (ratio %.2f)", w1, w2, float64(w2)/float64(w1))
+	}
+}
+
+func TestChatSectionsTagOverLegacyMap(t *testing.T) {
+	scan := ChatSections("---\ncollaboration-mode: {chat: [Q]}\n---\n@@chat@@\n## Q\n- a\n")
+	if len(scan.Sections) != 1 || scan.Sections[0].Source != "tag" || !scan.Sections[0].Legacy {
+		t.Fatalf("a tagged heading the map also names: %+v, want one tag section with Legacy", scan.Sections)
+	}
+}
+
+// Sections are laminar and Innermost picks the deepest: checked against an
+// independent reading of random documents (heading levels, tags, map names,
+// comments), not against the implementation's own stack.
+func TestChatSectionsLaminar(t *testing.T) {
+	rng := rand.New(rand.NewPCG(575, 576))
+	for round := 0; round < 500; round++ {
+		var b strings.Builder
+		b.WriteString("---\ncollaboration-mode: {chat: [H1, H4]}\n---\n")
+		n := 1 + rng.IntN(12)
+		for i := 0; i < n; i++ {
+			if rng.IntN(3) == 0 {
+				b.WriteString("@@chat@@\n")
+			}
+			fmt.Fprintf(&b, "%s H%d\n", strings.Repeat("#", 1+rng.IntN(4)), i)
+			if rng.IntN(4) == 0 {
+				b.WriteString("<!-- collaboration-mode: chat -->\n")
+			}
+			b.WriteString("1. item\n")
+		}
+		doc := b.String()
+		scan := ChatSections(doc)
+		seen := map[int]bool{}
+		for i, a := range scan.Sections {
+			if seen[a.Heading] {
+				t.Fatalf("heading line %d is two sections:\n%s", a.Heading, doc)
+			}
+			seen[a.Heading] = true
+			for _, c := range scan.Sections[i+1:] {
+				disjoint := a.End < c.Heading || c.End < a.Heading
+				nested := (a.Heading <= c.Heading && c.End <= a.End) || (c.Heading <= a.Heading && a.End <= c.End)
+				if !disjoint && !nested {
+					t.Fatalf("sections %+v and %+v overlap without nesting:\n%s", a, c, doc)
+				}
+			}
+		}
+		for line := 1; line <= strings.Count(doc, "\n"); line++ {
+			got, ok := scan.Innermost(line)
+			deepest, any := ChatSection{}, false
+			for _, c := range scan.Sections {
+				if line > c.Heading && line <= c.End && (!any || c.End-c.Heading < deepest.End-deepest.Heading) {
+					deepest, any = c, true
+				}
+			}
+			if ok != any || ok && got != deepest {
+				t.Fatalf("line %d: Innermost %+v/%v, want %+v/%v\n%s", line, got, ok, deepest, any, doc)
+			}
+		}
 	}
 }

@@ -17,9 +17,17 @@ import (
 // whole-document chat) through End, the line before the next heading of the
 // same or a higher level. Source says what made it chat: "tag" (`@@chat@@`)
 // or a legacy form, "legacy-scalar", "legacy-map" or "legacy-comment".
+//
+// Legacy is true when any legacy form (scalar, map name, heading comment)
+// also makes the section chat, whatever Source names; it selects the legacy
+// item grammar (`-`, `*` and `N.` items) over the tag's `N.` items alone
+// (collaboration-modes.md §3, §7). Sections are laminar: two sections are
+// disjoint or one contains the other, and the innermost one containing a line
+// governs it (Innermost).
 type ChatSection struct {
 	Heading, End int
 	Source       string
+	Legacy       bool
 }
 
 // ChatScan is what a round reads from a document's structure: its chat
@@ -30,6 +38,19 @@ type ChatScan struct {
 	Sections  []ChatSection
 	Misplaced []int
 	Notices   []string
+}
+
+// Innermost returns the chat section governing a 1-based line: the
+// innermost one whose extent holds it.
+func (s ChatScan) Innermost(line int) (ChatSection, bool) {
+	var best ChatSection
+	found := false
+	for _, c := range s.Sections {
+		if line > c.Heading && line <= c.End && (!found || c.Heading > best.Heading) {
+			best, found = c, true
+		}
+	}
+	return best, found
 }
 
 // InChat reports whether a 1-based line lies inside a chat section.
@@ -167,18 +188,21 @@ func chatSections(doc string) (ChatScan, int) {
 	}
 
 	if scalarChat {
-		scan.Sections = append(scan.Sections, ChatSection{0, total, "legacy-scalar"})
+		scan.Sections = append(scan.Sections, ChatSection{0, total, "legacy-scalar", true})
 	}
 	matched := map[string]bool{}
 	for i, h := range headings {
-		source := ""
+		source, legacy := "", false
 		if tagLine[h.line-1] && atx(h.line) {
 			source = "tag"
 		}
 		if h.line < len(lines) {
 			if m := modeComment.FindStringSubmatch(lines[h.line]); m != nil {
-				if chat, mode := scan.readComment(m[1], h.line+1, strings.TrimSpace(lines[h.line])); mode && chat && source == "" {
-					source = "legacy-comment"
+				if chat, mode := scan.readComment(m[1], h.line+1, strings.TrimSpace(lines[h.line])); mode && chat {
+					legacy = true
+					if source == "" {
+						source = "legacy-comment"
+					}
 				}
 			}
 		}
@@ -186,12 +210,13 @@ func chatSections(doc string) (ChatScan, int) {
 			for _, n := range names {
 				matched[n] = true
 			}
+			legacy = true
 			if source == "" {
 				source = "legacy-map"
 			}
 		}
 		if source != "" && !scalarChat {
-			scan.Sections = append(scan.Sections, ChatSection{h.line, ends[i], source})
+			scan.Sections = append(scan.Sections, ChatSection{h.line, ends[i], source, legacy})
 		}
 	}
 	for _, n := range mapNames {

@@ -114,8 +114,9 @@ A **`@@chat@@`** line directly above a heading makes that section chat:
 - **Each item of the section is an ask**, not each marker. An item is a numbered `N.` line at the section's
   shallowest list indent. It runs over its sub-items and continuation lines until the next such line, or until a
   blank line followed by prose indented no deeper than that indent: prose in the section belongs to no item and is
-  ignored. Fenced code starts no item, and a tab indents to the next multiple of four. A legacy chat section (§7)
-  also takes `-` and `*` items, as it always did. An item is **linked** by a ` → [answer](…)` ending any of its lines
+  ignored. Fenced code starts no item, and a tab indents to the next multiple of four. A section a legacy form covers
+  (§7) also takes `-` and `*` items, as it always did, even when a `@@chat@@` tag names it too. Chat sections nest
+  but never partially overlap; a line belongs to the innermost one, whose grammar governs it. An item is **linked** by a ` → [answer](…)` ending any of its lines
   outside fenced code: the link is appended to the item's last line, and a follow-up added after it later leaves the
   item linked. Its **extent** is all of the item except that link.
 - **A new ask:** an item with no `→ [answer](…)` link. Write an answer doc (§4) and append ` → [answer](<path>)`
@@ -337,7 +338,8 @@ them**, and a round never deletes or rewrites one of their lines.
 | an unknown, empty or malformed value of any of these | nothing |
 
 - A legacy chat section keeps its old item grammar: `-`, `*` and `N.` items. A `@@chat@@` tag and a legacy form on
-  the same heading are one chat section, not a conflict.
+  the same heading are one chat section, not a conflict, and it keeps the legacy grammar (`ChatSections` reports
+  it with `Source` "tag" and `Legacy` true).
 - **Report, never fail.** The reply carries the notice lines `pkg/sidedoc`'s `ChatSections` produces for the
   document as submitted, word for word, one per legacy form (for example "retired keys ignored: presentation-mode,
   processing-mode"); a line number in a notice counts lines of the submitted document, frontmatter included. A
