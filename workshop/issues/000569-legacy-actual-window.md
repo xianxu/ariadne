@@ -106,6 +106,10 @@ The shared bound-only reader now reads the selected immutable ledger before retu
 
 After the source-authority fence, broader legacy/adopted/strict/migration controls passed142.427s; all new disjointness and modern-source-authority controls passed under race12.301s. Go/shell lint passed1.067s/0.409s. Entire checkout stayed frozen through those commands; no hermeticity refusal. The permanent modern-input controls were observed RED2.505s before the correction. Shipping additions remain within the quick-flow shell and no schema or hours changed. Commit this corrected code before rebuilding the private CLI and restarting recorded verification; the earlier SHIP and cancelled old queued run do not verify the corrected head.
 
+### 2026-10-23 — corrected clean private CLI; restart final-code gates
+
+Rebuilt the same private CLI after the code correction; go version -m confirms Go1.27.3, revision506a6de0af54025b9e9dce33bb8959cb83ca72aa, modified=false. Its read-only actual162 probe again gets past151 and preserves161's true-overlap refusal. That is the approved split, not readiness for pair:2. No source edits remain. Push this documentary checkpoint, queue one replacement recorded suite on that pushed head, then fresh close review for the post-SHIP correction. Keep the new controller/FIFO place until result. No continuation/restart while it is queued or running. All other work is the later no-retroactive-owner follow-up from main, per authenticated hub approval29eb26da-27bc-4c50-8b7b-dc36f1ee0d3c.
+
 ## Revisions
 
 ### 2026-10-23 — proposed policy boundary; awaits hub/operator approval
