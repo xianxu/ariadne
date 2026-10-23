@@ -261,3 +261,68 @@ dispose:
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3dc10227-04ff-4f46-85f3-803895d7158c","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"small-diff-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/979af607b013255c","reviewed_head":"e01e95a065207a21c29d8e74465f5e7aa69f0448","slot":"ariadne:4","requested_at":"2026-10-22T22:46:48.824316Z"},"phase":"finished","pid":40402,"started_at":"2026-10-22T22:46:49.021123Z","finished_at":"2026-10-22T22:49:19.010875Z","session_id":"01a165cb-ad3b-7201-b3a1-33a708c2b0aa","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-22T20:17:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 554 — actual: a legacy-claimed issue with post-cutover commits still reports 'no post-cutover owned interval' (echo#5) |
+| repo | ariadne |
+| issue file | workshop/issues/000554-actual-a-legacy-claimed-issue-with-post-cutover-commits-still-reports-no-post-cutover-owned-interval-echo-5.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2ca4a0ac025ae78448b7b7a1d04c5ef4e01c299a..1cfdc109eade72a3a085caf00e81e6a1f5f08393 |
+| command | sdlc close --issue 554 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-22T20:17:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff correctly resolves the `actualResult` conflict while preserving both main’s measurement diagnostics and this issue’s recovery guidance. No new defects or scope expansion found.
+
+Done-when: current — the superseding Revised Done when covers ownership recovery, owned-only measurement, gap visibility, retained replay and live proof.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan lines 93–95 supersede the fix-only route, and the retained full-range close review covers the expanded queue contract. This interdiff adds no further behavior.
+```
+
+1. **Strengths**
+   - `cmd/sdlc/actual.go:62` retains `PhaseDiagnostic`, `CodeHead` and `Recovery`, matching both conflict parents.
+   - Existing regression tests exercise recovery through preview and close, plus real ownership lifecycle and replay.
+   - Tracker revisions record verification progress without changing the accepted contract.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Ownership, decimal-hint, measurement-rendering and selected boundary controls passed: 52.260s.
+   - Owned retired-boundary diagnostics and immutable replay passed: 4.067s.
+   - Diff whitespace checks passed; checkout remains clean.
+   - Full suite and live Echo proof were not independently rerun.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** — one combined result declaration preserves existing shared consumers.
+   - **ARCH-PURE: pass** — conflict resolution introduces no IO or business-logic mixing.
+   - **ARCH-PURPOSE: pass** — both parent behaviors remain reachable and tested.
+   - **ARCH-EVOLVE: pass** — no persisted format or rewrite behavior changes.
+   - No new user-facing or architectural surface requires README or atlas updates.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"172d77dd-ffb6-4d7e-b1df-42587a8dc187","repository":"github.com/xianxu/ariadne","issue_id":"000554","recipe":"fix-review","round":5,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/cf5a13c312e6645c","reviewed_head":"1cfdc109eade72a3a085caf00e81e6a1f5f08393","slot":"ariadne:4","requested_at":"2026-10-23T03:15:58.220798Z"},"phase":"finished","pid":45805,"started_at":"2026-10-23T03:15:58.381979Z","finished_at":"2026-10-23T03:17:41.121903Z","session_id":"01a166c2-18d2-75b3-8f2d-589009b3bf80","outcome":"returned"}] -->
