@@ -8,6 +8,22 @@
 
 # Lessons
 
+- #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
+  every recognition boundary, including assignment targets and tuple-return
+  calls, rather than only expression propagation. Recognize directly declared
+  receiver types on both parameters and local var declarations; state inferred
+  aliases as a separate limit. Check/CheckSources regressions guard the class,
+  and counted shared-type normalization prevents repeated deep walks. This is
+  the existing mechanical lint's own behavioral contract, not a second lint.
+
+- #549 / pair#792: Unix-socket length depends on the actual path parent, not
+  every input called a namespace. Pair hashes SocketPath's namespace, while
+  COUCH_ISOLATED_ROOT supplies its parent. Trace inherited temp roots only into
+  length-sensitive sinks; a function-wide TempDir ban rejects legitimate long
+  TMPDIR controls. The shared test-socket-fixture-root catalog rule and recorded
+  original/corrected Pair source replay guard this mechanical class. Native
+  long-TMPDIR listener tests verify bounded short-root selection and cleanup.
+
 - #552: shell redirection creates the output file before printf/echo writes its content. A PID
   readiness path observed by existence must be published by sibling write/close/rename; a separate
   post-write signal is also sound. Hold a native barrier between output-open and the PID write to
