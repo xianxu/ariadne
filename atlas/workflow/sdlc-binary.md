@@ -2601,8 +2601,12 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   pruned under a short allocation lock (`alloc`), so a new ticket is never mistaken
   for a dead one.
 - **Grant priority (#452).** A suite for an issue holding a currently valid
-  fleet-blocking landing grant precedes waiting normal suites. FIFO holds within
-  each class; no running suite is preempted. Expiry or revocation returns the
+  fleet-blocking landing grant precedes younger waiting normal suites. The single
+  helper setting `GRANT_MAX_WAIT_SECONDS=3600` bounds overtaking (#560): immutable
+  monotonic enqueue age is stamped under `alloc`; FIFO is protected through the
+  last ticket at or above 60 minutes, or with unknown/invalid age. Only the younger
+  suffix is grant-partitioned. Renewal never resets age. FIFO holds within that
+  suffix's classes; no running suite is preempted. Expiry or revocation returns the
   waiter to normal FIFO at its original ticket number. A priority head needing
   two slots waits for both; light normal suites cannot backfill ahead of it.
   A composed train suite inherits any active grant on a car in its exact tested
@@ -2615,7 +2619,11 @@ clamped to `WF_TEST_SUITES`. The acquisition rules:
   effective order. A stopped live waiter keeps its FIFO position within its class.
   Old helpers already holding the sticky queue token drain naturally; never kill
   or unlock them for rollout. Next-free priority is guaranteed after those old
-  waiting helpers have drained and participating helpers are upgraded.
+  waiting helpers have drained and participating helpers are upgraded. Aging
+  likewise takes effect at the next helper process start, without hot reload or
+  forced cutover. A protected heavy head still requires all slots at once;
+  pauses, stopped live heads and running holders can delay it beyond the limit,
+  which bounds overtaking rather than wall-clock admission.
 - **Evidence and failure.** Recorded suite identity is the original checkout's
   issue branch only when its HEAD equals the tested commit. Baselines, other
   checks and unknown identities remain normal. Direct make uses its supplying
@@ -2637,7 +2645,19 @@ The wait names each holder once, then `position K in line; next in line: …` (t
 waiter ahead), or `position 1 in line: next to run` for the head.
 It asks for `2 of 2 full-suite slots` for a weight-2 run. The wait also names
 normal FIFO or fleet-blocking issue/train cars and deadline, and reports class/position changes
-immediately rather than waiting for the periodic diagnostic.
+immediately rather than waiting for the periodic diagnostic. It also reports its
+immutable age (or unknown), grant-overtaking limit and any protected-prefix reason.
+Text `sdlc queue status` invokes the actual supplying helper's bounded `inspect`
+command and renders the same ordering projection: effective positions, ages,
+protected boundary and aging overrides. Inspection reads/revalidates the allocation
+snapshot without creating/pruning tickets or taking slots; provider IO occurs
+outside locks. Busy or changing snapshots, missing/old helpers and exceeded bounds
+report unavailable order with `sdlc queue status` as the retry. Go launches
+inspection in supervised mode: provider descendants inherit its owned helper
+process group, which is collected on completion, cancellation and deadline.
+Standalone Python queries retain detached provider-group cleanup. It shares status's
+3-second budget, caps 4096 records, 64KiB per record and 1MiB response. The frozen
+`--json` schema_version1 remains unchanged and does not run this supplementary read.
 If contention or a pause prevents validating order, it reports `position unknown`
 until an observation is available, then explicitly labels reused diagnostics
 `last observed`. Missing order is never treated as zero predecessors. Switching

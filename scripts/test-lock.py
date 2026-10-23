@@ -21,7 +21,8 @@
 # waiter takes a numbered ticket in <slot 0>.tickets/ and holds a flock on it while
 # it waits, so the lowest live ticket is the oldest waiter, and a ticket whose lock
 # the kernel released (its waiter died) is pruned rather than blocking the line.
-# Active fleet-blocking grants take priority; each class stays FIFO. The head takes the queue
+# Grants take priority only beyond the FIFO prefix protected by aged/unknown
+# enqueue evidence (#560). The head takes the queue
 # file (<slot 0>.queue), the head token older copies of this script use, so a
 # mixed fleet respects existing owners. Each failed weighted scan releases the queue
 # token so admission is reelected against current grant evidence. Only the head takes slots, so light suites never
@@ -55,6 +56,10 @@ from datetime import datetime, timezone
 from typing import TypedDict
 
 REPORT_EVERY = 30
+GRANT_MAX_WAIT_SECONDS = 3600
+INSPECT_MAX_RECORDS = 4096
+INSPECT_MAX_RECORD_BYTES = 64 << 10
+INSPECT_MAX_OUTPUT_BYTES = 1 << 20
 
 QUEUE_MAX_JSON = 1 << 20
 QUEUE_MAX_OPERATIONS = 4096
@@ -799,6 +804,7 @@ class Tickets:
             self.path = os.path.join(self.dir, f"{self.number:012d}")
             self.fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o644)
             fcntl.flock(self.fd, fcntl.LOCK_EX)
+            rec = dict(rec, enqueue_monotonic=time.monotonic())
             os.pwrite(self.fd, json.dumps(rec).encode(), 0)
 
     @contextlib.contextmanager
@@ -824,7 +830,9 @@ class Tickets:
         return records
 
     def elect(self, records, deadlines, fds, queue, want):
-        order = effective_order(records, deadlines, time.time())
+        projection = suite_order(records, deadlines, time.time(), time.monotonic())
+        order = [(row["number"], row["record"]) for row in projection["tickets"]]
+        self.observation = next(row for row in projection["tickets"] if row["number"] == self.number)
         index = next(i for i, (n, _) in enumerate(order) if n == self.number)
         ahead = [r for _, r in order[:index]]
         head = index == 0 and try_lock(queue)
@@ -853,6 +861,7 @@ class Tickets:
 
     def admission(self, fds, queue, want, evidence, gate=None):
         """Prepare slow priority evidence outside global gate; revalidate inside."""
+        self.observation = None
         if gate is None:  # old direct unit callers share the same scheduler
             with self.locked():
                 records = self.records()
@@ -895,8 +904,12 @@ PROTOCOL_LIMIT = 64 << 10
 PROVIDER_TIMEOUT = 2
 
 
-def query_priority(provider, request, describe=None):
-    """Bounded read-only provider invocation; terminate/reap the whole group."""
+def query_priority(provider, request, describe=None, *, own_group=True):
+    """Bounded provider call; a supervised inspector shares its owner's group.
+
+    The external supervisor kills the inherited group on every exit/cancellation.
+    Standalone calls own a detached provider group and reclaim descendants here.
+    """
     data = json.dumps(request).encode()
     if len(data) > PROTOCOL_LIMIT:
         raise ValueError("priority request exceeds 64 KiB")
@@ -908,7 +921,7 @@ def query_priority(provider, request, describe=None):
         source.write(data)
         source.seek(0)
         process = subprocess.Popen(argv, stdin=source, stdout=subprocess.PIPE,
-                                   stderr=subprocess.DEVNULL, start_new_session=True)
+                                   stderr=subprocess.DEVNULL, start_new_session=own_group)
         try:
             output = bytearray()
             end = time.monotonic() + PROVIDER_TIMEOUT
@@ -934,7 +947,10 @@ def query_priority(provider, request, describe=None):
             return result
         finally:
             with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
+                if own_group:
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()  # The supervisor owns group-wide teardown.
             process.wait()
             process.stdout.close()
 
@@ -971,12 +987,71 @@ def subject_deadline(rec, deadlines):
     return max((deadlines.get(key, 0) for key in subject_keys(rec)), default=0)
 
 
-def effective_order(records, deadlines, now):
-    """Stable partition of numeric FIFO; expired evidence confers nothing."""
-    priority, normal = [], []
-    for item in records:
-        (priority if subject_deadline(item[1], deadlines) > now else normal).append(item)
-    return priority + normal
+def ticket_age(record, monotonic_now):
+    """Elapsed same-boot wait; unknown evidence conservatively protects FIFO."""
+    enrolled = record.get("enqueue_monotonic") if isinstance(record, dict) else None
+    if (type(enrolled) not in (int, float) or
+            not 0 <= enrolled < float('inf') or enrolled > monotonic_now):
+        return None
+    return monotonic_now - enrolled
+
+
+def suite_order(records, deadlines, now, monotonic_now, policy_seconds=GRANT_MAX_WAIT_SECONDS):
+    """One pure projection for admission, waiter diagnostics and status inspection.
+
+    Records arrive in numeric FIFO order. An aged/unknown ticket protects every
+    predecessor, including predecessors whose timestamps are newer or malformed.
+    """
+    projected, boundary = [], 0
+    for number, record in records:
+        age = ticket_age(record, monotonic_now)
+        deadline = subject_deadline(record, deadlines)
+        granted = deadline > 0 and deadline > now
+        projected.append(dict(number=number, age_seconds=age, granted=granted, record=record))
+        if age is None or age >= policy_seconds:
+            boundary = number
+    protected, priority, normal = [], [], []
+    normal_before, overridden = False, False
+    for row in projected:
+        age, granted = row['age_seconds'], row['granted']
+        row['protected'] = row['number'] <= boundary
+        row['priority_overridden'] = bool(granted and normal_before)
+        overridden = overridden or row['priority_overridden']
+        if row['protected']:
+            row['reason'] = ('unknown_age_fifo' if age is None else
+                             'aged_fifo' if age >= policy_seconds else 'protected_prefix')
+            protected.append(row)
+            normal_before = normal_before or not granted
+        else:
+            row['reason'] = 'grant_priority' if granted else 'normal_fifo'
+            (priority if granted else normal).append(row)
+    ordered = protected + priority + normal
+    for position, row in enumerate(ordered, 1):
+        row['position'] = position
+    return dict(version=1, available=True, policy_seconds=policy_seconds,
+                protected_through=boundary, priority_overridden=overridden, tickets=ordered)
+
+
+def effective_order(records, deadlines, now, monotonic_now=None):
+    if monotonic_now is None:
+        monotonic_now = time.monotonic()
+    return [(row['number'], row['record']) for row in
+            suite_order(records, deadlines, now, monotonic_now)['tickets']]
+
+
+def format_suite_wait(row):
+    """Render the shared order's age/protection evidence without recomputing it."""
+    age = row['age_seconds']
+    text = 'wait age unknown' if age is None else f"wait age {int(age)}s"
+    text += f"; grant overtaking limit {GRANT_MAX_WAIT_SECONDS}s"
+    if row['protected']:
+        reason = {'unknown_age_fifo': 'unknown enqueue age',
+                  'aged_fifo': f"wait reached {GRANT_MAX_WAIT_SECONDS}s",
+                  'protected_prefix': 'older FIFO prefix'}[row['reason']]
+        text += '; FIFO protected: ' + reason
+    if row['priority_overridden']:
+        text += '; grant priority overridden by protected FIFO'
+    return text
 
 
 class GrantEvidence:
@@ -1051,6 +1126,96 @@ class GrantEvidence:
                 for common in stale:
                     self.cache.pop(common, None)
         return result
+
+
+class InspectionUnavailable(Exception):
+    pass
+
+
+def inspection_snapshot(directory):
+    """Read live ticket identity and bytes under alloc; never create or prune."""
+    live, visited, total_bytes = [], 0, 0
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
+            visited += 1
+            if visited > INSPECT_MAX_RECORDS:
+                raise InspectionUnavailable('record_limit')
+            try:
+                fd = os.open(entry.path, os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0))
+            except FileNotFoundError:
+                raise InspectionUnavailable('snapshot_changed')
+            try:
+                info = os.fstat(fd)
+                if not stat.S_ISREG(info.st_mode):
+                    raise InspectionUnavailable('record_invalid')
+                if try_lock(fd):
+                    continue  # Dead ticket; observing it never removes it.
+                raw = os.pread(fd, INSPECT_MAX_RECORD_BYTES + 1, 0)
+                if len(raw) > INSPECT_MAX_RECORD_BYTES:
+                    raise InspectionUnavailable('record_limit')
+                total_bytes += len(raw)
+                if total_bytes > INSPECT_MAX_OUTPUT_BYTES:
+                    raise InspectionUnavailable('output_limit')
+                try:
+                    record = json.loads(raw)
+                    json.dumps(record, allow_nan=False)
+                except (ValueError, UnicodeError):
+                    raise InspectionUnavailable('record_invalid')
+                if not isinstance(record, dict) or not all(k in record for k in ('repo', 'worktree', 'pid', 'started')):
+                    raise InspectionUnavailable('record_invalid')
+                live.append((int(entry.name), info.st_ino, raw, record))
+            finally:
+                os.close(fd)
+    return sorted(live, key=lambda row: row[0])
+
+
+def inspect_queue(base, evidence, now=None, monotonic_now=None):
+    """Bounded read-only observation; slow grant provider runs outside alloc."""
+    unavailable = dict(version=1, available=False, policy_seconds=GRANT_MAX_WAIT_SECONDS,
+                       protected_through=0, priority_overridden=False, tickets=[])
+    allocation = None
+    try:
+        directory = base + '.tickets'
+        try:
+            allocation = os.open(os.path.join(directory, 'alloc'), os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0))
+        except FileNotFoundError:
+            if not os.path.exists(directory):
+                return suite_order([], {}, time.time() if now is None else now,
+                                   time.monotonic() if monotonic_now is None else monotonic_now)
+            raise InspectionUnavailable('allocation_unavailable')
+        if not stat.S_ISREG(os.fstat(allocation).st_mode):
+            raise InspectionUnavailable('allocation_unavailable')
+        if not try_lock(allocation):
+            raise InspectionUnavailable('allocation_busy')
+        try:
+            snapshot = inspection_snapshot(directory)
+        finally:
+            fcntl.flock(allocation, fcntl.LOCK_UN)
+        records = [(number, record) for number, _, _, record in snapshot]
+        deadlines = evidence.deadlines(records, time.time() if now is None else now)
+        if evidence.warned:
+            raise InspectionUnavailable('provider_unavailable')
+        if not try_lock(allocation):
+            raise InspectionUnavailable('allocation_busy')
+        try:
+            if inspection_snapshot(directory) != snapshot:
+                raise InspectionUnavailable('snapshot_changed')
+            result = suite_order(records, deadlines, time.time() if now is None else now,
+                                 time.monotonic() if monotonic_now is None else monotonic_now)
+        finally:
+            fcntl.flock(allocation, fcntl.LOCK_UN)
+        if len(json.dumps(result, allow_nan=False).encode()) > INSPECT_MAX_OUTPUT_BYTES:
+            raise InspectionUnavailable('output_limit')
+        return result
+    except InspectionUnavailable as error:
+        return dict(unavailable, reason=str(error))
+    except (OSError, ValueError, TypeError, OverflowError):
+        return dict(unavailable, reason='observation_unavailable')
+    finally:
+        if allocation is not None:
+            os.close(allocation)
 
 
 def priority_subject(provider, top, evidence):
@@ -1163,6 +1328,9 @@ def acquire(watch, weight=1):
                         fcntl.flock(fds[slot], fcntl.LOCK_UN)
                     return "reentrant"
                 if taken:
+                    # The admitted ticket owns immutable enqueue and additive
+                    # metadata through the final watcher/slot publication.
+                    rec = dict(line.observation["record"])
                     break
                 if gate.last_pause and os.environ.get('WF_SDLC_QUEUE_STOP_IF_PAUSED') == '1':
                     log(gate.last_pause + '; admitted merge stops before a new suite')
@@ -1179,7 +1347,11 @@ def acquire(watch, weight=1):
                     else:
                         nxt = ahead[0] if ahead else holder(queue)
                         position = f"position {len(ahead) + 1} in line; next in line: {describe(nxt)}"
-                    last_order = classification, position, (classification, len(ahead), head)
+                    observed = getattr(line, "observation", None)
+                    state = classification if observed is None else (observed["granted"], observed["reason"], observed["priority_overridden"])
+                    if observed is not None:
+                        classification += "; " + format_suite_wait(observed)
+                    last_order = classification, position, (state, len(ahead), head)
                 if last_order is None:
                     classification, position, order_state = "queue order unavailable", "position unknown", None
                 else:
@@ -1234,15 +1406,28 @@ def acquire(watch, weight=1):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["acquire"])
-    ap.add_argument("--watch", type=int, required=True, help="pid whose exit releases the lock (make)")
+    ap.add_argument("cmd", choices=["acquire", "inspect"])
+    ap.add_argument("--watch", type=int, help="pid whose exit releases the lock (make); required for acquire")
     ap.add_argument("--slots", type=int, default=1, help="this suite's weight: slots it takes at once (#346)")
+    ap.add_argument("--supervised", action="store_true",
+                    help="inspect only: external caller owns process-group cleanup")
     args = ap.parse_args()
-    # local-check cancellation uses SIGTERM. Unwind owned provider/ticket
-    # resources before exiting, just as KeyboardInterrupt does for SIGINT.
+    if args.supervised and args.cmd != "inspect":
+        ap.error("--supervised requires inspect")
+    # Both standalone commands unwind their owned provider groups on SIGTERM.
+    # Supervised inspection also survives forced cancellation through its
+    # external owner, which tears down the inherited process group.
     def terminate(signum, _frame):
         raise SystemExit(128 + signum)
     signal.signal(signal.SIGTERM, terminate)
+    if args.cmd == "inspect":
+        provider = os.environ.get("WF_TEST_PRIORITY_PROVIDER") or os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "bin", "sdlc")
+        query = lambda provider, request: query_priority(provider, request, own_group=not args.supervised)
+        print(json.dumps(inspect_queue(lock_paths()[0], GrantEvidence(provider, query=query))))
+        return
+    if args.watch is None:
+        ap.error("acquire requires --watch")
     print(acquire(args.watch, args.slots))
 
 

@@ -23,6 +23,7 @@ type queueCommandDeps struct {
 	store     func() (*queuegate.Store, error)
 	authority landingDeps
 	legacy    func(context.Context, []queuegate.Operation) ([]queuegate.Activity, []string)
+	suite     func(context.Context) suiteQueueObservation
 }
 
 // queueStateRoot is also the Python helper's resolution contract. An explicit
@@ -58,6 +59,7 @@ func defaultQueueCommandDeps() queueCommandDeps {
 			return &queuegate.Store{Root: root, BootID: queueBootID}, nil
 		},
 		authority: defaultLandingDeps(),
+		suite:     defaultSuiteQueueObservation,
 		legacy: func(ctx context.Context, known []queuegate.Operation) ([]queuegate.Activity, []string) {
 			fleetRoot := os.Getenv("WF_SDLC_QUEUE_FLEET_ROOT")
 			lock := os.Getenv("WF_TEST_LOCK_FILE")
@@ -176,6 +178,13 @@ func queueDetail(detail string) string {
 func runQueueStatus(parent context.Context, out io.Writer, d queueCommandDeps, asJSON bool) error {
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
+	// Supplemental text observations run concurrently with the existing legacy
+	// read, share the same deadline, and are always joined before returning.
+	var suiteResult chan suiteQueueObservation
+	if !asJSON && d.suite != nil {
+		suiteResult = make(chan suiteQueueObservation, 1)
+		go func() { suiteResult <- d.suite(ctx) }()
+	}
 	var snapshot queuegate.Snapshot
 	s, err := d.store()
 	var known []queuegate.Operation
@@ -207,6 +216,10 @@ func runQueueStatus(parent context.Context, out io.Writer, d queueCommandDeps, a
 		_, err = fmt.Fprintf(out, "%s\n", data)
 		return err
 	}
+	var suites suiteQueueObservation
+	if suiteResult != nil {
+		suites = <-suiteResult
+	}
 	fmt.Fprintf(out, "queue: %s; complete=%t\n", snapshot.State, snapshot.Complete)
 	for _, p := range snapshot.PauseOwners {
 		fmt.Fprintf(out, "  owner %q: %q (cancel_running=%t)\n", p.Owner, p.Reason, p.CancelRunning)
@@ -216,6 +229,9 @@ func runQueueStatus(parent context.Context, out io.Writer, d queueCommandDeps, a
 	}
 	if snapshot.Detail != "" {
 		fmt.Fprintf(out, "  %s\n", snapshot.Detail)
+	}
+	if suiteResult != nil {
+		renderSuiteQueue(out, suites)
 	}
 	return nil
 }

@@ -637,7 +637,11 @@ issue queues. Granted issues retain FIFO among themselves. Status and waiter
 output name each grant's reason, expiry and revoke command. Expiry or revocation
 releases the hold; a successful landing ends its grant. A train's queued integration
 suite inherits any active grant on a car in its exact tested prefix; later grants,
-revocation and expiry update its queue class without restarting it.
+revocation and expiry update its queue class without restarting it. Machine-suite
+priority is bounded by waiter age: a ticket waiting 60 minutes protects its entire
+FIFO prefix from further grant overtaking. Missing or invalid ages protect the
+prefix too. The younger suffix still gives grants priority; running suites keep
+their slots. This does not change repository landing-line grant holds.
 
 Landing trains (#449) batch that line. `.sdlc/landing.json` on main sets
 `train_interval_minutes`, `train_max_cars` (default 8) and, since #475,
@@ -788,7 +792,10 @@ the invoker owns removing that directory after inspection.
 `sdlc queue pause --owner TOKEN [--reason TEXT] [--cancel-running]` holds new
 machine-suite and landing admission. Operator/:0 owners compose; `sdlc queue
 resume --owner TOKEN` removes only that hold and never restarts interrupted work.
-`sdlc queue status --json` reports the frozen v1 owner/activity schema. Incomplete
+Text `sdlc queue status` additionally shows suite waiter ages, the grant-overtaking
+limit and aging overrides from the supplying scheduler. Inspection is read-only;
+unavailable ordering is explicit. `sdlc queue status --json` reports the unchanged
+frozen v1 owner/activity schema. Incomplete
 or unknown observations never prove quiescence. Isolated conformance supplies
 private `WF_SDLC_QUEUE_ROOT`, `WF_TEST_LOCK_FILE` and
 `WF_SDLC_QUEUE_FLEET_ROOT`; it must never pause the live fleet. See the
