@@ -114,11 +114,9 @@ func boardingRefusal(sha, reason, suite string) error {
 // argv through env(1) and never through a shell.
 func affectedLocalCheck(cfg affected.Config, sel affected.Selection, suite localCheck) localCheck {
 	c := affectedCheckDecl(cfg, suite)
-	c.Command = append([]string{"env",
-		"SDLC_AFFECTED_GO_PKGS=" + strings.Join(sel.GoPkgs, " "),
-		"SDLC_AFFECTED_GROUPS=" + strings.Join(sel.Groups, " "),
-	}, cfg.Command...)
+	c.Command = affectedEnvCommand(cfg.Command, sel.GoPkgs, sel.Groups)
 	c.Scope = affectedScope(sel)
+	c.Rerun = &affectedRerun{Command: cfg.Command, GoPkgs: sel.GoPkgs, Groups: sel.Groups}
 	return c
 }
 

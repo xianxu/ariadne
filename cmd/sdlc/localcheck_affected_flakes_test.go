@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -25,6 +26,43 @@ func TestAffectedKnownFlakeReruns(t *testing.T) {
 	}
 	if strings.Join(*asked, ",") != gateKnown || gh.statuses[sha]["sdlc-local/affected"] != "success" {
 		t.Fatalf("reran %v, statuses %v", *asked, gh.statuses[sha])
+	}
+}
+
+// #586: an affected run stopped at a registered flake may never have reached
+// its groups, so its known-flake child runs them too; a failing group means
+// no known-flake pass, and a selection without groups reruns only the tests.
+func TestAffectedKnownFlakeRunsGroups(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		groups []string
+		group  string
+		pass   bool
+	}{
+		{"groups pass", []string{"a", "b"}, "exit 0", true},
+		{"a group fails", []string{"a", "b"}, "exit 1", false},
+		{"no groups", nil, "exit 1", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, sha, gh, stderr := localRunRepo(t, "acquired")
+			d.FlakeRegistry = gateRegistry(t, gateKnown)
+			scriptRerun(t, gatePassJSON)
+			marker := t.TempDir() + "/groups"
+			c := asAffected(suiteFailing(gateKnown))
+			c.Rerun = &affectedRerun{Command: []string{"sh", "-c", `printf '%s|%s' "$SDLC_AFFECTED_GO_PKGS" "$SDLC_AFFECTED_GROUPS" > ` + marker + "; " + tc.group}, GoPkgs: []string{"o/r/pkg"}, Groups: tc.groups}
+			rec, _ := runLocalCheck(context.Background(), d, c, sha)
+			got, readErr := os.ReadFile(marker)
+			if len(tc.groups) > 0 && (readErr != nil || string(got) != "|"+strings.Join(tc.groups, " ")) {
+				t.Fatalf("groups command ran with %q (%v)\n%s", got, readErr, stderr)
+			}
+			if len(tc.groups) == 0 && readErr == nil {
+				t.Fatalf("no groups selected, yet the groups command ran: %q", got)
+			}
+			passed := rec.passed() && rec.Outcome == flakes.KnownFlakePassed
+			if passed != tc.pass || (gh.statuses[sha]["sdlc-local/affected"] == "success") != tc.pass {
+				t.Fatalf("pass %v, want %v: %+v statuses %v\n%s", passed, tc.pass, rec, gh.statuses[sha], stderr)
+			}
+		})
 	}
 }
 
