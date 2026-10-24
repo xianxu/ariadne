@@ -1,13 +1,13 @@
 ---
 id: 000581
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 severity: medium
-card_mirror: 'f0e9afe190e8805fb42d53b55845f7193dd39ab9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e0616a2f1c5a76bb7a9a2c7f3e6259e6fcb4e893' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T18:02:32-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "901eacd9", done: "7891c8f2"}
+actual_hours: 1.00
 ---
 
 # sidedoc ChatItems: an invalid answer-link destination reads as answered
