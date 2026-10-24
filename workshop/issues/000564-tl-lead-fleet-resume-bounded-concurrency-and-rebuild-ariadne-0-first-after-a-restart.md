@@ -51,13 +51,15 @@ this resume for its own asleep workers.
 
 - Fleet resume with concurrency N resumes N slots at once, reports each outcome, and stops on repeated identical
   failures (test with a fake resume verb).
-- tl-lead's restart guidance lists the ariadne:0 rebuild first.
+- tl-lead's restart guidance lists the ariadne:0 rebuild first, and startup is a hubs-only quiet hold until explicit operator-requested recovery.
+- Only explicit valid asleep marks authorize worker resume; pending-work wave 1 finishes before remaining-asleep wave 2.
+- Every hub reports its worker-wave outcomes and completion handoff. The machine steward alone resumes scheduled tasks after both waves complete on every hub, or explicit operator go; worker resume never enables automation/scheduling itself. The external scheduler part is linked as pair#874.
 
 ## Plan
 
-Durable design: [fleet-resume plan](../plans/000564-tl-lead-fleet-resume-plan.md). Operator review required before code.
+Durable design: [fleet-resume plan](../plans/000564-tl-lead-fleet-resume-bounded-concurrency-and-rebuild-ariadne-0-first-after-a-restart-plan.md). Operator approval is recorded in Revisions; change-code remains the implementation gate.
 
-- [ ] Review/approve the options and recovery state table through the hub.
+- [x] Review/approve the options and recovery state table through the hub; operator approval and third-wave clarification recorded below.
 - [ ] Implement the explicit-asleep planner and bounded receipt-driven scheduler with adversarial tests.
 - [ ] Update restart guidance; qualify privately, run recorded pre-close, close and land.
 
@@ -74,6 +76,17 @@ pair:6 confirmed pair#830 is pre-close, not landed. Its schema-1 report carries 
 
 The durable plan proposes default concurrency 3 per invocation, pending-phase completion before idle wake, and stopping new launches on the second matching stable receipt failure (immediately for uncertain/unclassified failures), joining calls already started. Shared-tool rebuild remains a steward procedure before the fleet notice. ARCH-DRY keeps one recovery snapshot/classifier; ARCH-RESOURCE keeps a permit for the whole call. Await operator review via the hub before change-code.
 
+### 2026-10-24 — operator approval and scheduler ownership
+
+ops:0 relayed operator approval (submitted receipt e44fc3b4-971d-4160-9bb4-269af41d0540): after a full shutdown only hubs start, automation off and workers asleep; hold until explicit operator-requested recovery. Wave 1 wakes pending-work asleep workers, wave 2 remaining asleep workers, wave 3 resumes scheduled tasks. Clarification 25d26f1d-9e80-483b-829f-7499e93e9f04 makes wave 3 machine-wide: each hub reports both worker waves complete; the machine steward acts only after all hubs report or the operator says go. No hub toggles it alone. Current help's first-operator-message automation toggle must move to that steward step.
+
+Read Pair AGENTS.local.md (root MEMORY.md is absent), current automation owner and scheduler issue evidence without changing source. pair#737 is working/not landed; current Couch exposes per-hub automation controls but tl-lead owns no scheduler. Filed unclaimed pair#874 for the missing scheduler-side machine-wide third-wave contract, with dependencies pair#737 and ariadne#564; report receipt 2dc4144a-4d41-4b42-9715-9314f2cf60cb is submitted. Primary Pair was detached and creation refused before effects; filed from clean resting pair:1 with no checkout writes, status clean afterward. No live automation, scheduling, wake or recovery call was made.
+
+The #564 revision is isolated at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne564-plan.PDsTx9/repo. #594's retained merge (terminal 56512) still owns the durable slot checkout; it is first waiter behind #592. Do not switch that checkout or change its head. Once it is released, detach this private worktree before checking #564 out in the slot, then run change-code and its applicable design gates before any implementation. #589 native qualification remains held.
+
+
 ## Revisions
 
 - 2026-10-24: Corrected the planning interface from the older top-level-marker/no-wake description to pair:6's verified nested asleep marker and hub-only wake semantics. Added explicit options, partial-failure/restart states, counted tests and private-conformance limits in the durable plan. This records a proposed design, not permission to execute fleet recovery.
+
+2026-10-24 — Operator-approved quiet startup and global third wave replace the initial two-wave-only proposal. Keep worker execution scoped to the owning hub; add an explicit handoff and steward-only third wave, with Couch-owned missing part tracked as pair#874. Durable plan renamed canonically and pure/IO classifications and function-level adversarial strategies made explicit. No permission to run a live fleet recovery is implied.
