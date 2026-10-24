@@ -5,6 +5,7 @@ created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
 github_issue:
+flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestQueueRealHelperPause]
 ---
 
 # flake: TestQueueRealHelperPause
