@@ -51,20 +51,6 @@ func affectedModeFor(names []string, all, boarding bool) (affectedExecutionMode,
 // claims to be full, unless mode is boarding, which refuses (#561); a
 // docs-only change records affected without running anything.
 func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg affected.Config, suite localCheck, sha string, mode affectedExecutionMode) (localRunRecord, error) {
-	paths, err := ad.changed(sha)
-	if err != nil {
-		return localRunRecord{}, fmt.Errorf("local check %s: changed paths of %s: %w", affectedCheckName, abbrevSHA(sha), err)
-	}
-	if len(paths) == 0 {
-		// No change is not a docs-only change: recording a pass here would be
-		// evidence nothing ran for (#473 M1 BR-2).
-		return localRunRecord{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
-	}
-	// Graph preparation can execute even for a docs-only selection, before
-	// the selected check reaches the ordinary runner.
-	if err := preflightSuite(ctx, d, localCheck{Name: affectedCheckName}, sha); err != nil {
-		return localRunRecord{}, err
-	}
 	if cfg.GraphPrepare != nil {
 		// The generator precedes runUnderSlot's signal owner. Keep its
 		// cancellation alive through graph cleanup, fallback and publication.
@@ -72,17 +58,9 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 	}
-	// The graph is loaded even for a docs-only diff: a package may embed or
-	// test against a doc, and only the graph knows (close review).
-	g, graphErr := ad.graph(ctx, sha)
-	if err := ctx.Err(); err != nil {
-		return localRunRecord{}, fmt.Errorf("local check %s: graph interrupted: %w", affectedCheckName, err)
-	}
-	var sel affected.Selection
-	if graphErr != nil {
-		sel = affected.Selection{Full: true, Reason: "package graph unavailable: " + graphErr.Error()}
-	} else {
-		sel = affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
+	sel, err := planAffectedSelection(ctx, d, ad, cfg, suite, sha)
+	if err != nil {
+		return localRunRecord{}, err
 	}
 	switch {
 	case sel.Full && mode == affectedBoarding:
@@ -96,6 +74,36 @@ func runAffectedCheck(ctx context.Context, d localRunDeps, ad affectedDeps, cfg 
 		return rec, ad.post(ctx, rec)
 	}
 	return ad.run(ctx, affectedLocalCheck(cfg, sel, suite), sha)
+}
+
+// planAffectedSelection plans the head's change against base (#473): what a
+// fresh affected run selects, shared by the run and the saved resume (#586).
+// A caller whose config declares graph_prepare owns the signal context.
+func planAffectedSelection(ctx context.Context, d localRunDeps, ad affectedDeps, cfg affected.Config, suite localCheck, sha string) (affected.Selection, error) {
+	paths, err := ad.changed(sha)
+	if err != nil {
+		return affected.Selection{}, fmt.Errorf("local check %s: changed paths of %s: %w", affectedCheckName, abbrevSHA(sha), err)
+	}
+	if len(paths) == 0 {
+		// No change is not a docs-only change: recording a pass here would be
+		// evidence nothing ran for (#473 M1 BR-2).
+		return affected.Selection{}, fmt.Errorf("local check %s: %s has no changes against its merge-base with main; there is nothing to vouch for, run --name %s", affectedCheckName, abbrevSHA(sha), suite.Name)
+	}
+	// Graph preparation can execute even for a docs-only selection, before
+	// the selected check reaches the ordinary runner.
+	if err := preflightSuite(ctx, d, localCheck{Name: affectedCheckName}, sha); err != nil {
+		return affected.Selection{}, err
+	}
+	// The graph is loaded even for a docs-only diff: a package may embed or
+	// test against a doc, and only the graph knows (close review).
+	g, graphErr := ad.graph(ctx, sha)
+	if err := ctx.Err(); err != nil {
+		return affected.Selection{}, fmt.Errorf("local check %s: graph interrupted: %w", affectedCheckName, err)
+	}
+	if graphErr != nil {
+		return affected.Selection{Full: true, Reason: "package graph unavailable: " + graphErr.Error()}, nil
+	}
+	return affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) }), nil
 }
 
 // boardingRefusal is a full selection in boarding mode (#561): nothing ran
