@@ -115,3 +115,111 @@ findings:
    Append `## Revisions` entries documenting execution-budget isolation, conservative allocation/creator identity rules, resume diagnostic propagation, and `savedAttemptRecord` as an existing reused entity. Update completed test claims to name the added regressions.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"79949986-fe8e-4cc8-ac8f-ecea0b0d19a3","repository":"github.com/xianxu/ariadne","issue_id":"000589","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/f334c81f122f4d93","reviewed_head":"570681b8038d97147d5a9bd3c7529d528c0625f9","slot":"ariadne:3","requested_at":"2026-10-24T20:15:09.741732Z"},"phase":"finished","pid":10796,"started_at":"2026-10-24T20:15:09.901024Z","finished_at":"2026-10-24T20:17:38.753123Z","session_id":"01a16f8d-8eaf-7242-bed6-0be76fe8711f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T13:33:54-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 589 — Recorded suites report leaked SysV shared-memory segments; PostgreSQL test harnesses must not leak them |
+| repo | ariadne |
+| issue file | workshop/issues/000589-recorded-suites-report-leaked-sysv-shared-memory-segments-postgresql-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 945a8168578afcbd94ed27965c283d0a6483aeb1..e0b3df15d51488c2e22000b67ac0c6fc0dfea4b9 |
+| command | sdlc close --issue 589 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-24T13:33:54-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The implementation now isolates execution deadlines, uses conservative segment identity, preserves verified child warnings, and documents the new usage. Focused tests pass. Two items still block admission: cancellation during post-run diagnostics changes a completed result, and BR-2 lacks a regression that detects the former attribution behavior.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Execution timeout creation now follows the before-probe, and deadline state is captured before the after-probe. TestSysVDiagnosticsCannotConsumeExecutionBudget passes at HEAD and fails with those changes reversed through a temporary Go overlay.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      Production witness attribution was removed, but the required regression evidence remains incomplete. TestSysVCurrentProcessNameIsNotCreatorProof supplies only a Segment, with no competing incarnation or witness. Restoring the former Witness-bearing Candidate and conditional attribution renderer through an overlay leaves this test green. Add a regression that detects restoration of the unsafe process-witness path.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Delta now compares numeric IDs independently of mutable metadata. TestDeltaMetadataChangesAreNotNewIDs passes at HEAD and fails when the former Segment-based identity comparison is restored through an overlay.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan's Core concepts row now says savedAttemptRecord is existing, reused; its Revisions explain reuse. The pinned range leaves localcheck_republish.go unchanged and adds diagnostic projection in localchecks.go and localcheck_resume_saved.go.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      resolvedSavedRecord derives child warnings after proof validation. Saved and fresh publication regressions pass at HEAD and both fail when the child-warning union is removed through an overlay; child digest mutation is rejected.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      README.md:1156-1160 explains advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas section that describes operator-cleared qualification and exact-owned-segment cleanup.
+findings:
+  - id: new
+    severity: Critical
+    kind: defect
+    family: advisory-outcome-isolation
+    title: |
+      Cancellation during the after-snapshot discards a completed command outcome
+    detail: |
+      cmd/sdlc/localcheck_run.go:684-725 freezes execution deadline state before diagnostics but reads ownedCtx.Err and queue interruption afterward. A temporary regression using fakeSysVObserver.onAfter to cancel the caller after a successful true command returned Exit:-1 and queueInterruptedError instead of the completed success. ARCH-PURPOSE and ARCH-ORDER: this is the 2nd finding in family advisory-outcome-isolation. State and enforce the rule across deadline, caller/signal cancellation, and queue-cancellation inputs: events received after confirmed execution completion must not retroactively reclassify its outcome. Preserve authoritative cancellation during execution, and add controlled before/during/after completion tests covering both success and failure.
+```
+
+Done-when: current — the existing criteria still cover recorded leak warnings and harness guidance; the revised attribution and identity limits refine that behavior.
+
+1. **Strengths**
+
+   - Numeric-ID comparison avoids treating mutable CTIME as allocation evidence (`report.go:11-26`).
+   - Parent and child diagnostics reuse existing digest-verified proof paths (`localcheck_resume_saved.go:117-134`).
+   - Native allocation qualification is opt-in and limits cleanup to the independently verified child allocation.
+   - README, help, and atlas describe advisory semantics and attribution limits consistently.
+
+2. **Critical findings**
+
+   - New cancellation defect detailed above.
+   - BR-2 remains open for the required regression evidence. The production removal is sound; its current test does not establish protection against the former behavior.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Focused SysV and resume tests passed. Temporary overlays confirmed regression sensitivity for BR-1, BR-3, and BR-5, reproduced the cancellation defect, and showed the BR-2 test remains green with the former attribution renderer restored. Native allocation qualification was not rerun. Temporary files were removed; the checkout remains clean.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared rendering and saved-proof reuse.
+   - **ARCH-PURE — pass:** parsing and classification remain separate from observation IO.
+   - **ARCH-PURPOSE — flag:** post-run diagnostics can still change a completed outcome.
+   - **ARCH-MOCK — pass:** private stateful tables exercise production observation seams; native conformance exists.
+   - **ARCH-CONSTRAINTS — pass:** bounded snapshots and linear classification; deadline isolation verified.
+   - **ARCH-SECURE — pass:** production no longer infers creator identity from current PID evidence.
+   - **ARCH-ORDER — flag:** completion versus late cancellation lacks a frozen outcome boundary.
+   - **ARCH-FUNERAL — pass:** diagnostics use existing log retention; no new durable sidecar.
+   - **ARCH-EVOLVE — pass:** no persisted attempt-schema change.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry defining confirmed execution completion as the outcome boundary, enumerating cancellation events on either side, and naming the controlled sequence tests that enforce it.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"84621e07-6376-4472-995d-d4d6da88f542","repository":"github.com/xianxu/ariadne","issue_id":"000589","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/214e815bb791058e","reviewed_head":"e0b3df15d51488c2e22000b67ac0c6fc0dfea4b9","slot":"ariadne:3","requested_at":"2026-10-24T20:30:42.341002Z"},"phase":"finished","pid":25078,"started_at":"2026-10-24T20:30:42.44071Z","finished_at":"2026-10-24T20:33:48.022286Z","session_id":"01a16f9b-caa4-7000-bb87-5052ae3e0cb7","outcome":"returned"}] -->

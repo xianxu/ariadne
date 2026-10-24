@@ -69,6 +69,68 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 84621e07-6376-4472-995d-d4d6da88f542
+            repository: github.com/xianxu/ariadne
+            issue_id: "000589"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/214e815bb791058e
+            reviewed_head: e0b3df15d51488c2e22000b67ac0c6fc0dfea4b9
+            slot: ariadne:3
+            requested_at: "2026-10-24T20:30:42.341002Z"
+          phase: finished
+          pid: 25078
+          started_at: "2026-10-24T20:30:42.44071Z"
+          finished_at: "2026-10-24T20:33:48.022286Z"
+          session_id: 01a16f9b-caa4-7000-bb87-5052ae3e0cb7
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-24T13:33:54-07:00"
+      dispatched: "2026-10-24T13:30:42-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Execution timeout creation now follows the before-probe, and deadline state is captured before the after-probe. TestSysVDiagnosticsCannotConsumeExecutionBudget passes at HEAD and fails with those changes reversed through a temporary Go overlay.
+          round: 2
+        - id: BR-2
+          disposition: not-addressed
+          note: Production witness attribution was removed, but the required regression evidence remains incomplete. TestSysVCurrentProcessNameIsNotCreatorProof supplies only a Segment, with no competing incarnation or witness. Restoring the former Witness-bearing Candidate and conditional attribution renderer through an overlay leaves this test green. Add a regression that detects restoration of the unsafe process-witness path.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Delta now compares numeric IDs independently of mutable metadata. TestDeltaMetadataChangesAreNotNewIDs passes at HEAD and fails when the former Segment-based identity comparison is restored through an overlay.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The plan's Core concepts row now says savedAttemptRecord is existing, reused; its Revisions explain reuse. The pinned range leaves localcheck_republish.go unchanged and adds diagnostic projection in localchecks.go and localcheck_resume_saved.go.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: resolvedSavedRecord derives child warnings after proof validation. Saved and fresh publication regressions pass at HEAD and both fail when the child-warning union is removed through an overlay; child digest mutation is rejected.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: README.md:1156-1160 explains advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas section that describes operator-cleared qualification and exact-owned-segment cleanup.
+          round: 2
+      findings:
+        - kind: defect
+          id: BR-7
+          severity: Critical
+          title: Cancellation during the after-snapshot discards a completed command outcome
+          detail: 'cmd/sdlc/localcheck_run.go:684-725 freezes execution deadline state before diagnostics but reads ownedCtx.Err and queue interruption afterward. A temporary regression using fakeSysVObserver.onAfter to cancel the caller after a successful true command returned Exit:-1 and queueInterruptedError instead of the completed success. ARCH-PURPOSE and ARCH-ORDER: this is the 2nd finding in family advisory-outcome-isolation. State and enforce the rule across deadline, caller/signal cancellation, and queue-cancellation inputs: events received after confirmed execution completion must not retroactively reclassify its outcome. Preserve authoritative cancellation during execution, and add controlled before/during/after completion tests covering both success and failure.'
+          family: advisory-outcome-isolation
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#589 (boundary-review)
@@ -93,11 +155,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Important] `user-surface-documentation` README update appears missing for the new qualification usage
   atlas/workflow/sdlc-binary.md:3394 introduces TestNativeOwnedSysVQualification and WF_SYSV_QUALIFY=1, but README.md is unchanged in the pinned range. The requested README gate covers new usage steps and configuration keys. Add a concise README pointer explaining host warnings and linking the operator-cleared qualification procedure.
 
+## Round 2 — 2026-10-24T13:33:54-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Execution timeout creation now follows the before-probe, and deadline state is captured before the after-probe. TestSysVDiagnosticsCannotConsumeExecutionBudget passes at HEAD and fails with those changes reversed through a temporary Go overlay.
+- BR-2 — not-addressed — Production witness attribution was removed, but the required regression evidence remains incomplete. TestSysVCurrentProcessNameIsNotCreatorProof supplies only a Segment, with no competing incarnation or witness. Restoring the former Witness-bearing Candidate and conditional attribution renderer through an overlay leaves this test green. Add a regression that detects restoration of the unsafe process-witness path.
+- BR-3 — addressed — Delta now compares numeric IDs independently of mutable metadata. TestDeltaMetadataChangesAreNotNewIDs passes at HEAD and fails when the former Segment-based identity comparison is restored through an overlay.
+- BR-4 — addressed — The plan's Core concepts row now says savedAttemptRecord is existing, reused; its Revisions explain reuse. The pinned range leaves localcheck_republish.go unchanged and adds diagnostic projection in localchecks.go and localcheck_resume_saved.go.
+- BR-5 — addressed — resolvedSavedRecord derives child warnings after proof validation. Saved and fresh publication regressions pass at HEAD and both fail when the child-warning union is removed through an overlay; child digest mutation is rejected.
+- BR-6 — addressed — README.md:1156-1160 explains advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas section that describes operator-cleared qualification and exact-owned-segment cleanup.
+
+### Raised
+
+- **BR-7** [Critical] `advisory-outcome-isolation` (kind: defect) Cancellation during the after-snapshot discards a completed command outcome
+  cmd/sdlc/localcheck_run.go:684-725 freezes execution deadline state before diagnostics but reads ownedCtx.Err and queue interruption afterward. A temporary regression using fakeSysVObserver.onAfter to cancel the caller after a successful true command returned Exit:-1 and queueInterruptedError instead of the completed success. ARCH-PURPOSE and ARCH-ORDER: this is the 2nd finding in family advisory-outcome-isolation. State and enforce the rule across deadline, caller/signal cancellation, and queue-cancellation inputs: events received after confirmed execution completion must not retroactively reclassify its outcome. Preserve authoritative cancellation during execution, and add controlled before/during/after completion tests covering both success and failure.
+
 ## Open findings
 
-- **BR-1** [Critical] `advisory-outcome-isolation` SysV observation time can turn a completed command into a timeout
 - **BR-2** [Critical] `creator-incarnation-evidence` A nonempty start time does not establish that the witnessed process created the segment
-- **BR-3** [Critical] `allocation-identity-stability` Mutable change time is treated as allocation identity
-- **BR-4** [Critical] `concept-table-code-consistency` The Core concepts table claims a modification absent from the pinned range
-- **BR-5** [Important] `diagnostic-consumer-completeness` Resume publication drops warnings produced only by the child run
-- **BR-6** [Important] `user-surface-documentation` README update appears missing for the new qualification usage
+- **BR-7** [Critical] `advisory-outcome-isolation` (kind: defect) Cancellation during the after-snapshot discards a completed command outcome
