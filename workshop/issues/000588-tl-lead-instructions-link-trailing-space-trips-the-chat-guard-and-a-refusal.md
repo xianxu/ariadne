@@ -1,12 +1,20 @@
 ---
 id: 000588
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
-card_mirror: 'f62964d42816937d51f7fd45acd888396607b2de' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9b85da4221e8163c6eafd3b3dd343496b4b6d4b1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T21:18:07-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead instructions link: trailing space trips the chat guard, and a refusal leaves a half-done write
@@ -33,8 +41,39 @@ first on failure).
 
 ## Plan
 
-- [ ]
+Quick flow (inside the shell; no durable plan).
+
+**Cause.** `linkBullet` (cmd/tl-lead/instructions.go:126) rewrites the item's last line with
+`strings.TrimRightFunc(line, unicode.IsSpace)` before appending, so the ask loses its trailing bytes. `linkInstruction`
+then writes the `discussions:` index first (`syncIndex` → `WriteFrontmatter`) and the section second (`WriteSection`):
+the #424 order, which a refusal of the second write turns into a half-done document.
+
+**Design.**
+1. `linkBullet` appends ` → [answer](target)` to the last line as it stands (a trailing `\r` stays last, so a CRLF
+   line keeps its ending); the ask's bytes are a prefix of the new line.
+2. One write: compose the whole new file from one `Peek` (the frontmatter block with the reconciled index, and the item
+   line with the link) and send it as two `apply` records against that text's `fileHash` (`SessionSync.Apply`, all or
+   none, #455). The records are proved before sending (`applyRecords` must reproduce the composed text), as
+   `lineRecords` does. A stale hash is the existing "list again" refusal (exit 6), never a retry, since positions come
+   from the listed read.
+   - The index composition is pulled out of `syncIndex` into one pure function both use (ARCH-DRY), keeping its
+     refusal of a frontmatter couch would end early.
+   - The item line is placed in the file by the section body's single occurrence in the `Peek` text (and the section
+     must still equal what `ReadSection` returned for the listed hash); anything else refuses as "changed since list".
+   - This retires #424's index-first order: with one compare-and-replace there is no split to order.
+
+**ARCH notes.** PURE: link composition and record building are pure over strings; the IO stays `ReadSection`, `Peek`,
+`Apply`. ORDER: one read, one compare-and-replace; the events it can't block (an operator edit, the lock, couch's chat
+guard refusing) all leave the file as it was. EVOLVE, FUNERAL, SECURE: no format change, nothing durable, the target
+is already validated by `ValidAnswerTarget`.
+
+- [ ] `linkBullet` keeps the ask's bytes; tests for a trailing space, a tab and a CRLF line
+- [ ] `linkInstruction` writes index and link in one `Apply`; the shared index composer; tests: one apply and no
+      frontmatter or section write on success, and a refused apply (chat guard, stale, lock) leaves the document
+      byte-identical, index included
+- [ ] targeted tl-lead tests, close
 
 ## Log
 
 ### 2026-10-23
+- Claimed and started from ariadne:5 after #579 landed; plan to the TL.
