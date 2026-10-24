@@ -30,14 +30,21 @@ func retentionWrite(t *testing.T, root, id string, value any) []byte {
 
 func retentionFixture(t *testing.T, terminal bool) (string, ResumeLink, time.Time) {
 	t.Helper()
+	return retentionFixtureOf(t, terminal, resumeCorePassed(t))
+}
+
+func retentionFixtureOf(t *testing.T, terminal bool, in ResumeProofInput) (string, ResumeLink, time.Time) {
+	t.Helper()
 	root := t.TempDir()
-	in := resumeCorePassed(t)
 	parentLog := []byte("parent failure\n")
 	in.Parent.LogPath = "failed/aa.log"
 	in.Parent.LogSHA256 = resumeRecordDigest(parentLog)
 	in.ParentRecordSHA256 = resumeRecordDigest(retentionWrite(t, root, in.Parent.ID, in.Parent))
 	in.ParentLogSHA256 = in.Parent.LogSHA256
 	link := *resumeCoreLink(in)
+	if in.Link != nil { // keep the caller's check, version and selection
+		link.Version, link.Check, link.Selection = in.Link.Version, in.Link.Check, in.Link.Selection
+	}
 	retentionWrite(t, root, link.ID, link)
 	if err := os.MkdirAll(filepath.Join(root, "failed"), 0700); err != nil {
 		t.Fatal(err)

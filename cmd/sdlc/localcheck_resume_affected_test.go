@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
@@ -136,5 +140,136 @@ func TestResumeReceiptAffected(t *testing.T) {
 	in.Receipt.Version = 3
 	if p := resolveResumeProof(in); p.State != ResumeRefused {
 		t.Fatalf("v3 receipt on an affected link: %+v", p)
+	}
+}
+
+// resumeAffectedFixture is a saved affected attempt that failed only on the
+// registered example.org/p.TestOne and has no link yet (#586).
+func resumeAffectedFixture(t *testing.T) (localRunDeps, string, string) {
+	t.Helper()
+	d, sha, store, link := resumeSavedFixture(t, false)
+	if err := os.Remove(filepath.Join(store, "attempts", link.ID+".json")); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(store, "attempts", "aa.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parent SuiteAttempt
+	if err := json.Unmarshal(raw, &parent); err != nil {
+		t.Fatal(err)
+	}
+	parent.Check = affectedCheckName
+	resumeSavedWriteJSON(t, store, parent.ID, parent)
+	return d, sha, store
+}
+
+// affectedResumeCheck is the affected declaration whose groups command
+// records the env it ran under in marker, then runs group.
+func affectedResumeCheck(marker, group string) localCheck {
+	return localCheck{Name: affectedCheckName, Command: []string{"sh", "-c", `printf '%s|%s' "$SDLC_AFFECTED_GO_PKGS" "$SDLC_AFFECTED_GROUPS" > ` + marker + "; " + group}, TimeoutMinutes: 30, Weight: 1}
+}
+
+func plannedSelection(sel affected.Selection, calls *int) resumeSelectionFunc {
+	return func(context.Context) (affected.Selection, error) { *calls++; return sel, nil }
+}
+
+const resumeTestOnePass = `printf '%s\n' '{"Action":"pass","Package":"example.org/p","Test":"TestOne"}' '{"Action":"pass","Package":"example.org/p","Elapsed":1}'`
+
+// #586 Done when: an affected attempt that failed only on a registered flake
+// and stopped before its groups resumes: the test reruns, every selected
+// group runs, and the head records an affected pass under a version 5 link.
+func TestResumeAffectedRunsFlakesThenGroups(t *testing.T) {
+	d, sha, store := resumeAffectedFixture(t)
+	asked := scriptRerun(t, resumeTestOnePass)
+	marker := filepath.Join(t.TempDir(), "groups")
+	calls := 0
+	sel := plannedSelection(affected.Selection{GoPkgs: []string{"example.org/p"}, Groups: []string{"a", "b"}}, &calls)
+	rec, err := resumeSaved(context.Background(), d, affectedResumeCheck(marker, "exit 0"), sel, sha, "aa")
+	if err != nil || !rec.passed() || rec.Name != affectedCheckName || rec.Outcome != flakes.KnownFlakePassed || rec.ResumeParent != "aa" || rec.ResumeChild == "" || rec.Scope != "1 package, groups a b" {
+		t.Fatalf("resume: %+v %v", rec, err)
+	}
+	if got, _ := os.ReadFile(marker); string(got) != "|a b" || strings.Join(*asked, ",") != "example.org/p.TestOne" || calls != 1 {
+		t.Fatalf("groups ran with %q, reran %v, planned %d times", got, *asked, calls)
+	}
+	if gh := d.GH.(*ciFakeGH); gh.statuses[sha][localStatusContext(affectedCheckName)] != "success" || gh.statuses[sha][localStatusContext(suiteCheckName)] != "" {
+		t.Fatalf("statuses %v", gh.statuses[sha])
+	}
+	s, err := readSuiteEvidence(store, testStatsRecordLimit)
+	if err != nil || len(s.Resumes) != 1 || s.Resumes[0].Version != 5 || s.Resumes[0].Check != affectedCheckName || strings.Join(s.Resumes[0].Selection.Groups, " ") != "a b" {
+		t.Fatalf("link %+v %v", s.Resumes, err)
+	}
+	// A repeat reposts from the proof: nothing plans or runs again.
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	again, err := resumeSaved(context.Background(), d, affectedResumeCheck(marker, "exit 0"), sel, sha, "aa")
+	if _, statErr := os.Stat(marker); err != nil || !again.passed() || calls != 1 || statErr == nil {
+		t.Fatalf("repeat: %+v %v calls=%d", again, err, calls)
+	}
+}
+
+// #586 Done when: an unregistered failure still refuses, before any plan,
+// link, child or status.
+func TestResumeAffectedUnregisteredFailureRefuses(t *testing.T) {
+	d, sha, store := resumeAffectedFixture(t)
+	d.FlakeRegistry = gateRegistry(t, "example.org/p.TestOther")
+	calls := 0
+	_, err := resumeSaved(context.Background(), d, affectedResumeCheck(filepath.Join(t.TempDir(), "m"), "exit 0"), plannedSelection(affected.Selection{Groups: []string{"a"}}, &calls), sha, "aa")
+	s, _ := readSuiteEvidence(store, testStatsRecordLimit)
+	if err == nil || calls != 0 || len(s.Resumes) != 0 || len(d.GH.(*ciFakeGH).statuses[sha]) != 0 {
+		t.Fatalf("err %v, planned %d, links %d, statuses %v", err, calls, len(s.Resumes), d.GH.(*ciFakeGH).statuses[sha])
+	}
+}
+
+// #586: the flake passes but a group fails: no pass is recorded.
+func TestResumeAffectedGroupFailureRecordsNoPass(t *testing.T) {
+	d, sha, _ := resumeAffectedFixture(t)
+	scriptRerun(t, resumeTestOnePass)
+	calls := 0
+	rec, err := resumeSaved(context.Background(), d, affectedResumeCheck(filepath.Join(t.TempDir(), "m"), "exit 1"), plannedSelection(affected.Selection{Groups: []string{"a"}}, &calls), sha, "aa")
+	if (err == nil && rec.passed()) || d.GH.(*ciFakeGH).statuses[sha][localStatusContext(affectedCheckName)] == "success" {
+		t.Fatalf("a failing group landed: %+v %v", rec, err)
+	}
+}
+
+// #586 D3: a selection that is now full, or empty, runs nothing and points
+// at the suite; a suite resume of an affected parent names the right check.
+func TestResumeAffectedRefusesFullOrEmptySelection(t *testing.T) {
+	for name, sel := range map[string]affected.Selection{"full": {Full: true, Reason: "go.mod changed"}, "empty": {}} {
+		t.Run(name, func(t *testing.T) {
+			d, sha, store := resumeAffectedFixture(t)
+			calls := 0
+			_, err := resumeSaved(context.Background(), d, affectedResumeCheck(filepath.Join(t.TempDir(), "m"), "exit 0"), plannedSelection(sel, &calls), sha, "aa")
+			s, _ := readSuiteEvidence(store, testStatsRecordLimit)
+			if err == nil || !strings.Contains(err.Error(), "run sdlc local-check run --name suite --rev "+sha) || len(s.Resumes) != 0 {
+				t.Fatalf("%v links=%d", err, len(s.Resumes))
+			}
+		})
+	}
+	d, sha, _ := resumeAffectedFixture(t)
+	if _, err := resumeSaved(context.Background(), d, suiteCheck("true"), nil, sha, "aa"); err == nil || !strings.Contains(err.Error(), "resume --name affected") {
+		t.Fatalf("suite resume of an affected parent: %v", err)
+	}
+}
+
+// #586: an aged terminal affected bundle (version 5 link) retires like a
+// suite one; a link whose check is not its parent's is never a witness.
+func TestResumeRetentionAffectedBundle(t *testing.T) {
+	root, link, now := retentionFixtureOf(t, true, resumeAffectedPassed(t))
+	if _, err := pruneResumeBundles(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attempts", link.ID+".json")); !os.IsNotExist(err) {
+		t.Fatalf("aged affected bundle kept: %v", err)
+	}
+	mismatch := resumeAffectedPassed(t)
+	mismatch.Parent.Check = suiteCheckName
+	root, link, now = retentionFixtureOf(t, true, mismatch)
+	if _, err := pruneResumeBundles(root, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "attempts", link.ID+".json")); err != nil {
+		t.Fatalf("a link bound to another check's parent was retired: %v", err)
 	}
 }

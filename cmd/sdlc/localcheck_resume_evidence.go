@@ -66,6 +66,7 @@ func validResumeSelection(sel ResumeSelection) bool {
 	}
 	return sel.GoPkgs != nil && sel.Groups != nil && names(sel.GoPkgs) && names(sel.Groups) && len(sel.GoPkgs)+len(sel.Groups) > 0
 }
+
 type ResumeOwner struct {
 	PID        int    `json:"pid"`
 	PIDStarted string `json:"pid_started"`

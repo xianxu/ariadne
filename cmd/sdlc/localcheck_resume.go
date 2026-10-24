@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
@@ -60,9 +61,15 @@ func resumeInputs(ctx context.Context, d localRunDeps, store string, p SuiteAtte
 	return in, tail, nil
 }
 
+// resumeSelectionFunc plans an affected resume's selection on the original
+// head (#586), exactly as a fresh run would; nil for the suite.
+type resumeSelectionFunc func(ctx context.Context) (affected.Selection, error)
+
 // The parent inode is held across every effect, including final status retries.
 // An immutable link survives any uncertain launch, so recovery never executes twice.
-func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, parent string) (localRunRecord, error) {
+// c is the parent's check: the suite, or the affected check declaration, whose
+// known-flake child also runs every group select plans (#586).
+func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSelectionFunc, sha, parent string) (localRunRecord, error) {
 	var rec localRunRecord
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
@@ -76,6 +83,9 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	defer lock.Close()
 	if lock.Attempt.Repo != d.Repo || lock.Attempt.SHA != sha {
 		return rec, errors.New("resume parent must match this repository and exact original commit")
+	}
+	if lock.Attempt.Check != c.Name {
+		return rec, fmt.Errorf("resume parent %s is a %s attempt; run sdlc local-check resume --name %s", parent, lock.Attempt.Check, lock.Attempt.Check)
 	}
 	in, tail, err := resumeInputs(ctx, d, store, lock.Attempt)
 	if err != nil {
@@ -97,10 +107,29 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if state != ResumeEligible {
 		return rec, resumeSavedError(in, proof.Reason)
 	}
+	var selection *ResumeSelection
+	if c.Name == affectedCheckName {
+		if sel == nil {
+			return rec, errors.New("affected resume has no selection planner")
+		}
+		planned, err := sel(ctx)
+		if err != nil {
+			return rec, err
+		}
+		if planned.Full || planned.Empty() {
+			why := planned.Reason
+			if !planned.Full {
+				why = "nothing is affected"
+			}
+			return rec, fmt.Errorf("local-check resume: %s on %s now selects no runnable subset (%s); nothing was run: run sdlc local-check run --name %s --rev %s", affectedCheckName, abbrevSHA(sha), why, suiteCheckName, sha)
+		}
+		selection = &ResumeSelection{GoPkgs: append([]string{}, planned.GoPkgs...), Groups: append([]string{}, planned.Groups...)}
+		c.Rerun = &affectedRerun{Command: c.Command, GoPkgs: selection.GoPkgs, Groups: selection.Groups}
+	}
 	if err := preflightSuite(ctx, d, c, sha); err != nil {
 		var environment *suiteEnvironmentError
 		if errors.As(err, &environment) {
-			environment.RetryCommand = fmt.Sprintf("sdlc local-check resume --name suite --attempt %s --rev %s", parent, sha)
+			environment.RetryCommand = fmt.Sprintf("sdlc local-check resume --name %s --attempt %s --rev %s", c.Name, parent, sha)
 		}
 		return rec, err
 	}
@@ -117,6 +146,7 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if err != nil {
 		return rec, err
 	}
+	commands = affectedRerunBatch(commands, c.Rerun)
 	helper, err := d.prepareSuiteHelper(ctx)
 	if err != nil {
 		return rec, err
@@ -158,7 +188,7 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if err != nil {
 		return rec, err
 	}
-	link := ResumeLink{Version: 3, Kind: "resume-link", ID: id, Repo: d.Repo, SHA: sha, Check: suiteCheckName, RerunOf: parent, ParentRecordSHA256: in.ParentRecordSHA256, ParentLogSHA256: in.ParentLogSHA256, ChildID: w.ID, Owner: ResumeOwner{PID: os.Getpid(), PIDStarted: pidStarted, BootID: boot, Host: hostName()}, CreatedAt: time.Now().UTC()}
+	link := ResumeLink{Version: resumeLinkVersion(c.Name), Kind: "resume-link", ID: id, Repo: d.Repo, SHA: sha, Check: c.Name, Selection: selection, RerunOf: parent, ParentRecordSHA256: in.ParentRecordSHA256, ParentLogSHA256: in.ParentLogSHA256, ChildID: w.ID, Owner: ResumeOwner{PID: os.Getpid(), PIDStarted: pidStarted, BootID: boot, Host: hostName()}, CreatedAt: time.Now().UTC()}
 	raw, err := json.Marshal(link)
 	if err != nil {
 		return rec, err
@@ -189,7 +219,8 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if subjectErr != nil {
 		subject = suitePrioritySubject{CommonDir: d.Root}
 	}
-	run, err := runUnderSlotBatch(ctx, d, wt, helper, logDir, suiteCheckName, sha, 1, subject, commands, w.LogPath, min(knownFlakeRerunTimeout, time.Duration(c.TimeoutMinutes)*d.minute))
+	weight, timeout := rerunEnvelope(c, d.minute)
+	run, err := runUnderSlotBatch(ctx, d, wt, helper, logDir, c.Name, sha, weight, subject, commands, w.LogPath, timeout)
 	if err != nil {
 		_ = resumeAdvance(&state, ResumeUncertain, "")
 		return rec, fmt.Errorf("needs reconcile: resume completion unknown: %w; %s", err, resumeReconcileCommand(parent, resumeRecordDigest(raw)))
@@ -231,7 +262,7 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	}
 	// Re-read current policy, registry and raw proof after execution; never post
 	// from the pre-launch registry or the child's claimed outcome alone.
-	rec, _, err = loadSavedAttemptCurrent(ctx, d, store, sha, suiteCheckName, parent, hostName())
+	rec, _, err = loadSavedAttemptCurrent(ctx, d, store, sha, c.Name, parent, hostName())
 	if err != nil {
 		_ = resumeAdvance(&state, ResumeProofRejected, "")
 		return rec, err
@@ -302,7 +333,7 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 	if err != nil {
 		return err
 	}
-	receipt := ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: id, Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: parent, LinkID: l.ID, LinkSHA256: digest, ChildID: l.ChildID, Actor: actor, Note: note, Outcome: "interrupted", FinishedAt: time.Now().UTC()}
+	receipt := ResumeReconciliation{Version: resumeLinkVersion(l.Check), Kind: "resume-reconciliation", ID: id, Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: parent, LinkID: l.ID, LinkSHA256: digest, ChildID: l.ChildID, Actor: actor, Note: note, Outcome: "interrupted", FinishedAt: time.Now().UTC()}
 	raw, err := json.Marshal(receipt)
 	if err != nil {
 		return err
@@ -318,7 +349,7 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 
 func postResumeRecord(ctx context.Context, d localRunDeps, rec localRunRecord) error {
 	if err := postLocalCheckRecord(ctx, d, rec); err != nil {
-		return fmt.Errorf("resume result was NOT recorded: %w; after repairing publication or proof, run: sdlc local-check republish --name suite --rev %s --attempt %s", err, rec.SHA, rec.ResumeParent)
+		return fmt.Errorf("resume result was NOT recorded: %w; after repairing publication or proof, run: sdlc local-check republish --name %s --rev %s --attempt %s", err, rec.Name, rec.SHA, rec.ResumeParent)
 	}
 	return nil
 }
