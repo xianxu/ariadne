@@ -122,3 +122,108 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"4aa63ddb-3c84-4f59-9c99-52a67cdd9908","repository":"github.com/xianxu/ariadne","issue_id":"000586","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b516fd6f0ea1f078","reviewed_head":"7a090b0b89683c76028d1ea9f1f93be7168710ec","slot":"ariadne:2","requested_at":"2026-10-24T09:33:43.372342Z"},"phase":"finished","pid":35815,"started_at":"2026-10-24T09:33:43.469422Z","finished_at":"2026-10-24T09:40:02.18165Z","session_id":"9312c287-ca72-4c8e-bfef-8dd92cfcf629","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T02:57:16-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 586 — Resume an affected-check attempt after a registered flake, running the groups it never reached |
+| repo | ariadne |
+| issue file | workshop/issues/000586-resume-an-affected-check-attempt-after-a-registered-flake-running-the-groups-it.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 488298d017e51274fe8bada06e382f9000bf414f..fe8d4999b53cb6f415809bd7c8413c962e58cdc7 |
+| command | sdlc close --issue 586 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T02:57:16-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've gone through the diff and the prior findings. Now I'm checking the republish path for affected, then I'll run the targeted tests.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five round-1 findings are fixed, and I checked each against the code, not the commit messages. The affected resume works as the Spec asks. It replans the original head against main's current `affected.json`. It reruns the registered flakes and then every selected group, under a version 5 link that fences the selection. It records `sdlc-local/affected` with the resume parent/child and the scope. An unregistered failure is refused before any planning, link or status. The inline known-flake step had the same gap and is fixed too. `go build ./...` and `go vet ./cmd/sdlc` are clean, and `go test ./cmd/sdlc -run 'Resume|Affected|KnownFlake|OldReader|Retention|HelperRefresh|SuiteCapability'` passes (248s). In the disposable checkout I broke two fixes on purpose, and each time the tests went red:
+- Pinning `main` instead of `origin/main` fails `TestAffectedResumePlanWiring`.
+- Making `resumeLinkVersion` return 3 for affected fails `TestResumeAffectedRunsFlakesThenGroups` ("invalid resume link selection").
+
+Nothing blocks SHIP. One Minor DRY finding remains.
+
+**1. Strengths**
+- `affectedEnvCommand` (`cmd/sdlc/localcheck_affected_rerun.go:269`) is the only place the env contract is built. Both the fresh run and the rerun use it, and `TestAffectedRerunBatch` checks that they agree.
+- `planAffectedSelection` (`cmd/sdlc/localcheck_affected.go:147`) is a straight extraction. Fresh runs and resumes plan the same way.
+- The v5 decision (D4) has a concrete reason: a v3 link with `check: affected` would be an invalid record and block the whole snapshot. Both the link and the receipt have old-reader decode tests.
+- Planning runs after `ResumeEligible` and before preflight and link publication. A full or empty selection therefore leaves no evidence behind (`TestResumeAffectedRefusesFullOrEmptySelection`).
+- `reflect.DeepEqual` replaces `*decoded != l` (`cmd/sdlc/localcheck_resume_environment.go:483`). This fixes a pointer-comparison bug that only appeared once the link gained `Selection`, and it was found during implementation.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- `cmd/sdlc/localcheck_resume_cmd.go:572-576` copies the `GraphPrepare` → `signal.NotifyContext` block from `runAffectedCheck` (`cmd/sdlc/localcheck_affected.go:56-60`). Suggested fix: a helper such as `affectedPlanContext(ctx, cfg) (ctx, stop)` used by both callers (ARCH-DRY).
+- Affected resume runs the capability preflight twice: once inside `planAffectedSelection` and again in `resumeSaved`. This is harmless.
+
+**5. Test coverage notes**
+- Done-when 1: `TestResumeAffectedRunsFlakesThenGroups`.
+- Done-when 2: `TestResumeAffectedUnregisteredFailureRefuses`.
+- Inline step: `TestAffectedKnownFlakeRunsGroups`.
+- Old-reader fence: `TestOldReaderFencesAffectedLinkPerHead` and `TestOldReaderFencesAffectedReceiptPerHead`.
+- Retention: `TestResumeRetentionAffectedBundle`.
+- Gaps:
+  - The `GraphPrepare` signal-scope branch in `affectedResumePlan` is still not exercised, because the fixture config has no `graph_prepare`.
+  - The receipt fence test decodes a single record. It does not cover the snapshot-level case where another head in the same store still resolves.
+
+**6. Architecture**
+- **ARCH-DRY:** small flag, the Minor finding above.
+- **ARCH-PURE:** pass. `affectedRerunBatch`, `rerunEnvelope` and `validResumeSelection` are pure and tested without IO.
+- **ARCH-PURPOSE:** pass. Both known-flake paths are fixed.
+- **ARCH-MOCK:** pass. The new wiring is driven through the fake `affectedDeps` and git seams.
+- **ARCH-CONSTRAINTS:** pass. D6's weight and timeout come from `rerunEnvelope`, which `TestRerunEnvelope` covers.
+- **ARCH-SECURE:** pass. The selection is strictly validated: sorted, unique, no whitespace or control characters, length capped. It reaches the command only as `env` arguments, never as shell text.
+- **ARCH-ORDER:** pass. There are no new states. Planning is a pre-step with no side effects, and a repeat reposts from proof without replanning (`calls == 1`).
+- **ARCH-FUNERAL:** pass. The resume bundle is the same as before, and retention binds `p.Check == l.Check`.
+- **ARCH-EVOLVE:** pass. The version bump has a concrete reason, `selection` is required on v5 and refused on v3, and old-reader tests are in place.
+
+**7. Plan revisions:** none needed. The 2026-10-24 Revisions entry already records the `resumeSaved` signature, the test names as shipped, and the scope caveat.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:1016-1023 now documents --name affected, replanning against main's affected.json, running every group, and the full/empty refusal toward suite.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestAffectedResumePlanWiring drives affectedResumePlan through a fake affectedDeps; pinning main instead of origin/main turns it red. Only the GraphPrepare signal branch is unexercised.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      helptext/local-check.md now says the scope is the replanned selection and can name packages neither run tested; the plan Revisions records it.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      TestOldReaderFencesAffectedReceiptPerHead decodes a v5 receipt through decodeUnsupportedProof as proof fenced to that head.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The plan Revisions entry (2026-10-24) lists the shipped test names and the resumeSaved planner signature; checkboxes are ticked.
+findings:
+  - id: new
+    severity: Minor
+    family: shared-helper-duplication
+    title: |
+      GraphPrepare signal-context block duplicated in affectedResumePlan and runAffectedCheck
+    detail: |
+      localcheck_resume_cmd.go:572-576 copies localcheck_affected.go:56-60 (ARCH-DRY); fold both into one helper so the signal ownership of graph planning has one source.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"f7282e4a-166b-4cc9-9f52-a7252a3d3f10","repository":"github.com/xianxu/ariadne","issue_id":"000586","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/582a3acab5c47cb2","reviewed_head":"fe8d4999b53cb6f415809bd7c8413c962e58cdc7","slot":"ariadne:2","requested_at":"2026-10-24T09:51:07.632288Z"},"phase":"finished","pid":28216,"started_at":"2026-10-24T09:51:07.786298Z","finished_at":"2026-10-24T09:57:15.206534Z","session_id":"2cb3a0e3-3156-49ca-b031-4d77e6d4a7cc","outcome":"returned"}] -->

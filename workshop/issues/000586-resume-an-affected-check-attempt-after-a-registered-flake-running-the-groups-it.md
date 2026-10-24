@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "36d108a2", done: "410fe668"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Resume an affected-check attempt after a registered flake, running the groups it never reached
@@ -54,6 +54,10 @@ Durable plan: `workshop/plans/000586-resume-an-affected-check-attempt-after-a-re
 
 ## Log
 
+
+
+- 2026-10-24: closed — Round 2 after FIX-THEN-SHIP. BR-1: README documents resume --name affected. BR-2: affectedResumePlan takes its affectedDeps constructor; TestAffectedResumePlanWiring drives the origin/main pin, the missing affected.json refusal and planAffectedSelection through a fake. Minors fixed in round: help text states the resumed scope is the replanned selection; TestOldReaderFencesAffectedReceiptPerHead covers the v5 receipt; the plan Revisions and checkboxes are synced. Targeted run green on fe8d4999 (Resume, Affected, KnownFlake, OldReader, Retention, RerunEnvelope, HelperRefresh, SuiteCapability, Reconcile, SingleSourced, Help; go vet clean). Full suite recorded as sdlc-local/suite on 7a090b0b (17m5s); merge reruns it for this code fix. --no-actual authorized by the TL (ops:0): measured actual refused with: measurement branch proof: measurement snapshot does not serialize: json: error calling MarshalJSON for type *gatestate.MeasurementInputs: measurement exceeds 65536 bytes (an ariadne#580 regression, filed separately); no hours typed.; review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 244 added lines in code files (limit 100); an earlier round of this close already ran the full review
 ### 2026-10-23
 - Design mapped (Explore digest + reading `localcheck_resume*.go`): resume is suite-only in ~13 places; a v3 link with
   `check: affected` would make an older sdlc mark the whole store snapshot incomplete (decodeResumeEvidence fails and
