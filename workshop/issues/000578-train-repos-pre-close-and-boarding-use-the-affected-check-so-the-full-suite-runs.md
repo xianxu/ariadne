@@ -75,7 +75,7 @@ Tasks:
 - [x] Refusals and VERIFIED example via `preCloseCheck`; their tests assert affected in a train repo, suite elsewhere.
 - [x] tl-worker help.md + rules.tsv + main_test/drain_test phrases; AGENTS.base.md §5 (base layer; regenerate
       AGENTS.md/CLAUDE.md); atlas `sdlc-binary.md` local-check section.
-- [ ] Targeted tests, recorded suite (ariadne: no trains, so `--pre-close` resolves to suite), close.
+- [x] Targeted tests, recorded suite (ariadne: no trains, so `--pre-close` resolves to suite), close.
 
 ARCH-EVOLVE/FUNERAL: no persisted format, nothing durable created. ARCH-ORDER: holds no state between events; the
 resolution is read once per command from main. ARCH-CONSTRAINTS: two `git show` reads per run.
