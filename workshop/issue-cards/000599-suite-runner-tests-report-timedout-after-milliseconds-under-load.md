@@ -1,6 +1,6 @@
 ---
 id: 000599
-status: working
+status: codecomplete
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: N/A
+tracker:
+    version: 1
+    completion:
+        token: close-b6b97c9b9825
+        repository: github.com/xianxu/ariadne
+        reviewed_head: a2f195e26057396982fdc9666f165d5ae6a8a261
+        evidence_commit: 851e446eb9fb82522f876409b97e9e801a66720e
 ---
 
 # Suite-runner tests report TimedOut after milliseconds under load
