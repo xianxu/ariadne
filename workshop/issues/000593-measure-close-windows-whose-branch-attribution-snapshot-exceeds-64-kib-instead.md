@@ -1,13 +1,13 @@
 ---
 id: 000593
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
 severity: high
-card_mirror: '49757d89b05f3b8b548bbf06982ea695c3e917d2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f79e36068004e9073e77fd8121dcfacf4fdbeeb6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T04:40:48-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: N/A
 ---
 
 # Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing
