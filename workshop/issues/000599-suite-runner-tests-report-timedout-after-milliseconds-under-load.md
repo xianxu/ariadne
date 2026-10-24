@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a1af2ce4", done: "4447d243"}
 ---
 
 # Suite-runner tests report TimedOut after milliseconds under load
