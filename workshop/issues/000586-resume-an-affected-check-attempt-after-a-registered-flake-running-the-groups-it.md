@@ -1,12 +1,20 @@
 ---
 id: 000586
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
-card_mirror: 'e2d7f6597ea7ef7fab562d72800c0d3ed816a07e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '035e23c253b472fcde9b528908b2873759d506ce' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T22:52:14-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Resume an affected-check attempt after a registered flake, running the groups it never reached
@@ -33,8 +41,20 @@ result for the same head. Refuse, as today, when an unregistered failure remains
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000586-resume-an-affected-check-attempt-after-a-registered-flake-running-the-groups-it-plan.md`
+(full flow; design to the hub for approval before change-code).
+
+- [ ] Shared `affectedRerunBatch` (flake reruns + affected command with empty Go packages and all selected groups)
+- [ ] Inline known-flake step runs the groups (pre-existing gap; `TestAffectedKnownFlakeReruns` changes)
+- [ ] Extract `planAffectedSelection` from `runAffectedCheck`
+- [ ] Version 5 resume link/receipt for affected (`selection` required); proof, retention, old-reader fence
+- [ ] `local-check resume --name affected`: recompute selection, v5 link, batch, scope on the record; tests per Done when
+- [ ] Help + atlas; targeted tests; pre-close check
 
 ## Log
 
 ### 2026-10-23
+- Design mapped (Explore digest + reading `localcheck_resume*.go`): resume is suite-only in ~13 places; a v3 link with
+  `check: affected` would make an older sdlc mark the whole store snapshot incomplete (decodeResumeEvidence fails and
+  decodeUnsupportedProof needs version > 4), so affected links are version 5 (ARCH-EVOLVE). Nothing records which
+  groups ran, so the resume reruns every selected group. Same-class gap in the inline step folded in (ARCH-PURPOSE).
