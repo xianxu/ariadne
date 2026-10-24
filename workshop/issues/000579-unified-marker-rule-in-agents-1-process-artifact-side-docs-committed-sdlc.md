@@ -1,13 +1,13 @@
 ---
 id: 000579
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '8736228a3a72ab9975e8e25a57238031fabffba9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'eb57e01d276ffb0223188fbef2f2ce5518fb0d32' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T16:38:06-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.69
 ---
 
 # Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files
