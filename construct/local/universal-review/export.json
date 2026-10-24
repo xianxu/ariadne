@@ -12,14 +12,14 @@
       "role": "grammar",
       "path": "review-convention.md",
       "source": "construct/local/fix/review-convention.md",
-      "bytes": 9952,
-      "sha256": "2e09e11ec149e91169ff7caa2d468728d4c950508898c9ca756a75b1af3821ce"
+      "bytes": 10513,
+      "sha256": "076edec6582f72f4a5f9b5c06b02d6b451b9c18623a515f6c8f0bd679cf7e465"
     },
     {
       "role": "collaboration-modes",
       "path": "collaboration-modes.md",
-      "bytes": 30341,
-      "sha256": "846f6484aad5b310f062dc796c9b7aaafe0976810a3fe3ab31650f0bf63e7d54"
+      "bytes": 30787,
+      "sha256": "568aa1d42663c4aa94ad53bb1334728942792cba9491832943d3f621dc7ef28f"
     },
     {
       "role": "adapter",

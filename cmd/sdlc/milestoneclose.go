@@ -59,6 +59,7 @@ type milestoneCloseFlags struct {
 	NoPlanCheck bool
 	NoProject   bool
 	NoIntegrate bool
+	NoSideLinks bool
 }
 
 // reviewResult bundles the outputs of the post-milestone judge call that
@@ -124,6 +125,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "skip the project update entirely: no task tick, detail block or peer publish (#308)")
 	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
+	cmd.Flags().BoolVar(&f.NoSideLinks, "no-side-links", false, "bypass the refusal of links to uncommitted or git-ignored files (#579)")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -154,6 +156,7 @@ func (f *milestoneCloseFlags) closeFlags() *closeFlags {
 		NoPlanCheck:   f.NoPlanCheck,
 		NoProject:     f.NoProject,
 		NoIntegrate:   f.NoIntegrate,
+		NoSideLinks:   f.NoSideLinks,
 	}
 }
 

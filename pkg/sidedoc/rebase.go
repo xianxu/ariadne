@@ -42,18 +42,12 @@ func MoveUnder(p, fromRoot, toRoot string) (string, bool) {
 // spans. A target found under neither its old nor its new name is returned in
 // dangling, as written, and left unchanged. Nothing changes when nothing moved.
 func RebaseLinks(text, from, to string, moved func(string) (string, bool), exists func(string) bool) (out string, dangling []string) {
-	rebase := func(target string) string {
-		p, frag, hasFrag := strings.Cut(target, "#")
-		if hasFrag {
-			frag = "#" + frag
-		}
-		if p == "" || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
-			return target // a fragment, an absolute path, a URL or scheme
-		}
-		at := path.Join(path.Dir(from), p)
-		if at == ".." || strings.HasPrefix(at, "../") {
+	rebase := func(_ int, target string) string {
+		at, frag, ok := localPath(from, target)
+		if !ok {
 			return target
 		}
+		p, _, _ := strings.Cut(target, "#")
 		next, isMoved := moved(at)
 		if !isMoved {
 			next = at
@@ -74,19 +68,68 @@ func RebaseLinks(text, from, to string, moved func(string) (string, bool), exist
 		}
 		return rel + frag
 	}
+	return eachTarget(text, rebase), dangling
+}
+
+// LocalLink is one relative link of a document: its target as written, and
+// the root-relative slash path it names (the #fragment dropped).
+type LocalLink struct {
+	Target string
+	Path   string
+	Line   int // 1-based
+}
+
+// LocalLinks is every relative link a document at root-relative path from
+// carries, in order: the targets RebaseLinks would rewrite (inline links and
+// images, reference definitions and the frontmatter's `parent:`), outside
+// fenced code and code spans. URLs, absolute paths, bare fragments and
+// targets that leave the root are not local (#579).
+func LocalLinks(text, from string) []LocalLink {
+	var out []LocalLink
+	eachTarget(text, func(line int, target string) string {
+		if at, _, ok := localPath(from, target); ok {
+			out = append(out, LocalLink{Target: target, Path: at, Line: line + 1})
+		}
+		return target
+	})
+	return out
+}
+
+// localPath resolves a link target written in the document at from to a
+// root-relative slash path, keeping its #fragment apart; ok is false for a
+// target that is not a local path.
+func localPath(from, target string) (at, frag string, ok bool) {
+	p, frag, hasFrag := strings.Cut(target, "#")
+	if hasFrag {
+		frag = "#" + frag
+	}
+	if p == "" || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
+		return "", "", false // a fragment, an absolute path, a URL or scheme
+	}
+	at = path.Join(path.Dir(from), p)
+	if at == ".." || strings.HasPrefix(at, "../") {
+		return "", "", false
+	}
+	return at, frag, true
+}
+
+// eachTarget passes every link target outside code, with its 0-based line,
+// to fn, and returns text with each target replaced by fn's answer.
+func eachTarget(text string, fn func(line int, target string) string) string {
 	literal, _ := CodeLiteralMask(text)
 	lines := strings.Split(text, "\n")
 	front := frontLines(lines)
 	offset := 0
 	for i, line := range lines {
+		at := func(target string) string { return fn(i, target) }
 		if i > 0 && i < front {
-			lines[i] = rebaseParent(line, rebase)
+			lines[i] = rebaseParent(line, at)
 		} else if i >= front {
-			lines[i] = rebaseLine(line, literal[offset:offset+len(line)], rebase)
+			lines[i] = rebaseLine(line, literal[offset:offset+len(line)], at)
 		}
 		offset += len(line) + 1
 	}
-	return strings.Join(lines, "\n"), dangling
+	return strings.Join(lines, "\n")
 }
 
 // frontLines is the number of lines the leading frontmatter block spans,

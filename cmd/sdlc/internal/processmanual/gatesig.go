@@ -100,6 +100,10 @@ var GateCatalog = []GateSig{
 	{Commands: closeMclose, Flag: "no-plan-check", Gate: "## Plan has no unchecked items", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-plan-check \(or --force\): closing .* with \d+ unchecked`,
 		RefusalPat: `pass --no-plan-check, or --force, to close anyway`},
+	// #579: a link from the issue, its plans or its projects to an uncommitted or ignored file.
+	{Commands: closeMclose, Flag: "no-side-links", Gate: "links name committed files (#579)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-side-links \(or --force\): skipping the side-link check`,
+		RefusalPat: `links to files that will not reach the repository:`},
 	// #308: --no-project skips the whole project update (tick, detail block, peer
 	// publish), announced by an info line; --force alone only waives the block.
 	{Commands: closeMclose, Flag: "no-project", Gate: "project update (tick, detail block, peer publish)", Grammar: grammarCinfo, HasRefusal: true, RefusalNamesFlag: true,
@@ -141,6 +145,9 @@ var GateCatalog = []GateSig{
 	{Commands: []string{"change-code"}, Flag: "no-structural", Gate: "structural sanity", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `structural gate bypassed \(--force:`,
 		RefusalPat: `structural-sanity gates failed:`},
+	{Commands: []string{"change-code"}, Flag: "no-side-links", Gate: "links name committed files (#579)", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `side-links gate bypassed \(--force:`,
+		RefusalPat: `side-links gate failed:`},
 	{Commands: []string{"change-code"}, Flag: "no-estimate", Gate: "estimate_hours present (#113)", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `estimate gate bypassed \(--force:`,
 		RefusalPat: `estimate gate failed:`},
