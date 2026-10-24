@@ -1,13 +1,21 @@
 ---
 id: 000593
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
 severity: high
-card_mirror: 'efd982ce1c4df8b21ebb0b885d85d15493ce1c58' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '49757d89b05f3b8b548bbf06982ea695c3e917d2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T04:40:48-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing
@@ -77,8 +85,17 @@ by `SnapshotLimitSources` should fail serialization.
 
 ## Plan
 
-- [ ]
+Durable plan: workshop/plans/000593-measure-close-windows-whose-branch-attribution-snapshot-exceeds-64-kib-instead-plan.md (D1 to D3, approved by the TL on 2026-10-24).
+
+- [ ] Write failing tests: round-trip, bad index, the #586 shape, 128 sources, the counted refusal, v3 replay, the older-reader refusal, unknown members
+- [ ] Add the v4 wire types and compactBranches / expandBranches
+- [ ] Add the version-aware bound, the structural cap and the counted refusal, and swap the codec's v4 branches member
+- [ ] Make the writer emit version 4
+- [ ] Update the docs: the sdlc actual help
+- [ ] Re-measure #586 with the built binary
 
 ## Log
 
 ### 2026-10-24
+
+- Claimed and planned from ariadne:2 after #586 landed. The TL approved the plan over Couch. Version 4 alone marks the compact form; the branch method names are unchanged, because version names the encoding and method names the interpretation.
