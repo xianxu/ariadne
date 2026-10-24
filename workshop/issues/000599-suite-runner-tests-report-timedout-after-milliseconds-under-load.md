@@ -138,3 +138,21 @@ timeout verdict must be taken from the command's own end):
   fails "slow setup"; the verdict read after bookkeeping fails "slow
   bookkeeping". The graph-prepare change has no load-independent test (no seam
   can delay its teardown without changing `Run`'s result); it is one condition.
+- Close review round 1 (FIX-THEN-SHIP), all three fixed:
+  - BR-2: the "no seam" claim above was wrong. `prepareAffectedGraph` now calls
+    `d.runPhase("ran")` after teardown, and
+    `TestAffectedGraphPreparationSuccessOutlivesItsDeadline` pins a success
+    that outlives its deadline and a real overrun; dropping the
+    `err != nil &&` guard fails it.
+  - BR-1: the #596 note is on main in 5ee14b6b8 (`sdlc issue publish`, which
+    takes this branch's copy back, so the branch head does not carry it; it
+    arrives with the next main merge).
+  - Minor (class sweep): `localchecks_make.go`'s make probe had the same
+    post-hoc `ctx.Err()` override and gets the same guard. `helper_refresh.go`
+    only downgrades an optional refresh to a warning, so it is outside the class.
+
+## Revisions
+
+- 2026-10-24 (close review round 1): the class sweep adds the make probe
+  (`localchecks_make.go`), and the graph-preparation test is delivered through
+  the phase seam rather than left to review.

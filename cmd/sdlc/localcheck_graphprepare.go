@@ -31,7 +31,10 @@ func prepareAffectedGraph(ctx context.Context, d localRunDeps, dir string, p *af
 	fmt.Fprintf(d.Stderr, "==> affected graph preparation: %q\n", p.Command)
 	err := cmd.Run()
 	_ = processgroup.Terminate(cmd, true)
-	// A command that succeeded stands, even if the deadline passed after it (#599).
+	d.runPhase("ran")
+	// A command that succeeded stands, even if the deadline passed after it
+	// (#599). A cancellation arriving after it is left to the affected run that
+	// follows, which sees the same canceled context.
 	if err != nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}

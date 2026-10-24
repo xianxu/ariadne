@@ -102,7 +102,8 @@ func probeMakeTestFactsContext(ctx context.Context, dir string) (has bool, weigh
 	// A parent can exit before children close inherited pipes. WaitDelay
 	// bounds the drain; terminate any remaining group members as well.
 	_ = processgroup.Terminate(cmd, true)
-	if ctx.Err() != nil {
+	// A probe that succeeded stands, even if the deadline passed after it (#599).
+	if err != nil && ctx.Err() != nil {
 		return false, 0, fmt.Errorf("make probe interrupted: %w", ctx.Err())
 	}
 	if err != nil {

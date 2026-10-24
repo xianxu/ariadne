@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 )
 
 // #599: a check's deadline bounds its commands alone. Setup before them is not
@@ -61,5 +63,25 @@ func TestDeadlineStopped(t *testing.T) {
 	}
 	if deadlineStopped(errors.New("x"), errors.Join(context.DeadlineExceeded)) != true {
 		t.Error("a wrapped deadline is still the deadline")
+	}
+}
+
+// #599: a graph preparation that succeeded stands, even when its deadline
+// passes during the teardown after it.
+func TestAffectedGraphPreparationSuccessOutlivesItsDeadline(t *testing.T) {
+	d, _, _, _ := localRunRepo(t, "acquired")
+	d.minute = 200 * time.Millisecond
+	d.phaseHook = func(phase string) {
+		if phase == "ran" {
+			time.Sleep(3 * d.minute)
+		}
+	}
+	p := &affected.Preparation{Command: []string{"true"}, TimeoutMinutes: 1}
+	if err := prepareAffectedGraph(context.Background(), d, t.TempDir(), p); err != nil {
+		t.Fatalf("a successful preparation became %v", err)
+	}
+	p.Command = []string{"sleep", "30"}
+	if err := prepareAffectedGraph(context.Background(), d, t.TempDir(), p); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("a real overrun is not the deadline: %v", err)
 	}
 }
