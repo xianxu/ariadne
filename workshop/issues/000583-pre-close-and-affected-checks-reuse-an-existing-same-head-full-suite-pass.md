@@ -1,12 +1,12 @@
 ---
 id: 000583
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
-card_mirror: 'aaca90a4a83f4187987eba06c79640bc895884df' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c3063c5f253041d6b7e9b63d5b89984e2ee6ae34' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T20:24:51-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "de8d12eb", done: "9787f76c"}
+actual_hours: 0.15
 ---
 
 # Pre-close and affected checks reuse an existing same-head full-suite pass instead of queueing a new full run
