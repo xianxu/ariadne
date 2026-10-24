@@ -42,3 +42,11 @@ Fix, in two parts:
 ## Log
 
 ### 2026-10-23
+
+## Log
+
+- 2026-10-23 (ops:0, from echo#32's investigation): PostgreSQL always allocates one 56-byte SysV interlock segment,
+  even with `shared_memory_type=mmap`; its id is on `postmaster.pid` line 7. A clean or SIGQUIT stop removes it; a
+  SIGKILLed postmaster leaks it (that was the 31 of 32). A leak report can name the culprit: `ipcs -m -p` gives each
+  segment's creator PID (CPID), the postmaster, so record the process name and the run with the ids. echo#32 stops
+  clusters with SIGQUIT first, SIGKILL only after 5 s, and tests that each cluster's own segment is gone.
