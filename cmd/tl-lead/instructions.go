@@ -109,8 +109,8 @@ var errAlreadyLinked = errors.New("already answered")
 func linkBullet(section string, pos int, target string, legacy bool) (string, error) {
 	// The target lands inside the operator's section as a link: whitespace
 	// could start a new line (even a fake bullet) and a paren would end the
-	// link early.
-	if target == "" || strings.ContainsAny(target, "()") || strings.IndexFunc(target, unicode.IsSpace) >= 0 {
+	// link early. The reader answers an item only by such a target (#581).
+	if !sidedoc.ValidAnswerTarget(target) {
 		return "", fmt.Errorf("refused: TARGET %q must be a relative path with no whitespace or parentheses", target)
 	}
 	bs := sidedoc.ChatItems(section, legacy)

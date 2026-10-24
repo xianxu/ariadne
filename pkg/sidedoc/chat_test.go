@@ -29,6 +29,19 @@ func TestChatSections(t *testing.T) {
 			want: []sec{{4, 7, "tag", false}},
 		},
 		{
+			// #581 (parley.nvim#419): a closed header that frontmatter() refuses
+			// declares nothing; the body after it parses at its real lines.
+			name:    "tag and heading inside an unread header (spaced closing fence)",
+			doc:     "---\ntitle: x\n@@chat@@\n## Notes\n ---\nprose 🤖[why?]\n@@chat@@\n## Ops\n1. a\n",
+			want:    []sec{{8, 9, "tag", false}},
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name:    "tag and heading inside an unread header (CR line endings)",
+			doc:     "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\nprose\r\n",
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
 			name: "tag with surrounding spaces",
 			doc:  "  @@chat@@  \n## Ops\n1. a\n",
 			want: []sec{{2, 3, "tag", false}},
@@ -313,6 +326,36 @@ func TestChatItems(t *testing.T) {
 	// The blank line then prose ends item 2; its follow-up line stays in it.
 	if items := ChatItems(section, false); len(items[1].Lines) != 2 || !strings.Contains(items[1].Lines[1], "follow-up") {
 		t.Errorf("item 2 lines %q", items[1].Lines)
+	}
+}
+
+// #581: an item is answered only by a link whose destination a writer could
+// produce (ValidAnswerTarget), so a malformed one leaves the ask open.
+func TestChatItemsAnsweredNeedsAValidTarget(t *testing.T) {
+	for _, tc := range []struct {
+		line string
+		want bool
+	}{
+		{"1. why? → [answer](a/b.md)", true},
+		{"1. why? → [answer](a/b.md)  ", true},
+		{"1. why? → [answer](broken path)", false},
+		{"1. why? → [answer]()", false},
+		{"1. why? → [answer](a\u00a0b.md)", false}, // a no-break space is whitespace too
+		{"1. why? → [answer](a b.md)", false},
+		{"1. why? → [answer](broken path) → [answer](a.md)", true},
+		{"1. why? → done: filed", true},
+	} {
+		if got := ChatItems(tc.line+"\n", false)[0].Answered; got != tc.want {
+			t.Errorf("%q answered = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+	for _, target := range []string{"", "a b", "a(b", "a)b", "a\tb", "a" + "\u00a0" + "b"} {
+		if ValidAnswerTarget(target) {
+			t.Errorf("ValidAnswerTarget(%q) = true", target)
+		}
+	}
+	if !ValidAnswerTarget("session.side/2026-10/2026-10-23-01-x.md") {
+		t.Error("a side-doc path is not a valid target")
 	}
 }
 

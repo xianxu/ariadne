@@ -57,16 +57,16 @@ after it are ordinary commands and questions.
 
 ## Plan
 
-- [ ] `sidedoc.ValidAnswerTarget(target string) bool` (nonempty, no `unicode.IsSpace`, no parens). `answeredItem`
+- [x] `sidedoc.ValidAnswerTarget(target string) bool` (nonempty, no `unicode.IsSpace`, no parens). `answeredItem`
       captures the destination (`→\s*\[answer\]\(([^)]*)\)\s*$`) and the function decides; `done:` unchanged.
       tl-lead `linkBullet` refuses with `!sidedoc.ValidAnswerTarget` (ARCH-DRY). Tests: ChatItems rows; a tl-lead
       test that every target `linkBullet` accepts reads back as answered and every refused one reads open.
-- [ ] `chatSections`: when `FrontBlock` is closed and `frontmatter()` refused it, the body (for headings, tags and
+- [x] `chatSections`: when `FrontBlock` is closed and `frontmatter()` refused it, the body (for headings, tags and
       the code mask) starts after the block, so nothing inside is a declaration. ChatSections table rows.
-- [ ] Fixture cases `chat-answer-invalid` (a `@@chat@@` item ending `→ [answer](broken path)` gets its first real
+- [x] Fixture cases `chat-answer-invalid` (a `@@chat@@` item ending `→ [answer](broken path)` gets its first real
       link) and `frontmatter-unread-tag` (spaced closing fence over a tag and heading; the body marker opens a side
       doc; the reply carries the notice); add both to `exportedCases` and README's table; regenerate `export.json`.
-- [ ] collaboration-modes.md §3 states the destination rule and the header rule.
+- [x] collaboration-modes.md §3 states the destination rule and the header rule.
 - [ ] Targeted tests (`./pkg/... ./cmd/tl-lead/`), recorded suite, close, land; send the revision to pair:3 and
       parley.nvim:3.
 
@@ -78,3 +78,13 @@ holds no state and creates nothing durable.
 ## Log
 
 ### 2026-10-23
+
+- Implemented: `ValidAnswerTarget` + `answered()` in `pkg/sidedoc/chat.go`; `linkBullet` refuses with it;
+  `chatSections` starts the body after an unread closed header. Tests: `TestChatItemsAnsweredNeedsAValidTarget`,
+  two `TestChatSections` rows (spaced closing fence, CR endings), `TestLinkBulletAgreesWithTheReader`; fixtures
+  `chat-answer-invalid` and `frontmatter-unread-tag` exported (export.json regenerated; 15 exported cases).
+- The examples checker refused the unread header's index read on every document; narrowed to documents that link
+  a side doc, since an unread header can hold no index (a round there can only edit). That gap (a question marker
+  in such a document) is not specified by collaboration-modes.md; noted, not widened here.
+- `pkg/golint` socket test fails only inside the sandbox, as before.
+

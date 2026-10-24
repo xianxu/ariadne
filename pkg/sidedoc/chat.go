@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -134,12 +135,16 @@ func chatSections(doc string) (ChatScan, int) {
 	// closed leading fence block exists but was not read, say so, so a legacy
 	// chat never vanishes silently. A document that merely opens with a
 	// thematic break has no such block and gets no notice.
-	if _, _, fenced := FrontBlock(doc); fenced && !hasFM {
-		scan.Notices = append(scan.Notices, unreadFrontmatter)
-	}
 	bodyStart := 1 // the body's first line, 1-based
 	if hasFM {
 		bodyStart = len(fm) + 3 // the two fences and the frontmatter lines
+	}
+	if block, rest, fenced := FrontBlock(doc); fenced && !hasFM {
+		scan.Notices = append(scan.Notices, unreadFrontmatter)
+		// An unread header is still a header (#581, parley.nvim#419): a tag or
+		// heading inside it declares nothing, so the body starts after it.
+		bodyStart = strings.Count(block, "\n") + 2
+		body = strings.TrimPrefix(strings.TrimPrefix(rest, "\r"), "\n")
 	}
 	scalarChat, mapNames := scan.readFrontmatter(fm)
 	work += len(mapNames)
@@ -364,8 +369,27 @@ type ChatItem struct {
 var (
 	numberedItemStart = regexp.MustCompile(`^\d+\.\s`)
 	legacyItemStart   = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
-	answeredItem      = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
+	answeredLink      = regexp.MustCompile(`→\s*\[answer\]\(([^)]*)\)\s*$`)
+	answeredDone      = regexp.MustCompile(`→\s*done:`)
 )
+
+// ValidAnswerTarget is the one rule for an answer link's destination (#581):
+// nonempty, with no whitespace and no parentheses, so it is a well-formed
+// Markdown destination that cannot end the link early or start a new line.
+// tl-lead's linkBullet writes only such targets, and ChatItems counts an
+// item answered only by one, so a malformed link leaves the ask open.
+func ValidAnswerTarget(target string) bool {
+	return target != "" && !strings.ContainsAny(target, "()") && strings.IndexFunc(target, unicode.IsSpace) < 0
+}
+
+// answered reports whether one line answers its item: an answer link to a
+// valid target ending it, or the TL's older `→ done:`.
+func answered(line string) bool {
+	if m := answeredLink.FindStringSubmatch(line); m != nil && ValidAnswerTarget(m[1]) {
+		return true
+	}
+	return answeredDone.MatchString(line)
+}
 
 // ChatItems splits a chat section's text into its items, by the grammar of
 // collaboration-modes.md §3: a `N.` line at the section's shallowest list
@@ -375,6 +399,7 @@ var (
 // followed by prose indented no deeper than that indent (prose belongs to no
 // item). Code (fenced or indented, by CommonMark via CodeLines) starts no
 // item; a tab indents to the next multiple of four. Trailing blank lines are dropped. An item is answered by a link
+// to a valid target (ValidAnswerTarget)
 // ending any of its lines outside fences, so a follow-up added after the link
 // keeps it answered; `→ done:` is the TL's older form. It is one linear pass
 // over the section, the shared grammar of the review checker, tl-lead and
@@ -435,7 +460,7 @@ func chatItems(section string, legacy bool) ([]ChatItem, int) {
 			it.Lines = it.Lines[:len(it.Lines)-1]
 		}
 		for j, l := range it.Lines {
-			if !fenced[it.Start+j] && answeredItem.MatchString(l) {
+			if !fenced[it.Start+j] && answered(l) {
 				it.Answered = true
 			}
 		}

@@ -375,3 +375,22 @@ func TestInstructionsGrammarThroughTheFake(t *testing.T) {
 		}
 	})
 }
+
+// #581: writer and reader share one target rule, so every target link
+// writes reads back as answered and every one it refuses would read open.
+func TestLinkBulletAgreesWithTheReader(t *testing.T) {
+	for _, target := range []string{"a.md", "s.side/2026-10/2026-10-23-01-x.md", "", "a b.md", "a(b).md", "a\tb.md", "a b.md"} {
+		section := "1. why?\n"
+		body, err := linkBullet(section, 1, target, false)
+		written := err == nil
+		if written != sidedoc.ValidAnswerTarget(target) {
+			t.Errorf("%q: linkBullet wrote %v, ValidAnswerTarget %v", target, written, !written)
+		}
+		if !written {
+			body = strings.TrimSuffix(section, "\n") + " → [answer](" + target + ")\n"
+		}
+		if got := sidedoc.ChatItems(body, false)[0].Answered; got != written {
+			t.Errorf("%q: reads answered %v, written %v", target, got, written)
+		}
+	}
+}
