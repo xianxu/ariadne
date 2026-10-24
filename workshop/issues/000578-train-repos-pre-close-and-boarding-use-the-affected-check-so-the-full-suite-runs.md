@@ -93,6 +93,7 @@ resolution is read once per command from main. ARCH-CONSTRAINTS: two `git show` 
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — targeted: TestPreCloseCheck, TestResolvePreCloseCheck (pair shape -> affected; ariadne, serial, unreadable -> suite), TestLocalCheckCmdPreClose, TestPreCloseFlagExcludesAChosenCheck, TestLandingTrainLandsEveryCarOnOneSuite/affected boarding counts exactly one physical suite attempt, refusal and help tests name --pre-close, tl-worker tests pin the per-repo rule; round 1 BR-1/BR-2 swept README, atlas and the embedded local-check help; recorded suite queued on 09734407 (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Implemented: `preCloseCheck`/`resolvePreCloseCheck` (`cmd/sdlc/precloseck.go`), `--pre-close` on
   `local-check run` (exclusive with --name/--all/--boarding). The code-conflict refusals and close's VERIFIED
