@@ -1986,6 +1986,17 @@ The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
 
+The snapshot's branch evidence (#580) is written at measurement version 4
+(#593). `gatestate/measurement_branch_v4.go` is the compact wire form: an
+attribution interval names its source by index into `sources` and inherits its
+capture's branch, and the codec expands it to the same in-memory evidence a
+version 3 snapshot holds. The bound depends on the version
+(`measurementSnapshotLimit`): 64 KiB through version 3, 128 KiB for version 4,
+so `SnapshotLimitSources` binds before bytes do. `Validate` refuses an
+oversized snapshot with its size and its source and interval counts. A separate
+512 KiB structural cap only bounds the codec's parse cost. Version 3 snapshots
+replay unchanged, and pre-#593 readers refuse version 4 by version.
+
 Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
 owns versioned start/bind/end facts under the existing ticket/head lifetime and
 pure `ReduceWaitEvidence`. `landingqueue.go` records exact owner boundaries and
