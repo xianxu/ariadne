@@ -73,7 +73,7 @@ func Compile(cfg Config, sidecars []SidecarFile) (Mapping, error) {
 			continue
 		}
 		for _, p := range r.paths {
-			if strings.ContainsAny(p, "*?[\\") {
+			if hasGlobMeta(p) {
 				m.globbed = append(m.globbed, globRef{rule: i, glob: p, literal: literalPrefix(p)})
 				continue
 			}
@@ -141,13 +141,16 @@ func stripTarget(s Strip, p string) (string, bool) {
 	return t, true
 }
 
+// hasGlobMeta reports whether s holds a character path.Match treats specially.
+func hasGlobMeta(s string) bool { return strings.ContainsAny(s, "*?[\\") }
+
 // literalPrefix is a glob's leading glob-free segments with their slashes ("a/b/*.go" → "a/b/"): a cheap filter
 // before Match, never a substitute for it.
 func literalPrefix(glob string) string {
 	segs := strings.Split(glob, "/")
 	n := 0
 	for _, seg := range segs[:len(segs)-1] {
-		if strings.ContainsAny(seg, "*?[\\") {
+		if hasGlobMeta(seg) {
 			break
 		}
 		n += len(seg) + 1
@@ -199,9 +202,15 @@ func (c claim) claimed() bool { return len(c.pkgs) > 0 || len(c.groups) > 0 }
 
 // claimPath classifies p, `full` aside: the graph's owners, the groups whose paths match, and — for a changed path,
 // not a declared target (one level) — every declared rule matching it. A declared root that is not a package, a
-// target the strip cannot derive, a target matching `full`, and a target that claims nothing make it full.
+// target the strip cannot derive, a target matching `full`, and a target that claims nothing make it full. The first
+// such reason is kept, but every claim is still collected: Owned's evidence never depends on rule order.
 func claimPath(p string, g Graph, byDir map[string]string, cfg Config, m Mapping, declared bool) claim {
 	c := claim{pkgs: map[string]bool{}, groups: map[string]bool{}}
+	fail := func(reason string) {
+		if c.full == "" {
+			c.full = reason
+		}
+	}
 	for _, pkg := range g.owners(byDir, p) {
 		c.pkgs[pkg] = true
 	}
@@ -209,8 +218,8 @@ func claimPath(p string, g Graph, byDir map[string]string, cfg Config, m Mapping
 		for _, pat := range gr.Paths {
 			ok, err := Match(pat, p)
 			if err != nil {
-				c.full = fmt.Sprintf("group %s: bad glob %q: %v", gr.Name, pat, err)
-				return c
+				fail(fmt.Sprintf("group %s: bad glob %q: %v", gr.Name, pat, err))
+				break
 			}
 			if ok {
 				c.groups[gr.Name] = true
@@ -223,46 +232,40 @@ func claimPath(p string, g Graph, byDir map[string]string, cfg Config, m Mapping
 	}
 	rules, err := m.matching(p)
 	if err != nil {
-		c.full = err.Error()
-		return c
+		fail(err.Error())
 	}
 	for _, i := range rules {
 		r := m.rules[i]
 		for _, root := range r.goRoot {
-			pkg, ok := byDir[goRootDir(root)]
-			if !ok {
-				c.full = fmt.Sprintf("%s: %s is not a package", r.source, root)
-				return c
+			if pkg, ok := byDir[goRootDir(root)]; ok {
+				c.pkgs[pkg] = true
+			} else {
+				fail(fmt.Sprintf("%s: %s is not a package", r.source, root))
 			}
-			c.pkgs[pkg] = true
 		}
 		targets := r.as
 		if r.strip != nil {
 			t, ok := stripTarget(*r.strip, p)
 			if !ok {
-				c.full = fmt.Sprintf("%s: no target derives from %s", r.source, p)
-				return c
+				fail(fmt.Sprintf("%s: no target derives from %s", r.source, p))
+				continue
 			}
 			targets = []string{t}
 		}
 		for _, t := range targets {
 			isFull, err := fullMatch(cfg, t)
-			if err != nil {
-				c.full = err.Error()
-				return c
-			}
-			if isFull {
-				c.full = fmt.Sprintf("%s (declared by %s for %s)", t, r.source, p)
-				return c
+			switch {
+			case err != nil:
+				fail(err.Error())
+			case isFull:
+				fail(fmt.Sprintf("%s (declared by %s for %s)", t, r.source, p))
 			}
 			tc := claimPath(t, g, byDir, cfg, m, false)
 			if tc.full != "" {
-				c.full = tc.full
-				return c
+				fail(tc.full)
 			}
 			if !tc.claimed() {
-				c.full = fmt.Sprintf("%s: target %s of %s claims nothing", r.source, t, p)
-				return c
+				fail(fmt.Sprintf("%s: target %s of %s claims nothing", r.source, t, p))
 			}
 			for k := range tc.pkgs {
 				c.pkgs[k] = true
@@ -291,7 +294,7 @@ func fullMatch(cfg Config, p string) (bool, error) {
 
 // Owned returns every package a change to p can break, declared ownership included (#598): what Plan's claim step
 // selects for p, sorted. splitImpact's uncertain fallback uses it, so landing attribution sees what selection sees.
-// A path whose declaration makes the selection full still returns the packages it claimed before that.
+// A path whose declaration makes the selection full still returns every package it claims.
 func Owned(p string, g Graph, cfg Config, m Mapping) []string {
 	return sortedKeys(claimPath(p, g, g.byDir(), cfg, m, true).pkgs)
 }

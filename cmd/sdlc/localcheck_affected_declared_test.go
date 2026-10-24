@@ -102,3 +102,28 @@ func TestAffectedDeclaredMalformedSidecarRunsTheSuite(t *testing.T) {
 		t.Fatalf("the fallback does not name the sidecar:\n%s", d.Stderr)
 	}
 }
+
+// A mapping load the caller cancels is an interruption: no fallback suite, no boarding refusal, nothing run or posted.
+func TestAffectedDeclaredMappingCancelled(t *testing.T) {
+	for _, mode := range []affectedExecutionMode{affectedOrdinary, affectedBoarding} {
+		d, _, change, out, marker := affectedFixture(t)
+		sha := change(map[string]string{"leaf/leaf.go": "package leaf\n\nfunc F() int { return 4 }\n"})
+		cfg, err := affected.ParseConfig([]byte(declaredFixtureConfig))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		ad := productionAffectedDeps(d, "main", cfg)
+		ad.mapping = func(context.Context) (affected.Mapping, error) {
+			cancel()
+			return affected.Mapping{}, context.Canceled
+		}
+		_, err = runAffectedCheck(ctx, d, ad, cfg, affectedFixtureSuite, sha, mode)
+		if err == nil || !strings.Contains(err.Error(), "declared ownership interrupted") || strings.Contains(err.Error(), "boarding refused") {
+			t.Fatalf("mode %d: err = %v", mode, err)
+		}
+		if exists(marker) || exists(out) {
+			t.Fatalf("mode %d: something ran after cancellation", mode)
+		}
+	}
+}

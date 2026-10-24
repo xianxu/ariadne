@@ -100,6 +100,14 @@ M1 implemented (ariadne:5):
 - Qualification: `TestPairQualification` runs pair's real affected.json (pair 93a57a380, copied to testdata) with pair#853's edits, plus pair#825's real request_lifetime certificate. The certificate selects agentfixture and its dependents; couch test edits select couch; policy, selector, harness and couch production code stay full.
 - Tests: the affected package with fuzz targets (20s each, clean); gitx; `cmd/sdlc` -run Affected|SplitImpact|LocalCheckResume|Boarding|GraphPrepare|CarCIGate|PreClose|Attribution, all passing.
 
+M1 boundary review, round 1 (REWORK). All five findings fixed in this round:
+- BR-1: the plan's table and checkboxes had drifted from the code; a plan Revisions entry now records what was built.
+- BR-2: the README's affected paragraph now covers owners, sidecars, `except` and the older-binary fallback.
+- BR-3: a cancelled mapping load is now an interruption (ctx.Err check), tested in ordinary and boarding modes.
+- BR-4: `claimPath` keeps collecting claims after the first full reason, so `Owned` doesn't depend on rule order; tested.
+- BR-5: a shared `hasGlobMeta`.
+- Lesson added to workshop/lessons.md.
+
 ## Revisions
 
 ### 2026-10-24: scope widened by the operator's direction (via ops:0)

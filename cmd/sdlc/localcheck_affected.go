@@ -106,6 +106,10 @@ func planAffectedSelection(ctx context.Context, d localRunDeps, ad affectedDeps,
 		return affected.Selection{Full: true, Reason: "package graph unavailable: " + graphErr.Error()}, nil
 	}
 	m, err := ad.mapping(ctx)
+	if cerr := ctx.Err(); cerr != nil {
+		// A cancelled read is an interruption, never evidence that the declarations are unusable.
+		return affected.Selection{}, fmt.Errorf("local check %s: declared ownership interrupted: %w", affectedCheckName, cerr)
+	}
 	if err != nil {
 		return affected.Selection{Full: true, Reason: "declared ownership unavailable: " + err.Error()}, nil
 	}

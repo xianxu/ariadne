@@ -28,19 +28,20 @@ collaboration-mode: discussion
 | Name | Lives in | Status |
 |------|----------|--------|
 | `Mapping` | `cmd/sdlc/internal/affected/mapping.go` | new |
-| `OwnerRule` | `cmd/sdlc/internal/affected/mapping.go` | new |
+| `ownerRule` (unexported) | `cmd/sdlc/internal/affected/mapping.go` | new |
 | `FullRule` | `cmd/sdlc/internal/affected/config.go` | new |
 | `Config` | `cmd/sdlc/internal/affected/config.go` | modified |
 | `Plan` | `cmd/sdlc/internal/affected/plan.go` | modified |
 | `ParseTraceability` | `cmd/sdlc/internal/affected/traceability.go` | new |
-| `ParseSidecar` | `cmd/sdlc/internal/affected/sidecar.go` | new |
+| `ParseSidecar` | `cmd/sdlc/internal/affected/mapping.go` | new |
+| `claimPath` / `Owned` | `cmd/sdlc/internal/affected/mapping.go` | new |
 | `Missed` | `cmd/sdlc/internal/affected/missed.go` | new |
 
-- **Mapping**: the compiled declarations: `[]OwnerRule`. Built by `Compile(cfg, traceFiles, sidecarFiles)` from already-read bytes; no IO. Tests in `mapping_test.go`.
+- **Mapping**: the compiled declarations: `[]ownerRule`, with exact paths indexed and globbed ones behind a literal prefix. `Compile(cfg, sidecars)` builds it from already-read bytes, with no IO; M2 adds the traceability files. Tests are in `declared_test.go` and `pair_qualification_test.go`.
   - **Relationships:** 1 per (config, base rev); Plan takes it as an argument alongside Graph and Config.
-  - **DRY rationale:** three declaration formats, one consumer. Plan and `splitImpact` ask one function, `Mapping.Targets(path)`, what a path is declared to touch.
-  - **Future extensions:** a new input format is a new compiler into `OwnerRule`, never a planner change.
-- **OwnerRule**: `{Source string; Paths []glob or exact; Go []root; As []path; Strip *{Prefix, Suffix}}`. Exactly one of `Go`, `As` or `Strip` is set.
+  - **DRY rationale:** three declaration formats, one consumer. Plan and `splitImpact` share one claim step, `claimPath` (exported as `Owned` for its packages).
+  - **Future extensions:** a new input format is a new compiler into `ownerRule`, never a planner change.
+- **ownerRule**: `{source; paths []glob or exact (nil for a sidecar convention, matched by prefix/suffix); goRoot; as; strip *Strip}`. Exactly one of `Go`, `As` or `Strip` is set.
   - `Go` names package roots directly.
   - `As` aliases the path to target paths, which are classified by the graph's owners and by group `paths`.
   - `Strip` derives a single alias by removing a prefix and a suffix. The derived path must be clean, relative, have no `..` and be non-empty, or the plan goes full.
@@ -48,17 +49,17 @@ collaboration-mode: discussion
   - An alias target that matches `full` makes the selection full. Precedence stays conservative.
   - `Source` names where the rule came from (`affected.json owners[3]`, `atlas/traceability.yaml chat/spell_typeahead`, or a sidecar's path), for refusals.
 - **FullRule**: a `full` entry may be a glob string (today's form) or `{"glob": G, "except": [globs]}`. A path matching `glob` but also `except` falls through to ordinary classification. This is how pair keeps `cmd/couch/**` full while `cmd/couch/*_test.go` selects only its package.
-- **Config**: gains `owners` (inline rules: `{"paths": [...], "go": [...]}`, `{"paths": [...], "as": [...]}`, or `{"paths": [...], "strip": {"prefix": P, "suffix": S}}`), `traceability` (repo paths of traceability files) and `sidecars` (`[{"prefix": P, "suffix": S}]`). Parsing stays strict and duplicate-key safe.
-- **Plan**: per path, after the `full` check and before the unclaimed test, the path claims through `Mapping.Targets`:
+- **Config**: gains `owners` (inline rules: `{"paths": [...], "go": [...]}`, `{"paths": [...], "as": [...]}`, or `{"paths": [...], "strip": {"prefix": P, "suffix": S}}`), `sidecars` (`[{"prefix": P, "suffix": S}]`). Parsing stays strict and duplicate-key safe.
+- **Plan**: per path, after the `full` check and before the unclaimed test, the path claims through `claimPath`:
   - `Go` roots add packages. A root that is not a package in the head graph makes the plan full, exactly as stale group roots do.
   - `As` and `Strip` targets add the targets' graph owners and group matches. A target that neither claims leaves the path unclaimed, so the plan goes full.
   - Owners then flow into the existing `Dependents` and group-root steps unchanged.
-- **ParseTraceability**: the parley format `version: 1`, `atlas: {key: {code: [..], tests: [..]}}`. Each entry becomes one `OwnerRule{Paths: code, As: tests}`.
+- **ParseTraceability**: the parley format `version: 1`, `atlas: {key: {code: [..], tests: [..]}}`. Each entry becomes one `ownerRule{paths: code, as: tests}`, plus a `traceability` member in Config (M2).
   - Strict: a version other than 1, unknown keys, or a non-string or empty path refuses.
   - Entries without `code`, or without `tests`, contribute nothing; parley's own tooling owns their meaning.
 - **ParseSidecar**: a sidecar at `<prefix><target><suffix>` (pair: `tests/affected-readers/` + `X_test.go` + `.json`) yields:
   1. a `Strip` rule: the sidecar's own path aliases `X`, so a certificate edit selects the test's package. This rule is path-only, so added, deleted and renamed certificates all qualify, including a certificate whose base copy does not exist.
-  2. from a base copy's optional `reads: [glob]` member, `OwnerRule{Paths: reads, As: [X]}`: a change to a declared input selects the test's package.
+  2. from a base copy's optional `reads: [glob]` member, `ownerRule{paths: reads, as: [X]}`: a change to a declared input selects the test's package.
   - ariadne reads only `reads`; every other member (`version`, `disposition`, `sha256`, future fields) is opaque and ignored.
   - ariadne never rewrites sidecars, so preserving those members is pair's tooling's job (ARCH-EVOLVE note below).
   - A malformed `reads` (not an array of valid globs, or a traversal) makes the plan full, naming the sidecar.
@@ -161,10 +162,10 @@ collaboration-mode: discussion
 
 ### M1: owners, full exceptions and sidecars (what pair#853 needs)
 
-- [x] `config.go` (`ParseConfig`): `FullRule`, `owners`, `sidecars` and `traceability`.
+- [x] `config.go` (`ParseConfig`): `FullRule`, `owners` and `sidecars` (`traceability` moved to M2, see Revisions).
   - Strategy: table tests over the strict-parse contract: each new member's valid form, a wrong type, an unknown key and a duplicate key.
   - Plus a fuzz target seeded with today's configs. It asserts that parsing never panics and that a parsed config validates again.
-- [x] `mapping.go` (`Compile`, `Targets`, `Owned`) and `sidecar.go` (`ParseSidecar`, the `Strip` derivation).
+- [x] `mapping.go`: `Compile`, `claimPath`/`Owned`, `ParseSidecar` and the `Strip` derivation.
   - Fuzz `ParseSidecar` and `Strip`, seeded with traversals (`..`, `/abs`, `a//b`, NUL, backslash) and malformed JSON. Assert that every derived target is clean and relative, or that the result is a full reason.
   - A property test: for every path, `Owned` includes everything `Graph.owners` returns, because declarations only add.
 - [x] `plan.go` (`Plan`): one table over the selection contract:
@@ -184,6 +185,7 @@ collaboration-mode: discussion
 
 ### M2: parley-style traceability input
 
+- [ ] `config.go`: the `traceability` member. `Compile` takes a sources struct (sidecars, traceability files) rather than growing one more parameter (M1 review).
 - [ ] `traceability.go` `ParseTraceability` with strict tests: parley's real file as a golden (copied into testdata), a bad version, unknown keys, non-string paths.
 - [ ] Plan tests: a code path selects the test files' package (Go) or group (non-Go `paths` match). A test path that claims nothing goes full, naming the traceability entry.
 - [ ] atlas: the traceability input, and that parley's own `make test-spec` reads the same file unchanged.
@@ -208,3 +210,15 @@ ariadne owns the generic capability: owners, `except`, the sidecar convention wi
 - the sidecar declaration `{"prefix": "tests/affected-readers/", "suffix": ".json"}`.
 
 What each disposition means for selection stays pair's (for example, a `non_go_full_fallback` reader's inputs stay in pair's `full`). ariadne treats the disposition as opaque.
+
+## Revisions
+
+### 2026-10-24: M1 as built (M1 boundary review BR-1)
+
+- `traceability` moved from M1's config row to M2, because M2 waits on the operator's go. M1 parses no member it can't act on.
+- `OwnerRule` is the unexported `ownerRule`. `ParseSidecar` lives in `mapping.go`; there is no `sidecar.go`.
+- The shared lookup is `claimPath`, exported as `Owned`; `Mapping.Targets` does not exist. `claimPath` records the first full reason but keeps collecting claims, so `Owned` doesn't depend on rule order (BR-4).
+- `Compile(cfg, sidecars)` takes two arguments until M2, which switches it to a sources struct.
+- Glob rule paths are scanned behind a literal-prefix prefilter (benchmark: 710 → 33 ms/op).
+- `planAffectedSelection` treats a cancelled mapping load as an interruption, not a full selection (BR-3).
+

@@ -1670,3 +1670,12 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   rendering and saved-proof validation are pure. Check the concrete referents,
   not only table shape. Boundary review owns this prose parity check; wording
   presence tests would not establish semantic correctness.
+
+- #598 M1 BR-1/BR-3: when a milestone's code departs from the durable plan
+  (renamed entities, a field moved to a later milestone, a changed signature),
+  write the plan's `## Revisions` entry and fix the Core concepts table in the
+  same commit as the code. A ticked row must describe what landed. When a new
+  IO seam sits next to an existing one in the same function, copy its
+  interruption handling too: a `ctx.Err()` check after the call, before any
+  error-to-fallback mapping. A cancelled read is not evidence that its input is
+  unusable. Test it through the caller in every mode (ordinary and boarding).

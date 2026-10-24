@@ -922,9 +922,21 @@ Before close, `sdlc local-check run --pre-close` (#578) picks the check for you:
 the landing's one full run; `suite` everywhere else, or when either file is unreadable. It excludes `--name`, `--all`
 and `--boarding`.
 
-Selection follows imports and embeds only. A Go test that scans *other* packages' source, or reads a non-Go file
-outside its own `testdata/` and embeds, is invisible to it, so the repo's affected command or its `full` globs must
-cover such tests (see pair#725). The schema, the classification rules and these blind spots are in [the affected
+Selection follows imports and embeds, plus whatever ownership the repo declares (#598). It cannot see a Go test that
+scans *other* packages' source, or one that reads a non-Go file outside its own `testdata/` and embeds. The repo
+covers those in one of three ways:
+- declare the ownership in `affected.json`:
+  - an `owners` rule maps paths to Go roots (`go`), to target paths (`as`), or to a target derived with
+    `strip` prefix/suffix;
+  - a `sidecars` convention (`{"prefix": "tests/affected-readers/", "suffix": ".json"}`) makes a sidecar's change
+    count as a change to the file it is about, and its optional `reads` globs count as that file's inputs;
+- keep the path in `full`. An entry `{"glob": "cmd/x/**", "except": ["cmd/x/*_test.go"]}` lets the excepted paths
+  fall through to ordinary selection;
+- or run the test from the affected command (see pair#725).
+
+Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
+Older sdlc versions reject these members, which degrades to the suite, so upgrade the provider before adopting them.
+The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and

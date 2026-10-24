@@ -326,3 +326,16 @@ func TestLiteralPrefix(t *testing.T) {
 		}
 	}
 }
+
+// TestOwnedOrderIndependent: a declaration that forces full does not hide a later declaration's packages from Owned.
+func TestOwnedOrderIndependent(t *testing.T) {
+	cfg := testConfig()
+	cfg.Owners = []OwnerDecl{{Paths: []string{"docs/**"}, Go: []string{"./gone"}}, {Paths: []string{"docs/**"}, Go: []string{"./other"}}}
+	mp := declaredMapping(t, cfg)
+	if got := Owned("docs/a.txt", testGraph(), cfg, mp); !reflect.DeepEqual(got, []string{"example.com/m/other"}) {
+		t.Fatalf("Owned = %q", got)
+	}
+	if got := Plan([]string{"docs/a.txt"}, testGraph(), cfg, mp, isDocTest); !reflect.DeepEqual(got, full("affected.json owners[0]: ./gone is not a package")) {
+		t.Fatalf("Plan = %+v", got)
+	}
+}
