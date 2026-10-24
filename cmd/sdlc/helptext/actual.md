@@ -56,12 +56,18 @@ BRANCH ATTRIBUTION IN TRACKER REPOSITORIES (#580)
   with the missing evidence and reason in --verified. No retroactive owner or
   handwritten hours. Unknown competing history prevents sole-claim fallback.
 
-  New branch measurements retain version-3 evidence, original dispatch windows
-  and final selected source windows. Older readers must refuse the new method
-  rather than silently drop a crossing execution span. Existing adopted v1/v2
-  snapshots replay unchanged, even after live HEAD logs expire. The standalone
-  active-time command uses the same tracked defaults; its raw directories and
-  time bounds only narrow verified inputs. No-tracker behavior is unchanged.
+  New branch measurements retain version-4 evidence (#593), original dispatch
+  windows and final selected source windows. Version 4 is version 3's evidence
+  in a compact form: an attribution interval names its source by position and
+  inherits its capture's branch, and the snapshot is bounded at 128 KiB rather
+  than 64 KiB, so the 128-source bound binds first. A snapshot still over its
+  bound refuses with its size, the bound and its source and interval counts.
+  Adopted version 3 snapshots replay unchanged. Older readers must refuse the
+  new method or version rather than silently drop a crossing execution span.
+  Existing adopted v1/v2 snapshots replay unchanged, even after live HEAD logs
+  expire. The standalone active-time command uses the same tracked defaults;
+  its raw directories and time bounds only narrow verified inputs. No-tracker
+  behavior is unchanged.
 
 OUTPUT
 

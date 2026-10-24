@@ -38,11 +38,19 @@ func measurementKeys(v any) map[string]reflect.Kind {
 	return out
 }
 
+// measurementSizeError is a measurement value over a byte bound. Validate
+// reports it with the snapshot's counts wherever the encoder hit it (#593).
+type measurementSizeError struct{ Bytes, Limit int }
+
+func (e *measurementSizeError) Error() string {
+	return fmt.Sprintf("measurement exceeds %d bytes", e.Limit)
+}
+
 // checkMeasurementJSON bounds the complete tree before custom child decoders
 // recurse, and refuses duplicate members even within opaque future values.
 func checkMeasurementJSON(data []byte) error {
-	if len(data) > SnapshotLimitBytes {
-		return fmt.Errorf("measurement exceeds %d bytes", SnapshotLimitBytes)
+	if len(data) > measurementStructuralLimit {
+		return &measurementSizeError{Bytes: len(data), Limit: measurementStructuralLimit}
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
@@ -141,7 +149,7 @@ func measurementYAMLValue(n *yaml.Node, depth int, shape reflect.Type, budget *i
 	if depth > measurementDepthLimit {
 		return nil, fmt.Errorf("measurement exceeds codec depth limit")
 	}
-	if len(n.Value) > SnapshotLimitBytes || len(n.Content) > SnapshotLimitBytes {
+	if len(n.Value) > measurementStructuralLimit || len(n.Content) > measurementStructuralLimit {
 		return nil, fmt.Errorf("measurement YAML value exceeds snapshot bounds")
 	}
 	switch n.Kind {
@@ -254,7 +262,7 @@ func measurementYAMLValue(n *yaml.Node, depth int, shape reflect.Type, budget *i
 	return nil, fmt.Errorf("measurement unsupported YAML value kind %d tag %q", n.Kind, n.Tag)
 }
 func decodeMeasurementYAML(n *yaml.Node, dst any) error {
-	budget := SnapshotLimitBytes
+	budget := measurementStructuralLimit
 	v, err := measurementYAMLValue(n, 0, reflect.TypeOf(dst), &budget)
 	if err != nil {
 		return err
@@ -353,13 +361,49 @@ func encodeMeasurementYAML(value any, extra measurementUnknown) (any, error) {
 
 type measurementInputsWire MeasurementInputs
 
+// A version 4 snapshot's branches travel in their compact form (#593): the
+// codec lifts that member out, decodes the rest as before and expands it, so
+// every reader sees the same in-memory evidence a version 3 snapshot holds.
 func (m *MeasurementInputs) UnmarshalJSON(data []byte) error {
+	if err := checkMeasurementJSON(data); err != nil {
+		return err
+	}
+	var probe struct {
+		Version  int             `json:"version"`
+		Branches json.RawMessage `json:"branches"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	if limit := measurementSnapshotLimit(probe.Version); len(data) > limit {
+		return &measurementSizeError{Bytes: len(data), Limit: limit}
+	}
+	var compact []measurementBranchEvidenceV4
+	if probe.Version == MeasurementCompactBranchInputsVersion && probe.Branches != nil {
+		if err := json.Unmarshal(probe.Branches, &compact); err != nil {
+			return err
+		}
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return err
+		}
+		delete(raw, "branches")
+		var err error
+		if data, err = json.Marshal(raw); err != nil {
+			return err
+		}
+	}
 	var v measurementInputsWire
 	extra, err := decodeMeasurementObject(data, &v, v)
 	if err != nil {
 		return err
 	}
 	v.extra = extra
+	if compact != nil {
+		if v.Branches, err = expandBranches(v.Sources, compact); err != nil {
+			return err
+		}
+	}
 	*m = MeasurementInputs(v)
 	return nil
 }
@@ -367,14 +411,52 @@ func (m MeasurementInputs) MarshalJSON() ([]byte, error) {
 	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
 		return nil, fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
 	}
-	return encodeMeasurementObject(measurementInputsWire(m), m.extra)
+	w, compact := m.compactWire()
+	data, err := encodeMeasurementObject(w, m.extra)
+	if err != nil || compact == nil {
+		return data, err
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return nil, err
+	}
+	if obj["branches"], err = json.Marshal(compact); err != nil {
+		return nil, err
+	}
+	if data, err = json.Marshal(obj); err != nil {
+		return nil, err
+	}
+	return data, checkMeasurementJSON(data)
 }
 func (m *MeasurementInputs) UnmarshalYAML(n *yaml.Node) error { return decodeMeasurementYAML(n, m) }
 func (m MeasurementInputs) MarshalYAML() (any, error) {
 	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
 		return nil, fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
 	}
-	return encodeMeasurementYAML(measurementInputsWire(m), m.extra)
+	w, compact := m.compactWire()
+	v, err := encodeMeasurementYAML(w, m.extra)
+	if err != nil || compact == nil {
+		return v, err
+	}
+	var branches yaml.Node
+	if err := branches.Encode(compact); err != nil {
+		return nil, err
+	}
+	n := v.(*yaml.Node)
+	n.Content = append(n.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "branches"}, &branches)
+	return n, nil
+}
+
+// compactWire splits a version 4 snapshot into its wire without branches and
+// their compact form; any other snapshot encodes as it always has.
+func (m MeasurementInputs) compactWire() (measurementInputsWire, []measurementBranchEvidenceV4) {
+	w := measurementInputsWire(m)
+	if m.Version != MeasurementCompactBranchInputsVersion || len(m.Branches) == 0 {
+		return w, nil
+	}
+	compact := compactBranches(m.Sources, m.Branches)
+	w.Branches = nil
+	return w, compact
 }
 
 type measurementEngagementWire MeasurementEngagement

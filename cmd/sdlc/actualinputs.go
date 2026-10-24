@@ -251,9 +251,9 @@ func resolveOwnedActualInputsLimited(ctx context.Context, repoTop, brainAbs, iss
 	if err != nil {
 		return nil, err
 	}
-	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementBranchInputsVersion, Method: gatestate.MeasurementMethodBranchV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
+	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementCompactBranchInputsVersion, Method: gatestate.MeasurementMethodBranchV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
 	if legacyPrefix != nil {
-		snapshot.Version = gatestate.MeasurementBranchInputsVersion
+		snapshot.Version = gatestate.MeasurementCompactBranchInputsVersion
 		snapshot.Method = gatestate.MeasurementMethodBranchHybridV1
 		snapshot.LegacyPrefix, snapshot.LegacyCutover = &legacyPrefix.Snapshot, legacyCutover
 		snapshot.Since = legacyPrefix.Snapshot.Since
