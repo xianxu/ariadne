@@ -92,6 +92,8 @@ is already validated by `ValidAnswerTarget`.
 
 ## Log
 
+
+- 2026-10-24: closed — go test ./cmd/tl-lead/ passes: TestLinkBullet (trailing space, tab, CRLF keep the ask bytes, CR stays last), TestIndexLinkRefusedLeavesFile (stale link leaves the file byte-identical incl. index; frontmatter edit between writes reconciles the entry away; lock between writes names the lingering entry, next reconcile drops it), TestIndexLinkUnderChatGuard (fake models pair#838 guard; trailing space/tab links, trimmed form refused, refusal leaves file), TestFakeApplyAdvancesBaseline (fake apply advances the whole-file baseline as pair prepareWrite/shadowAfter do), TestIndexKeepsUnreadEdits unchanged. Guard rule checked against pair cmd/internal/editorial/edits.go selectChatItems.; review verdict: SHIP
 ### 2026-10-23
 - Claimed and started from ariadne:5 after #579 landed; plan to the TL.
 - 2026-10-24: the one-Apply design was found to wipe the TL's unread diff (see Revisions), and the compensation
