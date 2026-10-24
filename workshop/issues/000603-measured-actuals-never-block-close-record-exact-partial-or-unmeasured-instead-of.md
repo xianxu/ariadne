@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
-estimate_hours:
-card_mirror: 'bfbc050d1ccb4a92f57c892697ec75bd8489038d' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.17
+card_mirror: '835c5f4881314e3edbf6c3d04fd39bb2d0285bb8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T15:56:22-07:00
 claimant:
     operator: Xian Xu
@@ -55,6 +55,36 @@ Durable plan: [000603-measured-actuals-never-block-close-plan.md](../plans/00060
 
 - [ ] M1 — close never refuses on measurement: confidence classifier, unknown-branch and per-source notes, oversize summary, queue degradation, close adopts every outcome, replay fixtures (#856/#812/#863/#830/#851/#838)
 - [ ] M2 — calibration weights by confidence (ledger columns, weighted forecast/converge/drift); close/actual help and atlas
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.3 impl=0.2
+item: smaller-go-module      design=0.1 impl=0.15
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.1 impl=0.15
+item: smaller-go-module      design=0.15 impl=0.2
+item: smaller-go-module      design=0.15 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.1 impl=0.15
+item: greenfield-go-module   design=0.4 impl=0.3
+item: smaller-go-module      design=0.1 impl=0.2
+item: atlas-docs             design=0.1 impl=0.06
+item: milestone-review       design=0.0 impl=0.15
+item: milestone-review       design=0.0 impl=0.15
+design-buffer: 0.15
+total: 4.17
+```
+
+Items, in order: confidence classifier (Task 1); unattributed member (2); Validate split (3); branch Unknown (4); per-source
+drop (5); queue degradation at four sites (8); close adoption, trailer and cue field (9); ledger columns (11); weighted
+calibration (12); summary with credits, coalescing and exclusion (6, 7); replay fixtures (10); help and atlas (13); M1 and M2
+reviews. Impl values are 40% of the v2 table (v3.1); design is low because the durable plan already settled it.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 

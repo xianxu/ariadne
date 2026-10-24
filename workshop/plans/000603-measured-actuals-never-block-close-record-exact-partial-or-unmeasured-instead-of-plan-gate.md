@@ -62,6 +62,61 @@ rounds:
           family: replay-fixture-scope
           round: 1
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 143e7460-78aa-43f1-a357-e2163a2cb7dc
+            repository: github.com/xianxu/ariadne
+            issue_id: "000603"
+            recipe: plan-quality
+            round: 2
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: db2ca0ae03f0e1174cda6e59516a603125e66aa8
+            slot: ariadne:2
+            requested_at: "2026-10-24T23:08:45.875202Z"
+          phase: finished
+          pid: 80626
+          started_at: "2026-10-24T23:08:46.019264Z"
+          finished_at: "2026-10-24T23:09:11.358083Z"
+          session_id: f8963ec4-81b2-4460-b8be-af31643b9a03
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-24T16:09:11-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: New top-level unattributed member; extra-field preservation exists (measurement.go:74); kind enum and proof validator untouched.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Summary retains bounded Credited intervals consumed by loadAdoptedExclusions; Validate split so the proof call at actualbranch.go:313 checks shape only.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: 'Single meaning: lower bound; unbounded unknowns are upper bound with weight 0.'
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: All queue sites mapped to bounded/unbounded/hard-error outcomes; exit located at close.go:459.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: 838/851 confirmed as source-cap at branch proof, still live after 593.
+          round: 2
+      findings:
+        - kind: defect
+          id: PQ-6
+          severity: Minor
+          title: Tasks 1, 6 and 12 enumerate test cases in prose instead of one strategy line per risky function
+          detail: 'Compress to strategy lines: credit coalescer gets a property test (output length at most MaxSummaryCredits, coalesced cover is a superset of the input cover); weighted calibration gets a property test (adding a weight-0 row leaves output unchanged).'
+          family: test-case-enumeration-in-prose
+          round: 2
+      blocked: false
+content_hash: 557fb03b6c2946215626f85079db7e27bc8b5420af43157a3e70bf49649d88c2
 ---
 
 # Gate ledger — ariadne#603 (plan-quality)
@@ -82,10 +137,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Sites: actualinputs.go:437, 472, 483 and actualqueue_filter.go:55. Name which become partial and which stay unmeasured.
 - **PQ-5** [Minor] `replay-fixture-scope` (kind: defect) The pair 838 fixture may test a shape already fixed by 593; confirm what it exercises
 
+## Round 2 — 2026-10-24T16:09:11-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — New top-level unattributed member; extra-field preservation exists (measurement.go:74); kind enum and proof validator untouched.
+- PQ-2 — addressed — Summary retains bounded Credited intervals consumed by loadAdoptedExclusions; Validate split so the proof call at actualbranch.go:313 checks shape only.
+- PQ-3 — addressed — Single meaning: lower bound; unbounded unknowns are upper bound with weight 0.
+- PQ-4 — addressed — All queue sites mapped to bounded/unbounded/hard-error outcomes; exit located at close.go:459.
+- PQ-5 — addressed — 838/851 confirmed as source-cap at branch proof, still live after 593.
+
+### Raised
+
+- **PQ-6** [Minor] `test-case-enumeration-in-prose` (kind: defect) Tasks 1, 6 and 12 enumerate test cases in prose instead of one strategy line per risky function
+  Compress to strategy lines: credit coalescer gets a property test (output length at most MaxSummaryCredits, coalesced cover is a superset of the input cover); weighted calibration gets a property test (adding a weight-0 row leaves output unchanged).
+
 ## Open findings
 
-- **PQ-1** [Important] `persisted-enum-extension-unplanned` (kind: defect) New branch-note kinds are rejected by the strict gatestate kind enum and mishandled by the branch-proof validator
-- **PQ-2** [Important] `degradation-cascades-to-peers` (kind: defect) MeasurementSummary drops the windows exclusion needs, so every later overlapping close goes unmeasured
-- **PQ-3** [Minor] `confidence-semantics-undefined` (kind: defect) partial hours are a lower bound in D3 but an upper bound in D4 and the queue-with-bounds case
-- **PQ-4** [Minor] `unbacked-existing-behavior-claim` (kind: defect) Queue degradation spans four distinct queueEvidenceError sites; explainActual does not itself exit (caller at close.go:459)
-- **PQ-5** [Minor] `replay-fixture-scope` (kind: defect) The pair 838 fixture may test a shape already fixed by 593; confirm what it exercises
+- **PQ-6** [Minor] `test-case-enumeration-in-prose` (kind: defect) Tasks 1, 6 and 12 enumerate test cases in prose instead of one strategy line per risky function

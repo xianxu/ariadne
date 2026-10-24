@@ -255,6 +255,9 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
   end for each level, in tracker and legacy repos, plus `TestAdoptLineNoGatesigCollision` over the new renderings. `--no-actual`
   is unchanged.
 - [ ] **Task 10: replay fixtures** for pair#856, #812, #863, #830, #838 and #851 (table above), each through the close seam.
+- **Test strategy for the risky functions (plan-quality advisory):** the credit coalescer gets a property test over random
+  credit sets: the output has at most `MaxSummaryCredits` intervals, its cover is a superset of the input cover, and the widened
+  minutes equal cover(output) − cover(input). `classifyActual` stays a table test, because its domain is a closed enumeration.
 - [ ] **M1**: milestone-close.
 
 ### M2: calibration reads confidence; docs
@@ -266,6 +269,8 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
   - a weight-0 row changes nothing;
   - only rows with share ≥ 0.5 enter the quartiles;
   - the reported N counts the partial rows.
+- **Test strategy:** weighted calibration gets a property test: adding a row with weight 0 leaves every output unchanged, and an
+  all-exact ledger gives exactly today's numbers.
 - [ ] **Task 13: help and atlas.**
   - Help: update `helptext/close.md`, `actual.md` and `milestone-close.md` for the confidence levels, and to limit `--no-actual`
     to windows where measurement does not apply.
