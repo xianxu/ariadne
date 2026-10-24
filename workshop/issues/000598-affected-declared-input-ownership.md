@@ -76,13 +76,14 @@ M1 = rows 1–5: mapping, sidecar and config parse; Plan integration with the lo
 Durable plan: [workshop/plans/000598-affected-declared-input-ownership-plan.md](../plans/000598-affected-declared-input-ownership-plan.md).
 
 - [x] Design the generic ownership seam and certificate-read consumer contract (plan above; sent to ops:0 for approval).
-- [ ] M1 — owners, full exceptions and sidecars (what pair#853 needs)
+- [x] M1 — owners, full exceptions and sidecars (what pair#853 needs)
 - [ ] M2 — parley-style traceability input
 - [ ] M3 — missed mappings recorded at merge, listed for curation
 
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed M1 — go test ./cmd/sdlc/internal/affected ./cmd/sdlc/internal/gitx pass; go test ./cmd/sdlc -run Affected|SplitImpact|LocalCheckResume|Boarding|GraphPrepare|CarCIGate|PreClose|Attribution passes, plus TestAffectedDeclaredMappingCancelled in ordinary and boarding modes; FuzzParseConfig and FuzzSidecarDerivation 20s each clean; TestPairQualification on pair 93a57a380 affected.json plus the real pair#825 certificate; BenchmarkPlanDeclared 33ms/op at 2000 paths x 1200 rules; review verdict: SHIP
 
 Filed by pair:1 at ops:0 request. Source anchors: cmd/sdlc/internal/affected/plan.go Plan (full overrides, owners plus groups, then Dependents); config.go Group.Go is a trigger only; graph.go Graph.Owners has directory/testdata/embed ownership only. Pair source anchors: .sdlc/affected.json full tests/** and cmd/couch/**; tests/affected-go-readers-test.py load_inventory; scripts/test-affected.py run_selection fixed source preflight. No source code changed.
 
