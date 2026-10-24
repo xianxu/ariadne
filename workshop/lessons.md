@@ -1609,3 +1609,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   test-ps-liveness catalog rule rather than adding a second guard.
 
 - #577 plan review: an alternate result sink is incomplete if identity or dependency construction still requires the original external service. Trace the full CLI before the sink, share its context-aware construction across run and retry/republish, and test the real command with a rejecting all-call service sentinel. Preserve the ordinary production constructor and proof guards.
+
+- #577 native conformance: read-only does not imply unauthenticated. A bridge's replacement environment proves only its advertised services, not a connected actor identity. Assert the actual actor refusal and keep that coverage gap explicit until a real actor replay; do not manufacture credentials or broaden the bridge to make a readiness probe pass. The native service/refusal fixture guards this semantic boundary.

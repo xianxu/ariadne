@@ -20,7 +20,7 @@ import (
 
 func TestBenchBridgeReplacementEnvironment(t *testing.T) {
 	root := filepath.Join(string(filepath.Separator), "owned", "bridge")
-	ready := benchBridgeReadiness{Version: 1, Namespace: filepath.Join(root, "store"), Socket: filepath.Join(root, "sock"), Environment: map[string]string{"COUCH_ISOLATED_ROOT": root, "COUCH_STORE_DIR": filepath.Join(root, "store"), "PATH": filepath.Join(root, "bin"), "HOME": filepath.Join(root, "home")}}
+	ready := benchBridgeReadiness{Documents: []benchBridgeDocument{{ID: strings.Repeat("a", 32), File: filepath.Join(root, "artifacts", "first.md")}, {ID: strings.Repeat("b", 32), File: filepath.Join(root, "artifacts", "first.side", "second.md")}}, Version: 1, Namespace: filepath.Join(root, "store"), Socket: filepath.Join(root, "sock"), Environment: map[string]string{"COUCH_ISOLATED_ROOT": root, "COUCH_STORE_DIR": filepath.Join(root, "store"), "PATH": filepath.Join(root, "bin"), "HOME": filepath.Join(root, "home")}}
 	raw, _ := json.Marshal(ready)
 	env, _, err := benchBridgeEnvironment(append(raw, '\n'))
 	if err != nil || len(env) != 4 {
@@ -28,6 +28,10 @@ func TestBenchBridgeReplacementEnvironment(t *testing.T) {
 	}
 	for _, change := range []func(*benchBridgeReadiness){
 		func(r *benchBridgeReadiness) { r.Version = 2 },
+		func(r *benchBridgeReadiness) { r.Documents = nil },
+		func(r *benchBridgeReadiness) { r.Documents[0].ID = "invalid" },
+		func(r *benchBridgeReadiness) { r.Documents[1] = r.Documents[0] },
+		func(r *benchBridgeReadiness) { r.Documents[0].File = "/outside/doc.md" },
 		func(r *benchBridgeReadiness) {
 			r.Environment["PATH"] += string(filepath.ListSeparator) + "/ambient/bin"
 		},
@@ -210,10 +214,10 @@ func TestBenchCouchNativeServiceConformance(t *testing.T) {
 		t.Fatal("bridge root outside owned scratch")
 	}
 	couch := filepath.Join(isolated, "bin", "couch")
-	deps := benchCouchDeps{Command: func(call context.Context, args ...string) ([]byte, error) {
+	nativeCommand := func(call context.Context, program string, args ...string) ([]byte, error) {
 		bounded, stop := context.WithTimeout(call, 5*time.Second)
 		defer stop()
-		child := exec.CommandContext(bounded, couch, args...)
+		child := exec.CommandContext(bounded, program, args...)
 		child.Env = env
 		child.Dir = isolated
 		processgroup.Configure(child)
@@ -226,32 +230,38 @@ func TestBenchCouchNativeServiceConformance(t *testing.T) {
 			return out.Bytes(), fmt.Errorf("native Couch request %v: %w: %s", args, err, diag.String())
 		}
 		return out.Bytes(), nil
-	}}
-	actors, err := benchActors(ctx, deps)
+	}
+	deps := benchCouchDeps{Command: func(call context.Context, args ...string) ([]byte, error) { return nativeCommand(call, couch, args...) }}
+	// The advertised replacement environment is deliberately unbound. A read-only
+	// actors call still needs a connected conversation; this fixture cannot prove
+	// actor-scoped behavior. The true replay owns that remaining qualification.
+	if _, err := benchActors(ctx, deps); err == nil || !strings.Contains(err.Error(), "calling conversation identity") {
+		t.Fatalf("unbound actors probe did not preserve authentication refusal: %v", err)
+	}
+	for _, doc := range ready.Documents {
+		raw, err := deps.command(ctx, "--editor-endpoint", "lookup", "--namespace", ready.Namespace, "--document-id", doc.ID, "--json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var reply struct {
+			Version        int
+			Code, Error    string
+			EditorEndpoint json.RawMessage
+		}
+		if err := readBenchCouchJSON(raw, &reply); err != nil || reply.Version != 1 || reply.Code != "ok" || reply.Error != "" || string(reply.EditorEndpoint) != "null" {
+			t.Fatalf("native document/editor service reply: %s (%v)", raw, err)
+		}
+	}
+	lua := `local a=vim.fn.argv(); assert(#a==2); local side=table.concat(vim.fn.readfile(a[2]),"\n"); assert(side:find("type: side-doc",1,true)); assert(side:find("parent: ../first.md",1,true)); io.stdout:write(vim.json.encode({Parent=vim.fn.fnamemodify(a[1],":p"),Side=vim.fn.fnamemodify(a[2],":p")}).."\n"); vim.cmd("qa!")`
+	raw, err := nativeCommand(ctx, filepath.Join(isolated, "bin", "nvim"), "--headless", "--clean", "-u", "NONE", "-i", "NONE", "-n", ready.Documents[0].File, ready.Documents[1].File, "-c", "lua "+lua)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, actor := range actors {
-		if actor.Binding.Repository != "" && !benchPathWithin(isolated, actor.Binding.Repository) {
-			t.Fatalf("ambient actor leaked: %+v", actor.Binding)
-		}
+	var docs struct{ Parent, Side string }
+	if err := readBenchCouchJSON(bytes.TrimSpace(raw), &docs); err != nil || docs.Parent != ready.Documents[0].File || docs.Side != ready.Documents[1].File {
+		t.Fatalf("native editor document recognition: %s (%v)", raw, err)
 	}
-	// Read only: an unknown receipt must never authorize dispatch or cancellation.
-	raw, receiptErr := deps.command(ctx, "--message-status", "bench-conformance-absent", "--json")
-	var receipt struct {
-		Code, Error string
-		Receipt     *benchMessageReceipt
-	}
-	if err := readBenchCouchJSON(raw, &receipt); err != nil {
-		t.Fatalf("native receipt JSON: %s (%v)", raw, err)
-	}
-	if receipt.Code == "ok" || receipt.Error == "" || receipt.Receipt != nil {
-		t.Fatalf("unknown receipt was not refused: %s (%v)", raw, receiptErr)
-	}
-	if _, err := readBenchDelivery(raw, benchRuntimeActor{}, "bench-conformance-absent", ""); err == nil {
-		t.Fatal("refused receipt authorized delivery")
-	}
-	t.Logf("native service qualified: actors=%d receipt_code=%s; no agent/model/root replay qualification", len(actors), receipt.Code)
+	t.Log("native document/editor services qualified; unbound actors refusal asserted; actor-scoped behavior remains uncovered until the real replay")
 	if err := stop(); err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +272,10 @@ type benchBridgeReadiness struct {
 	Version           int
 	Namespace, Socket string
 	Environment       map[string]string
+	Documents         []benchBridgeDocument
 }
+
+type benchBridgeDocument struct{ ID, File string }
 
 func benchBridgeEnvironment(raw []byte) ([]string, benchBridgeReadiness, error) {
 	var r benchBridgeReadiness
@@ -280,6 +293,17 @@ func benchBridgeEnvironment(raw []byte) ([]string, benchBridgeReadiness, error) 
 		return filepath.IsAbs(path) && filepath.Clean(path) == path && !strings.ContainsRune(path, 0)
 	}
 	if r.Version != 1 || !clean(root) || root == string(filepath.Separator) || !clean(r.Namespace) || !clean(r.Socket) || !benchPathWithin(root, r.Namespace) || !benchPathWithin(root, r.Socket) || r.Environment["COUCH_STORE_DIR"] != r.Namespace {
+		return bad()
+	}
+	if len(r.Documents) != 2 {
+		return bad()
+	}
+	for _, doc := range r.Documents {
+		if !benchRunIDPattern.MatchString(doc.ID) || !clean(doc.File) || !benchPathWithin(root, doc.File) {
+			return bad()
+		}
+	}
+	if r.Documents[0].ID == r.Documents[1].ID || r.Documents[0].File == r.Documents[1].File {
 		return bad()
 	}
 	paths := filepath.SplitList(r.Environment["PATH"])

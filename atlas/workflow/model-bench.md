@@ -160,3 +160,5 @@ Observer preflight qualifies routing before dispatch; a slip is a bound TL
 workflow finding with actual call/evidence.
 
 Replay admission uses the current bench tool's verified `tool_source/scripts/test-lock.py`, independently of product code at the replay pin. Version 2 of the public bench context binds its physical path and SHA-256. Worker local-check run/resume and every hidden score control verify that binding before queueing; a changed or missing supplier refuses with no replay-helper fallback. Keep the supplying tool checkout unchanged until the run retires. Ordinary local-check behavior is unchanged.
+
+The optional native Pair bridge check qualifies only its advertised document/editor service and joined cleanup. It verifies both registered document lookups, private headless editor recognition, and root removal after EOF/Wait. The bridge's replacement environment has no connected actor credentials: `--actors` must refuse, and the test asserts that refusal. Actor/receipt behavior remains uncovered natively until the real model replay; stateful fixtures continue to verify those contracts.
