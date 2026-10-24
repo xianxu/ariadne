@@ -123,3 +123,17 @@ func TestLandingHelpRendersTrainRampPolicy(t *testing.T) {
 		}
 	}
 }
+
+// #583 (pair:1's report): close's FIXED-THEN-SHIP prose names the pre-close
+// check, as the --full-suite flag help does, never a mandatory full suite.
+func TestCloseHelpNamesThePreCloseCheck(t *testing.T) {
+	help := strings.Join(strings.Fields(renderLong("close")), " ")
+	if !strings.Contains(help, "sdlc local-check run --pre-close") {
+		t.Error("close help does not name the pre-close check")
+	}
+	for _, stale := range []string{"records a full test run", "the suite still runs"} {
+		if strings.Contains(help, stale) {
+			t.Errorf("close help still says %q", stale)
+		}
+	}
+}

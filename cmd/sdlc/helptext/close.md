@@ -81,9 +81,11 @@ FIXED-THEN-SHIP (#183)
     - on the quick flow, when the branch patch has left the shell (the full
       review is due);
     - when the window resolves a conflict with main in a code file and no
-      `--full-suite '<evidence>'` records a full test run. Only the review
-      narrows; the suite still runs (operator decision, #320). The evidence
-      goes into the close's ## Log line.
+      `--full-suite '<evidence>'` records that the pre-close check passed
+      (`sdlc local-check run --pre-close`, #578: the suite, or affected where
+      a train runs the suite before landing). Only the review narrows; the
+      tests still run (operator decision, #320). The evidence goes into the
+      close's ## Log line.
     - with the review skipped (its bypass, or --force), because it IS a review.
 
   A milestone has no such flag: fixes after a milestone close fall in the next

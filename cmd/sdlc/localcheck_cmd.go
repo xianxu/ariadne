@@ -168,7 +168,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	mainHead = strings.TrimSpace(mainHead)
 	if f.PreClose {
 		name, why := resolvePreCloseCheck(git, mainHead)
-		fmt.Fprintf(stderr, "==> local-check --pre-close: running %s (%s)\n", name, why)
+		fmt.Fprintf(stderr, "==> local-check --pre-close: resolved to %s (%s)\n", name, why)
 		f.Names = []string{name}
 	}
 	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
@@ -234,6 +234,22 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	}
 	pr := currentBranchPR(git, repo)
 	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+	// #583: a pre-close or affected-only run first takes a saved, verified
+	// suite pass on this exact head (#431's republish, as merge does): it
+	// covers every selection, so nothing runs. A plain --name suite reruns.
+	if suite, ok := decl.check(suiteCheckName); ok && (f.PreClose || (wantAffected && len(names) == 0)) {
+		if rec, reused, err := republishSavedPass(ctx, d, suite, sha); reused {
+			if err != nil {
+				return err
+			}
+			what := "--name " + strings.Join(f.Names, ",")
+			if f.PreClose {
+				what = "--pre-close"
+			}
+			fmt.Fprintf(stderr, "==> local-check %s on %s: covered by its saved suite pass; nothing to run (#583)\n", what, abbrevSHA(rec.SHA))
+			return nil
+		}
+	}
 	var failed []string
 	for _, c := range checks {
 		rec, err := runLocalCheck(ctx, d, c, sha)
