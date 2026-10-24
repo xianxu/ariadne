@@ -248,6 +248,14 @@ func TestOwnedBranchCaptureUsesExactWorktreeAndRejectsUnavailableHistory(t *test
 	if capture.Path == primaryLog {
 		t.Fatal("captured the primary log")
 	}
+	alias := filepath.Join(t.TempDir(), "worker-alias")
+	if err := os.Symlink(worker, alias); err != nil {
+		t.Fatal(err)
+	}
+	aliased := captureOwnedBranchEvidence(t.Context(), alias, since, until)
+	if aliased.Unavailable != "" || aliased.Path != capture.Path || aliased.Digest != capture.Digest {
+		t.Fatalf("alias selected a different worktree log: %+v", aliased)
+	}
 	before, err := os.ReadFile(capture.Path)
 	if err != nil {
 		t.Fatal(err)
@@ -316,5 +324,11 @@ func TestOwnedBranchCaptureUsesExactWorktreeAndRejectsUnavailableHistory(t *test
 	cancel()
 	if got := captureOwnedBranchEvidence(ctx, worker, since, until); got.Unavailable == "" {
 		t.Fatal("canceled capture succeeded")
+	}
+	if err := os.Rename(worker, filepath.Join(t.TempDir(), "removed-owner")); err != nil {
+		t.Fatal(err)
+	}
+	if got := captureOwnedBranchEvidence(t.Context(), worker, since, until); got.Unavailable == "" || len(got.Intervals) > 0 {
+		t.Fatalf("missing owner fell back to a primary log: %+v", got)
 	}
 }

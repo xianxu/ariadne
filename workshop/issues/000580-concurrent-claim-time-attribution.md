@@ -41,7 +41,7 @@ A deterministic fixture with two simultaneous same-slot claims, activity on A th
 
 Investigate branch/engagement evidence in active-time-v3 and build the same-slot two-claim regression before changing classification.
 
-Durable proposal: [concurrent claim attribution plan](../plans/000580-concurrent-claim-time-attribution-plan.md). Await TL approval before code.
+Approved implementation and verification: [concurrent claim attribution plan](../plans/000580-concurrent-claim-time-attribution-plan.md). Policy and version approvals are recorded in its Revisions; recorded pre-close verification and mandatory review remain before landing.
 
 ## Log
 
@@ -78,3 +78,9 @@ Verification: broader owned/queue/hybrid/command/replay controls PASS 128.536 s;
 Private Go 1.27.3 executable at Git revision 1b97d456581241c25e2bdbab03b16b1765596ae2 has modified=false and passes the real active-time command on the isolated two-claim fixture (7.451 s). A Go overlay that disables only branch narrowing reproduces B crediting A's unadopted tail; expected-red result and raw log are retained under the common Git directory sdlc/test-stats/evidence/000580/selector-disabled-result.json and selector-disabled.log. No tracked source was mutated by this proof.
 
 A final pure control found sole-claim fallback absorbing a witnessed foreign canonical issue branch when that issue had no owner witness. Corrected the selector to exclude a witnessed foreign issue branch regardless of reservation state; ownership/lineage remain prerequisites to credit it to its own issue. That red/green control and the selector suite pass (0.244 s). The compatibility boundary and original-dispatch behavior are unchanged. Rebuilding the private binary for this final source, then the recorded pushed-head pre-close suite and mandatory close review. No live data was adopted or changed.
+
+### 2026-10-23 20:45 PDT — pushed implementation and verification checkpoint
+
+PR 425 is open. The final private executable at Git revision df0f0a5166db83f7b297cbf9fb46ff38b5f58589 (Go 1.27.3, modified=false) passes the isolated real-command incident conformance in 18.725 s. The independent selector-disabled overlay remains an expected RED, with original tail-misattribution evidence retained under sdlc/test-stats/evidence/000580 in the common Git directory. Native capture controls additionally prove symlink aliases select the same worktree history and a removed worktree cannot fall back to the primary log (PASS 1.248 s). These last edits affect tests and this checkpoint only.
+
+Implementation and targeted verification are complete; no historical card was changed or adopted, no staging occurred, and no full suite or review is currently running. Next: push this checkpoint, run central sdlc local-check run --pre-close on the pushed head, then mandatory close review and central merge on SHIP. The approved version-3 method refuses older readers rather than allowing a silent undercount; old adopted snapshots remain immutable.
