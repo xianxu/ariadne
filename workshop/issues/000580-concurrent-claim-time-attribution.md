@@ -1,13 +1,13 @@
 ---
 id: 000580
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'cc5b1d7045eb6609727bb76b7740d6abf87b2254' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e2ad286b9440d33a9b74e8e2b51c1b6b8a6f3659' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T19:27:24-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.45
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
