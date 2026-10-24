@@ -80,6 +80,9 @@ type localCheck struct {
 	// Scope says what a built check covers, for its status (#473: the
 	// affected selection); never declared.
 	Scope string `json:"-"`
+	// Rerun is what a known-flake child runs besides the flaky tests (#586:
+	// the affected selection's groups); nil for the suite. Never declared.
+	Rerun *affectedRerun `json:"-"`
 }
 
 // knownFlakePolicy is the check's parsed policy; parseLocalChecks has

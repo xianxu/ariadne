@@ -18,7 +18,8 @@ func TestResumeCLIValidation(t *testing.T) {
 		want string
 	}{
 		{[]string{"resume"}, "give --name suite"},
-		{[]string{"resume", "--name", "affected", "--attempt", "aa"}, "only suite"},
+		{[]string{"resume", "--name", "lint", "--attempt", "aa"}, "only suite or affected"},
+		{[]string{"resume", "--name", "affected"}, "give --attempt"},
 		{[]string{"resume", "--name", "suite"}, "give --attempt"},
 		{[]string{"resume", "--name", "suite", "--attempt", "../aa"}, "safe parent"},
 		{[]string{"reconcile"}, "give --attempt"},

@@ -100,7 +100,7 @@ var Catalog = []Rule{
 	{
 		Name:     "json-recursive-scanner",
 		Incident: "ariadne#489",
-		Message:  "a hand-rolled recursive duplicate-key JSON scanner repeats jsonstrict's rule and drifts from it; call jsonstrict.RejectDuplicateKeys or jsonstrict.Scan (cmd/sdlc/internal/jsonstrict), which folds keys as encoding/json matches them",
+		Message:  "a recursive JSON scanner may repeat validation authority; reuse this module's shared strict JSON decoder while preserving its key semantics; a proven value-producing materializer or independent differential fuzz oracle may keep a reasoned per-site //lint:allow json-recursive-scanner",
 		Match:    recursiveJSONScanners,
 	},
 	{

@@ -1610,16 +1610,20 @@ prevents that fallback while a proven candidate branch still requires its own
 complete ownership and source lineage. Concurrent unresolved selection refuses
 numeric actual; close can explicitly use --no-actual with the evidence in
 --verified. Under concurrent reservations, a witnessed resting branch (main or
-canonical main-slotN) is instead excluded and unassigned (#591). Output names
+canonical main-slotN), or an attached valid stage/* branch (#594), is instead
+excluded and unassigned (#591). Output names
 its source, interval and branch-window minutes, which are not focused activity
 minutes. Own/foreign issue branches still select/exclude their witnessed spans;
 unknown, detached or other ambiguous history still refuses. Sole-reservation
 planning keeps its labelled ownership-only fallback. No neighboring-branch or
 status inference assigns the resting span. New v3 audit notes use
-resting-excluded; earlier strict v3 readers refuse this new kind rather than
+resting-excluded or stage-excluded; the staging predicate is shared by selection
+and saved validation. Earlier strict v3 readers refuse an unknown kind rather than
 reinterpret it. Existing adopted snapshots are never rewritten. Recorded
 pair#856 (68-second initial rest) and pair#812 (25 seconds) captures replay the
-claim/start-plan boundary in the selector tests. No historical credit is reassigned.
+claim/start-plan boundary in the selector tests. The pair#830 reported checkout/merge/return sequence is reconstructed with
+synthetic object IDs and proves 172 seconds of unassigned staging for both
+concurrent issues. No historical credit is reassigned.
 
 `active-time` has changed semantics in tracked repositories: by default it uses
 the same resolver as actual/close. Explicit --dir, --since and --until narrow
@@ -2620,7 +2624,7 @@ that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagno
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
-JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). `TestAtlasNamesEveryRule` keeps this list
+JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). #590 keeps this syntactic matcher unchanged; it does not prove materializer value flow or differential independence. Fix redundant validators by using the consumer module's own shared strict JSON authority while preserving its key semantics; Ariadne's internal implementation is not importable downstream. For a proven value-producing materializer or independent differential fuzz oracle, a reasoned per-site `//lint:allow json-recursive-scanner — <reason>` is the sanctioned answer. State why the role must remain independent (for example, a standalone sample module or an oracle compared against a different implementation). Do not consolidate away that independence, add a production dependency merely to satisfy lint, or exempt whole packages/test files. Pair's two #861 allows remain valid rather than awaiting removal. Exact source captures exercise both the unannotated finding and the reasoned annotation through Check and CheckSources. `TestAtlasNamesEveryRule` keeps this list
 in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
