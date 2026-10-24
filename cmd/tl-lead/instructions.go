@@ -154,8 +154,9 @@ func renderOpen(bs []Bullet, hash string) string {
 // a link without its entry would read as the operator's "reviewed". When the
 // link's write is refused (couch's chat guard, a stale section, the lock),
 // unlist takes the entry back out: the frontmatter's old bytes, or a
-// reconcile when the frontmatter moved meanwhile. Each write is scoped: a whole-file apply would advance couch's
-// diff baseline over the operator's unread edits elsewhere (#426).
+// reconcile when the frontmatter moved meanwhile. Each write is scoped: a
+// whole-file apply would advance couch's diff baseline over the operator's
+// unread edits elsewhere (#426).
 func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash string) error {
 	ss := d.ss
 	cur, h, err := ss.ReadSection(file, instructionsHeading)

@@ -79,12 +79,11 @@ func TestIndexOneWaySequence(t *testing.T) {
 
 // A refused link leaves the file as it was (#588): couch's chat guard
 // refuses the section write, or it goes stale (an operator edit races it),
-// and the frontmatter goes back to its
-// bytes before the index write, so a rerun from a fresh list lists the entry
-// once. After a frontmatter edit between the writes, a reconcile drops the
-// entry instead. When the lock is taken between the two writes, the undo is
-// refused too: the output names the lingering entry, and the next reconcile
-// drops it.
+// and the frontmatter goes back to its bytes before the index write, so a
+// rerun from a fresh list lists the entry once. After a frontmatter edit
+// between the writes, a reconcile drops the entry instead. When the lock is
+// taken between the two writes, the undo is refused too: the output names
+// the lingering entry, and the next reconcile drops it.
 func TestIndexLinkRefusedLeavesFile(t *testing.T) {
 	s4 := "tl-status-op.side/2026-10-17-01-s4.md"
 	f, file := indexFake(t)
@@ -128,7 +127,8 @@ func TestIndexLinkRefusedLeavesFile(t *testing.T) {
 	}
 }
 
-// Under couch's chat guard, an item whose ask ends in a space or a tab links, and keeps every byte of the ask (#588). The guard refuses the
+// Under couch's chat guard, an item whose ask ends in a space or a tab
+// links, and keeps every byte of the ask (#588). The guard refuses the
 // pre-#588 trim, and such a refusal leaves the file as it was.
 func TestIndexLinkUnderChatGuard(t *testing.T) {
 	s4 := "tl-status-op.side/2026-10-17-01-s4.md"
