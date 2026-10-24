@@ -1,6 +1,6 @@
 ---
 id: 000580
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.45
+tracker:
+    version: 1
+    completion:
+        token: close-01aae4f47e22
+        repository: github.com/xianxu/ariadne
+        reviewed_head: dd39e615a6561921075b0066ba0cd09a8e0ca22d
+        evidence_commit: b8b2e136da4ff8c9f9f7e6a47313fd04c6d9ea20
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
