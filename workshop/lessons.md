@@ -1644,3 +1644,9 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   Own branch, foreign branch and ownership-only each constrain branch identity;
   relabelling a contradictory interval must not turn excluded time into credit.
   Saved-replay tamper controls exercise both own and foreign canonical branches.
+
+- #580 suite: route optional verb contexts through commandContext rather than
+  adding a fresh background fallback. When a semantic change intentionally
+  replaces the producer, historical-adoption tests must build and validate
+  the old version explicitly, then exercise unchanged replay/protection; a
+  fresh contradictory sample cannot stand in for the historical contract.

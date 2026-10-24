@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,11 +17,7 @@ import (
 // actual and close. Explicit manual inputs narrow that authority; they cannot
 // replace it. No-tracker repositories retain the standalone engine contract.
 func computeActiveTime(opts activetime.Options) (activetime.Result, []string, error) {
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx = ownedBranchRequestContext(ctx)
+	ctx := ownedBranchRequestContext(commandContext(opts.Context))
 	root, err := ownedActualGit(ctx, manualHomePath(opts.GitRepo), "--no-optional-locks", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return activetime.Result{}, nil, err
