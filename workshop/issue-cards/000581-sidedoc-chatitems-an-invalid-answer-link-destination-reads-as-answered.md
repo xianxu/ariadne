@@ -1,6 +1,6 @@
 ---
 id: 000581
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -22,6 +22,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b2c0639bc2f2d058a8f0387790e23f6a908bd9d1
         evidence_commit: f949bb17637b20bd2253bd2394ad9696dc4f7da4
+        landed_commit: 5a17f789619d3dcaafec62ae51b350833836a3e7
 ---
 
 # sidedoc ChatItems: an invalid answer-link destination reads as answered
