@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/bench"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -29,7 +30,45 @@ import (
 // as real child processes in the sanitized checkout, never in the source tree.
 type benchPrepareDeps struct{ GateArgv, GateEnv []string }
 
-func prepareBenchRun(ctx context.Context, s *benchStore, d benchPrepareDeps) (retErr error) {
+func prepareBenchTemplate(ctx context.Context, t bench.Task, templatePath string) error {
+	if err := bench.ValidateTask(t); err != nil {
+		return err
+	}
+	for _, pin := range []string{t.ParentOID, t.LandingOID} {
+		kind, err := runBenchPrepareCommand(ctx, t.SourceRepo, nil, "git", "--no-replace-objects", "-c", "protocol.allow=never", "-c", "protocol.file.allow=never", "cat-file", "-t", pin)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(string(kind)) != "commit" {
+			return errors.New("parent and landing pins must name local commits")
+		}
+	}
+	original, err := gitx.ReadLocalBlob(ctx, t.SourceRepo, t.OriginalIssueOID)
+	if err != nil {
+		return err
+	}
+	if err := verifyBenchOriginalIssue(t, original); err != nil {
+		return err
+	}
+	patch, err := readBenchPatch(t.Acceptance.Patch)
+	if err != nil {
+		return err
+	}
+	sum := sha256.Sum256(patch)
+	if hex.EncodeToString(sum[:]) != t.Acceptance.PatchSHA256 {
+		return errors.New("acceptance patch digest differs from descriptor")
+	}
+	if err := verifyBenchPatchPaths(ctx, filepath.Dir(templatePath), patch, t.Acceptance.Paths); err != nil {
+		return err
+	}
+	files, err := gitx.ReadLocalTree(ctx, t.SourceRepo, t.ParentOID, func(f gitx.TreeFile) bool { return !benchProcessArtifact(f.Path) })
+	if err != nil {
+		return err
+	}
+	return writeBenchTemplate(ctx, templatePath, files)
+}
+
+func instantiateBenchSession(ctx context.Context, s *benchSession, templatePath string, d benchPrepareDeps) (retErr error) {
 	release, err := s.acquireRun()
 	if err != nil {
 		return err
@@ -71,38 +110,8 @@ func prepareBenchRun(ctx context.Context, s *benchStore, d benchPrepareDeps) (re
 		}
 	}()
 	t := r.Task
-	for _, pin := range []string{t.ParentOID, t.LandingOID} {
-		kind, err := runBenchPrepareCommand(ctx, t.SourceRepo, nil, "git", "--no-replace-objects", "-c", "protocol.allow=never", "-c", "protocol.file.allow=never", "cat-file", "-t", pin)
-		if err != nil {
-			return err
-		}
-		if strings.TrimSpace(string(kind)) != "commit" {
-			return errors.New("parent and landing pins must name local commits")
-		}
-	}
-	original, err := gitx.ReadLocalBlob(ctx, t.SourceRepo, t.OriginalIssueOID)
+	files, err := readBenchTemplate(ctx, templatePath)
 	if err != nil {
-		return err
-	}
-	if err := verifyBenchOriginalIssue(t, original); err != nil {
-		return err
-	}
-	patch, err := readBenchPatch(t.Acceptance.Patch)
-	if err != nil {
-		return err
-	}
-	sum := sha256.Sum256(patch)
-	if hex.EncodeToString(sum[:]) != t.Acceptance.PatchSHA256 {
-		return errors.New("acceptance patch digest differs from descriptor")
-	}
-	if err := verifyBenchPatchPaths(ctx, filepath.Join(s.root, "observer"), patch, t.Acceptance.Paths); err != nil {
-		return err
-	}
-	files, err := gitx.ReadLocalTree(ctx, t.SourceRepo, t.ParentOID, func(f gitx.TreeFile) bool { return !benchProcessArtifact(f.Path) })
-	if err != nil {
-		return err
-	}
-	if err := validateBenchTree(files); err != nil {
 		return err
 	}
 	public := filepath.Join(s.root, "public")
@@ -159,14 +168,11 @@ func prepareBenchRun(ctx context.Context, s *benchStore, d benchPrepareDeps) (re
 	if err := writeBenchExclusive(filepath.Join(hub, "team.md"), []byte("# Bench team\n\nOne disposable replay hub. Follow normal tl-lead and tl-lead bench rules.\n"), 0644); err != nil {
 		return err
 	}
-	if err := writeBenchExclusive(filepath.Join(s.root, "observer", "acceptance.patch"), patch, 0600); err != nil {
-		return err
-	}
 	if _, err := runBenchPrepareCommand(ctx, public, nil, "git", "init", "--bare", "-q", "-b", "main", origin); err != nil {
 		return err
 	}
 	for _, root := range []string{work, hub} {
-		for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Model Bench"}, {"config", "user.email", "model-bench@localhost.invalid"}, {"config", "core.hooksPath", os.DevNull}, {"add", "-f", "-A"}, {"commit", "-qm", "bench: sanitized replay seed"}} {
+		for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Model Bench"}, {"config", "user.email", "model-bench@localhost.invalid"}, {"config", "core.hooksPath", os.DevNull}, {"add", "-f", "-A"}, {"commit", "-qm", agentid.StampCurrent("bench: sanitized replay seed", ctx)}} {
 			if _, err := runBenchPrepareCommand(ctx, root, nil, "git", args...); err != nil {
 				return err
 			}
@@ -434,6 +440,9 @@ func writeBenchJSONExclusive(p string, value any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err
+	}
+	if len(raw)+1 > benchRecordLimit {
+		return errors.New("bench JSON evidence exceeds 1 MiB before publication")
 	}
 	return writeBenchExclusive(p, append(raw, '\n'), 0644)
 }

@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-const LedgerRowLimit = 16 << 10
+const ResultObjectLimit = 16 << 10
 
 // RoleUsage keeps an unknown counter distinct from a measured zero. Credits
 // retain their source decimal precision; coverage concerns the token source,
@@ -70,108 +70,6 @@ type Acceptance struct {
 	LandingGreen  bool                       `json:"landing_green"`
 	PatchSHA256   string                     `json:"patch_sha256"`
 	Unknown       map[string]json.RawMessage `json:"-"`
-}
-
-// LedgerRow is an observer result, not a TL proposal. Source pins remain in the
-// observer ledger; no private path or transcript body is copied into it.
-type LedgerRow struct {
-	Version          int                        `json:"version"`
-	CorpusVersion    string                     `json:"corpus_version"`
-	Repo             string                     `json:"repo"`
-	TaskID           string                     `json:"task_id"`
-	Type             string                     `json:"type"`
-	Repeat           int                        `json:"repeat"`
-	RunID            string                     `json:"run_id"`
-	ParentOID        string                     `json:"parent_oid"`
-	LandingOID       string                     `json:"landing_oid"`
-	OriginalIssueOID string                     `json:"original_issue_oid"`
-	Candidate        string                     `json:"candidate"`
-	Outcome          string                     `json:"outcome"`
-	Worker           AgentProfile               `json:"worker"`
-	TL               AgentProfile               `json:"tl"`
-	Reviewer         AgentProfile               `json:"reviewer"`
-	OriginalHours    float64                    `json:"original_hours"`
-	Measurements     Measurements               `json:"measurements"`
-	Acceptance       Acceptance                 `json:"acceptance"`
-	RawDigest        string                     `json:"raw_digest"`
-	Synthetic        bool                       `json:"synthetic"`
-	Unknown          map[string]json.RawMessage `json:"-"`
-}
-
-func BuildRow(task Task, run Run, m Measurements, a Acceptance, rawDigest string, synthetic bool) (LedgerRow, error) {
-	if err := ValidateTask(task); err != nil {
-		return LedgerRow{}, err
-	}
-	terminal := false
-	switch run.Phase() {
-	case PhaseStopped, PhaseScored, PhaseAcceptanceUnavailable, PhaseRecording, PhaseRecordUnknown, PhaseRecorded, PhaseCleaning, PhaseCleaned:
-		terminal = true
-	}
-	if !terminal || !run.RuntimeStopped() {
-		return LedgerRow{}, fmt.Errorf("ledger requires confirmed terminal runtime")
-	}
-	h, w := run.Bindings()
-	if h.Session != "" && (h.Agent != task.TL.Agent || h.Model != task.TL.Model || h.Effort != task.TL.Effort || w.Agent != task.Worker.Agent || w.Model != task.Worker.Model || w.Effort != task.Worker.Effort) {
-		return LedgerRow{}, fmt.Errorf("runtime profiles differ from immutable task")
-	}
-	if run.Phase() == PhaseScored && a.Status == "unavailable" || run.Phase() == PhaseAcceptanceUnavailable && a.Status != "unavailable" {
-		return LedgerRow{}, fmt.Errorf("acceptance disagrees with terminal run phase")
-	}
-	// Recording/cleanup phases no longer expose the score phase. Bind a rebuild
-	// to the final accepted score operation retained by the pure Run owner.
-	if run.Candidate() != "" {
-		matched := false
-		for _, event := range run.seen {
-			if event.OperationID != run.scoreOp {
-				continue
-			}
-			if event.Kind == ScoreCompleted {
-				matched = true
-				if a.Status == "unavailable" {
-					return LedgerRow{}, fmt.Errorf("completed score cannot become unavailable")
-				}
-			}
-			if event.Kind == ScoreUnavailable {
-				matched = true
-				if a.Status != "unavailable" {
-					return LedgerRow{}, fmt.Errorf("unavailable score cannot become a score")
-				}
-			}
-		}
-		if !matched {
-			return LedgerRow{}, fmt.Errorf("candidate lacks accepted score outcome")
-		}
-	}
-	if a.Status != "unavailable" && a.PatchSHA256 != task.Acceptance.PatchSHA256 {
-		return LedgerRow{}, fmt.Errorf("acceptance patch differs from task pin")
-	}
-	for _, d := range m.Decisions {
-		if h.Session == "" || d.Session != h.Session || d.Generation != h.Generation {
-			return LedgerRow{}, fmt.Errorf("decision is not bound to run TL conversation")
-		}
-	}
-	outcome := "stopped"
-	if run.Candidate() != "" {
-		outcome = "would-land"
-	}
-	if m.Validity == "invalid" {
-		outcome = "invalid"
-	}
-	row := LedgerRow{Version: 1, CorpusVersion: task.CorpusVersion, Repo: task.Repo, TaskID: task.ID, Type: task.Type, Repeat: task.Repeat, RunID: run.ID(), ParentOID: task.ParentOID, LandingOID: task.LandingOID, OriginalIssueOID: task.OriginalIssueOID, Candidate: run.Candidate(), Outcome: outcome, Worker: task.Worker, TL: task.TL, Reviewer: task.Reviewer, OriginalHours: task.OriginalHours, Measurements: m, Acceptance: a, RawDigest: rawDigest, Synthetic: synthetic}
-	if err := ValidateLedgerRow(row); err != nil {
-		return LedgerRow{}, err
-	}
-	// Snapshot caller-owned pointers, slices and extension maps. A later caller
-	// mutation cannot change the already derived row's evidence.
-	raw, err := json.Marshal(row)
-	if err != nil {
-		return LedgerRow{}, err
-	}
-	var snapshot LedgerRow
-	if err = json.Unmarshal(raw, &snapshot); err != nil {
-		return LedgerRow{}, err
-	}
-	return snapshot, nil
 }
 
 func boundedResultText(s string, limit int) bool {
@@ -339,76 +237,11 @@ func ValidateAcceptance(a Acceptance) error {
 	return nil
 }
 
-func ValidateLedgerRow(r LedgerRow) error {
-	if r.Version != 1 || !taskName.MatchString(r.CorpusVersion) || !taskName.MatchString(r.Repo) || !issueID.MatchString(r.TaskID) || r.TaskID == "000000" || !taskName.MatchString(r.Type) || r.Repeat < 1 {
-		return fmt.Errorf("invalid row task identity/version")
-	}
-	if _, err := NewRun(r.RunID); err != nil {
-		return err
-	}
-	if !objectID.MatchString(r.ParentOID) || !objectID.MatchString(r.LandingOID) || !objectID.MatchString(r.OriginalIssueOID) || len(r.ParentOID) != len(r.LandingOID) || len(r.ParentOID) != len(r.OriginalIssueOID) || r.ParentOID == r.LandingOID || !digestID.MatchString(r.RawDigest) {
-		return fmt.Errorf("invalid row source/raw pins")
-	}
-	for _, p := range []AgentProfile{r.Worker, r.TL, r.Reviewer} {
-		if !taskName.MatchString(p.Agent) || !taskName.MatchString(p.Model) || !taskName.MatchString(p.Effort) {
-			return fmt.Errorf("row needs fixed role profiles")
-		}
-	}
-	if math.IsNaN(r.OriginalHours) || math.IsInf(r.OriginalHours, 0) || r.OriginalHours <= 0 {
-		return fmt.Errorf("invalid original measured hours")
-	}
-	if r.Outcome == "invalid" {
-		if r.Measurements.Validity != "invalid" || r.Acceptance.Status != "unavailable" {
-			return fmt.Errorf("invalid run requires explicit diagnostic validity and unavailable acceptance")
-		}
-		if r.Candidate != "" && (!objectID.MatchString(r.Candidate) || len(r.Candidate) != len(r.ParentOID)) {
-			return fmt.Errorf("invalid run candidate must retain an exact object pin")
-		}
-	} else if r.Measurements.Validity == "invalid" {
-		return fmt.Errorf("invalid measurements cannot claim would-land or stopped outcome")
-	} else if r.Outcome == "would-land" {
-		if !objectID.MatchString(r.Candidate) || len(r.Candidate) != len(r.ParentOID) {
-			return fmt.Errorf("would-land row requires admitted candidate pin")
-		}
-	} else if r.Outcome != "stopped" || r.Candidate != "" || r.Acceptance.Status != "unavailable" {
-		return fmt.Errorf("invalid terminal row outcome")
-	}
-	if err := validateMeasurements(r.Measurements); err != nil {
-		return err
-	}
-	if err := ValidateAcceptance(r.Acceptance); err != nil {
-		return err
-	}
-	raw, err := json.Marshal(r)
-	if err != nil {
-		return err
-	}
-	if len(raw) > LedgerRowLimit {
-		return fmt.Errorf("ledger row exceeds %d bytes", LedgerRowLimit)
-	}
-	return nil
-}
-
-func EncodeLedgerRow(r LedgerRow) ([]byte, error) {
-	if err := ValidateLedgerRow(r); err != nil {
-		return nil, err
-	}
-	return json.Marshal(r)
-}
-func DecodeLedgerRow(raw []byte) (LedgerRow, error) {
-	var r LedgerRow
-	if len(raw) > LedgerRowLimit {
-		return r, fmt.Errorf("ledger row exceeds limit")
-	}
-	err := json.Unmarshal(raw, &r)
-	return r, err
-}
-
 // resultObject reuses the task codec, adding explicit nullable required fields
 // for unknown counters and optional fields for the scanner's omitempty schema.
 func resultObject(raw []byte, target any, fields, nullable, optional []string) (map[string]json.RawMessage, error) {
-	if len(raw) > LedgerRowLimit {
-		return nil, fmt.Errorf("result object exceeds row limit")
+	if len(raw) > ResultObjectLimit {
+		return nil, fmt.Errorf("result object exceeds limit")
 	}
 	contains := func(list []string, key string) bool {
 		for _, v := range list {
@@ -545,25 +378,6 @@ func (v *Acceptance) UnmarshalJSON(raw []byte) error {
 		return err
 	}
 	*v = Acceptance(p)
-	return nil
-}
-
-func (v LedgerRow) MarshalJSON() ([]byte, error) {
-	type plain LedgerRow
-	return encodeObject(plain(v), v.Unknown)
-}
-func (v *LedgerRow) UnmarshalJSON(raw []byte) error {
-	type plain LedgerRow
-	var p plain
-	u, err := resultObject(raw, &p, []string{"version", "corpus_version", "repo", "task_id", "type", "repeat", "run_id", "parent_oid", "landing_oid", "original_issue_oid", "candidate", "outcome", "worker", "tl", "reviewer", "original_hours", "measurements", "acceptance", "raw_digest", "synthetic"}, nil, nil)
-	if err != nil {
-		return err
-	}
-	p.Unknown = u
-	if err = ValidateLedgerRow(LedgerRow(p)); err != nil {
-		return err
-	}
-	*v = LedgerRow(p)
 	return nil
 }
 

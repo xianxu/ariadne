@@ -21,7 +21,7 @@ import (
 
 type benchCloseProof struct {
 	context                      *benchPublicContext
-	record                       benchRecord
+	record                       benchSessionFacts
 	run                          bench.Run
 	env                          *trackerEnv
 	card                         tracker.Record
@@ -34,7 +34,7 @@ type benchCloseProof struct {
 // readBenchCloseProof pins the existing tracker, gate and observation owners at
 // the immutable close evidence. It never guesses completion from pane prose or
 // substitutes current metadata HEAD for the candidate the reviewer read.
-func readBenchCloseProof(ctx context.Context, s *benchStore) (benchCloseProof, error) {
+func readBenchCloseProof(ctx context.Context, s *benchSession) (benchCloseProof, error) {
 	var p benchCloseProof
 	if ctx == nil || s == nil {
 		return p, errors.New("bench admission needs context and store")
@@ -173,13 +173,13 @@ func benchAdmissionBlob(ctx context.Context, root, commit, rel string) ([]byte, 
 
 type benchAdmissionSuiteReader func(context.Context, string, string, string) (benchLocalCheckReceipt, error)
 
-func verifyBenchWouldLand(ctx context.Context, s *benchStore, candidate string) (bench.WouldLandFacts, error) {
+func verifyBenchWouldLand(ctx context.Context, s *benchSession, candidate string) (bench.WouldLandFacts, error) {
 	return verifyBenchWouldLandWithSuite(ctx, s, candidate, readBenchLocalCheckReceipt)
 }
 
 // The only replaceable IO is the costly native suite reader. Production always
 // uses its full saved-attempt/flake proof; graph/card/review checks remain real.
-func verifyBenchWouldLandWithSuite(ctx context.Context, s *benchStore, candidate string, readSuite benchAdmissionSuiteReader) (bench.WouldLandFacts, error) {
+func verifyBenchWouldLandWithSuite(ctx context.Context, s *benchSession, candidate string, readSuite benchAdmissionSuiteReader) (bench.WouldLandFacts, error) {
 	var facts bench.WouldLandFacts
 	if !benchCandidatePattern.MatchString(candidate) {
 		return facts, errors.New("bench candidate must be a full lowercase object ID")
@@ -274,7 +274,7 @@ func verifyBenchWouldLandWithSuite(ctx context.Context, s *benchStore, candidate
 
 // loadBenchFocusedInputs reuses the immutable finalized measurement snapshot
 // and explicit captured originals. It never discovers a live transcript store.
-func loadBenchFocusedInputs(ctx context.Context, s *benchStore, sources []benchCapturedSource) (*ownedActualInputs, error) {
+func loadBenchFocusedInputs(ctx context.Context, s *benchSession, sources []benchCapturedSource) (*ownedActualInputs, error) {
 	p, err := readBenchCloseProof(ctx, s)
 	if err != nil {
 		return nil, err

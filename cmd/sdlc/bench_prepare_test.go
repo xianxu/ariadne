@@ -98,14 +98,60 @@ func preparedFixtureTask(t *testing.T) bench.Task {
 	return task
 }
 
-func prepareFixture(t *testing.T, task bench.Task) (*benchStore, error) {
+func prepareFixture(t *testing.T, task bench.Task) (*benchSession, error) {
 	t.Helper()
-	s, err := createBenchStore(filepath.Join(t.TempDir(), "run"), task)
+	s, err := createBenchSession(filepath.Join(t.TempDir(), "run"), task)
 	if err != nil {
 		t.Fatal(err)
 	}
 	d := benchPrepareDeps{GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
-	return s, prepareBenchRun(context.Background(), s, d)
+	template := filepath.Join(t.TempDir(), "template.tar")
+	if err := prepareBenchTemplate(context.Background(), task, template); err != nil {
+		return s, err
+	}
+	return s, instantiateBenchSession(context.Background(), s, template, d)
+}
+
+func TestBenchPrepareTemplateIsIndependentAndHasNoRuntimeEffects(t *testing.T) {
+	task := preparedFixtureTask(t)
+	root := t.TempDir()
+	template := filepath.Join(root, "template.tar")
+	if err := prepareBenchTemplate(context.Background(), task, template); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "template.tar" {
+		t.Fatalf("prepare created runtime material: %v %v", entries, err)
+	}
+	files, err := readBenchTemplate(context.Background(), template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if benchProcessArtifact(f.Path) || strings.Contains(string(f.Content), "SOLUTION SECRET") {
+			t.Fatalf("template leaked process inventory: %s", f.Path)
+		}
+	}
+	// Instantiation must use the validated immutable template, even after the
+	// original source and hidden scorer input are no longer readable.
+	if err := os.Rename(task.SourceRepo, task.SourceRepo+"-retired"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(task.Acceptance.Patch); err != nil {
+		t.Fatal(err)
+	}
+	s, err := createBenchSession(filepath.Join(t.TempDir(), "session"), task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := benchPrepareDeps{GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
+	if err := instantiateBenchSession(context.Background(), s, template, d); err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(s.root, "public", "work")
+	if got := prepareTestGit(t, work, "log", "--reverse", "--format=%B", "main"); !strings.Contains(got, "Agent:") {
+		t.Fatal("seed commit lacks Agent stamp")
+	}
 }
 
 func TestBenchPrepareSanitizedIndependentAndRealTracker(t *testing.T) {

@@ -119,7 +119,7 @@ func TestBenchProtocolMetricsRetainedNamespace(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	runtime := benchRuntimeState{Version: 1, RunID: rec.ID, Hub: benchRuntimeActor{Identity: w.Hub}, Worker: benchRuntimeActor{Identity: worker}, Since: w.Since.Format(time.RFC3339Nano), Deadline: w.Until.Format(time.RFC3339Nano), Ledger: "synthetic", Provision: json.RawMessage(`{}`)}
+	runtime := benchRuntimeState{Version: 1, RunID: rec.ID, Hub: benchRuntimeActor{Identity: w.Hub}, Worker: benchRuntimeActor{Identity: worker}, Since: w.Since.Format(time.RFC3339Nano), Deadline: w.Until.Format(time.RFC3339Nano), Provision: json.RawMessage(`{}`)}
 	retirement := benchRetirement{Version: 1, RunID: rec.ID, Hub: w.Hub, Worker: worker, ConfirmedBy: "fixture", ConfirmedAt: w.Until.Format(time.RFC3339Nano), Evidence: "synthetic fixture", ProcessesGone: true, Survivors: []string{}, ReviewerSources: []benchSourceInput{}}
 	if err := s.putData("runtime", runtime); err != nil {
 		t.Fatal(err)

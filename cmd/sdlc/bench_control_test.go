@@ -65,13 +65,13 @@ func TestBenchControlRetirementRequiresEvidenceAndVacantRoots(t *testing.T) {
 	if err := os.WriteFile(p, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := cancelBenchRun(context.Background(), s, p, d.Couch); err == nil {
+	if err := acceptBenchRetirement(context.Background(), s, p, d.Couch); err == nil {
 		t.Fatal("live actors accepted as retired")
 	}
 	empty := benchCouchDeps{Command: func(context.Context, ...string) ([]byte, error) {
 		return []byte(`{"Code":"ok","Error":"","Actors":[]}`), nil
 	}}
-	if err := cancelBenchRun(context.Background(), s, p, empty); err != nil {
+	if err := acceptBenchRetirement(context.Background(), s, p, empty); err != nil {
 		t.Fatal(err)
 	}
 	_, state, err = s.read()
@@ -81,7 +81,7 @@ func TestBenchControlRetirementRequiresEvidenceAndVacantRoots(t *testing.T) {
 	if err := verifyBenchRetirement(context.Background(), s, empty); err != nil {
 		t.Fatal(err)
 	}
-	if err := cancelBenchRun(context.Background(), s, p, empty); err != nil {
+	if err := acceptBenchRetirement(context.Background(), s, p, empty); err != nil {
 		t.Fatal("same proof not idempotent", err)
 	}
 }
@@ -107,7 +107,7 @@ func TestBenchControlCanRetirePreparedUndispatchedRun(t *testing.T) {
 	d := benchCouchDeps{Command: func(context.Context, ...string) ([]byte, error) {
 		return []byte(`{"Code":"ok","Error":"","Actors":[]}`), nil
 	}}
-	if err := cancelBenchRun(context.Background(), s, p, d); err != nil {
+	if err := acceptBenchRetirement(context.Background(), s, p, d); err != nil {
 		t.Fatal(err)
 	}
 	_, state, err := s.read()

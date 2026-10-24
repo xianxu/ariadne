@@ -1,7 +1,6 @@
 package bench
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -53,25 +52,6 @@ func TestBenchPreparedRunCanStopWithoutInventingRuntimeBindings(t *testing.T) {
 	}
 }
 
-func TestBenchUnavailableAcceptanceIsTerminalForRun(t *testing.T) {
-	r := runningRun(t)
-	r, _ = apply(t, r, ProposeWouldLand, "proof")
-	h, w := identities()
-	var err error
-	r, _, err = Step(r, Event{ID: "accepted", RunID: r.ID(), Kind: ProofAccepted, OperationID: "proof", Hub: h, Worker: w, Facts: admittedFacts()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range []struct {
-		kind EventKind
-		op   string
-	}{{BeginCancel, "cancel"}, {CancelConfirmed, "cancel"}, {BeginScore, "score"}, {ScoreUnavailable, "score"}} {
-		r, _ = apply(t, r, e.kind, e.op)
-	}
-	if _, fx, err := Step(r, Event{ID: "score-again", RunID: r.ID(), Kind: BeginScore, OperationID: "new-score", Hub: h, Worker: w}); err == nil || len(fx) != 0 {
-		t.Fatal("confirmed unavailable acceptance was re-executed")
-	}
-}
 func TestBenchUnknownDeliveryNeverRedispatches(t *testing.T) {
 	r := preparedRun(t)
 	r, e := apply(t, r, BeginDispatch, "dispatch")
@@ -119,9 +99,6 @@ func TestBenchExactIdentityDuplicatesAndTerminalMonotonicity(t *testing.T) {
 	if r.Phase() != PhaseReconciliation || r.RuntimeStopped() {
 		t.Fatal(r.Phase())
 	}
-	if _, _, err := Step(r, Event{ID: "unsafe-score", RunID: "run-1", Kind: BeginScore, OperationID: "score", Hub: h, Worker: w}); err == nil {
-		t.Fatal("scored uncertain runtime")
-	}
 	r, _ = apply(t, r, CancelConfirmed, "cancel")
 	if r.Phase() != PhaseStopped || !r.RuntimeStopped() {
 		t.Fatal(r.Phase())
@@ -130,7 +107,7 @@ func TestBenchExactIdentityDuplicatesAndTerminalMonotonicity(t *testing.T) {
 		t.Fatal("terminal resurrected")
 	}
 }
-func TestBenchScoreAndCleanupRequireProofAndConfirmedShutdown(t *testing.T) {
+func TestBenchCandidateRequiresProofAndConfirmedShutdown(t *testing.T) {
 	r := runningRun(t)
 	h, w := identities()
 	r, fx := apply(t, r, ProposeWouldLand, "proof")
@@ -143,47 +120,15 @@ func TestBenchScoreAndCleanupRequireProofAndConfirmedShutdown(t *testing.T) {
 	if err != nil || r.Candidate() != "candidate" {
 		t.Fatal(err)
 	}
-	if _, _, err = Step(r, Event{ID: "early-score", RunID: "run-1", Kind: BeginScore, OperationID: "score", Hub: h, Worker: w}); err == nil {
-		t.Fatal("scored before shutdown")
-	}
 	r, _ = apply(t, r, BeginCancel, "cancel")
 	r, _ = apply(t, r, CancelConfirmed, "cancel")
 	if r.Phase() != PhaseWouldLand {
 		t.Fatal(r.Phase())
 	}
-	r, fx = apply(t, r, BeginScore, "score")
-	if fx[0].Kind != Score || fx[0].Candidate != "candidate" {
-		t.Fatal(fx)
+	if !r.RuntimeStopped() || r.Candidate() != "candidate" {
+		t.Fatal("retirement lost admitted candidate")
 	}
-	r, _ = apply(t, r, ScoreCompleted, "score")
-	if r.CanClean() {
-		t.Fatal("clean before recording")
-	}
-	r, fx = apply(t, r, BeginRecord, "record")
-	if fx[0].Kind != Record {
-		t.Fatal(fx)
-	}
-	r, _ = apply(t, r, RecordConfirmed, "record")
-	if !r.CanClean() {
-		t.Fatal("confirmed recorded run cannot clean")
-	}
-	_, fx = apply(t, r, BeginClean, "clean")
-	if fx[0].Kind != Clean {
-		t.Fatal(fx)
-	}
-}
 
-func TestBenchCleanupEffectAdmittedOnce(t *testing.T) {
-	r := runningRun(t)
-	r, _ = apply(t, r, Stop, "cancel")
-	r, _ = apply(t, r, CancelConfirmed, "cancel")
-	r, _ = apply(t, r, BeginRecord, "record")
-	r, _ = apply(t, r, RecordConfirmed, "record")
-	r, _ = apply(t, r, BeginClean, "clean")
-	h, w := identities()
-	if _, fx, err := Step(r, Event{ID: "another-clean", RunID: "run-1", Kind: BeginClean, OperationID: "other-clean", Hub: h, Worker: w}); err == nil || len(fx) != 0 {
-		t.Fatal("cleanup authorized twice")
-	}
 }
 
 func TestBenchInvalidProofCannotFreezeCandidate(t *testing.T) {
@@ -205,57 +150,23 @@ func TestBenchInvalidProofCannotFreezeCandidate(t *testing.T) {
 	}
 }
 
-func TestBenchEventReplayAndInputAreIndependent(t *testing.T) {
-	h, w := identities()
-	events := []Event{
-		{ID: "prepare", RunID: "run-1", Kind: BeginPrepare, OperationID: "p"},
-		{ID: "prepared", RunID: "run-1", Kind: Prepared, OperationID: "p"},
-		{ID: "dispatch", RunID: "run-1", Kind: BeginDispatch, OperationID: "d", Hub: h, Worker: w},
-		{ID: "lost", RunID: "run-1", Kind: DispatchUnconfirmed, OperationID: "d", Hub: h, Worker: w},
-		{ID: "confirmed", RunID: "run-1", Kind: DispatchConfirmed, OperationID: "d", Hub: h, Worker: w},
+func TestBenchStepDoesNotMutateItsInput(t *testing.T) {
+	r := runningRun(t)
+	next, _ := apply(t, r, Timeout, "cancel")
+	if r.Phase() != PhaseRunning || next.Phase() != PhaseCancelling {
+		t.Fatal("Step mutated input")
 	}
-	r, err := NewRun("run-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, event := range events {
-		previous := r
-		next, _, err := Step(r, event)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := previous.seen[event.ID]; ok {
-			t.Fatal("Step mutated its input")
-		}
-		r = next
-	}
-	var decoded []Event
-	bytes, err := json.Marshal(events)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = json.Unmarshal(bytes, &decoded); err != nil {
-		t.Fatal(err)
-	}
-	replay, _ := NewRun("run-1")
-	for _, event := range decoded {
-		var err error
-		replay, _, err = Step(replay, event)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if replay.Phase() != r.Phase() || replay.DispatchOperation() != r.DispatchOperation() {
-		t.Fatal("replay lost authority")
+	if len(r.seen)+1 != len(next.seen) {
+		t.Fatal("event authority unexpectedly shared")
 	}
 }
 
 // Independent invariants over short adversarial sequences: receipts alone may
-// never launch work, unknown outcomes never enable scoring or cleanup, and
+// never launch work, unknown outcomes never prove shutdown, and
 // erroneous events leave the original state available for reconciliation.
 func TestBenchFiniteSequencesPreserveAuthority(t *testing.T) {
 	h, w := identities()
-	kinds := []EventKind{BeginDispatch, DispatchConfirmed, DispatchUnconfirmed, Observe, ProposeWouldLand, ProofAccepted, Timeout, Stop, CancelConfirmed, CancelUnconfirmed, BeginScore, ScoreCompleted, BeginRecord, RecordConfirmed, BeginClean}
+	kinds := []EventKind{BeginDispatch, DispatchConfirmed, DispatchUnconfirmed, Observe, ProposeWouldLand, ProofAccepted, Timeout, Stop, CancelConfirmed, CancelUnconfirmed}
 	var walk func(Run, int)
 	walk = func(r Run, depth int) {
 		if depth == 0 {
@@ -278,12 +189,7 @@ func TestBenchFiniteSequencesPreserveAuthority(t *testing.T) {
 				if effect.Kind == Dispatch && r.Phase() != PhasePrepared {
 					t.Fatal("dispatch without preparation")
 				}
-				if effect.Kind == Score && (!r.RuntimeStopped() || r.Candidate() == "") {
-					t.Fatal("score without proof and shutdown")
-				}
-				if effect.Kind == Clean && !r.CanClean() {
-					t.Fatal("cleanup without recorded safe terminal state")
-				}
+
 			}
 			if r.Candidate() != "" && next.Candidate() != r.Candidate() {
 				t.Fatal("candidate was rewritten")

@@ -14,7 +14,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/bench"
 )
 
-func benchMeasureFixture(t *testing.T) (*benchStore, *benchCleanupRuntime, benchRuntimeState) {
+func benchMeasureFixture(t *testing.T, configure ...func(*benchRuntimeState, *benchRetirement)) (*benchSession, *benchCleanupRuntime, benchRuntimeState) {
 	t.Helper()
 	s, err := prepareFixture(t, preparedFixtureTask(t))
 	if err != nil {
@@ -36,7 +36,7 @@ func benchMeasureFixture(t *testing.T) (*benchStore, *benchCleanupRuntime, bench
 		}
 		return benchRuntimeActor{Identity: bench.RuntimeIdentity{Slot: slot, Session: role + "-session", Generation: role + "-generation", Root: root, Agent: profile.Agent, Model: profile.Model, Effort: profile.Effort}, NativeSession: native, Transcripts: []string{source}, PID: 42, ProcessStart: "synthetic", Scope: "synthetic", Tag: "synthetic"}
 	}
-	runtime := benchRuntimeState{Version: 1, RunID: r.ID, Since: since.Format(time.RFC3339Nano), Deadline: since.Add(time.Hour).Format(time.RFC3339Nano), Ledger: filepath.Join(t.TempDir(), "ledger.jsonl"), Provision: json.RawMessage(`{"synthetic":true}`), Hub: makeActor("tl", "repo:0", filepath.Join(s.root, "public", "hub"), r.Task.TL), Worker: makeActor("worker", "repo:1", filepath.Join(s.root, "public", "work"), r.Task.Worker)}
+	runtime := benchRuntimeState{Version: 1, RunID: r.ID, Since: since.Format(time.RFC3339Nano), Deadline: since.Add(time.Hour).Format(time.RFC3339Nano), Provision: json.RawMessage(`{"synthetic":true}`), Hub: makeActor("tl", "repo:0", filepath.Join(s.root, "public", "hub"), r.Task.TL), Worker: makeActor("worker", "repo:1", filepath.Join(s.root, "public", "work"), r.Task.Worker)}
 	for i, step := range []struct {
 		kind bench.EventKind
 		op   string
@@ -45,10 +45,14 @@ func benchMeasureFixture(t *testing.T) (*benchStore, *benchCleanupRuntime, bench
 			t.Fatal(err)
 		}
 	}
+	proof := benchRetirement{Version: 1, RunID: r.ID, Hub: runtime.Hub.Identity, Worker: runtime.Worker.Identity, ConfirmedBy: "fixture operator", ConfirmedAt: since.Add(time.Minute).Format(time.RFC3339Nano), Evidence: "synthetic retirement", ProcessesGone: true, Survivors: []string{}, ReviewerSources: []benchSourceInput{}}
+	for _, change := range configure {
+		change(&runtime, &proof)
+	}
 	if err := s.putData("runtime", runtime); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.putData("retirement", benchRetirement{Version: 1, RunID: r.ID, Hub: runtime.Hub.Identity, Worker: runtime.Worker.Identity, ConfirmedBy: "fixture operator", ConfirmedAt: since.Add(time.Minute).Format(time.RFC3339Nano), Evidence: "synthetic retirement", ProcessesGone: true, Survivors: []string{}, ReviewerSources: []benchSourceInput{}}); err != nil {
+	if err := s.putData("retirement", proof); err != nil {
 		t.Fatal(err)
 	}
 	return s, &benchCleanupRuntime{}, runtime
@@ -95,26 +99,7 @@ func TestMeasureBenchRunCapturesOnceAndPersistsImmutableMetrics(t *testing.T) {
 			t.Fatalf("capture not private: %+v", source)
 		}
 	}
-	// The collection write precedes the final measurements write. Resume that
-	// boundary without touching the native files, which are now invalid JSONL.
-	delete(r.Data, "measurements")
-	if err := s.write(r); err != nil {
-		t.Fatal(err)
-	}
-	recovered, err := measureBenchRun(context.Background(), s, couch.deps())
-	if err != nil || !reflect.DeepEqual(recovered, got) {
-		t.Fatalf("collection recovery changed measurement: %+v %v", recovered, err)
-	}
-	// A crash immediately after persisting capture pins must also reuse those
-	// immutable bytes rather than opening the changed original sources.
-	delete(r.Data, "collection")
-	if err := s.write(r); err != nil {
-		t.Fatal(err)
-	}
-	recovered, err = measureBenchRun(context.Background(), s, couch.deps())
-	if err != nil || !reflect.DeepEqual(recovered, got) {
-		t.Fatalf("capture recovery changed measurement: %+v %v", recovered, err)
-	}
+
 }
 
 func TestMeasureBenchRunRefusesUnretiredAndAmbiguousSources(t *testing.T) {
@@ -130,41 +115,24 @@ func TestMeasureBenchRunRefusesUnretiredAndAmbiguousSources(t *testing.T) {
 	if len(r.Data["captured_sources"]) != 0 || len(r.Data["measurements"]) != 0 {
 		t.Fatal("effects preceded retirement verification")
 	}
-	couch.actors = nil
-	runtime.Worker.Transcripts = append(runtime.Worker.Transcripts, filepath.Join(t.TempDir(), "another-copy.jsonl"))
-	raw, _ := json.Marshal(runtime)
-	r.Data["runtime"] = raw
-	if err := s.write(r); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := measureBenchRun(context.Background(), s, couch.deps()); err == nil {
+	ambiguous, quiet, _ := benchMeasureFixture(t, func(runtime *benchRuntimeState, _ *benchRetirement) {
+		runtime.Worker.Transcripts = append(runtime.Worker.Transcripts, filepath.Join(t.TempDir(), "another-copy.jsonl"))
+	})
+	if _, err := measureBenchRun(context.Background(), ambiguous, quiet.deps()); err == nil {
 		t.Fatal("ambiguous same-session source selection guessed")
 	}
+
 }
 
 func TestMeasureBenchRunUsesOnlyExactAutonomyAttestation(t *testing.T) {
 	for _, exact := range []bool{true, false} {
 		t.Run(fmt.Sprint(exact), func(t *testing.T) {
-			s, couch, runtime := benchMeasureFixture(t)
-			r, _, err := s.read()
-			if err != nil {
-				t.Fatal(err)
-			}
-			var proof benchRetirement
-			if err := json.Unmarshal(r.Data["retirement"], &proof); err != nil {
-				t.Fatal(err)
-			}
-			proof.Autonomy = &benchAutonomyAttestation{Since: runtime.Since, Until: proof.ConfirmedAt, NoOperatorInput: true, Evidence: "synthetic explicit no-input attestation"}
-			if !exact {
-				proof.Autonomy.Since = "2026-10-23T09:59:59Z"
-			}
-			r.Data["retirement"], err = json.Marshal(proof)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := s.write(r); err != nil {
-				t.Fatal(err)
-			}
+			s, couch, _ := benchMeasureFixture(t, func(runtime *benchRuntimeState, proof *benchRetirement) {
+				proof.Autonomy = &benchAutonomyAttestation{Since: runtime.Since, Until: proof.ConfirmedAt, NoOperatorInput: true, Evidence: "synthetic explicit no-input attestation"}
+				if !exact {
+					proof.Autonomy.Since = "2026-10-23T09:59:59Z"
+				}
+			})
 			got, err := measureBenchRun(context.Background(), s, couch.deps())
 			if err != nil {
 				t.Fatal(err)

@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -11,87 +12,57 @@ import (
 )
 
 type benchScoringDeps struct {
-	Couch    benchCouchDeps
-	Measure  func(context.Context, *benchStore, benchCouchDeps) (bench.Measurements, error)
 	Evaluate func(context.Context, bench.Task, string, string, string) (bench.Acceptance, error)
 }
 
-func scoreBenchRun(ctx context.Context, s *benchStore, d benchCouchDeps) error {
-	return scoreBenchRunWith(ctx, s, benchScoringDeps{Couch: d})
-}
-
-func scoreBenchRunWith(ctx context.Context, s *benchStore, d benchScoringDeps) error {
-	release, err := s.acquireRun()
-	if err != nil {
-		return err
+// The Metis step is the execution owner. Its exclusive intent fences all hidden
+// evaluation, including a child whose result was lost. There is no run replay.
+func scoreBenchEvidence(ctx context.Context, task bench.Task, e benchSessionEvidence, workRoot, output string, d benchScoringDeps) (bench.Acceptance, error) {
+	a := bench.Acceptance{Status: "unavailable", Reason: "session stopped before an admitted candidate"}
+	if err := writeBenchJSONExclusive(filepath.Join(output, "score-intent.json"), map[string]any{"version": 1, "metis_run": e.MetisRun, "candidate": e.Candidate, "patch_sha256": task.Acceptance.PatchSHA256}); err != nil {
+		return a, fmt.Errorf("hidden evaluation already intended or output unavailable; reconcile scorer custody, then use a fresh Metis repeat: %w", err)
 	}
-	defer release()
-	r, state, err := s.read()
-	if err != nil {
-		return err
-	}
-	if err := verifyBenchRetirement(ctx, s, d.Couch); err != nil {
-		return err
-	}
-	if state.Phase() == bench.PhaseScoring {
-		// A lost result may still own a scorer. Retirement of the agents does
-		// not authorize a second scorer or deletion of its locked worktree.
-		return errors.New("bench scoring outcome unconfirmed; inspect retained scorer logs and native worktree leases before any retry or cleanup")
-	}
-	if state.Phase() == bench.PhaseScored || state.Phase() == bench.PhaseAcceptanceUnavailable || state.Phase() == bench.PhaseStopped {
-		if raw, ok := r.Data["acceptance"]; ok {
-			var a bench.Acceptance
-			return json.Unmarshal(raw, &a)
+	if e.Measurements.Validity == "invalid" {
+		a.Reason = "invalid session profile; hidden evaluation not executed"
+	} else if e.Candidate != "" {
+		patch, err := readBenchPatch(task.Acceptance.Patch)
+		if err != nil {
+			return a, err
 		}
-	}
-	if state.Phase() != bench.PhaseWouldLand && state.Phase() != bench.PhaseStopped {
-		return fmt.Errorf("bench score needs a retired would-land or stopped run; retained phase %s", state.Phase())
-	}
-	measure := d.Measure
-	if measure == nil {
-		measure = measureBenchRun
-	}
-	m, err := measure(ctx, s, d.Couch)
-	if err != nil {
-		return err
-	}
-	a := bench.Acceptance{Status: "unavailable", Reason: "run stopped before an admitted would-land candidate"}
-	if state.Phase() == bench.PhaseStopped {
-		return s.putData("acceptance", a)
-	}
-	h, w := state.Bindings()
-	op := "score-" + r.ID
-	_, effects, err := s.apply(bench.Event{ID: op + "-begin", RunID: r.ID, Kind: bench.BeginScore, OperationID: op, Hub: h, Worker: w})
-	if err != nil {
-		return err
-	}
-	if len(effects) != 1 || effects[0].Kind != bench.Score {
-		return errors.New("bench score effect not authorized")
-	}
-	var scoreErr error
-	if m.Validity == "invalid" {
-		a.Reason = "run invalid: actual transcript profile differs from trusted provisioning; see private collection evidence"
-	} else {
+		digest := sha256.Sum256(patch)
+		if hex.EncodeToString(digest[:]) != task.Acceptance.PatchSHA256 {
+			return a, errors.New("hidden patch changed before capture")
+		}
+		if err := writeBenchExclusive(filepath.Join(output, "acceptance.patch"), patch, 0600); err != nil {
+			return a, err
+		}
 		evaluate := d.Evaluate
 		if evaluate == nil {
 			evaluate = evaluateBenchAcceptance
 		}
-		a, scoreErr = evaluate(ctx, r.Task, filepath.Join(r.Root, "public", "work"), state.Candidate(), filepath.Join(r.Root, "observer"))
-		var unknown *runnerCleanupUnconfirmed
-		if errors.As(scoreErr, &unknown) {
-			return scoreErr
+		var errEval error
+		a, errEval = evaluate(ctx, task, workRoot, e.Candidate, output)
+		var unconfirmed *runnerCleanupUnconfirmed
+		if errors.As(errEval, &unconfirmed) {
+			return a, errEval
 		}
+		if err := bench.ValidateAcceptance(a); err != nil {
+			return a, errors.Join(errEval, err)
+		}
+		if err := writeBenchJSONExclusive(filepath.Join(output, "acceptance.json"), a); err != nil {
+			return a, errors.Join(errEval, err)
+		}
+		// A confirmed unavailable result is a terminal finding. Keep private diagnostics
+		// as an artifact, rather than asking Metis to launch another hidden evaluation.
+		if errEval != nil {
+			if err := writeBenchExclusive(filepath.Join(output, "finding.txt"), []byte(errEval.Error()), 0600); err != nil {
+				return a, err
+			}
+		}
+		return a, nil
 	}
-	if err := bench.ValidateAcceptance(a); err != nil {
-		return errors.Join(scoreErr, err)
+	if err := writeBenchJSONExclusive(filepath.Join(output, "acceptance.json"), a); err != nil {
+		return a, err
 	}
-	if err := s.putData("acceptance", a); err != nil {
-		return errors.Join(scoreErr, err)
-	}
-	kind := bench.ScoreCompleted
-	if a.Status == "unavailable" {
-		kind = bench.ScoreUnavailable
-	}
-	_, _, err = s.apply(bench.Event{ID: op + "-" + string(kind), RunID: r.ID, Kind: kind, OperationID: op, Hub: h, Worker: w, Reason: a.Reason})
-	return errors.Join(scoreErr, err)
+	return a, nil
 }

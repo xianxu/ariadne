@@ -24,14 +24,14 @@ type benchProvision struct {
 	Worker            bench.AgentProfile `json:"worker"`
 }
 type benchRunFlags struct {
-	Hub, Worker, Provision, Ledger string
-	Budget                         time.Duration
+	Hub, Worker, Provision string
+	Budget                 time.Duration
 }
 type benchObserverDeps struct {
 	Couch  benchCouchDeps
 	Now    func() time.Time
 	Wait   func(context.Context, time.Duration) error
-	Verify func(context.Context, *benchStore, string) (bench.WouldLandFacts, error)
+	Verify func(context.Context, *benchSession, string) (bench.WouldLandFacts, error)
 }
 type benchRuntimeState struct {
 	Version   int               `json:"version"`
@@ -40,7 +40,6 @@ type benchRuntimeState struct {
 	Worker    benchRuntimeActor `json:"worker"`
 	Since     string            `json:"since"`
 	Deadline  string            `json:"deadline"`
-	Ledger    string            `json:"ledger"`
 	Provision json.RawMessage   `json:"provision"`
 }
 type benchPublicRuntime struct {
@@ -99,9 +98,9 @@ func (d benchObserverDeps) now() time.Time {
 	return time.Now().UTC()
 }
 
-func loadBenchRuntime(r benchRecord, state bench.Run) (benchRuntimeState, error) {
+func loadBenchRuntime(r benchSessionFacts, state bench.Run) (benchRuntimeState, error) {
 	var runtime benchRuntimeState
-	if err := decodeBenchRequired(r.Data["runtime"], &runtime, "version", "run_id", "hub", "worker", "since", "deadline", "ledger", "provision"); err != nil {
+	if err := decodeBenchRequired(r.Data["runtime"], &runtime, "version", "run_id", "hub", "worker", "since", "deadline", "provision"); err != nil {
 		return runtime, err
 	}
 	h, w := state.Bindings()
@@ -111,7 +110,7 @@ func loadBenchRuntime(r benchRecord, state bench.Run) (benchRuntimeState, error)
 	return runtime, nil
 }
 
-func benchRetirementSubject(r benchRecord, state bench.Run) (benchRuntimeState, error) {
+func benchRetirementSubject(r benchSessionFacts, state bench.Run) (benchRuntimeState, error) {
 	h, w := state.Bindings()
 	if h == (bench.RuntimeIdentity{}) && w == (bench.RuntimeIdentity{}) && state.DispatchOperation() == "" {
 		// These are roots to retire, not invented launched actor identities.
@@ -120,7 +119,7 @@ func benchRetirementSubject(r benchRecord, state bench.Run) (benchRuntimeState, 
 	return loadBenchRuntime(r, state)
 }
 
-func runBenchObserver(ctx context.Context, s *benchStore, f benchRunFlags, d benchObserverDeps) error {
+func runBenchObserver(ctx context.Context, s *benchSession, f benchRunFlags, d benchObserverDeps) error {
 	release, err := s.acquireRun()
 	if err != nil {
 		return err
@@ -130,34 +129,14 @@ func runBenchObserver(ctx context.Context, s *benchStore, f benchRunFlags, d ben
 	if err != nil {
 		return err
 	}
-	if state.Phase() == bench.PhaseDispatching || state.Phase() == bench.PhaseDispatchUnknown || state.Phase() == bench.PhaseRunning || state.Phase() == bench.PhaseProving {
-		runtime, err := loadBenchRuntime(r, state)
-		if err != nil {
-			return err
-		}
-		var receiptID, message string
-		if err := json.Unmarshal(r.Data["dispatch_receipt_id"], &receiptID); err != nil || receiptID == "" {
-			return errors.New("bench dispatch has no confirmed receipt identity; inspect retained reply and original actors, never resend")
-		}
-		if err := json.Unmarshal(r.Data["dispatch_message"], &message); err != nil {
-			return err
-		}
-		return watchBenchRun(ctx, s, runtime, d, receiptID, message)
-	}
 	if state.Phase() != bench.PhasePrepared {
 		return fmt.Errorf("bench run retained at %s; inspect status and exact receipts, never redispatch", state.Phase())
 	}
 	if _, bound := r.Data["runtime"]; bound {
-		return fmt.Errorf("bench binding retained before dispatch authorization; no send is repeated: retire the prepared roots with sdlc bench cancel --run-dir %s --retirement-evidence FILE, then prepare a fresh run", s.root)
+		return fmt.Errorf("bench binding retained before dispatch authorization; no send is repeated: reconcile and retire the prepared roots at %s, then start a fresh Metis repeat", s.root)
 	}
-	if f.Budget <= 0 || f.Budget > 24*time.Hour || f.Hub == "" || f.Worker == "" || f.Hub == f.Worker || f.Provision == "" || f.Ledger == "" {
-		return errors.New("bench run requires distinct exact --hub/--worker, --provision, external --ledger and --budget within 24h")
-	}
-	if !filepath.IsAbs(f.Ledger) || filepath.Clean(f.Ledger) != f.Ledger || benchPathWithin(r.Root, f.Ledger) || benchPathWithin(r.Task.SourceRepo, f.Ledger) {
-		return errors.New("bench ledger must be an absolute physical path outside the run and source repository")
-	}
-	if err := preflightBenchLedger(ctx, f.Ledger); err != nil {
-		return err
+	if f.Budget <= 0 || f.Budget > 24*time.Hour || f.Hub == "" || f.Worker == "" || f.Hub == f.Worker || f.Provision == "" {
+		return errors.New("bench run requires distinct exact --hub/--worker, --provision, --budget within 24h")
 	}
 	raw, err := readBenchInput(f.Provision, benchRecordLimit)
 	if err != nil {
@@ -197,7 +176,7 @@ func runBenchObserver(ctx context.Context, s *benchStore, f benchRunFlags, d ben
 		return err
 	}
 	now := d.now()
-	runtime := benchRuntimeState{Version: 1, RunID: r.ID, Hub: h, Worker: w, Since: now.Format(time.RFC3339Nano), Deadline: now.Add(f.Budget).Format(time.RFC3339Nano), Ledger: f.Ledger, Provision: raw}
+	runtime := benchRuntimeState{Version: 1, RunID: r.ID, Hub: h, Worker: w, Since: now.Format(time.RFC3339Nano), Deadline: now.Add(f.Budget).Format(time.RFC3339Nano), Provision: raw}
 	if err := s.putData("runtime", runtime); err != nil {
 		return err
 	}
@@ -242,7 +221,7 @@ func runBenchObserver(ctx context.Context, s *benchStore, f benchRunFlags, d ben
 	return watchBenchRun(ctx, s, runtime, d, receipt.Message.ID, message)
 }
 
-func watchBenchRun(ctx context.Context, s *benchStore, runtime benchRuntimeState, d benchObserverDeps, receiptID, message string) error {
+func watchBenchRun(ctx context.Context, s *benchSession, runtime benchRuntimeState, d benchObserverDeps, receiptID, message string) error {
 	deadline, err := time.Parse(time.RFC3339Nano, runtime.Deadline)
 	if err != nil {
 		return err
@@ -270,16 +249,13 @@ func watchBenchRun(ctx context.Context, s *benchStore, runtime benchRuntimeState
 		if ctx.Err() != nil || !d.now().Before(deadline) {
 			return requestBenchRetirement(ctx, s, runtime, d, bench.Timeout, "observer budget ended or invocation cancelled")
 		}
-		if _, requested := r.Data["cancel_request"]; requested {
-			return requestBenchRetirement(ctx, s, runtime, d, bench.Stop, "operator requested cancellation")
-		}
 		if err := verifyBenchActorsPresent(ctx, d.Couch, runtime); err != nil {
 			return requestBenchRetirement(ctx, s, runtime, d, bench.RuntimeLost, "native actor changed or unavailable: "+err.Error())
 		}
 		if state.Phase() == bench.PhaseDispatching || state.Phase() == bench.PhaseDispatchUnknown {
 			raw, err := d.Couch.command(ctx, "--message-status", receiptID, "--json")
 			if err != nil {
-				return fmt.Errorf("bench receipt unconfirmed; resume observation without resending: %w", err)
+				return fmt.Errorf("bench receipt unconfirmed; reconcile and retire this session, then start a fresh Metis repeat: %w", err)
 			}
 			receipt, err := readBenchDelivery(raw, runtime.Hub, receiptID, message)
 			if err != nil {
@@ -357,7 +333,7 @@ func verifyBenchConversations(ctx context.Context, d benchCouchDeps, runtime ben
 	return nil
 }
 
-func observeBenchProposals(ctx context.Context, s *benchStore, runtime benchRuntimeState, d benchObserverDeps) (bool, error) {
+func observeBenchProposals(ctx context.Context, s *benchSession, runtime benchRuntimeState, d benchObserverDeps) (bool, error) {
 	public, err := loadBenchContext(ctx, runtime.Worker.Identity.Root)
 	if err != nil || public == nil {
 		return false, errors.New("bench public context changed while observing")
@@ -430,6 +406,14 @@ func observeBenchProposals(ctx context.Context, s *benchStore, runtime benchRunt
 				reason = truncate(reason, 1000)
 			}
 		}
+		if proofErr == nil {
+			if err := bench.ValidateWouldLand(facts); err != nil {
+				return false, err
+			}
+			if err := s.putData("would_land_facts", facts); err != nil {
+				return false, err
+			}
+		}
 		_, _, err = s.apply(bench.Event{ID: op + "-result", RunID: r.ID, Kind: kind, OperationID: op, Hub: runtime.Hub.Identity, Worker: runtime.Worker.Identity, Facts: facts, Reason: reason})
 		if err != nil {
 			return false, err
@@ -437,12 +421,12 @@ func observeBenchProposals(ctx context.Context, s *benchStore, runtime benchRunt
 		if proofErr == nil {
 			return true, requestBenchRetirement(ctx, s, runtime, d, bench.BeginCancel, "reviewed candidate admitted; retire actors before scoring")
 		}
-		return false, fmt.Errorf("bench would-land proof refused (retained as a bench finding): %w; correct evidence and resume observation", proofErr)
+		return false, fmt.Errorf("bench would-land proof refused (retained as a bench finding): %w; reconcile and retire this session before a fresh Metis repeat", proofErr)
 	}
 	return false, nil
 }
 
-func requestBenchRetirement(ctx context.Context, s *benchStore, runtime benchRuntimeState, d benchObserverDeps, kind bench.EventKind, reason string) error {
+func requestBenchRetirement(ctx context.Context, s *benchSession, runtime benchRuntimeState, d benchObserverDeps, kind bench.EventKind, reason string) error {
 	r, state, err := s.read()
 	if err != nil {
 		return err
@@ -474,7 +458,7 @@ func requestBenchRetirement(ctx context.Context, s *benchStore, runtime benchRun
 		reason = truncate(reason, 1000)
 	}
 	_, _, err = s.apply(bench.Event{ID: op + "-unconfirmed", RunID: r.ID, Kind: bench.CancelUnconfirmed, OperationID: op, Hub: runtime.Hub.Identity, Worker: runtime.Worker.Identity, Reason: reason})
-	return errors.Join(fmt.Errorf("bench needs reconciliation: park/archive the exact actors and confirm their processes are gone, then run sdlc bench cancel --run-dir %s --retirement-evidence FILE", s.root), err)
+	return errors.Join(fmt.Errorf("bench needs reconciliation: park/archive the exact actors and confirm their processes are gone, retain the explicit retirement proof beside %s for operator reconciliation, then start a fresh Metis repeat", s.root), err)
 }
 
 func benchPathWithin(root, path string) bool {
@@ -483,7 +467,7 @@ func benchPathWithin(root, path string) bool {
 
 // This checks explicit trusted retirement evidence AND a fresh native census.
 // Absence from actors alone never proves that detached descendants are gone.
-func verifyBenchRetirement(ctx context.Context, s *benchStore, d benchCouchDeps) error {
+func verifyBenchRetirement(ctx context.Context, s *benchSession, d benchCouchDeps) error {
 	r, state, err := s.read()
 	if err != nil {
 		return err

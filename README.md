@@ -24,10 +24,13 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
-`sdlc bench` prepares and observes isolated model replays with real workflow
-gates; `tl-lead bench` records the bound TL's decisions and candidate proposals.
-See [model replay bench](atlas/workflow/model-bench.md) for M1's trusted-agent
-limits, measurements, scoring and recovery.
+`sdlc bench step prepare|session|score` supplies native Git, Couch and SDLC
+proof backends to ordinary Metis steps in couch-bench. Required `with.json`
+`tool_sha256` and `tool_revision` pin the exact clean backend build in cache inputs.
+Metis owns execution,
+repeats, records, caching and ledger publication; `tl-lead bench` records the
+bound TL's decisions and candidate proposals. See [model replay bench](atlas/workflow/model-bench.md)
+for the step contract, evidence, trusted-agent limits and pending Metis support.
 
 Universal review uses three independent scalar settings: `collaboration-mode`
 (discussion by default), `presentation-mode` (highlight) and `processing-mode`

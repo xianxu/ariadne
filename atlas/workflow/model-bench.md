@@ -1,126 +1,160 @@
-# Model replay bench (#577)
+# Model replay step backends (#577)
 
-`sdlc bench` replays a pinned autonomous issue with one fixed TL, worker and
-reviewer profile. M1 uses trusted agents and prepared-repository isolation.
-Post-run transcript/tool inspection reports possible leakage and unknown
-coverage. OS read and network isolation remain a later milestone, required
-before a bench host also carries development checkouts.
+couch-bench contributes four ordinary Metis steps: `couch/prepare`,
+`couch/session`, `couch/score` and `couch/grade`. Ariadne supplies the first
+three native proof backends through `sdlc bench step prepare|session|score`.
+Metis owns experiment/repeat identity, execution, `record.json`, code capture,
+caching and ledger publication. Ariadne has no independent run record,
+ledger publisher, experiment engine or sweeper.
 
-The observer keeps the trusted task descriptor, original/landing pins, captured
-hidden acceptance and raw evidence under a private run directory. Agents see
-only `public/task.json`, sanitized independent `public/work` and `public/hub`
-repositories, and a fresh private bare `public/origin.git`. No source objects,
-refs, remotes or process inventory are shared. Only the original target Spec
-and Done-when are overlaid; product bytes at the pinned parent remain exact.
+M1 provides trusted-agent prepared-repository isolation and post-run leak
+detection. It does not prevent same-user host reads or network access. OS
+read/network isolation remains necessary before sharing a bench host with
+development checkouts. Only the observer sees full step folders, `with.json`,
+private source pins and hidden oracle inputs.
 
-## Commands and authority
+## Step boundary and inputs
 
-1. `sdlc bench prepare --task TASK.json --run-dir ABSENT_ABSOLUTE_DIR` validates
-   immutable pins, exports bounded local Git objects and runs real tracker
-   migration/CAS. It checks the retained-run inventory before admission.
-2. With the hub/operator, provision two disposable Couch actors, their exact
-   launch profiles and the hub claim. The issue plan owns that checklist.
-   `sdlc bench run --run-dir DIR --hub SLOT --worker SLOT --provision FILE
-   --ledger EXTERNAL.jsonl --budget 1h` binds the native actors and dispatches
-   once. Re-entering this command observes the retained receipt and deadline.
-3. The exact bound TL records `tl-lead bench decision --run-id ID --kind
-   approve|replan|ruling|stop --reason TEXT` and proposes the reviewed code with
-   `tl-lead bench finish --run-id ID --candidate FULL_OID`. These records are
-   proposals; the observer independently verifies native suite and close proof.
-4. After supported park/archive and independent confirmation that actor,
-   reviewer and child processes are gone, provide the trusted retirement file
-   with `sdlc bench cancel --run-dir DIR --retirement-evidence FILE`. A quiet
-   pane, delivery receipt, interrupt or empty actor census alone is insufficient.
-5. `sdlc bench score --run-dir DIR` captures the bound sources, derives native
-   measurements and evaluates the captured hidden patch. Parent must be red
-   and known landing green before scoring the frozen candidate. A command exit
-   gives a command-unit score, never invented case counts.
-6. `sdlc bench record --run-dir DIR` appends the exact terminal row to the
-   retained external ledger. An undispatched stopped run needs `--ledger PATH`.
-   `sdlc bench clean --run-dir DIR` then removes confirmed disposable public
-   trees; raw evidence and ledger survive. `status --run-dir DIR [--json]`
-   always provides the retained phase and next action.
+Each command takes no flags or positional arguments. Metis supplies literal
+`METIS_STEP_DIR`, `METIS_RUN_DIR` and `METIS_STEP_ID`; cwd must equal the first,
+and the first must equal `METIS_RUN_DIR/METIS_STEP_ID`. Both directories must
+be absolute canonical physical paths. The step ID is 1–128 letters, digits,
+underscores or hyphens, beginning with a letter or digit. Inputs are regular,
+non-symlink files; `with.json` is bounded at 1 MiB.
 
-The worker runs real claim, start-plan, change-code, full-suite and SHIP close
-gates against the private tracker/origin. Only local-check status publication
-uses a visibly bench-only sink. The sink still validates native attempt/log
-proof and refuses an unexplained earlier failure. Production publication,
-landing and unsupported recovery verbs refuse in prepared agent checkouts.
-Ordinary repositories retain their existing GitHub behavior.
+Current backend `with.json` fields (not a new Metis experiment schema):
 
-`closetracker.go` owns the strict close evidence relation: the reviewed code's
-direct child may carry only the exact task details, actual sidecar/gate paths
-and optionally the mirror refresh's exact bytes. Any intervening commit or
-extra document is a visible bench finding. The full suite and SHIP verdict
-must bind the reviewed code; metadata HEAD is not substituted for that code.
+| Field | Meaning |
+|---|---|
+| `version` | Required integer `1` |
+| `task` | Required private Task object, including original Spec/Done when, source/oracle pins and exact three profiles |
+| `tool_source` | Required absolute physical checkout matching the clean committed executable build |
+| `tool_sha256` | Required lowercase SHA-256 of the actual backend executable |
+| `tool_revision` | Required full committed backend/source revision |
+| `prepare_step` | Session/score's upstream preparation step ID in the same Metis run |
+| `session_step` | Score's upstream session step ID in the same Metis run |
+| `hub`, `worker` | Session's distinct exact Couch slot addresses |
+| `provision`, `retirement` | Session's absolute trusted evidence paths, waited for within the budget |
+| `budget_seconds` | Session's integer budget, 1–86400 seconds |
 
-## Evidence and recovery
+Task shape is owned by `internal/bench/task.go`. It retains corpus/task metadata,
+`source_repo`, parent/landing/original-issue object IDs, original Spec and Done
+when, original hours, acceptance patch/path/hash/argv pins, and TL/worker/reviewer
+agent/model/effort profiles. This private descriptor is never sent to actors.
+The exact output digest binds the preparation and session to the same task.
 
-`internal/bench.Run` and `Step` own phases and effect authorization. The
-portable store retains accepted events before effects, one observer lifetime
-lock and a short transaction lock. No redispatch or destructive cleanup follows
-an uncertain outcome. The TL cannot supply its own score or verdict proof.
-Each five-second poll may replay at most 2,000 accepted transitions and read
-at most 1 MiB of proposal audit. Transcripts are never polled; no separate
-cursor or cache protocol exists.
+Native Go reads bypass Metis's Python sensor. Each backend writes `reads.json`
+through the existing Metis read-set channel: `roots` maps the exact tool checkout
+to all tracked source-checkout paths, including embedded prompts and vocabulary, and `used_site_packages`
+is false. `tool-provenance.json` records the physical executable, SHA-256, source,
+Git revision and clean-build flag. The checkout must be clean and HEAD must
+match the executable's `vcs.revision` with `vcs.modified=false`; otherwise it
+refuses. The actual executable digest must equal `tool_sha256`; its build
+revision and source HEAD must equal `tool_revision`. These immutable `with.json`
+inputs make backend binary changes visible to Metis cache identity, in addition
+to the Go/module source read set. Checkpoint, rebuild and qualify the candidate
+before a real replay.
 
-Trusted retirement JSON names version/run, exact hub/worker identities,
-`confirmed_by`, `confirmed_at`, evidence, `processes_gone: true`, an empty
-`survivors` list and explicit `reviewer_sources`. Optional `autonomy` contains
-`since`, `until`, `no_operator_input` and evidence. Its exact interval must equal
-the bound runtime start through retirement. Only this trusted confirmation
-permits autonomous=true and zero operator wait. Otherwise coverage is labelled
-unverified. Couch currently has no operator-submission history query to use as
-an independent cross-check; missing messages never prove autonomy.
+## Artifacts and effects
 
-Launch profiles come from trusted provisioning and are cross-checked against
-actual Claude/Codex session logs. A model/effort mismatch makes the run invalid
-and skips hidden execution. Unknown tokens, credits, activity or review counts
-remain unknown. Native usage, owned-active-time, audit routes, gate sidecars
-and review accounting each keep ownership of their arithmetic and identity.
-Resolved or demoted findings remain measured findings.
+**Prepare** writes regular `template.tar`, `preparation.json` (task and archive
+SHA-256) and numeric `metrics.json`. The archive preserves parent product bytes,
+executable modes and contained symlinks. It omits old process inventory and
+history; only the original target Spec/Done when are overlaid. No source remote,
+object store or hidden oracle enters the public template. Preparation is bounded
+at 10,000 entries, 64 MiB of tree bytes and 1 MiB per file.
 
-Each transcript prefix is captured once (256 MiB total, 128 sources, 1 MiB per
-line). A fixed number of existing-owner parsing passes follows; counted N/2N
-tests cover these passes. Existing aggregation sorting is outside that linear
-claim. Metadata is bounded at 1 MiB, event history at 2,000 and each ledger row
-at 16 KiB. Oversized evidence refuses rather than silently truncating counts.
+**Session** validates the upstream template and task digests, instantiates fresh
+`runtime/public/{work,hub,origin.git}` and performs real tracker migration/CAS.
+It prints the new public roots before waiting for trusted provisioning, so the
+operator can launch the exact actors through supported Couch controls. Agents
+see only the sanitized public roots/task; the sole remote is a fresh private
+bare origin with sanitized replay history. Provisioning supplies exact launch
+profiles and hub ownership. Native actor/session/generation and transcript
+identity are checked before dispatch.
 
-Scoring uses independent private Git anchors and protected linked worktrees,
-bounded managed commands, queue ownership and private logs. Unknown scorer
-shutdown keeps the run in `scoring`, with its exact native lease retained;
-actor retirement cannot authorize recording or cleanup of that scorer. Inspect
-its retained logs and ownership before any further action. Acceptance that
-could not run is unavailable, never a failed assertion disguised as a score.
-Confirmed unavailable acceptance is terminal for that run and recorded as a
-bench finding; a fresh run is required for another hidden evaluation.
+The worker runs real claim, start-plan, change-code, full-suite and SHIP gates.
+Only local-check status publication uses a visibly bench-only local sink; its
+native attempt/log proof and unexplained-failure guards remain. Production
+publication, landing and unsupported recovery refuse inside prepared roots;
+ordinary repositories retain existing GitHub behavior.
 
-Recording freezes `observer/result-evidence.json`, hashes its exact bytes and
-retains the exact row/destination. A lost append reply retries those same facts;
-partial tails and same-ID conflicts refuse. Production rows are nonsynthetic.
-Automated end-to-end rows are explicitly synthetic and cannot satisfy the real
-agent acceptance run. On new admission, only confirmed cleaned runs can expire
-after 30 days or under the 50-run cap; active or uncertain custody blocks pruning.
+The bound TL uses `tl-lead bench decision --run-id ID --kind
+approve|replan|ruling|stop --reason TEXT` and `tl-lead bench finish --run-id ID
+--candidate FULL_OID`. These are proposals. `closetracker.go` independently
+requires the reviewed code's direct child to contain only exact task details,
+actual review/gate paths and optional exact mirror-refresh bytes. Extra or
+intervening commits refuse; full suite and SHIP must bind the reviewed code.
 
-## Implementation and verification
+After supported park/archive and explicit process-gone confirmation, session
+captures bounded transcript evidence once, validates retirement again, freezes
+`session-evidence.json` and, for an admitted candidate, `candidate.bundle` plus
+its digest. The bundle preserves the exact candidate object ID; it is not a
+replacement patch reconstructed as a different commit. Only after retirement
+and capture are mutable public roots removed. Remaining evidence is regular
+artifact material suitable for Metis inventory, never a successful live checkout.
 
-The bounded IO owners are `cmd/sdlc/bench_{prepare,runtime,control,admission,
-collect,measure,metrics,score,scoring,record,ledger,cleanup}.go`; strict task,
-event and result logic lives in `cmd/sdlc/internal/bench`. The local Git reader
-shares `internal/gitx`'s bounded snapshot machinery with fetching disabled.
-`cmd/tl-lead/bench.go` forwards the public TL protocol.
+**Score** consumes `prepare_step` and `session_step`, checks same Metis identity,
+task/template hashes, retirement, vacant roots and candidate bundle digest,
+then evaluates independent parent-red/landing-green/candidate controls against
+the captured hidden oracle. It retains `score-intent.json`, `acceptance.patch`,
+`acceptance.json`, private logs and any `finding.txt`; its temporary candidate
+checkout is removed only after confirmed scorer shutdown. A command-unit result
+never becomes invented case counts. Confirmed unavailable acceptance is a
+terminal finding with no hidden pass-rate metric. Unconfirmed scorer cleanup
+fails the step and retains custody; no cleanup or second hidden evaluation is
+authorized by actor retirement alone.
 
-Native temporary-Git fixtures exercise real tracker gates; stateful Couch
-receipt/incarnation and scorer fixtures exercise orchestration. Optional
-`TestBenchCouchNativeServiceConformance` uses Pair's isolated shared bridge
-with a replacement environment and verifies cleanup. Its private Git helper
-inventory gap is tracked as pair#845; a failed pre-readiness run does not
-qualify service conformance. M1 additionally requires a true autonomous replay
-with real disposable TL/worker agents and its real ledger row before close.
+## Metrics, retirement and recovery
 
-For pre-landing candidate tools, use command-local PATH and absolute binary
-paths only inside the disposable actors. Never prepend a candidate directory
-to the live Couch supervisor's PATH: it would affect production slots. Absolute
-TL alone is insufficient because its subprocess owner resolves bare `sdlc`.
-Observer preflight qualifies the actual tool route before task dispatch; a
-wrong-tool slip becomes an explicit workflow finding in the bound TL audit.
+`metrics.json` contains only flat measured numbers: `wall_seconds`, attested
+`automated_wall_seconds`/`human_wait_seconds`, known per-role input/output token
+counts, `review_rounds`, `gate_refusals`, and case-based `hidden_pass_rate` when
+supported. Unknown counts/rates are absent; typed evidence retains coverage and
+reasons. Native usage, owned-active-time, gate sidecars and review accounting
+keep ownership of their arithmetic. A model/effort mismatch invalidates a session
+and skips hidden execution. Outside reads, fetch/clone or GitHub access are leak
+findings; incomplete transcript coverage is labelled.
+
+Trusted retirement names exact actor identities, confirmer/time/evidence,
+`processes_gone: true`, no survivors and explicit reviewer sources. An optional
+exact-interval no-operator-input attestation establishes autonomy and known zero
+operator wait. Missing messages, a quiet pane or empty census alone never prove
+shutdown or autonomy. Transcript prefixes are captured once (256 MiB total,
+128 sources, 1 MiB per line), then parsed by a fixed number of existing-owner
+passes. Five-second metadata polls are bounded at 1 MiB/2,000 audit entries;
+transcripts are not polled. Existing aggregation sorting is outside the linear
+work claim.
+
+One lifetime lock owns each step. `step-intent.json`, dispatch intent and native
+receipts fence external effects; they are evidence, not a resumable run journal.
+A prior step intent refuses redispatch. Inspect retained logs/receipts, reconcile
+and retire exact actors or scorer custody, then start a fresh Metis repeat.
+Metis owns failed execution records and retention; never sweep its runs through
+Ariadne. No independent status/cancel/record/clean workflow remains.
+
+## Consumer integration and verification
+
+The first couch-bench experiment, ariadne#491, remains a gated draft pending
+metis#71–74: never-cache and safe descendants, timeout/live logs, repeat-shaped
+records/ledger, and manual-grade/wait support. Session and grade never cache;
+score must not reuse a stale upstream candidate. Human grading occurs after
+scoring, with a result-bound coarse grade, identity/time and separately excluded
+wait. #491's intended policy is an explicit no-look skip for a concurrency
+regression without UI; until the result-bound contract is delivered the consumer
+grade wrapper fails closed. Do not invent missing Metis APIs or substitute CV
+folds for repeat identity.
+
+`bench_step.go`, `bench_provenance.go`, `bench_template.go` and existing native
+prepare/session/admission/measurement/scoring owners implement the boundary.
+Pure task/admission/metrics types live in `cmd/sdlc/internal/bench`.
+Temporary-Git, stateful Couch and native Claude/Codex replay fixtures verify
+these owners. A real autonomous #491 replay through Metis, with full suite/SHIP,
+retirement, hidden score and explicit grade skip, remains M1 acceptance; a
+synthetic fixture is not that proof.
+
+Candidate tools route only inside disposable actors using absolute executables
+and command-local candidate PATH. TL's child resolves bare `sdlc`, so absolute
+TL alone is insufficient. Never change the live Couch supervisor or fleet PATH.
+Observer preflight qualifies routing before dispatch; a slip is a bound TL
+workflow finding with actual call/evidence.

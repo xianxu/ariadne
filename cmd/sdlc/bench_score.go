@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/bench"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
@@ -212,7 +213,7 @@ func prepareBenchScoreTree(ctx context.Context, bundle, source, pin string) (str
 	if err := materializeBenchTree(anchor, files); err != nil {
 		return "", err
 	}
-	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Model Bench Scorer"}, {"config", "user.email", "model-bench@localhost.invalid"}, {"config", "core.hooksPath", os.DevNull}, {"add", "-f", "-A"}, {"commit", "-qm", "bench: isolated acceptance copy"}} {
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "Model Bench Scorer"}, {"config", "user.email", "model-bench@localhost.invalid"}, {"config", "core.hooksPath", os.DevNull}, {"add", "-f", "-A"}, {"commit", "-qm", agentid.StampCurrent("bench: isolated acceptance copy", ctx)}} {
 		if _, err := runBenchPrepareCommand(ctx, anchor, nil, "git", args...); err != nil {
 			return "", err
 		}

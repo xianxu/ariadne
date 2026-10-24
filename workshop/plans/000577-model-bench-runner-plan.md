@@ -289,3 +289,23 @@ Risky-function tests use independent behavioral oracles: `runBenchStep` rejects 
 **Architecture check:** ARCH-DRY: Metis is sole run/record/cache/ledger owner; SDLC remains proof owner. ARCH-PURE: typed projections and transient legal effects remain pure. ARCH-PURPOSE: all four actual steps and one real row are required. ARCH-MOCK: reuse stateful Couch/Git seams and actual Metis integration. ARCH-CONSTRAINTS/SECURE: bounded archives/captures, exact trusted provisioning, private hidden material and leak labels. ARCH-ORDER: receipt-backed effects, no crash redispatch, explicit retirement and manual wait. ARCH-FUNERAL: Metis owns results retention, actor cleanup requires proof. ARCH-EVOLVE: new step/proof fields additive with unknown-field preservation, no reinterpretation of old Metis rows.
 
 - 2026-10-23, replacement plan approved in submitted canonical receipt `03a373a2-56b5-46f2-8db9-2dd71d98bd20`. Ariadne refactoring and couch-bench seeding may proceed after change-code. Metis#71–74 are for dedicated Metis slots; do not implement them from ariadne:4. This approval supersedes the pending-approval wording in the proposed revision above.
+
+### 2026-10-23 — Implemented owner map and dependency hold
+
+The independent Ariadne refactor and couch-bench seed are implemented and focused checks pass; this is not M1 acceptance. The standalone store/ledger/publisher/lifecycle/sweeper and obsolete persistence tests were removed. Metis integration, grade/skip execution, the real replay, recorded suite and close remain gated as above. Do not implement upstream Metis issues from this slot.
+
+| Actual owner | Location | Boundary |
+|---|---|---|
+| `ProjectBenchMetrics` | `cmd/sdlc/internal/bench/step.go` | PURE measured-only numeric projection |
+| transient `Run`/`Step` | `cmd/sdlc/internal/bench/run.go` | PURE preparation/session effects only; no scoring, record or cleanup phases |
+| `benchStepInput`, `benchStepFolder`, `runBenchStep`, `driveBenchSessionStep`, `scoreBenchStep` | `cmd/sdlc/bench_step.go` | validated Metis input/cwd, native execution and immutable outputs |
+| `benchSession`, `benchSessionFacts`, `createBenchSession` | `cmd/sdlc/bench_session.go` | transient observations/phase plus exclusive external-effect evidence and native owner lock; no reopen or durable journal |
+| `writeBenchStepProvenance`, `benchNativeSourcePaths` | `cmd/sdlc/bench_provenance.go` | actual clean build/hash/source pins and conservative existing-channel read closure |
+| `writeBenchTemplate`, `readBenchTemplate` | `cmd/sdlc/bench_template.go` | bounded deterministic regular archive; exact modes/bytes/contained links |
+| `prepareBenchTemplate`, `instantiateBenchSession` | `cmd/sdlc/bench_prepare.go` | source/oracle validation separated from fresh runtime creation/CAS |
+| `runBenchObserver`, `acceptBenchRetirement` | `bench_runtime.go`, `bench_control.go` | exact generation/receipt/close proof and supported explicit retirement |
+| `scoreBenchEvidence`, `evaluateBenchAcceptance` | `bench_scoring.go`, `bench_score.go` | exclusive hidden-evaluation intent, immutable first result and managed scorer custody |
+
+Every step additionally requires immutable `tool_sha256` and `tool_revision` inputs, checked against the actual executable/build and source HEAD. Native `reads.json` includes all tracked source-checkout files, rather than an extension filter omitting embedded assets; the closure is capped at 10,000 paths and its writer at 1 MiB. Unknown numeric coverage remains absent. A command-level hidden oracle emits `hidden_command_passed`, not a fabricated case pass rate. The current #491 experiment remains a draft and grade refuses until the actual Metis manual/skip support is wired; no temporary substitutes or private ledger.
+
+Focused proof: final combined root checks PASS 119.114s; pure race PASS 1.392s; staged lint PASS 1.334s; TL help PASS 0.246s; whitespace clean. New evidence-identity and output-limit controls were observed red then green; the two original Agent stamp failures are now covered and green. Remaining implementation uses delivered Metis interfaces, not the obsolete standalone run recipe.

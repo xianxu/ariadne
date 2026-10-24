@@ -8,6 +8,13 @@
 
 # Lessons
 
+- #577 step review: native build provenance includes embedded prompts, vocabulary
+  and other assets, not just Go and module files. Capture the conservative tracked
+  source closure through the existing Metis owner, and pin the actual executable
+  hash/revision in immutable step inputs so a changed build cannot reuse an old
+  cache identity. TestBenchNativeSourceClosureIncludesEmbeddedAssets guards this
+  semantic closure; a filename-extension lint cannot prove the Go build read set.
+
 - #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
   every recognition boundary, including assignment targets and tuple-return
   calls, rather than only expression propagation. Recognize directly declared

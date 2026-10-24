@@ -13,7 +13,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/bench"
 )
 
-func benchObserverFixture(t *testing.T) (*benchStore, benchRunFlags, benchObserverDeps, *int) {
+func benchObserverFixture(t *testing.T) (*benchSession, benchRunFlags, benchObserverDeps, *int) {
 	t.Helper()
 	task := preparedFixtureTask(t)
 	s, err := prepareFixture(t, task)
@@ -33,7 +33,7 @@ func benchObserverFixture(t *testing.T) (*benchStore, benchRunFlags, benchObserv
 	if err := os.WriteFile(profilePath, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	f := benchRunFlags{Hub: "bench-hub:0", Worker: "bench-work:0", Budget: time.Minute, Provision: profilePath, Ledger: filepath.Join(t.TempDir(), "ledger.jsonl")}
+	f := benchRunFlags{Hub: "bench-hub:0", Worker: "bench-work:0", Budget: time.Minute, Provision: profilePath}
 	if err := os.WriteFile(filepath.Join(s.root, "public", "hub", ".hub"), []byte(f.Worker+"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -143,23 +143,14 @@ func TestBenchRuntimeConfirmedReceiptWaitsThenRequiresRetirement(t *testing.T) {
 	if err := runBenchObserver(context.Background(), s, f, d); err == nil {
 		t.Fatal("turn completion invented process retirement")
 	}
-	r, state, err := s.read()
+	_, state, err := s.read()
 	if err != nil || state.Phase() != bench.PhaseReconciliation || state.RuntimeStopped() {
 		t.Fatalf("receipt wait/timeout state %s quiet=%v %v", state.Phase(), state.RuntimeStopped(), err)
 	}
-	confirmed := false
-	for _, raw := range r.Events {
-		var e bench.Event
-		if err := json.Unmarshal(raw, &e); err != nil {
-			t.Fatal(err)
-		}
-		if e.Kind == bench.DispatchConfirmed {
-			confirmed = true
-		}
+	if dispatches < 1 || dispatches > 2 {
+		t.Fatalf("repeated dispatch: sends %d", dispatches)
 	}
-	if !confirmed || dispatches < 1 || dispatches > 2 {
-		t.Fatalf("missing receipt confirmation or repeated dispatch: %v sends %d", confirmed, dispatches)
-	}
+
 }
 
 func TestBenchRuntimeRefusesChangedNativeConversation(t *testing.T) {
@@ -200,7 +191,7 @@ func TestBenchRuntimePartialBindingNamesSafeRetirement(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := runBenchObserver(context.Background(), s, f, d)
-	if err == nil || !strings.Contains(err.Error(), "bench cancel") || *sends != 0 {
+	if err == nil || !strings.Contains(err.Error(), "reconcile and retire") || *sends != 0 {
 		t.Fatal("partial pre-dispatch binding has no safe recovery", err, *sends)
 	}
 }
@@ -243,7 +234,7 @@ func TestBenchRuntimeResumesOnlyPendingProof(t *testing.T) {
 		}
 	}
 	calls := 0
-	d.Verify = func(_ context.Context, _ *benchStore, candidate string) (bench.WouldLandFacts, error) {
+	d.Verify = func(_ context.Context, _ *benchSession, candidate string) (bench.WouldLandFacts, error) {
 		calls++
 		if candidate != strings.Repeat("b", 40) {
 			t.Fatal("resumed an earlier rejected proof instead of the pending operation")

@@ -15,7 +15,8 @@ import (
 )
 
 // This envelope retains the final owner results, including protocol coverage,
-// before publishing measurements. A restart never needs to resample live logs.
+// before publishing measurements. These immutable artifacts do not authorize
+// resuming a crashed session.
 type benchMeasurementEvidence struct {
 	Version int                   `json:"version"`
 	RunID   string                `json:"run_id"`
@@ -23,8 +24,8 @@ type benchMeasurementEvidence struct {
 }
 
 // measureBenchRun requires the caller's run owner lock. Retirement is checked
-// even on replay; native sources are sampled only when no capture pins exist.
-func measureBenchRun(ctx context.Context, s *benchStore, d benchCouchDeps) (bench.Measurements, error) {
+// even on a repeated in-process call; native sources are captured only once.
+func measureBenchRun(ctx context.Context, s *benchSession, d benchCouchDeps) (bench.Measurements, error) {
 	var empty bench.Measurements
 	if err := verifyBenchRetirement(ctx, s, d); err != nil {
 		return empty, err
@@ -144,7 +145,7 @@ func measureBenchRun(ctx context.Context, s *benchStore, d benchCouchDeps) (benc
 		}
 	}
 	applyBenchAutonomyMeasurement(runtime, proof, &result.Measurements)
-	// Return the same validated representation on the first call and replay.
+	// Return the same validated representation on repeated in-process calls.
 	// The result schema's decoder also normalizes absent extension maps.
 	raw, err := json.Marshal(result.Measurements)
 	if err != nil {

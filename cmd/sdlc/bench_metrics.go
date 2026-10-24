@@ -244,7 +244,7 @@ func collectBenchReviewMetrics(ledgers []gatestate.Ledger, records []reviewusage
 // collectBenchProtocolMetrics reads only the run's explicitly bound fresh
 // namespace. Missing evidence degrades coverage; cancellation and invalid runtime
 // authority are returned to the observer instead of manufacturing measurements.
-func collectBenchProtocolMetrics(ctx context.Context, s *benchStore, m *bench.Measurements) error {
+func collectBenchProtocolMetrics(ctx context.Context, s *benchSession, m *bench.Measurements) error {
 	if ctx == nil || s == nil || m == nil {
 		return errors.New("bench metrics needs context, store and measurements")
 	}

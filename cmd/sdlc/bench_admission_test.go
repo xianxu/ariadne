@@ -14,7 +14,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 )
 
-func benchAdmissionFixture(t *testing.T) (*benchStore, string, *benchPublicContext) {
+func benchAdmissionFixture(t *testing.T) (*benchSession, string, *benchPublicContext) {
 	t.Helper()
 	task := preparedFixtureTask(t)
 	s, err := prepareFixture(t, task)

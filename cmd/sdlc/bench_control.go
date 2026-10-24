@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -71,27 +70,10 @@ func recordBenchProposal(ctx context.Context, kind, runID, decision, reason, can
 	return id, nil
 }
 
-func cancelBenchRun(ctx context.Context, s *benchStore, proofPath string, d benchCouchDeps) error {
+// acceptBenchRetirement consumes explicit operator proof inside the live
+// session. It never reopens or takes over a crashed observer invocation.
+func acceptBenchRetirement(ctx context.Context, s *benchSession, proofPath string, d benchCouchDeps) error {
 	r, state, err := s.read()
-	if err != nil {
-		return err
-	}
-	if proofPath == "" && !state.RuntimeStopped() {
-		// The retained observer owns transitions. A second CLI may request stop
-		// transactionally, but cannot take over or duplicate its runtime effects.
-		if err := s.putData("cancel_request", map[string]any{"version": 1, "run_id": r.ID, "requested": true}); err != nil {
-			return err
-		}
-	}
-	release, err := s.acquireRun()
-	if err != nil {
-		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
-			return errors.New("bench cancellation requested; retain the existing observer, then park/archive actors and rerun with --retirement-evidence FILE")
-		}
-		return err
-	}
-	defer release()
-	r, state, err = s.read()
 	if err != nil {
 		return err
 	}
@@ -100,13 +82,7 @@ func cancelBenchRun(ctx context.Context, s *benchStore, proofPath string, d benc
 		return err
 	}
 	if proofPath == "" {
-		if state.RuntimeStopped() {
-			return verifyBenchRetirement(ctx, s, d)
-		}
-		if state.Phase() == bench.PhasePrepared {
-			return errors.New("bench has not dispatched; confirm the prepared roots have no provisioned processes and rerun with root-only --retirement-evidence FILE")
-		}
-		return requestBenchRetirement(ctx, s, runtime, benchObserverDeps{Couch: d}, bench.Stop, "operator requested cancellation")
+		return errors.New("explicit retirement evidence is required")
 	}
 	raw, err := readBenchInput(proofPath, benchRecordLimit)
 	if err != nil {

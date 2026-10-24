@@ -9,25 +9,17 @@ import (
 type Phase string
 
 const (
-	PhaseNew                   Phase = "new"
-	PhasePreparing             Phase = "preparing"
-	PhasePrepared              Phase = "prepared"
-	PhaseDispatching           Phase = "dispatching"
-	PhaseDispatchUnknown       Phase = "dispatch-unconfirmed"
-	PhaseRunning               Phase = "running"
-	PhaseProving               Phase = "evidence-required"
-	PhaseWouldLand             Phase = "would-land"
-	PhaseCancelling            Phase = "cancelling"
-	PhaseReconciliation        Phase = "needs-reconciliation"
-	PhaseStopped               Phase = "stopped"
-	PhaseScoring               Phase = "scoring"
-	PhaseAcceptanceUnavailable Phase = "acceptance-unavailable"
-	PhaseScored                Phase = "scored"
-	PhaseRecording             Phase = "recording"
-	PhaseRecordUnknown         Phase = "recording-unconfirmed"
-	PhaseRecorded              Phase = "recorded"
-	PhaseCleaning              Phase = "cleaning"
-	PhaseCleaned               Phase = "cleaned"
+	PhaseNew             Phase = "new"
+	PhasePreparing       Phase = "preparing"
+	PhasePrepared        Phase = "prepared"
+	PhaseDispatching     Phase = "dispatching"
+	PhaseDispatchUnknown Phase = "dispatch-unconfirmed"
+	PhaseRunning         Phase = "running"
+	PhaseProving         Phase = "evidence-required"
+	PhaseWouldLand       Phase = "would-land"
+	PhaseCancelling      Phase = "cancelling"
+	PhaseReconciliation  Phase = "needs-reconciliation"
+	PhaseStopped         Phase = "stopped"
 )
 
 type EventKind string
@@ -49,15 +41,6 @@ const (
 	RuntimeLost         EventKind = "runtime-lost"
 	CancelConfirmed     EventKind = "cancel-confirmed"
 	CancelUnconfirmed   EventKind = "cancel-unconfirmed"
-	BeginScore          EventKind = "begin-score"
-	ScoreCompleted      EventKind = "score-completed"
-	ScoreUnavailable    EventKind = "score-unavailable"
-	BeginRecord         EventKind = "begin-record"
-	RecordConfirmed     EventKind = "record-confirmed"
-	RecordUnconfirmed   EventKind = "record-unconfirmed"
-	BeginClean          EventKind = "begin-clean"
-	CleanConfirmed      EventKind = "clean-confirmed"
-	CleanUnconfirmed    EventKind = "clean-unconfirmed"
 )
 
 type EffectKind string
@@ -68,9 +51,6 @@ const (
 	Watch      EffectKind = "watch"
 	CheckProof EffectKind = "check-proof"
 	Cancel     EffectKind = "cancel"
-	Score      EffectKind = "score"
-	Record     EffectKind = "record"
-	Clean      EffectKind = "clean"
 )
 
 // RuntimeIdentity names one exact provisioned conversation, not just a slot.
@@ -88,8 +68,8 @@ func (i RuntimeIdentity) Validate() error {
 	return nil
 }
 
-// Event is a durable fact or requested action. Every accepted event can be
-// replayed through Step, discarding historical effects, to reconstruct Run.
+// Event describes an observation or requested action during one live session.
+// It is not a durable replay log; Metis owns execution and repeat identity.
 type Event struct {
 	ID, RunID   string
 	Kind        EventKind
@@ -104,16 +84,16 @@ type Effect struct {
 	Hub, Worker                   RuntimeIdentity
 }
 
-// Run's authority is private: only Step can advance it. Store accepted Events,
-// not an independently editable phase snapshot. Step never mutates its input.
+// Run authorizes effects transiently within one session. Only Step can advance
+// it, and Step never mutates its input. A crashed session is retired, not replayed.
 type Run struct {
-	id                                                                   string
-	phase                                                                Phase
-	hub, worker                                                          RuntimeIdentity
-	bound, quiet                                                         bool
-	candidate                                                            string
-	prepareOp, dispatchOp, proofOp, cancelOp, scoreOp, recordOp, cleanOp string
-	seen                                                                 map[string]Event
+	id                                       string
+	phase                                    Phase
+	hub, worker                              RuntimeIdentity
+	bound, quiet                             bool
+	candidate                                string
+	prepareOp, dispatchOp, proofOp, cancelOp string
+	seen                                     map[string]Event
 }
 
 func NewRun(id string) (Run, error) {
@@ -127,7 +107,6 @@ func (r Run) Phase() Phase                                 { return r.phase }
 func (r Run) Candidate() string                            { return r.candidate }
 func (r Run) Bindings() (RuntimeIdentity, RuntimeIdentity) { return r.hub, r.worker }
 func (r Run) RuntimeStopped() bool                         { return r.quiet }
-func (r Run) CanClean() bool                               { return r.phase == PhaseRecorded && r.quiet }
 func (r Run) DispatchOperation() string                    { return r.dispatchOp }
 func (r Run) CancelOperation() string                      { return r.cancelOp }
 func (r Run) ProofOperation() string                       { return r.proofOp }
@@ -198,10 +177,6 @@ func Step(r Run, e Event) (Run, []Effect, error) {
 			if !match(r.cancelOp) {
 				return fail("wrong cancellation observation")
 			}
-		} else if r.phase == PhaseRecordUnknown {
-			if !match(r.recordOp) {
-				return fail("wrong recording observation")
-			}
 		} else {
 			return fail("nothing to observe")
 		}
@@ -259,52 +234,6 @@ func Step(r Run, e Event) (Run, []Effect, error) {
 			if r.candidate != "" {
 				n.phase = PhaseWouldLand
 			}
-		}
-	case BeginScore:
-		if r.phase != PhaseWouldLand || !r.quiet || r.candidate == "" {
-			return fail("scoring needs admitted candidate and confirmed shutdown")
-		}
-		n.phase = PhaseScoring
-		n.scoreOp = e.OperationID
-		effect = Score
-	case ScoreCompleted, ScoreUnavailable:
-		if r.phase != PhaseScoring || !match(r.scoreOp) {
-			return fail("unexpected scoring result")
-		}
-		if e.Kind == ScoreCompleted {
-			n.phase = PhaseScored
-		} else {
-			n.phase = PhaseAcceptanceUnavailable
-		}
-	case BeginRecord:
-		if (r.phase != PhaseScored && r.phase != PhaseStopped && r.phase != PhaseAcceptanceUnavailable) || !r.quiet {
-			return fail("recording needs confirmed terminal run")
-		}
-		n.phase = PhaseRecording
-		n.recordOp = e.OperationID
-		effect = Record
-	case RecordConfirmed, RecordUnconfirmed:
-		if (r.phase != PhaseRecording && r.phase != PhaseRecordUnknown) || !match(r.recordOp) {
-			return fail("unexpected recording result")
-		}
-		if e.Kind == RecordConfirmed {
-			n.phase = PhaseRecorded
-		} else {
-			n.phase = PhaseRecordUnknown
-		}
-	case BeginClean:
-		if !r.CanClean() {
-			return fail("cleanup needs recording and confirmed shutdown")
-		}
-		n.phase = PhaseCleaning
-		n.cleanOp = e.OperationID
-		effect = Clean
-	case CleanConfirmed, CleanUnconfirmed:
-		if r.phase != PhaseCleaning || !match(r.cleanOp) {
-			return fail("unexpected cleanup result")
-		}
-		if e.Kind == CleanConfirmed {
-			n.phase = PhaseCleaned
 		}
 	default:
 		return fail("unknown event kind")
