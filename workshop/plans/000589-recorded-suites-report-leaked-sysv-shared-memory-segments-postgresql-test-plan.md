@@ -34,6 +34,7 @@ echo#32 already exists, is owned by echo:2, codecomplete/SHIP and not landed at 
 |---|---|---|---|
 | Segment / Snapshot / Candidate / Report | PURE data | `cmd/sdlc/internal/sysvshm/segment.go` | new |
 | ParseDarwin / ParseLinux | PURE decoding | `cmd/sdlc/internal/sysvshm/parse.go` | new |
+| stoppedBy | PURE execution-stop classification | `cmd/sdlc/localcheck_run.go` | existing, reused from #599 |
 | Delta | PURE classification | `cmd/sdlc/internal/sysvshm/report.go` | new |
 | writeSysVReport / boundedSysVText / hasSysVWarning | PURE rendering and extraction | `cmd/sdlc/sysvwarning.go` | new |
 | localRunRecord / statusDescription | PURE diagnostic projection/rendering | `cmd/sdlc/localchecks.go` | modified |
@@ -158,3 +159,5 @@ After approval, fix this class once, run targeted serial count1 controls and cat
 - 2026-10-24 — completion-boundary re-plan APPROVED by verified submitted ops:0 receipt342f86e2-5c7d-4748-abb7-349fefe1fc3b. Join cancellation readers and retire through existing RetireOutcome before after-probe; all pre-retirement requests remain interrupted, unknown cleanup stays retained. BR-2 must fail against the unsafe renderer. Integrate #599 from main after it lands and verify composition. A fourth design delta cuts scope to a separate post-publish warning step; no further expansion of outcome machinery.
 
 - 2026-10-24 — implemented approved completion boundary with the existing deferred cleanup order: the diagnostic is registered first and executes last, using the original log descriptor until final close. This includes strict scratch/typed-owner cleanup as well as queue retirement, so no later cleanup can mutate an outcome after the probe. No new resource or protocol. Caller/queue before/during/after controls cover exit0/7 and ordinary/strict runs; cleanup-unknown stays unknown. Real SIGINT/SIGTERM owned-subprocess controls prove default disposition during the final probe, with no active or interrupted operation retained. Reused testfix.DeadlineOnCue for execution-clock tests. The strengthened BR-2 reflection fixture fails under an overlay restoring the old Witness-bearing Candidate and unsafe renderer; source files stay unchanged.
+
+- 2026-10-24 — integrated landed #599 (PR434), Git-verified main merge2e7b1937fb7cad32c252829ea81e75f18d4e7e1a. Resolved the shared runner conflict by reusing stoppedBy for immediate deadline classification, preserving setup/ran phase hooks and this issue's final diagnostic defer and descriptor lifetime. No fourth design mechanism: both fixes now share one execution-stop decision. Combined normal/race, catalog and clean private executable conformance passed; fresh queued full verification and close round3 follow.
