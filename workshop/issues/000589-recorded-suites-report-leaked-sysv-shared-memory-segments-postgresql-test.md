@@ -152,3 +152,9 @@ Close session50486 exited1 before review: measurement branch proof: measurement 
 ### 2026-10-24 — noon freshness integration
 
 Authorized no-actual close session46109 stopped at the noon freshness gate before review, naming main code through d71859146. Followed its explicit integrate-first instruction: merged origin/main cleanly (no conflicts), preserving the issue patch. Focused integrated SysV/context controls passed in cmd/sdlc9.353s and sysvshm0.125s, count1; no full run outside the queue. The old branch pass is historical; queue one fresh central pre-close on this integrated head, then close with the exact measurement refusal above and no typed hours. The mandatory review may overlap that queued run, but merge waits for both pass and final verdict.
+
+### 2026-10-24 — close round1 REWORK; stop and re-plan
+
+Close session61542 completed REWORK, no finalization. BR-1 advisory observation consumes command timeout; BR-2 current PID/start does not prove creator incarnation; BR-3 CTIME is mutable; BR-4 savedAttemptRecord was reused rather than modified; BR-5 resumed child-only warnings are omitted; BR-6 README lacks the new usage pointer. Verified the affected production paths before responding. Canceled only own still-queued suite lease-2371815346 (attempta86c82b2c9bafba095f03084c59fd64b); session76023 ended interrupted without starting a full suite, preserving machine capacity.
+
+Appended one consolidated re-plan to the durable plan: isolate diagnostic time, remove unsupported optional creator attribution rather than add a monitor, compare observed numeric IDs conservatively, union verified parent/child warnings via shared saved proof, correct concept status and README. This is the third-mechanism stop rule, not permission to implement silently. Commit review evidence and re-plan, send to hub, and await approval before code; #564 remains next after this issue lands.
