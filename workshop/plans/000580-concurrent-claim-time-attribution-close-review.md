@@ -149,3 +149,65 @@ dispose:
 7. **Plan revision recommendations:** None. Existing Revisions explain the implemented entities, standalone-command change and approved version boundary.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b39d6168-bb8e-4e0c-9df9-40cc0e7692f7","repository":"github.com/xianxu/ariadne","issue_id":"000580","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2c5f6f4d6f7ba6df","reviewed_head":"dd39e615a6561921075b0066ba0cd09a8e0ca22d","slot":"ariadne:3","requested_at":"2026-10-24T03:55:28.370329Z"},"phase":"finished","pid":57059,"started_at":"2026-10-24T03:55:28.469924Z","finished_at":"2026-10-24T03:58:03.231204Z","session_id":"01a16c0c-9e7c-7b51-95cd-059a51c55db1","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T22:24:49-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 580 — Active-time attribution cross-counts concurrent same-slot claims instead of active branches |
+| repo | ariadne |
+| issue file | workshop/issues/000580-concurrent-claim-time-attribution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 753500eeedb0257bd0026b5169b43983d8e06161..522b79112b8d6b9d89d22d57abf557f007bc235c |
+| command | sdlc close --issue 580 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T22:24:49-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned interdiff preserves the approved contracts. Context handling now reuses the existing helper, and the corrected fixture explicitly constructs and validates historical v1 evidence before exercising adopted-credit protection. No new defects or scope changes were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The retained-proof guard at cmd/sdlc/actualbranch.go:311 remains intact. The concurrent-claim regression passed, including own and foreign canonical branches relabelled ownership-only through saved replay and direct execution.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/activetime_owned.go:20` reuses `commandContext`, preserving supplied contexts and established nil handling.
+   - `cmd/sdlc/actualexclusion_test.go:276` constructs a validated legacy snapshot and retains protection, replay, malformed-evidence and unrelated-slot checks.
+   - The plan revision accurately records implementation corrections without expanding scope.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes:** The exact focused run passed in 26.4 seconds: both corrected controls, concurrent-claim attribution and BR-1 tamper regressions, and active-time command tests. `git diff --check` passed; checkout remained clean. An earlier broader test selection was stopped while pending; the repository-wide suite was not completed.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Existing context handling is reused.
+   - **ARCH-PURE — pass:** No business logic moves into IO.
+   - **ARCH-PURPOSE — pass:** Historical credit protection remains exercised under its original semantics.
+   - **ARCH-EVOLVE — pass:** No persisted format or reader behavior changes.
+
+   No new surface requires README or atlas updates.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e6a37c9e-d3f3-4874-bafb-93a7deee9f74","repository":"github.com/xianxu/ariadne","issue_id":"000580","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/62aeaff2b3fd0f19","reviewed_head":"522b79112b8d6b9d89d22d57abf557f007bc235c","slot":"ariadne:3","requested_at":"2026-10-24T05:18:39.143659Z"},"phase":"finished","pid":21117,"started_at":"2026-10-24T05:18:39.263886Z","finished_at":"2026-10-24T05:24:48.195071Z","session_id":"01a16c58-c5e5-7e12-baf7-fb061297f018","outcome":"returned"}] -->

@@ -145,6 +145,90 @@ rounds:
       isolation: fenced
       reviewed: dd39e615a6561921075b0066ba0cd09a8e0ca22d
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: e6a37c9e-d3f3-4874-bafb-93a7deee9f74
+            repository: github.com/xianxu/ariadne
+            issue_id: "000580"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/62aeaff2b3fd0f19
+            reviewed_head: 522b79112b8d6b9d89d22d57abf557f007bc235c
+            slot: ariadne:3
+            requested_at: "2026-10-24T05:18:39.143659Z"
+          phase: finished
+          pid: 21117
+          started_at: "2026-10-24T05:18:39.263886Z"
+          finished_at: "2026-10-24T05:24:48.195071Z"
+          session_id: 01a16c58-c5e5-7e12-baf7-fb061297f018
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 522b79112b8d6b9d89d22d57abf557f007bc235c
+        tracker_head: 733cd47d99bda636d2121144aa03c9c743a7cbd0
+        branch_point: 84b68e2fc5c0773ff38f13771507d93aaa08efd4
+        since: "2026-10-23T19:27:24-07:00"
+        until: "2026-10-23T22:17:53-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T19:27:24-07:00"
+              end: "2026-10-23T22:17:53-07:00"
+              began: "2026-10-23T19:27:24-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: e29c5668ce84501c25e433696a4142adbbb16be987da8cc979c3e00661838f9b
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 145361428
+              windows:
+                - start: "2026-10-23T19:27:24-07:00"
+                  end: "2026-10-23T22:17:53-07:00"
+        queue_waits:
+            - attempt_id: 9ac60fc393d946bc6b53e2b94c11a27b
+              slot: ariadne:3
+              record_digest: c65011bbd75420874a3547ae97127bff37ed5e5328fae457e4a26b24cc7c9417
+              start: "2026-10-24T03:55:08.244205Z"
+              end: "2026-10-24T05:00:40.84964Z"
+              queue_seconds: 3932.605435
+              raw_seconds: 3932.605435
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.07971666666666667
+        cuts:
+            - dispatched: "2026-10-23T20:46:53-07:00"
+              finalized: "2026-10-23T20:51:25-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T20:55:28-07:00"
+              finalized: "2026-10-23T20:58:04-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T22:24:49-07:00"
+      dispatched: "2026-10-23T22:18:39-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The retained-proof guard at cmd/sdlc/actualbranch.go:311 remains intact. The concurrent-claim regression passed, including own and foreign canonical branches relabelled ownership-only through saved replay and direct execution.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 522b79112b8d6b9d89d22d57abf557f007bc235c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#580 (boundary-review)
@@ -164,6 +248,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-1 — addressed — actualbranch.go:311 rejects ownership-only intervals naming any canonical issue branch. Saved-replay and direct-execution regressions cover both own and foreign branches. Removing only this guard with a temporary Go overlay made both regressions fail; foreign replay again credited 29 minutes instead of 11. The pinned-head tests pass.
+
+## Round 3 — 2026-10-23T22:24:49-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The retained-proof guard at cmd/sdlc/actualbranch.go:311 remains intact. The concurrent-claim regression passed, including own and foreign canonical branches relabelled ownership-only through saved replay and direct execution.
 
 ## Open findings
 
