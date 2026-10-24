@@ -282,3 +282,11 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
   - **Minors:** `partial` hours have one meaning (a lower bound, except an unbounded unknown, which has weight 0). All four
     queue sites are mapped. The exit is at close.go:459. pair#838 and #851 are confirmed as the source-cap-at-proof shape, which
     #593 did not fix.
+- 2026-10-24, Task 8 (TL approved; this issue's third design delta): every unknown queue attempt, bounded or not, takes the
+  D4 path. Its wait is not subtracted, the hours are an upper bound, partial with share 0; a bounded attempt also records its
+  interval and the counted time it overlaps, so the output says how much the hours may overstate. The plan's bounded
+  subtraction is dropped: the engine binds queue waits to sources by slot, which these attempts lack, and replaying the
+  subtraction would make the records unignorable by older readers.
+- 2026-10-24, implementation: the summary also keeps the coalesced gaps (`widened`, at most `MaxSummaryCredits`), so a later
+  issue records the over-protected minutes; the summary byte bound is 448 KiB. Unattributed minutes subtract only this
+  issue's counted cover.

@@ -33,8 +33,9 @@ func TestRecordedPair856RestingClaimTransition(t *testing.T) {
 	claims := []BranchClaim{{Start: start, End: end, Issue: "850"}, {Start: start, End: end, Issue: "856"}}
 	windows := []ActivityWindow{{Start: start, End: end, Began: start}}
 	a, err := SelectBranchActivity("856", windows, history, claims)
-	if err != nil {
-		t.Fatalf("recorded ordinary planning transition refused: %v", err)
+	// #603: a resting exclusion is not unattributed work; the close stays exact.
+	if err != nil || len(a.Unknown) != 0 {
+		t.Fatalf("recorded ordinary planning transition refused or unattributed: %+v %v", a.Unknown, err)
 	}
 	b, err := SelectBranchActivity("850", windows, history, claims)
 	if err != nil {
@@ -125,8 +126,8 @@ func TestRecordedPair812And863RestingClaimTransitions(t *testing.T) {
 				t.Fatal(err)
 			}
 			got, err := SelectBranchActivity(tc.id, []ActivityWindow{{Start: start, End: end, Began: start}}, history, []BranchClaim{{Start: start, End: end, Issue: tc.id}, {Start: start, End: end, Issue: "other-held-issue"}})
-			if err != nil {
-				t.Fatalf("recorded incident refused: %v", err)
+			if err != nil || len(got.Unknown) != 0 {
+				t.Fatalf("recorded incident refused or unattributed: %+v %v", got.Unknown, err)
 			}
 			if len(got.Windows) != 1 || !got.Windows[0].Start.Equal(split) || len(got.Notes) != 2 || got.Notes[0].Kind != "resting-excluded" || got.Notes[0].End.Sub(got.Notes[0].Start) != time.Duration(tc.seconds)*time.Second {
 				t.Fatalf("pair%s = %+v", tc.id, got)

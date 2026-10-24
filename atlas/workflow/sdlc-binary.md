@@ -1607,14 +1607,16 @@ Terminal owners remain attribution witnesses, not reservations. A proven foreign
 issue branch excludes its unadopted tail; sole-claim planning without a witness
 is labelled ownership-only. Incomplete competing history is unknown, so it
 prevents that fallback while a proven candidate branch still requires its own
-complete ownership and source lineage. Concurrent unresolved selection refuses
-numeric actual; close can explicitly use --no-actual with the evidence in
---verified. Under concurrent reservations, a witnessed resting branch (main or
+complete ownership and source lineage. Concurrent unresolved selection no longer
+refuses (#603): `SelectBranchActivity` returns that activity in
+`BranchSelection.Unknown`, and the resolver records it, with any source lacking
+root lineage or a single historical owner, as `MeasurementUnattributed` records
+(`gatestate/measurement_unattributed.go`), uncounted. Under concurrent reservations, a witnessed resting branch (main or
 canonical main-slotN), or an attached valid stage/* branch (#594), is instead
 excluded and unassigned (#591). Output names
 its source, interval and branch-window minutes, which are not focused activity
 minutes. Own/foreign issue branches still select/exclude their witnessed spans;
-unknown, detached or other ambiguous history still refuses. Sole-reservation
+unknown, detached or other ambiguous history is recorded as unattributed. Sole-reservation
 planning keeps its labelled ownership-only fallback. No neighboring-branch or
 status inference assigns the resting span. New v3 audit notes use
 resting-excluded or stage-excluded; the staging predicate is shared by selection
@@ -1624,6 +1626,23 @@ pair#856 (68-second initial rest) and pair#812 (25 seconds) captures replay the
 claim/start-plan boundary in the selector tests. The pair#830 reported checkout/merge/return sequence is reconstructed with
 synthetic object IDs and proves 172 seconds of unassigned staging for both
 concurrent issues. No historical credit is reassigned.
+
+**Measurement confidence (#603).** Measurement never blocks a close.
+`actualconfidence.go` owns the one pure mapping, `classifyActual`, from a
+measurement outcome to `exact`, `partial` (attributed share; hours a lower
+bound) or `unmeasured` (the reason), and the shared interval arithmetic:
+`unattributedMinutes` is the cover of the bounded non-queue records less this
+issue's own counted cover, and `overstatedMinutes` the counted time unknown queue
+attempts overlap. An unknown queue attempt (unreadable records, unknown
+provenance, membership or endpoints) is never subtracted, so it makes the hours
+an upper bound with share 0. The records are audit-only, capped at 32
+(`SnapshotLimitUnattributed`, unbounded first) beside an uncapped minutes total,
+so a reader that ignores them replays the adopted hours. Resting and stage
+exclusions keep a close exact. Close (`adoptOmittedActual`) adopts every outcome,
+writes `Close-Actual-Confidence` in the evidence commit (frontmatter
+`actual_confidence` without a tracker) and the ledger's confidence columns, and
+an unmeasured close records N/A with its recovery. A correction still requires
+exact queue evidence. `--no-actual` remains only for inapplicable windows.
 
 `active-time` has changed semantics in tracked repositories: by default it uses
 the same resolver as actual/close. Explicit --dir, --since and --until narrow
@@ -1974,12 +1993,12 @@ owning slot and subtracts the entire interval. No tool call, result or task
 span inside it is classified or used to restore time; overlapping real work
 may therefore slightly undercount. A malformed or unreadable attempt record
 whose relevance cannot be ruled out, a relevant attempt missing queue or slot
-fields, or a legacy attempt without exact endpoints makes coverage unknown for
-both close and correction. Unknown source ownership also refuses a numeric
-measurement. The refusal retains every queue blocker: only an all-legacy set
-names its attempts and the matching `close` or `milestone-close --no-actual`
-command, with its exclusion reason. Mixed or malformed new-format evidence
-retains the restore guidance. Old completed snapshots replay unchanged; explicit
+fields, or a legacy attempt without exact endpoints makes coverage unknown.
+A correction refuses on it, retaining every queue blocker. Close and preview
+record each such attempt as a `queue-unknown` unattributed record instead
+(#603): its wait is not subtracted, so the actual is an upper bound with no
+calibration weight, and an attempt with endpoints names how much it may
+overstate. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
@@ -1992,8 +2011,19 @@ attribution interval names its source by index into `sources` and inherits its
 capture's branch, and the codec expands it to the same in-memory evidence a
 version 3 snapshot holds. The bound depends on the version
 (`measurementSnapshotLimit`): 64 KiB through version 3, 128 KiB for version 4,
-so `SnapshotLimitSources` binds before bytes do. `Validate` refuses an
-oversized snapshot with its size and its source and interval counts. A separate
+so `SnapshotLimitSources` binds before bytes do. `Validate` is
+`ValidateShape` then `ValidateBounds` (#603); the bounds fail as a typed
+`*OversizeError` with the size and the source and interval counts. The branch
+proof checks shape only, and a fresh measurement checks the bounds once, after
+trimming to contributing sources: pair#838 and #851 had refused at the proof on
+untrimmed sources. A snapshot still over its bounds is retained as a version-5
+`MeasurementSummary` (`gatestate/measurement_summary.go`, method
+`active-time-v3-summary-v1`): header, unattributed records, source count, size,
+digest, hours, and the credited intervals, coalesced to `MaxSummaryCredits` by
+`CoalesceCredits` with the closed gaps kept as `widened`. `loadAdoptedExclusions`
+reads a summary's credits instead of replaying it and records the widened gaps
+the later issue loses as `summary-widened`; only a replay of the summarised close
+refuses. Pre-#603 readers refuse version 5 by version. A separate
 512 KiB structural cap only bounds the codec's parse cost. Version 3 snapshots
 replay unchanged, and pre-#593 readers refuse version 4 by version.
 

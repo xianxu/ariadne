@@ -34,8 +34,8 @@ func TestPair830StagingReplayExcludes172Seconds(t *testing.T) {
 	claims := []BranchClaim{{Start: start, End: end, Issue: "849"}, {Start: start, End: end, Issue: "830"}}
 	for _, id := range []string{"849", "830"} {
 		got, err := SelectBranchActivity(id, []ActivityWindow{{Start: start, End: end, Began: start}}, history, claims)
-		if err != nil {
-			t.Fatalf("pair#%s refused witnessed stage: %v", id, err)
+		if err != nil || len(got.Unknown) != 0 {
+			t.Fatalf("pair#%s refused or unattributed a witnessed stage: %+v %v", id, got.Unknown, err)
 		}
 		var excluded, credited time.Duration
 		for _, note := range got.Notes {

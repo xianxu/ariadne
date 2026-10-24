@@ -221,11 +221,14 @@ Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before tha
    boundaries you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is
    a review boundary, not a task label).
 3. **Record `actual_hours`** (on the card for tracker-era issues, #252; in the
-   frontmatter otherwise): a measured positive number, or explicit `N/A` only
-   when measurement is not applicable. `sdlc close` measures and records it.
+   frontmatter otherwise): a measured positive number, or explicit `N/A` when
+   measurement is not applicable or produced no number. `sdlc close` measures
+   and records it with a confidence, exact, partial or unmeasured, and never
+   refuses on measurement (#603).
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.
 6. ~~Append validation-log entry~~ — now automatic: on a full-issue close `sdlc
    close` appends numeric estimate↔actual pairs to the calibration ledger
    (#117), superseding the manual validation-log step. `actual_hours: N/A`
-   closes are schema-valid but excluded from calibration.
+   closes are schema-valid but excluded from calibration; partial rows count by
+   their attributed share (#603).
