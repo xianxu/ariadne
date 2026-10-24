@@ -46,12 +46,16 @@ func TestSysVUnavailableNeverDisplaysAnEmptyCount(t *testing.T) {
 type fakeSysVObserver struct {
 	beforeErr, afterErr string
 	onBefore            func()
+	onContext           func(context.Context)
 	segments            []sysvshm.Segment
 	captures, witnesses int
 	tablePath           string
 }
 
-func (f *fakeSysVObserver) Snapshot(context.Context) sysvshm.Snapshot {
+func (f *fakeSysVObserver) Snapshot(ctx context.Context) sysvshm.Snapshot {
+	if f.onContext != nil {
+		f.onContext(ctx)
+	}
 	f.captures++
 	if f.captures == 1 {
 		if f.onBefore != nil {
@@ -75,7 +79,10 @@ func (f *fakeSysVObserver) Snapshot(context.Context) sysvshm.Snapshot {
 	}
 	return sysvshm.Snapshot{Segments: append([]sysvshm.Segment(nil), f.segments...)}
 }
-func (f *fakeSysVObserver) WitnessGroup(context.Context, int) map[int]sysvshm.Witness {
+func (f *fakeSysVObserver) WitnessGroup(ctx context.Context, _ int) map[int]sysvshm.Witness {
+	if f.onContext != nil {
+		f.onContext(ctx)
+	}
 	f.witnesses++
 	return nil
 }
@@ -263,6 +270,47 @@ func TestSysVNoObservationBeforeAdmissionOrWritableLog(t *testing.T) {
 			_, err := runUnderResourceBatch(context.Background(), d, d.Root, helper, logDir, "zellij", sha, 1, suitePrioritySubject{}, [][]string{{"true"}}, log, time.Second, "")
 			if err == nil || f.captures != 0 || f.witnesses != 0 {
 				t.Fatalf("%v captures=%d witness=%d", err, f.captures, f.witnesses)
+			}
+		})
+	}
+}
+
+func TestSysVObservationPreservesCallerValuesWithIndependentBound(t *testing.T) {
+	type contextKey struct{}
+	for _, interrupted := range []bool{false, true} {
+		t.Run(fmt.Sprint(interrupted), func(t *testing.T) {
+			d, sha, _, stderr := localRunRepo(t, "acquired")
+			ctx, cancel := context.WithCancel(context.WithValue(context.Background(), contextKey{}, "caller"))
+			defer cancel()
+			observations := 0
+			f := &fakeSysVObserver{onContext: func(observed context.Context) {
+				observations++
+				if observed.Value(contextKey{}) != "caller" {
+					t.Error("observation discarded caller values")
+				}
+				if err := observed.Err(); err != nil {
+					t.Errorf("observation inherited cancellation: %v", err)
+				}
+				deadline, ok := observed.Deadline()
+				if !ok || time.Until(deadline) > 2*time.Second {
+					t.Error("observation lacks its independent two-second ceiling")
+				}
+			}}
+			if interrupted {
+				f.onBefore = cancel
+			}
+			d.sysvObserver = f
+			rec, err := runLocalCheck(ctx, d, localCheck{Name: "zellij", Command: []string{"true"}, TimeoutMinutes: 1}, sha)
+			if f.captures != 2 || observations != f.captures+f.witnesses {
+				t.Fatalf("observations=%d captures=%d witnesses=%d", observations, f.captures, f.witnesses)
+			}
+			if interrupted {
+				var stopped *queueInterruptedError
+				if !errors.As(err, &stopped) {
+					t.Fatalf("%v %s", err, stderr)
+				}
+			} else if err != nil || !rec.passed() || f.witnesses != 1 {
+				t.Fatalf("%+v %v %s", rec, err, stderr)
 			}
 		})
 	}

@@ -56,13 +56,13 @@ func hasSysVWarning(tail []string, check, sha string) bool {
 
 // A canceled run still gets a separately bounded observation. There is no
 // monitor goroutine or cleanup authority, and no probe before admission.
-func captureSysV(observer sysvshm.Observer) sysvshm.Snapshot {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+func captureSysV(caller context.Context, observer sysvshm.Observer) sysvshm.Snapshot {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(commandContext(caller)), 2*time.Second)
 	defer cancel()
 	return observer.Snapshot(ctx)
 }
 
-func sysVRunReport(observer sysvshm.Observer, before sysvshm.Snapshot, witnesses map[int]sysvshm.Witness, out io.Writer, check, sha string) {
-	after := captureSysV(observer)
+func sysVRunReport(caller context.Context, observer sysvshm.Observer, before sysvshm.Snapshot, witnesses map[int]sysvshm.Witness, out io.Writer, check, sha string) {
+	after := captureSysV(caller, observer)
 	writeSysVReport(out, check, sha, sysvshm.Delta(before, after, os.Geteuid(), witnesses))
 }

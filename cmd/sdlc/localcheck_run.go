@@ -673,9 +673,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	var sysvBefore sysvshm.Snapshot
 	var sysvWitnesses map[int]sysvshm.Witness
 	if resource != "runner" && d.sysvObserver != nil {
-		sysvBefore = captureSysV(d.sysvObserver)
+		sysvBefore = captureSysV(ctx, d.sysvObserver)
 		d.sysvWitness = func(pgid int) {
-			witnessCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+			witnessCtx, stop := context.WithTimeout(context.WithoutCancel(commandContext(ctx)), 2*time.Second)
 			defer stop()
 			sysvWitnesses = d.sysvObserver.WitnessGroup(witnessCtx, pgid)
 		}
@@ -684,7 +684,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	start := time.Now()
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
 	if resource != "runner" && d.sysvObserver != nil {
-		sysVRunReport(d.sysvObserver, sysvBefore, sysvWitnesses, out, check, sha)
+		sysVRunReport(ctx, d.sysvObserver, sysvBefore, sysvWitnesses, out, check, sha)
 	}
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)

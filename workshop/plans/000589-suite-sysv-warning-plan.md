@@ -115,3 +115,5 @@ Files: update `atlas/workflow/sdlc-binary.md` and its existing index link; add o
 - 2026-10-24: Initial design, incorporating ops:0's approved attribution boundary: unproven concurrent deltas are not attributed. Fakes precede native qualification, which waits for operator-cleared slots. Await TL plan approval before change-code.
 
 - 2026-10-24: Ops:0 approved the full plan (delivery 38e93c9b-c77c-42ff-9f67-fedbfc22b3af): boundary snapshots, group-witness-only attribution, hashed-log warning and status marker, no schema/outcome/cleanup changes, fakes before operator-cleared native qualification. The retained change-code completed successfully (inferred quick flow; close upgrades review if implementation exceeds its shell).
+
+- 2026-10-24 — recorded suite context guard: derive the independently bounded snapshot/witness observation contexts from WithoutCancel(caller), preserving caller values instead of minting Background. Added a stateful normal/canceled-run regression observed red before the fix. The existing context guard remains strict; no policy, timeout or schema change.
