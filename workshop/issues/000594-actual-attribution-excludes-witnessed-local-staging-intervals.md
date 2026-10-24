@@ -50,6 +50,8 @@ The full suite is running. Close review may overlap it; merge waits for its pass
 
 ## Log
 
+
+- 2026-10-24: closed — Addressed BR-1 in the shared README actual/close and active-time contract, matching both helps and atlas; addressed BR-2 by explicit pure entities and separate IO capture, with plan Revision and concrete function checks. No runtime delta. Pair#830 172-second exclusion, malformed/detached/unknown refusal, saved-proof tamper/visible-minutes/unknown-field controls and real Git/tracker immutable replay passed normal and race; tracked-file lint passed. Retained recorded suite lease-1425773880 on abbb560116896a1a2e18929f7e4964b7814f48ee is still running; wait for pass before merge.; review verdict: SHIP
 2026-10-24 — Filed unclaimed at ops:0 request (delivery 4ea9e0aa-75b7-4d0d-b85a-d30c69d94c1b); queued after #589. Evidence supplied directly by pair:6 (delivery ad33b571-b208-47bf-b08d-9ca25e6bf5ed), not independently reread from its checkout:
 
 sdlc close --issue 830 refused: "branch attribution for session 0bca9e6b-3a49-425b-a689-eff7360aa8a1 (pair-slot6): concurrent claims have unknown, detached or ambiguous active branch during 2026-10-24T02:55:02Z to 02:57:54Z".
