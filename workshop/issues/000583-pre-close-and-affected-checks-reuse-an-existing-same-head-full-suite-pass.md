@@ -62,6 +62,7 @@ a record for another head never matches (keyed by sha). ARCH-ORDER/FUNERAL/EVOLV
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — targeted: go test ./cmd/sdlc -run TestPreClose|TestLocalCheckCmdPreClose pass; round 1 fixed in-round: TestPreCloseReusesASameHeadSuitePass covers pre-close->affected, pre-close->suite (no trains), --name affected, --boarding reuse with one suite attempt, plain --name suite rerun (2 attempts), another head runs, failed suite not reused; known-flake reuse via republishSavedPass in TestKnownFlakeGate; TestCloseHelpNamesThePreCloseCheck; recorded pre-close check queued on d4a79fa2; review verdict: SHIP
 
 - Implemented in `runLocalCheckCmd` (localcheck_cmd.go): before running, `--pre-close` or an affected-only run asks
   `republishSavedPass` for `suite` on the exact head; a verified pass is posted and nothing runs. Tests:
