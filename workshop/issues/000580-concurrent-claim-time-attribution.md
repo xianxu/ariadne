@@ -1,13 +1,21 @@
 ---
 id: 000580
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: '2fd4c20cced97b57d570664f7bab660421fd703f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cc5b1d7045eb6609727bb76b7740d6abf87b2254' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T19:27:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
@@ -32,6 +40,10 @@ A deterministic fixture with two simultaneous same-slot claims, activity on A th
 
 Investigate branch/engagement evidence in active-time-v3 and build the same-slot two-claim regression before changing classification.
 
+Durable proposal: [concurrent claim attribution plan](../plans/000580-concurrent-claim-time-attribution-plan.md). Await TL approval before code.
+
 ## Log
 
 Filed unclaimed from parley.nvim:3 at TL request. Product candidate is parley.nvim PR344; #418 landed as PR338. Relevant hub dispatch1341251d at14:30:52 authorizes starting #322 after #418. Clean #322 implementation began14:30; #418 tail of concern is11:18–14:30. No measurement-source repair was attempted.
+
+2026-10-23: Claimed and started in ariadne:3 after #574 landed. Confirmed the structural cause: EligibleSources admits a persistent root session over every matching owned worktree window, with no branch discriminator; resolveOwnedActualInputsFor retains those windows and the engine's issue-scoped commits can assign A's unadopted tail to B. Existing adopted-credit exclusions cannot prove active ownership of that tail. Own native HEAD reflog confirms per-worktree checkout transitions exist, including issue-to-resting and fresh issue-branch starts; full operation grammar and continuity qualification are planned, not claimed proven. The issue contains a reported incident summary, not raw captured terminal bytes. Proposed a pure shared branch/claim interval selector with stable private HEAD-history capture, saved-window replay and an explicit sole-claim planning compatibility policy. No code, fixtures or production measurement changes yet; plan goes to the hub.
