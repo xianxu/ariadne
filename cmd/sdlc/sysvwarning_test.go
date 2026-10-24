@@ -5,15 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/sysvshm"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestSysVFooterDoesNotChangeOutcomeAndSurvivesReplay(t *testing.T) {
@@ -314,41 +318,27 @@ func TestSysVObservationPreservesCallerValuesWithIndependentBound(t *testing.T) 
 	}
 }
 
-// The test advances only the execution deadline, without depending on process
-// launch latency or sleeping under fleet load.
-type sysVExecutionClock struct {
-	context.Context
-	expired atomic.Bool
-}
-
-func (c *sysVExecutionClock) Err() error {
-	if c.expired.Load() {
-		return context.DeadlineExceeded
-	}
-	return c.Context.Err()
-}
-
 func TestSysVDiagnosticsCannotConsumeExecutionBudget(t *testing.T) {
 	for _, wantExit := range []int{0, 7} {
 		t.Run(fmt.Sprint(wantExit), func(t *testing.T) {
 			d, sha, _, _ := localRunRepo(t, "acquired")
-			var clock *sysVExecutionClock
+			var expire func()
 			d.executionTimeout = func(ctx context.Context, _ time.Duration) (context.Context, context.CancelFunc) {
-				child, cancel := context.WithCancel(ctx)
-				clock = &sysVExecutionClock{Context: child}
-				return clock, cancel
+				var controlled context.Context
+				controlled, expire = testfix.DeadlineOnCue(ctx)
+				return controlled, func() {}
 			}
 			f := &fakeSysVObserver{
 				onBefore: func() {
-					if clock != nil {
+					if expire != nil {
 						t.Error("execution timer began before before-observation finished")
 					}
 				},
 				onAfter: func() {
-					if clock == nil {
+					if expire == nil {
 						t.Fatal("execution context absent")
 					}
-					clock.expired.Store(true)
+					expire()
 				},
 			}
 			d.sysvObserver = f
@@ -363,9 +353,161 @@ func TestSysVDiagnosticsCannotConsumeExecutionBudget(t *testing.T) {
 }
 
 func TestSysVCurrentProcessNameIsNotCreatorProof(t *testing.T) {
+	candidate := sysvshm.Candidate{Segment: sysvshm.Segment{ID: 7, Creator: os.Getpid()}}
+	// Populate a restored legacy Witness if present. Keeping this fixture
+	// compilable after removal must not make restoration of unsafe attribution
+	// invisible: an overlay restoring the former renderer must fail this test.
+	legacy := reflect.ValueOf(&candidate).Elem().FieldByName("Witness")
+	if legacy.IsValid() {
+		legacy.FieldByName("Name").SetString("unrelated-reused-pid")
+		legacy.FieldByName("Start").SetString("current-incarnation")
+	}
 	var out bytes.Buffer
-	writeSysVReport(&out, "suite", "head", sysvshm.Report{Candidates: []sysvshm.Candidate{{Segment: sysvshm.Segment{ID: 7, Creator: os.Getpid()}}}})
+	writeSysVReport(&out, "suite", "head", sysvshm.Report{Candidates: []sysvshm.Candidate{candidate}})
 	if strings.Contains(out.String(), "unrelated-reused-pid") || strings.Contains(out.String(), "witnessed in run process group") || !strings.Contains(out.String(), "command=\"unknown\"") {
 		t.Fatalf("current PID incarnation was mistaken for allocating creator: %s", &out)
+	}
+}
+
+type sysVCommandBarrier struct {
+	io.Writer
+	once   sync.Once
+	action func()
+}
+
+func (w *sysVCommandBarrier) Write(p []byte) (int, error) {
+	n, err := w.Writer.Write(p)
+	if bytes.Contains(p, []byte("during-managed-command")) {
+		w.once.Do(w.action)
+	}
+	return n, err
+}
+
+func TestSysVCancellationCannotChangeRetiredExecution(t *testing.T) {
+	for _, strict := range []bool{false, true} {
+		for _, source := range []string{"caller", "queue"} {
+			for _, phase := range []string{"before", "during", "after"} {
+				for _, exit := range []int{0, 7} {
+					t.Run(fmt.Sprintf("strict%v/%s/%s/exit%d", strict, source, phase, exit), func(t *testing.T) {
+						d, sha, _, _ := localRunRepo(t, "acquired")
+						wt := d.Root
+						if strict {
+							var cleanup func()
+							var err error
+							wt, cleanup, err = detachedWorktree(d.Git, sha)
+							if err != nil {
+								t.Fatal(err)
+							}
+							t.Cleanup(cleanup)
+							d.StrictGroupCleanup = true
+						}
+						state := t.TempDir()
+						t.Setenv("WF_SDLC_QUEUE_ROOT", state)
+						t.Setenv("WF_TEST_SCRATCH", t.TempDir())
+						ctx, cancel := context.WithCancel(t.Context())
+						defer cancel()
+						store := &queuegate.Store{Root: state}
+						var actionErr error
+						logDir := t.TempDir()
+						action := func() {
+							if source == "caller" {
+								cancel()
+							} else {
+								actionErr = store.Pause(t.Context(), "private-drain", "fixture cancellation", true)
+							}
+						}
+						observer := &fakeSysVObserver{}
+						switch phase {
+						case "before":
+							observer.onBefore = action
+						case "during":
+							d.Stderr = &sysVCommandBarrier{Writer: d.Stderr, action: action}
+						case "after":
+							observer.onAfter = func() {
+								rows, e := os.ReadDir(filepath.Join(state, "operations"))
+								if e != nil && !os.IsNotExist(e) {
+									t.Error(e)
+								}
+								if len(rows) != 0 {
+									t.Errorf("diagnostic preceded queue retirement: %v", rows)
+								}
+								runs, e := os.ReadDir(localCheckRunsDir(logDir))
+								if e != nil && !os.IsNotExist(e) {
+									t.Error(e)
+								}
+								if len(runs) != 0 {
+									t.Errorf("diagnostic preceded run-lease release: %v", runs)
+								}
+								action()
+							}
+						}
+						d.sysvObserver = observer
+						command := fmt.Sprintf("exit %d", exit)
+						if phase == "during" {
+							command = "printf 'during-managed-command\n'; exec sleep 30"
+						}
+
+						run, err := runUnderResourceBatch(ctx, d, wt, filepath.Join(d.Root, "scripts/test-lock.py"), logDir, "zellij", sha, 1, suitePrioritySubject{}, [][]string{{"sh", "-c", command}}, filepath.Join(logDir, "run.log"), time.Minute, "")
+						if actionErr != nil {
+							t.Fatal(actionErr)
+						}
+						if phase == "after" {
+							if err != nil || run.Exit != exit || run.TimedOut {
+								t.Fatalf("late %s changed completed exit%d: %+v %v", source, exit, run, err)
+							}
+						} else {
+							var interrupted *queueInterruptedError
+							if !errors.As(err, &interrupted) {
+								t.Fatalf("pre-retirement %s was not interrupted: %+v %v", source, run, err)
+							}
+						}
+						rows, readErr := os.ReadDir(filepath.Join(state, "interrupted"))
+						if readErr != nil && !os.IsNotExist(readErr) {
+							t.Fatal(readErr)
+						}
+						if (len(rows) > 0) != (phase != "after") {
+							t.Fatalf("interruption evidence after %s: %v", phase, rows)
+						}
+						active, readErr := os.ReadDir(filepath.Join(state, "operations"))
+						if readErr != nil && !os.IsNotExist(readErr) {
+							t.Fatal(readErr)
+						}
+						if len(active) != 0 {
+							t.Fatalf("ended operation still active: %v", active)
+						}
+					})
+				}
+			}
+		}
+
+	}
+}
+
+func TestSysVUnconfirmedCleanupRemainsUnknownAfterProbe(t *testing.T) {
+	d, sha, _, _ := localRunRepo(t, "acquired")
+	state := t.TempDir()
+	t.Setenv("WF_SDLC_QUEUE_ROOT", state)
+	t.Setenv("WF_TEST_SCRATCH", t.TempDir())
+	wt, cleanup, err := detachedWorktree(d.Git, sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(cleanup)
+	d.StrictGroupCleanup = true
+	d.runnerCleanup = func(*exec.Cmd) func() error {
+		return func() error { return &runnerCleanupUnconfirmed{Detail: "fixture cleanup unproven"} }
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	d.sysvObserver = &fakeSysVObserver{onAfter: cancel}
+	logDir := t.TempDir()
+	_, err = runUnderResourceBatch(ctx, d, wt, filepath.Join(d.Root, "scripts/test-lock.py"), logDir, "zellij", sha, 1, suitePrioritySubject{}, [][]string{{"true"}}, filepath.Join(logDir, "run.log"), time.Minute, "")
+	var unknown *runnerCleanupUnconfirmed
+	if !errors.As(err, &unknown) {
+		t.Fatalf("unknown cleanup lost: %v", err)
+	}
+	snapshot, err := (&queuegate.Store{Root: state}).Snapshot(t.Context())
+	if err != nil || snapshot.Complete || len(snapshot.Active) != 1 || snapshot.Active[0].State != "unknown" {
+		t.Fatalf("unknown cleanup falsely retired: %+v %v", snapshot, err)
 	}
 }

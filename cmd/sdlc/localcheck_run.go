@@ -505,6 +505,20 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	if (resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
+	// Registered first, so diagnostics run only after execution, every cleanup,
+	// cancellation consumer and queue retirement have fixed the named result.
+	// Keep the original descriptor until then; never reopen a mutable log path.
+	var logf *os.File
+	var sysvBefore *sysvshm.Snapshot
+	defer func() {
+		if logf == nil {
+			return
+		}
+		defer logf.Close()
+		if sysvBefore != nil {
+			sysVRunReport(ctx, d.sysvObserver, *sysvBefore, io.MultiWriter(logf, d.Stderr), check, sha)
+		}
+	}()
 	run = suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
@@ -603,11 +617,10 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return run, err
 	}
-	logf, err := os.Create(logPath)
+	logf, err = os.Create(logPath)
 	if err != nil {
 		return run, err
 	}
-	defer logf.Close()
 	// A light run (#559) is niced and stopped at the lane's bound, unless the
 	// check's own timeout comes first; only the lane's deadline is an overrun.
 	laneDeadline := false
@@ -668,9 +681,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)
-	var sysvBefore sysvshm.Snapshot
 	if resource != "runner" && d.sysvObserver != nil {
-		sysvBefore = captureSysV(ctx, d.sysvObserver)
+		snapshot := captureSysV(ctx, d.sysvObserver)
+		sysvBefore = &snapshot
 		fmt.Fprintln(out, "[sdlc SysV observation] beginning; after-snapshot pending")
 	}
 	withTimeout := d.executionTimeout
@@ -683,13 +696,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
 	executionErr, finished := runCtx.Err(), time.Now()
 	cancel() // diagnostic work cannot expire the completed execution
-	if resource != "runner" && d.sysvObserver != nil {
-		sysVRunReport(ctx, d.sysvObserver, sysvBefore, out, check, sha)
-	}
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
 		fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
-		_ = logf.Close()
 		q.abandon()
 		return run, cleanupErr
 	}
@@ -701,12 +710,11 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	// Signal ownership ends here, so the lease does too: a cancel waiting on it
 	// returns once the check has stopped and its slot is freed.
 	releaseLease()
-	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopCancellation()
+	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopSignals()
 	run.Start, run.Duration = start.UTC(), finished.Sub(start)
 	run.Finished = finished.UTC()
-	_ = logf.Close()
 	reason := ""
 	if interrupted != nil {
 		reason = "managed suite cancelled"
