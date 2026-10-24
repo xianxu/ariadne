@@ -88,15 +88,18 @@ by `SnapshotLimitSources` should fail serialization.
 
 Durable plan: workshop/plans/000593-measure-close-windows-whose-branch-attribution-snapshot-exceeds-64-kib-instead-plan.md (D1 to D3, approved by the TL on 2026-10-24).
 
-- [ ] Write failing tests: round-trip, bad index, the #586 shape, 128 sources, the counted refusal, v3 replay, the older-reader refusal, unknown members
-- [ ] Add the v4 wire types and compactBranches / expandBranches
-- [ ] Add the version-aware bound, the structural cap and the counted refusal, and swap the codec's v4 branches member
-- [ ] Make the writer emit version 4
-- [ ] Update the docs: the sdlc actual help
-- [ ] Re-measure #586 with the built binary
+- [x] Write failing tests: round-trip, bad index, the #586 shape, 128 sources, the counted refusal, v3 replay, the older-reader refusal, unknown members
+- [x] Add the v4 wire types and compactBranches / expandBranches
+- [x] Add the version-aware bound, the structural cap and the counted refusal, and swap the codec's v4 branches member
+- [x] Make the writer emit version 4
+- [x] Update the docs: the sdlc actual help
+- [x] Re-measure #586 with the built binary
 
 ## Log
 
 ### 2026-10-24
 
 - Claimed and planned from ariadne:2 after #586 landed. The TL approved the plan over Couch. Version 4 alone marks the compact form; the branch method names are unchanged, because version names the encoding and method names the interpretation.
+- Implemented. Compaction lives in measurement_branch_v4.go (pure compactBranches / expandBranches). The codec swaps in the compact branches member for version 4 in MarshalJSON, MarshalYAML and UnmarshalJSON; YAML decoding reaches UnmarshalJSON. Each version's byte bound (64 KiB through v3, 128 KiB for v4) is checked on the whole snapshot in Validate and on decode. The codec's own guard is a 512 KiB structural cap. Validate's refusal names the size, the bound and the counts.
+- Mutation check: with compaction disabled, TestCompactBranchesRoundTrip, TestMeasurementV4Issue586Shape and TestMeasurementV4RefusedByOlderReader fail. The #586-shaped fixture still refuses as version 3, so it reproduces the original failure.
+- Re-measured #586 with this branch's binary (scratch build): 1.25h measured, where the fleet binary refused with "measurement exceeds 65536 bytes".
