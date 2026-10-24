@@ -1,6 +1,6 @@
 ---
 id: 000592
-status: working
+status: codecomplete
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.47
+tracker:
+    version: 1
+    completion:
+        token: close-70c599b5176c
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 468ee2e4bcbd8df4c4c11b28f7bb781b9ac45a94
+        evidence_commit: ee36b5a64883db75da7bb0c1d52a2d28876e96a4
 ---
 
 # flake: TestQueueRealHelperPause
