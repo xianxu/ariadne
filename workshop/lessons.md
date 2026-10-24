@@ -1663,3 +1663,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   kind, and expose unassigned minutes. Capture-backed transition replay and
   credited-window/kind mutation controls defend this attribution rule; a lexical
   lint cannot establish historical ownership.
+
+- #594 BR-1/BR-2: an attribution behavior change needs the README paragraph
+  shared by actual/close and active-time as well as help and atlas. Core-concept
+  tables must classify each actual function: HEAD capture performs IO; decoding,
+  rendering and saved-proof validation are pure. Check the concrete referents,
+  not only table shape. Boundary review owns this prose parity check; wording
+  presence tests would not establish semantic correctness.

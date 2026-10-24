@@ -10,20 +10,21 @@
 
 ## Core concepts
 
-| Name | Lives in | Status |
-|------|----------|--------|
-| IsStagingBranch | cmd/sdlc/internal/activetime/branch.go | new |
-| SelectBranchActivity | cmd/sdlc/internal/activetime/branch.go | modified |
-| MeasurementBranchInterval | cmd/sdlc/internal/gatestate/measurement_branch.go | modified |
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| IsStagingBranch | PURE | cmd/sdlc/internal/activetime/branch.go | new |
+| SelectBranchActivity | PURE | cmd/sdlc/internal/activetime/branch.go | modified |
+| MeasurementBranchInterval | PURE | cmd/sdlc/internal/gatestate/measurement_branch.go | modified |
+| measurementBranchWarning / validateOwnedBranchProof | PURE | cmd/sdlc/actualbranch.go | modified |
+| ParseHeadHistory | PURE | cmd/sdlc/internal/activetime/branchhistory.go | unchanged |
 
 IsStagingBranch recognizes an attached, syntactically valid branch with literal stage/ prefix and a nonempty suffix, reusing historyBranch's validation. It is shared by live selection and retained validation (ARCH-DRY); no IDs are inferred from the suffix. The existing BranchNote/MeasurementBranchInterval gains a stage-excluded kind, distinct from resting-excluded, without changing old kinds.
 
-| Name | Lives in | Status | Wraps |
-|------|----------|--------|-------|
-| measurementBranchWarning / validateOwnedBranchProof | cmd/sdlc/actualbranch.go | modified | retained attribution and displayed warnings |
-| Existing HEAD capture / decoder | cmd/sdlc/internal/activetime/branchhistory.go | unchanged | bounded native Git HEAD records |
+| Name | Kind | Lives in | Status | Wraps |
+|------|------|----------|--------|-------|
+| captureOwnedBranchEvidence | INTEGRATION | cmd/sdlc/actualbranch.go | unchanged | bounded native Git HEAD records |
 
-These integration functions consume the pure classification. Existing native temporary Git repositories and immutable captured records exercise the seam; no new external service or production telemetry mutation is needed (ARCH-PURE, ARCH-MOCK).
+The existing capture supplies bytes to pure decoding and classification; warning rendering and saved-proof validation are pure too. Existing native temporary Git repositories and immutable captured records exercise the seam; no new external service or production telemetry mutation is needed (ARCH-PURE, ARCH-MOCK).
 
 ## Policy and compatibility
 
@@ -43,7 +44,7 @@ ARCH-CONSTRAINTS: batch measurement keeps its existing bounded capture and sorte
 - [x] Implement IsStagingBranch and one stage-excluded selector arm after sole-reservation fallback, preserving resting precedence and bounded sweep behavior. Run `go test ./cmd/sdlc/internal/activetime -run 'Test.*(Stage|Staging|Resting|Branch)' -count=1` and confirm the new regression changes from refusal to exclusion.
 - [x] Extend measurement_branch.go validation and actualbranch.go's warning/proof handling. Add tests in cmd/sdlc/internal/gatestate/measurement_branch_test.go and cmd/sdlc/actualbranch_resting_test.go for valid saved exclusion, exclusion overlapping credited windows, invalid branch/kind mutations, output minutes, old-reader refusal, and unchanged old adopted replay. Verify JSON/YAML unknown-member preservation using existing codec controls.
 - [x] Run focused normal and race tests: activetime and gatestate packages; then cmd/sdlc with `-run 'Test.*(Branch|Resting|Staging|StageExcluded)'`. Check actual test names and enumerate them before trusting a regex run; retain the precise commands and results in the Log.
-- [x] Update cmd/sdlc/helptext/actual.md, cmd/sdlc/helptext/active-time.md and atlas/workflow/sdlc-binary.md together. Sweep existing resting-excluded consumers and stale refusal wording. Add a lessons.md line for witnessed neutral states and retained-proof parity.
+- [x] Update README.md's shared actual/active-time paragraph, cmd/sdlc/helptext/actual.md, cmd/sdlc/helptext/active-time.md and atlas/workflow/sdlc-binary.md together. Sweep existing resting-excluded consumers and stale refusal wording. Add a lessons.md line for witnessed neutral states and retained-proof parity.
 - [x] Commit and push; launch `sdlc local-check run --pre-close` on the pushed head. PR 433 is open and the retained suite is running.
 
 Completion sequence: the binary-owned close review can overlap the detached suite; wait for its pass and SHIP before `sdlc merge --yes`. Report the Git-verified landing to the hub. No live actual adoption or peer checkout edit is part of qualification.
@@ -53,5 +54,7 @@ Completion sequence: the binary-owned close review can overlap the detached suit
 Approved by ops:0 on 2026-10-24 (receipt a7713eb0-c36e-4728-9500-4a29a1cca2e6); change-code inferred quick flow. One atomic review boundary, no Mx milestones. This appears within the quick-flow code/design limits; change-code owns flow inference.
 
 ## Revisions
+
+2026-10-24 — Round-1 review BR-1/BR-2: include README's shared actual/close and active-time contract, which the initial documentation sweep missed. Add explicit PURE/INTEGRATION table columns and separate existing IO capture from pure decoding, rendering and proof validation. These are prose corrections; runtime policy and code are unchanged.
 
 2026-10-24 — Approval recorded and plan renamed to change-code's canonical filename. Peer evidence supplies event descriptions and abbreviated object IDs, so the committed replay explicitly reconstructs those messages with synthetic IDs; the production Git/tracker test independently exercises staging and saved replay. Old-reader coverage distinguishes the observed pre-change v3 unknown-kind refusal (RED) from the frozen pre-v3 reader's version refusal.
