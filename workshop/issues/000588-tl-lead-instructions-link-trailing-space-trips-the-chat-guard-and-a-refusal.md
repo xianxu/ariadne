@@ -1,12 +1,12 @@
 ---
 id: 000588
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-24
 estimate_hours:
-card_mirror: '9b85da4221e8163c6eafd3b3dd343496b4b6d4b1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7ef978c2f052d7fdbaab136461c855b047fc7ee5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T21:18:07-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "cad72865", done: "18cb1fb1"}
+actual_hours: 0.78
 ---
 
 # tl-lead instructions link: trailing space trips the chat guard, and a refusal leaves a half-done write
