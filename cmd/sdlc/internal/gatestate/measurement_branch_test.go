@@ -106,3 +106,39 @@ func TestMeasurementBranchEvidenceRejectsKnownCorruption(t *testing.T) {
 		}
 	}
 }
+
+func TestMeasurementRestingExclusionStrictAndPreserved(t *testing.T) {
+	m := branchMeasurement()
+	w := &m.Branches[0].Intervals[0]
+	w.Kind = "resting-excluded"
+	w.Branch = "main-slot4"
+	w.extra = measurementUnknown(`{"future":{"n":9007199254740993}}`)
+	for _, useYAML := range []bool{false, true} {
+		var raw []byte
+		var err error
+		var again MeasurementInputs
+		if useYAML {
+			raw, err = yaml.Marshal(m)
+			if err == nil {
+				err = yaml.Unmarshal(raw, &again)
+			}
+		} else {
+			raw, err = json.Marshal(m)
+			if err == nil {
+				err = json.Unmarshal(raw, &again)
+			}
+		}
+		if err != nil || !reflect.DeepEqual(m, again) {
+			t.Fatalf("resting exclusion changed: %v", err)
+		}
+		if err := again.Validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, branch := range []string{"", "feature", "000856-cast", "main-slot04"} {
+		w.Branch = branch
+		if err := m.Validate(); err == nil {
+			t.Fatalf("invalid resting exclusion accepted: %s", branch)
+		}
+	}
+}
