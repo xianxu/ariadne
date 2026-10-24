@@ -1,4 +1,24 @@
 ---
+reviewer_runs:
+    - version: 1
+      intent:
+        id: ebbca34d-f817-4bf1-a63d-5cac4ca2318d
+        repository: github.com/xianxu/ariadne
+        issue_id: "000603"
+        recipe: estimate-quality
+        round: 1
+        attempt: 1
+        agent: claude
+        root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+        reviewed_head: 332eecb1186b0b3de0520292530eb6897df4ca31
+        slot: ariadne:2
+        requested_at: "2026-10-24T23:10:40.754548Z"
+      phase: finished
+      pid: 48078
+      started_at: "2026-10-24T23:10:40.919233Z"
+      finished_at: "2026-10-24T23:11:09.91992Z"
+      session_id: 2592f3cf-3d07-4851-b3fb-843d350f0b79
+      outcome: returned
 gate: plan-quality
 issue: 603
 id_prefix: PQ
@@ -116,7 +136,37 @@ rounds:
           family: test-case-enumeration-in-prose
           round: 2
       blocked: false
-content_hash: 557fb03b6c2946215626f85079db7e27bc8b5420af43157a3e70bf49649d88c2
+    - reviewer_runs:
+        - version: 1
+          intent:
+            id: 76685b1e-8a9e-44e9-bf77-bd358dd4b475
+            repository: github.com/xianxu/ariadne
+            issue_id: "000603"
+            recipe: plan-quality
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+            reviewed_head: 332eecb1186b0b3de0520292530eb6897df4ca31
+            slot: ariadne:2
+            requested_at: "2026-10-24T23:10:23.920703Z"
+          phase: finished
+          pid: 40384
+          started_at: "2026-10-24T23:10:24.116267Z"
+          finished_at: "2026-10-24T23:10:37.518783Z"
+          session_id: 08b9e5a4-00cf-4efe-83d6-83d4798bb77c
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-24T16:10:37-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: PQ-6
+          disposition: not-addressed
+          note: Strategy lines were added for the coalescer and weighted calibration, but the prose case lists in Tasks 6 and 12 (and Task 1's coverage sentence) remain; delete them in favour of the strategy lines. Minor, carried to close review.
+          round: 3
+      blocked: false
+content_hash: 50cedc7abb2d0cbae8f5dc9d38ff21cc8ff3fc2ec964f2c36a503039dee76645
 ---
 
 # Gate ledger — ariadne#603 (plan-quality)
@@ -151,6 +201,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **PQ-6** [Minor] `test-case-enumeration-in-prose` (kind: defect) Tasks 1, 6 and 12 enumerate test cases in prose instead of one strategy line per risky function
   Compress to strategy lines: credit coalescer gets a property test (output length at most MaxSummaryCredits, coalesced cover is a superset of the input cover); weighted calibration gets a property test (adding a weight-0 row leaves output unchanged).
+
+## Round 3 — 2026-10-24T16:10:37-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-6 — not-addressed — Strategy lines were added for the coalescer and weighted calibration, but the prose case lists in Tasks 6 and 12 (and Task 1's coverage sentence) remain; delete them in favour of the strategy lines. Minor, carried to close review.
 
 ## Open findings
 
