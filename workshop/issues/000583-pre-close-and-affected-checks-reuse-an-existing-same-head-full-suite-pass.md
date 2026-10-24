@@ -1,12 +1,20 @@
 ---
 id: 000583
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
-card_mirror: '0dcb85063d179cb12a612bf01ba9687da95a0d72' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'aaca90a4a83f4187987eba06c79640bc895884df' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-23T20:24:51-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Pre-close and affected checks reuse an existing same-head full-suite pass instead of queueing a new full run
@@ -32,7 +40,23 @@ and run nothing. A record for another head never counts.
 
 ## Plan
 
-- [ ]
+Reuse, don't add (ARCH-DRY): `republishSavedPass` (#431, `localcheck_republish.go`) already turns a saved, verified
+pass of a check on the exact head into its posted record, with the newest-attempt and known-flake revalidation
+rules; merge's runner uses it. The CLI never asks it.
+- [ ] `runLocalCheckCmd`: with `--pre-close`, or `--name affected` (boarding included: a suite pass also boards),
+      first ask `republishSavedPass` for `suite` on the exact head; on a reuse, print it and run nothing (no graph,
+      no selection). Otherwise behave as today. A plain `--name suite` keeps rerunning on request.
+- [ ] Tests (CLI fixture from #578's `TestLocalCheckCmdPreClose`): after a recorded suite pass, `--pre-close` and
+      `--name affected` run nothing and report reuse (no affected status, no second attempt); a new commit (another
+      head) runs as before; a failed saved suite is not reused.
+- [ ] Scope fold (TL, from pair:1): `cmd/sdlc/helptext/close.md` FIXED-THEN-SHIP prose says `--full-suite` records
+      "a full test run" and "the suite still runs"; say the pre-close check (`sdlc local-check run --pre-close`) as
+      the flag help does. Pin with a help test.
+- [ ] local-check help, atlas `ci-merge-check.md` pre-close paragraph: reuse of a same-head suite pass.
+- [ ] Targeted tests, pre-close check, close, land.
+
+ARCH-SECURE: the saved attempt is local evidence verified by `loadSavedAttemptCurrent` (log hash, host, newest);
+a record for another head never matches (keyed by sha). ARCH-ORDER/FUNERAL/EVOLVE: no new state, files or formats.
 
 ## Log
 
