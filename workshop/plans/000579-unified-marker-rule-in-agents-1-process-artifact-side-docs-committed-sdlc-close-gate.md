@@ -370,6 +370,110 @@ rounds:
       isolation: fenced
       reviewed: 97c870ab1019cb59e09c34c4fed94a860823e2a8
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: d9f1d95d-b62e-4942-aa44-c93e5f89290c
+            repository: github.com/xianxu/ariadne
+            issue_id: "000579"
+            recipe: fix-review
+            round: 5
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/c2563aae9f302653
+            reviewed_head: fbaaf721a884d6d9c29323e9e9bb8d628d644f9d
+            slot: ariadne:5
+            requested_at: "2026-10-24T04:12:20.160573Z"
+          phase: finished
+          pid: 68110
+          started_at: "2026-10-24T04:12:20.255467Z"
+          finished_at: "2026-10-24T04:12:52.638078Z"
+          session_id: 87f3c172-cc67-471a-ae7e-381c0e35ac7c
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: fbaaf721a884d6d9c29323e9e9bb8d628d644f9d
+        tracker_head: a8b2f1615091d5b5cfb467a0aace6f5236181315
+        branch_point: fa9b49183e8924fb5b034678c696dd8a1ddedd26
+        since: "2026-10-23T16:38:06-07:00"
+        until: "2026-10-23T20:03:05-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T16:38:06-07:00"
+              end: "2026-10-23T20:03:05-07:00"
+              began: "2026-10-23T16:38:06-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: e6d977f294980805070a2d9dadc23603a9e8213b27008a94a512d88aa4a77c17
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 13004008
+              windows:
+                - start: "2026-10-23T16:38:06-07:00"
+                  end: "2026-10-23T20:03:05-07:00"
+        queue_waits:
+            - attempt_id: 0b16a8a1e1db4a1b51d11950e3d46890
+              slot: ariadne:5
+              record_digest: 6621435c5edb6b6467c3d20dd40a642699f6ef5db85adfe01ae56243843fa6b7
+              start: "2026-10-24T02:27:38.586542Z"
+              end: "2026-10-24T02:41:47.589301Z"
+              queue_seconds: 849.002759
+              raw_seconds: 849.002759
+              exact: true
+        cuts:
+            - dispatched: "2026-10-23T18:04:16-07:00"
+              finalized: "2026-10-23T18:26:53-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T18:47:29-07:00"
+              finalized: "2026-10-23T18:59:57-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T19:01:35-07:00"
+              finalized: "2026-10-23T19:02:36-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T20:01:01-07:00"
+              finalized: "2026-10-23T20:02:57-07:00"
+              finalizing: true
+      "n": 5
+      timestamp: "2026-10-23T21:12:53-07:00"
+      dispatched: "2026-10-23T21:12:20-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in an earlier round; this window (manifest conflict resolution plus gate records) does not touch the close census or its bypass.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in an earlier round; the window changes no Go code or tests.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: Disposed in an earlier round (5ead6cb66 pins it); this window leaves linkguard.go unchanged.
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: Disposed in an earlier round; this window leaves it unchanged.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: Disposed in an earlier round; this window leaves the publish path unchanged.
+          round: 5
+      recipe: fix-review
+      isolation: fenced
+      reviewed: fbaaf721a884d6d9c29323e9e9bb8d628d644f9d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#579 (boundary-review)
@@ -417,6 +521,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — Disposed in an earlier round (5ead6cb66 pins it); this window leaves it unchanged.
 - BR-4 — addressed — Disposed in an earlier round; this window leaves it unchanged.
 - BR-5 — addressed — Disposed in an earlier round; this window leaves it unchanged.
+
+## Round 5 — 2026-10-23T21:12:53-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in an earlier round; this window (manifest conflict resolution plus gate records) does not touch the close census or its bypass.
+- BR-2 — addressed — Disposed in an earlier round; the window changes no Go code or tests.
+- BR-3 — addressed — Disposed in an earlier round (5ead6cb66 pins it); this window leaves linkguard.go unchanged.
+- BR-4 — addressed — Disposed in an earlier round; this window leaves it unchanged.
+- BR-5 — addressed — Disposed in an earlier round; this window leaves the publish path unchanged.
 
 ## Open findings
 

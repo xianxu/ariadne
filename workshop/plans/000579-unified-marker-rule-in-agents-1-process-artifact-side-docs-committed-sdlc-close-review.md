@@ -347,3 +347,77 @@ output: "Checking the conflict resolution now: hashes match and the export tests
 
 truncated: false
 retained-bytes: 0000002922
+
+---
+
+## Re-review — 2026-10-23T21:12:53-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 579 — Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files |
+| repo | ariadne |
+| issue file | workshop/issues/000579-unified-marker-rule-in-agents-1-process-artifact-side-docs-committed-sdlc.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6a94efc3d20c328de1c075b8285ed60286d5b583..fbaaf721a884d6d9c29323e9e9bb8d628d644f9d |
+| command | sdlc close --issue 579 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T21:12:53-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Verdict: SHIP. The window contains no code changes and no scope change. The only content change is the conflict resolution in `construct/local/universal-review/export.json`, which removes the conflict markers from the `collaboration-modes` entry. Neither side's values were kept: the entry now records 30787 bytes and sha `568aa1d4…`. Those values match the file at head exactly (`wc -c` gives 30787, `shasum -a 256` gives `568aa1d4…`), so the resolution keeps both sides' intent. The file itself is unchanged in this window, so the stale values from both sides were correctly replaced by values computed from the file as merged. The other two changed files are the generated close-gate ledger and close-review record under `workshop/plans/`. They only add the round-4 record. They do not touch `## Spec`, `## Revisions` or `## Done when`. No conflict markers remain anywhere in the tree outside `workshop/history`. `go test ./pkg/reviewexport/...` and `go test ./cmd/weave -run UniversalReview` both pass at head. All five prior findings were disposed in earlier rounds, and nothing in this window reopens them.
+
+1. **Strengths**
+   - `construct/local/universal-review/export.json:21-22`: the manifest was recomputed from the merged file rather than taken from one side of the conflict, so its integrity check holds.
+   - The mirrored `universal-review/review-convention.md` is byte-identical to its source in `construct/local/fix/` (sha `076edec6…` for both).
+   - Scope is unchanged: the plan files only receive the generated round record.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none.
+
+5. **Test coverage:** the hash and mirror checks in `pkg/reviewexport` and the `cmd/weave` universal-review tests cover the manifest, and both pass at head.
+
+6. **Architecture (this window only)**
+   - **ARCH-DRY: pass.** The manifest is derived from its single source, and the mirror matches it.
+   - **ARCH-PURE: n/a.** There is no code in the window.
+   - **ARCH-PURPOSE: pass.** The derived manifest was regenerated rather than hand-patched to one side.
+   - **ARCH-EVOLVE: pass.** The manifest schema and version are unchanged; only one member's size and hash changed.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window (manifest conflict resolution plus gate records) does not touch the close census or its bypass.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; the window changes no Go code or tests.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Disposed in an earlier round (5ead6cb66 pins it); this window leaves linkguard.go unchanged.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window leaves it unchanged.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window leaves the publish path unchanged.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d9f1d95d-b62e-4942-aa44-c93e5f89290c","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"fix-review","round":5,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/c2563aae9f302653","reviewed_head":"fbaaf721a884d6d9c29323e9e9bb8d628d644f9d","slot":"ariadne:5","requested_at":"2026-10-24T04:12:20.160573Z"},"phase":"finished","pid":68110,"started_at":"2026-10-24T04:12:20.255467Z","finished_at":"2026-10-24T04:12:52.638078Z","session_id":"87f3c172-cc67-471a-ae7e-381c0e35ac7c","outcome":"returned"}] -->
