@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "2d5a43fb", done: "ec3016d9"}
 ---
 
 # Actual attribution refuses normal concurrent claim held through merge and resting train checkout
