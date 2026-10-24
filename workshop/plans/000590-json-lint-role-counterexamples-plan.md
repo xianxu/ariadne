@@ -1,5 +1,7 @@
 # Qualify recursive JSON scanner roles — Implementation Plan
 
+**Current authority:** the final 2026-10-24 scope Revision below supersedes the historical role-inference design and its checklist. No automatic role-proof exemption ships.
+
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Accept Pair's independent differential oracle and standalone DOM materializer while continuing to flag redundant recursive duplicate validators.
@@ -98,3 +100,18 @@ Simplest alternative: patch the demonstrated constant key and range loops. Rejec
 3. Cross all four binding families with range/direct/compound/inc-dec/address/capture forms where Go permits them, and cross map/slice storage with later overwrite, dynamic/constant key, projected helper/address/alias escape and known membership reads. Keep real Pair captures and existing validators unchanged through both APIs. Count projected-use processing and the added write/use work at N/2N; no whole-file rescan or generic alias engine.
 
 This narrows the supported positive syntax, leaving uncertain roles as findings. No new waiver, module dependency, runtime policy or persisted state. Await ops:0 before tests/code.
+
+### 2026-10-24 — approved scope reduction (ops:0 delivery c777b3db-4e38-45a8-88c5-111dc2569b14)
+
+Supersedes all role-proof designs and the pending third-delta proposal above. Ops:0 chose the smaller outcome: restore recursiveJSONScanners exactly to its original matcher, removing jsonScannerSummary and all materializer/oracle/provenance inference. Keep the diagnostic correction and document reasoned per-site allows as the sanctioned response for the two proven distinct roles. Pair's existing two allows become permanent; no removal follow-up.
+
+Current contract: redundant validators still receive the existing finding. Its message recommends the consumer module's own shared strict decoder, preserving semantics, rather than an inaccessible Ariadne internal import. A standalone materializer or independent differential fuzz oracle may keep a reasoned per-site existing annotation after its role is established by review. No package/file exemption, replacement annotation, new dataflow classifier or machine/runtime change. The matcher has no new cost or growth driver relative to base.
+
+Current implementation/verification steps (one existing whole-issue close boundary):
+
+- [x] Reproduce the new annotation-retention contract red against the automatic-exemption implementation; restore the original matcher and delete role-proof code/tests. Preserve exact captures as evidence.
+- [x] Test both captures with and without their original reasoned per-site allows through Check and CheckSources, preserving current true-validator fixtures. Guard consumer-owned diagnostic and sanctioned exception wording.
+- [x] Replace atlas/lessons guidance with the explicit site-review boundary. Notify pair:3 that both allows stay (receipt ee031e46-8814-4517-a5a0-59c1133fa202; verify submission).
+- [ ] Push reduced code; fresh central recorded pre-close, mandatory full close review, then land after pass and SHIP. Report outcome to hub; no Pair removal instruction.
+
+BR-1's automatic-evidence-authority defect is removed with its entire exemption mechanism, rather than patched through a growing classifier. Reviewer should verify the base matcher is byte-identical and the source captures still require their explicit annotations.

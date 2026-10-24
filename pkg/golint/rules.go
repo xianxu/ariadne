@@ -100,7 +100,7 @@ var Catalog = []Rule{
 	{
 		Name:     "json-recursive-scanner",
 		Incident: "ariadne#489",
-		Message:  "a recursive duplicate-key JSON validator repeats validation authority; reuse this module's shared strict JSON decoder while preserving its key semantics; independent differential oracles and value-producing materializers have distinct roles",
+		Message:  "a recursive JSON scanner may repeat validation authority; reuse this module's shared strict JSON decoder while preserving its key semantics; a proven value-producing materializer or independent differential fuzz oracle may keep a reasoned per-site //lint:allow json-recursive-scanner",
 		Match:    recursiveJSONScanners,
 	},
 	{
@@ -543,6 +543,64 @@ func workshopReads(f *ast.File, _ *CheckContext) []ast.Node {
 				out = append(out, call.Args[i])
 			}
 		}
+	})
+	return out
+}
+
+// recursiveJSONScanners flags a function, or a closure assigned to a variable,
+// that calls itself while walking json.Decoder tokens (Token and More) and
+// keeps a string-keyed set: the shape of every hand-rolled any-depth
+// duplicate-key scanner #489 folded into jsonstrict, which alone may keep it.
+// A schema decoder walking one object's members without recursing, or a
+// recursive value skipper with no key set, is not this shape. An iterative
+// walk over an explicit stack is beyond a syntactic rule; review catches it.
+func recursiveJSONScanners(f *ast.File, _ *CheckContext) []ast.Node {
+	if f.Name.Name == "jsonstrict" {
+		return nil
+	}
+	walks := func(body *ast.BlockStmt, self string) bool {
+		var tok, more, recurse, keySet bool
+		ast.Inspect(body, func(n ast.Node) bool {
+			if m, ok := n.(*ast.MapType); ok {
+				if id, ok := m.Key.(*ast.Ident); ok && id.Name == "string" {
+					keySet = true
+				}
+			}
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			switch fn := call.Fun.(type) {
+			case *ast.SelectorExpr:
+				tok = tok || fn.Sel.Name == "Token" && len(call.Args) == 0
+				more = more || fn.Sel.Name == "More" && len(call.Args) == 0
+				recurse = recurse || fn.Sel.Name == self // a method calling itself through its receiver
+			case *ast.Ident:
+				recurse = recurse || fn.Name == self
+			}
+			return true
+		})
+		return tok && more && recurse && keySet
+	}
+	var out []ast.Node
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.FuncDecl:
+			if x.Body != nil && walks(x.Body, x.Name.Name) {
+				out = append(out, x)
+			}
+		case *ast.AssignStmt:
+			for i, rhs := range x.Rhs {
+				lit, ok := rhs.(*ast.FuncLit)
+				if !ok || i >= len(x.Lhs) {
+					continue
+				}
+				if id, ok := x.Lhs[i].(*ast.Ident); ok && walks(lit.Body, id.Name) {
+					out = append(out, x)
+				}
+			}
+		}
+		return true
 	})
 	return out
 }

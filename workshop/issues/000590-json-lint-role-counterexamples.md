@@ -102,3 +102,17 @@ Corrected pushed code head d01e50714ed892ac456e6a2f58bdb98f9894a4f5 now has a fr
 Fresh close review on c5f9d98cf00c351ad254cd4696e391e03053301a returned REWORK: BR-1 remains open for later indexed child overwrite/projected escape and RangeStmt result rebinding. Reviewer independently passed normal/race package checks and reproduced all three supplemental counterexamples through both APIs. The class-fix completion claim is withdrawn; source replays passing does not establish this stronger provenance property.
 
 Stopped before a third mechanism change and wrote a re-plan proposal in the durable plan's Revisions: one exhaustive value-binding write classifier plus a positive closed set of container write/read uses. Patching the demonstrated key alone fails for dynamic keys/aliases; a whole-program alias model is too large. Await hub approval before further tests or code. Canceled only obsolete queued #590 lease-4188861440 through local-check cancel; it had not admitted. No other waiter changed. #589's context fix and refreshed private executable conformance are separately committed/pushed; its native qualification remains held.
+
+## Revisions
+
+### 2026-10-24 — approved smaller scope
+
+Ops:0 delivery c777b3db-4e38-45a8-88c5-111dc2569b14 supersedes the original Spec, Done when and role-inference Plan. Proving value roles statically has grown disproportionately for two real false positives. Ship only the useful diagnostic correction plus sanctioned reasoned per-site annotations; restore the matcher unchanged and remove every automatic role-proof exemption. Historical logs and plan designs remain decision evidence, not the current acceptance contract.
+
+Current Spec: recommend the consumer's own shared strict JSON authority, preserving semantics. A proven standalone value-producing materializer or independent differential fuzz oracle keeps a reasoned per-site existing json-recursive-scanner allow. Pair's two #861 allows stay permanently; no removal follow-up.
+
+Current Done when: (1) original matcher unchanged, no automatic exemptions; (2) diagnostic names accessible consumer authority and reasoned site exception; (3) exact captures require their annotations through both checking APIs, existing true positives unchanged; (4) atlas/lessons document this boundary, pair:3 notified; (5) recorded pre-close and mandatory full review pass before landing.
+
+Implementation: tests observed red against the exemption code: unannotated captures were hidden and annotated captures were rejected as unused allows. Restored the original matcher and removed role inference/provenance files. The pending third-delta classifier proposal is rejected and superseded. Fresh verification and recorded suite follow. No real IPC or other machine operation was performed.
+
+Reduced-scope verification: full golint package passed1.293s, full race package10.099s, all existing true-positive tests/catalog included. Git diff against the base confirms the recursiveJSONScanners implementation is restored unchanged; only the catalog message differs in rules.go. Pair notification receipt ee031e46-8814-4517-a5a0-59c1133fa202 is submitted. Next: fresh pushed-head pre-close and full close review, with earlier role-proof findings disposed by complete mechanism removal.
