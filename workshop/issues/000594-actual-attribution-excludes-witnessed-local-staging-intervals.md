@@ -41,7 +41,7 @@ Investigate sanctioned stage/* branches as a witnessed exclusion, like resting b
 - [x] Reproduce the 172-second staging refusal, implement witnessed staging exclusion through selection and retained-proof validation, and test adversarial controls.
 - [x] Update help and atlas, pass targeted normal/race checks and lint, and launch the recorded pre-close suite.
 
-The full suite is running. Close review may overlap it; merge waits for its pass and SHIP.
+The recorded full suite passed and close round 2 is SHIP. Normal central merge is the remaining completion step.
 
 ## Revisions
 
@@ -76,3 +76,5 @@ Hash abbreviations above are quoted peer evidence, not independently verified Gi
 2026-10-24 — The retained recorded suite acquired both machine slots after 1699 seconds and is running on abbb560116896a1a2e18929f7e4964b7814f48ee. Starting the mandatory close review alongside the detached suite; no merge admission until that suite passes. This preserves its one recorded attempt and avoids a duplicate full run.
 
 2026-10-24 — Close round 1 returned FIX-THEN-SHIP but did not finalize because BR-1 (Important, README contract parity) remained open; BR-2 asked for explicit core-concept classifications. Verified both against README's shared actual/active-time paragraph and function definitions. Corrected README for resting/staging exclusion, visible branch-window minutes, sole-reservation fallback, strict unknown/detached recovery and older-reader refusal. Classified pure selection/decoding/rendering/proof validation separately from existing IO capture and appended the plan Revision. No runtime change; retained full-suite attempt is untouched. Review independently reproduced focused normal/race checks and the base reader's unknown-kind refusal; its stopped broader command regex is not passing evidence. Rerunning the mandatory close as instructed by the blocked ledger.
+
+2026-10-24 — Close round 2 returned SHIP with BR-1 and BR-2 addressed and no new findings; codecomplete is bound to evidence commit 42a67a547432734c090abf9f238f19e7b0e6b269 (Git log verified). The retained recorded suite passed: 2471 cmd/sdlc tests plus 77 other packages, zero failures/reruns, wall 1216.0 seconds (20m16s), after 1699 seconds queue wait. Subject abbb560116896a1a2e18929f7e4964b7814f48ee; saved log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/abbb560116896a1a2e18929f7e4964b7814f48ee/suite.log, digest prefix 5009bc1ec971. Later changes were documentation and generated close evidence only. Entering the central merge normally; no suite cancellation, priority request or bypass.
