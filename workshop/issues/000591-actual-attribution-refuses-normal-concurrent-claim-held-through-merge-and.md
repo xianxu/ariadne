@@ -103,3 +103,8 @@ PR426 is open. Normal central sdlc queued pre-close suite lease-1679097241 on414
 Central close returned first-round SHIP, no findings; the reviewer independently replayed all three incident fixtures against the base selector (red) and fixed selector (green), plus packages/race/native/replay controls. Actual N/A was explicitly authorized by ops:0 (receipt84c002cb-ae30-4fb3-a3e0-e666d88d91dc) after central preview reproduced this issue's own24-second main-slot3 interval08:45:03Z–08:45:27Z. No typed actual or retained snapshot modification.
 
 I entered merge before the recorded pre-close pass. CI cleared, but merge queued a second suite on the close-evidence head rather than joining the existing code-equivalent waiter. Cancelled only that newer lease-1513526416 through local-check cancel; its merge exited1 with context-canceled lock admission, no suite executed and no baseline started. Original lease-1679097241 on414fdcb7 remains queued unchanged (position6 at last read). Retry merge only after that pass. No restart/continuation while the owned check is queued.
+
+
+### 2026-10-24 — recorded pre-close passed
+
+Original suite lease-1679097241 completed successfully on Git-verified414fdcb7621d9c12306d84137a99309d2c8e80a9 after3951s of queueing. All2455 cmd/sdlc tests and77 other packages passed, zero failures/reruns; command wall19m22s. Saved log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/414fdcb7621d9c12306d84137a99309d2c8e80a9/suite.log, sha256 prefix2946cf41129a. The runner exited0 and released its capacity. Code and test sources match the reviewed/tested source; later commits contain only process evidence. Retrying central merge now; no other suite/check is active here.
