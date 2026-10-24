@@ -1,6 +1,6 @@
 ---
 id: 000586
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-24
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: fe8d4999b53cb6f415809bd7c8413c962e58cdc7
         evidence_commit: 206308bed92afd9716576e14ce2bd9405e8d5346
+        landed_commit: 2927afd2f3ddfa4453a6be5ed3fc8ec8b76ac32d
 ---
 
 # Resume an affected-check attempt after a registered flake, running the groups it never reached
