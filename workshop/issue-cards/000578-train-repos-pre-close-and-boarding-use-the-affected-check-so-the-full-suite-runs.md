@@ -1,6 +1,6 @@
 ---
 id: 000578
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 097344071d5a13e9d7544d1b103b1a55e0e77fd3
         evidence_commit: 05f4f9de7ab8f40785cb565fd4ad5d0545549cb6
+        landed_commit: aa4884a3f7a5defe566bfab49bfcfeafe3275285
 ---
 
 # Train repos: pre-close and boarding use the affected check, so the full suite runs once, in the train
