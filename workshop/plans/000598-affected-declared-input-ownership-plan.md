@@ -161,25 +161,25 @@ collaboration-mode: discussion
 
 ### M1: owners, full exceptions and sidecars (what pair#853 needs)
 
-- [ ] `config.go` (`ParseConfig`): `FullRule`, `owners`, `sidecars` and `traceability`.
+- [x] `config.go` (`ParseConfig`): `FullRule`, `owners`, `sidecars` and `traceability`.
   - Strategy: table tests over the strict-parse contract: each new member's valid form, a wrong type, an unknown key and a duplicate key.
   - Plus a fuzz target seeded with today's configs. It asserts that parsing never panics and that a parsed config validates again.
-- [ ] `mapping.go` (`Compile`, `Targets`, `Owned`) and `sidecar.go` (`ParseSidecar`, the `Strip` derivation).
+- [x] `mapping.go` (`Compile`, `Targets`, `Owned`) and `sidecar.go` (`ParseSidecar`, the `Strip` derivation).
   - Fuzz `ParseSidecar` and `Strip`, seeded with traversals (`..`, `/abs`, `a//b`, NUL, backslash) and malformed JSON. Assert that every derived target is clean and relative, or that the result is a full reason.
   - A property test: for every path, `Owned` includes everything `Graph.owners` returns, because declarations only add.
-- [ ] `plan.go` (`Plan`): one table over the selection contract:
+- [x] `plan.go` (`Plan`): one table over the selection contract:
   - union with graph owners, dependents, group roots;
   - `full` and `except` precedence;
   - a stale root, an alias target that claims nothing, an unmapped path;
   - a sidecar that is added, edited, deleted or renamed.
-- [ ] Extract `gitx.TreeFilesSelected`; the existing `FilesSelected` tests keep passing unchanged. Add `loadAffectedMapping` and `affectedDeps.mapping`.
+- [x] Extract `gitx.TreeFilesSelected`; the existing `FilesSelected` tests keep passing unchanged. Add `loadAffectedMapping` and `affectedDeps.mapping`.
   - Real-git tests show that declarations come from the base, not the head.
   - They also show that an unreadable sidecar gives a Full selection with its reason: the affected run falls back to the suite, and boarding refuses, naming it.
-- [ ] `landingattribution_impact.go` (`splitImpact`): the fallback uses `Owned`, and the loader runs under its bounded ctx.
+- [x] `landingattribution_impact.go` (`splitImpact`): the fallback uses `Owned`, and the loader runs under its bounded ctx.
   - Extend its test with a declared owner, and with a loader error that leaves impacts Unknown.
-- [ ] Qualification test: a fixture modeled on pair's `affected.json` minus `tests/**`, plus the sidecars. `tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json` selects `…/cmd/internal/testcouch/agentfixture` and its dependents. `cmd/couch/x_test.go` with `except` selects `cmd/couch`. `cmd/couch/main.go` stays full. `scripts/test-affected.py` (the selector) stays full.
-- [ ] Benchmark: 2,000 paths × 600 sidecars × 600 glob rules.
-- [ ] atlas `ci-merge-check.md` "The affected suite": owners, `except` and sidecars, a rewrite of "What the graph can't see" (a declared owner is now the answer for a non-Go input a Go test reads), and the older-binary fallback.
+- [x] Qualification test: a fixture modeled on pair's `affected.json` minus `tests/**`, plus the sidecars. `tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json` selects `…/cmd/internal/testcouch/agentfixture` and its dependents. `cmd/couch/x_test.go` with `except` selects `cmd/couch`. `cmd/couch/main.go` stays full. `scripts/test-affected.py` (the selector) stays full.
+- [x] Benchmark: 2,000 paths × 600 sidecars × 600 glob rules.
+- [x] atlas `ci-merge-check.md` "The affected suite": owners, `except` and sidecars, a rewrite of "What the graph can't see" (a declared owner is now the answer for a non-Go input a Go test reads), and the older-binary fallback.
 - [ ] `sdlc milestone-close --issue 598 --milestone M1`
 
 ### M2: parley-style traceability input

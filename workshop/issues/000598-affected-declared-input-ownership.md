@@ -92,6 +92,14 @@ Design (ariadne:5). The TL relayed the operator's direction: a curated, low-tech
 - Trust: declarations come from main's rev only. A sidecar's path-only alias covers added, renamed and deleted certificates; its `reads` take effect once they land.
 - Missed mappings are recorded only when the main baseline passed, so load storms such as today's add no noise.
 
+M1 implemented (ariadne:5):
+- `FullRule` with `except`, inline `owners`, `sidecars`, the pure `Mapping` (`Compile`/`ParseSidecar`/`Owned`), and Plan's claim step over it.
+- `gitx.TreeFilesSelected` extracted; `loadAffectedMapping` added behind the `affectedDeps.mapping` seam; `splitImpact` loads per endpoint.
+- The `traceability` member moved from M1's config row to M2, since M2 waits on the operator's go. M1 parses no field it can't act on (YAGNI).
+- Perf (ARCH-CONSTRAINTS): the first benchmark took 710 ms/op for 2,000 paths × 1,200 rules, because every globbed rule was Matched. A literal-prefix prefilter brought it to 33 ms/op on today's loaded machine.
+- Qualification: `TestPairQualification` runs pair's real affected.json (pair 93a57a380, copied to testdata) with pair#853's edits, plus pair#825's real request_lifetime certificate. The certificate selects agentfixture and its dependents; couch test edits select couch; policy, selector, harness and couch production code stay full.
+- Tests: the affected package with fuzz targets (20s each, clean); gitx; `cmd/sdlc` -run Affected|SplitImpact|LocalCheckResume|Boarding|GraphPrepare|CarCIGate|PreClose|Attribution, all passing.
+
 ## Revisions
 
 ### 2026-10-24: scope widened by the operator's direction (via ops:0)

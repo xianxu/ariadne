@@ -214,3 +214,49 @@ func TestSplitImpactBatchesEightAndSixteenPackages(t *testing.T) {
 		}
 	}
 }
+
+// #598: attribution sees declared ownership, read from each endpoint's own commit. A declared read connects its
+// reader (and the reader's dependents) to the change; with a full selection the fallback still keeps that connection.
+func TestSplitImpactDeclaredOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+		want  map[string]landingline.Impact
+	}{
+		{"declared read", map[string]string{"inputs/case.dat": "new\n"}, map[string]landingline.Impact{"mid": landingline.ImpactAffected, "top": landingline.ImpactAffected, "other": landingline.ImpactUntouched}},
+		{"full selection keeps the declared connection", map[string]string{"Makefile": "all:\n\ttrue\n", "inputs/case.dat": "new\n"}, map[string]landingline.Impact{"mid": landingline.ImpactAffected, "other": landingline.ImpactUnknown}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, _, change := splitImpactFixture(t)
+			lo := change(map[string]string{
+				affectedConfigPath:                   `{"version":1,"command":["true"],"full":["go.mod","go.sum","Makefile*",".sdlc/**"],"sidecars":[{"prefix":"tests/readers/","suffix":".json"}]}`,
+				"tests/readers/mid/mid_test.go.json": `{"version":1,"reads":["inputs/**"]}`,
+				"inputs/case.dat":                    "old\n",
+			})
+			hi := change(tc.files)
+			var packages []string
+			want := map[string]landingline.Impact{}
+			for pkg, impact := range tc.want {
+				packages = append(packages, "example.com/split/"+pkg)
+				want["example.com/split/"+pkg] = impact
+			}
+			if got, err := splitImpact(context.Background(), root, lo, hi, packages); err != nil || !reflect.DeepEqual(got, want) {
+				t.Fatalf("splitImpact = %v, %v; want %v", got, err, want)
+			}
+		})
+	}
+}
+
+// A sidecar an endpoint cannot compile leaves every impact Unknown, as an unloadable graph does.
+func TestSplitImpactDeclaredOwnershipUnavailable(t *testing.T) {
+	root, _, change := splitImpactFixture(t)
+	lo := change(map[string]string{
+		affectedConfigPath:                   `{"version":1,"command":["true"],"full":["go.mod"],"sidecars":[{"prefix":"tests/readers/","suffix":".json"}]}`,
+		"tests/readers/mid/mid_test.go.json": `{"reads":"inputs"}`,
+	})
+	hi := change(map[string]string{"leaf/leaf.go": "package leaf\nfunc F() int { return 2 }\n"})
+	got, err := splitImpact(context.Background(), root, lo, hi, []string{"example.com/split/other"})
+	if err == nil || !strings.Contains(err.Error(), "declared ownership") || got["example.com/split/other"] != landingline.ImpactUnknown {
+		t.Fatalf("splitImpact = %v, %v", got, err)
+	}
+}

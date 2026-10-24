@@ -3,6 +3,7 @@ package gitx
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -45,14 +46,27 @@ func (v *TrunkView) Files(prefix string) ([]TreeFile, error) {
 // predicate receives Path, Mode and OID with nil Content; nil selects all files.
 // Tree listing, per-blob and aggregate output limits remain unchanged.
 func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
+	return TreeFilesSelected(v.tf.operationContext(), v.tf.dir, v.ref, prefix, selectFile)
+}
+
+// TreeFilesSelected is FilesSelected for any commit in dir's repository under the caller's context (#598): one
+// listing, one batch request, the same entry, blob and aggregate limits. dir must be non-empty (git would otherwise
+// run against the process cwd) and rev an exact revision, never an option.
+func TreeFilesSelected(ctx context.Context, dir, rev, prefix string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
+	if strings.TrimSpace(dir) == "" {
+		return nil, errors.New("snapshot: dir must not be empty (git would run against the process cwd)")
+	}
+	if rev == "" || strings.HasPrefix(rev, "-") {
+		return nil, fmt.Errorf("snapshot: bad revision %q", rev)
+	}
 	if prefix != "" && (path.IsAbs(prefix) || path.Clean(prefix) != prefix || prefix == "." || strings.HasPrefix(prefix, "../") || strings.ContainsAny(prefix, "\\\x00")) {
 		return nil, errors.New("snapshot prefix must be a canonical repository-relative directory")
 	}
-	args := []string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", v.ref, "--"}
+	args := []string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", rev, "--"}
 	if prefix != "" {
 		args = append(args, prefix+"/")
 	}
-	out, diag, err := runGitBoundedInputContext(v.tf.operationContext(), v.tf.dir, nil, nil, snapshotOutputLimit, args...)
+	out, diag, err := runGitBoundedInputContext(ctx, dir, nil, nil, snapshotOutputLimit, args...)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot tree: %w\n%s", err, diag)
 	}
@@ -77,8 +91,7 @@ func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool)
 		input.WriteString(f.OID)
 		input.WriteByte('\n')
 	}
-	ctx := v.tf.operationContext()
-	out, diag, err = runGitBoundedInputContext(ctx, v.tf.dir, nil, strings.NewReader(input.String()), snapshotOutputLimit, "cat-file", "--batch", "--buffer")
+	out, diag, err = runGitBoundedInputContext(ctx, dir, nil, strings.NewReader(input.String()), snapshotOutputLimit, "cat-file", "--batch", "--buffer")
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

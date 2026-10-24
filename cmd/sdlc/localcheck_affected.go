@@ -18,6 +18,8 @@ import (
 type affectedDeps struct {
 	changed func(sha string) ([]string, error)
 	graph   func(ctx context.Context, sha string) (affected.Graph, error)
+	// mapping is the declared ownership read at main's pinned rev (#598), never the head's.
+	mapping func(ctx context.Context) (affected.Mapping, error)
 	run     func(ctx context.Context, c localCheck, sha string) (localRunRecord, error)
 	post    func(ctx context.Context, rec localRunRecord) error
 }
@@ -103,7 +105,33 @@ func planAffectedSelection(ctx context.Context, d localRunDeps, ad affectedDeps,
 	if graphErr != nil {
 		return affected.Selection{Full: true, Reason: "package graph unavailable: " + graphErr.Error()}, nil
 	}
-	return affected.Plan(paths, g, cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) }), nil
+	m, err := ad.mapping(ctx)
+	if err != nil {
+		return affected.Selection{Full: true, Reason: "declared ownership unavailable: " + err.Error()}, nil
+	}
+	return affected.Plan(paths, g, cfg, m, affectedIsDoc), nil
+}
+
+// affectedIsDoc is the planner's docs rule: a path with no code surface.
+func affectedIsDoc(p string) bool { return !publishGateHasCodeSurface([]string{p}) }
+
+// loadAffectedMapping reads the sidecars cfg declares from rev's tree in dir's repository (#598), one listing and one
+// batch per convention, and compiles the Mapping. rev is the pinned main the config came from, so the head can
+// neither declare nor undeclare its own selection; any error is the caller's full fallback.
+func loadAffectedMapping(ctx context.Context, dir, rev string, cfg affected.Config) (affected.Mapping, error) {
+	var files []affected.SidecarFile
+	for _, sc := range cfg.Sidecars {
+		got, err := gitx.TreeFilesSelected(ctx, dir, rev, strings.TrimSuffix(sc.Prefix, "/"), func(f gitx.TreeFile) bool {
+			return strings.HasSuffix(f.Path, sc.Suffix)
+		})
+		if err != nil {
+			return affected.Mapping{}, fmt.Errorf("sidecars under %s on %s: %w", sc.Prefix, abbrevSHA(rev), err)
+		}
+		for _, f := range got {
+			files = append(files, affected.SidecarFile{Path: f.Path, Content: f.Content})
+		}
+	}
+	return affected.Compile(cfg, files)
 }
 
 // boardingRefusal is a full selection in boarding mode (#561): nothing ran
@@ -188,6 +216,9 @@ func productionAffectedDeps(d localRunDeps, base string, cfg affected.Config) af
 				return affected.Graph{}, err
 			}
 			return affected.LoadGoGraph(ctx, wt)
+		},
+		mapping: func(ctx context.Context) (affected.Mapping, error) {
+			return loadAffectedMapping(ctx, d.Root, base, cfg)
 		},
 		run: func(ctx context.Context, c localCheck, sha string) (localRunRecord, error) {
 			return runLocalCheck(ctx, d, c, sha)
