@@ -1,6 +1,6 @@
 ---
 id: 000593
-status: working
+status: codecomplete
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -14,6 +14,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: N/A
+tracker:
+    version: 1
+    completion:
+        token: close-137aee74de27
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 2f61a831440f7c9175898603abe6a0337e44fe4a
+        evidence_commit: 37513202ad141a21f22e811d7b3ce441df6b1611
 ---
 
 # Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing
