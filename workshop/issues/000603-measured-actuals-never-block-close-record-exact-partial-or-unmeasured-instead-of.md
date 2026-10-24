@@ -1,12 +1,20 @@
 ---
 id: 000603
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: 'bb59cc83a8fedc5f1884e6fa61fe18a77a6dad7e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'bfbc050d1ccb4a92f57c892697ec75bd8489038d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T15:56:22-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Measured actuals never block close: record exact, partial or unmeasured instead of refusing
@@ -43,8 +51,12 @@ Change:
 
 ## Plan
 
-- [ ]
+Durable plan: [000603-measured-actuals-never-block-close-plan.md](../plans/000603-measured-actuals-never-block-close-plan.md).
+
+- [ ] M1 — close never refuses on measurement: confidence classifier, unknown-branch and per-source notes, oversize summary, queue degradation, close adopts every outcome, replay fixtures (#856/#812/#863/#830/#851/#838)
+- [ ] M2 — calibration weights by confidence (ledger columns, weighted forecast/converge/drift); close/actual help and atlas
 
 ## Log
 
 ### 2026-10-24
+- Planned after #593 landed (TL: take #603, plan to TL). Code survey: (b)/(e) oversize and source cap already hold exact hours at refusal; (d) unknown branch, (f) per-source attribution and (g) queue evidence fail inside the input resolver and discard partial windows. Open decisions D1-D5 in the durable plan go to the TL.
