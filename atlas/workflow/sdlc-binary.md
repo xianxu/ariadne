@@ -462,6 +462,23 @@ with reviewbox.
   `line.lock` mutex. A ticket appears already locked (it is written under a
   temporary name and renamed into place), so a scan never takes a new ticket for
   a dead one.
+- **Merge intents (#565).** These are the one landing record that outlives its
+  process.
+  - **What it is.** `sdlc merge` writes `intents/<key>` for its branch (branch,
+    issue, head, slot root, pid) before any landing work, and flock-holds it.
+  - **What ends it.** A terminal outcome removes it: landed, or refused for
+    anything but an interruption. An interruption (a shutdown's cancel) or a kill
+    leaves it unlocked, as an orphan.
+  - **Where it shows.** `sdlc landing status` lists every orphan with
+    `re-enter in <slot>: sdlc merge --branch B --yes`, and says when the machine
+    queue is still paused. `sdlc state` prints the slot's own orphan, and its
+    `--json` carries `merge_intents` for Couch's restart plan.
+  - **Re-entry adds nothing new.** It resumes from Git and GitHub as before, and
+    reuses the recorded suite on an unchanged head. A second merge of a live
+    intent refuses, naming its pid.
+  - **Lifecycle.** Status and merge start sweep unlocked intents whose branch is
+    gone, or that are older than 30 days. An unreadable one is reported by path,
+    never acted on.
 - **Order.** `Order` and `NextHead` put fleet-blocking tickets first, then normal
   ones, FIFO by ticket number within each class. Waiters poll every 2 s. A
   running head is never preempted: priority decides only who is admitted next.

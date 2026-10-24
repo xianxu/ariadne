@@ -141,11 +141,6 @@ card: {
 	name:  string
 	seed?: string
 }
-// collaboration_mode: the default xx-universal-review collaboration mode a new
-// issue's frontmatter declares (#415): issues take short, factual edits, so
-// answers go in place. One of discussion | collaboration | chat (pkg/vocab
-// checks the value against vocab.CollaborationModes).
-scaffold: collaboration_mode: "collaboration"
 scaffold: sections: [...#ScaffoldSection] & [
 	{name: "Problem"},
 	{name: "Spec"},

@@ -6,132 +6,114 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 // instructionsHeading is the operator's section of the status file: their
 // numbered questions and instructions, which the TL only links answers to.
 const instructionsHeading = "Operator instructions"
 
-var (
-	itemStartRE = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
-	answeredRE  = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
+// Bullet is one operator bullet: a chat item of the shared grammar
+// (pkg/sidedoc ChatItems, collaboration-modes.md §3). Pos is its 1-based
+// position in the section: the operator reuses numbers, so the number never
+// identifies a bullet.
+type Bullet = sidedoc.ChatItem
+
+// instructionBullets splits the section by the legacy item grammar (`-`, `*`
+// and `N.` items), which older session files and migrate use.
+func instructionBullets(section string) []Bullet {
+	return sidedoc.ChatItems(section, true)
+}
+
+// legacyGrammar reports whether the operator's section takes the legacy item
+// grammar: every form but a `@@chat@@` tag alone does, which takes numbered
+// items only (#576). A session file that declares nothing keeps the legacy
+// grammar it always had. doc is the whole file, peeked without moving
+// Couch's diff baseline.
+func legacyGrammar(doc string) bool {
+	scan := sidedoc.ChatSections(doc)
+	// The heading comes from the parse, so an indented heading or a closing
+	// `##` is found and a copy inside a fence is not.
+	h, ok := scan.Heading(2, instructionsHeading)
+	if !ok {
+		return true
+	}
+	// The section itself governs when it is chat; otherwise the innermost
+	// enclosing chat section, tagged or legacy, does.
+	for _, sec := range scan.Sections {
+		if sec.Heading == h.Line {
+			return sec.Source != "tag" || sec.Legacy
+		}
+	}
+	if sec, ok := scan.Innermost(h.Line); ok {
+		return sec.Source != "tag" || sec.Legacy
+	}
+	return true
+}
+
+// sectionBullets splits the operator's section by the grammar its file
+// declares.
+func sectionBullets(d deps, file, section string) ([]Bullet, bool, error) {
+	doc, err := d.ss.Peek(file)
+	if err != nil {
+		return nil, false, err
+	}
+	legacy := legacyGrammar(doc)
+	return sidedoc.ChatItems(section, legacy), legacy, nil
+}
+
+// grammarName names the item grammar in the token `list` prints, so `link`
+// numbers bullets the way that list did (#576): the section hash covers only
+// the section, and a tag or legacy declaration outside it can change the
+// grammar between the two.
+func grammarName(legacy bool) string {
+	if legacy {
+		return "legacy"
+	}
+	return "numbered"
+}
+
+// tokenName and tokenHelp are the one description of the token `list`
+// prints and `link --hash` takes back, so every surface (Use, Short, the flag
+// help, help.md's wording) names the same thing.
+const (
+	tokenName = "TOKEN"
+	tokenHelp = "the HASH:GRAMMAR token `list` printed: the section hash and the item grammar its positions were counted in"
 )
 
-// Bullet is one operator bullet. Pos is its 1-based position in the section:
-// the operator reuses numbers, so the number never identifies a bullet.
-type Bullet struct {
-	Pos      int
-	Start    int // index of its first line in the section
-	Lines    []string
-	Answered bool
-}
+// listToken is what `list` prints after `hash:` and `link --hash` takes back:
+// the section hash and the grammar its positions were counted in.
+func listToken(hash string, legacy bool) string { return hash + ":" + grammarName(legacy) }
 
-// instructionBullets splits the section body into bullets, by the chat-mode
-// item of xx-universal-review's collaboration-modes.md §3 (#412): a `-`, `*`
-// or `N.` line at the section's shallowest list indent starts one, and it
-// runs over its sub-items and continuation lines until the next such line, or
-// until a blank line followed by prose indented no deeper than that indent
-// (prose belongs to no bullet). Fenced code starts no bullet; a tab indents to
-// the next multiple of four. Trailing blank lines are dropped. A bullet is
-// answered by a link ending any of its lines outside fences, so a follow-up
-// added after the link keeps it answered; `→ done:` is the older form.
-func instructionBullets(section string) []Bullet {
-	lines := strings.Split(section, "\n")
-	fenced := make([]bool, len(lines))
-	in := false
-	for i, l := range lines {
-		t := strings.TrimSpace(l)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fenced[i], in = true, !in
-			continue
-		}
-		fenced[i] = in
+// parseListToken splits a `--hash` token. A bare hash, from a list before
+// #576, counted positions in the legacy grammar.
+func parseListToken(tok string) (hash, grammar string) {
+	if h, g, ok := strings.Cut(tok, ":"); ok {
+		return h, g
 	}
-	start := func(i int) (int, bool) {
-		if fenced[i] || !itemStartRE.MatchString(strings.TrimLeft(lines[i], " \t")) {
-			return 0, false
-		}
-		return indentOf(lines[i]), true
-	}
-	shallow := -1
-	for i := range lines {
-		if n, ok := start(i); ok && (shallow < 0 || n < shallow) {
-			shallow = n
-		}
-	}
-	var out []Bullet
-	open, blank := false, false
-	for i, l := range lines {
-		n, isItem := start(i)
-		switch {
-		case strings.TrimSpace(l) == "" && !fenced[i]:
-			blank = true
-			if open {
-				b := &out[len(out)-1]
-				b.Lines = append(b.Lines, l)
-			}
-			continue
-		case isItem && n == shallow:
-			out = append(out, Bullet{Pos: len(out) + 1, Start: i, Lines: []string{l}})
-			open = true
-		case open && blank && !fenced[i] && indentOf(l) <= shallow:
-			open = false
-		case open:
-			b := &out[len(out)-1]
-			b.Lines = append(b.Lines, l)
-		}
-		blank = false
-	}
-	for i := range out {
-		b := &out[i]
-		for len(b.Lines) > 1 && strings.TrimSpace(b.Lines[len(b.Lines)-1]) == "" {
-			b.Lines = b.Lines[:len(b.Lines)-1]
-		}
-		for j, l := range b.Lines {
-			if !fenced[b.Start+j] && answeredRE.MatchString(l) {
-				b.Answered = true
-			}
-		}
-	}
-	return out
-}
-
-// indentOf is a line's leading indent in columns, a tab reaching the next
-// multiple of four.
-func indentOf(l string) int {
-	n := 0
-	for _, r := range l {
-		switch r {
-		case ' ':
-			n++
-		case '\t':
-			n += 4 - n%4
-		default:
-			return n
-		}
-	}
-	return n
+	return tok, grammarName(true)
 }
 
 // errAlreadyLinked: the bullet already carries an answer; nothing to write.
 var errAlreadyLinked = errors.New("already answered")
 
 // linkBullet appends ` → [answer](target)` to bullet pos's last non-blank
-// line and returns the new section body.
-func linkBullet(section string, pos int, target string) (string, error) {
+// line, splitting the section by the given grammar, and returns the new
+// section body.
+func linkBullet(section string, pos int, target string, legacy bool) (string, error) {
 	// The target lands inside the operator's section as a link: whitespace
 	// could start a new line (even a fake bullet) and a paren would end the
 	// link early.
 	if target == "" || strings.ContainsAny(target, "()") || strings.IndexFunc(target, unicode.IsSpace) >= 0 {
 		return "", fmt.Errorf("refused: TARGET %q must be a relative path with no whitespace or parentheses", target)
 	}
-	bs := instructionBullets(section)
+	bs := sidedoc.ChatItems(section, legacy)
 	if pos < 1 || pos > len(bs) {
 		return "", fmt.Errorf("refused: no bullet %d in ## %s (%d bullets)", pos, instructionsHeading, len(bs))
 	}
@@ -146,7 +128,7 @@ func linkBullet(section string, pos int, target string) (string, error) {
 }
 
 // renderOpen lists the open bullets as `POS<TAB>first line`, continuation
-// lines tab-indented, then the section hash that a later link must name.
+// lines tab-indented, then the list token (tokenHelp) a later link must name.
 func renderOpen(bs []Bullet, hash string) string {
 	var sb strings.Builder
 	for _, b := range bs {
@@ -176,10 +158,19 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 		return refusal(file, instructionsHeading, err)
 	}
 	moved := exitError{6, fmt.Errorf("refused: ## %s changed since list; list again", instructionsHeading)}
+	hash, listed := parseListToken(hash)
 	if h != hash {
 		return moved
 	}
-	body, err := linkBullet(cur, pos, target)
+	doc, err := ss.Peek(file)
+	if err != nil {
+		return refusal(file, instructionsHeading, err)
+	}
+	legacy := legacyGrammar(doc)
+	if grammarName(legacy) != listed {
+		return exitError{6, fmt.Errorf("refused: ## %s now counts bullets in the %s grammar, list used %s (a @@chat@@ tag or legacy declaration changed); list again", instructionsHeading, grammarName(legacy), listed)}
+	}
+	body, err := linkBullet(cur, pos, target, legacy)
 	if errors.Is(err, errAlreadyLinked) {
 		fmt.Fprintf(out, "bullet %d is already answered; nothing written\n", pos)
 		return nil
@@ -213,21 +204,25 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	}
 	list := &cobra.Command{
 		Use:   "list [FILE]",
-		Short: "Print the open (unanswered) bullets by position, then the section hash",
+		Short: "Print the open (unanswered) bullets by position, then the " + tokenName + " link needs (" + tokenHelp + ")",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, hash, err := d.ss.ReadSection(args[0], instructionsHeading)
 			if err != nil {
 				return refusal(args[0], instructionsHeading, err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), renderOpen(instructionBullets(body), hash))
+			bs, legacy, err := sectionBullets(d, args[0], body)
+			if err != nil {
+				return refusal(args[0], instructionsHeading, err)
+			}
+			fmt.Fprint(cmd.OutOrStdout(), renderOpen(bs, listToken(hash, legacy)))
 			return nil
 		},
 	}
 	var hash string
 	link := &cobra.Command{
-		Use:   "link [FILE] POS TARGET --hash H",
-		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section still has the hash list printed",
+		Use:   "link [FILE] POS TARGET --hash " + tokenName,
+		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section and its grammar still match the " + tokenName + " list printed",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos, err := strconv.Atoi(args[1])
@@ -237,7 +232,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 			return linkInstruction(d, cmd.OutOrStdout(), args[0], pos, args[2], hash)
 		},
 	}
-	link.Flags().StringVar(&hash, "hash", "", "the section hash `list` printed (required)")
+	link.Flags().StringVar(&hash, "hash", "", tokenHelp+" (required)")
 	_ = link.MarkFlagRequired("hash")
 	c.AddCommand(withDefaultStatusFile(list, 1), withDefaultStatusFile(link, 3))
 	return c

@@ -287,9 +287,10 @@ func yamlQuote(s string) string {
 	return `"` + s + `"`
 }
 
-// answerFrontmatter gives an answer doc the side-doc frontmatter (§4) in its
-// order: type, parent, marker, collaboration-mode, then process-instruction
-// when the doc has one (#455 decision 3), then any other keys as they were.
+// answerFrontmatter gives an answer doc the side-doc frontmatter (§4): type,
+// parent and marker first, then every other existing line verbatim and in its
+// order. A legacy mode key the doc already has stays (#576: read, never
+// written), and none is added.
 // Under the title it puts the backlink, keeping the line that was there
 // (decision 6). A doc that already has both is returned unchanged.
 func answerFrontmatter(text, parent, markerYAML, parentTitle string) (string, error) {
@@ -303,7 +304,7 @@ func answerFrontmatter(text, parent, markerYAML, parentTitle string) (string, er
 	if strings.Contains(block, "\r") {
 		return "", fmt.Errorf("its frontmatter has CRLF line endings; fix it by hand")
 	}
-	var keep, pi []string
+	var keep []string
 	lines := strings.Split(strings.TrimPrefix(strings.TrimSuffix(block, "\n---"), "---\n"), "\n")
 	if block == "" {
 		lines = nil
@@ -318,14 +319,12 @@ func answerFrontmatter(text, parent, markerYAML, parentTitle string) (string, er
 			current = k
 		}
 		switch current {
-		case "type", "parent", "marker", "collaboration-mode":
-		case "process-instruction":
-			pi = append(pi, l)
+		case "type", "parent", "marker":
 		default:
 			keep = append(keep, l)
 		}
 	}
-	front := append([]string{"---", "type: side-doc", "parent: " + parent, "marker: " + markerYAML, "collaboration-mode: discussion"}, pi...)
+	front := []string{"---", "type: side-doc", "parent: " + parent, "marker: " + markerYAML}
 	front = append(append(front, keep...), "---")
 	backlink := fmt.Sprintf(`_From [%s](%s), section "%s"._`, escapeLinkText(parentTitle), parent, instructionsHeading)
 	return strings.Join(front, "\n") + withBacklink(body, backlink), nil

@@ -1,6 +1,5 @@
 ---
 type: type
-collaboration-mode: discussion
 name: workingdoc
 description: Use when maintaining a living, co-edited page on one topic whose agreed content can be settled into a tracked copy and updated as discussion continues. Distinct from a pensive's moment of thought and a project's execution record.
 ---
@@ -14,7 +13,6 @@ A workingdoc is the ongoing editing surface for one topic. The operator and its 
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `workingdoc` |
-| `collaboration-mode` | yes | `discussion`: the default review collaboration mode. |
 | `owner` | yes | Person or team responsible for the topic. Business ownership does not route Couch submissions. |
 | `topic` | yes | Short phrase naming the page's single topic. |
 | `parent` | for a side doc | Relative path to the parent document, following the shared side-doc contract. |

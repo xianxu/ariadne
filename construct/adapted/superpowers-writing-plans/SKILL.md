@@ -109,15 +109,10 @@ The Core concepts section informs task decomposition. Each task should produce s
 
 ## Plan Document Header
 
-**Every plan MUST start with this header.** The frontmatter declares the plan's default collaboration mode
-(xx-universal-review): a plan is a design document, so an operator's 🤖 question on it opens a linked side doc
-(ariadne#415).
+**Every plan MUST start with this header.** It carries no review mode key (xx-universal-review retired them,
+ariadne#576): an operator's 🤖 question on a plan opens a linked side doc under the one collaborative mode.
 
 ```markdown
----
-collaboration-mode: discussion
----
-
 # [Feature Name] Implementation Plan
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.

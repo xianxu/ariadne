@@ -693,9 +693,6 @@ func skillDir(t *testing.T) string {
 }
 
 // Every committed case satisfies the contract.
-// numberedItem starts a `@@chat@@` section's item (collaboration-modes.md §3).
-var numberedItem = regexp.MustCompile(`^\d+\. `)
-
 // checkChat holds a case to the chat grammar through sidedoc.ChatSections
 // (#575), the oracle pair and parley copy: every answer link the round adds
 // sits in a chat section, every numbered item of a @@chat@@ section ends the
@@ -731,16 +728,10 @@ func checkChat(fsys fs.FS) []string {
 		if sec.Source != "tag" {
 			continue
 		}
-		for i := sec.Heading; i < sec.End; i++ {
-			if !numberedItem.MatchString(lines[i]) {
-				continue
-			}
-			answered := false
-			for j := i; j < sec.End && (j == i || !numberedItem.MatchString(lines[j])) && lines[j] != ""; j++ {
-				answered = answered || strings.Contains(lines[j], "→ [answer](")
-			}
-			if !answered {
-				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, i+1))
+		body := strings.Join(lines[sec.Heading:sec.End], "\n")
+		for _, it := range sidedoc.ChatItems(body, sec.Legacy) {
+			if !it.Answered {
+				errs = append(errs, fmt.Sprintf("after/%s line %d: a @@chat@@ item left unanswered", submitted, sec.Heading+it.Start+1))
 			}
 		}
 	}
@@ -822,7 +813,12 @@ func TestCollaborationModesProse(t *testing.T) {
 	}
 }
 
-// #575's Done-when: no skill text asks a creator or filler to write a mode
+var legacyKeyNote = regexp.MustCompile("legacy `[^`]*`")
+
+var retiredKeyMention = regexp.MustCompile(`(?:collaboration|presentation|processing)-mode(?:[^s]|$)|process(?:ing)?-instruction|\bpresentation:`)
+
+// #575's Done-when, extended to every creator's instructions by #576: no
+// skill, prototype or help text asks a creator or filler to write a mode
 // key. The retired keys may be named only in collaboration-modes.md §7 (the
 // legacy table), and in the adapter's Couch-transition note and its
 // legacy propose mechanics, which describe Couch until pair#838.
@@ -833,6 +829,39 @@ func TestNoSpecWritesModeKeys(t *testing.T) {
 	briefs, _ := filepath.Glob(filepath.Join(dir, "briefs", "*.md"))
 	for _, b := range briefs {
 		files = append(files, filepath.Join("briefs", filepath.Base(b)))
+	}
+	// Every creator's instructions outside the review skill (#576): the
+	// datatype prototypes, the plan header, tl-lead's help and the Pair
+	// workbench skill. A "legacy `key`" span (and the operator-owned refusal
+	// row) describes what happens to an older document's key, so it is
+	// excused.
+	root := moduleRoot(t)
+	creators, _ := filepath.Glob(filepath.Join(root, "construct", "datatype", "*.md"))
+	creators = append(creators,
+		filepath.Join(root, "construct", "adapted", "superpowers-writing-plans", "SKILL.md"),
+		filepath.Join(root, "cmd", "tl-lead", "help.md"),
+		filepath.Join(root, "construct", "local", "fix", "SKILL.md"))
+	for _, f := range creators {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var kept []string
+		for _, l := range strings.Split(string(b), "\n") {
+			// A key named as "legacy `key`" describes what happens to an older
+			// document's line, a reader's note rather than a writer's
+			// instruction; only that span is excused, not the whole line.
+			if !strings.Contains(l, "`operator-owned`") {
+				kept = append(kept, legacyKeyNote.ReplaceAllString(l, ""))
+			}
+		}
+		text := strings.Join(kept, "\n")
+		rel, _ := filepath.Rel(root, f)
+		// A key in any form (`key:` in YAML, `key` in a shape table), but not
+		// the collaboration-modes.md file name.
+		for _, m := range retiredKeyMention.FindAllString(text, -1) {
+			t.Errorf("%s names the retired key %q: creators never write mode keys", rel, m)
+		}
 	}
 	for _, f := range files {
 		b, err := os.ReadFile(filepath.Join(dir, f))

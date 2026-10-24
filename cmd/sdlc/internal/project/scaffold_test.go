@@ -16,7 +16,6 @@ func TestRenderScaffoldDerivesProjectModel(t *testing.T) {
 		"type: project",
 		"status: " + vocab.Project().InitialStatus(),
 		"created: 2026-07-16", "updated: 2026-07-16",
-		"collaboration-mode: " + vocab.Project().CollaborationMode(), // #415
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("scaffold missing %q:\n%s", want, got)
@@ -81,3 +80,14 @@ func TestResolvePathRejectsTraversal(t *testing.T) {
 		}
 	}
 }
+
+// #576: a new project carries no review mode key.
+func TestNewProjectWritesNoModeKeys(t *testing.T) {
+	got := RenderScaffold(ScaffoldSpec{Name: "P", Goal: "g", DoneWhen: "d", Today: "2026-10-23"})
+	for _, k := range []string{"collaboration-mode:", "presentation-mode:", "processing-mode:", "processing-instruction:", "process-instruction:", "presentation:"} {
+		if strings.Contains(got, k) {
+			t.Errorf("RenderScaffold writes %s:\n%s", k, got)
+		}
+	}
+}
+

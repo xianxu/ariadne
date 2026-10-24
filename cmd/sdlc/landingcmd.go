@@ -263,6 +263,17 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 		b.WriteString(line + "\n")
 	}
 	fmt.Fprintf(&b, "landing now: %s\n", describeTicket(head))
+	// Merges a shutdown or kill interrupted (#565), each with its re-entry.
+	if lineDir, err := landingLineDir(execGitRunner{}, repo); err == nil {
+		sweepMergeIntents(execGitRunner{}, repo, landingline.OpenIntents(lineDir), &b)
+	}
+	intents, err := observeMergeIntents(execGitRunner{}, repo, func(r mergeIntentReport) bool { return formatMergeIntent(r) != "" })
+	if err != nil {
+		fmt.Fprintf(&b, "merge intents: unreadable (%v)\n", err)
+	}
+	for _, r := range intents {
+		b.WriteString(formatMergeIntent(r) + "\n")
+	}
 	if why := landingline.GrantHold(0, grants); why != "" {
 		fmt.Fprintf(&b, "normal admissions held: %s\n", why)
 	}
