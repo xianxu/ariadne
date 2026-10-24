@@ -223,3 +223,97 @@ Done-when: current — the existing criteria still cover recorded leak warnings 
    Append a `## Revisions` entry defining confirmed execution completion as the outcome boundary, enumerating cancellation events on either side, and naming the controlled sequence tests that enforce it.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"84621e07-6376-4472-995d-d4d6da88f542","repository":"github.com/xianxu/ariadne","issue_id":"000589","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/214e815bb791058e","reviewed_head":"e0b3df15d51488c2e22000b67ac0c6fc0dfea4b9","slot":"ariadne:3","requested_at":"2026-10-24T20:30:42.341002Z"},"phase":"finished","pid":25078,"started_at":"2026-10-24T20:30:42.44071Z","finished_at":"2026-10-24T20:33:48.022286Z","session_id":"01a16f9b-caa4-7000-bb87-5052ae3e0cb7","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T14:30:32-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 589 — Recorded suites report leaked SysV shared-memory segments; PostgreSQL test harnesses must not leak them |
+| repo | ariadne |
+| issue file | workshop/issues/000589-recorded-suites-report-leaked-sysv-shared-memory-segments-postgresql-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 04052c566441588889d84db71e22caa62b1126b8..6d8c6a42e05bfec33c0f9bd2e0813fe72adeb2e6 |
+| command | sdlc close --issue 589 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-24T14:30:32-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation satisfies the revised advisory-warning contract. Both open findings have regression tests that fail when the unsafe behavior is restored. Focused, race, deadline-composition and queue-retirement checks passed. No new blocking findings emerged; the checkout remains unchanged.
+
+Done-when: current — the revised attribution and lifecycle boundaries still deliver recorded segment warnings and harness guidance covered by the existing completion criteria.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Attribution machinery is removed; sysvwarning.go:30-32 always renders unknown command and unattributed relationship. Restoring the former Witness-bearing Candidate and unsafe renderer through a temporary Go overlay makes TestSysVCurrentProcessNameIsNotCreatorProof fail with false witnessed attribution.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      localcheck_run.go:514-526 defers observation until outcome-mutating cleanup and retirement finish. Controlled caller/queue before/during/after tests cover success, failure and strict cleanup; signal tests cover default disposition. Restoring the early after-snapshot through an overlay makes the committed regression fail with Exit:-1 and queue interruption after successful execution.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The before-probe precedes execution timer creation, and deadline classification precedes final diagnostics. Controlled SysV budget tests and existing command-deadline composition tests pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      report.go:11-26 compares numeric IDs conservatively. TestDeltaMetadataChangesAreNotNewIDs covers mutable metadata without creating candidates.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The current Core concepts table describes savedAttemptRecord as existing and reused; the pinned diff leaves localcheck_republish.go unchanged.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      resolvedSavedRecord projects the independently verified child warning into statusDescription. Fresh child publication and saved replay regression tests pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      README.md now documents advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas passage that explains operator-cleared capacity and exact-owned-segment cleanup.
+```
+
+1. **Strengths**
+
+   - Conservative ID comparison and explicitly unknown attribution avoid overstating snapshot evidence.
+   - Final diagnostics use the original log descriptor and execute after lifecycle cleanup and queue retirement.
+   - Fresh and resumed publication share warning projection from verified logs.
+   - README, atlas and embedded help explain coverage limits and PostgreSQL shutdown guidance.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed focused SysV tests in both packages, race checks, caller-context checks, existing deadline-composition tests and serialized cancellation/retirement tests. Independently reproduced red controls for BR-2 and BR-7 using temporary overlays, subsequently removed. Native IPC allocation and opt-in private CLI qualification were not rerun; neither was the full repository suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared delta, rendering and warning extraction.
+   - **ARCH-PURE — pass:** parsing and classification remain separate from injected observation IO; concept-table locations match.
+   - **ARCH-PURPOSE — pass:** recorded warnings, replay consumers and harness guidance are delivered.
+   - **ARCH-MOCK — pass:** stateful private tables exercise the production observation seam; native qualification exists separately.
+   - **ARCH-CONSTRAINTS — pass:** bounded snapshots and linear classification; tests exercise input limits and probe counts.
+   - **ARCH-SECURE — pass:** strict table validation, explicit unavailable observations and no production cleanup authority.
+   - **ARCH-ORDER — pass:** existing serialized retirement governs cancellation; controlled sequence tests exercise the relevant ordering.
+   - **ARCH-FUNERAL — pass:** no new durable sidecar or monitor; diagnostics reuse existing log retention.
+   - **ARCH-EVOLVE — pass:** no persisted attempt-schema change; old logs remain readable.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c7e0338e-82fe-4d45-95e1-277d858464e9","repository":"github.com/xianxu/ariadne","issue_id":"000589","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/f8281ce597bbc622","reviewed_head":"6d8c6a42e05bfec33c0f9bd2e0813fe72adeb2e6","slot":"ariadne:3","requested_at":"2026-10-24T21:28:07.11862Z"},"phase":"finished","pid":81923,"started_at":"2026-10-24T21:28:07.287784Z","finished_at":"2026-10-24T21:30:31.537313Z","session_id":"01a16fd0-5ab7-7203-8524-e42e5eb0347d","outcome":"returned"}] -->

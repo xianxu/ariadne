@@ -131,6 +131,65 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: c7e0338e-82fe-4d45-95e1-277d858464e9
+            repository: github.com/xianxu/ariadne
+            issue_id: "000589"
+            recipe: milestone-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/f8281ce597bbc622
+            reviewed_head: 6d8c6a42e05bfec33c0f9bd2e0813fe72adeb2e6
+            slot: ariadne:3
+            requested_at: "2026-10-24T21:28:07.11862Z"
+          phase: finished
+          pid: 81923
+          started_at: "2026-10-24T21:28:07.287784Z"
+          finished_at: "2026-10-24T21:30:31.537313Z"
+          session_id: 01a16fd0-5ab7-7203-8524-e42e5eb0347d
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-24T14:30:32-07:00"
+      dispatched: "2026-10-24T14:28:07-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: Attribution machinery is removed; sysvwarning.go:30-32 always renders unknown command and unattributed relationship. Restoring the former Witness-bearing Candidate and unsafe renderer through a temporary Go overlay makes TestSysVCurrentProcessNameIsNotCreatorProof fail with false witnessed attribution.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: localcheck_run.go:514-526 defers observation until outcome-mutating cleanup and retirement finish. Controlled caller/queue before/during/after tests cover success, failure and strict cleanup; signal tests cover default disposition. Restoring the early after-snapshot through an overlay makes the committed regression fail with Exit:-1 and queue interruption after successful execution.
+          round: 3
+        - id: BR-1
+          disposition: addressed
+          note: The before-probe precedes execution timer creation, and deadline classification precedes final diagnostics. Controlled SysV budget tests and existing command-deadline composition tests pass.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: report.go:11-26 compares numeric IDs conservatively. TestDeltaMetadataChangesAreNotNewIDs covers mutable metadata without creating candidates.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: The current Core concepts table describes savedAttemptRecord as existing and reused; the pinned diff leaves localcheck_republish.go unchanged.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: resolvedSavedRecord projects the independently verified child warning into statusDescription. Fresh child publication and saved replay regression tests pass.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: README.md now documents advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas passage that explains operator-cleared capacity and exact-owned-segment cleanup.
+          round: 3
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 6d8c6a42e05bfec33c0f9bd2e0813fe72adeb2e6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#589 (boundary-review)
@@ -171,7 +230,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Critical] `advisory-outcome-isolation` (kind: defect) Cancellation during the after-snapshot discards a completed command outcome
   cmd/sdlc/localcheck_run.go:684-725 freezes execution deadline state before diagnostics but reads ownedCtx.Err and queue interruption afterward. A temporary regression using fakeSysVObserver.onAfter to cancel the caller after a successful true command returned Exit:-1 and queueInterruptedError instead of the completed success. ARCH-PURPOSE and ARCH-ORDER: this is the 2nd finding in family advisory-outcome-isolation. State and enforce the rule across deadline, caller/signal cancellation, and queue-cancellation inputs: events received after confirmed execution completion must not retroactively reclassify its outcome. Preserve authoritative cancellation during execution, and add controlled before/during/after completion tests covering both success and failure.
 
+## Round 3 — 2026-10-24T14:30:32-07:00 (codex) — passed
+
+### Disposed
+
+- BR-2 — addressed — Attribution machinery is removed; sysvwarning.go:30-32 always renders unknown command and unattributed relationship. Restoring the former Witness-bearing Candidate and unsafe renderer through a temporary Go overlay makes TestSysVCurrentProcessNameIsNotCreatorProof fail with false witnessed attribution.
+- BR-7 — addressed — localcheck_run.go:514-526 defers observation until outcome-mutating cleanup and retirement finish. Controlled caller/queue before/during/after tests cover success, failure and strict cleanup; signal tests cover default disposition. Restoring the early after-snapshot through an overlay makes the committed regression fail with Exit:-1 and queue interruption after successful execution.
+- BR-1 — addressed — The before-probe precedes execution timer creation, and deadline classification precedes final diagnostics. Controlled SysV budget tests and existing command-deadline composition tests pass.
+- BR-3 — addressed — report.go:11-26 compares numeric IDs conservatively. TestDeltaMetadataChangesAreNotNewIDs covers mutable metadata without creating candidates.
+- BR-4 — addressed — The current Core concepts table describes savedAttemptRecord as existing and reused; the pinned diff leaves localcheck_republish.go unchanged.
+- BR-5 — addressed — resolvedSavedRecord projects the independently verified child warning into statusDescription. Fresh child publication and saved replay regression tests pass.
+- BR-6 — addressed — README.md now documents advisory warnings and WF_SYSV_QUALIFY=1, linking the atlas passage that explains operator-cleared capacity and exact-owned-segment cleanup.
+
 ## Open findings
 
-- **BR-2** [Critical] `creator-incarnation-evidence` A nonempty start time does not establish that the witnessed process created the segment
-- **BR-7** [Critical] `advisory-outcome-isolation` (kind: defect) Cancellation during the after-snapshot discards a completed command outcome
+(none — every finding has been disposed)

@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "0a3b6838", done: "bf85bccb"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Recorded suites report leaked SysV shared-memory segments; PostgreSQL test harnesses must not leak them
@@ -66,6 +66,8 @@ Mandatory close review and landing follow these completed implementation and ver
 
 
 ### 2026-10-24 — claimed and design checkpoint
+- 2026-10-24: closed — Composed with landed #599; stoppedBy is shared deadline authority, final diagnostic follows all cleanup and atomic queue retirement. Combined normal checks passed cmd/sdlc32.733s plus pure packages; serial race checks passed47.136s plus pure/queue packages, including deadline/setup, caller/queue before-during-after ordinary/strict success/failure, default SIGINT/SIGTERM, unknown cleanup, and verified fresh/saved resume warnings. Unsafe-renderer overlay makes BR-2 regression fail. Catalog passed1.101s; clean private binary53473347d328551949d051d3e3c8913ac019303f modified=false conformance passed1.840s. Exact-owned native proof0.154s retained separately. Fresh recorded pre-close queued; merge waits for pass. Actual unavailable: measurement branch proof: measurement snapshot does not serialize: json: error calling MarshalJSON for type *gatestate.MeasurementInputs: json: error calling MarshalJSON for type *gatestate.MeasurementBranchEvidence: measurement exceeds 65536 bytes. No window printed; --no-actual authorized by ops:0 receipt88cf17d2-3cbb-4238-9fbd-14610da9c3e2 until #593, still not-landed on fresh read. No typed hours. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 390 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Ran tl-worker help, claimed and started #589 from main after #591 landed. No own check/merge is running; #564 stays held, #590 is next after this issue. Read the managed resource/batch cleanup, attempt publication and saved-pass proof seams. Read echo local rules (no MEMORY.md found) and inspected echo#32: owned by echo:2, codecomplete/SHIP, not landed; no duplicate issue or peer change.
 
