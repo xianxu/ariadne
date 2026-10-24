@@ -74,7 +74,7 @@ is already validated by `ValidAnswerTarget`.
       and a tab ask
 - [x] the fake models apply advancing the whole-file baseline (TestFakeApplyAdvancesBaseline) and couch's chat guard
 - [x] pair#862 filed unclaimed: a whole-file apply should advance the baseline only where it edited
-- [ ] targeted tl-lead tests, close
+- [x] targeted tl-lead tests, close
 
 ### Revisions
 
