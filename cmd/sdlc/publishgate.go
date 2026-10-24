@@ -305,7 +305,7 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 	if code := codeSurfacePaths(d.Conflicted); len(code) > 0 {
 		// #320 layer 3, wired by #183: only the review narrows; the full suite still runs.
 		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.\n"+
-			"  Run the full test suite (`sdlc local-check run --name suite` on the pushed head; only the review narrows), then\n"+
+			"  Run the pre-close check (`"+preCloseRunCommand+"` on the pushed head: the suite, or affected where a train runs the suite; only the review narrows), then\n"+
 			"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
 			"  it reviews only the change since that close, the conflict resolution included; then retry the publish.",
 			publishGateRefusal, strings.Join(code, ", "), publishCLIRef(d.Issue))

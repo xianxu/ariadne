@@ -422,6 +422,7 @@ func TestClassifyPublishDelta(t *testing.T) {
 		// #183: past a reviewed patch, the next action is the narrow re-close.
 		{"code names --fixed-then-ship", publishDelta{Anchor: a, Issue: "42", Paths: []string{"cmd/a.go"}}, false, "sdlc close --issue 42 --fixed-then-ship --verified"},
 		{"code conflict also needs the full suite", publishDelta{Anchor: a, Issue: "42", Conflicted: []string{"cmd/a.go"}, Paths: []string{"cmd/a.go"}}, false, "--fixed-then-ship --full-suite"},
+		{"code conflict names the pre-close check", publishDelta{Anchor: a, Issue: "42", Conflicted: []string{"cmd/a.go"}, Paths: []string{"cmd/a.go"}}, false, preCloseRunCommand},
 		{"unresolvable keeps the full re-close", publishDelta{Anchor: a, Issue: "42", Unresolvable: "x"}, false, "sdlc close --issue 42 --verified"},
 	}
 	for _, c := range cases {

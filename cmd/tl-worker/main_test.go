@@ -110,7 +110,9 @@ func TestSection15NamesTheBinaries(t *testing.T) {
 func TestWorkerHelpKeepsIntegrationInLandingTurn(t *testing.T) {
 	help := strings.Join(strings.Fields(helpOutput(t, "--help")), " ")
 	for _, want := range []string{
-		"required recorded pre-close suite on the pushed issue branch",
+		"required recorded pre-close check on the pushed issue branch",
+		"Where trains are on and main declares `.sdlc/affected.json` (pair) it is the affected check",
+		"elsewhere (ariadne) it is the full suite, as before",
 		"close that tested branch without chasing newer main",
 		"Branch code fixes still need fresh verification",
 		"noon freshness gate still applies",
@@ -124,7 +126,7 @@ func TestWorkerHelpKeepsIntegrationInLandingTurn(t *testing.T) {
 	if strings.Contains(help, "On SHIP: merge main into the branch") {
 		t.Error("worker help requires manual integration before landing admission")
 	}
-	suite, close, merge := strings.Index(help, "required recorded pre-close suite"), strings.Index(help, "close that tested branch"), strings.Index(help, "On SHIP, enter")
+	suite, close, merge := strings.Index(help, "required recorded pre-close check"), strings.Index(help, "close that tested branch"), strings.Index(help, "On SHIP, enter")
 	if suite < 0 || close <= suite || merge <= close {
 		t.Error("worker help must order branch suite, close, then admitted merge")
 	}

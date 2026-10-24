@@ -237,6 +237,22 @@ func TestLandingTrainLandsEveryCarOnOneSuite(t *testing.T) {
 				t.Fatalf("car %s carries a suite record; it should have boarded on affected", h)
 			}
 		}
+		// #578: the train's suite is the landing's only full run, counted by
+		// the saved attempts that physically ran, not by posted statuses.
+		common := git(t, s.first, "rev-parse", "--git-common-dir")
+		attempts, _, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ran []string
+		for _, a := range attempts {
+			if a.Check == suiteCheckName {
+				ran = append(ran, a.SHA)
+			}
+		}
+		if len(ran) != 1 {
+			t.Fatalf("full suites ran on %v, want exactly the train's one", ran)
+		}
 	})
 }
 

@@ -68,18 +68,34 @@ Design: the repo condition lives in one pure function, not in prose an agent mus
   elsewhere it is the full suite, as today.
 
 Tasks:
-- [ ] `preCloseCheck` table test (4 combos + unreadable config → suite); `--pre-close` resolution test in a fixture
+- [x] `preCloseCheck` table test (4 combos + unreadable config → suite); `--pre-close` resolution test in a fixture
       repo for pair's shape and ariadne's shape (no landing.json); flag exclusivity test.
-- [ ] Landing test: a car with only an affected record lands in a two-car train and the counted local-check runner
+- [x] Landing test: a car with only an affected record lands in a two-car train and the counted local-check runner
       runs suite once, on the prefix, never on a car head.
-- [ ] Refusals and VERIFIED example via `preCloseCheck`; their tests assert affected in a train repo, suite elsewhere.
-- [ ] tl-worker help.md + rules.tsv + main_test/drain_test phrases; AGENTS.base.md §5 (base layer; regenerate
+- [x] Refusals and VERIFIED example via `preCloseCheck`; their tests assert affected in a train repo, suite elsewhere.
+- [x] tl-worker help.md + rules.tsv + main_test/drain_test phrases; AGENTS.base.md §5 (base layer; regenerate
       AGENTS.md/CLAUDE.md); atlas `sdlc-binary.md` local-check section.
 - [ ] Targeted tests, recorded suite (ariadne: no trains, so `--pre-close` resolves to suite), close.
 
 ARCH-EVOLVE/FUNERAL: no persisted format, nothing durable created. ARCH-ORDER: holds no state between events; the
 resolution is read once per command from main. ARCH-CONSTRAINTS: two `git show` reads per run.
 
+## Revisions
+
+- 2026-10-23 (implementation): the refusals name `sdlc local-check run --pre-close` in every repository rather than
+  resolving affected or suite themselves. The flag resolves at run time, so the pure refusal functions take no repo
+  state; their tests pin the command.
+
 ## Log
 
 ### 2026-10-23
+
+- Implemented: `preCloseCheck`/`resolvePreCloseCheck` (`cmd/sdlc/precloseck.go`), `--pre-close` on
+  `local-check run` (exclusive with --name/--all/--boarding). The code-conflict refusals and close's VERIFIED
+  example name it via `preCloseRunCommand`. The train test now counts saved suite attempts (exactly one, on the
+  train), on top of #561's status check. Guidance: tl-worker help/rules/tests, AGENTS(.base).md §5, and the atlas
+  `ci-merge-check.md` pre-close paragraph.
+- `TestLocalCheckCmdPreClose` and the train tests need the host preflight (boot identity), so they run outside the
+  sandbox; inside it they fail with "operation not permitted", as the other local-check CLI tests do.
+- Filed #581 (pair:3's answered-grammar report); the TL assigned it to me next.
+
