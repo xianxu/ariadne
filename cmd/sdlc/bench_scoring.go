@@ -12,7 +12,8 @@ import (
 )
 
 type benchScoringDeps struct {
-	Evaluate func(context.Context, bench.Task, string, string, string) (bench.Acceptance, error)
+	SuiteHelper benchSuiteHelper
+	Evaluate    func(context.Context, bench.Task, string, string, string) (bench.Acceptance, error)
 }
 
 // The Metis step is the execution owner. Its exclusive intent fences all hidden
@@ -38,7 +39,9 @@ func scoreBenchEvidence(ctx context.Context, task bench.Task, e benchSessionEvid
 		}
 		evaluate := d.Evaluate
 		if evaluate == nil {
-			evaluate = evaluateBenchAcceptance
+			evaluate = func(ctx context.Context, task bench.Task, work, candidate, output string) (bench.Acceptance, error) {
+				return evaluateBenchAcceptanceWith(ctx, task, work, candidate, output, benchScoreDeps{SuiteHelper: d.SuiteHelper})
+			}
 		}
 		var errEval error
 		a, errEval = evaluate(ctx, task, workRoot, e.Candidate, output)

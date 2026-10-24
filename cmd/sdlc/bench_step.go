@@ -250,7 +250,11 @@ func driveBenchSessionStep(ctx context.Context, f benchStepFolder, input benchSt
 	if err != nil {
 		return err
 	}
-	if err := instantiateBenchSession(ctx, s, template, benchPrepareDeps{}); err != nil {
+	helper, err := captureBenchSuiteHelper(input.ToolSource)
+	if err != nil {
+		return err
+	}
+	if err := instantiateBenchSession(ctx, s, template, benchPrepareDeps{SuiteHelper: helper}); err != nil {
 		return err
 	}
 	// M1 provisioning is deliberately manual. Roots exist before the operator's
@@ -375,7 +379,11 @@ func scoreBenchStep(ctx context.Context, f benchStepFolder, input benchStepInput
 			}
 		}
 	}
-	acceptance, err := scoreBenchEvidence(ctx, input.Task, e, work, f.Dir, benchScoringDeps{})
+	helper, err := captureBenchSuiteHelper(input.ToolSource)
+	if err != nil {
+		return err
+	}
+	acceptance, err := scoreBenchEvidence(ctx, input.Task, e, work, f.Dir, benchScoringDeps{SuiteHelper: helper})
 	if err != nil {
 		return err
 	}

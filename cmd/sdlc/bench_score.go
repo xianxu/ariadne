@@ -28,6 +28,7 @@ const benchScoreCommandTimeout = 15 * time.Minute
 const benchScoreBudget = 45 * time.Minute
 
 type benchScoreCommand struct {
+	SuiteHelper                         benchSuiteHelper
 	Role, Root, WorkRoot, Head, LogPath string
 	Argv                                []string
 }
@@ -36,16 +37,13 @@ type benchScoreRun struct {
 	TimedOut, Quiet bool
 }
 type benchScoreDeps struct {
-	Execute func(context.Context, benchScoreCommand) (benchScoreRun, error)
+	SuiteHelper benchSuiteHelper
+	Execute     func(context.Context, benchScoreCommand) (benchScoreRun, error)
 }
 
 // The caller owns Run admission/retirement and records the returned unavailable
 // status even when err supplies additional private diagnostics. This function
 // never changes Run/store state or rereads the descriptor's original patch.
-func evaluateBenchAcceptance(ctx context.Context, task bench.Task, workRoot, candidate, observerDir string) (bench.Acceptance, error) {
-	return evaluateBenchAcceptanceWith(ctx, task, workRoot, candidate, observerDir, benchScoreDeps{})
-}
-
 func evaluateBenchAcceptanceWith(ctx context.Context, task bench.Task, workRoot, candidate, observerDir string, d benchScoreDeps) (a bench.Acceptance, retErr error) {
 	ctx, cancel := context.WithTimeout(ctx, benchScoreBudget)
 	defer cancel()
@@ -159,7 +157,7 @@ func evaluateBenchAcceptanceWith(ctx context.Context, task bench.Task, workRoot,
 				return fail(phase.role+" hidden acceptance patch failed", errors.Join(err, cleanup()))
 			}
 		}
-		result, runErr := d.Execute(ctx, benchScoreCommand{Role: phase.role, Root: tree, WorkRoot: workRoot, Head: candidate, LogPath: filepath.Join(scoreDir, "logs", phase.role+".log"), Argv: append([]string(nil), task.Acceptance.Argv...)})
+		result, runErr := d.Execute(ctx, benchScoreCommand{SuiteHelper: d.SuiteHelper, Role: phase.role, Root: tree, WorkRoot: workRoot, Head: candidate, LogPath: filepath.Join(scoreDir, "logs", phase.role+".log"), Argv: append([]string(nil), task.Acceptance.Argv...)})
 		quiet = result.Quiet
 		if !quiet {
 			runErr = errors.Join(&runnerCleanupUnconfirmed{Detail: fmt.Sprintf("hidden acceptance bundle %s retained; native Git worktree lease %s; reconcile the owned scorer before removing either", bundle, leasePath)}, runErr)
@@ -278,7 +276,7 @@ func (w *benchScoreOutput) Write(p []byte) (int, error) {
 }
 
 func runBenchScoreCommand(ctx context.Context, c benchScoreCommand) (benchScoreRun, error) {
-	helper, err := prepareSuiteHelper(ctx, c.WorkRoot, "")
+	helper, err := c.SuiteHelper.prepare(ctx, c.WorkRoot)
 	if err != nil {
 		return benchScoreRun{Exit: -1, Quiet: true}, err
 	}

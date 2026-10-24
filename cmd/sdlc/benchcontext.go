@@ -75,7 +75,7 @@ func loadBenchContext(ctx context.Context, root string) (*benchPublicContext, er
 		return nil, errors.New("bench context must be an object")
 	}
 	var c benchPublicContext
-	fields := map[string]any{"version": &c.Version, "run_id": &c.RunID, "work_root": &c.WorkRoot, "hub_root": &c.HubRoot, "origin_path": &c.OriginPath, "origin_identity": &c.OriginIdentity}
+	fields := map[string]any{"suite_helper": &c.SuiteHelper, "version": &c.Version, "run_id": &c.RunID, "work_root": &c.WorkRoot, "hub_root": &c.HubRoot, "origin_path": &c.OriginPath, "origin_identity": &c.OriginIdentity}
 	for key, target := range fields {
 		value, ok := object[key]
 		if !ok || string(value) == "null" {
@@ -92,7 +92,7 @@ func loadBenchContext(ctx context.Context, root string) (*benchPublicContext, er
 			}
 		}
 	}
-	if c.Version != 1 || !benchRunIDPattern.MatchString(c.RunID) {
+	if c.Version != 2 || !benchRunIDPattern.MatchString(c.RunID) {
 		return nil, errors.New("unsupported bench context version or run ID")
 	}
 	for _, key := range []string{"GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE"} {

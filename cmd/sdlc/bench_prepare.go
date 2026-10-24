@@ -28,7 +28,10 @@ import (
 
 // Only gate executable selection is injectable. Gates themselves always execute
 // as real child processes in the sanitized checkout, never in the source tree.
-type benchPrepareDeps struct{ GateArgv, GateEnv []string }
+type benchPrepareDeps struct {
+	GateArgv, GateEnv []string
+	SuiteHelper       benchSuiteHelper
+}
 
 func prepareBenchTemplate(ctx context.Context, t bench.Task, templatePath string) error {
 	if err := bench.ValidateTask(t); err != nil {
@@ -143,7 +146,7 @@ func instantiateBenchSession(ctx context.Context, s *benchSession, templatePath 
 	if err := materializeBenchTree(work, files); err != nil {
 		return err
 	}
-	contextPublic := benchPublicContext{Version: 1, RunID: r.ID, WorkRoot: work, HubRoot: hub, OriginPath: origin, OriginIdentity: "file:" + origin}
+	contextPublic := benchPublicContext{Version: 2, SuiteHelper: d.SuiteHelper, RunID: r.ID, WorkRoot: work, HubRoot: hub, OriginPath: origin, OriginIdentity: "file:" + origin}
 	for _, root := range []string{work, hub} {
 		if err := writeBenchJSONExclusive(filepath.Join(root, benchPublicContextPath), contextPublic); err != nil {
 			return err

@@ -87,6 +87,11 @@ func workflowFile(root, anchor string) (string, error) {
 // The workflow file's real location selects the supplying substrate, as make
 // does, and the helper's real location handles a further helper symlink.
 func prepareSuiteHelper(ctx context.Context, root, anchor string) (string, error) {
+	if b, err := loadBenchContext(ctx, root); err != nil {
+		return "", err
+	} else if b != nil {
+		return b.SuiteHelper.prepare(ctx, root)
+	}
 	mk, err := workflowFile(root, anchor)
 	if err != nil {
 		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)

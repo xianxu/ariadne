@@ -100,7 +100,7 @@ func TestBenchAcceptanceRealManagedCommands(t *testing.T) {
 			if kind == "output-budget" {
 				task.Acceptance.Argv = []string{"python3", "-c", "import sys; sys.stdout.write('x' * (9 << 20))"}
 			}
-			a, err := evaluateBenchAcceptance(context.Background(), task, work, candidate, observer)
+			a, err := evaluateBenchAcceptanceWith(context.Background(), task, work, candidate, observer, benchScoreDeps{SuiteHelper: benchHelperFixture(t)})
 			if kind == "missing-tool" || kind == "output-budget" {
 				if err == nil || a.Status != "unavailable" || a.CommandPassed != nil || a.ParentRed {
 					t.Fatalf("startup fabricated test failure %+v %v", a, err)

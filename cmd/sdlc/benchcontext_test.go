@@ -12,7 +12,7 @@ import (
 func benchContextFixture(t *testing.T) benchPublicContext {
 	t.Helper()
 	base := filepath.Join(t.TempDir(), "public")
-	c := benchPublicContext{Version: 1, RunID: strings.Repeat("a", 32), WorkRoot: filepath.Join(base, "work"), HubRoot: filepath.Join(base, "hub"), OriginPath: filepath.Join(base, "origin.git")}
+	c := benchPublicContext{Version: 2, SuiteHelper: benchHelperFixture(t), RunID: strings.Repeat("a", 32), WorkRoot: filepath.Join(base, "work"), HubRoot: filepath.Join(base, "hub"), OriginPath: filepath.Join(base, "origin.git")}
 	c.OriginIdentity = "file:" + c.OriginPath
 	for _, p := range []string{c.WorkRoot, c.HubRoot, c.OriginPath} {
 		if err := os.MkdirAll(p, 0700); err != nil {

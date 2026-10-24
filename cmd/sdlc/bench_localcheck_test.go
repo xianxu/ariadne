@@ -53,7 +53,7 @@ func benchLocalCheckFixture(t *testing.T) (benchPublicContext, string) {
 	prepareTestGit(t, b.WorkRoot, "config", "user.email", "bench@example.invalid")
 	prepareTestWrite(t, b.WorkRoot, localChecksPath, `{"version":1,"checks":[{"name":"suite","command":["sh","-c","echo bench-proof"],"timeout_minutes":1,"weight":1}]}`, 0600)
 	prepareTestWrite(t, b.WorkRoot, "Makefile.workflow", "# fixture\n", 0600)
-	prepareTestWrite(t, b.WorkRoot, "scripts/test-lock.py", fakeSuiteLockHelper("print('acquired')\n"), 0755)
+	prepareTestWrite(t, b.WorkRoot, "scripts/test-lock.py", fakeSuiteLockHelper("raise Exception('historical admission must not run')\n"), 0755)
 	prepareTestGit(t, b.WorkRoot, "add", localChecksPath, "Makefile.workflow", "scripts/test-lock.py")
 	prepareTestGit(t, b.WorkRoot, "commit", "-qm", "suite fixture")
 	prepareTestGit(t, b.WorkRoot, "push", "-q", "-u", "origin", "main")

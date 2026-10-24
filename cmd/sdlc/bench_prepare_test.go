@@ -104,7 +104,7 @@ func prepareFixture(t *testing.T, task bench.Task) (*benchSession, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := benchPrepareDeps{GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
+	d := benchPrepareDeps{SuiteHelper: benchHelperFixture(t), GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
 	template := filepath.Join(t.TempDir(), "template.tar")
 	if err := prepareBenchTemplate(context.Background(), task, template); err != nil {
 		return s, err
@@ -144,7 +144,7 @@ func TestBenchPrepareTemplateIsIndependentAndHasNoRuntimeEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := benchPrepareDeps{GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
+	d := benchPrepareDeps{SuiteHelper: benchHelperFixture(t), GateArgv: []string{os.Args[0], "-test.run=^TestBenchPrepareGateHelper$", "--"}, GateEnv: []string{"ARIADNE_BENCH_PREPARE_TEST_GATE=1"}}
 	if err := instantiateBenchSession(context.Background(), s, template, d); err != nil {
 		t.Fatal(err)
 	}

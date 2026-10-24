@@ -222,7 +222,7 @@ ARCH-DRY: existing tracker CAS, managed suite, measurement and reviewer owners a
 | `runBenchStep` | INTEGRATION | new `cmd/sdlc/bench_step.go`; modify `bench_cmd.go` | step cwd/with.json/env/atomic output boundary |
 | `prepareBenchTemplate`, `instantiateBenchSession` | INTEGRATION | modify `bench_prepare.go` | separate immutable preparation from fresh mutable runtime roots |
 | `driveBenchSession`, `collectBenchMeasurements` | INTEGRATION | adapt `bench_runtime.go`, `bench_control.go`, `bench_measure.go`, `bench_collect.go`, `bench_metrics.go` | exact identity, receipt, close-proof, retirement and one-capture measurement owners retained |
-| `scoreBenchStep`, `evaluateBenchAcceptance` | INTEGRATION | adapt `bench_scoring.go`, `bench_score.go` | consume immutable retired-session proof, no run-store or row publication |
+| `scoreBenchStep`, `evaluateBenchAcceptanceWith` | INTEGRATION | adapt `bench_scoring.go`, `bench_score.go` | consume immutable retired-session proof, no run-store or row publication |
 | `couch/prepare`, `couch/session`, `couch/score`, `couch/grade` | INTEGRATION | new couch-bench `steps/couch/*` and `tests/` | ordinary Metis wrappers; grade uses Metis manual-step support |
 | experiment and repeat configuration | DECLARATIVE | couch-bench `experiments/ariadne-491.md` | first task, exact models/oracle pins, optional grade policy |
 
@@ -304,10 +304,13 @@ The independent Ariadne refactor and couch-bench seed are implemented and focuse
 | `writeBenchTemplate`, `readBenchTemplate` | `cmd/sdlc/bench_template.go` | bounded deterministic regular archive; exact modes/bytes/contained links |
 | `prepareBenchTemplate`, `instantiateBenchSession` | `cmd/sdlc/bench_prepare.go` | source/oracle validation separated from fresh runtime creation/CAS |
 | `runBenchObserver`, `acceptBenchRetirement` | `bench_runtime.go`, `bench_control.go` | exact generation/receipt/close proof and supported explicit retirement |
-| `scoreBenchEvidence`, `evaluateBenchAcceptance` | `bench_scoring.go`, `bench_score.go` | exclusive hidden-evaluation intent, immutable first result and managed scorer custody |
+| `scoreBenchEvidence`, `evaluateBenchAcceptanceWith` | `bench_scoring.go`, `bench_score.go` | exclusive hidden-evaluation intent, immutable first result and managed scorer custody |
 
 Every step additionally requires immutable `tool_sha256` and `tool_revision` inputs, checked against the actual executable/build and source HEAD. Native `reads.json` includes all tracked source-checkout files, rather than an extension filter omitting embedded assets; the closure is capped at 10,000 paths and its writer at 1 MiB. Unknown numeric coverage remains absent. A command-level hidden oracle emits `hidden_command_passed`, not a fabricated case pass rate. The current #491 experiment remains a draft and grade refuses until the actual Metis manual/skip support is wired; no temporary substitutes or private ledger.
 
 Focused proof: final combined root checks PASS 119.114s; pure race PASS 1.392s; staged lint PASS 1.334s; TL help PASS 0.246s; whitespace clean. New evidence-identity and output-limit controls were observed red then green; the two original Agent stamp failures are now covered and green. Remaining implementation uses delivered Metis interfaces, not the obsolete standalone run recipe.
 
 - 2026-10-23, ownership revision approved by ops:0 in submitted receipt `d1f1f088-d1a7-4dd4-bf5b-d8f26306e60e`: the new couch-bench:0 owns its repository's four steps and experiments through couch-bench issues. This slot owns Ariadne #577 only; coordinate the native contract and true acceptance run directly after Metis changes land. Do not make further consumer repository edits here. The real replay/row and close gates remain outstanding; this changes ownership, not acceptance.
+
+
+- 2026-10-23, machine-admission revision approved by ops:0 (submitted canonical receipts `8d6f263a-7b6d-4c11-bde9-5ecdb937f721` and `fd869bad-33e2-422a-8c6a-1650a4f3084b`): replay suites must queue through the current bench tool's verified `tool_source/scripts/test-lock.py`, never the replay pin's helper. Version the public bench context and bind the physical supplier path and SHA-256; validate before worker run/resume and each scorer admission. Changed or missing supplier refuses before queueing with no historical fallback. Ordinary local-check supplier resolution and replay product bytes stay unchanged. This follows real ticket 155's legacy admission, which forced revocation of #578's grant under the mixed-policy rule. Let that retained calibration finish; do not cancel or replace it.
