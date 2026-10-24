@@ -169,3 +169,88 @@ dispose:
    Add a `## Revisions` entry expanding BR-1’s enumeration to all Go binding-write forms, including range assignments, and to mutation or escape of children after storage. Keep the class-fix completion claim pending until these regressions pass through both APIs.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b2a38413-e32c-4705-80c8-1acbe319fa35","repository":"github.com/xianxu/ariadne","issue_id":"000590","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/2e1c466d7cdc4564","reviewed_head":"c5f9d98cf00c351ad254cd4696e391e03053301a","slot":"ariadne:3","requested_at":"2026-10-24T12:39:27.635974Z"},"phase":"finished","pid":31111,"started_at":"2026-10-24T12:39:27.7397Z","finished_at":"2026-10-24T12:43:06.561437Z","session_id":"01a16dec-5972-71a3-bcbf-c60cf7a4a299","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T05:54:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 590 — Qualify recursive JSON lint against independent oracles and DOM materializers |
+| repo | ariadne |
+| issue file | workshop/issues/000590-json-lint-role-counterexamples.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | b7eb6073c2482053f8237c481d05b9a7db092e8b..aa3c9a767075f7d4a6a3a290c9988116bdafa6fc |
+| command | sdlc close --issue 590 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-24T05:54:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The reduced scope matches the final issue and plan revisions. Automatic role inference is completely removed, the original matcher is preserved, and diagnostics recommend consumer-owned remediation. BR-1 is addressed by removing its defective mechanism. No blocking findings remain. The recorded pre-close check must still pass before landing.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ARCH-PURPOSE: the final scope removes all automatic role exemptions. Verified rules.go is byte-identical to base except diagnostic line 103, and role-proof entities are absent. The committed capture regression passes through Check and CheckSources and fails behaviorally against c5f9d98cf's exemption implementation in disposable copies.
+```
+
+Done-when: current — the issue’s Revisions explicitly supersede the original acceptance criteria with “Current Done when” at line 114, covering the reduced implementation.
+
+1. **Strengths**
+
+   - Original detection remains unchanged: `pkg/golint/rules.go:557`.
+   - Diagnostic preserves consumer ownership and independent roles: `pkg/golint/rules.go:103`.
+   - Both captures test annotated acceptance and unannotated findings through both APIs: `pkg/golint/json_scanner_test.go:22`.
+   - Atlas and fixture documentation accurately describe the retained site-review boundary.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   - `go test ./pkg/golint -count=1` passed, including tracked-source catalog checks.
+   - `go test -race ./pkg/golint -count=1` passed.
+   - Capture regression failed against the previous exemption implementation through both APIs.
+   - Diagnostic regression failed with the base message restored.
+   - Disposable copies were removed; reviewed checkout remains unchanged.
+   - Full pre-close completion was not established by this review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** existing matcher and suppression machinery reused.
+   - **ARCH-PURE — pass:** matcher remains AST-only; fixture IO stays in test setup.
+   - **ARCH-PURPOSE — pass:** final approved scope is delivered; the defective exemption class is removed entirely.
+   - **ARCH-MOCK — pass:** no new external dependency or interaction.
+   - **ARCH-CONSTRAINTS — pass:** matcher implementation and runtime cost remain unchanged.
+   - **ARCH-SECURE — pass:** no new trust boundary or inferred authority.
+   - **ARCH-ORDER — pass:** no state retained between invocations.
+   - **ARCH-FUNERAL — pass:** fixed committed fixtures; no accumulating artifacts.
+   - **ARCH-EVOLVE — pass:** no persisted-format changes.
+
+   The final revision explicitly supersedes the historical Core concepts table. Atlas coverage is present. No new command, flag, configuration key, or annotation syntax requires a README update.
+
+7. **Plan revision recommendations**
+
+   None; the final revision accurately records the reduced scope and remaining landing gates.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7064a108-954e-4990-9f61-472e97c6eb89","repository":"github.com/xianxu/ariadne","issue_id":"000590","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/d254766febf68835","reviewed_head":"aa3c9a767075f7d4a6a3a290c9988116bdafa6fc","slot":"ariadne:3","requested_at":"2026-10-24T12:52:01.29768Z"},"phase":"finished","pid":86930,"started_at":"2026-10-24T12:52:01.463918Z","finished_at":"2026-10-24T12:54:58.458608Z","session_id":"01a16df7-d938-7072-b144-9c5aeb7182df","outcome":"returned"}] -->

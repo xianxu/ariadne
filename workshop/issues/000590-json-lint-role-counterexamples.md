@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "671f3cea", done: "1474947d"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Qualify recursive JSON lint against independent oracles and DOM materializers
@@ -54,6 +54,8 @@ Pair#861 qualification found51 new catalog findings. Three actual duplicate vali
 Pair retains the complete observed lint log in its #838 evidence and filed adoption #861. TL explicitly authorized reasoned per-site lint:allow only at these two declarations, naming this upstream issue, pending its correction. These are temporary proven-false-positive annotations, not blanket waivers. Please notify pair:3 on landing.
 
 ### 2026-10-24 — claimed, investigated and planned
+- 2026-10-24: closed — Ops approved reduced scope in final issue/plan Revisions: original matcher restored unchanged, no role-proof exemptions; only consumer-owned diagnostic and sanctioned reasoned per-site allows ship. Exact Pair captures report without their allows and pass with them through Check and CheckSources; existing validator tests unchanged. Full golint passed1.293s and race10.099s including catalog; atlas and lessons updated; pair:3 receipt submitted. Fresh recorded pre-close lease-792232057 queued; wait for pass before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — an earlier round of this close already ran the full review
 
 Claimed and started from fresh main on 000590-json-lint-role-counterexamples, leaving #589's clean pushed branch intact. Its recorded pre-close suite remains retained in session31958, lease-355567331; no restart/cancel. Read current matcher and both real Pair counterexamples at Git HEAD 50a6a163f9551bd4e5a7ebfa5746eba0e7d83eda. Root cause: Token+More+self-recursion+any string map is treated as duplicate-validator authority, regardless of returned values or differential-test purpose. No peer edits, new suppression, implementation or runtime JSON policy changes made. Proposed shared bounded AST role qualification and module-owned diagnostic remediation; sent to hub before code.
 
