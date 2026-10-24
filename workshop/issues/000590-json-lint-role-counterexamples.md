@@ -40,7 +40,9 @@ Durable plan: [JSON scanner roles](../plans/000590-json-lint-role-counterexample
 
 - [x] Approved role boundaries; captured both Pair counterexamples before implementation.
 - [x] Implement positive materializer/oracle role qualification with unchanged true-positive controls, accessible remediation and counted scan tests.
-- [ ] Replay real captures, update guidance, recorded pre-close/close/land, then notify pair:3 to remove its two temporary allows.
+- [x] Replay real captures through Check and CheckSources and update atlas/lessons guidance.
+
+Delivery gates remain: recorded pre-close result, mandatory close review, landing, then notify pair:3 to remove its two temporary allows. No full-suite pass is claimed while queued.
 
 ## Log
 
@@ -68,3 +70,11 @@ One lexical AST summary visits each node once:8/16 generated helper groups have4
 ### 2026-10-24 — role controls and docs complete
 
 Full golint package passed1.246s and race8.741s at the first checkpoint. Additional red controls then caught rebound or address-exposed closure self bindings, including parenthesized assignment/address forms; shared summary binding evidence now invalidates those roles and reuses assignedRoot for normalization. Existing package-wide scanners/closures/methods remain checked; no new blanket exemption. Atlas and lessons explain role qualification, conservative limits and consumer-owned remediation. Final full golint race run passed9.822s, including the tracked catalog and all role controls; then push and record pre-close on the final head. #589 suite remains retained separately.
+
+### 2026-10-24 — retained pre-close and review preparation
+
+Central pre-close on0f910acca is retained as shell session8547, lease-459019387, attempt85a587db0c0e9932d4116f2040ad2d38. Detached checkout /Volumes/TestScratch/local-checks/sdlc-local-3525614321; raw log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/85a587db0c0e9932d4116f2040ad2d38/run.log . Initially queued position5 behind other fleet work; keep it. The duplicate-suite notice names #589's different-issue lease-355567331: preserve both; these are separate issues, not replacement runs.
+
+Actual preview succeeded on the branch through active-time-v3-branch-v1, with witnessed resting exclusions labelled; close will measure/adopt normally, no typed actual. Central binary version reports b3a1850018e1664c2dc38b21e7075a77fa748d8d, modified=false. Read-only #589 shard inspection proves active progress (fresh run/pass events, one SDLC shard completed and the packages stream completed); its outer log is buffered, not evidence of a dead runner. Native qualification for #589 stays held.
+
+Implementation checkboxes are complete; delivery gates are listed separately so review may overlap the retained queued check without claiming a full-suite pass or landing early. No review or merge bypass.
