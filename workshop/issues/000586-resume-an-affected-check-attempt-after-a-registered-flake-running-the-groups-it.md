@@ -1,12 +1,12 @@
 ---
 id: 000586
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-24
 estimate_hours:
-card_mirror: '035e23c253b472fcde9b528908b2873759d506ce' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f3a2629520b3c9476347b7a59f7d7af1e3ad1915' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T22:52:14-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: N/A
 ---
 
 # Resume an affected-check attempt after a registered flake, running the groups it never reached
