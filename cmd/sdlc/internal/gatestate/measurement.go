@@ -3,6 +3,7 @@ package gatestate
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -313,12 +314,18 @@ func (m MeasurementInputs) Validate() error {
 	if sourceCount > SnapshotLimitSources {
 		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)
 	}
+	// The encoder refuses a value past its structural cap before this check
+	// can count it; both report the same counted refusal (#593).
 	data, err := json.Marshal(m)
+	var size *measurementSizeError
+	if errors.As(err, &size) {
+		return m.oversize(fmt.Sprintf("at least %d", size.Bytes))
+	}
 	if err != nil {
 		return fmt.Errorf("measurement snapshot does not serialize (%s): %w", m.sizeCounts(), err)
 	}
-	if limit := measurementSnapshotLimit(m.Version); len(data) > limit {
-		return fmt.Errorf("measurement snapshot is %d bytes, over the version %d bound of %d (%s)", len(data), m.Version, limit, m.sizeCounts())
+	if len(data) > measurementSnapshotLimit(m.Version) {
+		return m.oversize(strconv.Itoa(len(data)))
 	}
 	for i, e := range m.Engagements {
 		field := fmt.Sprintf("engagements[%d]", i)
@@ -508,6 +515,10 @@ func measurementTime(field, value string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("measurement %s must be RFC3339: %w", field, err)
 	}
 	return parsed, nil
+}
+
+func (m MeasurementInputs) oversize(bytes string) error {
+	return fmt.Errorf("measurement snapshot is %s bytes, over the version %d bound of %d (%s)", bytes, m.Version, measurementSnapshotLimit(m.Version), m.sizeCounts())
 }
 
 // sizeCounts names what a snapshot's size grows with, for a refusal (#593).

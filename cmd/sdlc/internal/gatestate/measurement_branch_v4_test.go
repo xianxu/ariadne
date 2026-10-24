@@ -247,3 +247,20 @@ func TestMeasurementV4PreservesUnknownMembers(t *testing.T) {
 		}
 	}
 }
+
+// #593 close review: intervals per source have no count bound, so a window
+// inside the source bound can pass the encoder's structural cap. That too is
+// the counted refusal, never the late MarshalJSON failure.
+func TestMeasurementPastStructuralCapCountedRefusal(t *testing.T) {
+	m := windowShaped(SnapshotLimitSources)
+	since, _ := time.Parse(time.RFC3339, m.Since)
+	r := &m.Branches[0]
+	for i := 0; i < 4000; i++ {
+		start := since.Add(time.Duration(3*i) * time.Second)
+		r.Intervals = append(r.Intervals, MeasurementBranchInterval{Source: "codex/unlisted-0191d03b-74fe-4185-8091", Start: start.Format(time.RFC3339), End: start.Add(2 * time.Second).Format(time.RFC3339), Branch: "main-slot2", Kind: "ownership-only"})
+	}
+	err := m.Validate()
+	if err == nil || strings.Contains(err.Error(), "does not serialize") || !strings.Contains(err.Error(), "bytes, over the version 4 bound of 131072") || !strings.Contains(err.Error(), "at least ") || !strings.Contains(err.Error(), "4256 branch intervals") {
+		t.Fatalf("past the structural cap: %v", err)
+	}
+}

@@ -95,7 +95,7 @@ Rejected alternatives:
 
 ## Plan
 
-- [ ] Write failing tests in `cmd/sdlc/internal/gatestate/measurement_branch_v4_test.go`:
+- [x] Write failing tests in `cmd/sdlc/internal/gatestate/measurement_branch_v4_test.go`:
   - `TestCompactBranchesRoundTrip`: compact and then expand returns identical evidence, including interval branches that differ from the record, an empty-branch `ownership-only` interval, a source missing from `sources`, and unknown members on the record and interval.
   - `TestExpandBranchesRefusesBadIndex`.
   - `TestMeasurementV4Issue586Shape`: 75 sources, 1 record, 150 intervals, a 112-character branch. It validates, the JSON is under 64 KiB, and it round-trips through JSON and YAML to an equal value.
@@ -104,15 +104,31 @@ Rejected alternatives:
   - `TestMeasurementV3ReplaysUnchanged`: a v3 golden snapshot decodes and re-encodes byte-identically, and a v3 snapshot over 64 KiB still refuses.
   - `TestMeasurementV4RefusedByOlderReader`: the frozen `measurementv1` reader, and the version check as a pre-#593 reader runs it, refuse version 4.
   - `TestMeasurementV4PreservesUnknownMembers`.
-- [ ] Implement the wire types and `compactBranches` / `expandBranches` in `measurement_branch_v4.go`.
-- [ ] Add the version-aware limit and the structural cap, plus `Validate`'s counted refusal and the version gate (branch methods accept 3 or 4) in `measurement.go`. Codec: `checkMeasurementJSON` and the YAML budget use the structural cap, and the v4 `branches` member is swapped in the MarshalJSON, MarshalYAML and UnmarshalJSON paths in `measurement_codec.go`.
-- [ ] Writer: `actualinputs.go` writes version 4.
-- [ ] Run `go test ./cmd/sdlc/internal/gatestate/` and `go test ./cmd/sdlc -run 'Actual|Measurement|Branch|Close'`.
-- [ ] Docs: the `sdlc actual` help (`cmd/sdlc/helptext/actual.md`, the BRANCH ATTRIBUTION section), covering the v4 compact proof, the 128 KiB bound, and the counted refusal. Atlas: the measurement entry, if one names the 64 KiB bound.
-- [ ] Verify by re-measuring #586 with the built binary: `sdlc actual --issue 586` gives a number, not a refusal.
+- [x] Implement the wire types and `compactBranches` / `expandBranches` in `measurement_branch_v4.go`.
+- [x] Add the version-aware limit and the structural cap, plus `Validate`'s counted refusal and the version gate (branch methods accept 3 or 4) in `measurement.go`. Codec: `checkMeasurementJSON` and the YAML budget use the structural cap, and the v4 `branches` member is swapped in the MarshalJSON, MarshalYAML and UnmarshalJSON paths in `measurement_codec.go`.
+- [x] Writer: `actualinputs.go` writes version 4.
+- [x] Run `go test ./cmd/sdlc/internal/gatestate/` and `go test ./cmd/sdlc -run 'Actual|Measurement|Branch|Close'`.
+- [x] Docs: the `sdlc actual` help (`cmd/sdlc/helptext/actual.md`, the BRANCH ATTRIBUTION section), covering the v4 compact proof, the 128 KiB bound, and the counted refusal. Atlas: the measurement entry, if one names the 64 KiB bound.
+- [x] Verify by re-measuring #586 with the built binary: `sdlc actual --issue 586` gives a number, not a refusal.
 
 ## Done when (from the issue)
 
 - A window shaped like #586 measures and is retained under the bound, and a regression test pins that shape.
 - At `SnapshotLimitSources`, a window either fits or refuses up front with the counted error, never late inside MarshalJSON.
 - Replay of an existing v3 snapshot is unchanged.
+
+## Revisions
+
+- 2026-10-24 (close review round 1, BR-1): the counted refusal covers every
+  size failure, not only the version bound. Branch intervals and windows per
+  source have no count bound, so a window within `SnapshotLimitSources` can
+  pass the codec's 512 KiB structural cap. `checkMeasurementJSON` now returns a
+  typed `measurementSizeError`, and `Validate` reports it, through
+  `MarshalJSON`'s wrapping, as the same counted refusal ("at least N bytes").
+  `TestMeasurementPastStructuralCapCountedRefusal` pins this with 4,256
+  intervals. The operating envelope's "128 sources fit" assumes about two
+  intervals per source. Past that, the bound is the honest refusal, not a
+  failure inside serialization.
+- v4 JSON writes top-level members in sorted order (re-serialized through a
+  map). This is deterministic, the round-trip tests cover it, and only v4 is
+  affected; v3 bytes are unchanged.

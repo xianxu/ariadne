@@ -38,11 +38,19 @@ func measurementKeys(v any) map[string]reflect.Kind {
 	return out
 }
 
+// measurementSizeError is a measurement value over a byte bound. Validate
+// reports it with the snapshot's counts wherever the encoder hit it (#593).
+type measurementSizeError struct{ Bytes, Limit int }
+
+func (e *measurementSizeError) Error() string {
+	return fmt.Sprintf("measurement exceeds %d bytes", e.Limit)
+}
+
 // checkMeasurementJSON bounds the complete tree before custom child decoders
 // recurse, and refuses duplicate members even within opaque future values.
 func checkMeasurementJSON(data []byte) error {
 	if len(data) > measurementStructuralLimit {
-		return fmt.Errorf("measurement exceeds %d bytes", measurementStructuralLimit)
+		return &measurementSizeError{Bytes: len(data), Limit: measurementStructuralLimit}
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
@@ -368,7 +376,7 @@ func (m *MeasurementInputs) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if limit := measurementSnapshotLimit(probe.Version); len(data) > limit {
-		return fmt.Errorf("measurement exceeds %d bytes", limit)
+		return &measurementSizeError{Bytes: len(data), Limit: limit}
 	}
 	var compact []measurementBranchEvidenceV4
 	if probe.Version == MeasurementCompactBranchInputsVersion && probe.Branches != nil {

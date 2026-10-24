@@ -63,10 +63,11 @@ BRANCH ATTRIBUTION IN TRACKER REPOSITORIES (#580)
   than 64 KiB, so the 128-source bound binds first. A snapshot still over its
   bound refuses with its size, the bound and its source and interval counts.
   Adopted version 3 snapshots replay unchanged. Older readers must refuse the
-  new method or version rather than silently drop a crossing execution span. Existing adopted v1/v2
-  snapshots replay unchanged, even after live HEAD logs expire. The standalone
-  active-time command uses the same tracked defaults; its raw directories and
-  time bounds only narrow verified inputs. No-tracker behavior is unchanged.
+  new method or version rather than silently drop a crossing execution span.
+  Existing adopted v1/v2 snapshots replay unchanged, even after live HEAD logs
+  expire. The standalone active-time command uses the same tracked defaults;
+  its raw directories and time bounds only narrow verified inputs. No-tracker
+  behavior is unchanged.
 
 OUTPUT
 
