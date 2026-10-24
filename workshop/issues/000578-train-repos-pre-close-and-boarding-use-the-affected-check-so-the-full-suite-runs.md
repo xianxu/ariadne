@@ -85,6 +85,10 @@ resolution is read once per command from main. ARCH-CONSTRAINTS: two `git show` 
 - 2026-10-23 (implementation): the refusals name `sdlc local-check run --pre-close` in every repository rather than
   resolving affected or suite themselves. The flag resolves at run time, so the pure refusal functions take no repo
   state; their tests pin the command.
+- 2026-10-23 (close review round 1): the atlas paragraph went to `ci-merge-check.md` (the affected suite's home),
+  not `sdlc-binary.md`. BR-1/BR-2 swept every pre-close restatement to `--pre-close`: README (landing line,
+  local-check, affected), atlas `sdlc-binary.md` (landing line, test lock, command row), `ci-merge-check.md`, and the
+  embedded `local-check` help.
 
 ## Log
 
@@ -98,4 +102,8 @@ resolution is read once per command from main. ARCH-CONSTRAINTS: two `git show` 
 - `TestLocalCheckCmdPreClose` and the train tests need the host preflight (boot identity), so they run outside the
   sandbox; inside it they fail with "operation not permitted", as the other local-check CLI tests do.
 - Filed #581 (pair:3's answered-grammar report); the TL assigned it to me next.
+- Close review round 1 (FIX-THEN-SHIP): BR-1 and BR-2 fixed as one class (every doc that restated the pre-close run;
+  swept with `grep -i 'pre-close suite\|--name suite'` over README, atlas and cmd help). The Minor (an empty change
+  under `--pre-close` suggests `--name suite`) needs no change: with nothing changed there is nothing affected to
+  prove, so the suite is the right next action for a pre-close caller too.
 

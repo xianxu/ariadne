@@ -88,7 +88,8 @@ func TestEveryFlagAppearsInItsHelp(t *testing.T) {
 func TestLocalCheckHelpKeepsIntegrationInLandingTurn(t *testing.T) {
 	help := strings.Join(strings.Fields(renderLong("local-check")), " ")
 	for _, want := range []string{
-		"After the branch suite passes, close that tested branch without manually integrating each newer main",
+		"After the pre-close check passes, close that tested branch without manually integrating each newer main",
+		"sdlc local-check run --pre-close",
 		"Branch code fixes still need verification",
 		"noon freshness gate still applies",
 		"it owns a landing turn while integrating current main",

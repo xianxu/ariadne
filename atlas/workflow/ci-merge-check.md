@@ -278,8 +278,8 @@ first-class evidence, recorded on the commit it ran on:
   **main's** Makefile in a detached worktree, under a goal that is not `test`,
   so the probe takes no lock. A branch therefore cannot drop or lighten its own
   suite. A declared `suite` overrides execution settings but is always required,
-  even when `required` is omitted or false. Agents run it before close with
-  `sdlc local-check run --name suite`.
+  even when `required` is omitted or false. Agents run the pre-close check
+  before close with `sdlc local-check run --pre-close` (#578), which is this suite outside train repos.
   - **Bootstrap (#536):** `localchecks_bootstrap.go` shares main-first
     derivation between CLI and CI facts. Only absent main declaration plus a
     successful negative main probe allows default `make test` and weight from
