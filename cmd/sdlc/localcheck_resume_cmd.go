@@ -59,7 +59,7 @@ func newLocalCheckResumeCmd() *cobra.Command {
 		ctx := commandContext(c.Context())
 		var sel resumeSelectionFunc
 		if f.Name == affectedCheckName {
-			if check, sel, err = affectedResumePlan(d, check, sha); err != nil {
+			if check, sel, err = affectedResumePlan(d, check, sha, func(base string, cfg affected.Config) affectedDeps { return productionAffectedDeps(d, base, cfg) }); err != nil {
 				return err
 			}
 		}
@@ -78,8 +78,9 @@ func newLocalCheckResumeCmd() *cobra.Command {
 
 // affectedResumePlan is an affected resume's check and selection planner
 // (#586): main's current affected.json, planned on the original head exactly
-// as a fresh affected run plans it.
-func affectedResumePlan(d localRunDeps, suite localCheck, sha string) (localCheck, resumeSelectionFunc, error) {
+// as a fresh affected run plans it. deps builds the planner's seams from the
+// pinned main and its config (productionAffectedDeps outside tests).
+func affectedResumePlan(d localRunDeps, suite localCheck, sha string, deps func(base string, cfg affected.Config) affectedDeps) (localCheck, resumeSelectionFunc, error) {
 	main, err := d.Git("rev-parse", "--verify", "origin/main^{commit}")
 	if err != nil {
 		return suite, nil, fmt.Errorf("local-check resume: pin origin/main: %w", err)
@@ -92,7 +93,7 @@ func affectedResumePlan(d localRunDeps, suite localCheck, sha string) (localChec
 	if !ok {
 		return suite, nil, fmt.Errorf("local-check resume: origin/main declares no %s; resume --name %s", affectedConfigPath, suiteCheckName)
 	}
-	ad := productionAffectedDeps(d, main, cfg)
+	ad := deps(main, cfg)
 	return affectedCheckDecl(cfg, suite), func(ctx context.Context) (affected.Selection, error) {
 		if cfg.GraphPrepare != nil {
 			var stop func()

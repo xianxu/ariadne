@@ -325,7 +325,9 @@ RESUME A SAVED SUITE OR AFFECTED FAILURE (#463, #586)
   the head selects now (planned as a fresh affected run, under main's current
   .sdlc/affected.json), with no Go packages, after the reruns, under the
   affected check's weight and timeout. A selection that is now full or empty
-  runs nothing and points at the suite. The record is sdlc-local/affected. A
+  runs nothing and points at the suite. The record is sdlc-local/affected; its
+  scope is the replanned selection, so when main's affected.json or the graph
+  moved since the parent ran, it can name Go packages neither run tested. A
   fresh affected run's known-flake rerun runs the groups the same way. Its link
   is version 5, which an older sdlc fences as that head's newer evidence.
 

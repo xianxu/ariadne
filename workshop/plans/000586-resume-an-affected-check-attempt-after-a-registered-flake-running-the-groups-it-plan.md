@@ -137,37 +137,37 @@ in shape; the validator learns the affected parent/link pairing.
 `Rerun *affectedRerun` on `localCheck`) and `cmd/sdlc/localcheck_affected.go` (`affectedLocalCheck` sets it and
 reuses one env builder).
 
-- [ ] Write `TestAffectedRerunBatch`: nil → unchanged; no groups → unchanged; groups → one appended
+- [x] Write `TestAffectedRerunBatch`: nil → unchanged; no groups → unchanged; groups → one appended
   `env SDLC_AFFECTED_GO_PKGS= SDLC_AFFECTED_GROUPS=a b <cmd…>` argv. Also assert `affectedLocalCheck` builds its
   command through the same env builder, so the two cannot drift.
-- [ ] Run `go test ./cmd/sdlc -run TestAffectedRerunBatch`: it fails (undefined).
-- [ ] Implement it:
+- [x] Run `go test ./cmd/sdlc -run TestAffectedRerunBatch`: it fails (undefined).
+- [x] Implement it:
   ```go
   type affectedRerun struct{ Command, GoPkgs, Groups []string }
   func affectedEnvCommand(cmd, goPkgs, groups []string) []string // env argv; used by affectedLocalCheck too
   func affectedRerunBatch(rerun [][]string, a *affectedRerun) [][]string
   ```
-- [ ] Run it: it passes. Commit `#586: affected rerun batch shared by both flake paths`.
+- [x] Run it: it passes. Commit `#586: affected rerun batch shared by both flake paths`.
 
 ### Task 2: The inline step runs the groups (pre-existing gap)
 
 **Files:** modify `cmd/sdlc/localcheck_flakes.go` (`knownFlakeStep`: batch + D6 envelope) and
 `cmd/sdlc/localcheck_affected_flakes_test.go`.
 
-- [ ] Change `TestAffectedKnownFlakeReruns` so an affected check with groups `a b` expects the rerun argv to include
+- [x] Change `TestAffectedKnownFlakeReruns` so an affected check with groups `a b` expects the rerun argv to include
   the groups command. Add `TestAffectedKnownFlakeGroupsFailRefuses`: the flake passes, a group fails, and the outcome
   is not `KnownFlakePassed` and posts no success. Add a no-groups case where the batch is unchanged.
-- [ ] Run them: they fail.
-- [ ] Implement `commands = affectedRerunBatch(commands, g.check.Rerun)`, with weight and timeout from D6.
-- [ ] Run them: they pass. Commit `#586: an affected known-flake rerun also runs its groups`.
+- [x] Run them: they fail.
+- [x] Implement `commands = affectedRerunBatch(commands, g.check.Rerun)`, with weight and timeout from D6.
+- [x] Run them: they pass. Commit `#586: an affected known-flake rerun also runs its groups`.
 
 ### Task 3: `planAffectedSelection` extraction
 
 **Files:** modify `cmd/sdlc/localcheck_affected.go`.
 
-- [ ] Run the existing `localcheck_affected_test.go` and `landingcar_affected_test.go` as the guard (no behavior
+- [x] Run the existing `localcheck_affected_test.go` and `landingcar_affected_test.go` as the guard (no behavior
   change). Extract the selection planning; `runAffectedCheck` calls it.
-- [ ] Re-run them: they pass. Commit `#586: extract affected selection planning for resume`.
+- [x] Re-run them: they pass. Commit `#586: extract affected selection planning for resume`.
 
 ### Task 4: The v5 link, envelope and proof
 
@@ -175,7 +175,7 @@ reuses one env builder).
 `localcheck_resume_store.go:249`; tests in `localcheck_resume_evidence_test.go` and
 `localcheck_typed_oldreader_test.go`.
 
-- [ ] Write the tests:
+- [x] Write the tests:
   - `TestResumeEnvelopeVersionsByCheck`: (3, suite) and (5, affected) pass; (3, affected), (5, suite) and (4, any) are
     refused.
   - `TestResumeSelectionStrict`: v5 without `selection`, with null, unsorted, duplicate or space/control entries is
@@ -186,18 +186,18 @@ reuses one env builder).
     fails → `decodeUnsupportedProof`) yields an `UnsupportedProof` for that head. A suite attempt on another head in
     the same snapshot still resolves, and the snapshot carries no warning.
   - A v5 receipt binds a v5 link by digest.
-- [ ] Run them: they fail.
-- [ ] Implement `ResumeSelection`, the version/check table in `resumeEnvelope`, `selection` required on v5 links in
+- [x] Run them: they fail.
+- [x] Implement `ResumeSelection`, the version/check table in `resumeEnvelope`, `selection` required on v5 links in
   `decodeResumeEvidence`, the parent check relaxed to `isTestCheck` with the link pairing, and retention predicates
   that compare against the parent's check. `resume_store.go:249` uses the locked parent's check.
-- [ ] Run them: they pass. Commit `#586: version 5 resume link fences an affected selection`.
+- [x] Run them: they pass. Commit `#586: version 5 resume link fences an affected selection`.
 
 ### Task 5: The saved resume for affected
 
 **Files:** modify `cmd/sdlc/localcheck_resume.go`, `localcheck_resume_saved.go:116-131,187` and
 `localcheck_resume_cmd.go`; tests in `localcheck_resume_saved_test.go` and `localcheck_resume_test.go`.
 
-- [ ] Write the tests. These are the Done-when tests:
+- [x] Write the tests. These are the Done-when tests:
   - `TestResumeAffectedRunsFlakesThenGroups`: a saved affected attempt failed only on a registered flake (log shows
     the Go failure, no groups). Resume reruns the test, then runs groups `a b`, and posts `sdlc-local/affected`
     success with `KnownFlakePassed`, `ResumeParent`/`ResumeChild` and scope "N packages, groups a b". The link on disk
@@ -211,8 +211,8 @@ reuses one env builder).
   - A repeat resume (or republish) of a passed affected bundle reposts from proof without rerunning.
   - In `TestResumeCLIValidation`, `--name affected` is accepted, `--name lint` is refused with "only suite or
     affected", and `--name` is still required.
-- [ ] Run them: they fail.
-- [ ] Implement it:
+- [x] Run them: they fail.
+- [x] Implement it:
   - `resumeSaved(ctx, d, ad, c, sha, parent)`: parent check == `c.Name`. For affected, plan the selection (D3) and
     write the link `{Version: 5, Check: affected, Selection}`. The batch is `affectedRerunBatch` with D6.
   - `loadSavedAttemptCurrent(…, c.Name, …)`, and the retry and republish hints name `c.Name`.
@@ -222,16 +222,16 @@ reuses one env builder).
   - In the CLI, `--name suite|affected`. Affected reads `readAffectedConfig(main)`; an undeclared config refuses. It
     builds `productionAffectedDeps`, and its output line names the check.
   - The `localcheck_run.go` hint prints for affected too: `sdlc local-check resume --name affected --attempt …`.
-- [ ] Run them: they pass. Commit `#586: resume an affected attempt: flakes, then its groups`.
+- [x] Run them: they pass. Commit `#586: resume an affected attempt: flakes, then its groups`.
 
 ### Task 6: Help, atlas, verification
 
-- [ ] `cmd/sdlc/helptext/local-check.md`: the resume synopsis takes `--name suite|affected`, with one paragraph on
+- [x] `cmd/sdlc/helptext/local-check.md`: the resume synopsis takes `--name suite|affected`, with one paragraph on
   "reruns the flakes, then every selected group; a full selection refuses". The resume command's `Short` changes to
   match. `atlas/workflow/ci-merge-check.md` gets the same note next to the resume section and the affected section.
-- [ ] Targeted run: `go test ./cmd/sdlc -run 'Resume|Affected|KnownFlake|OldReader|Retention'`. Then the pre-close
+- [x] Targeted run: `go test ./cmd/sdlc -run 'Resume|Affected|KnownFlake|OldReader|Retention'`. Then the pre-close
   check: `sdlc local-check run --pre-close` on the pushed head.
-- [ ] Commit `#586: docs: affected resume`.
+- [x] Commit `#586: docs: affected resume`.
 
 ## Done when (from the issue, with the inline fix)
 
@@ -241,3 +241,23 @@ reuses one env builder).
 - A fresh affected run's known-flake step no longer lands without its groups
   (`TestAffectedKnownFlakeGroupsFailRefuses`).
 - An older sdlc reading a v5 link fences only that head (`TestOldReaderFencesAffectedLinkPerHead`).
+
+## Revisions
+
+- 2026-10-24 (close review round 1): what shipped differs from the plan in
+  three places.
+  - `resumeSaved(ctx, d, c, sel resumeSelectionFunc, sha, parent)` takes a
+    planner closure, not an `affectedDeps`. `affectedResumePlan` in
+    `localcheck_resume_cmd.go` builds the closure from the pinned origin/main
+    and an injected `affectedDeps` constructor (production:
+    `productionAffectedDeps`). `TestAffectedResumePlanWiring` drives that
+    wiring through a fake `affectedDeps` (BR-2).
+  - Test names as shipped: `TestAffectedKnownFlakeRunsGroups` (for
+    `TestAffectedKnownFlakeGroupsFailRefuses`),
+    `TestResumeAffectedGroupFailureRecordsNoPass` and
+    `TestResumeAffectedRefusesFullOrEmptySelection`;
+    `TestAffectedKnownFlakeReruns` is unchanged, and
+    `TestOldReaderFencesAffectedReceiptPerHead` was added for the v5 receipt.
+    `localcheck_resume_retention.go` needed no change.
+  - The resumed record's scope is the replanned selection (D3); the help text
+    now says it can name packages neither run tested when main moved.

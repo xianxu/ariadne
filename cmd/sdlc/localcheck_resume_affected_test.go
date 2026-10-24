@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -271,5 +272,81 @@ func TestResumeRetentionAffectedBundle(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "attempts", link.ID+".json")); err != nil {
 		t.Fatalf("a link bound to another check's parent was retired: %v", err)
+	}
+}
+
+// #586: the production planner pins origin/main, reads its affected.json and
+// plans the original head through the affectedDeps built on that pin, exactly
+// as a fresh run plans; a main without affected.json refuses toward suite.
+func TestAffectedResumePlanWiring(t *testing.T) {
+	const cfgJSON = `{"version":1,"command":["make","test-affected"],"weight":2,"timeout_minutes":20,"full":["go.mod"],"groups":[{"name":"lua","paths":["**/*.lua"]}]}`
+	git := func(declared bool) func(args ...string) (string, error) {
+		return func(args ...string) (string, error) {
+			switch strings.Join(args, " ") {
+			case "rev-parse --verify origin/main^{commit}":
+				return "m1\n", nil
+			case "ls-tree --name-only m1 " + affectedConfigPath:
+				if declared {
+					return affectedConfigPath + "\n", nil
+				}
+				return "", nil
+			case "show m1:" + affectedConfigPath:
+				return cfgJSON, nil
+			}
+			return "", fmt.Errorf("unexpected git %v", args)
+		}
+	}
+	var base string
+	var cfgSeen affected.Config
+	deps := func(b string, cfg affected.Config) affectedDeps {
+		base, cfgSeen = b, cfg
+		return affectedDeps{
+			changed: func(sha string) ([]string, error) {
+				if sha != "h1" {
+					t.Fatalf("changed paths of %s", sha)
+				}
+				return []string{"leaf/leaf.go", "x.lua"}, nil
+			},
+			graph: func(context.Context, string) (affected.Graph, error) {
+				return affected.Graph{Module: "example.com/m", Dir: map[string]string{"example.com/m/leaf": "leaf", "example.com/m/mid": "mid"},
+					Deps: map[string]map[string]bool{"example.com/m/mid": {"example.com/m/leaf": true}}}, nil
+			},
+		}
+	}
+	d := localRunDeps{Git: git(true), Stderr: &strings.Builder{}, suiteCapabilities: func(context.Context) error { return nil }}
+	suite := localCheck{Name: suiteCheckName, Command: []string{"make", "test"}, KnownFlakes: "rerun"}
+	c, plan, err := affectedResumePlan(d, suite, "h1", deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Name != affectedCheckName || strings.Join(c.Command, " ") != "make test-affected" || c.Weight != 2 || c.TimeoutMinutes != 20 || c.KnownFlakes != "rerun" {
+		t.Fatalf("affected declaration %+v", c)
+	}
+	sel, err := plan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if base != "m1" || cfgSeen.Command[0] != "make" {
+		t.Fatalf("deps built on %q with %+v, want the pinned main and its config", base, cfgSeen)
+	}
+	if sel.Full || strings.Join(sel.GoPkgs, " ") != "example.com/m/leaf example.com/m/mid" || strings.Join(sel.Groups, " ") != "lua" {
+		t.Fatalf("selection %+v", sel)
+	}
+	d.Git = git(false)
+	if _, _, err := affectedResumePlan(d, suite, "h1", deps); err == nil || !strings.Contains(err.Error(), "resume --name suite") {
+		t.Fatalf("no affected.json on main: %v", err)
+	}
+}
+
+// #586: an old reader fences a version 5 receipt per head, as it does the
+// link, rather than marking the store incomplete.
+func TestOldReaderFencesAffectedReceiptPerHead(t *testing.T) {
+	in := resumeAffectedPassed(t)
+	l := in.Link
+	r := ResumeReconciliation{Version: 5, Kind: "resume-reconciliation", ID: "ee", Repo: l.Repo, SHA: l.SHA, Check: affectedCheckName, RerunOf: l.RerunOf, LinkID: l.ID, LinkSHA256: in.LinkSHA256, ChildID: l.ChildID, Actor: "uid=1", Note: "stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(1)}
+	raw, _ := json.Marshal(r)
+	p, err := decodeUnsupportedProof(raw, "ee.json")
+	if err != nil || p.Check != affectedCheckName || p.SHA != l.SHA || p.Version != 5 {
+		t.Fatalf("v5 receipt as unsupported proof: %+v %v", p, err)
 	}
 }

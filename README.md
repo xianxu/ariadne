@@ -1016,7 +1016,11 @@ pass with the issue link and no rerun; `off`) is the operator's policy.
 An already saved suite failure can be resumed after its failures are registered:
 `sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA` runs only
 the exact package tests on that pushed commit. It preserves the original suite
-record and duration. Repeating it validates and reposts completed proof without
+record and duration. A saved affected failure resumes the same way with
+`--name affected` (#586): it replans the original head against main's current
+`.sdlc/affected.json`, reruns the registered flakes, then runs every selected
+group, and records `sdlc-local/affected`. A selection that is now full or
+empty runs nothing and points at `--name suite`. Repeating it validates and reposts completed proof without
 executing tests. A pending or interrupted resume blocks later success on the
 same commit. After a crash, the operator or :0 steward verifies all descendants
 stopped, then runs the exact `local-check reconcile --attempt ID --link-digest
