@@ -1,12 +1,12 @@
 ---
 id: 000599
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '6cb2c15177ee98a4ef9c1865e3b2368473036921' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '21ed23a9c5ba9bf493ae9321eb6e4ea7815d6bd4' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T10:45:56-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "a1af2ce4", done: "4447d243"}
+actual_hours: N/A
 ---
 
 # Suite-runner tests report TimedOut after milliseconds under load
