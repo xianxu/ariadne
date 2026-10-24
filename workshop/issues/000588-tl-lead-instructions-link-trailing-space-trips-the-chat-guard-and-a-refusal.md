@@ -101,3 +101,7 @@ is already validated by `ValidAnswerTarget`.
   was approved. The fake now models the baseline and the chat guard. pair#862 is filed, unclaimed. The CRLF
   case is tested in `TestLinkBullet` only: `ReconcileIndex` refuses a file with CRLF lines (an existing limit),
   so a CRLF session file can't link through the index at all.
+- 2026-10-24: close review round 1 returned SHIP with three Minors, fixed in this round. `linkInstruction`'s
+  comment now names unlist's byte restore, with the reconcile as fallback. A chat-guard refusal now runs
+  end to end through `link` and the undo (`refuseAt` on the fake; TestIndexLinkRefusedLeavesFile). help.md says
+  what "stays listed without its link" means and what to do.

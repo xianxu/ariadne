@@ -45,8 +45,9 @@ type fakeSessionSync struct {
 	frontWriteCalls int
 	frontWrites     int
 
-	writeCalls int // every WriteSection call
-	lockAt     int // the WriteSection call (1-based) just before which the operator takes the lock
+	writeCalls int           // every WriteSection call
+	lockAt     int           // the WriteSection call (1-based) just before which the operator takes the lock
+	refuseAt   map[int]error // a WriteSection call (1-based) couch refuses with that error, as its guards do
 	// chatGuard models couch's chat guard (pair#838) on ## Operator
 	// instructions: a section write may change an ask only by appending
 	// ` → [answer](…)` at its end, before any trailing `\r`.
@@ -91,6 +92,9 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 	}
 	if f.lockAt == f.writeCalls {
 		f.holder = "operator"
+	}
+	if err := f.refuseAt[f.writeCalls]; err != nil {
+		return err
 	}
 	if f.holder == "operator" {
 		return ErrLocked

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -76,8 +77,9 @@ func TestIndexOneWaySequence(t *testing.T) {
 	}
 }
 
-// A refused link leaves the file as it was (#588): the section write goes
-// stale (an operator edit races it) and the frontmatter goes back to its
+// A refused link leaves the file as it was (#588): couch's chat guard
+// refuses the section write, or it goes stale (an operator edit races it),
+// and the frontmatter goes back to its
 // bytes before the index write, so a rerun from a fresh list lists the entry
 // once. After a frontmatter edit between the writes, a reconcile drops the
 // entry instead. When the lock is taken between the two writes, the undo is
@@ -95,6 +97,15 @@ func TestIndexLinkRefusedLeavesFile(t *testing.T) {
 	}
 	if _, err := link(t, f, file, "1", s4); err != nil || !slices.Equal(entries(t, f), []string{s4}) || !strings.Contains(f.sections[instructionsHeading], "→ [answer]("+s4+")") {
 		t.Fatalf("rerun: %v %v\n%s", err, entries(t, f), f.sections[instructionsHeading])
+	}
+
+	// The issue's case: couch's chat guard refuses the link, and the undo
+	// puts the frontmatter back.
+	f, file = indexFake(t)
+	before = f.text()
+	f.refuseAt = map[int]error{1: errors.New("couch --session-sync write refused (editorial-chat): preserve each chat ask; only append its answer link")}
+	if out, err := link(t, f, file, "1", s4); err == nil || !strings.Contains(err.Error(), "editorial-chat") || f.text() != before || !strings.Contains(out, "index: unlisted "+s4) {
+		t.Fatalf("a guard refusal: %v\n%s\nfile:\n%s", err, out, f.text())
 	}
 
 	f, file = indexFake(t)
