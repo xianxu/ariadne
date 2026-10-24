@@ -25,7 +25,6 @@
         "archive": "workshop/history"
     },
     "scaffold": {
-        "collaboration_mode": "collaboration",
         "sections": [
             {
                 "name": "Charter"

@@ -36,7 +36,6 @@ The trigger across all three is the same: *recognition that a pattern has stabil
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `target` |
-| `collaboration-mode` | yes | `discussion`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `slug` | yes | Lowercase-hyphenated. Matches the filename without `.md`. |
 | `status` | yes | `active` \| `achieved` \| `split` \| `deferred` \| `abandoned`. See *Lifecycle* below. |
 | `created` | yes | ISO date the target was first written. |

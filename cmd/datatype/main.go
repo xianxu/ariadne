@@ -16,7 +16,6 @@ import (
 //
 //	datatype list                 — print each DAG-resolved type's name + description
 //	datatype show <name>          — print the leaf-winning prototype body
-//	datatype lint                 — fail on a type with no default collaboration mode (#415)
 //	datatype --output <dir> [...] — render the per-repo SKILL.md (the render command)
 //
 // The render command (no subcommand, --output given) finds the repo root from
@@ -35,12 +34,6 @@ func main() {
 		switch args[0] {
 		case "list":
 			if err := runList(os.Stdout); err != nil {
-				fmt.Fprintln(os.Stderr, "datatype:", err)
-				os.Exit(1)
-			}
-			return
-		case "lint":
-			if err := runLint(os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "datatype:", err)
 				os.Exit(1)
 			}
@@ -88,12 +81,6 @@ func renderToOutput(output string, warn io.Writer) error {
 	names := make([]string, len(protos))
 	for i, p := range protos {
 		names[i] = p.Name
-	}
-	// Every repository's weave compile runs this render, so it is where a
-	// derived repository's own prototypes meet the #415 lint: warn, don't
-	// fail the compile.
-	for _, p := range lintTypes(layergraph.OSFS{}, protos) {
-		fmt.Fprintln(warn, "datatype: warning:", p, "(run `datatype lint`)")
 	}
 	out := renderSkill(names)
 	// The binary OWNS creating its output dir (#115 M3): the marker passes a

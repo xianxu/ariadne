@@ -1,7 +1,6 @@
 package issue
 
 import (
-	"github.com/xianxu/ariadne/pkg/vocab"
 	"strings"
 	"testing"
 )
@@ -61,7 +60,7 @@ func TestDetailsFromCardMirrorsExactlyAndCarriesTheTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(details)
-	for _, want := range []string{"# Old title", "## Problem\nReport.", "## Spec", "## Done when", "## Plan", "## Log", MirrorField, "deps: []", "collaboration-mode: " + vocab.Issue().CollaborationMode()} {
+	for _, want := range []string{"# Old title", "## Problem\nReport.", "## Spec", "## Done when", "## Plan", "## Log", MirrorField, "deps: []"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("details missing %q:\n%s", want, text)
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,13 +79,15 @@ A note, not a bullet.
 		t.Errorf("bullets\n got %q\nwant %q", got, want)
 	}
 	// Linking bullet 2 lands on its own line, never on the line before it.
-	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md"); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
+	if out, err := linkBullet(sec, 2, "x.side/2026-10-16-01-ci.md", true); err != nil || !strings.Contains(out, "- check CI → [answer](x.side/2026-10-16-01-ci.md)") || !strings.Contains(out, "   - a sub-item\n") {
 		t.Errorf("link 2: %v\n%s", err, out)
 	}
 	// Fenced code starts no bullet and a tab indents. A link ending any line
 	// answers a bullet, so a follow-up added after it keeps it answered
-	// (row 14); a link inside a fence is code, not an answer.
-	const edge = "1. q\n   ```\n- not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
+	// (row 14); a link inside a fence is code, not an answer. Code follows
+	// CommonMark (#576): this fence belongs to item 1, so its contents are
+	// indented under it; an unindented line would end item 1 and its fence.
+	const edge = "1. q\n   ```\n   - not an item\n   x → [answer](z.md)\n   ```\n\t- tabbed sub-item\n2. r → [answer](x.md)\n   - and by repo?\n3. s → [answer](y.md)"
 	bs := instructionBullets(edge)
 	if len(bs) != 3 || len(bs[0].Lines) != 6 || bs[0].Answered || !bs[1].Answered || !bs[2].Answered {
 		t.Errorf("edges: %+v", bs)
@@ -119,7 +122,7 @@ func TestLinkBullet(t *testing.T) {
 		{2, "1. Rename the train → [answer](" + target + ")"},
 		{4, "   ![](assets/tl-status-op/shot.png) → [answer](" + target + ")"},
 	} {
-		got, err := linkBullet(opSection, c.pos, target)
+		got, err := linkBullet(opSection, c.pos, target, true)
 		if err != nil {
 			t.Fatalf("pos %d: %v", c.pos, err)
 		}
@@ -137,25 +140,25 @@ func TestLinkBullet(t *testing.T) {
 			t.Errorf("pos %d: %d lines changed (of %d→%d), want exactly 1", c.pos, changed, len(wl), len(gl))
 		}
 	}
-	if got, err := linkBullet(opSection, 3, target); err != errAlreadyLinked || got != opSection {
+	if got, err := linkBullet(opSection, 3, target, true); err != errAlreadyLinked || got != opSection {
 		t.Errorf("an answered bullet: err %v, changed %v; want errAlreadyLinked and no change", err, got != opSection)
 	}
 	for _, bad := range []string{"", "qa/a b.md", "qa/a.md\n9. fake", "qa/(x).md"} {
-		if _, err := linkBullet(opSection, 1, bad); err == nil {
+		if _, err := linkBullet(opSection, 1, bad, true); err == nil {
 			t.Errorf("target %q: want a refusal", bad)
 		}
 	}
 	// #412: chat mode's answer docs live in the status file's .side/ folder.
 	const side = "tl-status-op.side/2026-10-16-01-s4-cost.md"
-	if got, err := linkBullet("1. what does S4 cost?", 1, side); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
+	if got, err := linkBullet("1. what does S4 cost?", 1, side, true); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
 		t.Errorf("a .side/ target: %q, %v", got, err)
 	}
 	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
-	if got, _ := linkBullet("1. a\r", 1, target); got != "1. a → [answer]("+target+")" {
+	if got, _ := linkBullet("1. a\r", 1, target, true); got != "1. a → [answer]("+target+")" {
 		t.Errorf("CRLF line: %q", got)
 	}
 	for _, pos := range []int{0, 6} {
-		if _, err := linkBullet(opSection, pos, target); err == nil || !strings.Contains(err.Error(), "no bullet") {
+		if _, err := linkBullet(opSection, pos, target, true); err == nil || !strings.Contains(err.Error(), "no bullet") {
 			t.Errorf("pos %d: err %v, want a no-bullet refusal", pos, err)
 		}
 	}
@@ -169,7 +172,7 @@ func TestInstructionsListAndLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := fakeHash(opSection)
-	if !strings.HasSuffix(out, "hash: "+h+"\n") || !strings.HasPrefix(out, "1\t1. Why") {
+	if !strings.HasSuffix(out, "hash: "+h+":legacy\n") || !strings.HasPrefix(out, "1\t1. Why") {
 		t.Fatalf("list output:\n%s", out)
 	}
 	a, b, c := answerDoc(t, file, "2026-10-18-01-a.md"), answerDoc(t, file, "2026-10-18-02-b.md"), answerDoc(t, file, "2026-10-18-03-c.md")
@@ -298,4 +301,77 @@ func TestInstructionsLinkOnlySideDocAnswers(t *testing.T) {
 	if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "1", ok, "--hash", fakeHash(opSection)); err != nil {
 		t.Errorf("a valid answer refused: %v", err)
 	}
+}
+
+// #576: a @@chat@@ tag alone gives the numbered grammar; any legacy
+// declaration, or none, keeps `-`, `*` and `N.` items.
+func TestLegacyGrammar(t *testing.T) {
+	for _, tc := range []struct {
+		name, doc string
+		want      bool
+	}{
+		{"tag alone", "# S\n\n@@chat@@\n## Operator instructions\n1. a\n", false},
+		{"tag and legacy comment", "# S\n\n@@chat@@\n## Operator instructions\n<!-- collaboration-mode: chat -->\n- a\n", true},
+		{"legacy comment", "# S\n\n## Operator instructions\n<!-- collaboration-mode: chat -->\n- a\n", true},
+		{"legacy map", "---\ncollaboration-mode: {chat: [Operator instructions]}\n---\n# S\n\n## Operator instructions\n- a\n", true},
+		{"undeclared", "# S\n\n## Operator instructions\n- a\n", true},
+		{"an enclosing tagged section governs", "@@chat@@\n# Parent\n## Operator instructions\n1. a\n", false},
+		// The heading comes from the parse (#576 round 3): these are all tagged.
+		{"a copy of the heading inside a fence comes first", "```\n## Operator instructions\n```\n@@chat@@\n## Operator instructions\n1. a\n", false},
+		{"a closing ## on the heading", "@@chat@@\n## Operator instructions ##\n1. a\n", false},
+		{"a heading indented by one space", "@@chat@@\n ## Operator instructions\n1. a\n", false},
+	} {
+		if got := legacyGrammar(tc.doc); got != tc.want {
+			t.Errorf("%s: legacyGrammar %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	if bs := sidedoc.ChatItems("1. ask\n- a note, not an ask\n2. another", legacyGrammar("@@chat@@\n## Operator instructions\n")); len(bs) != 2 {
+		t.Errorf("a tagged section takes numbered items only: %d bullets", len(bs))
+	}
+}
+
+// #576 through the session-sync fake: list counts bullets in the grammar the
+// file declares and prints it in its token; link refuses when the grammar
+// changed outside the hashed section since that list, writing nothing.
+func TestInstructionsGrammarThroughTheFake(t *testing.T) {
+	t.Run("tagged file: numbered items only", func(t *testing.T) {
+		f := newFake(map[string]string{instructionsHeading: "1. a\n- a note, not an ask\n2. b\n"})
+		f.pre = "# S\n\n@@chat@@"
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil || !strings.Contains(out, "1\t1. a") || !strings.Contains(out, "2\t2. b") || !strings.HasSuffix(out, ":numbered\n") {
+			t.Fatalf("list: err %v\n%s", err, out)
+		}
+		tok := strings.TrimSpace(strings.TrimPrefix(out[strings.LastIndex(out, "hash: "):], "hash: "))
+		target := answerDoc(t, file, "2026-10-23-01-b.md")
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", tok); err != nil || !strings.Contains(f.sections[instructionsHeading], "2. b → [answer]("+target+")") {
+			t.Fatalf("link 2: err %v\n%s", err, f.sections[instructionsHeading])
+		}
+	})
+	t.Run("heading-comment file: legacy items", func(t *testing.T) {
+		f := newFake(map[string]string{instructionsHeading: "<!-- collaboration-mode: chat -->\n- a\n1. b\n"})
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil || !strings.Contains(out, "1\t- a") || !strings.Contains(out, "2\t1. b") || !strings.HasSuffix(out, ":legacy\n") {
+			t.Fatalf("list: err %v\n%s", err, out)
+		}
+	})
+	t.Run("a tag added after list: link refuses, no write", func(t *testing.T) {
+		section := "- note\n1. a\n2. b\n"
+		f := newFake(map[string]string{instructionsHeading: section})
+		file, _ := statusFile(t, "")
+		out, err := run(t, deps{ss: f}, "status", "instructions", "list", file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tok := strings.TrimSpace(strings.TrimPrefix(out[strings.LastIndex(out, "hash: "):], "hash: "))
+		f.pre = "# S\n\n@@chat@@" // outside the hashed section
+		target := answerDoc(t, file, "2026-10-23-01-a.md")
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", tok); exitCode(err) != 6 || f.writes != 0 {
+			t.Errorf("exit %d, writes %d; want exit 6 and no write (position 2 was \"1. a\" when listed)", exitCode(err), f.writes)
+		}
+		if _, err := run(t, deps{ss: f}, "status", "instructions", "link", file, "2", target, "--hash", fakeHash(section)); exitCode(err) != 6 || f.writes != 0 {
+			t.Errorf("a bare pre-#576 hash on a tagged file: exit %d, writes %d; want exit 6", exitCode(err), f.writes)
+		}
+	})
 }

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -267,16 +266,6 @@ func TestOwnershipAxis(t *testing.T) {
 	}
 }
 
-// #415: the Go-written document types declare a valid default collaboration
-// mode in their model's scaffold.
-func TestScaffoldsDeclareACollaborationMode(t *testing.T) {
-	for name, mode := range map[string]string{"issue": Issue().CollaborationMode(), "project": Project().CollaborationMode()} {
-		if !slices.Contains(CollaborationModes, mode) {
-			t.Errorf("%s scaffold.collaboration_mode is %q, want one of %v", name, mode, CollaborationModes)
-		}
-	}
-}
-
 // #415: the collaboration-mode values are stated in three places; they must
 // be the same three. pensive.cue's closed schema enumerates them, and
 // collaboration-modes.md names each in §7's legacy table, which since #575
@@ -286,9 +275,9 @@ func TestCollaborationModesAgreeAcrossSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `"collaboration-mode"?: "` + strings.Join(CollaborationModes, `" | "`) + `"`
+	want := `"collaboration-mode"?: "` + strings.Join(LegacyCollaborationModes, `" | "`) + `"`
 	if !strings.Contains(string(cue), want) {
-		t.Errorf("pensive.cue's collaboration-mode enum differs from %v", CollaborationModes)
+		t.Errorf("pensive.cue's collaboration-mode enum differs from %v", LegacyCollaborationModes)
 	}
 	md, err := os.ReadFile("../../construct/local/universal-review/collaboration-modes.md")
 	if err != nil {
@@ -298,7 +287,7 @@ func TestCollaborationModesAgreeAcrossSources(t *testing.T) {
 	if !ok {
 		t.Fatal("collaboration-modes.md lacks §7, the legacy mode keys")
 	}
-	for _, m := range CollaborationModes {
+	for _, m := range LegacyCollaborationModes {
 		if !strings.Contains(legacy, "`collaboration-mode: "+m+"`") {
 			t.Errorf("collaboration-modes.md §7 does not read the legacy value %q", m)
 		}

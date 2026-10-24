@@ -1602,3 +1602,6 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   test-ps-liveness catalog rule rather than adding a second guard.
 
 - #575 suite: before rewriting a document other code parses (a spec, a skill, a datatype), grep every reader of its path, tests included (`grep -rln '<file>' --include='*.go'`), and run those packages while iterating. A cross-source agreement test in an unrelated package (`pkg/vocab` reading collaboration-modes.md's errors table) failed only in the recorded suite, costing a 20-minute run and a second one.
+
+- #576 review (family plan-code-drift): when a fix changes a printed or accepted token (a CLI output line, a flag, a file format), the same commit updates every prose surface that describes it: help text, command one-liners, atlas, the plan. Grep the old wording before committing.
+- #576 (pair#838's source review): don't move a hand-rolled Markdown parse into a shared library as is. tl-lead's fence toggle flipped on any fence-like line, which only became a defect class once three consumers relied on it. Before extracting a parser, check it against the repository's real parser (goldmark here) on mixed-kind and longer fences, indented code and blank lines inside fences.

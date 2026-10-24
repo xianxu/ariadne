@@ -27,10 +27,13 @@ skill carries the rest.
   a name change rewrites the parent's references, a taken folder name suffixes the orphan). `pkg/sidedoc` is the Go
   home of the links, the index, the tree and now the chat grammar (`ChatSections`, `RetiredKeys`), shared by the
   checker, tl-lead and sdlc's archiving.
-  **Remaining writers:** sdlc's issue and project scaffolds, tl-lead's side-doc migration, the datatype
-  `collaboration-mode` rows (with `vocab.CollaborationModes`) and the writing-plans header still write mode keys;
-  ariadne#576 removes them. Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section
-  publication.
+  **No writers left (#576):** sdlc's issue and project scaffolds, tl-lead's side-doc migration (now lossless:
+  legacy lines kept, none added), the datatype rows and the writing-plans header write no mode key, and
+  `TestNoSpecWritesModeKeys` holds every creator's instructions to that. `vocab.LegacyCollaborationModes` is the
+  read-only legacy set (`pensive.cue` still accepts it). The chat grammar is shared: `ChatSections` (sections,
+  `Legacy` provenance, `Innermost`, `Tags`; linear, counted) and `ChatItems` (items, with code lines from
+  goldmark's `CodeLines`), used by the checker, tl-lead and pair#838. Ariadne's `cmd/tl-lead/answers.go`
+  validates answer-link targets before index/section publication.
 - **`briefs/*.md`** — five named editing briefs (copy-editing, line-editing, proofreading, developmental,
   fact-check), loaded when an ask calls for one; name-only frontmatter (#575 retired the v3 order/scope/frontier
   flags and the free-form mode). Parley snapshots them.

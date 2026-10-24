@@ -17,19 +17,71 @@ import (
 // whole-document chat) through End, the line before the next heading of the
 // same or a higher level. Source says what made it chat: "tag" (`@@chat@@`)
 // or a legacy form, "legacy-scalar", "legacy-map" or "legacy-comment".
+//
+// Legacy is true when any legacy form (scalar, map name, heading comment)
+// also makes the section chat, whatever Source names; it selects the legacy
+// item grammar (`-`, `*` and `N.` items) over the tag's `N.` items alone
+// (collaboration-modes.md §3, §7). Sections are laminar: two sections are
+// disjoint or one contains the other, and the innermost one containing a line
+// governs it (Innermost).
 type ChatSection struct {
 	Heading, End int
 	Source       string
+	Legacy       bool
 }
 
 // ChatScan is what a round reads from a document's structure: its chat
 // sections, the lines of `@@chat@@` tags that sit above no heading (ordinary
 // text, named in the reply), and one notice per legacy or retired mode key,
 // which a round reports and never fails on.
+//
+// Tags are the lines of every valid `@@chat@@` tag (outside code, directly
+// above an ATX heading; its heading is the next line), reported even when a
+// whole-document legacy chat emits no section of its own for it, so a
+// consumer can protect each tag and its heading as operator-owned without
+// recognizing tags itself. Misplaced and Tags never share a line.
+//
+// Headings are every heading CommonMark sees (ATX or setext, never one inside
+// code), in document order: find a heading here, never by comparing raw
+// lines, which miss an indented heading or a closing `##` and match a copy
+// inside a fence.
 type ChatScan struct {
 	Sections  []ChatSection
+	Headings  []ChatHeading
+	Tags      []int
 	Misplaced []int
 	Notices   []string
+}
+
+// ChatHeading is one parsed heading: its 1-based line, its level and its text
+// without the `#` markers.
+type ChatHeading struct {
+	Line, Level int
+	Name        string
+}
+
+// Heading returns the first heading of the given level whose text is name,
+// compared with surrounding whitespace trimmed.
+func (s ChatScan) Heading(level int, name string) (ChatHeading, bool) {
+	for _, h := range s.Headings {
+		if h.Level == level && strings.TrimSpace(h.Name) == name {
+			return h, true
+		}
+	}
+	return ChatHeading{}, false
+}
+
+// Innermost returns the chat section governing a 1-based line: the
+// innermost one whose extent holds it.
+func (s ChatScan) Innermost(line int) (ChatSection, bool) {
+	var best ChatSection
+	found := false
+	for _, c := range s.Sections {
+		if line > c.Heading && line <= c.End && (!found || c.Heading > best.Heading) {
+			best, found = c, true
+		}
+	}
+	return best, found
 }
 
 // InChat reports whether a 1-based line lies inside a chat section.
@@ -59,18 +111,30 @@ var modeComment = regexp.MustCompile(`^<!--\s*(.*?)\s*-->\s*$`)
 // fenced "heading" is code. It is pure; a malformed legacy key degrades to a
 // notice rather than an error, because a mode key never fails a round.
 func ChatSections(doc string) ChatScan {
+	scan, _ := chatSections(doc)
+	return scan
+}
+
+// chatSections is ChatSections with its work count: lines and bytes scanned,
+// headings and map names visited, and section-stack operations, plus
+// CodeLiteralMask's own count. It is linear in the document (pair#838 runs it
+// once per snapshot); goldmark's parse is outside the count, as in
+// CodeLiteralMask.
+func chatSections(doc string) (ChatScan, int) {
 	var scan ChatScan
 	lines := strings.Split(doc, "\n")
+	work := len(lines)
 	total := len(lines)
 	if strings.HasSuffix(doc, "\n") {
 		total--
 	}
 	fm, body, hasFM := frontmatter(doc)
 	// One rule for every way frontmatter goes unread (CR line endings, a
-	// document marker or directive inside, YAML that does not parse): a
-	// document that opens with a fence gets the notice, so a legacy chat
-	// never vanishes silently.
-	if !hasFM && (strings.HasPrefix(doc, "---\n") || strings.HasPrefix(doc, "---\r\n")) {
+	// document marker or directive inside, YAML that does not parse): when a
+	// closed leading fence block exists but was not read, say so, so a legacy
+	// chat never vanishes silently. A document that merely opens with a
+	// thematic break has no such block and gets no notice.
+	if _, _, fenced := FrontBlock(doc); fenced && !hasFM {
 		scan.Notices = append(scan.Notices, unreadFrontmatter)
 	}
 	bodyStart := 1 // the body's first line, 1-based
@@ -78,6 +142,12 @@ func ChatSections(doc string) ChatScan {
 		bodyStart = len(fm) + 3 // the two fences and the frontmatter lines
 	}
 	scalarChat, mapNames := scan.readFrontmatter(fm)
+	work += len(mapNames)
+	wanted := map[string][]string{} // normalized name → the names as written
+	for _, n := range mapNames {
+		k := normalizeHeading(n)
+		wanted[k] = append(wanted[k], n)
+	}
 
 	type heading struct {
 		line, level int
@@ -85,7 +155,14 @@ func ChatSections(doc string) ChatScan {
 	}
 	var headings []heading
 	src := []byte(body)
-	lineOf := func(off int) int { return bodyStart + strings.Count(body[:off], "\n") }
+	// Headings arrive in source order, so one cursor counts each newline once.
+	cursor, cursorLine := 0, bodyStart
+	lineOf := func(off int) int {
+		cursorLine += strings.Count(body[cursor:off], "\n")
+		work += off - cursor
+		cursor = off
+		return cursorLine
+	}
 	root := goldmark.DefaultParser().Parse(gmtext.NewReader(src))
 	ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		h, ok := n.(*ast.Heading)
@@ -99,20 +176,30 @@ func ChatSections(doc string) ChatScan {
 	isHeading := map[int]bool{}
 	for _, h := range headings {
 		isHeading[h.line] = true
+		scan.Headings = append(scan.Headings, ChatHeading{h.line, h.level, h.name})
 	}
-	end := func(i int) int {
-		for _, next := range headings[i+1:] {
-			if next.level <= headings[i].level {
-				return next.line - 1
-			}
+	// Each section ends before the next heading of the same or a higher
+	// level: one stack pass, each heading pushed and popped once.
+	ends := make([]int, len(headings))
+	var open []int
+	for i, h := range headings {
+		for len(open) > 0 && headings[open[len(open)-1]].level >= h.level {
+			ends[open[len(open)-1]] = h.line - 1
+			open = open[:len(open)-1]
+			work++
 		}
-		return total
+		open = append(open, i)
+		work++
+	}
+	for _, i := range open {
+		ends[i] = total
 	}
 
 	// A tag is a line holding only @@chat@@ outside code (fenced or indented),
 	// and it counts only directly above an ATX heading: CommonMark folds a
 	// line above a setext heading into that heading's text.
-	literal, _ := CodeLiteralMask(body)
+	literal, maskWork := CodeLiteralMask(body)
+	work += maskWork
 	tagLine := map[int]bool{}
 	off := 0
 	for i := bodyStart - 1; i < len(lines); i++ {
@@ -127,37 +214,44 @@ func ChatSections(doc string) ChatScan {
 		return isHeading[line] && strings.HasPrefix(strings.TrimLeft(lines[line-1], " "), "#")
 	}
 	for i := bodyStart; i <= len(lines); i++ {
-		if tagLine[i] && !atx(i+1) {
+		switch {
+		case tagLine[i] && atx(i+1):
+			scan.Tags = append(scan.Tags, i)
+		case tagLine[i]:
 			scan.Misplaced = append(scan.Misplaced, i)
 		}
 	}
 
 	if scalarChat {
-		scan.Sections = append(scan.Sections, ChatSection{0, total, "legacy-scalar"})
+		scan.Sections = append(scan.Sections, ChatSection{0, total, "legacy-scalar", true})
 	}
 	matched := map[string]bool{}
 	for i, h := range headings {
-		source := ""
+		source, legacy := "", false
 		if tagLine[h.line-1] && atx(h.line) {
 			source = "tag"
 		}
 		if h.line < len(lines) {
 			if m := modeComment.FindStringSubmatch(lines[h.line]); m != nil {
-				if chat, mode := scan.readComment(m[1], h.line+1, strings.TrimSpace(lines[h.line])); mode && chat && source == "" {
-					source = "legacy-comment"
+				if chat, mode := scan.readComment(m[1], h.line+1, strings.TrimSpace(lines[h.line])); mode && chat {
+					legacy = true
+					if source == "" {
+						source = "legacy-comment"
+					}
 				}
 			}
 		}
-		for _, n := range mapNames {
-			if normalizeHeading(n) == normalizeHeading(h.name) {
+		if names, ok := wanted[normalizeHeading(h.name)]; ok {
+			for _, n := range names {
 				matched[n] = true
-				if source == "" {
-					source = "legacy-map"
-				}
+			}
+			legacy = true
+			if source == "" {
+				source = "legacy-map"
 			}
 		}
 		if source != "" && !scalarChat {
-			scan.Sections = append(scan.Sections, ChatSection{h.line, end(i), source})
+			scan.Sections = append(scan.Sections, ChatSection{h.line, ends[i], source, legacy})
 		}
 	}
 	for _, n := range mapNames {
@@ -165,7 +259,7 @@ func ChatSections(doc string) ChatScan {
 			scan.Notices = append(scan.Notices, fmt.Sprintf("collaboration-mode map name %q matches no heading", n))
 		}
 	}
-	return scan
+	return scan, work
 }
 
 // readFrontmatter reads the legacy mode keys: whether a scalar or map default
@@ -185,6 +279,8 @@ func (s *ChatScan) readFrontmatter(fm []string) (wholeChat bool, names []string)
 			if cm.Value == "chat" {
 				wholeChat = true
 				s.Notices = append(s.Notices, "collaboration-mode: chat is a legacy key; read as @@chat@@ for the whole document")
+			} else if cm.Value == "" {
+				s.Notices = append(s.Notices, "collaboration-mode is empty or malformed; ignored")
 			} else {
 				s.Notices = append(s.Notices, fmt.Sprintf("collaboration-mode: %s is retired and ignored: one collaborative mode applies", cm.Value))
 			}
@@ -252,4 +348,114 @@ var trailingAnnotation = regexp.MustCompile(`\s*\([^()]*\)$`)
 func normalizeHeading(s string) string {
 	s = strings.Join(strings.Fields(strings.ToLower(s)), " ")
 	return strings.TrimSpace(trailingAnnotation.ReplaceAllString(s, ""))
+}
+
+// ChatItem is one item of a chat section (collaboration-modes.md §3). Pos is
+// its 1-based position in the section: the operator reuses numbers, so the
+// number never identifies an item. Start indexes its first line in the
+// section text.
+type ChatItem struct {
+	Pos      int
+	Start    int
+	Lines    []string
+	Answered bool
+}
+
+var (
+	numberedItemStart = regexp.MustCompile(`^\d+\.\s`)
+	legacyItemStart   = regexp.MustCompile(`^(?:[-*]|\d+\.)\s`)
+	answeredItem      = regexp.MustCompile(`→\s*(\[answer\]\([^)]*\)\s*$|done:)`)
+)
+
+// ChatItems splits a chat section's text into its items, by the grammar of
+// collaboration-modes.md §3: a `N.` line at the section's shallowest list
+// indent starts one (also `-` and `*` lines when legacy is set, as
+// ChatSection.Legacy reports), and it runs over its sub-items and
+// continuation lines until the next such line, or until a blank line
+// followed by prose indented no deeper than that indent (prose belongs to no
+// item). Code (fenced or indented, by CommonMark via CodeLines) starts no
+// item; a tab indents to the next multiple of four. Trailing blank lines are dropped. An item is answered by a link
+// ending any of its lines outside fences, so a follow-up added after the link
+// keeps it answered; `→ done:` is the TL's older form. It is one linear pass
+// over the section, the shared grammar of the review checker, tl-lead and
+// pair#838.
+func ChatItems(section string, legacy bool) []ChatItem {
+	items, _ := chatItems(section, legacy)
+	return items
+}
+
+// chatItems is ChatItems with its work count: one unit per line per pass.
+func chatItems(section string, legacy bool) ([]ChatItem, int) {
+	itemStart := numberedItemStart
+	if legacy {
+		itemStart = legacyItemStart
+	}
+	lines := strings.Split(section, "\n")
+	fenced, codeWork := codeLines(section) // CommonMark's code blocks, not a fence toggle
+	start := func(i int) (int, bool) {
+		if fenced[i] || !itemStart.MatchString(strings.TrimLeft(lines[i], " \t")) {
+			return 0, false
+		}
+		return IndentOf(lines[i]), true
+	}
+	shallow := -1
+	for i := range lines {
+		if n, ok := start(i); ok && (shallow < 0 || n < shallow) {
+			shallow = n
+		}
+	}
+	var out []ChatItem
+	open, blank := false, false
+	for i, l := range lines {
+		n, isItem := start(i)
+		switch {
+		case strings.TrimSpace(l) == "" && !fenced[i]:
+			blank = true
+			if open {
+				it := &out[len(out)-1]
+				it.Lines = append(it.Lines, l)
+			}
+			continue
+		case isItem && n == shallow:
+			out = append(out, ChatItem{Pos: len(out) + 1, Start: i, Lines: []string{l}})
+			open = true
+		case open && blank && !fenced[i] && IndentOf(l) <= shallow:
+			open = false
+		case open:
+			it := &out[len(out)-1]
+			it.Lines = append(it.Lines, l)
+		}
+		blank = false
+	}
+	work := codeWork + 2*len(lines) // the code scan, then the indent and item passes
+	for i := range out {
+		it := &out[i]
+		work += len(it.Lines)
+		for len(it.Lines) > 1 && strings.TrimSpace(it.Lines[len(it.Lines)-1]) == "" {
+			it.Lines = it.Lines[:len(it.Lines)-1]
+		}
+		for j, l := range it.Lines {
+			if !fenced[it.Start+j] && answeredItem.MatchString(l) {
+				it.Answered = true
+			}
+		}
+	}
+	return out, work
+}
+
+// IndentOf is a line's leading indent in columns, a tab reaching the next
+// multiple of four.
+func IndentOf(l string) int {
+	n := 0
+	for _, r := range l {
+		switch r {
+		case ' ':
+			n++
+		case '\t':
+			n += 4 - n%4
+		default:
+			return n
+		}
+	}
+	return n
 }
