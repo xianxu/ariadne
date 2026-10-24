@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/pkg/workspace"
 
 	"go.yaml.in/yaml/v3"
@@ -87,6 +88,10 @@ func (m MeasurementInputs) validateBranchEvidence(since, until time.Time) error 
 			case "resting-excluded":
 				if !workspace.IsRestingBranch(w.Branch) {
 					return fmt.Errorf("measurement resting exclusion lacks a resting branch")
+				}
+			case "stage-excluded":
+				if !activetime.IsStagingBranch(w.Branch) {
+					return fmt.Errorf("measurement stage exclusion lacks a staging branch")
 				}
 			case "ownership-only":
 			default:
