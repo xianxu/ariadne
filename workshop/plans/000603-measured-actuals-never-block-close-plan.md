@@ -62,8 +62,9 @@ still on hand at the point of refusal:
   - **Future extensions:** a confidence per segment, if calibration ever wants a weight per phase.
 - **classifyActual(res actualResult) actualConfidence**: a pure mapping.
   - `actualMeasured` with no excluded or unattributed notes gives `exact`.
-  - `actualMeasured` with notes of kind `unknown-excluded`, `source-unattributed` or `resting-excluded`/`stage-excluded` gives
-    `partial`. Resting and stage minutes count as unattributed, so the share is honest; see Decision D1.
+  - `actualMeasured` with notes of kind `unknown-excluded` or `source-unattributed` gives `partial`. Resting and stage
+    exclusions (`resting-excluded`/`stage-excluded`) do not lower the confidence: they are shown as excluded minutes, as #591
+    does, and the close stays `exact` (D1, TL decision).
   - Any other status gives `unmeasured`, with `Detail` (and `Recovery`, when present) as the reason.
 - **unknown-excluded note**: the default case at branch.go:168 appends a note and continues instead of returning an error. The
   "no pinned claim" error at :146 stays an error, because it is an input inconsistency with no interval to count, so it classifies
@@ -115,12 +116,13 @@ still on hand at the point of refusal:
   - The calibration row carries both new columns.
   - The `--no-actual` warning text is unchanged, because gatesig.go:86 pins it.
 
-## Decisions for the TL
+## Decisions (TL ruled 2026-10-24: D1 alternative; D2-D5 as recommended)
 
 - **D1: resting and stage minutes count as unattributed.** They are real work time that no branch owns. Counting them makes the
   share honest. The cost is that more closes read `partial` than read `exact`. *Alternative:* treat them as correctly excluded
-  (not this issue's time), which keeps those closes `exact`. **I recommend counting them as unattributed**, because #591 and #594
-  dropped those minutes without leaving any record.
+  (not this issue's time), which keeps those closes `exact`. **TL chose the alternative:** a slot switching branches for
+  seconds is not unattributed issue work, and counting it would make most closes read `partial` for noise. The excluded minutes
+  are still shown, as #591 shows them.
 - **D2: an oversized snapshot or over-cap source count is `exact` with a summary.** It is not `partial`. The issue's item 2 asks
   to merge or summarise sources; the summary does that. Every hour was attributed; only replay is lost. *Alternative:* keep the
   128 sources that contributed most and count the rest as unattributed. That preserves replay for the retained part, but it
@@ -150,7 +152,7 @@ Actions: close (or milestone-close), `sdlc actual` (preview), `sdlc issue correc
 | All windows attributed, snapshot within bounds | `exact` | none | none |
 | Snapshot or source count over the bound | `exact`, with a "not replayable" warning | none; a later overlapping issue degrades to `unmeasured` | the ability to replay this close |
 | Unknown or detached branch intervals, or one source's attribution failed | `partial s` with the reasons | `correct-actual` if the operator knows the true value | unattributed minutes (recorded, not counted) |
-| Resting or stage minutes (D1) | `partial s` | none | the same |
+| Resting or stage minutes (D1) | `exact`, with the excluded minutes shown | none | none (not this issue's work) |
 | Queue attempts with unknown provenance but known bounds | `partial s` | none | queue time cannot be subtracted, so it is overcounted inside the unattributed share |
 | Legacy attempt with no bounds | `partial 0`: hours shown as an upper bound, calibration weight 0 | `correct-actual` | the row's calibration value |
 | Input or replay error, telemetry gap, empty window, no window, lineage cycle, duplicate attempt | `unmeasured (<reason>)`, N/A, the recovery printed as a warning | recover the evidence, then `correct-actual` | the hours, until corrected |
@@ -185,8 +187,8 @@ time. This plan only stops discarding what has already been attributed.
 
 | Window | Shape | Fixture | Expected |
 |---|---|---|---|
-| pair#856, #812, #863 | resting-branch claim transition | `activetime/testdata/pair856`, `pair812`, `pair863` (exist) | `partial`, with resting minutes as the unattributed share (D1) |
-| pair#830 | stage branch | `branch_staging_test.go` (in code) | `partial` |
+| pair#856, #812, #863 | resting-branch claim transition | `activetime/testdata/pair856`, `pair812`, `pair863` (exist) | `exact`, with the resting minutes shown as excluded (D1) |
+| pair#830 | stage branch | `branch_staging_test.go` (in code) | `exact`, with the stage minutes shown as excluded (D1) |
 | pair#851 | more than 128 sources | new: a recorded source manifest (IDs, sizes and windows with identity scrubbed) extracted from the refusal, or failing that a generator shaped from its printed counts | `exact`, with a summary |
 | pair#838 | the 64 KiB proof (from lessons) | new: a fixture shaped from the refusal's printed counts | `exact`, with a summary |
 
@@ -229,3 +231,9 @@ raw sources can't be recovered, the fixture is synthetic and shaped from the pri
   `--no-actual` only for inapplicable windows). In the atlas, update `sdlc-binary.md` (branch selection and the v4 bound),
   `issue-lifecycle.md` and `ledger-landscape.md`.
 - [ ] **M2**: close.
+
+## Revisions
+
+- 2026-10-24: TL approval. D1 reversed to the alternative (resting/stage exclusions keep the close `exact`, minutes shown);
+  D2-D5 approved as written. Classifier mapping, the state table row and the fixture expectations for pair#856/#812/#863/#830
+  updated to match.
