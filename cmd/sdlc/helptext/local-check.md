@@ -304,9 +304,10 @@ THE AFFECTED SUITE (#473)
   current main and testing the resulting code when the earlier pass cannot
   cover it. Explicit local-check runs do not reserve the landing line.
 
-RESUME A SAVED SUITE FAILURE (#463)
+RESUME A SAVED SUITE OR AFFECTED FAILURE (#463, #586)
 
   sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA
+  sdlc local-check resume --name affected --attempt ID --rev ORIGINAL_SHA
 
   Explicitly select an ordinary completed failed suite on its original pushed
   commit. Current main policy and open flake registrations must explain every
@@ -318,6 +319,15 @@ RESUME A SAVED SUITE FAILURE (#463)
   log and full-suite duration remain unchanged; status names parent/child IDs
   and the registered issues. Repeat resume or republish validates current proof
   without execution. A changed registry, policy or raw log refuses success.
+
+  An affected attempt may have stopped at the flake before its script groups,
+  and nothing records which groups ran, so its resume also runs every group
+  the head selects now (planned as a fresh affected run, under main's current
+  .sdlc/affected.json), with no Go packages, after the reruns, under the
+  affected check's weight and timeout. A selection that is now full or empty
+  runs nothing and points at the suite. The record is sdlc-local/affected. A
+  fresh affected run's known-flake rerun runs the groups the same way. Its link
+  is version 5, which an older sdlc fences as that head's newer evidence.
 
   An immutable link is published before launch. Pending, failed or interrupted
   links block every same-head suite/affected success, including a later full

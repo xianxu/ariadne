@@ -45,12 +45,12 @@ result for the same head. Refuse, as today, when an unregistered failure remains
 Durable plan: `workshop/plans/000586-resume-an-affected-check-attempt-after-a-registered-flake-running-the-groups-it-plan.md`
 (full flow; design to the hub for approval before change-code).
 
-- [ ] Shared `affectedRerunBatch` (flake reruns + affected command with empty Go packages and all selected groups)
-- [ ] Inline known-flake step runs the groups (pre-existing gap; `TestAffectedKnownFlakeReruns` changes)
-- [ ] Extract `planAffectedSelection` from `runAffectedCheck`
-- [ ] Version 5 resume link/receipt for affected (`selection` required); proof, retention, old-reader fence
-- [ ] `local-check resume --name affected`: recompute selection, v5 link, batch, scope on the record; tests per Done when
-- [ ] Help + atlas; targeted tests; pre-close check
+- [x] Shared `affectedRerunBatch` (flake reruns + affected command with empty Go packages and all selected groups)
+- [x] Inline known-flake step runs the groups (pre-existing gap; `TestAffectedKnownFlakeReruns` changes)
+- [x] Extract `planAffectedSelection` from `runAffectedCheck`
+- [x] Version 5 resume link/receipt for affected (`selection` required); proof, retention, old-reader fence
+- [x] `local-check resume --name affected`: recompute selection, v5 link, batch, scope on the record; tests per Done when
+- [x] Help + atlas; targeted tests; pre-close check
 
 ## Log
 
@@ -59,3 +59,11 @@ Durable plan: `workshop/plans/000586-resume-an-affected-check-attempt-after-a-re
   `check: affected` would make an older sdlc mark the whole store snapshot incomplete (decodeResumeEvidence fails and
   decodeUnsupportedProof needs version > 4), so affected links are version 5 (ARCH-EVOLVE). Nothing records which
   groups ran, so the resume reruns every selected group. Same-class gap in the inline step folded in (ARCH-PURPOSE).
+- Implemented per the approved plan (TL approval 10-23). Commits: ce9d89b5 (shared batch + inline fix), 2c23ef22
+  (planAffectedSelection), dc0a6e93 (v5 link), f3b2ba71 (affected resume). Discovery: the environment retirement step
+  compared links with `*decoded != l`, which turns false-unequal once a link holds a pointer (`Selection`); it now
+  compares deeply (caught by TestResumeAffectedRunsFlakesThenGroups). Retention needed no change: it already binds
+  `p.Check == l.Check` (TestResumeRetentionAffectedBundle).
+- Old-reader proof is at the decode level (TestOldReaderFencesAffectedLinkPerHead): the pre-#586 fallback
+  `decodeUnsupportedProof` admits v5 and rejects a v3 affected link. The frozen-binary test stays opt-in (SDLC_PRE_TYPED_BIN).
+- Sandbox-only failures seen: host boot identity and signal-process tests; run unsandboxed, green.
