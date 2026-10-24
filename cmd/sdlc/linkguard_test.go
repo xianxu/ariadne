@@ -247,3 +247,18 @@ func TestChangeCodeRefusesUncommittedSideLink(t *testing.T) {
 		t.Fatalf("committed, still refused:\n%s", errs)
 	}
 }
+
+// #579: a link target is a literal path, never a pattern: "x*.md" beside an
+// ignored "xy.md" is judged uncommitted, not ignored.
+func TestGitLinkStateLiteralPath(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	writeRepoFile(t, r.root, ".git/info/exclude", "xy.md\n")
+	writeRepoFile(t, r.root, "xy.md", "ignored\n")
+	writeRepoFile(t, r.root, "x*.md", "untracked\n")
+	state := gitLinkState(execSideLinkGit, r.root, headHas(execSideLinkGit, r.root))
+	for p, want := range map[string]linkguard.LinkState{"x*.md": linkguard.Uncommitted, "xy.md": linkguard.Ignored, "x?.md": linkguard.Absent} {
+		if got, err := state(p); err != nil || got != want {
+			t.Errorf("%s: %v %v, want %v", p, got, err, want)
+		}
+	}
+}
