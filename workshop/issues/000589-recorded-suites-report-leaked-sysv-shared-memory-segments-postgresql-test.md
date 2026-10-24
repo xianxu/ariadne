@@ -49,7 +49,7 @@ Fix, in two parts:
 Durable design: [suite SysV warning plan](../plans/000589-suite-sysv-warning-plan.md). Approved by ops:0 on 2026-10-24; implementation gate completed.
 
 - [x] Approve the warning, attribution, persistence and qualification boundaries.
-- [ ] Implement pure observations/delta and stateful-fake managed lifecycle tests.
+- [x] Implement pure observations/delta and stateful-fake managed lifecycle tests.
 - [ ] Qualify native single-owned-segment behavior after operator-cleared capacity, document harness guidance and existing echo#32, then recorded pre-close/close/land.
 
 ## Log
@@ -88,3 +88,7 @@ Observed red then green for pure delta/native table parsing and bounded-reader f
 Focused SysV managed-run controls passed normally and with race detection (21.766s): exact saved digest/replay and mutation refusal, old-log compatibility, Go failure-parser immunity, pass/failure/startup refusal/timeout/early batch failure, cancellation, observation unavailability, cleanup-unconfirmed ordering, one/eight command probe counts, admission/log refusal before observation, and VM exclusion. The stateful fake table is changed by the managed command itself. A new red control showed unknown snapshots printing zero counts; renderer now says owner-before/after unknown. Pure package race checks passed; Linux/amd64 package cross-compiled; tracked-Go catalog passed.
 
 Read-only native capture still has32 unattached56-byte segments; saved as the Darwin parser incident fixture, with no IPC allocation or removal. Added an explicitly opt-in native child-allocation test, restricted cleanup by exact ID plus independent creator/UID verification; not run pending operator clearance. Added an opt-in clean private-executable conformance harness (fake IPC and GitHub; private queue/lock/scratch), still to run. Echo:2 guidance notification submitted (receipt e407d782-d9a9-41ee-a8ba-881ebc4fdbfb), linking existing echo#32.
+
+### 2026-10-24 — private executable qualification passed
+
+Built clean private executable /Volumes/TestScratch/tmp/ariadne-slot3/ariadne589-cli.K9QhoB/sdlc with Go1.27.3, embedded revision c3270bea8f7aec91aaeb2c9b826e50bf8d235be3, modified=false (go version -m verified). TestSysVPrivateCLIConformance passed in1.982s: actual CLI production run against a private stateful fake IPC table, fake GitHub, private queue/lock/scratch; warning preserved advisory success; deleting the fake IPC table before republish did not trigger a new probe and both published descriptions retained SysV warning. Latest catalog check passed0.905s. No real IPC allocated or removed. Recorded pre-close suite next; native one-owned-segment qualification remains blocked on operator-cleared capacity.
