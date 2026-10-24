@@ -94,6 +94,21 @@ class QueuePause(unittest.TestCase):
             time.sleep(.02)
         self.fail(why + '\n' + '\n'.join(p.read_text() for p in self.root.glob('*.err')))
 
+    def committed(self, predicate):
+        """predicate, evaluated only while holding the helper's control.lock: the
+        helper changes queue state in transactions under that lock, and an unlocked
+        read can see one half done (#592). A busy lock reads as not yet."""
+        def check():
+            try:
+                fd = os.open(self.queue / 'control.lock', os.O_RDWR)
+            except FileNotFoundError:
+                return False
+            try:
+                return lock.try_lock(fd) and predicate()
+            finally:
+                os.close(fd)
+        return check
+
     def paused(self, owners):
         self.queue.mkdir(exist_ok=True)
         mutex = os.open(self.queue / 'control.lock', os.O_CREAT | os.O_RDWR, 0o600)
@@ -223,15 +238,37 @@ class QueuePause(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text())['phase'], 'waiting')
 
     def test_fast_cancellation_preserves_unknown_child_lifetime(self):
+        self.fast_cancellation(self.env)
+
+    def test_fast_cancellation_waits_for_the_whole_retirement(self):
+        # retire writes unresolved/, then interrupted/, then unlinks the
+        # operation; a slow unlink keeps that last step visible to an unlocked
+        # read (#592).
+        shim = self.root / 'slow-unlink'
+        shim.mkdir()
+        (shim / 'sitecustomize.py').write_text(
+            'import os, time\n'
+            '_unlink = os.unlink\n'
+            'def unlink(path, *args, **kwargs):\n'
+            '    if os.sep + "operations" + os.sep in str(path) and str(path).endswith(".json"):\n'
+            '        time.sleep(.5)\n'
+            '    return _unlink(path, *args, **kwargs)\n'
+            'os.unlink = unlink\n')
+        path = os.pathsep.join(filter(None, (str(shim), self.env.get('PYTHONPATH'))))
+        self.fast_cancellation(dict(self.env, PYTHONPATH=path))
+
+    def fast_cancellation(self, env):
         child_file = self.root / 'surviving-child'
+        # The pid lands by rename: the wait below must never read a partial file.
         owner = subprocess.Popen(['python3', '-c',
-            'import pathlib,subprocess,sys,time; p=subprocess.Popen(["sleep","60"]); '
-            'pathlib.Path(sys.argv[1]).write_text(str(p.pid)); time.sleep(60)', str(child_file)])
+            'import os,pathlib,subprocess,sys,time; p=subprocess.Popen(["sleep","60"]); '
+            't=pathlib.Path(sys.argv[1] + ".tmp"); t.write_text(str(p.pid)); os.replace(t, sys.argv[1]); '
+            'time.sleep(60)', str(child_file)])
         self.children.append(owner)
         self.await_(child_file.exists, 'child owner failed to start')
         child_pid = int(child_file.read_text())
         self.descendants.append(child_pid)
-        result = subprocess.run(['python3', str(HELPER), 'acquire', '--watch', str(owner.pid)], env=self.env,
+        result = subprocess.run(['python3', str(HELPER), 'acquire', '--watch', str(owner.pid)], env=env,
                                 capture_output=True, text=True, timeout=8)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), 'acquired')
@@ -243,7 +280,8 @@ class QueuePause(unittest.TestCase):
         owner.wait()
         unresolved = self.queue / 'unresolved' / path.name
         interrupted = self.queue / 'interrupted' / path.name
-        self.await_(lambda: unresolved.exists() and interrupted.exists(), 'unknown/interrupted evidence missing')
+        self.await_(self.committed(lambda: unresolved.exists() and interrupted.exists() and not path.exists()),
+                    'unknown/interrupted evidence missing')
         os.kill(child_pid, 0)
         unknown = json.loads(unresolved.read_text())
         evidence = json.loads(interrupted.read_text())

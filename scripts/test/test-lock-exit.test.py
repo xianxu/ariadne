@@ -40,6 +40,21 @@ class DirectSuiteExit(unittest.TestCase):
             time.sleep(.02)
         self.fail(message)
 
+    def committed(self, predicate):
+        """predicate, evaluated only while holding the helper's control.lock: the
+        helper changes queue state in transactions under that lock, and an unlocked
+        read can see one half done (#592). A busy lock reads as not yet."""
+        def check():
+            try:
+                fd = os.open(self.queue / 'control.lock', os.O_RDWR)
+            except FileNotFoundError:
+                return False
+            try:
+                return HELPER.try_lock(fd) and predicate()
+            finally:
+                os.close(fd)
+        return check
+
     def cleanup(self):
         for group in self.detached_groups:
             try:
@@ -126,7 +141,7 @@ class DirectSuiteExit(unittest.TestCase):
 
     def unknown(self, operation):
         path = self.queue / 'unresolved' / (operation['id'] + '.json')
-        self.await_(path.exists, 'uncertain ending lost unresolved lifetime')
+        self.await_(self.committed(path.exists), 'uncertain ending lost unresolved lifetime')
         unknown = json.loads(path.read_bytes())
         self.assertEqual(unknown['phase'], 'unknown')
         self.assertEqual(unknown['pid_started'], operation['pid_started'])
