@@ -79,3 +79,58 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"18c2d474-635e-4e18-82b6-b8b6ffc211eb","repository":"github.com/xianxu/ariadne","issue_id":"000592","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/73f1a73dc6e3f297","reviewed_head":"468ee2e4bcbd8df4c4c11b28f7bb781b9ac45a94","slot":"ariadne:5","requested_at":"2026-10-24T13:17:37.172065Z"},"phase":"finished","pid":74607,"started_at":"2026-10-24T13:17:37.306114Z","finished_at":"2026-10-24T13:19:14.296472Z","session_id":"8892a979-c8af-4f63-854d-0ff754996d41","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T08:35:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 592 — flake: TestQueueRealHelperPause |
+| repo | ariadne |
+| issue file | workshop/issues/000592-flake-testqueuerealhelperpause.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 494fd121a17bb638cad3f5383c15f0b622896031..6eb2f26b668f5a19d8dbcf0b15c87ec2d36adfba |
+| command | sdlc close --issue 592 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T08:35:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still checking the fix: the shared fixture reproduces the helper's lock semantics exactly. I'm sweeping the remaining `control.lock` sites to see whether the duplication was fixed everywhere.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change fixes BR-1 completely. The duplicated helpers now live in one shared module, `scripts/test/fixtures/queue_reads.py`, with three functions: `committed`, `committed_read` and `slow_writes`. Both test scripts load it and call it through one-line wrappers. Behavior is unchanged. The shared fixture takes the lock with the same non-blocking `flock` call the helper's `try_lock` uses (`scripts/test-lock.py:1306-1311`), and a busy lock still reads as "not yet". Both scripts pass at the head: exit ran 11 tests OK and pause ran 19 tests OK. The issue file changes only status, `actual_hours`, the card hash and the Log, and the two `workshop/plans/` files are review records. There is no change to Spec, Revisions or Done-when, and no conflict resolution to judge.
+
+1. **Strengths**
+   - `queue_reads.py:1-6`: the module docstring keeps the reason for the locked reads: retire's write/write/unlink order and the in-place rewrite of the operation record.
+   - The whole class was fixed, not just the named site: both test scripts and both shim-path setups (`test-lock-exit.test.py:96-97`, `test-lock-pause.test.py:241`) now go through `slow_writes`.
+   - `committed_read` takes the test's own wait function (`await_`) as an argument, so the shared module doesn't depend on unittest.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new. `queue_reads.py` is loaded with the same five lines of `importlib` code in each script. That is acceptable for script-style tests and matches how both scripts already load `test-lock.py`.
+5. **Test coverage:** this is a test-only refactor. Both full scripts pass at the head. The regression tests that call these helpers (`test_fast_cancellation_waits_for_the_whole_retirement`, `test_cancellation_wait_reads_the_record_whole`) are in the passing runs. The fix doesn't change behavior, so no new regression test is needed.
+6. **Architecture:**
+   - **ARCH-DRY: pass.** I swept the other `control.lock` uses (`test-lock-pause.test.py:108,292`, `test-lock-exit.test.py:279`). They take the lock to block while writing, or check that it is free. That is a different job from the locked-read helper, not a copy of it.
+   - **ARCH-PURE: pass.** The fixture's IO is limited to the lock and the file read, and the condition being tested is passed in as a function.
+   - **ARCH-PURPOSE: pass.** All sites of the finding's class are fixed.
+   - **ARCH-EVOLVE: N/A.** No persisted format changed.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      committed, committed_read and slow_writes moved to scripts/test/fixtures/queue_reads.py; both scripts delegate to it (exit:46-50,97; pause:100-104,241); same flock LOCK_NB semantics as try_lock; exit 11 OK and pause 19 OK at head.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"02ac161e-4e88-448b-848d-437be980c141","repository":"github.com/xianxu/ariadne","issue_id":"000592","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/2210dddbfe1a19d7","reviewed_head":"6eb2f26b668f5a19d8dbcf0b15c87ec2d36adfba","slot":"ariadne:5","requested_at":"2026-10-24T15:34:23.110993Z"},"phase":"finished","pid":9839,"started_at":"2026-10-24T15:34:23.231717Z","finished_at":"2026-10-24T15:35:13.012775Z","session_id":"4b50d2ed-2439-44f8-82c6-45bc05458031","outcome":"returned"}] -->
