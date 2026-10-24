@@ -120,9 +120,9 @@ func TestIssueSideLinkRefusals(t *testing.T) {
 	appendDetail(t, r, issueRel, "→ [discussion](000009-s09.side/2026-10/2026-10-23-01-why.md)")
 	refusals := func() []linkguard.Refusal {
 		t.Helper()
-		rs, err := issueSideLinkRefusals(execSideLinkGit, r.root, issueRel, "workshop/plans", identity)
-		if err != nil {
-			t.Fatal(err)
+		rs, warnings, err := issueSideLinkRefusals(execSideLinkGit, r.root, issueRel, "workshop/plans", identity)
+		if err != nil || len(warnings) != 0 {
+			t.Fatal(err, warnings)
 		}
 		return rs
 	}
@@ -130,7 +130,7 @@ func TestIssueSideLinkRefusals(t *testing.T) {
 	if len(rs) != 2 || rs[0].Doc != issueRel || rs[0].State != linkguard.Uncommitted || rs[1].Doc != planRel || rs[1].State != linkguard.Ignored {
 		t.Fatalf("want the issue's uncommitted side doc and the plan's ignored link: %+v", rs)
 	}
-	if err := changeCodeSideLinks(issueRel, "workshop/plans"); err == nil || !strings.Contains(err.Error(), "--no-side-links (or --force <reason>)") {
+	if err := changeCodeSideLinks(io.Discard, issueRel, "workshop/plans"); err == nil || !strings.Contains(err.Error(), "--no-side-links (or --force <reason>)") {
 		t.Fatalf("change-code: %v", err)
 	}
 	r.git("add", sideDocQ)
@@ -139,7 +139,7 @@ func TestIssueSideLinkRefusals(t *testing.T) {
 	if rs := refusals(); len(rs) != 0 {
 		t.Fatalf("committed and folded, still refused: %+v", rs)
 	}
-	if err := changeCodeSideLinks(issueRel, "workshop/plans"); err != nil {
+	if err := changeCodeSideLinks(io.Discard, issueRel, "workshop/plans"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -169,7 +169,7 @@ func TestCloseRefusesIgnoredSideLink(t *testing.T) {
 	f.NoSideLinks = true
 	f.DryRun = true
 	var errb bytes.Buffer
-	if err := runClose(io.Discard, &errb, f); err != nil || !strings.Contains(errb.String(), "--no-side-links (or --force): closing with 1 link") {
+	if err := runClose(io.Discard, &errb, f); err != nil || !strings.Contains(errb.String(), "--no-side-links (or --force): skipping the side-link check") {
 		t.Fatalf("bypass: %v\n%s", err, errb.String())
 	}
 	writeRepoFile(t, ".", issuePath, string(body))
@@ -177,5 +177,73 @@ func TestCloseRefusesIgnoredSideLink(t *testing.T) {
 	f.DryRun = true
 	if err := runClose(io.Discard, io.Discard, f); err != nil {
 		t.Fatalf("folded in: %v", err)
+	}
+}
+
+// #579: a project referencing the issue is judged in its own repository, its
+// refusals named by that repository; a project that cannot be judged (an
+// unborn peer) warns rather than blocking.
+func TestIssueSideLinkRefusalsJudgeProjects(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	t.Chdir(r.root)
+	identity, err := resolveWorkspace(r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := "- [ ] [" + identity.Repo + "#9] the issue\n"
+	peer := filepath.Join(filepath.Dir(r.root), "peerrepo")
+	if err := os.MkdirAll(peer, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectWorkspaceGit(t, peer, "init", "-q", "-b", "main")
+	writeRepoFile(t, peer, "workshop/projects/p.md", "---\nstatus: executing\n---\n\n# p\n\n## tasks\n\n"+marker+"\nSee [draft](p.side/draft.md).\n")
+	writeRepoFile(t, peer, "workshop/projects/p.side/draft.md", "# draft\n")
+	rs, warnings, err := issueSideLinkRefusals(execSideLinkGit, r.root, "workshop/issues/000009-s09.md", "workshop/plans", identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The unborn peer has no HEAD: judged it cannot be, so it warns.
+	if len(rs) != 0 || len(warnings) != 1 || !strings.Contains(warnings[0], "p.md not judged") {
+		t.Fatalf("unborn peer: refusals %+v warnings %v", rs, warnings)
+	}
+	projectWorkspaceGit(t, peer, "add", "workshop/projects/p.md")
+	projectWorkspaceGit(t, peer, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "project")
+	rs, warnings, err = issueSideLinkRefusals(execSideLinkGit, r.root, "workshop/issues/000009-s09.md", "workshop/plans", identity)
+	if err != nil || len(warnings) != 0 || len(rs) != 1 || rs[0].Doc != "peerrepo/workshop/projects/p.md" || rs[0].State != linkguard.Uncommitted {
+		t.Fatalf("committed peer project: %+v %v %v", rs, warnings, err)
+	}
+}
+
+// #579: change-code itself refuses, bypasses with --force (acknowledged) or
+// --no-side-links, and passes once the side doc is committed.
+func TestChangeCodeRefusesUncommittedSideLink(t *testing.T) {
+	r, _, detailPath := claimedOnBranch(t)
+	side := strings.TrimSuffix(detailPath, ".md") + ".side/2026-10/2026-10-23-01-q.md"
+	writeRepoFile(t, r.root, side, "# q\n")
+	appendDetail(t, r, detailPath, "→ [discussion]("+strings.TrimPrefix(side, filepath.Dir(detailPath)+"/")+")")
+	r.git("add", detailPath)
+	r.git("commit", "-q", "-m", "#9: plan: a question")
+	run := func(mut func(*changeCodeFlags)) (string, int, bool) {
+		f := trackerChangeCodeFlags()
+		f.DryRun = true
+		mut(f)
+		var out, errs bytes.Buffer
+		code, exited := expectExit(t, func() { _ = runChangeCode(strings.NewReader(""), &out, &errs, f) })
+		return errs.String(), code, exited
+	}
+	errs, code, exited := run(func(*changeCodeFlags) {})
+	if !exited || code != 1 || !strings.Contains(errs, "side-links gate failed: links to files that will not reach the repository") {
+		t.Fatalf("want the refusal: exited=%v code=%d\n%s", exited, code, errs)
+	}
+	if errs, _, _ := run(func(f *changeCodeFlags) { f.Force = "a reason" }); !strings.Contains(errs, "side-links gate bypassed (--force: a reason)") {
+		t.Fatalf("--force:\n%s", errs)
+	}
+	if errs, _, _ := run(func(f *changeCodeFlags) { f.NoSideLinks = true }); strings.Contains(errs, "side-links gate") {
+		t.Fatalf("--no-side-links still ran the check:\n%s", errs)
+	}
+	r.git("add", side)
+	r.git("commit", "-q", "-m", "#9: side doc")
+	if errs, _, _ := run(func(*changeCodeFlags) {}); strings.Contains(errs, "side-links gate") {
+		t.Fatalf("committed, still refused:\n%s", errs)
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,10 +29,10 @@ func execSideLinkGit(dir string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// gitLinkState judges a root-relative path against tree in the repository at
-// root: in the tree, absent from disk, ignored, or merely uncommitted. Paths
-// reach git as one argument after "--" or a "tree:" prefix.
-func gitLinkState(git sideLinkGit, root, tree string, inTree func(string) (bool, error)) func(string) (linkguard.LinkState, error) {
+// gitLinkState judges a root-relative path in the repository at root: in the
+// published tree (inTree), absent from disk, ignored, or merely uncommitted.
+// Paths reach git as literal pathspecs after "--".
+func gitLinkState(git sideLinkGit, root string, inTree func(string) (bool, error)) func(string) (linkguard.LinkState, error) {
 	return func(p string) (linkguard.LinkState, error) {
 		ok, err := inTree(p)
 		if err != nil {
@@ -45,7 +46,7 @@ func gitLinkState(git sideLinkGit, root, tree string, inTree func(string) (bool,
 		} else if err != nil {
 			return 0, err
 		}
-		out, err := git(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "--", p)
+		out, err := git(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "--", ":(literal)"+p)
 		if err != nil {
 			return 0, err
 		}
@@ -59,7 +60,7 @@ func gitLinkState(git sideLinkGit, root, tree string, inTree func(string) (bool,
 // headHas reports whether HEAD's tree holds a path, file or directory.
 func headHas(git sideLinkGit, root string) func(string) (bool, error) {
 	return func(p string) (bool, error) {
-		out, err := git(root, "ls-tree", "--name-only", "HEAD", "--", p)
+		out, err := git(root, "ls-tree", "--name-only", "HEAD", "--", ":(literal)"+p)
 		return strings.TrimSpace(out) != "", err
 	}
 }
@@ -85,45 +86,45 @@ func censusRepo(git sideLinkGit, root string, docs []string) ([]linkguard.Refusa
 		}
 		in = append(in, linkguard.Doc{Path: d, Text: string(b)})
 	}
-	return linkguard.Census(in, gitLinkState(git, root, "HEAD", headHas(git, root)), readUnder(root))
+	return linkguard.Census(in, gitLinkState(git, root, headHas(git, root)), readUnder(root))
 }
 
 // issueSideLinkRefusals judges the issue at issueRel, its plan documents (the
 // archive's list) and the active projects across the fleet that reference it,
-// each in its own repository.
-func issueSideLinkRefusals(git sideLinkGit, root, issueRel, plansDir string, identity workspace.Identity) ([]linkguard.Refusal, error) {
+// each in its own repository. A project that cannot be found or judged is a
+// warning, not a refusal, as close's own project update treats it.
+func issueSideLinkRefusals(git sideLinkGit, root, issueRel, plansDir string, identity workspace.Identity) (refusals []linkguard.Refusal, warnings []string, err error) {
 	var docs []string
 	for _, d := range issueArchiveDocs(issueRel, issueRel, filepath.Join(root, plansDir), plansDir, plansDir) {
 		docs = append(docs, filepath.ToSlash(d.Src))
 	}
-	out, err := censusRepo(git, root, docs)
-	if err != nil {
-		return nil, err
+	if refusals, err = censusRepo(git, root, docs); err != nil {
+		return nil, nil, err
 	}
 	roots, err := projectWorkspaceRoots(identity)
 	if err != nil {
-		return nil, err
+		return refusals, []string{fmt.Sprintf("side-link guard: projects not judged: %v", err)}, nil
 	}
 	id := issueIDPrefix(filepath.Base(issueRel))
 	matches, err := project.DiscoverInRoots(roots, identity.Repo, strings.TrimLeft(id, "0"), project.ActiveOnly)
 	if err != nil {
-		return nil, err
+		return refusals, []string{fmt.Sprintf("side-link guard: projects not judged: %v", err)}, nil
 	}
 	for _, m := range matches {
 		rel, err := filepath.Rel(m.RepoDir, m.Path)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			var rs []linkguard.Refusal
+			if rs, err = censusRepo(git, m.RepoDir, []string{filepath.ToSlash(rel)}); err == nil {
+				for _, r := range rs {
+					r.Doc = path.Join(m.Repo, r.Doc)
+					refusals = append(refusals, r)
+				}
+				continue
+			}
 		}
-		rs, err := censusRepo(git, m.RepoDir, []string{filepath.ToSlash(rel)})
-		if err != nil {
-			return nil, fmt.Errorf("project %s: %w", m.Path, err)
-		}
-		for _, r := range rs {
-			r.Doc = path.Join(m.Repo, r.Doc)
-			out = append(out, r)
-		}
+		warnings = append(warnings, fmt.Sprintf("side-link guard: project %s not judged: %v", m.Path, err))
 	}
-	return out, nil
+	return refusals, warnings, nil
 }
 
 // sideLinkError is the refusal every verb prints, with its bypass when it has one.
@@ -147,7 +148,7 @@ func publishSideDocs(git sideLinkGit, root, detailsRel string, details []byte, m
 	own := sidedoc.SideDir(detailsRel) + "/"
 	id := issueIDPrefix(path.Base(detailsRel))
 	candidates := map[string]bool{}
-	inner := gitLinkState(git, root, main.Ref(), main.Exists)
+	inner := gitLinkState(git, root, main.Exists)
 	state := func(p string) (linkguard.LinkState, error) {
 		if id != "" && assetIssueID(p) == id {
 			return linkguard.Committed, nil // the issue's asset bundle: publication carries and checks it
@@ -172,9 +173,9 @@ func publishSideDocs(git sideLinkGit, root, detailsRel string, details []byte, m
 	}
 	carried := map[string][]byte{}
 	for p := range candidates {
-		local, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p)))
+		local, err := readRegular(filepath.Join(root, filepath.FromSlash(p)))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("side doc %s: %w", p, err)
 		}
 		onMain, err := main.Exists(p)
 		if err != nil {
@@ -221,8 +222,8 @@ func issueRelTo(root, p string) string {
 }
 
 // changeCodeSideLinks is change-code's side-link check over the issue at
-// issuePath and its plans.
-func changeCodeSideLinks(issuePath, plansDir string) error {
+// issuePath, its plans and its projects; warnings go to stderr.
+func changeCodeSideLinks(stderr io.Writer, issuePath, plansDir string) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -231,7 +232,10 @@ func changeCodeSideLinks(issuePath, plansDir string) error {
 	if err != nil {
 		return err
 	}
-	rs, err := issueSideLinkRefusals(execSideLinkGit, root, issueRelTo(root, issuePath), plansDir, identity)
+	rs, warnings, err := issueSideLinkRefusals(execSideLinkGit, root, issueRelTo(root, issuePath), resolvePlansDir(plansDir), identity)
+	for _, w := range warnings {
+		cwarn(stderr, w)
+	}
 	if err != nil || len(rs) == 0 {
 		return err
 	}
@@ -248,4 +252,25 @@ func sideChanged(root string, side map[string][]byte) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// readRegular reads a file that is, before and after the read, the same
+// regular file (never a symlink swapped in between).
+func readRegular(p string) ([]byte, error) {
+	before, err := os.Lstat(p)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	after, err := os.Lstat(p)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() || !os.SameFile(before, after) {
+		return nil, errors.New("not the regular file it was when judged; publish again")
+	}
+	return b, nil
 }

@@ -102,7 +102,7 @@ var GateCatalog = []GateSig{
 		RefusalPat: `pass --no-plan-check, or --force, to close anyway`},
 	// #579: a link from the issue, its plans or its projects to an uncommitted or ignored file.
 	{Commands: closeMclose, Flag: "no-side-links", Gate: "links name committed files (#579)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
-		AckPat:     `--no-side-links \(or --force\): closing with \d+ link`,
+		AckPat:     `--no-side-links \(or --force\): skipping the side-link check`,
 		RefusalPat: `links to files that will not reach the repository:`},
 	// #308: --no-project skips the whole project update (tick, detail block, peer
 	// publish), announced by an info line; --force alone only waives the block.

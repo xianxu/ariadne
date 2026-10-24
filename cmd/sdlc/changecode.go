@@ -188,7 +188,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	// #579: on every flow, the design links only committed files.
 	if !f.NoSideLinks {
-		if err := changeCodeSideLinks(issuePath, f.PlansDir); err != nil {
+		if err := changeCodeSideLinks(stderr, issuePath, f.PlansDir); err != nil {
 			fmt.Fprintf(stderr, "side-links gate failed: %v\n", err)
 			if f.Force == "" {
 				exitWithCode(1)

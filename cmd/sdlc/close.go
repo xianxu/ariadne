@@ -741,13 +741,19 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	}
 
 	// #579: the issue, its plans and its projects link only committed files.
-	if refusals, err := issueSideLinkRefusals(execSideLinkGit, repoTop, issueRelTo(repoTop, issuePath), f.plansDir(), identity); err != nil {
-		die(stderr, fmt.Sprintf("side-link guard: %v", err))
-	} else if len(refusals) > 0 {
-		if !f.skip("side-links") {
+	if f.skip("side-links") {
+		cwarn(stderr, "--no-side-links (or --force): skipping the side-link check")
+	} else {
+		refusals, warnings, err := issueSideLinkRefusals(execSideLinkGit, repoTop, issueRelTo(repoTop, issuePath), f.plansDir(), identity)
+		for _, w := range warnings {
+			cwarn(stderr, w)
+		}
+		if err != nil {
+			die(stderr, fmt.Sprintf("side-link guard: %v (or pass --no-side-links, or --force, with the reason in --verified)", err))
+		}
+		if len(refusals) > 0 {
 			die(stderr, filepath.Base(issuePath)+" "+sideLinkError(refusals, "--no-side-links (or --force)").Error())
 		}
-		cwarn(stderr, fmt.Sprintf("--no-side-links (or --force): closing with %d link(s) to uncommitted or ignored files", len(refusals)))
 	}
 
 	if mode == "milestone" {
