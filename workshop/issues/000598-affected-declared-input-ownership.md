@@ -1,12 +1,20 @@
 ---
 id: 000598
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: 'e2a393e689aad7856b5bbabe0a2a15e260aa30c6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '11cea763c8c4ea88fd905cb4276c40012aeeaca2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T15:03:56-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Affected planning: declared non-Go path ownership and audited reader inputs
@@ -37,11 +45,22 @@ This is a prerequisite for Pair#853, not stacked work. ops:0 assigned ariadne:5 
 
 ## Plan
 
-- [ ] Design the generic ownership seam and certificate-read consumer contract; coordinate with Pair#853 before code.
-- [ ] Implement and qualify the provider; land independently before Pair#853 resumes.
+Durable plan: [workshop/plans/000598-affected-declared-input-ownership-plan.md](../plans/000598-affected-declared-input-ownership-plan.md).
+
+- [x] Design the generic ownership seam and certificate-read consumer contract (plan above; sent to ops:0 for approval).
+- [ ] M1 — owners, full exceptions and sidecars (what pair#853 needs)
+- [ ] M2 — parley-style traceability input
+- [ ] M3 — missed mappings recorded at merge, listed for curation
 
 ## Log
 
 ### 2026-10-24
 
 Filed by pair:1 at ops:0 request. Source anchors: cmd/sdlc/internal/affected/plan.go Plan (full overrides, owners plus groups, then Dependents); config.go Group.Go is a trigger only; graph.go Graph.Owners has directory/testdata/embed ownership only. Pair source anchors: .sdlc/affected.json full tests/** and cmd/couch/**; tests/affected-go-readers-test.py load_inventory; scripts/test-affected.py run_selection fixed source preflight. No source code changed.
+
+Design (ariadne:5). The TL relayed the operator's direction: a curated, low-tech mapping as the backbone (parley's traceability spirit, "change the toolbar, run these"), with Go-import selection where it works; plus two separable parts, parley-format input and missed mappings at merge.
+- Pair facts (read 10-24, pair 93a57a380): 583 certificates, each {version, disposition, sha256} with no reads; `full` holds tests/** and cmd/couch/**. The Done-when certificate is tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json; it is not under cmd/couch.
+- ARCH-DRY: all three declaration sources compile into one Mapping, and Plan and splitImpact share one ownership function.
+- Trust: declarations come from main's rev only. A sidecar's path-only alias covers added, renamed and deleted certificates; its `reads` take effect once they land.
+- Missed mappings are recorded only when the main baseline passed, so load storms such as today's add no noise.
+
