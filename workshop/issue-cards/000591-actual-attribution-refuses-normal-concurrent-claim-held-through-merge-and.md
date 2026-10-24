@@ -1,6 +1,6 @@
 ---
 id: 000591
-status: codecomplete
+status: done
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c701ea2fe03b33401640ba1e203a3e5ab38d26c1
         evidence_commit: a5e86fc38d108c5bff58386f09eb6218ab8c014f
+        landed_commit: f2486000c740f01d26f4cc3c101113c36acd5cca
 ---
 
 # Actual attribution refuses normal concurrent claim held through merge and resting train checkout
