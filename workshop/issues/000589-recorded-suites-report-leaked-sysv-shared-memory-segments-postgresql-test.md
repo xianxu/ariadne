@@ -148,3 +148,7 @@ Session19225 exited0: TestNativeOwnedSysVQualification PASS0.02s, package0.156s.
 ### 2026-10-24 — close measurement refusal
 
 Close session50486 exited1 before review: measurement branch proof: measurement snapshot does not serialize: json: error calling MarshalJSON for type *gatestate.MeasurementInputs: json: error calling MarshalJSON for type *gatestate.MeasurementBranchEvidence: measurement exceeds 65536 bytes. No window was printed. Central sdlc reports revision945a8168578afcbd94ed27965c283d0a6483aeb1 modified=false. No review or completion generation was created. Ops:0 then supplied standing authorization in receipt88cf17d2-3cbb-4238-9fbd-14610da9c3e2 for this exact 64-KiB refusal until #593 lands: close with --no-actual, exact refusal and printed window if any; never typed hours. The next close uses that precise acknowledgment and unchanged passed verification.
+
+### 2026-10-24 — noon freshness integration
+
+Authorized no-actual close session46109 stopped at the noon freshness gate before review, naming main code through d71859146. Followed its explicit integrate-first instruction: merged origin/main cleanly (no conflicts), preserving the issue patch. Focused integrated SysV/context controls passed in cmd/sdlc9.353s and sysvshm0.125s, count1; no full run outside the queue. The old branch pass is historical; queue one fresh central pre-close on this integrated head, then close with the exact measurement refusal above and no typed hours. The mandatory review may overlap that queued run, but merge waits for both pass and final verdict.
