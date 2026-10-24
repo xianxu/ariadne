@@ -1,6 +1,6 @@
 ---
 id: 000579
-status: working
+status: codecomplete
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.69
+tracker:
+    version: 1
+    completion:
+        token: close-07fade63406b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 712b54c08a7c4ae7178a4727b3ecc1a44bf492f6
+        evidence_commit: fa32e8a28d03e3980dbc054bb2373b341c785660
 ---
 
 # Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files
