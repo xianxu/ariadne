@@ -38,7 +38,9 @@ Investigate sanctioned stage/* branches as a witnessed exclusion, like resting b
 
 - [x] Approve the policy and implementation plan in workshop/plans/000594-actual-attribution-excludes-witnessed-local-staging-intervals-plan.md with the hub before code.
 - [x] Reproduce the 172-second staging refusal, implement witnessed staging exclusion through selection and retained-proof validation, and test adversarial controls.
-- [ ] Update help and atlas; run targeted checks and the recorded pre-close suite, close with the mandatory review, then land normally.
+- [x] Update help and atlas, pass targeted normal/race checks and lint, and launch the recorded pre-close suite.
+
+The full suite is running. Close review may overlap it; merge waits for its pass and SHIP.
 
 ## Revisions
 
@@ -67,3 +69,5 @@ Hash abbreviations above are quoted peer evidence, not independently verified Gi
 2026-10-24 — change-code inferred quick flow. Renamed the durable plan to its printed canonical filename before implementation. No live actual adoption, peer checkout edit, shared-memory native test, or #564 implementation occurred.
 
 2026-10-24 — PR 433 opened; hosted merge-check and local-gates guard pass. Rebuilt this slot's six tools with Go 1.27.3 using make tools; workflow commands remain on central sdlc. Recorded pre-close suite retained in terminal 21121, lease-1425773880, subject abbb560116896a1a2e18929f7e4964b7814f48ee, inflight attempt 4a728f4383fe20acb5ae518c38942561. It is waiting normally (position 2 at about 09:04 PDT), not canceled/restarted. Full suite, mandatory close review and landing remain pending. The read-only actual preview completed successfully without waiver; close must measure/adopt freshly rather than type previewed hours. Recovery screen lookup confirmed previous TTY unavailable. #589's native qualification and #564 code remain explicitly held.
+
+2026-10-24 — The retained recorded suite acquired both machine slots after 1699 seconds and is running on abbb560116896a1a2e18929f7e4964b7814f48ee. Starting the mandatory close review alongside the detached suite; no merge admission until that suite passes. This preserves its one recorded attempt and avoids a duplicate full run.

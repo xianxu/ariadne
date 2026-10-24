@@ -44,7 +44,9 @@ ARCH-CONSTRAINTS: batch measurement keeps its existing bounded capture and sorte
 - [x] Extend measurement_branch.go validation and actualbranch.go's warning/proof handling. Add tests in cmd/sdlc/internal/gatestate/measurement_branch_test.go and cmd/sdlc/actualbranch_resting_test.go for valid saved exclusion, exclusion overlapping credited windows, invalid branch/kind mutations, output minutes, old-reader refusal, and unchanged old adopted replay. Verify JSON/YAML unknown-member preservation using existing codec controls.
 - [x] Run focused normal and race tests: activetime and gatestate packages; then cmd/sdlc with `-run 'Test.*(Branch|Resting|Staging|StageExcluded)'`. Check actual test names and enumerate them before trusting a regex run; retain the precise commands and results in the Log.
 - [x] Update cmd/sdlc/helptext/actual.md, cmd/sdlc/helptext/active-time.md and atlas/workflow/sdlc-binary.md together. Sweep existing resting-excluded consumers and stale refusal wording. Add a lessons.md line for witnessed neutral states and retained-proof parity.
-- [ ] Commit and push; run `sdlc local-check run --pre-close` on the pushed head, wait for success, close with measured actual and the binary-owned review, then `sdlc pr` / `sdlc merge --yes` as required by current state. Report the Git-verified landing to the hub. No live actual adoption or peer checkout edit is part of qualification.
+- [x] Commit and push; launch `sdlc local-check run --pre-close` on the pushed head. PR 433 is open and the retained suite is running.
+
+Completion sequence: the binary-owned close review can overlap the detached suite; wait for its pass and SHIP before `sdlc merge --yes`. Report the Git-verified landing to the hub. No live actual adoption or peer checkout edit is part of qualification.
 
 ## Approval checkpoint
 
