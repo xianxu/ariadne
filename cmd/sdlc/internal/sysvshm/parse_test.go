@@ -97,7 +97,7 @@ func TestDeltaCountedProjectionAtEightAndSixteenRows(t *testing.T) {
 			before.Segments = append(before.Segments, Segment{ID: i, UID: 501})
 			after.Segments = append(after.Segments, Segment{ID: i + size, UID: 501})
 		}
-		got := Delta(before, after, 501, nil)
+		got := Delta(before, after, 501)
 		if got.Before != size || got.After != size || len(got.Candidates) != size {
 			t.Fatalf("size=%d %+v", size, got)
 		}

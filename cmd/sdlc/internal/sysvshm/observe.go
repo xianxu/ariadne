@@ -9,14 +9,12 @@ import (
 	"os/user"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 )
 
 // Observer is injected at the run boundary; observations never authorize cleanup.
 type Observer interface {
 	Snapshot(context.Context) Snapshot
-	WitnessGroup(context.Context, int) map[int]Witness
 }
 
 type Native struct {
@@ -84,61 +82,4 @@ func (b *boundedOutput) Write(p []byte) (int, error) {
 	}
 	b.data = append(b.data, p...)
 	return len(p), nil
-}
-
-// WitnessGroup takes one bounded terminal process snapshot, then reads kernel
-// identity only for rows in the owned group. Changed/exited membership is unknown.
-func (n Native) WitnessGroup(ctx context.Context, pgid int) map[int]Witness {
-	if pgid <= 0 || (n.Platform != "darwin" && n.Platform != "linux") {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "ps", "-axo", "pid=,pgid=")
-	cmd.WaitDelay = 100 * time.Millisecond
-	output := &boundedOutput{}
-	cmd.Stdout, cmd.Stderr = output, output
-	if err := cmd.Run(); err != nil {
-		return nil
-	}
-	return groupWitnesses(output.data, pgid, func(pid, group int) (Witness, bool) {
-		if ctx.Err() != nil {
-			return Witness{}, false
-		}
-		return kernelWitness(pid, group)
-	})
-}
-
-func groupWitnesses(data []byte, pgid int, lookup func(int, int) (Witness, bool)) map[int]Witness {
-	if len(data) > MaxBytes {
-		return nil
-	}
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) > MaxRows {
-		return nil
-	}
-	var pids []int
-	seen := map[int]bool{}
-	for _, line := range lines {
-		f := strings.Fields(line)
-		if len(f) != 2 {
-			return nil
-		}
-		pid, e1 := strconv.Atoi(f[0])
-		group, e2 := strconv.Atoi(f[1])
-		if e1 != nil || e2 != nil || pid <= 0 || group < 0 || seen[pid] {
-			return nil
-		}
-		seen[pid] = true
-		if group == pgid {
-			pids = append(pids, pid)
-		}
-	}
-	out := map[int]Witness{}
-	for _, pid := range pids {
-		if w, ok := lookup(pid, pgid); ok && w.Start != "" && w.Name != "" {
-			out[pid] = w
-		}
-	}
-	return out
 }

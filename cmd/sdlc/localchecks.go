@@ -308,6 +308,7 @@ func jobIDFromLink(link string) (int64, bool) {
 
 // localRunRecord is the outcome of one local run, as recorded.
 type localRunRecord struct {
+	resumeSysVWarning         bool // derived only from verified child log; never persisted
 	ResumeParent, ResumeChild string
 	Name                      string
 	SHA                       string
@@ -379,7 +380,7 @@ func (r localRunRecord) statusDescription() string {
 	if r.ResumeParent != "" {
 		s = fmt.Sprintf("resume %.12s/%.12s · %s", r.ResumeParent, r.ResumeChild, s)
 	}
-	if hasSysVWarning(r.Tail, r.Name, r.SHA) {
+	if r.resumeSysVWarning || hasSysVWarning(r.Tail, r.Name, r.SHA) {
 		s = "SysV warning · " + s
 	}
 	if len(s) > 140 {

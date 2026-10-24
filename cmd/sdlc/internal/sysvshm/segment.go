@@ -1,7 +1,7 @@
 // Package sysvshm describes bounded host observations, never cleanup authority.
 package sysvshm
 
-// Segment is one observed allocation. Attachments is not its identity.
+// Segment is one observed row. Mutable metadata never establishes allocation identity.
 type Segment struct {
 	ID          int
 	Key         string
@@ -18,12 +18,8 @@ type Snapshot struct {
 	Unavailable string
 }
 
-// Witness is a creator observed in the owned process group, with incarnation.
-type Witness struct{ Name, Start string }
-type Candidate struct {
-	Segment Segment
-	Witness Witness
-}
+// Candidate is a newly observed ID, never process attribution.
+type Candidate struct{ Segment Segment }
 type Report struct {
 	Before, After int
 	Candidates    []Candidate

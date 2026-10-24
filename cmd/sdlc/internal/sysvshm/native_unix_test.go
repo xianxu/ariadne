@@ -61,7 +61,7 @@ func TestNativeOwnedSysVQualification(t *testing.T) {
 			t.Errorf("remove test-owned segment %d: %v", id, err)
 		}
 	})
-	r := Delta(before, native.Snapshot(context.Background()), os.Geteuid(), nil)
+	r := Delta(before, native.Snapshot(context.Background()), os.Geteuid())
 	for _, candidate := range r.Candidates {
 		if candidate.Segment.ID == id && candidate.Segment.Creator == cmd.Process.Pid {
 			t.Logf("observed owned abandoned segment id=%d creator=%d; exact-ID cleanup registered", id, cmd.Process.Pid)

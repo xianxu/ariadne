@@ -25,10 +25,10 @@ func TestDeltaOnlyNewUnattachedOwnerIdentities(t *testing.T) {
 		{"removed", []Segment{old}, nil, nil},
 		{"foreign", nil, []Segment{foreign}, nil},
 		{"new", []Segment{old}, []Segment{old, newSegment}, []int{4}},
-		{"replacement", []Segment{old}, []Segment{replacement}, []int{1}},
+		{"same ID changed creator is ambiguous", []Segment{old}, []Segment{replacement}, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := Delta(Snapshot{Segments: tc.before}, Snapshot{Segments: tc.after}, 501, nil)
+			r := Delta(Snapshot{Segments: tc.before}, Snapshot{Segments: tc.after}, 501)
 			var ids []int
 			for _, c := range r.Candidates {
 				ids = append(ids, c.Segment.ID)
@@ -41,29 +41,25 @@ func TestDeltaOnlyNewUnattachedOwnerIdentities(t *testing.T) {
 }
 
 func TestDeltaUnavailableCannotClaimClean(t *testing.T) {
-	r := Delta(Snapshot{Unavailable: "truncated"}, Snapshot{}, 501, nil)
+	r := Delta(Snapshot{Unavailable: "truncated"}, Snapshot{}, 501)
 	if r.Unavailable == "" {
 		t.Fatal("invalid before snapshot claimed clean observation")
 	}
 }
 
-func TestDeltaCreatorRequiresMatchingWitness(t *testing.T) {
-	s := Segment{ID: 8, UID: 501, Creator: 42}
-	for _, tc := range []struct {
-		name      string
-		witnesses map[int]Witness
-		want      string
-	}{
-		{"unwitnessed", nil, ""},
-		{"different creator", map[int]Witness{43: {Name: "postgres", Start: "123"}}, ""},
-		{"uncertain incarnation", map[int]Witness{42: {Name: "postgres"}}, ""},
-		{"witnessed", map[int]Witness{42: {Name: "postgres", Start: "123"}}, "postgres"},
+func TestDeltaMetadataChangesAreNotNewIDs(t *testing.T) {
+	before := Segment{ID: 7, Key: "old", UID: 501, Creator: 42, Size: 56, Changed: "old"}
+	for _, mutate := range []func(*Segment){
+		func(s *Segment) { s.Changed = "later" },
+		func(s *Segment) { s.Size = 4096 },
+		func(s *Segment) { s.UID = 502 },
+		func(s *Segment) { s.Attachments = 4 },
+		func(s *Segment) { s.Creator = 99; s.Key = "changed"; s.Changed = "later" },
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			r := Delta(Snapshot{}, Snapshot{Segments: []Segment{s}}, 501, tc.witnesses)
-			if len(r.Candidates) != 1 || r.Candidates[0].Witness.Name != tc.want {
-				t.Fatalf("%+v", r)
-			}
-		})
+		after := before
+		mutate(&after)
+		if r := Delta(Snapshot{Segments: []Segment{before}}, Snapshot{Segments: []Segment{after}}, 501); len(r.Candidates) != 0 {
+			t.Fatalf("same ID metadata became a new segment: %+v", r)
+		}
 	}
 }

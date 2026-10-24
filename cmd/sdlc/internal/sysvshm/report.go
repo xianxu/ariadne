@@ -2,18 +2,17 @@ package sysvshm
 
 import "strings"
 
-// Delta reports new unattached owner allocations; timing alone is not causality.
-func Delta(before, after Snapshot, uid int, witnesses map[int]Witness) Report {
+// Delta reports newly observed unattached owner IDs; timing alone is not causality.
+func Delta(before, after Snapshot, uid int) Report {
 	r := Report{Unavailable: strings.Join(nonempty(before.Unavailable, after.Unavailable), "; ")}
 	if r.Unavailable != "" {
 		return r
 	}
-	old := make(map[Segment]bool, len(before.Segments))
+	old := make(map[int]bool, len(before.Segments))
 	for _, s := range before.Segments {
+		old[s.ID] = true
 		if s.UID == uid {
 			r.Before++
-			s.Attachments = 0
-			old[s] = true
 		}
 	}
 	for _, s := range after.Segments {
@@ -21,16 +20,10 @@ func Delta(before, after Snapshot, uid int, witnesses map[int]Witness) Report {
 			continue
 		}
 		r.After++
-		identity := s
-		identity.Attachments = 0
-		if s.Attachments != 0 || old[identity] {
+		if s.Attachments != 0 || old[s.ID] {
 			continue
 		}
-		w := witnesses[s.Creator]
-		if w.Start == "" {
-			w = Witness{}
-		}
-		r.Candidates = append(r.Candidates, Candidate{Segment: s, Witness: w})
+		r.Candidates = append(r.Candidates, Candidate{Segment: s})
 	}
 	return r
 }

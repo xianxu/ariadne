@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -28,13 +27,9 @@ func writeSysVReport(out io.Writer, check, sha string, r sysvshm.Report) {
 		fmt.Fprintf(out, "[sdlc SysV observation] observation unavailable: %q\n", boundedSysVText(r.Unavailable))
 	} else if len(r.Candidates) > 0 {
 		state = "warning"
-		fmt.Fprintln(out, "[sdlc SysV observation] new segments appeared during this run, not attributed unless explicitly witnessed below")
+		fmt.Fprintln(out, "[sdlc SysV observation] new segments appeared during this run, not attributed; newly observed IDs do not prove allocation causality")
 		for _, c := range r.Candidates {
-			relationship, name := "not attributed", "unknown"
-			if c.Witness.Name != "" && c.Witness.Start != "" {
-				relationship, name = "witnessed in run process group", filepath.Base(c.Witness.Name)
-			}
-			fmt.Fprintf(out, "[sdlc SysV observation] id=%d creator=%d attachments=%d bytes=%d command=%s relationship=%q\n", c.Segment.ID, c.Segment.Creator, c.Segment.Attachments, c.Segment.Size, strconv.Quote(boundedSysVText(name)), relationship)
+			fmt.Fprintf(out, "[sdlc SysV observation] id=%d creator=%d attachments=%d bytes=%d command=%s relationship=%q\n", c.Segment.ID, c.Segment.Creator, c.Segment.Attachments, c.Segment.Size, strconv.Quote("unknown"), "not attributed")
 		}
 	}
 	fmt.Fprintf(out, "sdlc-sysv-v1 check=%q head=%q state=%s\n", check, sha, state)
@@ -62,7 +57,7 @@ func captureSysV(caller context.Context, observer sysvshm.Observer) sysvshm.Snap
 	return observer.Snapshot(ctx)
 }
 
-func sysVRunReport(caller context.Context, observer sysvshm.Observer, before sysvshm.Snapshot, witnesses map[int]sysvshm.Witness, out io.Writer, check, sha string) {
+func sysVRunReport(caller context.Context, observer sysvshm.Observer, before sysvshm.Snapshot, out io.Writer, check, sha string) {
 	after := captureSysV(caller, observer)
-	writeSysVReport(out, check, sha, sysvshm.Delta(before, after, os.Geteuid(), witnesses))
+	writeSysVReport(out, check, sha, sysvshm.Delta(before, after, os.Geteuid()))
 }

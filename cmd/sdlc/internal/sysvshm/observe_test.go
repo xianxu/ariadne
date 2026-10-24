@@ -36,19 +36,3 @@ func TestNativeObservationUsesBoundedPlatformProjection(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 }
-
-func TestGroupWitnessRequiresKernelMembershipAndIncarnation(t *testing.T) {
-	rows := []byte("42 10\n43 10\n44 20\n")
-	got := groupWitnesses(rows, 10, func(pid, group int) (Witness, bool) {
-		if pid == 42 {
-			return Witness{Name: "postgres", Start: "123"}, true
-		}
-		return Witness{}, false // exited or moved/reused between ps and kernel read
-	})
-	if len(got) != 1 || got[42].Name != "postgres" {
-		t.Fatalf("%+v", got)
-	}
-	if got := groupWitnesses([]byte("42 invalid\n"), 10, func(int, int) (Witness, bool) { t.Fatal("invalid row probed"); return Witness{}, false }); len(got) != 0 {
-		t.Fatalf("%+v", got)
-	}
-}

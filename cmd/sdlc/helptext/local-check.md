@@ -134,12 +134,12 @@ WHAT A RUN DOES
 HOST SYSV OBSERVATIONS (#589)
 
   Admitted host batches take bounded before/after SysV shared-memory snapshots
-  (ipcs on macOS, /proc/sysvipc/shm on Linux). New owner segments left unattached
+  (ipcs on macOS, /proc/sysvipc/shm on Linux). Newly observed owner IDs left unattached
   produce an advisory warning in the hashed log and a SysV warning status marker,
   preserved on saved-result republish. Test exit and flake policy are unchanged.
-  Same owner or timing does not attribute a segment: creators are unknown unless
-  witnessed in the run's own process group. Missing/truncated observations say
-  observation unavailable; VM checks do not imply guest coverage. No segments
+  The kernel creator PID is always unattributed; a current PID/name cannot prove
+  the allocating incarnation. Same-ID metadata changes are not new segments.
+  Missing/truncated observations say observation unavailable; VM checks do not imply guest coverage. No segments
   are removed. Inspect the named IDs/creator/run and fix the harness.
 
   PostgreSQL keeps a SysV interlock even with mmap. Shut down owned servers on

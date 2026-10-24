@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,9 +47,10 @@ func TestSysVUnavailableNeverDisplaysAnEmptyCount(t *testing.T) {
 type fakeSysVObserver struct {
 	beforeErr, afterErr string
 	onBefore            func()
+	onAfter             func()
 	onContext           func(context.Context)
 	segments            []sysvshm.Segment
-	captures, witnesses int
+	captures            int
 	tablePath           string
 }
 
@@ -64,8 +66,13 @@ func (f *fakeSysVObserver) Snapshot(ctx context.Context) sysvshm.Snapshot {
 		if f.beforeErr != "" {
 			return sysvshm.Snapshot{Unavailable: f.beforeErr}
 		}
-	} else if f.afterErr != "" {
-		return sysvshm.Snapshot{Unavailable: f.afterErr}
+	} else {
+		if f.onAfter != nil {
+			f.onAfter()
+		}
+		if f.afterErr != "" {
+			return sysvshm.Snapshot{Unavailable: f.afterErr}
+		}
 	}
 	if f.tablePath != "" {
 		data, err := os.ReadFile(f.tablePath)
@@ -79,14 +86,6 @@ func (f *fakeSysVObserver) Snapshot(ctx context.Context) sysvshm.Snapshot {
 	}
 	return sysvshm.Snapshot{Segments: append([]sysvshm.Segment(nil), f.segments...)}
 }
-func (f *fakeSysVObserver) WitnessGroup(ctx context.Context, _ int) map[int]sysvshm.Witness {
-	if f.onContext != nil {
-		f.onContext(ctx)
-	}
-	f.witnesses++
-	return nil
-}
-
 func TestSysVManagedRunWarningIsHashedWithoutChangingPass(t *testing.T) {
 	d, sha, _, stderr := localRunRepo(t, "acquired")
 	table := filepath.Join(t.TempDir(), "shm-table")
@@ -101,8 +100,8 @@ func TestSysVManagedRunWarningIsHashedWithoutChangingPass(t *testing.T) {
 	if err != nil || !rec.passed() {
 		t.Fatalf("%+v %v %s", rec, err, stderr)
 	}
-	if f.captures != 2 || f.witnesses != 1 {
-		t.Fatalf("captures=%d witnesses=%d", f.captures, f.witnesses)
+	if f.captures != 2 {
+		t.Fatalf("captures=%d", f.captures)
 	}
 	if !strings.HasPrefix(rec.statusDescription(), "SysV warning") || !strings.Contains(stderr.String(), "not attributed") {
 		t.Fatalf("%+v %s", rec, stderr)
@@ -139,19 +138,18 @@ func TestSysVReplayAndParserDoNotInventFailure(t *testing.T) {
 
 func TestSysVTerminalLifecycleAndCountedBatchCost(t *testing.T) {
 	for _, tc := range []struct {
-		name        string
-		commands    [][]string
-		timeout     time.Duration
-		cleanup     bool
-		wantWitness int
+		name     string
+		commands [][]string
+		timeout  time.Duration
+		cleanup  bool
 	}{
-		{"pass", [][]string{{"sh", "-c", "echo ok"}}, time.Second, false, 1},
-		{"failed", [][]string{{"sh", "-c", "exit 7"}}, time.Second, false, 1},
-		{"never started", [][]string{{"/missing-sysv-test-command"}}, time.Second, false, 0},
-		{"timeout", [][]string{{"sh", "-c", "sleep 30"}}, 50 * time.Millisecond, false, -1},
-		{"early batch error", [][]string{{"sh", "-c", "exit 7"}, {"sh", "-c", "echo forbidden"}}, time.Second, false, 1},
-		{"eight commands", [][]string{{"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}}, time.Second, false, 1},
-		{"cleanup unknown", [][]string{{"true"}}, time.Second, true, 1},
+		{"pass", [][]string{{"sh", "-c", "echo ok"}}, time.Second, false},
+		{"failed", [][]string{{"sh", "-c", "exit 7"}}, time.Second, false},
+		{"never started", [][]string{{"/missing-sysv-test-command"}}, time.Second, false},
+		{"timeout", [][]string{{"sh", "-c", "sleep 30"}}, 50 * time.Millisecond, false},
+		{"early batch error", [][]string{{"sh", "-c", "exit 7"}, {"sh", "-c", "echo forbidden"}}, time.Second, false},
+		{"eight commands", [][]string{{"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}, {"true"}}, time.Second, false},
+		{"cleanup unknown", [][]string{{"true"}}, time.Second, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d, sha, _, _ := localRunRepo(t, "acquired")
@@ -172,8 +170,8 @@ func TestSysVTerminalLifecycleAndCountedBatchCost(t *testing.T) {
 				d.StrictGroupCleanup = true
 				d.runnerCleanup = func(*exec.Cmd) func() error {
 					return func() error {
-						if f.witnesses != 1 {
-							t.Fatal("cleanup preceded terminal witness")
+						if f.captures != 1 {
+							t.Fatal("after-snapshot preceded terminal cleanup")
 						}
 						return &runnerCleanupUnconfirmed{Detail: "fixture unknown"}
 					}
@@ -182,8 +180,8 @@ func TestSysVTerminalLifecycleAndCountedBatchCost(t *testing.T) {
 			logDir := t.TempDir()
 			log := filepath.Join(logDir, "run.log")
 			run, err := runUnderResourceBatch(context.Background(), d, wt, filepath.Join(d.Root, "scripts/test-lock.py"), logDir, "zellij", sha, 1, suitePrioritySubject{}, tc.commands, log, tc.timeout, "")
-			if f.captures != 2 || (tc.wantWitness >= 0 && f.witnesses != tc.wantWitness) || f.witnesses > 1 {
-				t.Fatalf("captures=%d witnesses=%d run=%+v err=%v", f.captures, f.witnesses, run, err)
+			if f.captures != 2 {
+				t.Fatalf("captures=%d run=%+v err=%v", f.captures, run, err)
 			}
 			b, readErr := os.ReadFile(log)
 			if readErr != nil || !strings.Contains(string(b), "state=observed") {
@@ -210,8 +208,8 @@ func TestSysVRunnerSkipsHostObservation(t *testing.T) {
 	f := &fakeSysVObserver{}
 	d.sysvObserver = f
 	rec, err := runLocalCheck(context.Background(), d, localCheck{Name: "vm", RunScope: "landing", Resource: "runner", Command: []string{"true"}, TimeoutMinutes: 1}, sha)
-	if err != nil || !rec.passed() || f.captures != 0 || f.witnesses != 0 {
-		t.Fatalf("%+v %v captures=%d witness=%d", rec, err, f.captures, f.witnesses)
+	if err != nil || !rec.passed() || f.captures != 0 {
+		t.Fatalf("%+v %v captures=%d", rec, err, f.captures)
 	}
 }
 
@@ -268,8 +266,8 @@ func TestSysVNoObservationBeforeAdmissionOrWritableLog(t *testing.T) {
 				log = filepath.Join(blocked, "run.log")
 			}
 			_, err := runUnderResourceBatch(context.Background(), d, d.Root, helper, logDir, "zellij", sha, 1, suitePrioritySubject{}, [][]string{{"true"}}, log, time.Second, "")
-			if err == nil || f.captures != 0 || f.witnesses != 0 {
-				t.Fatalf("%v captures=%d witness=%d", err, f.captures, f.witnesses)
+			if err == nil || f.captures != 0 {
+				t.Fatalf("%v captures=%d", err, f.captures)
 			}
 		})
 	}
@@ -301,17 +299,73 @@ func TestSysVObservationPreservesCallerValuesWithIndependentBound(t *testing.T) 
 			}
 			d.sysvObserver = f
 			rec, err := runLocalCheck(ctx, d, localCheck{Name: "zellij", Command: []string{"true"}, TimeoutMinutes: 1}, sha)
-			if f.captures != 2 || observations != f.captures+f.witnesses {
-				t.Fatalf("observations=%d captures=%d witnesses=%d", observations, f.captures, f.witnesses)
+			if f.captures != 2 || observations != f.captures {
+				t.Fatalf("observations=%d captures=%d", observations, f.captures)
 			}
 			if interrupted {
 				var stopped *queueInterruptedError
 				if !errors.As(err, &stopped) {
 					t.Fatalf("%v %s", err, stderr)
 				}
-			} else if err != nil || !rec.passed() || f.witnesses != 1 {
+			} else if err != nil || !rec.passed() {
 				t.Fatalf("%+v %v %s", rec, err, stderr)
 			}
 		})
+	}
+}
+
+// The test advances only the execution deadline, without depending on process
+// launch latency or sleeping under fleet load.
+type sysVExecutionClock struct {
+	context.Context
+	expired atomic.Bool
+}
+
+func (c *sysVExecutionClock) Err() error {
+	if c.expired.Load() {
+		return context.DeadlineExceeded
+	}
+	return c.Context.Err()
+}
+
+func TestSysVDiagnosticsCannotConsumeExecutionBudget(t *testing.T) {
+	for _, wantExit := range []int{0, 7} {
+		t.Run(fmt.Sprint(wantExit), func(t *testing.T) {
+			d, sha, _, _ := localRunRepo(t, "acquired")
+			var clock *sysVExecutionClock
+			d.executionTimeout = func(ctx context.Context, _ time.Duration) (context.Context, context.CancelFunc) {
+				child, cancel := context.WithCancel(ctx)
+				clock = &sysVExecutionClock{Context: child}
+				return clock, cancel
+			}
+			f := &fakeSysVObserver{
+				onBefore: func() {
+					if clock != nil {
+						t.Error("execution timer began before before-observation finished")
+					}
+				},
+				onAfter: func() {
+					if clock == nil {
+						t.Fatal("execution context absent")
+					}
+					clock.expired.Store(true)
+				},
+			}
+			d.sysvObserver = f
+			logDir := t.TempDir()
+			run, err := runUnderResourceBatch(t.Context(), d, d.Root, filepath.Join(d.Root, "scripts/test-lock.py"), logDir, "zellij", sha, 1, suitePrioritySubject{}, [][]string{{"sh", "-c", fmt.Sprintf("exit %d", wantExit)}}, filepath.Join(logDir, "run.log"), time.Minute, "")
+			if err != nil || run.TimedOut || run.Exit != wantExit {
+				t.Fatalf("diagnostic changed completed success: %+v %v", run, err)
+			}
+
+		})
+	}
+}
+
+func TestSysVCurrentProcessNameIsNotCreatorProof(t *testing.T) {
+	var out bytes.Buffer
+	writeSysVReport(&out, "suite", "head", sysvshm.Report{Candidates: []sysvshm.Candidate{{Segment: sysvshm.Segment{ID: 7, Creator: os.Getpid()}}}})
+	if strings.Contains(out.String(), "unrelated-reused-pid") || strings.Contains(out.String(), "witnessed in run process group") || !strings.Contains(out.String(), "command=\"unknown\"") {
+		t.Fatalf("current PID incarnation was mistaken for allocating creator: %s", &out)
 	}
 }
