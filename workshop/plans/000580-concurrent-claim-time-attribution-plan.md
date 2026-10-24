@@ -123,7 +123,7 @@ The branch filter exposes an execution-span case: a task dispatched during the o
 
 Implementation concepts now use BranchInterval, BranchClaim and BranchNote in internal/activetime/branch.go, plus the separate native decoder branchhistory.go. MeasurementBranchEvidence retains capture identity and labelled per-source attribution intervals. Missing competing card history is uncertainty, never absence: it prevents sole-reservation fallback, while a directly witnessed candidate branch still requires the candidate's complete ownership and admitted source lineage. Existing queue-head classification controls caught and enforce this distinction.
 
-### 2026-10-23 20:38 PDT — completed implementation and verification boundary
+### 2026-10-23 20:35 PDT — completed implementation and verification boundary
 
 New branch candidates now use schema version 3 with branch, branch-queue, branch-hybrid and branch-hybrid-queue method names. Existing v1/v2 replay remains on its original interpretation. Original dispatch windows are saved separately from final selected windows, and all consumers validate issue/witness/selected-window consistency; contributor pruning preserves the new evidence. The compatibility test now requires the frozen old reader to refuse v3, superseding original old/new acceptance equivalence. Unknown nested fields still survive current-reader rewrites. Explicit standalone limits are applied after original source admission and before branch classification. Existing authoritative tracker fetches remain part of that shared resolver; the classifier/capture itself adds no network or operator-worktree writes.
 

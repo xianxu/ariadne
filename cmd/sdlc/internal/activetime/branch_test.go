@@ -41,6 +41,14 @@ func TestSelectBranchActivityNoClaimCannotCredit(t *testing.T) {
 	}
 }
 
+func TestSelectBranchActivityDoesNotReassignAnUnclaimedForeignBranch(t *testing.T) {
+	window := ActivityWindow{Start: branchTime(2), End: branchTime(31), Began: branchTime(2)}
+	got, err := SelectBranchActivity("335", []ActivityWindow{window}, []BranchInterval{{Start: branchTime(2), End: branchTime(31), Branch: "000336-a", Known: true}}, []BranchClaim{{Start: branchTime(2), End: branchTime(31), Issue: "335"}})
+	if err != nil || len(got.Windows) != 0 || len(got.Notes) != 1 || got.Notes[0].Kind != "foreign-branch" {
+		t.Fatalf("sole reservation absorbed a witnessed foreign branch: %+v %v", got, err)
+	}
+}
+
 func TestSelectBranchActivityTerminalOwnerIsNotAnotherReservation(t *testing.T) {
 	windows := []ActivityWindow{{Start: branchTime(2), End: branchTime(31), Began: branchTime(2)}}
 	claims := []BranchClaim{{Start: branchTime(1), End: branchTime(15), Issue: "336"}, {Start: branchTime(15), End: branchTime(31), Issue: "336", Terminal: true}, {Start: branchTime(2), End: branchTime(31), Issue: "335"}}

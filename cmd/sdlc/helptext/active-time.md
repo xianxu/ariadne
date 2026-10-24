@@ -79,7 +79,7 @@ ISSUE MEASUREMENT (#335)
 
   Tracker repositories use one shared resolver for actual, close and this
   command. A witnessed issue branch selects only already-owned, lineage-admitted
-  source intervals. Another owned issue's branch excludes its time, including
+  source intervals. Another issue's branch excludes its time, including
   its unadopted close/test/landing tail. A sole live reservation can retain
   planning time without branch proof, labelled ownership-only. Multiple claims
   with missing, detached, resting or ambiguous branch evidence refuse a number;

@@ -145,7 +145,7 @@ func SelectBranchActivity(issue string, windows []ActivityWindow, history []Bran
 		kind := "branch"
 		switch {
 		case branchID == issue:
-		case branchID != "" && active[branchID] > 0:
+		case branchID != "":
 			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "foreign-branch", Branch: branch})
 			continue
 		case len(reserved) == 1 && reserved[issue] > 0:
