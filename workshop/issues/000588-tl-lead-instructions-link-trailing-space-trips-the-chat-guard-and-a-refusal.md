@@ -68,13 +68,33 @@ the #424 order, which a refusal of the second write turns into a half-done docum
 guard refusing) all leave the file as it was. EVOLVE, FUNERAL, SECURE: no format change, nothing durable, the target
 is already validated by `ValidAnswerTarget`.
 
-- [ ] `linkBullet` keeps the ask's bytes; tests for a trailing space, a tab and a CRLF line
-- [ ] `linkInstruction` writes index and link in one `Apply`; the shared index composer; tests: one apply and no
-      frontmatter or section write on success, and a refused apply (chat guard, stale, lock) leaves the document
-      byte-identical, index included
+- [x] `linkBullet` keeps the ask's bytes; tests for a trailing space, a tab and a CRLF line
+- [x] ~~`linkInstruction` writes index and link in one `Apply`~~ (revised below): a refused link puts the
+      frontmatter back; tests: a stale link and a lock between the writes, and the chat guard taking a trailing-space
+      and a tab ask
+- [x] the fake models apply advancing the whole-file baseline (TestFakeApplyAdvancesBaseline) and couch's chat guard
+- [x] pair#862 filed unclaimed: a whole-file apply should advance the baseline only where it edited
 - [ ] targeted tl-lead tests, close
+
+### Revisions
+
+- 2026-10-24: **one Apply dropped; two scoped writes and an undo instead** (TL approved). In pair's
+  sessionsync `prepareWrite`, an apply is a write with no section, and `shadowAfter` with no section
+  returns the whole new file as the diff baseline. So one Apply would have wiped the operator's unread edits
+  elsewhere from the TL's diff, breaking #426. tl-lead's fake `Apply` never touched the baseline, which hid it
+  (ARCH-MOCK). The index entry is still written first and the link second (#424). When the link's write is refused,
+  `unlist` puts the frontmatter back byte for byte while it still holds only link's own write. After any other
+  frontmatter edit it reconciles the orphan entry away. A refusal of the undo too (the lock taken between the
+  writes) names the lingering entry, which the next reconcile drops. The shared index-composer step is dropped
+  with the single apply: nothing needs it. Design item 1 stands, checked against pair's
+  `editorial/edits.go` (`selectChatItems`): the guard takes only a pure insertion at the item's end, before any
+  trailing `\r`/`\n`.
 
 ## Log
 
 ### 2026-10-23
 - Claimed and started from ariadne:5 after #579 landed; plan to the TL.
+- 2026-10-24: the one-Apply design was found to wipe the TL's unread diff (see Revisions), and the compensation
+  was approved. The fake now models the baseline and the chat guard. pair#862 is filed, unclaimed. The CRLF
+  case is tested in `TestLinkBullet` only: `ReconcileIndex` refuses a file with CRLF lines (an existing limit),
+  so a CRLF session file can't link through the index at all.

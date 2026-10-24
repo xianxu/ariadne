@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -105,7 +104,10 @@ var errAlreadyLinked = errors.New("already answered")
 
 // linkBullet appends ` → [answer](target)` to bullet pos's last non-blank
 // line, splitting the section by the given grammar, and returns the new
-// section body.
+// section body. The ask's bytes stay a prefix of the new line, trailing
+// whitespace included, and a line's `\r` stays last: couch's chat guard
+// (pair#838) takes only an append at the item's end and refuses any other
+// edit to the ask.
 func linkBullet(section string, pos int, target string, legacy bool) (string, error) {
 	// The target lands inside the operator's section as a link: whitespace
 	// could start a new line (even a fake bullet) and a paren would end the
@@ -123,7 +125,8 @@ func linkBullet(section string, pos int, target string, legacy bool) (string, er
 	}
 	lines := strings.Split(section, "\n")
 	last := b.Start + len(b.Lines) - 1
-	lines[last] = strings.TrimRightFunc(lines[last], unicode.IsSpace) + " → [answer](" + target + ")"
+	ask := strings.TrimRight(lines[last], "\r")
+	lines[last] = ask + " → [answer](" + target + ")" + lines[last][len(ask):]
 	return strings.Join(lines, "\n"), nil
 }
 
@@ -148,9 +151,11 @@ func renderOpen(bs []Bullet, hash string) string {
 // Unlike writeSection it never retries on stale: positions come from that
 // read, and recomputing against a newer one could link a different bullet.
 // The answer doc's index entry is written first and the link second (#424):
-// a split leaves an entry without a link, which rerunning link completes and
-// a reconcile otherwise drops, never a link without its entry, which would
-// read as the operator's "reviewed".
+// a link without its entry would read as the operator's "reviewed". When the
+// link's write is refused (couch's chat guard, a stale section, the lock),
+// a reconcile drops the entry it orphaned, so the refusal leaves the file as
+// it was. Each write is scoped: a whole-file apply would advance couch's
+// diff baseline over the operator's unread edits elsewhere (#426).
 func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash string) error {
 	ss := d.ss
 	cur, h, err := ss.ReadSection(file, instructionsHeading)
@@ -188,13 +193,46 @@ func linkInstruction(d deps, out io.Writer, file string, pos int, target, hash s
 	}
 	err = writeBody(body, func(path string) error { return ss.WriteSection(file, instructionsHeading, path, hash, nil) })
 	if errors.Is(err, ErrStale) {
-		return moved
+		err = moved
+	} else if err != nil {
+		err = refusal(file, instructionsHeading, err)
 	}
 	if err != nil {
-		return refusal(file, instructionsHeading, err)
+		if rerr := unlist(d, out, file, doc, target); rerr != nil {
+			fmt.Fprintf(out, "index: %s stays listed without its link (%v); the next reconcile drops it, or rerun link\n", target, rerr)
+		}
+		return err
 	}
 	fmt.Fprintf(out, "linked bullet %d → %s\n", pos, target)
 	return nil
+}
+
+// unlist undoes link's index write after its link was refused. While the
+// frontmatter is still what that write made of doc's, it goes back to doc's
+// block byte for byte; after any other edit to it, a reconcile drops the
+// entry that has no link.
+func unlist(d deps, out io.Writer, file, doc, target string) error {
+	before, _, _ := sidedoc.FrontBlock(doc)
+	block, hash, err := d.ss.ReadFrontmatter(file)
+	if err != nil {
+		return err
+	}
+	if block == before {
+		return nil
+	}
+	if listed, _, err := sidedoc.ReconcileIndex(doc, []string{target}); err == nil {
+		if front, _, _ := sidedoc.FrontBlock(listed); block == front {
+			err := writeBody(before, func(path string) error { return d.ss.WriteFrontmatter(file, path, hash) })
+			if err == nil {
+				fmt.Fprintf(out, "index: unlisted %s (its link was refused)\n", target)
+				return nil
+			}
+			if !errors.Is(err, ErrStale) {
+				return err
+			}
+		}
+	}
+	return syncIndex(d, out, file, nil)
 }
 
 func newInstructionsCmd(d deps) *cobra.Command {
@@ -222,7 +260,7 @@ func newInstructionsCmd(d deps) *cobra.Command {
 	var hash string
 	link := &cobra.Command{
 		Use:   "link [FILE] POS TARGET --hash " + tokenName,
-		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS, if the section and its grammar still match the " + tokenName + " list printed",
+		Short: "List TARGET in the discussions: index, then append ' → [answer](TARGET)' to bullet POS (a refused append drops the entry again), if the section and its grammar still match the " + tokenName + " list printed",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos, err := strconv.Atoi(args[1])
