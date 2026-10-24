@@ -1,6 +1,6 @@
 ---
 id: 000574
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 066a54027de5d32a32764d74ff7c58d8341113fb
         evidence_commit: a721ca36ea75580e74cec6985722f66f853a9ded
+        landed_commit: 3878ab321fbb1fba6a3d248e89afd0fccf6da206
 ---
 
 # Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish
