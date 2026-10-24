@@ -1670,3 +1670,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   rendering and saved-proof validation are pure. Check the concrete referents,
   not only table shape. Boundary review owns this prose parity check; wording
   presence tests would not establish semantic correctness.
+
+- #589 BR-1/2/3/5: advisory probes need budgets separate from command execution; freeze the execution result before post-run diagnostics. Mutable IPC CTIME is not allocation identity, and a current PID/start is not allocating-incarnation evidence. Prefer explicit unattributed numeric PIDs over a process monitor; compare observed IDs conservatively. Composite outcomes must combine diagnostics from every independently verified log, including targeted child reruns. Controlled execution clocks and saved-proof/fresh-publication regressions defend these rules without short startup sleeps.
+
+- #589 BR-7: freezing a deadline is not a complete execution boundary. Run diagnostic-only IO after all outcome-mutating cleanup and the existing cancellation/queue retirement, using one final defer and the original log descriptor. Test cancellation before/during/after completion for success/failure and strict cleanup, durable queue ordering, cleanup unknown, and restored default signal handling. A compatibility regression must fail when the former unsafe path is actually restored; field removal alone can accidentally make a fixture inert.

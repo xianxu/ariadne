@@ -131,6 +131,21 @@ WHAT A RUN DOES
      PR comment with the last 60 lines of the log, so don't run checks whose
      output carries secrets.
 
+HOST SYSV OBSERVATIONS (#589)
+
+  Admitted host batches take bounded before/after SysV shared-memory snapshots
+  (ipcs on macOS, /proc/sysvipc/shm on Linux). Newly observed owner IDs left unattached
+  produce an advisory warning in the hashed log and a SysV warning status marker,
+  preserved on saved-result republish. Test exit and flake policy are unchanged.
+  The kernel creator PID is always unattributed; a current PID/name cannot prove
+  the allocating incarnation. Same-ID metadata changes are not new segments.
+  Missing/truncated observations say observation unavailable; VM checks do not imply guest coverage. No segments
+  are removed. Inspect the named IDs/creator/run and fix the harness.
+
+  PostgreSQL keeps a SysV interlock even with mmap. Shut down owned servers on
+  every exit path, use a guardian for killed test owners, and verify each server's
+  specific segment is gone; SIGKILL alone can leak it. See echo#32 and the atlas.
+
 COMMAND ENVIRONMENT (#545)
 
   Every managed command receives SDLC_CALLER_ROOT, the initiating checkout

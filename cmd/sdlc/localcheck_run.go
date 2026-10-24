@@ -28,12 +28,15 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/sysvshm"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
+	executionTimeout   func(context.Context, time.Duration) (context.Context, context.CancelFunc) // nil uses context.WithTimeout
+	sysvObserver       sysvshm.Observer                                                           // explicitly wired by production run constructors; nil is unconfigured
 	refreshSuiteHelper func(context.Context, string, io.Writer) error
 	suiteCapabilities  func(context.Context) error // nil probes the real host; test seam only
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
@@ -502,6 +505,20 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	if (resource == "runner" || d.StrictGroupCleanup) && d.runnerLifetime == nil {
 		d.runnerLifetime = &runnerArtifactLifetime{retirable: true}
 	}
+	// Registered first, so diagnostics run only after execution, every cleanup,
+	// cancellation consumer and queue retirement have fixed the named result.
+	// Keep the original descriptor until then; never reopen a mutable log path.
+	var logf *os.File
+	var sysvBefore *sysvshm.Snapshot
+	defer func() {
+		if logf == nil {
+			return
+		}
+		defer logf.Close()
+		if sysvBefore != nil {
+			sysVRunReport(ctx, d.sysvObserver, *sysvBefore, io.MultiWriter(logf, d.Stderr), check, sha)
+		}
+	}()
 	run = suiteSlotRun{Exit: -1}
 	queueStart := time.Now()
 	// Own signals only while our queue/suite resources exist. The surrounding
@@ -600,11 +617,10 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return run, err
 	}
-	logf, err := os.Create(logPath)
+	logf, err = os.Create(logPath)
 	if err != nil {
 		return run, err
 	}
-	defer logf.Close()
 	// A light run (#559) is niced and stopped at the lane's bound, unless the
 	// check's own timeout comes first; only the lane's deadline is an overrun.
 	laneDeadline := false
@@ -613,8 +629,6 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		laneDeadline, timeout = bound < timeout, min(timeout, bound)
 		commands = nicedCommands(commands)
 	}
-	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
-	defer cancel()
 	if resource == "runner" {
 		env = withoutSuiteAuthority(env)
 	}
@@ -667,12 +681,24 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)
+	if resource != "runner" && d.sysvObserver != nil {
+		snapshot := captureSysV(ctx, d.sysvObserver)
+		sysvBefore = &snapshot
+		fmt.Fprintln(out, "[sdlc SysV observation] beginning; after-snapshot pending")
+	}
+	withTimeout := d.executionTimeout
+	if withTimeout == nil {
+		withTimeout = context.WithTimeout
+	}
+	runCtx, cancel := withTimeout(ownedCtx, timeout)
+	defer cancel()
 	start := time.Now()
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
+	executionErr, finished := runCtx.Err(), time.Now()
+	cancel() // diagnostic work cannot expire the completed execution
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
 		fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
-		_ = logf.Close()
 		q.abandon()
 		return run, cleanupErr
 	}
@@ -684,12 +710,11 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	// Signal ownership ends here, so the lease does too: a cancel waiting on it
 	// returns once the check has stopped and its slot is freed.
 	releaseLease()
-	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopCancellation()
+	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopSignals()
-	run.Start, run.Duration = start.UTC(), time.Since(start)
-	run.Finished = time.Now().UTC()
-	_ = logf.Close()
+	run.Start, run.Duration = start.UTC(), finished.Sub(start)
+	run.Finished = finished.UTC()
 	reason := ""
 	if interrupted != nil {
 		reason = "managed suite cancelled"
@@ -702,7 +727,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	}
 	var exitErr *exec.ExitError
 	switch {
-	case runCtx.Err() == context.DeadlineExceeded:
+	case runErr != nil && executionErr == context.DeadlineExceeded:
 		run.TimedOut, run.LaneOverrun = true, laneDeadline
 	case interrupted != nil:
 		return run, &queueInterruptedError{ID: q.op.ID, Reason: "managed suite cancelled", LogPath: logPath, Cause: interrupted}
