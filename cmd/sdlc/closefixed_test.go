@@ -30,6 +30,7 @@ func TestFixedThenShipRefusal(t *testing.T) {
 		{"no window: names the reason and the full close", reviewWindow{Kind: windowNone, Note: "no finalized close review to fix against"}, false, "", false, "sdlc close --issue 7 --verified"},
 		{"quick shell crossed: full review due", inter, true, "", false, "quick-flow shell"},
 		{"a code conflict needs the full suite", codeConflict, false, "", false, "--full-suite"},
+		{"a code conflict names the pre-close check", codeConflict, false, "", false, preCloseRunCommand},
 		{"a code conflict with suite evidence proceeds", codeConflict, false, "make test: ok", true, ""},
 		{"a non-code conflict proceeds", docConflict, false, "", true, ""},
 		{"plain fixes proceed", inter, false, "", true, ""},

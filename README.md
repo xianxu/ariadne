@@ -671,7 +671,7 @@ for evidence checks, legacy dependency behavior and the intentionally old baseli
 Merges in one repository land one at a time (#393). `sdlc merge` takes a turn in
 the repository's landing line and prints its position while it waits, so each
 admitted landing integrates current main and verifies the resulting code before
-another slot can land. A separate pre-close suite verifies the issue branch; it
+another slot can land. A separate pre-close check (`sdlc local-check run --pre-close`, #578) verifies the issue branch; it
 does not reserve a landing turn. The hub does not hold main by hand or direct
 workers to chase newer main before close. `sdlc landing status` shows the landing now, the merges
 waiting in order, and the ready-to-landed delay. For a fix that blocks the
@@ -917,6 +917,11 @@ pushed head's run depends on what changed:
 - **Only docs that no package owns or embeds changed:** sdlc records `affected` without running anything.
 - **Nothing changed against main:** the run refuses.
 
+Before close, `sdlc local-check run --pre-close` (#578) picks the check for you: `affected` (as above, never
+`--boarding`) where `.sdlc/landing.json` has trains on and main declares `affected.json`, since the train's suite is
+the landing's one full run; `suite` everywhere else, or when either file is unreadable. It excludes `--name`, `--all`
+and `--boarding`.
+
 Selection follows imports and embeds only. A Go test that scans *other* packages' source, or reads a non-Go file
 outside its own `testdata/` and embeds, is invisible to it, so the repo's affected command or its `full` globs must
 cover such tests (see pair#725). The schema, the classification rules and these blind spots are in [the affected
@@ -1025,9 +1030,9 @@ of lock visibility; their retained checkout, scratch and logs consume disk space
 Completed-child cleanup/retention keeps its existing policy. Descendants are not
 discovered automatically, and reconciliation never grants a pass or execution.
 
-Run `sdlc local-check run --name suite` on the pushed issue head before close.
+Run the pre-close check (`sdlc local-check run --pre-close`, #578: affected where trains are on and main declares `.sdlc/affected.json`, otherwise the full suite) on the pushed issue head before close; it prints which check it chose and why.
 After it passes, close that tested branch without manually integrating each
-newer main and repeating pre-close suites. Branch code fixes still require fresh
+newer main and repeating pre-close checks. Branch code fixes still require fresh
 verification, and close's noon freshness gate still applies. On SHIP, enter
 `sdlc merge --yes`: its landing turn integrates current main and runs the
 authoritative suite when the integrated code needs it. Merge requires this suite's recorded pass: a declaration named `suite` overrides its

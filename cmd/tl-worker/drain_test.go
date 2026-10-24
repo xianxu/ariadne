@@ -131,7 +131,7 @@ func TestWorkerDrainKeepsSuiteGuidanceInTests(t *testing.T) {
 			t.Fatal("missing LANDING boundary")
 		}
 		for _, guidance := range []string{
-			"full suites through sdlc local-check run --name suite",
+			"the pre-close check through sdlc local-check run --pre-close",
 			"targeted tests through go test -run",
 			"direct full make runs should be rare",
 		} {

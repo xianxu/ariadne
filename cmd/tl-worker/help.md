@@ -9,8 +9,8 @@ current.
 Already stated elsewhere, and binding here; not repeated:
   - AGENTS §15: report every outcome to the hub, ask the hub rather than an
     in-pane prompt, and the exact form a couch or sdlc call must take.
-  - AGENTS §5: targeted test runs while iterating, the full suite once before a
-    close, and the machine-wide suite gate.
+  - AGENTS §5: targeted test runs while iterating, the pre-close check once
+    before a close, and the machine-wide suite gate.
   - `couch --skill`: sending (including --message-file for shell syntax),
     receipts, and labelling your slot after `sdlc claim`.
 
@@ -24,21 +24,25 @@ PLAN APPROVAL
   third-delta re-plan rule still applies.
 
 PERMISSIONS
-  You need no permission for targeted tests, a full suite before a close (the
-  machine gate caps concurrency), or a bounded headless browser run (a
+  You need no permission for targeted tests, the pre-close check before a close
+  (the machine gate caps concurrency), or a bounded headless browser run (a
   temporary profile, no foreground window). Ask the hub before you open a
   visible window, touch the :0 slot, change the machine (installs, settings,
   services), or change the item's scope.
   Opening an early draft PR for CI overlap needs no hub approval. The recorded
-  suite, close review, and `sdlc merge` gates still precede landing.
-  A milestone or close review may overlap a queued recorded suite
+  pre-close check, close review, and `sdlc merge` gates still precede landing.
+  A milestone or close review may overlap a queued recorded check
   without hub approval, under two conditions:
-  a recorded suite pass on the final head still precedes landing,
-  and a review that changes code requeues the suite on the final head.
+  a recorded check pass on the final head still precedes landing,
+  and a review that changes code requeues the check on the final head.
 
 TESTS
-  Run full suites through `sdlc local-check run --name suite`, and
-  targeted tests through `go test -run`; direct full make runs should be rare.
+  Run the pre-close check through `sdlc local-check run --pre-close` (#578):
+  it picks the repository's check and prints which and why. Where trains are
+  on and main declares `.sdlc/affected.json` (pair) it is the affected check,
+  and the train's suite is the landing's one full run; elsewhere (ariadne) it
+  is the full suite, as before. Run targeted tests through `go test -run`;
+  direct full make runs should be rare.
   Verify an agent-facing change against
   every agent kind in its tests and in any live check:
   Claude and Codex; Qoder when it has credits.
@@ -48,13 +52,13 @@ TESTS
   `make test-couch-fleet` in Pair),
   never the live fleet. Reuse that harness rather than building private Couch fixtures.
 
-  Run the required recorded pre-close suite on the pushed issue branch. Once
+  Run the required recorded pre-close check on the pushed issue branch. Once
   it passes, close that tested branch without chasing newer main with manual
-  integrations and repeated pre-close suites. Branch code fixes still need
+  integrations and repeated pre-close checks. Branch code fixes still need
   fresh verification, and close's existing noon freshness gate still applies.
   On SHIP, enter `sdlc merge --yes` promptly: its landing turn integrates current
-  main and runs the authoritative integration suite when the integrated code
-  needs it. A branch pass does not authorize untested integrated code.
+  main and runs the authoritative integration suite (in a train, the train's
+  suite) when the integrated code needs it. A branch pass does not authorize untested integrated code.
   A known failure the dispatch or the issue cites never ends a suite early.
   Run the rest with `make -k` and report every other failure by name.
   Apply the flake rule yourself (#394, the operator's 2026-10-18 ask): for an

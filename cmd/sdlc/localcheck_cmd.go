@@ -23,6 +23,7 @@ type localCheckFlags struct {
 	All      bool
 	Rev      string
 	Boarding bool
+	PreClose bool
 }
 
 // NewLocalCheckCmd is `sdlc local-check`: `run`, and `cancel` (#400).
@@ -43,6 +44,10 @@ func NewLocalCheckCmd() *cobra.Command {
 	run.Flags().BoolVar(&f.All, "all", false, "run every head-scoped check, in declaration order")
 	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
 	run.Flags().BoolVar(&f.Boarding, "boarding", false, "with --name affected only: a train car's preparation; a full selection refuses instead of running the suite (#561)")
+	run.Flags().BoolVar(&f.PreClose, "pre-close", false, "run the check this repository needs before close (#578): affected where trains are on and main declares it, else suite")
+	for _, other := range []string{"name", "all", "boarding"} {
+		run.MarkFlagsMutuallyExclusive("pre-close", other)
+	}
 	var cancelName, cancelRun string
 	cancel := &cobra.Command{
 		Use:           "cancel",
@@ -161,6 +166,11 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: pin origin/main: %w", err)
 	}
 	mainHead = strings.TrimSpace(mainHead)
+	if f.PreClose {
+		name, why := resolvePreCloseCheck(git, mainHead)
+		fmt.Fprintf(stderr, "==> local-check --pre-close: running %s (%s)\n", name, why)
+		f.Names = []string{name}
+	}
 	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
 	if err != nil {
 		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)

@@ -278,8 +278,8 @@ first-class evidence, recorded on the commit it ran on:
   **main's** Makefile in a detached worktree, under a goal that is not `test`,
   so the probe takes no lock. A branch therefore cannot drop or lighten its own
   suite. A declared `suite` overrides execution settings but is always required,
-  even when `required` is omitted or false. Agents run it before close with
-  `sdlc local-check run --name suite`.
+  even when `required` is omitted or false. Agents run the pre-close check
+  before close with `sdlc local-check run --pre-close` (#578), which is this suite outside train repos.
   - **Bootstrap (#536):** `localchecks_bootstrap.go` shares main-first
     derivation between CLI and CI facts. Only absent main declaration plus a
     successful negative main probe allows default `make test` and weight from
@@ -385,6 +385,14 @@ The run then takes one of three paths:
 - **Docs-only change:** `sdlc-local/affected` is recorded without running anything.
 
 A head with no change against main refuses rather than recording a pass.
+
+**Pre-close check (#578).** `sdlc local-check run --pre-close` is the one command every pre-close instruction names
+(tl-worker help, AGENTS §5, the fixed-then-ship and publish-gate code-conflict refusals, close's VERIFIED example).
+`preCloseCheck` (`precloseck.go`, pure) picks it from main's config: affected (ordinary mode, so a full selection
+still records suite) where `.sdlc/landing.json` has trains on and main declares `.sdlc/affected.json`, since the
+train's suite (or an alone car's landing-turn suite) is the landing's one full run; suite everywhere else. An
+unreadable file degrades to suite. The run prints the choice and its reason; `--pre-close` excludes `--name`,
+`--all` and `--boarding`.
 
 **What the graph can't see (from pair#725).** Selection follows imports and embeds, so a repo writing `affected.json`
 must cover two blind spots itself:
