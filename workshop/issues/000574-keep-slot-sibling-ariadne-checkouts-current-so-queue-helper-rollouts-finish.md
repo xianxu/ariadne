@@ -7,7 +7,7 @@ created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'a09c1d1a707c61e39ac04c22b37e0007ca7f387e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '379c73bc0fc20eba0e75cd69cc5609827330b4f6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-23T09:02:18-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.80
+actual_hours: 3.30
 ---
 
 # Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish
