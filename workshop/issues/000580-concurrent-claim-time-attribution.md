@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "16d489ad", done: "ec9e255c"}
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
