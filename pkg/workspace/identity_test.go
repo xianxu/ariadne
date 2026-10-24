@@ -229,3 +229,16 @@ func TestHomeSlotOnlyWhereSlotsExist(t *testing.T) {
 		t.Fatalf("plain worktree: %q", got)
 	}
 }
+
+func TestIsRestingBranchUsesCanonicalSlotConvention(t *testing.T) {
+	for _, branch := range []string{"main", "main-slot1", "main-slot4", "main-slot123"} {
+		if !IsRestingBranch(branch) {
+			t.Errorf("resting branch rejected: %q", branch)
+		}
+	}
+	for _, branch := range []string{"", "main-slot", "main-slot0", "main-slot04", "main-slot-1", "main-slot+1", "feature", "000856-cast", "refs/heads/main", "main-slot4/x"} {
+		if IsRestingBranch(branch) {
+			t.Errorf("non-resting branch accepted: %q", branch)
+		}
+	}
+}

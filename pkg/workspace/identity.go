@@ -107,12 +107,18 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	}
 	return id, nil
 }
+
 // RestingBranch is slot n's resting branch: main for :0, main-slotN otherwise.
 func RestingBranch(n int) string {
 	if n == 0 {
 		return "main"
 	}
 	return "main-slot" + strconv.Itoa(n)
+}
+
+// IsRestingBranch recognizes the shared primary/numbered-slot resting convention.
+func IsRestingBranch(branch string) bool {
+	return branch == RestingBranch(0) || strings.HasPrefix(branch, "main-slot") && reservedSlot(branch)
 }
 
 func reservedSlot(branch string) bool {

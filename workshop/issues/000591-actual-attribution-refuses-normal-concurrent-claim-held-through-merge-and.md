@@ -39,8 +39,8 @@ Use one shared pure resting-branch predicate for the existing main/main-slotN co
 ## Plan
 
 - [x] Investigate evidence; receive approval for the changed resting-interval boundary.
-- [ ] Add recorded native reflog/refusal fixtures and red selector, saved-proof and output controls.
-- [ ] Implement one resting predicate, selector exclusion and saved-proof validation; disclose interval minutes through one warning formatter on fresh and replay paths.
+- [x] Add recorded native reflog/refusal fixtures and red selector, saved-proof and output controls.
+- [x] Implement one resting predicate, selector exclusion and saved-proof validation; disclose interval minutes through one warning formatter on fresh and replay paths.
 - [ ] Verify focused/race/catalog and real-Git measurement controls, update atlas and lesson, push, run recorded pre-close, close and land.
 
 Function-level adversarial strategy: SelectBranchActivity replays the recorded 68-second claim/start-plan window plus later own/foreign/resting transitions; selecting each issue must produce disjoint credit and exclude the same resting spans. Missing/detached/other-feature branches still refuse; a sole reservation keeps the existing ownership-only fallback. ValidateOwnedBranchProof mutations turn a resting exclusion into selected time or replace its branch with an issue/unknown branch and must refuse. MeasurementBranchWarnings reports exact source, interval and branch-window minutes identically for fresh/replay. Counted 8/16 transition tests retain linear sweep bounds. Existing native Git/tracker fake and three-harness source-lineage controls supply integration coverage; private executable proof avoids modifying any production actual.
@@ -70,3 +70,10 @@ SelectBranchActivity currently sends every unresolved branchID through the same 
 ## Revisions
 
 - 2026-10-24: Hub approved the resting-excluded boundary after diagnosis, replacing #580's complete refusal for witnessed resting intervals only. Record explicit unassigned interval minutes rather than inventing ownership or backfilling old snapshots.
+
+
+### 2026-10-24 — red/green and second incident
+
+Recorded fixtures preserve native OIDs/actions/timestamps/branch names for pair#856 and pair#812, with only author identity replaced; peer-preserved refusal text is included. Pair#856 fails before the fix on the exact 68-second refusal; the minimal resting selector and new saved-proof kind also fail before implementation. The second case is the same witnessed-resting class: pair:1 confirms main-slot1 from03:01:09, claim05:01:56, fast-forward05:01:59, checkout#812 at05:02:21 (25 seconds). No Pair checkout or actual metadata changed.
+
+Green targeted selector/proof checks passed; complete workspace/activetime/gatestate packages passed (36.704s/15.411s/0.432s). Native Git/tracker measurement, manual partition, retained replay after deleting the fixture's HEAD log, original foreign-tail controls and output/proof checks passed14.097s. The fixture's first manual run exposed a test expectation error: A's phase ends at its own last commit, so manual credit is8 minutes, not10; corrected the expectation while preserving the8-minute resting exclusion. An earlier run's hermeticity guard also observed my concurrent staging/docs edits, not a test mutation; all later cmd/sdlc test runs keep the checkout unchanged until joined. Catalog passed1.717s after staging. Focused race and exact-binary conformance precede recorded pre-close.

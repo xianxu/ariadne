@@ -257,7 +257,7 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 			if note.Kind == "branch" {
 				continue
 			}
-			warnings = append(warnings, fmt.Sprintf("branch attribution %s: %s %s during %s → %s", s.ID, note.Kind, note.Branch, note.Start.Format(time.RFC3339Nano), note.End.Format(time.RFC3339Nano)))
+			warnings = append(warnings, measurementBranchWarning(capture.Notes[len(capture.Notes)-1]))
 		}
 		captures[root] = capture
 	}
@@ -287,10 +287,20 @@ func measurementBranchWarnings(m gatestate.MeasurementInputs) []string {
 			if w.Kind == "branch" {
 				continue
 			}
-			notes = append(notes, fmt.Sprintf("branch attribution %s: %s %s during %s → %s", w.Source, w.Kind, w.Branch, w.Start, w.End))
+			notes = append(notes, measurementBranchWarning(w))
 		}
 	}
 	return notes
+}
+
+// Durations describe excluded attribution windows, not measured focused activity.
+func measurementBranchWarning(w gatestate.MeasurementBranchInterval) string {
+	if w.Kind == "resting-excluded" {
+		start, _ := time.Parse(time.RFC3339Nano, w.Start)
+		end, _ := time.Parse(time.RFC3339Nano, w.End)
+		return fmt.Sprintf("branch attribution %s: excluded and unassigned %.2f branch-window minutes on %s during %s → %s (not focused activity minutes)", w.Source, end.Sub(start).Minutes(), w.Branch, w.Start, w.End)
+	}
+	return fmt.Sprintf("branch attribution %s: %s %s during %s → %s", w.Source, w.Kind, w.Branch, w.Start, w.End)
 }
 
 // The audit facts and final eligibility must agree before a v3 result can be
@@ -311,7 +321,7 @@ func validateOwnedBranchProof(m gatestate.MeasurementInputs, id string) error {
 			if w.Kind == "branch" && branchID != id || w.Kind == "foreign-branch" && (branchID == "" || branchID == id) || w.Kind == "ownership-only" && branchID != "" {
 				return fail("branch witness does not match its issue attribution")
 			}
-			if w.Kind == "foreign-branch" {
+			if w.Kind == "foreign-branch" || w.Kind == "resting-excluded" {
 				continue
 			}
 			start, _ := time.Parse(time.RFC3339Nano, w.Start)

@@ -23,9 +23,9 @@ func TestSelectBranchActivityPartitionsConcurrentReservations(t *testing.T) {
 	if len(got.Windows) != 1 || !got.Windows[0].Start.Equal(branchTime(20)) || !got.Windows[0].End.Equal(branchTime(31)) || !got.Windows[0].Began.Equal(window.Began) {
 		t.Fatalf("B windows = %+v", got.Windows)
 	}
-	for _, branch := range []BranchInterval{{Start: branchTime(0), End: branchTime(31)}, {Start: branchTime(0), End: branchTime(31), Branch: "main-slot1", Known: true}} {
+	for _, branch := range []BranchInterval{{Start: branchTime(0), End: branchTime(31)}} {
 		if _, err := SelectBranchActivity("335", []ActivityWindow{window}, []BranchInterval{branch}, claims); err == nil || !strings.Contains(err.Error(), "concurrent claims") {
-			t.Fatalf("unknown/resting branch selected a reservation: %v", err)
+			t.Fatalf("unknown branch selected a reservation: %v", err)
 		}
 	}
 	solo, err := SelectBranchActivity("335", []ActivityWindow{window}, nil, claims[1:])

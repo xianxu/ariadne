@@ -1609,7 +1609,17 @@ is labelled ownership-only. Incomplete competing history is unknown, so it
 prevents that fallback while a proven candidate branch still requires its own
 complete ownership and source lineage. Concurrent unresolved selection refuses
 numeric actual; close can explicitly use --no-actual with the evidence in
---verified. No historical credit is reassigned.
+--verified. Under concurrent reservations, a witnessed resting branch (main or
+canonical main-slotN) is instead excluded and unassigned (#591). Output names
+its source, interval and branch-window minutes, which are not focused activity
+minutes. Own/foreign issue branches still select/exclude their witnessed spans;
+unknown, detached or other ambiguous history still refuses. Sole-reservation
+planning keeps its labelled ownership-only fallback. No neighboring-branch or
+status inference assigns the resting span. New v3 audit notes use
+resting-excluded; earlier strict v3 readers refuse this new kind rather than
+reinterpret it. Existing adopted snapshots are never rewritten. Recorded
+pair#856 (68-second initial rest) and pair#812 (25 seconds) captures replay the
+claim/start-plan boundary in the selector tests. No historical credit is reassigned.
 
 `active-time` has changed semantics in tracked repositories: by default it uses
 the same resolver as actual/close. Explicit --dir, --since and --until narrow
