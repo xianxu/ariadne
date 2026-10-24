@@ -95,29 +95,45 @@ func TestSelectBranchActivityRestingDoesNotInferOtherBranches(t *testing.T) {
 	}
 }
 
-func TestRecordedPair812RestingClaimTransition(t *testing.T) {
-	raw, err := os.ReadFile("testdata/pair812/head.log")
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows, err := decodeHeadHistory(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	start, _ := time.Parse(time.RFC3339, "2026-10-23T05:01:56-07:00")
-	split, _ := time.Parse(time.RFC3339, "2026-10-23T05:02:21-07:00")
-	end := split.Add(time.Minute)
-	_, after, _ := historyTransition(rows[len(rows)-1].msg)
-	history, err := ParseHeadHistory(raw, after.name, rows[len(rows)-1].next, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := SelectBranchActivity("812", []ActivityWindow{{Start: start, End: end, Began: start}}, history, []BranchClaim{{Start: start, End: end, Issue: "812"}, {Start: start, End: end, Issue: "other-held-issue"}})
-	if err != nil {
-		t.Fatalf("second incident refused: %v", err)
-	}
-	if len(got.Windows) != 1 || !got.Windows[0].Start.Equal(split) || len(got.Notes) != 2 || got.Notes[0].Kind != "resting-excluded" || got.Notes[0].End.Sub(got.Notes[0].Start) != 25*time.Second {
-		t.Fatalf("pair812 = %+v", got)
+func TestRecordedPair812And863RestingClaimTransitions(t *testing.T) {
+	for _, tc := range []struct {
+		id, start, split string
+		seconds          int
+	}{
+		{"812", "2026-10-23T05:01:56-07:00", "2026-10-23T05:02:21-07:00", 25},
+		{"863", "2026-10-24T07:44:22Z", "2026-10-24T07:44:38Z", 16},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			raw, err := os.ReadFile("testdata/pair" + tc.id + "/head.log")
+			if err != nil {
+				t.Fatal(err)
+			}
+			rows, err := decodeHeadHistory(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			start, e := time.Parse(time.RFC3339, tc.start)
+			if e != nil {
+				t.Fatal(e)
+			}
+			split, e := time.Parse(time.RFC3339, tc.split)
+			if e != nil {
+				t.Fatal(e)
+			}
+			end := split.Add(time.Minute)
+			_, after, _ := historyTransition(rows[len(rows)-1].msg)
+			history, err := ParseHeadHistory(raw, after.name, rows[len(rows)-1].next, start, end)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := SelectBranchActivity(tc.id, []ActivityWindow{{Start: start, End: end, Began: start}}, history, []BranchClaim{{Start: start, End: end, Issue: tc.id}, {Start: start, End: end, Issue: "other-held-issue"}})
+			if err != nil {
+				t.Fatalf("recorded incident refused: %v", err)
+			}
+			if len(got.Windows) != 1 || !got.Windows[0].Start.Equal(split) || len(got.Notes) != 2 || got.Notes[0].Kind != "resting-excluded" || got.Notes[0].End.Sub(got.Notes[0].Start) != time.Duration(tc.seconds)*time.Second {
+				t.Fatalf("pair%s = %+v", tc.id, got)
+			}
+		})
 	}
 }
 
