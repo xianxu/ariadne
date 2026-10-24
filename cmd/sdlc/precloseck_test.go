@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -105,4 +108,96 @@ func TestLocalCheckCmdPreClose(t *testing.T) {
 			t.Fatalf("trains %v: statuses %v\n%s", trains, ci.statuses[head], &stderr)
 		}
 	}
+}
+
+// #583: a saved, verified suite pass on the exact head covers every
+// selection, so --pre-close and --name affected post it and run nothing; a
+// new head runs as before, and a failed saved suite is never reused.
+func TestPreCloseReusesASameHeadSuitePass(t *testing.T) {
+	setup := func(t *testing.T, suiteCmd string) (string, *ciFakeGH) {
+		dir := tempRepoWith(t, map[string]string{
+			landingConfigPath:      `{"train_interval_minutes": 60}`,
+			affectedConfigPath:     `{"version":1,"command":["make","test-affected"],"groups":[{"name":"fixture","paths":["feature.txt","next.txt"]}]}`,
+			localChecksPath:        `{"version":1,"checks":[{"name":"suite","command":["sh","-c",` + strconv.Quote(suiteCmd) + `],"required":true,"known_flakes":"off"}]}`,
+			"Makefile":             "test-affected:\n\t@echo affected\n",
+			"Makefile.workflow":    "# fake\n",
+			"scripts/test-lock.py": fakeSuiteLockHelper("print('acquired')\n"),
+			"go.mod":               "module example.com/m\n\ngo 1.22\n",
+		})
+		ci := newCIFakeGH()
+		ci.setHead(5, strings.TrimSpace(git(t, dir, "rev-parse", "HEAD")))
+		swapMergeDeps(t, &e2eGH{openPR: "5", ciSeamGH: ciSeamGH{ci: ci}}, nil)
+		return dir, ci
+	}
+	suiteRuns := func(t *testing.T, dir string) int {
+		common := strings.TrimSpace(git(t, dir, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+		attempts, _, err := readSuiteAttempts(filepath.Join(common, "sdlc", "test-stats"), 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, a := range attempts {
+			if a.Check == suiteCheckName {
+				n++
+			}
+		}
+		return n
+	}
+	ctx := context.Background()
+
+	t.Run("same head reuses", func(t *testing.T) {
+		dir, ci := setup(t, "echo suite")
+		head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
+		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range []localCheckFlags{{PreClose: true, Rev: "HEAD"}, {Names: []string{affectedCheckName}, Rev: "HEAD"}} {
+			var stderr bytes.Buffer
+			if err := runLocalCheckCmd(ctx, &stderr, f); err != nil {
+				t.Fatalf("%+v: %v\n%s", f, err, &stderr)
+			}
+			if !strings.Contains(stderr.String(), "covered by its saved suite pass") || ci.statuses[head]["sdlc-local/affected"] != "" {
+				t.Fatalf("%+v ran instead of reusing: statuses %v\n%s", f, ci.statuses[head], &stderr)
+			}
+		}
+		if n := suiteRuns(t, dir); n != 1 {
+			t.Fatalf("%d suite attempts, want the one explicit run", n)
+		}
+	})
+
+	t.Run("another head runs", func(t *testing.T) {
+		dir, ci := setup(t, "echo suite")
+		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err != nil {
+			t.Fatal(err)
+		}
+		writeRepoFile(t, dir, "next.txt", "y\n")
+		git(t, dir, "add", "-A")
+		git(t, dir, "commit", "-qm", "next")
+		git(t, dir, "push", "-q", "origin", "feature")
+		head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
+		ci.setHead(5, head)
+		var stderr bytes.Buffer
+		if err := runLocalCheckCmd(ctx, &stderr, localCheckFlags{PreClose: true, Rev: "HEAD"}); err != nil {
+			t.Fatalf("%v\n%s", err, &stderr)
+		}
+		if ci.statuses[head]["sdlc-local/affected"] != "success" || strings.Contains(stderr.String(), "covered by") {
+			t.Fatalf("another head reused a pass: statuses %v\n%s", ci.statuses[head], &stderr)
+		}
+	})
+
+	t.Run("failed suite is not reused", func(t *testing.T) {
+		dir, ci := setup(t, "exit 3")
+		head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
+		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err == nil {
+			t.Fatal("a failing suite passed")
+		}
+		// Not reused: affected runs, and the success guard (#394) then keeps its
+		// pass from papering over the unexplained suite failure on this head.
+		var stderr bytes.Buffer
+		err := runLocalCheckCmd(ctx, &stderr, localCheckFlags{Names: []string{affectedCheckName}, Rev: "HEAD"})
+		if err == nil || !strings.Contains(err.Error(), "earlier failure on this head is unexplained") ||
+			strings.Contains(stderr.String(), "covered by") || !strings.Contains(stderr.String(), "local check affected on") {
+			t.Fatalf("a failed suite was reused, or affected did not run: %v statuses %v\n%s", err, ci.statuses[head], &stderr)
+		}
+	})
 }

@@ -44,17 +44,17 @@ and run nothing. A record for another head never counts.
 Reuse, don't add (ARCH-DRY): `republishSavedPass` (#431, `localcheck_republish.go`) already turns a saved, verified
 pass of a check on the exact head into its posted record, with the newest-attempt and known-flake revalidation
 rules; merge's runner uses it. The CLI never asks it.
-- [ ] `runLocalCheckCmd`: with `--pre-close`, or `--name affected` (boarding included: a suite pass also boards),
+- [x] `runLocalCheckCmd`: with `--pre-close`, or `--name affected` (boarding included: a suite pass also boards),
       first ask `republishSavedPass` for `suite` on the exact head; on a reuse, print it and run nothing (no graph,
       no selection). Otherwise behave as today. A plain `--name suite` keeps rerunning on request.
-- [ ] Tests (CLI fixture from #578's `TestLocalCheckCmdPreClose`): after a recorded suite pass, `--pre-close` and
+- [x] Tests (CLI fixture from #578's `TestLocalCheckCmdPreClose`): after a recorded suite pass, `--pre-close` and
       `--name affected` run nothing and report reuse (no affected status, no second attempt); a new commit (another
       head) runs as before; a failed saved suite is not reused.
-- [ ] Scope fold (TL, from pair:1): `cmd/sdlc/helptext/close.md` FIXED-THEN-SHIP prose says `--full-suite` records
+- [x] Scope fold (TL, from pair:1): `cmd/sdlc/helptext/close.md` FIXED-THEN-SHIP prose says `--full-suite` records
       "a full test run" and "the suite still runs"; say the pre-close check (`sdlc local-check run --pre-close`) as
       the flag help does. Pin with a help test.
-- [ ] local-check help, atlas `ci-merge-check.md` pre-close paragraph: reuse of a same-head suite pass.
-- [ ] Targeted tests, pre-close check, close, land.
+- [x] local-check help, atlas `ci-merge-check.md` pre-close paragraph: reuse of a same-head suite pass.
+- [x] Targeted tests, pre-close check, close, land.
 
 ARCH-SECURE: the saved attempt is local evidence verified by `loadSavedAttemptCurrent` (log hash, host, newest);
 a record for another head never matches (keyed by sha). ARCH-ORDER/FUNERAL/EVOLVE: no new state, files or formats.
@@ -62,3 +62,11 @@ a record for another head never matches (keyed by sha). ARCH-ORDER/FUNERAL/EVOLV
 ## Log
 
 ### 2026-10-23
+
+- Implemented in `runLocalCheckCmd` (localcheck_cmd.go): before running, `--pre-close` or an affected-only run asks
+  `republishSavedPass` for `suite` on the exact head; a verified pass is posted and nothing runs. Tests:
+  `TestPreCloseReusesASameHeadSuitePass` (same head reuses for both flags with one suite attempt total; another head
+  runs affected; a failed saved suite is not reused, and #394's guard then refuses the affected pass over it).
+- Scope fold: close help FIXED-THEN-SHIP prose names the pre-close check (`TestCloseHelpNamesThePreCloseCheck`);
+  swept `--full-suite` docs: atlas `ci-merge-check.md` conflict-resolution line updated, the others were neutral.
+
