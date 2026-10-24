@@ -185,6 +185,79 @@ rounds:
       isolation: fenced
       reviewed: 712b54c08a7c4ae7178a4727b3ecc1a44bf492f6
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 02561fd7-2540-4cae-93e4-fb870fc71527
+            repository: github.com/xianxu/ariadne
+            issue_id: "000579"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/b9878356f3581393
+            reviewed_head: 5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886
+            slot: ariadne:5
+            requested_at: "2026-10-24T02:01:35.549139Z"
+          phase: finished
+          pid: 16870
+          started_at: "2026-10-24T02:01:35.699457Z"
+          finished_at: "2026-10-24T02:02:35.811277Z"
+          session_id: 14900503-65ea-48c9-8059-64c8c8ab590b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886
+        tracker_head: ee100cde45192aeee027b9b225e43b28adf5b620
+        branch_point: 56172a1009f553fa227d1085f8873c3d636da3ac
+        since: "2026-10-23T16:38:06-07:00"
+        until: "2026-10-23T19:01:03-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T16:38:06-07:00"
+              end: "2026-10-23T19:01:03-07:00"
+              began: "2026-10-23T16:38:06-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 584684ae6cf8ecbc72cb8ed0109240043d7de9ee049b4f5249f1c60599446614
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 12606543
+              windows:
+                - start: "2026-10-23T16:38:06-07:00"
+                  end: "2026-10-23T19:01:03-07:00"
+        cuts:
+            - dispatched: "2026-10-23T18:04:16-07:00"
+              finalized: "2026-10-23T18:26:53-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T18:47:29-07:00"
+              finalized: "2026-10-23T18:59:57-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-23T19:02:36-07:00"
+      dispatched: "2026-10-23T19:01:35-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: linkguard.go:49 and :63 pass ":(literal)"+p; TestGitLinkStateLiteralPath goes red (x*.md judged Ignored) with the literal prefix reverted, green with it.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886
+      blocked: false
 ---
 
 # Gate ledger — ariadne#579 (boundary-review)
@@ -217,6 +290,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — The unused tree parameter is gone from gitLinkState (linkguard.go:35); a refactor that changes no behavior, and every caller compiles and its tests pass.
 - BR-5 — addressed — judgePublishLinks (issuepublish.go:313) skips republications when no first publication shares the run; republishOwnedOnce's own pre-commit check remains the first. A refactor that changes no behavior; the publish tests pass.
 
+## Round 3 — 2026-10-23T19:02:36-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — linkguard.go:49 and :63 pass ":(literal)"+p; TestGitLinkStateLiteralPath goes red (x*.md judged Ignored) with the literal prefix reverted, green with it.
+
 ## Open findings
 
-- **BR-3** [Minor] `git-pathspec-literal` (kind: defect) ls-files receives the link path as a glob pathspec; use :(literal)
+(none — every finding has been disposed)

@@ -202,3 +202,63 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"65e16fe6-f9e6-48f7-821b-8bcf2ba78ae1","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/e2e4bdbb2822ab97","reviewed_head":"712b54c08a7c4ae7178a4727b3ecc1a44bf492f6","slot":"ariadne:5","requested_at":"2026-10-24T01:47:29.067738Z"},"phase":"finished","pid":27781,"started_at":"2026-10-24T01:47:29.177282Z","finished_at":"2026-10-24T01:59:57.028931Z","session_id":"5f07c44f-4b4d-4fe1-b74f-b212a5fe5555","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T19:02:36-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 579 — Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files |
+| repo | ariadne |
+| issue file | workshop/issues/000579-unified-marker-rule-in-agents-1-process-artifact-side-docs-committed-sdlc.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 05173098826052d7842caa9b0aea35532118ef07..5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886 |
+| command | sdlc close --issue 579 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T19:02:36-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the issue-card change for scope drift, then writing the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window covers only what changed after the close review. That is one new regression test in `cmd/sdlc/linkguard_test.go`, plus close bookkeeping: the gate ledger, the review record, and the issue card moving to `codecomplete` and switching to the full flow with a closing Log entry. `## Spec`, `## Revisions` and `## Done when` are unchanged, so scope did not move. The BR-3 code fix was already in the code before this window started: `cmd/sdlc/linkguard.go:49` (ls-files) and `:63` (ls-tree) both pass `":(literal)"+p` after `--`. The new test is what proves it. I took `:(literal)` out of both call sites in the disposable checkout, and `TestGitLinkStateLiteralPath` failed (`x*.md: 2 <nil>, want 1`: the file came out as Ignored when it should be Uncommitted). With the fix restored, it passes along with the ChangeCode/SideLink tests. No open blocking findings remain, and the window adds no defects.
+
+1. **Strengths**
+   - The test checks the real failure. An untracked `x*.md` sits next to an ignored `xy.md`, which is exactly where a glob pathspec gets it wrong. The test uses real git with no mocks, and it goes red when the fix is removed (`linkguard_test.go:251-264`).
+   - One table covers all three outcomes in one place: Uncommitted, Ignored and Absent (`x?.md`).
+   - The close bookkeeping touches only the status, the flow and the Log. No spec text changed.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new. The test only weakly covers the `headHas` ls-tree call: no file whose name contains glob characters is committed, so taking `:(literal)` out of that call alone would not turn the test red. This is not worth a finding, since BR-3 named the ls-files call.
+
+5. **Test coverage notes:** BR-3 now has a regression test that goes red without the fix. The existing tests for BR-1, BR-2, BR-4 and BR-5 are outside this window and were not re-run beyond the ChangeCode/SideLink subset.
+
+6. **Architectural notes (interdiff only):**
+   - ARCH-DRY: pass. The test reuses the existing helpers `claimSetRepo`, `writeRepoFile` and `execSideLinkGit`.
+   - ARCH-PURE: pass. Running real git is right for an integration seam whose whole job is git pathspec behaviour.
+   - ARCH-PURPOSE: pass. Both pathspec calls in `linkguard.go` are literal, so the whole class in this file is fixed, not just the one site.
+   - ARCH-EVOLVE: pass. No persisted format changed, apart from the additive `actual_hours` and the flow update on the card.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      linkguard.go:49 and :63 pass ":(literal)"+p; TestGitLinkStateLiteralPath goes red (x*.md judged Ignored) with the literal prefix reverted, green with it.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"02561fd7-2540-4cae-93e4-fb870fc71527","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b9878356f3581393","reviewed_head":"5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886","slot":"ariadne:5","requested_at":"2026-10-24T02:01:35.549139Z"},"phase":"finished","pid":16870,"started_at":"2026-10-24T02:01:35.699457Z","finished_at":"2026-10-24T02:02:35.811277Z","session_id":"14900503-65ea-48c9-8059-64c8c8ab590b","outcome":"returned"}] -->
