@@ -31,7 +31,8 @@ func prepareAffectedGraph(ctx context.Context, d localRunDeps, dir string, p *af
 	fmt.Fprintf(d.Stderr, "==> affected graph preparation: %q\n", p.Command)
 	err := cmd.Run()
 	_ = processgroup.Terminate(cmd, true)
-	if ctx.Err() != nil {
+	// A command that succeeded stands, even if the deadline passed after it (#599).
+	if err != nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}
 	if err != nil {

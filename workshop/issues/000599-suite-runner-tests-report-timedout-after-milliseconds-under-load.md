@@ -101,7 +101,7 @@ timeout verdict must be taken from the command's own end):
 
 ## Plan
 
-- [ ] Tests first, load-independent through seams, not sleeps:
+- [x] Tests first, load-independent through seams, not sleeps:
   - setup that outlasts the budget (a slow `normalTempDir`/scratch seam) still
     runs the command with its full timeout;
   - a command that exits 0 before its deadline, with bookkeeping after it
@@ -110,9 +110,9 @@ timeout verdict must be taken from the command's own end):
     run still a LaneOverrun);
   - `prepareAffectedGraph`: a successful command is not turned into a deadline
     error.
-- [ ] Move the deadline in `runUnderResourceBatch`; return the timeout verdict
+- [x] Move the deadline in `runUnderResourceBatch`; return the timeout verdict
   from the batch; same fix in `prepareAffectedGraph`.
-- [ ] Run the nine listed tests plus `TestHelperRefresh*` in and outside the
+- [x] Run the nine listed tests plus `TestHelperRefresh*` in and outside the
   suite environment, repeated; then the full suite at pre-close.
 - [ ] Unregister nothing: #596's tests are its own issue to close, but note in
   #596's Log that #599 explains this failure shape.
@@ -120,3 +120,21 @@ timeout verdict must be taken from the command's own end):
 ## Log
 
 ### 2026-10-24
+
+- Plan approved by the TL. Instrumented the light-lane test: the stopped run
+  measured 0.493s on a 1s bound, so setup took about 0.5s of the deadline
+  (`prepareScratch` sweeps stale temp folders under every scratch root, which
+  grows with the machine's load and scratch contents).
+- Production exposure: real suites (timeouts 30 to 120 min) were never killed
+  more than the setup time early, but a suite that exited, even passing,
+  within the bookkeeping window after its commands (slot release, lease
+  release, `q.finish`) could be recorded `TimedOut`. `prepareAffectedGraph`
+  could likewise turn a successful preparation into a deadline error.
+- Fix: the deadline starts right before `runManagedCommandBatch`; the verdict
+  is `deadlineStopped(runErr, runCtx.Err())` read on return; `Duration` ends
+  there too. A `phaseHook` test seam ("setup", "ran") stands in for load.
+  `TestLocalCheckDeadlineBoundsTheCommandsOnly` (slow setup, slow bookkeeping,
+  real overrun) and `TestDeadlineStopped`. Mutations: the deadline before setup
+  fails "slow setup"; the verdict read after bookkeeping fails "slow
+  bookkeeping". The graph-prepare change has no load-independent test (no seam
+  can delay its teardown without changing `Run`'s result); it is one condition.

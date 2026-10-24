@@ -69,6 +69,7 @@ type localRunDeps struct {
 	runnerCleanup      func(*exec.Cmd) func() error // process cleanup seam; nil uses production group confirmation
 	lane               string                       // suiteLaneLight asks the helper for the light lane (#559)
 	laneBound          time.Duration                // the light deadline; zero is suiteLaneBound (tests shrink it)
+	phaseHook          func(phase string)           // test seam: "setup" before the deadline starts, "ran" after the commands return
 }
 
 // bindTypedCheck verifies runner authority before allocating any execution
@@ -613,8 +614,6 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		laneDeadline, timeout = bound < timeout, min(timeout, bound)
 		commands = nicedCommands(commands)
 	}
-	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
-	defer cancel()
 	if resource == "runner" {
 		env = withoutSuiteAuthority(env)
 	}
@@ -667,8 +666,16 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)
+	d.runPhase("setup")
+	// The deadline bounds the commands alone (#599): setup above is not charged
+	// to it, and whether it stopped them is read the moment they return, before
+	// the bookkeeping below can outlast it and turn a finished run into a timeout.
 	start := time.Now()
+	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
+	defer cancel()
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
+	ended, timedOut := time.Now(), deadlineStopped(runErr, runCtx.Err())
+	d.runPhase("ran")
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
 		fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
@@ -687,7 +694,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	interrupted := ownedCtx.Err() // stopSignals itself cancels ownedCtx.
 	stopCancellation()
 	stopSignals()
-	run.Start, run.Duration = start.UTC(), time.Since(start)
+	run.Start, run.Duration = start.UTC(), ended.Sub(start)
 	run.Finished = time.Now().UTC()
 	_ = logf.Close()
 	reason := ""
@@ -702,7 +709,7 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	}
 	var exitErr *exec.ExitError
 	switch {
-	case runCtx.Err() == context.DeadlineExceeded:
+	case timedOut:
 		run.TimedOut, run.LaneOverrun = true, laneDeadline
 	case interrupted != nil:
 		return run, &queueInterruptedError{ID: q.op.ID, Reason: "managed suite cancelled", LogPath: logPath, Cause: interrupted}
@@ -719,6 +726,19 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", check, runErr)
 	}
 	return run, nil
+}
+
+// deadlineStopped reports whether a run's deadline, not the commands, ended it:
+// a run whose commands succeeded stands even if the deadline passed after them.
+func deadlineStopped(runErr, ctxErr error) bool {
+	return runErr != nil && errors.Is(ctxErr, context.DeadlineExceeded)
+}
+
+// runPhase calls the test seam, if any, as a run passes a phase.
+func (d localRunDeps) runPhase(phase string) {
+	if d.phaseHook != nil {
+		d.phaseHook(phase)
+	}
 }
 
 // runManagedCommandBatch joins each command's process group before continuing.
