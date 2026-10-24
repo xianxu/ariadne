@@ -82,3 +82,10 @@ Green targeted selector/proof checks passed; complete workspace/activetime/gates
 ### 2026-10-24 — third recorded incident and focused race
 
 pair:7 supplied pair#863's committed reflog capture: #842 -> main-slot7 at00:44:22 PDT, fast-forward00:44:32, #863 checkout00:44:38. Added the16-second interval to the same recorded selector regression; no mechanism or attribution policy change. Focused race checks passed workspace/activetime/gatestate in1.228s/1.235s/1.246s. All incident fixtures are read-only captures with metadata redaction described alongside them.
+
+
+### 2026-10-24 — executable conformance checkpoint
+
+All three recorded incidents and counted 8/16 resting partitions passed0.229s. Built a private Go1.27.3 executable outside the checkout from Git head d4b1d75195dc398d778a1d515baacfb250c36bf4; build metadata confirms modified=false. Real active-time CLI against only private Git/tracker/transcript fixtures passed8.936s: branch partition, visible8.00 branch-window-minute resting exclusion, and retained replay. This private build does not run any production close or landing logic. Normal central sdlc remains the suite/close/merge binary; no staging or live historical repair.
+
+Atlas and lessons updated. Next: push, recorded pre-close, mandatory close review, normal landing. No live Pair actuals have been rerun or rewritten.
