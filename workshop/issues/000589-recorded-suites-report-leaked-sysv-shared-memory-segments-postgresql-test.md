@@ -46,9 +46,9 @@ Fix, in two parts:
 
 ## Plan
 
-Durable design: [suite SysV warning plan](../plans/000589-suite-sysv-warning-plan.md). Await TL approval before code.
+Durable design: [suite SysV warning plan](../plans/000589-suite-sysv-warning-plan.md). Approved by ops:0 on 2026-10-24; implementation gate completed.
 
-- [ ] Approve the warning, attribution, persistence and qualification boundaries.
+- [x] Approve the warning, attribution, persistence and qualification boundaries.
 - [ ] Implement pure observations/delta and stateful-fake managed lifecycle tests.
 - [ ] Qualify native single-owned-segment behavior after operator-cleared capacity, document harness guidance and existing echo#32, then recorded pre-close/close/land.
 
@@ -74,3 +74,11 @@ The proposed plan uses two admitted-run boundary snapshots, at most one optional
 ## Revisions
 
 - 2026-10-24: Corrected the planning claim that a before/after count pins the culprit: parallel suites share the UID, and exited creators cannot be named reliably. Keep observed/unattributed warnings explicit; name known creator PIDs/process witnesses only. Existing echo#32 satisfies the requested harness issue; mmap does not remove PostgreSQL's56-byte interlock.
+
+### 2026-10-24 — resumed implementation
+
+Retained change-code completed successfully and committed accepted design (Git state reports 9078882e). Previous recovery screen is unavailable; recovery used the issue, durable plan, Git state and retained process exit. Full plan approval receipt: 38e93c9b-c77c-42ff-9f67-fedbfc22b3af. No native IPC allocation or cleanup performed. Independently filed hub-requested staging-attribution follow-up #594 unclaimed; it does not change this scope.
+
+### 2026-10-24 — first implementation checkpoint
+
+Observed red then green for pure delta/native table parsing and bounded-reader fake controls. The managed fake abandoned-segment regression is green: exactly two snapshots and one terminal witness hook, warning in stderr and digest-verified saved log, successful status unchanged. Parent final summary overrides earlier child-looking summaries. Production local-check, resume, single merge, train and baseline constructors explicitly inject native observation; unconfigured unit-test dependencies do not probe live machine state. Native creator names/group/incarnations are read from one kernel record after the bounded terminal PID/group snapshot; exited or moved rows remain unknown. No real IPC allocated or removed. Native qualification request sent to hub, receipt 1f398835-ab92-43f2-a13c-9893367f0ce9 submitted. More adversarial lifecycle, saved-replay, limits, docs and native qualification remain before full suite/close.

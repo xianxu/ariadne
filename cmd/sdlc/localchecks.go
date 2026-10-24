@@ -376,6 +376,9 @@ func (r localRunRecord) statusDescription() string {
 	if r.ResumeParent != "" {
 		s = fmt.Sprintf("resume %.12s/%.12s · %s", r.ResumeParent, r.ResumeChild, s)
 	}
+	if hasSysVWarning(r.Tail, r.Name, r.SHA) {
+		s = "SysV warning · " + s
+	}
 	if len(s) > 140 {
 		s = s[:140]
 	}

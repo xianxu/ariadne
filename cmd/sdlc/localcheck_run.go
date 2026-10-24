@@ -28,12 +28,15 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/sysvshm"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
+	sysvWitness        func(int)        // terminal command hook, before existing group cleanup
+	sysvObserver       sysvshm.Observer // explicitly wired by production run constructors; nil is unconfigured
 	refreshSuiteHelper func(context.Context, string, io.Writer) error
 	suiteCapabilities  func(context.Context) error // nil probes the real host; test seam only
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
@@ -667,8 +670,22 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 		}()
 	}
 	out := io.MultiWriter(logf, d.Stderr)
+	var sysvBefore sysvshm.Snapshot
+	var sysvWitnesses map[int]sysvshm.Witness
+	if resource != "runner" && d.sysvObserver != nil {
+		sysvBefore = captureSysV(d.sysvObserver)
+		d.sysvWitness = func(pgid int) {
+			witnessCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+			defer stop()
+			sysvWitnesses = d.sysvObserver.WitnessGroup(witnessCtx, pgid)
+		}
+		fmt.Fprintln(out, "[sdlc SysV observation] beginning; after-snapshot pending")
+	}
 	start := time.Now()
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
+	if resource != "runner" && d.sysvObserver != nil {
+		sysVRunReport(d.sysvObserver, sysvBefore, sysvWitnesses, out, check, sha)
+	}
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
 		fmt.Fprintf(logf, "\n[!] %v; retained checkout %s\n", cleanupErr, wt)
@@ -747,6 +764,9 @@ func runManagedCommandBatch(ctx context.Context, d localRunDeps, wt, check strin
 			d.runnerLifetime.retirable = false
 		}
 		runErr = cmd.Run()
+		if d.sysvWitness != nil && cmd.Process != nil && (runErr != nil || index == len(commands)-1) {
+			d.sysvWitness(cmd.Process.Pid)
+		}
 		// WaitDelay bounds inherited pipes. Stop descendants before another package
 		// starts or the outer owner retires the checkout and scratch.
 		if joinRunner != nil {
