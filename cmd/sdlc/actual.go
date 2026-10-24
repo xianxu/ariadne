@@ -72,6 +72,9 @@ type actualResult struct {
 	Recovery        string // typed input failure's specific action; never persisted
 	Warnings        []string
 	QueueBlockers   []string // complete queue refusal diagnostics, when present
+	// OverstatedMinutes is the counted time unknown queue attempts overlap
+	// (#603): the most these hours may overstate.
+	OverstatedMinutes float64
 	// Split divides Hours at the boundary reviews (#234); nil unless measured.
 	Split *actualSplit
 	// Inputs is the exact admitted evidence retained by close/correction.

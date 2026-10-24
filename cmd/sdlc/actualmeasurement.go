@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -170,12 +175,39 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		var coverageNotes []string
 		m, coverageNotes = attachCarWaitCoverage(m, inputs.CarWaits, inputs.CarWaitNotes, allSources)
 		res.Warnings = append(res.Warnings, carWaitCoverageWarnings(nil, coverageNotes)...)
+		since, e1 := time.Parse(time.RFC3339Nano, m.Since)
+		until, e2 := time.Parse(time.RFC3339Nano, m.Until)
+		if e1 != nil || e2 != nil {
+			return fail(fmt.Errorf("measurement window is not RFC3339"))
+		}
+		var phases []activetime.Phase
+		if milestone != "" {
+			phases = res.CountedPhases
+		}
+		m.Unattributed = retainUnattributed(inputs.Unattributed)
+		m.UnattributedMinutes = unattributedMinutes(id, inputs.Unattributed, out.Segments, phases, since, until)
+		res.OverstatedMinutes = overstatedMinutes(id, inputs.Unattributed, out.Segments, phases, since, until)
 	}
-	if err := m.Validate(); err != nil {
+	if err := m.ValidateShape(); err != nil {
 		return fail(fmt.Errorf("measurement evidence incomplete: %w", err))
 	}
 	if err := validateOwnedBranchProof(m, id); err != nil {
 		return fail(err)
+	}
+	// The bounds are checked once, after trimming to contributing sources. A
+	// snapshot still over them is summarised, not refused: the hours hold and
+	// only replay is lost (#603).
+	if err := m.ValidateBounds(); err != nil {
+		var over *gatestate.OversizeError
+		if inputs.Replay || !errors.As(err, &over) {
+			return fail(fmt.Errorf("measurement evidence incomplete: %w", err))
+		}
+		summary, widened, err := summariseMeasurement(m, res, inputs, id, over.Reason)
+		if err != nil {
+			return fail(fmt.Errorf("measurement summary: %w", err))
+		}
+		res.Warnings = append(res.Warnings, fmt.Sprintf("measurement snapshot summarised, not replayable: %s; %d credited intervals retained, %d gaps coalesced", over.Reason, len(summary.Summary.Credited), widened))
+		m = summary
 	}
 	res.Inputs = &m
 	res.Warnings = append(res.Warnings, carWaitCoverageWarnings(m.CarWaits, m.CarWaitNotes)...)
@@ -190,6 +222,60 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		res.Warnings = append(res.Warnings, fmt.Sprintf("excluded %.2f minutes from %s during %s → %s: already adopted by issue #%s in slot %s", exclusion.Minutes, exclusion.Source, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot))
 	}
 	return res
+}
+
+// summariseMeasurement is the retained form of a snapshot over its bounds
+// (#603): the header, the unattributed record and the summary with the credited
+// intervals a later overlapping issue must not count again.
+func summariseMeasurement(m gatestate.MeasurementInputs, res actualResult, inputs *ownedActualInputs, id, reason string) (gatestate.MeasurementInputs, int, error) {
+	credited, err := creditedIntervals(id, res.Segments, res.CountedPhases, inputs.SourceSlots)
+	if err != nil {
+		return gatestate.MeasurementInputs{}, 0, err
+	}
+	issueID := id
+	if n, err := strconv.Atoi(id); err == nil {
+		issueID = strconv.Itoa(n)
+	}
+	var credits []gatestate.MeasurementCredit
+	for _, c := range credited {
+		credits = append(credits, gatestate.MeasurementCredit{Issue: issueID, Slot: c.Slot.String(), Start: c.Start.Format(time.RFC3339Nano), End: c.End.Format(time.RFC3339Nano)})
+	}
+	credits, widened := gatestate.CoalesceCredits(credits, gatestate.MaxSummaryCredits)
+	since, _ := time.Parse(time.RFC3339Nano, m.Since)
+	until, _ := time.Parse(time.RFC3339Nano, m.Until)
+	clamp := func(list []gatestate.MeasurementCredit) {
+		// Second precision widens outward; keep each credit inside the sample.
+		for i := range list {
+			start, _ := time.Parse(time.RFC3339, list[i].Start)
+			end, _ := time.Parse(time.RFC3339, list[i].End)
+			if start.Before(since) {
+				list[i].Start = m.Since
+			}
+			if end.After(until) {
+				list[i].End = m.Until
+			}
+		}
+	}
+	clamp(credits)
+	clamp(widened)
+	h := sha256.New()
+	for _, s := range m.Sources {
+		fmt.Fprintf(h, "%s/%s %s %d\n", s.Harness, s.ID, s.Digest, s.Bytes)
+	}
+	bytes := 0
+	if data, err := json.Marshal(m); err == nil {
+		bytes = len(data)
+	}
+	out := gatestate.MeasurementInputs{Version: gatestate.MeasurementSummaryInputsVersion, Method: gatestate.MeasurementMethodSummaryV1,
+		Repository: m.Repository, CodeHead: m.CodeHead, TrackerHead: m.TrackerHead, BranchPoint: m.BranchPoint, Since: m.Since, Until: m.Until,
+		BrainRoot: m.BrainRoot, GapMinutes: m.GapMinutes, CommitWeight: m.CommitWeight, IncludeAssistant: m.IncludeAssistant, Cuts: m.Cuts,
+		ExcludedBrainSessions: m.ExcludedBrainSessions, ExcludedBrainMinutes: m.ExcludedBrainMinutes,
+		Unattributed: m.Unattributed, UnattributedMinutes: m.UnattributedMinutes,
+		Summary: &gatestate.MeasurementSummary{Sources: len(m.Sources), Bytes: bytes, Hours: res.Hours, Digest: hex.EncodeToString(h.Sum(nil)), Reason: reason, Credited: credits, Widened: widened}}
+	if err := out.Validate(); err != nil {
+		return gatestate.MeasurementInputs{}, 0, err
+	}
+	return out, len(widened), nil
 }
 
 // The activity engine receives strings for persisted evidence compatibility.

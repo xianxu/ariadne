@@ -175,11 +175,14 @@ func TestOwnedActualQueueCoverageRefusesUnknownRecordsForCloseAndCorrection(t *t
 					t.Fatal(err)
 				}
 			}
-			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
-				_, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", purpose)
-				if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
-					t.Fatalf("%s purpose %d adopted unknown queue coverage: %v", kind, purpose, err)
-				}
+			// #603: close degrades to an unbounded queue record; a correction
+			// still stands only on exact evidence.
+			got, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCloseCandidate)
+			if err != nil || len(got.Unattributed) != 1 || got.Unattributed[0].Kind != gatestate.UnattributedQueueUnknown || got.Unattributed[0].Bounded {
+				t.Fatalf("%s close did not record unknown queue coverage: %+v %v", kind, got, err)
+			}
+			if _, err := resolveOwnedActualInputsFor(context.Background(), r.root, "", "335", "", actualCorrectionCandidate); err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
+				t.Fatalf("%s correction adopted unknown queue coverage: %v", kind, err)
 			}
 		})
 	}
@@ -264,7 +267,11 @@ func TestOwnedActualSelectorWarningsRefuseCloseAndCorrection(t *testing.T) {
 			for _, purpose := range []actualInputPurpose{actualCloseCandidate, actualCorrectionCandidate} {
 				candidate := *out
 				err := attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, &candidate, purpose)
-				if wantWarning {
+				if wantWarning && purpose == actualCloseCandidate {
+					if err != nil || len(candidate.Unattributed) != 1 || candidate.Unattributed[0].Kind != gatestate.UnattributedQueueUnknown {
+						t.Fatalf("close did not record selector-warning evidence: %+v %v", candidate.Unattributed, err)
+					}
+				} else if wantWarning {
 					if err == nil || !strings.Contains(err.Error(), "queue evidence incomplete") {
 						t.Fatalf("purpose %d adopted selector-warning evidence: %v", purpose, err)
 					}
@@ -310,7 +317,17 @@ func TestAttachOwnedQueueEvidencePreservesEveryMixedBlocker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, out, actualCloseCandidate)
+	// #603: close records both attempts, the one with endpoints bounded.
+	closing := *out
+	if err := attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, &closing, actualCloseCandidate); err != nil || len(closing.Unattributed) != 2 {
+		t.Fatalf("close did not record both blockers: %+v %v", closing.Unattributed, err)
+	}
+	for _, u := range closing.Unattributed {
+		if u.Kind != gatestate.UnattributedQueueUnknown || u.Bounded != strings.Contains(u.Reason, "ccdd") {
+			t.Fatalf("queue record %+v: only the attempt with endpoints is bounded", u)
+		}
+	}
+	err = attachOwnedQueueEvidence(context.Background(), r.root, repo, cardPath, "github.com/xianxu/ariadne", 335, out, actualCorrectionCandidate)
 	if err == nil {
 		t.Fatal("mixed queue blockers were admitted")
 	}

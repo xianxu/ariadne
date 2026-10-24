@@ -3,7 +3,6 @@ package activetime
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -89,9 +88,8 @@ func TestSelectBranchActivityRestingDoesNotInferOtherBranches(t *testing.T) {
 		}
 	}
 	for _, branch := range []BranchInterval{{Start: start, End: end}, {Start: start, End: end, Branch: "main-slot4", Known: false}, {Start: start, End: end, Branch: "feature", Known: true}, {Start: start, End: end, Branch: "main-slot04", Known: true}} {
-		if _, err := SelectBranchActivity("335", windows, []BranchInterval{branch}, claims); err == nil || !strings.Contains(err.Error(), "concurrent claims") {
-			t.Fatalf("unknown/detached/ambiguous became unassigned: %+v %v", branch, err)
-		}
+		got, err := SelectBranchActivity("335", windows, []BranchInterval{branch}, claims)
+		assertUnknownOnly(t, got, err, start, end)
 	}
 }
 

@@ -75,11 +75,9 @@ func TestStagingSelectionRequiresAttachedValidWitness(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"", "HEAD", "stage", "stage/", "stages/combined", "feature", "stage/a..b", "stage/a.lock", "stage/a//b", "stage/.hidden", "stage/a b", "stage/a\x01b", "refs/heads/stage/a"} {
-		if _, err := SelectBranchActivity("335", windows, []BranchInterval{{Start: start, End: end, Branch: name, Known: true}}, claims); err == nil {
-			t.Fatalf("malformed/ambiguous %q accepted", name)
-		}
+		got, err := SelectBranchActivity("335", windows, []BranchInterval{{Start: start, End: end, Branch: name, Known: true}}, claims)
+		assertUnknownOnly(t, got, err, start, end)
 	}
-	if _, err := SelectBranchActivity("335", windows, []BranchInterval{{Start: start, End: end, Branch: "stage/combined", Known: false}}, claims); err == nil {
-		t.Fatal("unknown stage text credited")
-	}
+	got, err := SelectBranchActivity("335", windows, []BranchInterval{{Start: start, End: end, Branch: "stage/combined", Known: false}}, claims)
+	assertUnknownOnly(t, got, err, start, end)
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -118,7 +119,7 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			selected, captures, _, err := selectOwnedBranchWindows(t.Context(), repo, inventory, "335", sessions, eligible, boundary.Add(-18*time.Minute), boundary.Add(11*time.Minute))
+			selected, captures, _, _, err := selectOwnedBranchWindows(t.Context(), repo, inventory, "335", sessions, eligible, boundary.Add(-18*time.Minute), boundary.Add(11*time.Minute))
 			if err != nil || len(captures) != 1 || captures[0].Root != worker {
 				t.Fatalf("child cwd replaced its admitted root: %+v %v", captures, err)
 			}
@@ -201,8 +202,9 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	if err := os.Remove(logPath); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolveOwnedActualInputs(t.Context(), worker, "", "335", ""); err == nil || !strings.Contains(err.Error(), "--no-actual") || !strings.Contains(err.Error(), "concurrent claims") {
-		t.Fatalf("expired history among concurrent claims: %v", err)
+	// #603: the unknown branch is recorded as unattributed, never counted.
+	if expired, err := resolveOwnedActualInputs(t.Context(), worker, "", "335", ""); err != nil || len(expired.Snapshot.Sources) != 0 || len(expired.Unattributed) == 0 || expired.Unattributed[0].Kind != gatestate.UnattributedUnknownBranch || !strings.Contains(expired.Unattributed[0].Reason, "concurrent claims") {
+		t.Fatalf("expired history among concurrent claims: %+v %v", expired, err)
 	}
 	// A retained adoption replays the saved classifier and dispatch inputs,
 	// even when the live history has expired and new source bytes have arrived.
@@ -226,8 +228,9 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	}
 	out.Reset()
 	diagnostics.Reset()
-	if code := runActiveTime(opts, &out, &diagnostics); code == 0 || !strings.Contains(diagnostics.String(), "concurrent claims") {
-		t.Fatalf("explicit raw options bypassed missing tracked branch proof: code%d %s", code, diagnostics.String())
+	// #603: the unknown branch is not counted, so nothing is measured here.
+	if code := runActiveTime(opts, &out, &diagnostics); code == 0 || strings.Contains(out.String(), "#335:") {
+		t.Fatalf("explicit raw options bypassed missing tracked branch proof: code%d %s %s", code, out.String(), diagnostics.String())
 	}
 	// An expired prefix outside an explicit narrow window is irrelevant, but
 	// asking for the broad window still cannot manufacture its missing branch.

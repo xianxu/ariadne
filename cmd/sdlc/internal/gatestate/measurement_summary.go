@@ -18,8 +18,9 @@ const (
 	// MaxSummaryCredits bounds a summary's credited intervals on the writer.
 	MaxSummaryCredits = 2048
 	// SnapshotLimitBytesSummary is a summary's byte bound: MaxSummaryCredits
-	// second-precision credits plus the header fit under it.
-	SnapshotLimitBytesSummary = 256 * 1024
+	// second-precision credits and as many widened gaps, about 100 bytes each,
+	// plus the header fit under it, inside the 512 KiB structural cap.
+	SnapshotLimitBytesSummary = 448 * 1024
 )
 
 // MeasurementSummary is the retained form of a measurement whose full
@@ -34,6 +35,9 @@ type MeasurementSummary struct {
 	Digest   string              `json:"digest" yaml:"digest"`
 	Reason   string              `json:"reason" yaml:"reason"`
 	Credited []MeasurementCredit `json:"credited,omitempty" yaml:"credited,omitempty"`
+	// Widened are the gaps coalescing closed: protected by Credited but never
+	// credited, so a later issue records what it lost to them.
+	Widened []MeasurementCredit `json:"widened,omitempty" yaml:"widened,omitempty"`
 }
 
 // IsSummaryMethod reports a summarised, non-replayable snapshot.
@@ -66,10 +70,13 @@ func (m MeasurementInputs) validateSummary() error {
 	if s.Sources <= 0 || s.Bytes < 0 || s.Hours < 0 || math.IsNaN(s.Hours) || math.IsInf(s.Hours, 0) || !measurementHex(s.Digest, 64) || s.Reason == "" {
 		return fmt.Errorf("measurement summary counts, hours, digest or reason are invalid")
 	}
-	if len(s.Credited) > MaxSummaryCredits {
-		return fmt.Errorf("measurement summary credits exceed %d", MaxSummaryCredits)
+	if len(s.Credited) > MaxSummaryCredits || len(s.Widened) > MaxSummaryCredits {
+		return fmt.Errorf("measurement summary credits or widened gaps exceed %d", MaxSummaryCredits)
 	}
 	if err := validateCredits("summary.credited", s.Credited, since, until); err != nil {
+		return err
+	}
+	if err := validateCredits("summary.widened", s.Widened, since, until); err != nil {
 		return err
 	}
 	return m.ValidateUnattributed()

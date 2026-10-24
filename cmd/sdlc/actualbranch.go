@@ -120,6 +120,8 @@ func branchOwnerKey(owner issue.Claimant) string {
 
 // resolveSlotClaimWindows reads each immutable card history once. Historical
 // owner changes matter even when today's owner is a different slot.
+// A root whose historical owners disagree maps to ambiguousOwner: its sources
+// are recorded as unattributed instead of failing the measurement (#603).
 func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, candidate string, since, until time.Time) (map[string][]activetime.BranchClaim, map[string]string, []string, error) {
 	var unknown []string
 	for _, bad := range inventory.Unreadable() {
@@ -174,8 +176,8 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 			key := branchOwnerKey(*event.Owner)
 			if strconv.Itoa(id) == candidate {
 				root := filepath.Clean(event.Owner.Worktree)
-				if prior := roots[root]; prior != "" && prior != key {
-					return nil, nil, nil, fmt.Errorf("ambiguous historical owner for %s", root)
+				if prior, seen := roots[root]; seen && prior != key {
+					key = ambiguousOwner
 				}
 				roots[root] = key
 			}
@@ -189,7 +191,9 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 	if len(unknown) > 0 {
 		keys := map[string]bool{}
 		for _, key := range roots {
-			keys[key] = true
+			if key != ambiguousOwner {
+				keys[key] = true
+			}
 		}
 		for key := range keys {
 			claims[key] = append(claims[key], activetime.BranchClaim{Start: since, End: until, Issue: "unknown-competing-history"})
@@ -198,13 +202,27 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 	return claims, roots, unknown, nil
 }
 
+// ambiguousOwner marks a worktree root with more than one historical owner.
+const ambiguousOwner = "\x00ambiguous"
+
 // selectOwnedBranchWindows runs only after source lineage admission. Spawned
 // sessions inherit their root author's worktree; a child cwd (e.g. brain) is
-// never mistaken for the checkout whose HEAD selects this issue.
-func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, id string, sessions []transcripts.SessionEvidence, admitted map[string][]activetime.ActivityWindow, since, until time.Time) (map[string][]activetime.ActivityWindow, []ownedBranchCapture, []string, error) {
+// never mistaken for the checkout whose HEAD selects this issue. Activity it
+// cannot attribute (an unknown branch under concurrent claims, a source with no
+// root lineage or no single owner) is returned as unattributed and not counted
+// (#603); only a lineage cycle, which corrupts every source, still fails.
+func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, id string, sessions []transcripts.SessionEvidence, admitted map[string][]activetime.ActivityWindow, since, until time.Time) (map[string][]activetime.ActivityWindow, []ownedBranchCapture, []string, []gatestate.MeasurementUnattributed, error) {
 	claims, roots, unknown, err := resolveSlotClaimWindows(ctx, repo, inventory, id, since, until)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+	var warnings []string
+	var unattributed []gatestate.MeasurementUnattributed
+	skip := func(s transcripts.SessionEvidence, kind, reason string, windows []activetime.ActivityWindow) {
+		for _, w := range windows {
+			unattributed = append(unattributed, gatestate.MeasurementUnattributed{Kind: kind, Source: s.Harness + "/" + s.ID, Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano), Bounded: true, Reason: reason})
+		}
+		warnings = append(warnings, fmt.Sprintf("branch attribution %s/%s: %s; %d windows not counted", s.Harness, s.ID, reason, len(windows)))
 	}
 	byID := map[string]transcripts.SessionEvidence{}
 	for _, s := range sessions {
@@ -212,7 +230,6 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 	}
 	captures := map[string]ownedBranchCapture{}
 	out := map[string][]activetime.ActivityWindow{}
-	var warnings []string
 	for _, reason := range unknown {
 		warnings = append(warnings, "branch competing history unknown: "+reason)
 	}
@@ -225,19 +242,28 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 		for ancestor.Spawned {
 			key := ancestor.Harness + ":" + ancestor.ID
 			if seen[key] {
-				return nil, nil, nil, fmt.Errorf("branch source lineage cycle")
+				return nil, nil, nil, nil, fmt.Errorf("branch source lineage cycle")
 			}
 			seen[key] = true
 			parent, ok := byID[ancestor.Harness+":"+ancestor.ParentID]
 			if !ok {
-				return nil, nil, nil, fmt.Errorf("branch source %s lacks admitted root lineage", s.ID)
+				break
 			}
 			ancestor = parent
+		}
+		if ancestor.Spawned {
+			skip(s, gatestate.UnattributedSourceAttribution, "branch source lacks admitted root lineage", admitted[s.File])
+			continue
 		}
 		root := filepath.Clean(ancestor.CWD)
 		owner, ok := roots[root]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("branch source %s has no pinned worktree owner", s.ID)
+			skip(s, gatestate.UnattributedSourceAttribution, "branch source has no pinned worktree owner for "+root, admitted[s.File])
+			continue
+		}
+		if owner == ambiguousOwner {
+			skip(s, gatestate.UnattributedSourceAttribution, "ambiguous historical owner for "+root, admitted[s.File])
+			continue
 		}
 		capture, ok := captures[root]
 		if !ok {
@@ -245,13 +271,20 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 			captures[root] = capture
 		}
 		if err := ctx.Err(); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 		selected, err := activetime.SelectBranchActivity(id, admitted[s.File], capture.Intervals, claims[owner])
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("branch attribution for %s (%s): %w; %s; close recovery: --no-actual with the evidence in --verified", s.ID, root, err, strings.Join(append([]string{capture.Unavailable}, unknown...), "; "))
+			return nil, nil, nil, nil, fmt.Errorf("branch attribution for %s (%s): %w; %s", s.ID, root, err, strings.Join(append([]string{capture.Unavailable}, unknown...), "; "))
 		}
 		out[s.File] = selected.Windows
+		if len(selected.Unknown) > 0 {
+			reason := "concurrent claims have unknown, detached or ambiguous active branch"
+			if capture.Unavailable != "" {
+				reason += " (" + capture.Unavailable + ")"
+			}
+			skip(s, gatestate.UnattributedUnknownBranch, reason, selected.Unknown)
+		}
 		for _, note := range selected.Notes {
 			capture.Notes = append(capture.Notes, gatestate.MeasurementBranchInterval{Source: s.Harness + "/" + s.ID, Start: note.Start.Format(time.RFC3339Nano), End: note.End.Format(time.RFC3339Nano), Branch: note.Branch, Kind: note.Kind})
 			if note.Kind == "branch" {
@@ -266,7 +299,7 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 		ordered = append(ordered, capture)
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Root < ordered[j].Root })
-	return out, ordered, warnings, nil
+	return out, ordered, warnings, unattributed, nil
 }
 
 func measurementBranches(captures []ownedBranchCapture) []gatestate.MeasurementBranchEvidence {
@@ -310,7 +343,9 @@ func validateOwnedBranchProof(m gatestate.MeasurementInputs, id string) error {
 		return nil
 	}
 	fail := func(reason string) error { return fmt.Errorf("measurement branch proof: %s", reason) }
-	if err := m.Validate(); err != nil {
+	// Shape only: the retention bounds are checked once, after trimming to
+	// contributing sources (#603; pair#838 and #851 refused here before).
+	if err := m.ValidateShape(); err != nil {
 		return fail(err.Error())
 	}
 	type interval struct{ start, end time.Time }

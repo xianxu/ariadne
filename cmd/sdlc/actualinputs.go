@@ -43,6 +43,9 @@ type ownedActualInputs struct {
 	LegacyPrefix    *ownedActualInputs             // separately labelled, unowned pre-cutover evidence
 	CarWaits        []gatestate.MeasurementCarWait // descriptive; never passed to activity subtraction
 	CarWaitNotes    []string
+	// Unattributed is every uncounted record this resolve saw (#603); the
+	// measurement totals it and retains a bounded prefix in the snapshot.
+	Unattributed []gatestate.MeasurementUnattributed
 }
 
 type actualInputPurpose uint8
@@ -289,7 +292,8 @@ func resolveOwnedActualInputsLimited(ctx context.Context, repoTop, brainAbs, iss
 			return nil, err
 		}
 	}
-	windows, captures, notes, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
+	var unattributed []gatestate.MeasurementUnattributed
+	windows, captures, notes, unattributed, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +301,7 @@ func resolveOwnedActualInputsLimited(ctx context.Context, repoTop, brainAbs, iss
 	snapshot.Branches = measurementBranches(captures)
 	out := &ownedActualInputs{Snapshot: snapshot, Prefixes: map[string]activetime.SourcePrefix{}, Windows: windows, Scope: scope, TrackerRefs: []string{trackerPin}, Ledger: &ledger, Warnings: warnings, LegacyPrefix: legacyPrefix}
 	out.DispatchWindows = dispatchWindows
+	out.Unattributed = unattributed
 	for _, s := range sessions {
 		if len(windows[s.File]) == 0 {
 			if brainAbs != "" && filepath.Clean(s.CWD) == filepath.Clean(brainAbs) {
@@ -433,12 +438,25 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
-	if len(attemptWarnings) > 0 {
-		return &queueEvidenceError{Blockers: attemptWarnings}
-	}
 	since, err := time.Parse(time.RFC3339Nano, out.Snapshot.Since)
 	if err != nil {
 		return err
+	}
+	// Incomplete queue evidence degrades instead of refusing (#603), except
+	// for a correction, which must stand on exact evidence. The queue time of
+	// an unknown attempt cannot be subtracted, so the hours become an upper
+	// bound: each attempt is recorded, with its interval when it has one.
+	degrade := purpose != actualCorrectionCandidate
+	unknownQueue := func(a *SuiteAttempt, reason string) {
+		out.Unattributed = append(out.Unattributed, queueUnattributed(a, reason, since, until))
+	}
+	if len(attemptWarnings) > 0 {
+		if !degrade {
+			return &queueEvidenceError{Blockers: attemptWarnings}
+		}
+		for _, w := range attemptWarnings {
+			unknownQueue(nil, w)
+		}
 	}
 	if out.Snapshot.LegacyPrefix != nil {
 		since, err = time.Parse(time.RFC3339Nano, out.Snapshot.LegacyPrefix.Until)
@@ -469,7 +487,25 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		if len(blockers) == 0 {
 			return err
 		}
-		return &queueEvidenceError{Blockers: blockers}
+		if !degrade {
+			return &queueEvidenceError{Blockers: blockers}
+		}
+		for i := range attempts {
+			unknownQueue(&attempts[i], blockers[i])
+		}
+		out.Warnings = append(out.Warnings, blockers...)
+		return nil
+	}
+	if degrade {
+		var known []SuiteAttempt
+		for i, a := range attempts {
+			if m := memberships[a.SHA]; !m.Known {
+				unknownQueue(&attempts[i], fmt.Sprintf("suite attempt %s SHA %s has unknown issue-head attribution: %s", a.ID, a.SHA, m.Reason))
+				continue
+			}
+			known = append(known, a)
+		}
+		attempts = known
 	}
 	attempts, err = filterIssueQueueAttempts(attempts, memberships, issueID)
 	if err != nil {
@@ -480,7 +516,12 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		return err
 	}
 	if len(notes) > 0 {
-		return &queueEvidenceError{Blockers: notes}
+		if !degrade {
+			return &queueEvidenceError{Blockers: notes}
+		}
+		for _, note := range notes {
+			unknownQueue(queueAttemptNamed(attempts, note), note)
+		}
 	}
 	if purpose == actualCorrectionCandidate && len(waits) == 0 {
 		return fmt.Errorf("correction candidate has no complete, owned suite queue records for the completion window")
@@ -504,6 +545,41 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 			out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
 		}
 		out.Snapshot.QueueWaits = waits
+	}
+	return nil
+}
+
+// queueUnattributed records one queue attempt whose wait cannot be
+// subtracted: bounded by its queue interval inside the sample when it has
+// one, else unbounded.
+func queueUnattributed(a *SuiteAttempt, reason string, since, until time.Time) gatestate.MeasurementUnattributed {
+	reason = oneLine(reason)
+	if len(reason) > 400 {
+		reason = reason[:397] + "..."
+	}
+	u := gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedQueueUnknown, Reason: reason}
+	if a == nil || a.QueuedAt == nil || a.AcquiredAt == nil {
+		return u
+	}
+	start, end := *a.QueuedAt, *a.AcquiredAt
+	if start.Before(since) {
+		start = since
+	}
+	if end.After(until) {
+		end = until
+	}
+	if end.After(start) {
+		u.Source, u.Start, u.End, u.Bounded = "suite/"+a.ID, start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano), true
+	}
+	return u
+}
+
+// queueAttemptNamed finds the attempt a selection note names by its ID.
+func queueAttemptNamed(attempts []SuiteAttempt, note string) *SuiteAttempt {
+	for i := range attempts {
+		if attempts[i].ID != "" && strings.Contains(note, " "+attempts[i].ID+" ") {
+			return &attempts[i]
+		}
 	}
 	return nil
 }
@@ -749,6 +825,9 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 }
 
 func resolveOwnedReplay(ctx context.Context, root, issueNum string, saved gatestate.MeasurementInputs, ledger gatestate.Ledger) (*ownedActualInputs, error) {
+	if gatestate.IsSummaryMethod(saved.Method) && saved.Summary != nil {
+		return nil, fmt.Errorf("measurement is summarised and not replayable (%s)", saved.Summary.Reason)
+	}
 	if err := validateOwnedBranchProof(saved, issueNum); err != nil {
 		return nil, err
 	}

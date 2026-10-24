@@ -102,8 +102,9 @@ func TestOwnedActualQueueUsesTestedIssueBeforeSlotOwnership(t *testing.T) {
 					t.Fatalf("own queue lost: inputs=%+v err=%v", got, err)
 				}
 			case "unknown":
-				if err == nil || !strings.Contains(err.Error(), a.ID) || !strings.Contains(err.Error(), head) {
-					t.Fatalf("unknown head must name attempt and SHA: %v", err)
+				// #603: recorded, naming the attempt and SHA, not refused.
+				if err != nil || len(got.Unattributed) != 1 || !strings.Contains(got.Unattributed[0].Reason, a.ID) || !strings.Contains(got.Unattributed[0].Reason, head) {
+					t.Fatalf("unknown head must name attempt and SHA: %+v %v", got.Unattributed, err)
 				}
 			}
 		})
