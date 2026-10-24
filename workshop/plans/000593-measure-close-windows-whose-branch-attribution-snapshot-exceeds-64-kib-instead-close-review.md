@@ -107,3 +107,94 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"21405f87-d955-4351-af0a-6b110574a6a3","repository":"github.com/xianxu/ariadne","issue_id":"000593","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/a338cd41baef65e5","reviewed_head":"ca9d0d20966837e3ad342f30490ade836cf3cd05","slot":"ariadne:2","requested_at":"2026-10-24T13:50:55.796062Z"},"phase":"finished","pid":54168,"started_at":"2026-10-24T13:50:55.968315Z","finished_at":"2026-10-24T14:14:35.518827Z","session_id":"09c8a668-7ea3-43c1-af26-36bfcf51b435","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T07:32:03-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 593 — Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing |
+| repo | ariadne |
+| issue file | workshop/issues/000593-measure-close-windows-whose-branch-attribution-snapshot-exceeds-64-kib-instead.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 31b03d889ad8a455cfc91ba3451ce2e5c8a8a29d..2f61a831440f7c9175898603abe6a0337e44fe4a |
+| command | sdlc close --issue 593 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T07:32:03-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests are still running. Meanwhile I'm checking the interim output.
+
+The `cmd/sdlc` package hit Go's 10-minute test timeout. I'll run only the two tests this diff changed, verbosely.
+
+The targeted tests pass, so the timeout looks like the broad `-run` pattern being slow rather than a hang. Next I'll revert the BR-1 fix and check that its regression test goes red.
+
+The regression test fails without the fix, so BR-1 is addressed. Now I'm checking the rest of that error class: any remaining uses of the old 64 KiB limit and how the YAML encoder handles size.
+
+I'm checking one edge case: a branch record with no intervals (for example, an `unavailable` record) may not round-trip identically under version 4.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+I'm recommending SHIP: all three findings from round 1 are fixed, and I found nothing new that blocks the close. Version 4 now stores branch evidence in a compact form. An interval points to its source by position in the source list and leaves out the branch name when it matches its record's branch, so the #586-shaped window (75 sources, 150 intervals) fits under 64 KiB. The size limit now depends on the version: 64 KiB through version 3, 128 KiB for version 4. A snapshot that is too large now gets a refusal that gives its size, the limit and the counts. That covers the case BR-1 found: past the separate 512 KiB parse-cost cap, a snapshot used to fail with the generic "does not serialize" error, and now it gets the same refusal. I reverted that fix in the checkout and `TestMeasurementPastStructuralCapCountedRefusal` failed with the old "does not serialize … exceeds 524288 bytes" text; with the fix restored it passes. All gatestate tests pass, and so do the three `cmd/sdlc` tests this diff changed.
+
+1. **Strengths**
+   - `compactBranches` / `expandBranches` (`measurement_branch_v4.go:272-327`) are pure, exact inverses, and a ledger with a bad `source_index` is refused: out of range, negative, both fields set, or neither (`TestExpandBranchesRefusesBadIndex`).
+   - The codec only replaces the `branches` member (`measurement_codec.go:782` `compactWire`). The other fields of `MeasurementInputs` are not duplicated, and version 3 writes the same bytes as before (`TestMeasurementV3ReplaysUnchanged`).
+   - The version bump has a concrete reason: an older reader would see intervals with no source. The test checks both the frozen v1 reader and the v3 validation path against a v4 snapshot (`TestMeasurementV4RefusedByOlderReader`).
+   - Unknown fields at the snapshot, record and interval levels survive a rewrite byte for byte (`TestMeasurementV4PreservesUnknownMembers`).
+   - `Validate` maps the typed `measurementSizeError` to the same counts-bearing refusal (`measurement.go:320-325`), so oversized snapshots no longer fail late inside `MarshalJSON`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+   - Not a finding: a branch record with no intervals decodes as an empty list rather than nil. The bytes still match, and `Validate` refuses such a record anyway ("lacks attribution intervals"), so a valid snapshot never contains one.
+   - `UnmarshalJSON`'s version probe gives Go's generic type error when `version` has the wrong JSON type. The input is still refused.
+
+5. **Test coverage notes**
+   - Every Done-when item has a test:
+     - the #586 shape: `TestMeasurementV4Issue586Shape`, which also confirms the same data as version 3 still refuses;
+     - 128 sources: `TestMeasurementV4At128Sources`;
+     - both refusal paths: `TestMeasurementOversizeCountedRefusal` and `TestMeasurementPastStructuralCapCountedRefusal`;
+     - version 3 replay: `TestMeasurementV3ReplaysUnchanged`.
+   - The plan's broad command, `go test ./cmd/sdlc -run 'Actual|Measurement|Branch|Close'`, hit Go's default 10-minute test timeout in this checkout. The tests this diff changed passed in 23s when run on their own. I didn't run the broad pattern at the base commit, so I can't say whether the timeout is new. It looks like the pattern is just too broad and slow, but run it with `-timeout 30m` before merging.
+
+6. **Architecture notes**
+   - **ARCH-DRY: pass.** The new wire types reuse the shared codec helpers, there is one limit function (`measurementSnapshotLimit`), and the refusal text comes from one helper (`oversize`/`sizeCounts`).
+   - **ARCH-PURE: pass.** Compaction and expansion are pure, and the codec is a thin layer around them.
+   - **ARCH-PURPOSE: pass.** The issue's point was that the source limit and the byte limit must agree. A window that fits the source limit now either serializes or gets the counted refusal, and that holds on both size paths, not just the #586 example.
+   - **ARCH-MOCK: N/A.** No external dependency is involved.
+   - **ARCH-CONSTRAINTS: pass.** The 128 KiB limit is enforced in `Validate` and when decoding, and the 512 KiB cap bounds parse cost. The plan's Revisions entry states that "128 sources fit" assumes about two intervals per source.
+   - **ARCH-SECURE: pass.** Source indexes from the ledger are checked before use, and the version-specific limit is applied when decoding.
+   - **ARCH-ORDER: N/A.** The snapshot is an immutable value written once per close.
+   - **ARCH-FUNERAL: pass, with one note.** The worst-case snapshot written to the ledger per close rises from 64 KiB to 128 KiB. The plan's rejected alternatives deal with this, and typical snapshots get smaller (the #586 shape drops below 64 KiB).
+   - **ARCH-EVOLVE: pass.** The version bump has a stated unsafe-to-ignore reason, and unknown fields survive at all three levels. Version 4's top-level members are now written in sorted key order, which the plan's Revisions section records.
+
+7. **Plan revisions:** none needed. The plan's Revisions entries already describe the BR-1 fix and the change to v4 field order.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Validate maps measurementSizeError to the counted refusal (measurement.go:320); reverting it makes TestMeasurementPastStructuralCapCountedRefusal fail with "does not serialize ... exceeds 524288 bytes".
+  - id: BR-2
+    disposition: addressed
+    note: |
+      helptext/actual.md BRANCH ATTRIBUTION paragraph rewrapped; all lines now 76-78 columns, consistent with the surrounding text.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Plan file checklist now shows every step as [x], matching the issue's Plan section, plus a Revisions entry for BR-1.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"c31854dd-be4c-469b-83ae-248068cc6ed6","repository":"github.com/xianxu/ariadne","issue_id":"000593","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/d7e4613561548b1b","reviewed_head":"2f61a831440f7c9175898603abe6a0337e44fe4a","slot":"ariadne:2","requested_at":"2026-10-24T14:19:30.535958Z"},"phase":"finished","pid":51973,"started_at":"2026-10-24T14:19:30.715974Z","finished_at":"2026-10-24T14:32:02.055332Z","session_id":"08073e54-9a00-4458-bfcf-d815a556f592","outcome":"returned"}] -->

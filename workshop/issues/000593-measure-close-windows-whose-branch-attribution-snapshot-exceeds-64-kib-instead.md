@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "bf10e57e", done: "1340b25d"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing
@@ -98,6 +98,8 @@ Durable plan: workshop/plans/000593-measure-close-windows-whose-branch-attributi
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed — Round 2 after FIX-THEN-SHIP. BR-1: checkMeasurementJSON returns a typed measurementSizeError, which Validate maps to the counted refusal; TestMeasurementPastStructuralCapCountedRefusal (128 sources, 4256 intervals, past 512 KiB) asserts the counted error with no does-not-serialize text. Minors fixed in round: help wrap, plan checklist and Revisions. On 2f61a831: gatestate tests green; Help, TestOwnedActualConcurrentClaim, LegacyPrefix and Resting green; go vet clean. Pre-close suite pass recorded as sdlc-local/suite on ed171727 (16m18s); merge reruns it for this code fix. Round 1 evidence stands: the #586-shape fixture fits v4 and still refuses as v3; disabling compaction fails 3 tests; this branch binary measures #586 at 1.25h. --no-actual under the TL standing authorization for the #593 refusal: the fleet binary (pre-593) refused with: measurement branch proof: measurement snapshot does not serialize: json: error calling MarshalJSON for type *gatestate.MeasurementInputs: measurement exceeds 65536 bytes. This branch binary measures #593 at 0.57h; no hours typed.; review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 299 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Claimed and planned from ariadne:2 after #586 landed. The TL approved the plan over Couch. Version 4 alone marks the compact form; the branch method names are unchanged, because version names the encoding and method names the interpretation.
 - Implemented. Compaction lives in measurement_branch_v4.go (pure compactBranches / expandBranches). The codec swaps in the compact branches member for version 4 in MarshalJSON, MarshalYAML and UnmarshalJSON; YAML decoding reaches UnmarshalJSON. Each version's byte bound (64 KiB through v3, 128 KiB for v4) is checked on the whole snapshot in Validate and on decode. The codec's own guard is a 512 KiB structural cap. Validate's refusal names the size, the bound and the counts.
