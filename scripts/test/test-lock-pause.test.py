@@ -18,6 +18,9 @@ HELPER = ROOT / 'scripts/test-lock.py'
 spec = importlib.util.spec_from_file_location('pause_lock_helper', HELPER)
 lock = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lock)
+QUEUE_READS = importlib.util.spec_from_file_location('queue_reads', ROOT / 'scripts/test/fixtures/queue_reads.py')
+queue_reads = importlib.util.module_from_spec(QUEUE_READS)
+QUEUE_READS.loader.exec_module(queue_reads)
 
 
 class QueuePause(unittest.TestCase):
@@ -95,27 +98,10 @@ class QueuePause(unittest.TestCase):
         self.fail(why + '\n' + '\n'.join(p.read_text() for p in self.root.glob('*.err')))
 
     def committed(self, predicate):
-        """predicate, evaluated only while holding the helper's control.lock: the
-        helper changes queue state in transactions under that lock, and an unlocked
-        read can see one half done (#592). A busy lock reads as not yet."""
-        def check():
-            try:
-                fd = os.open(self.queue / 'control.lock', os.O_RDWR)
-            except FileNotFoundError:
-                return False
-            try:
-                return lock.try_lock(fd) and predicate()
-            finally:
-                os.close(fd)
-        return check
+        return queue_reads.committed(self.queue, predicate)
 
     def committed_read(self, path):
-        """path's bytes, read under control.lock: the helper rewrites an operation
-        record in place (its descriptor is the lifetime lease), so an unlocked read
-        can find it empty (#592)."""
-        raw = []
-        self.await_(self.committed(lambda: raw.append(path.read_bytes()) or True), 'control.lock stayed busy')
-        return raw[0]
+        return queue_reads.committed_read(self.await_, self.queue, path)
 
     def paused(self, owners):
         self.queue.mkdir(exist_ok=True)
@@ -252,9 +238,7 @@ class QueuePause(unittest.TestCase):
         # retire writes unresolved/, then interrupted/, then unlinks the
         # operation; the shim slows the unlink so an unlocked read would see
         # the step before it (#592).
-        shim = ROOT / 'scripts/test/fixtures/slow-queue-writes'
-        path = os.pathsep.join(filter(None, (str(shim), self.env.get('PYTHONPATH'))))
-        self.fast_cancellation(dict(self.env, PYTHONPATH=path))
+        self.fast_cancellation(queue_reads.slow_writes(self.env))
 
     def fast_cancellation(self, env):
         child_file = self.root / 'surviving-child'

@@ -18,6 +18,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('direct_exit_helper', ROOT / 'scripts/test-lock.py')
 HELPER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(HELPER)
+QUEUE_READS = importlib.util.spec_from_file_location('queue_reads', ROOT / 'scripts/test/fixtures/queue_reads.py')
+queue_reads = importlib.util.module_from_spec(QUEUE_READS)
+QUEUE_READS.loader.exec_module(queue_reads)
 
 
 class DirectSuiteExit(unittest.TestCase):
@@ -41,27 +44,10 @@ class DirectSuiteExit(unittest.TestCase):
         self.fail(message)
 
     def committed(self, predicate):
-        """predicate, evaluated only while holding the helper's control.lock: the
-        helper changes queue state in transactions under that lock, and an unlocked
-        read can see one half done (#592). A busy lock reads as not yet."""
-        def check():
-            try:
-                fd = os.open(self.queue / 'control.lock', os.O_RDWR)
-            except FileNotFoundError:
-                return False
-            try:
-                return HELPER.try_lock(fd) and predicate()
-            finally:
-                os.close(fd)
-        return check
+        return queue_reads.committed(self.queue, predicate)
 
     def committed_read(self, path):
-        """path's bytes, read under control.lock: the helper rewrites an operation
-        record in place (its descriptor is the lifetime lease), so an unlocked read
-        can find it empty (#592)."""
-        raw = []
-        self.await_(self.committed(lambda: raw.append(path.read_bytes()) or True), 'control.lock stayed busy')
-        return raw[0]
+        return queue_reads.committed_read(self.await_, self.queue, path)
 
     def cleanup(self):
         for group in self.detached_groups:
@@ -108,8 +94,7 @@ class DirectSuiteExit(unittest.TestCase):
         env = dict(os.environ, WF_TEST_LOCK_FILE=str(self.capacity), WF_SDLC_QUEUE_ROOT=str(self.queue),
                    WF_TEST_SUITES='1', WF_TEST_WEIGHT='1', WF_TEST_LOCK_OWNER=str(top), WF_TEST_LOCK_TIMEOUT='8')
         if slow:
-            shim = ROOT / 'scripts/test/fixtures/slow-queue-writes'
-            env['PYTHONPATH'] = os.pathsep.join(filter(None, (str(shim), env.get('PYTHONPATH'))))
+            env = queue_reads.slow_writes(env)
         for key in ('WF_SDLC_QUEUE_ID', 'WF_SDLC_QUEUE_STOP_IF_PAUSED', 'WF_TEST_LOCK', 'WF_TEST_LOCK_HELD_BY', 'MAKEFLAGS', 'MFLAGS'):
             env.pop(key, None)
         out = (top / 'stdout').open('w')
