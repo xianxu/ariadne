@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "cad72865", done: "18cb1fb1"}
 ---
 
 # tl-lead instructions link: trailing space trips the chat guard, and a refusal leaves a half-done write
