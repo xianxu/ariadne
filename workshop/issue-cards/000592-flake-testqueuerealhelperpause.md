@@ -14,14 +14,14 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.47
+actual_hours: 0.52
 tracker:
     version: 1
     completion:
-        token: close-70c599b5176c
+        token: close-47a38d17a1f5
         repository: github.com/xianxu/ariadne
-        reviewed_head: 468ee2e4bcbd8df4c4c11b28f7bb781b9ac45a94
-        evidence_commit: ee36b5a64883db75da7bb0c1d52a2d28876e96a4
+        reviewed_head: 6eb2f26b668f5a19d8dbcf0b15c87ec2d36adfba
+        evidence_commit: 4073ab0c9f359d6ff242819d739ba5187c23f69d
 ---
 
 # flake: TestQueueRealHelperPause
