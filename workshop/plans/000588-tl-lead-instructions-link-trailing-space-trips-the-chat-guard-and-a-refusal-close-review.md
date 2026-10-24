@@ -141,3 +141,63 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"37ea8ae2-aa0f-4488-8690-dfe2d588ee48","repository":"github.com/xianxu/ariadne","issue_id":"000588","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/cd1ef6f6986a94a7","reviewed_head":"584fcb609daa49b807fbc6f8e88a4ac62a89039f","slot":"ariadne:5","requested_at":"2026-10-24T07:21:24.24614Z"},"phase":"finished","pid":59955,"started_at":"2026-10-24T07:21:24.541322Z","finished_at":"2026-10-24T07:23:46.181866Z","session_id":"5f3f0c40-cc86-462f-9366-f0b00b70db24","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T00:25:57-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 588 — tl-lead instructions link: trailing space trips the chat guard, and a refusal leaves a half-done write |
+| repo | ariadne |
+| issue file | workshop/issues/000588-tl-lead-instructions-link-trailing-space-trips-the-chat-guard-and-a-refusal.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e396210aa706c11044fee34fd3155cef952fa6b2..12e1207287eedf8e2b1c0c19a3489e3d8d2d2f83 |
+| command | sdlc close --issue 588 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T00:25:57-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window changes no behavior. It does two things:
+- It rewraps two comments in `cmd/tl-lead/instructions.go` and `cmd/tl-lead/index_test.go`, which is the earlier review's cosmetic Minor about uneven wrapping. The words are the same as before; only the line breaks moved.
+- It adds generated tracker records: the round-2 gate ledger and the re-review record, plus the card mirror, `actual_hours` and the close Log entry in the issue file.
+
+`## Spec`, `## Revisions` and `## Done when` are unchanged, so scope did not change. No conflict resolutions are listed. `gofmt -l` is clean on both files, and `go test ./cmd/tl-lead/ -run 'TestIndex|TestLinkBullet'` passes. BR-1 and BR-2 were already disposed as addressed in round 2. Nothing in this window reopens them: the BR-1 comment keeps its corrected meaning after the rewrap, and the BR-2 test body is untouched.
+
+1. **Strengths**
+   - `cmd/tl-lead/instructions.go:154-159`: the rewrapped doc comment still describes `unlist` correctly: it restores the old bytes, and falls back to a reconcile only when the frontmatter changed in the meantime.
+   - `cmd/tl-lead/index_test.go:80-86, 130-132`: the comments now wrap evenly at the file's usual width, which resolves the round-2 cosmetic note.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:** comments only, so no new tests are needed. The targeted tests pass at head.
+6. **Architecture (interdiff only):**
+   - ARCH-DRY: pass. Nothing is duplicated.
+   - ARCH-PURE: pass. No logic changed.
+   - ARCH-PURPOSE: pass. No fix was deferred; the earlier cosmetic note is fixed in both files it named.
+   - ARCH-EVOLVE: pass. No persisted format changed; the ledger entries only add records.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in round 2; this window only rewraps instructions.go:154-159 and keeps the wording, so the unlist byte-restore and reconcile-fallback description still holds.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in round 2; this window only rewraps comments in index_test.go and leaves the guard-refusal test body unchanged; targeted TestIndex tests pass at head.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"ed69c776-29e6-4016-a61a-5864d6b60eba","repository":"github.com/xianxu/ariadne","issue_id":"000588","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/45c09ee112bf05a3","reviewed_head":"12e1207287eedf8e2b1c0c19a3489e3d8d2d2f83","slot":"ariadne:5","requested_at":"2026-10-24T07:25:26.431099Z"},"phase":"finished","pid":69362,"started_at":"2026-10-24T07:25:26.62631Z","finished_at":"2026-10-24T07:25:55.237139Z","session_id":"dfb4a920-fb43-4450-a1a3-18cdb3ee4f04","outcome":"returned"}] -->

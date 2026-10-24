@@ -153,6 +153,83 @@ rounds:
       isolation: fenced
       reviewed: 584fcb609daa49b807fbc6f8e88a4ac62a89039f
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: ed69c776-29e6-4016-a61a-5864d6b60eba
+            repository: github.com/xianxu/ariadne
+            issue_id: "000588"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/45c09ee112bf05a3
+            reviewed_head: 12e1207287eedf8e2b1c0c19a3489e3d8d2d2f83
+            slot: ariadne:5
+            requested_at: "2026-10-24T07:25:26.431099Z"
+          phase: finished
+          pid: 69362
+          started_at: "2026-10-24T07:25:26.62631Z"
+          finished_at: "2026-10-24T07:25:55.237139Z"
+          session_id: dfb4a920-fb43-4450-a1a3-18cdb3ee4f04
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 12e1207287eedf8e2b1c0c19a3489e3d8d2d2f83
+        tracker_head: aad2e382c7bf6d5ecf8aa76a040b62fef9ab2729
+        branch_point: 500f48f1ea8add6e2b05fc39c9a7fd72edc9157a
+        since: "2026-10-23T21:18:07-07:00"
+        until: "2026-10-24T00:24:27-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T21:18:07-07:00"
+              end: "2026-10-24T00:24:27-07:00"
+              began: "2026-10-23T21:18:07-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 10ad4d755d87a9d40a1fe9f98dce45c587bc5f3f47326db0cf71a4ae2faa4363
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 15361423
+              windows:
+                - start: "2026-10-23T21:18:07-07:00"
+                  end: "2026-10-24T00:24:27-07:00"
+        cuts:
+            - dispatched: "2026-10-24T00:14:19-07:00"
+              finalized: "2026-10-24T00:16:30-07:00"
+              finalizing: true
+            - dispatched: "2026-10-24T00:21:24-07:00"
+              finalized: "2026-10-24T00:23:59-07:00"
+              finalizing: true
+      "n": 3
+      timestamp: "2026-10-24T00:25:58-07:00"
+      dispatched: "2026-10-24T00:25:26-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in round 2; this window only rewraps instructions.go:154-159 and keeps the wording, so the unlist byte-restore and reconcile-fallback description still holds.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in round 2; this window only rewraps comments in index_test.go and leaves the guard-refusal test body unchanged; targeted TestIndex tests pass at head.
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 12e1207287eedf8e2b1c0c19a3489e3d8d2d2f83
+      blocked: false
 ---
 
 # Gate ledger — ariadne#588 (boundary-review)
@@ -175,6 +252,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — addressed — instructions.go:156-157 now says unlist restores the frontmatter's old bytes, or reconciles when the frontmatter moved; matches unlist at instructions.go:214-235.
 - BR-2 — addressed — index_test.go:102-109 drives a refuseAt guard refusal through link; with the unlist call removed it fails at index_test.go:108, and it passes on head.
+
+## Round 3 — 2026-10-24T00:25:58-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in round 2; this window only rewraps instructions.go:154-159 and keeps the wording, so the unlist byte-restore and reconcile-fallback description still holds.
+- BR-2 — addressed — Disposed in round 2; this window only rewraps comments in index_test.go and leaves the guard-refusal test body unchanged; targeted TestIndex tests pass at head.
 
 ## Open findings
 

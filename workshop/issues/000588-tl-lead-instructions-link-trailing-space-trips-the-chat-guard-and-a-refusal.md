@@ -95,6 +95,8 @@ is already validated by `ValidAnswerTarget`.
 
 
 
+
+- 2026-10-24: closed — Round-2 cosmetic Minor fixed: rewrapped the linkInstruction and test doc comments (comment-only). go vet and go test -run TestIndex|TestLink|TestInstructions|TestFake ./cmd/tl-lead/ pass. (fixed-then-ship); review verdict: SHIP
 - 2026-10-24: closed — Close review Minors fixed: linkInstruction comment names the unlist byte restore with reconcile as fallback; new end-to-end case in TestIndexLinkRefusedLeavesFile drives a chat-guard refusal (fake refuseAt) through link and the undo, file byte-identical and output names the unlist; help.md explains the lingering-entry message. go test ./cmd/tl-lead/ passes. (fixed-then-ship); review verdict: SHIP
 - 2026-10-24: closed — go test ./cmd/tl-lead/ passes: TestLinkBullet (trailing space, tab, CRLF keep the ask bytes, CR stays last), TestIndexLinkRefusedLeavesFile (stale link leaves the file byte-identical incl. index; frontmatter edit between writes reconciles the entry away; lock between writes names the lingering entry, next reconcile drops it), TestIndexLinkUnderChatGuard (fake models pair#838 guard; trailing space/tab links, trimmed form refused, refusal leaves file), TestFakeApplyAdvancesBaseline (fake apply advances the whole-file baseline as pair prepareWrite/shadowAfter do), TestIndexKeepsUnreadEdits unchanged. Guard rule checked against pair cmd/internal/editorial/edits.go selectChatItems.; review verdict: SHIP
 ### 2026-10-23
