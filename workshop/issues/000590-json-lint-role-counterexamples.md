@@ -1,12 +1,12 @@
 ---
 id: 000590
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '064f21c688ed662bfb605f35899afee7fb1e6605' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd47b761c2ddebff63b260983728c42b56abb6297' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T04:36:31-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.20
 ---
 
 # Qualify recursive JSON lint against independent oracles and DOM materializers
