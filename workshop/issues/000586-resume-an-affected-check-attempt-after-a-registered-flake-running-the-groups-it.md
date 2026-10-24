@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "36d108a2", done: "410fe668"}
 ---
 
 # Resume an affected-check attempt after a registered flake, running the groups it never reached
