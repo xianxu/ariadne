@@ -1,12 +1,20 @@
 ---
 id: 000591
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '9920f8e166d3a85e39757b232e5d81f415e6cb2b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '275f4e047d9de9f085cce14ff4c87ade378f3b74' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T01:44:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Actual attribution refuses normal concurrent claim held through merge and resting train checkout
@@ -17,7 +25,9 @@ Follow-up to ariadne#580, reported by ops:0 from pair:4 closing pair#856. Actual
 
 ## Spec
 
-Diagnose the real ownership and per-worktree HEAD history across ordinary hold-while-merging/train transitions. Attribute supported activity without double counting; preserve explicit uncertainty when evidence cannot select an owner. Do not invent historical evidence or modify adopted snapshots. Keep #564's code on hold pending operator review.
+Approved boundary (ops:0, 2026-10-24): keep witnessed own/foreign issue attribution; when concurrent reservations prevent ownership-only planning, exclude witnessed resting intervals as unassigned instead of refusing the complete sample. Unknown, detached and ambiguous branch history still refuses. Never infer an owner from a neighboring branch or status. Output names excluded branch-window minutes and the source/interval, explicitly distinguished from focused activity minutes. Adopted snapshots remain unchanged; #564 code stays held.
+
+Use one shared pure resting-branch predicate for the existing main/main-slotN convention. Add a resting-excluded audit kind under snapshot v3: prior readers already reject unknown kinds rather than reinterpret them, so no schema bump or silent compatibility fallback. Validate that its branch is resting and that excluded notes cannot justify selected windows. Unknown members/types/duplicate handling remains unchanged.
 
 ## Done when
 
@@ -27,8 +37,35 @@ Diagnose the real ownership and per-worktree HEAD history across ordinary hold-w
 
 ## Plan
 
-- Investigate evidence and send the root cause and proposed attribution boundary to the hub before code.
+- [x] Investigate evidence; receive approval for the changed resting-interval boundary.
+- [ ] Add recorded native reflog/refusal fixtures and red selector, saved-proof and output controls.
+- [ ] Implement one resting predicate, selector exclusion and saved-proof validation; disclose interval minutes through one warning formatter on fresh and replay paths.
+- [ ] Verify focused/race/catalog and real-Git measurement controls, update atlas and lesson, push, run recorded pre-close, close and land.
+
+Function-level adversarial strategy: SelectBranchActivity replays the recorded 68-second claim/start-plan window plus later own/foreign/resting transitions; selecting each issue must produce disjoint credit and exclude the same resting spans. Missing/detached/other-feature branches still refuse; a sole reservation keeps the existing ownership-only fallback. ValidateOwnedBranchProof mutations turn a resting exclusion into selected time or replace its branch with an issue/unknown branch and must refuse. MeasurementBranchWarnings reports exact source, interval and branch-window minutes identically for fresh/replay. Counted 8/16 transition tests retain linear sweep bounds. Existing native Git/tracker fake and three-harness source-lineage controls supply integration coverage; private executable proof avoids modifying any production actual.
+
+Actions: measure; inspect evidence; explicitly close with --no-actual.
+
+| Internal condition | Visible state | Recovery action | Possible loss |
+|---|---|---|---|
+| Proven own / foreign issue branch | Counted / excluded | Measure normally | No reassignment |
+| Witnessed resting with concurrent claims | Excluded and unassigned, minutes named | Inspect the named interval | Resting planning effort is not counted |
+| Unknown/detached/ambiguous history | Numeric actual unavailable | Inspect evidence or explicit --no-actual | Numeric calibration unavailable |
+| Adopted snapshot | Original replay | Measure normally | No historical rewrite |
+
+This is a bounded selector correction: no new IO scans, scheduler, lock or durable artifact family. The existing immutable snapshot owns audit lifetime. A lifetime lock cannot select historical work ownership; the captured immutable history remains the authority.
 
 ## Log
 
 2026-10-24: Dispatched by ops:0 as a #580 follow-up, prioritized before #564 implementation. Filing claims the issue in ariadne:3; diagnosis only so far.
+
+
+### 2026-10-24 — root cause and approved boundary
+
+pair:4 preserved the close refusal and claim-window reflog in its plan.side/evidence/{actual-refusal.txt,head-reflog-claim-window.txt}. The raw per-worktree log is /Users/xianxu/workspace/pair/.git/worktrees/pair3/logs/HEAD (administrative pair3, logical pair:4). Reflog proves #850 -> main-slot4 at21:35:32, claim/start21:35:40, fast-forward21:35:43, main-slot4 -> #856 at21:36:48. This is intentional new-item planning while #850's suite used a detached snapshot, not train cleanup. Later #856 -> #850 at22:30:19 and #850 -> main-slot4 at00:22:29 -> #856 at00:23:20 are also explicit. Earlier measurements ran the prior engine; the source is not newly corrupt.
+
+SelectBranchActivity currently sends every unresolved branchID through the same concurrent-reservation refusal, including Known=true main-slot4. ops:0 approved separating witnessed resting exclusion from genuinely unknown history (receipt6681ce8c-2204-4dce-99a8-2c99c1222d93), with excluded minutes visible and adopted snapshots unchanged. ARCH-DRY: share resting recognition and warning rendering across fresh/replay; no nearest-branch/status heuristic. Implementation expected inside the quick-flow shell.
+
+## Revisions
+
+- 2026-10-24: Hub approved the resting-excluded boundary after diagnosis, replacing #580's complete refusal for witnessed resting intervals only. Record explicit unassigned interval minutes rather than inventing ownership or backfilling old snapshots.
