@@ -76,3 +76,68 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"69fdfbeb-9054-4498-bd4f-4853c8333095","repository":"github.com/xianxu/ariadne","issue_id":"000588","recipe":"small-diff-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/3fd8cc2f6171ed64","reviewed_head":"54d9672559571d87593307d1a9386a28948031ad","slot":"ariadne:5","requested_at":"2026-10-24T07:14:19.358258Z"},"phase":"finished","pid":81981,"started_at":"2026-10-24T07:14:19.482178Z","finished_at":"2026-10-24T07:16:28.722395Z","session_id":"49bf248d-8148-4d55-89e4-221663659803","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T00:23:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 588 — tl-lead instructions link: trailing space trips the chat guard, and a refusal leaves a half-done write |
+| repo | ariadne |
+| issue file | workshop/issues/000588-tl-lead-instructions-link-trailing-space-trips-the-chat-guard-and-a-refusal.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 087a25d271336cad71d42ca78893b96a2e248837..584fcb609daa49b807fbc6f8e88a4ac62a89039f |
+| command | sdlc close --issue 588 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T00:23:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the new guard-refusal test: I'm reverting the undo to confirm only that test block goes red. The many unrelated failures come from the sandbox refusing `git init`.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior Minors are fixed in this window, and the fixes add no new defects. BR-1: the comment on `linkInstruction` now matches `unlist`. The undo restores the frontmatter's old bytes, and it falls back to a reconcile only when the frontmatter changed in the meantime. BR-2: a chat-guard refusal now runs all the way through `link` and the undo. I removed the call to `unlist` in this checkout, and the new block failed (`index_test.go:108: a guard refusal: …editorial-chat…`). With the code restored it passes, and so do the rest of the targeted tests (`TestIndex|TestLinkBullet|TestFake` → ok). The full `go test ./cmd/tl-lead/` run fails many unrelated tests (operating, session move, team new, fleet and so on). Those tests create git repos, and this sandbox refuses `git init` outside the reviewer's directories ("git init refused … outside the reviewer's directories (sdlc #339)"). This window doesn't touch any of them. The window doesn't change the Spec or Done-when; the issue file only gains the status change, the card mirror, `actual_hours` and Log entries. The help.md addition documents behavior that already existed and was flagged in the prior review. No conflict resolutions are listed.
+
+1. **Strengths**
+   - `cmd/tl-lead/sessionsync_fake_test.go:96-98`: `refuseAt` is a general, per-call refusal knob on the fake. It runs before the lock check, so a guard refusal and the lock stay separate cases.
+   - `cmd/tl-lead/index_test.go:102-109`: the new case checks that the error passes through (`editorial-chat`), that the file is byte-identical, and that the output says `index: unlisted`. That last check proves the byte-restore path ran, not the reconcile fallback.
+   - `cmd/tl-lead/help.md:444-446`: the quoted string "stays listed without its link" matches what `instructions.go:202` actually prints, and the recovery advice (next reconcile, or rerun `link`) is correct.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `instructions.go:157` and `index_test.go:80-82`: after the edit, the comment lines wrap unevenly (one runs long, one stops after "back to its"). Cosmetic only.
+
+5. **Test coverage:** all three ways `link` can be refused now have tests that go through `link` and the undo: a stale write, the lock (where the undo is refused too), and the chat guard. Removing the undo turns the new guard case red.
+
+6. **Architecture (interdiff only)**
+   - ARCH-DRY: pass. `refuseAt` doesn't repeat `lockAt`: the lock changes who holds the file, while `refuseAt` makes one specific call fail.
+   - ARCH-PURE: pass. The changes are test-only plus comments and help text.
+   - ARCH-PURPOSE: pass. BR-2's class is "a refused link, end to end through the undo". All three refusal types are now covered, not just the one the finding named.
+   - ARCH-EVOLVE: pass. No persisted format changes.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      instructions.go:156-157 now says unlist restores the frontmatter's old bytes, or reconciles when the frontmatter moved; matches unlist at instructions.go:214-235.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      index_test.go:102-109 drives a refuseAt guard refusal through link; with the unlist call removed it fails at index_test.go:108, and it passes on head.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"37ea8ae2-aa0f-4488-8690-dfe2d588ee48","repository":"github.com/xianxu/ariadne","issue_id":"000588","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/cd1ef6f6986a94a7","reviewed_head":"584fcb609daa49b807fbc6f8e88a4ac62a89039f","slot":"ariadne:5","requested_at":"2026-10-24T07:21:24.24614Z"},"phase":"finished","pid":59955,"started_at":"2026-10-24T07:21:24.541322Z","finished_at":"2026-10-24T07:23:46.181866Z","session_id":"5f3f0c40-cc86-462f-9366-f0b00b70db24","outcome":"returned"}] -->
