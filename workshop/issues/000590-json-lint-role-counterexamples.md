@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "671f3cea", done: "1474947d"}
 ---
 
 # Qualify recursive JSON lint against independent oracles and DOM materializers
