@@ -148,7 +148,7 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 		}
 	}
 	measured := computeOwnedActualFor(t.Context(), worker, "335", "", inputs)
-	if measured.Status != actualMeasured || measured.Inputs == nil || measured.Inputs.Version != 3 {
+	if measured.Status != actualMeasured || measured.Inputs == nil || measured.Inputs.Version != 4 {
 		t.Fatalf("branch actual adoption candidate lost proof: %+v", measured)
 	}
 	for _, mutation := range []string{"foreign witness", "widened selected window", "foreign ownership-only", "own ownership-only"} {
