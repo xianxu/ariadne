@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f5279067", done: "1d9b874b"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files
@@ -58,6 +58,8 @@ Durable plan: [000579 plan](../plans/000579-unified-marker-rule-in-agents-1-proc
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — Rule: AGENTS.base.md section 1, review-convention section 6, collaboration-modes section 4 (review export regenerated). Guard tests: TestCensus, TestLocalLinks, TestIssueSideLinkRefusals, TestIssueSideLinkRefusalsJudgeProjects (peer project refused; unborn peer warns), TestChangeCodeRefusesUncommittedSideLink (runChangeCode exit 1, --force ack, --no-side-links, pass once committed), TestCloseRefusesIgnoredSideLink (refuses; --no-side-links skips the check; passes once folded), TestIssuePublishRefusesUncommittedLink, TestIssuePublishCarriesLinkedSideDocs (D1). Round-1 BR-1/BR-2 and Minors fixed at 712b54c0. go test -run Publish|Asset|SideLink|ChangeCode|Close|GateCatalog|Archive pass but for sandbox-only host boot identity landing tests; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 563 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed and started from ariadne:5 after #565 landed. Survey: publish carries only details and `assets/`; change-code's checkpoint commits issue, plan and gate ledger; nothing commits `.side/` before the archive. So a refusal at publish from a resting branch has no "commit it" fix unless publish carries linked side docs: decision D1 to the TL.
 - The link grammar already lives in `sidedoc.RebaseLinks`; the guard reuses it via an extracted `LocalLinks` (ARCH-DRY).
 - TL approved the plan and D1 (publish carries linked side docs). change-code inferred the quick flow; the diff will likely upgrade it at close.
