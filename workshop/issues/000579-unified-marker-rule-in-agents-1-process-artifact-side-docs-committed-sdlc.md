@@ -53,7 +53,7 @@ Durable plan: [000579 plan](../plans/000579-unified-marker-rule-in-agents-1-proc
 - [x] `sidedoc.LocalLinks` extracted; `RebaseLinks` over it
 - [x] `linkguard` census; the side-links gate in change-code, close and issue publish
 - [x] (D1) publish carries the side docs the details link to
-- [ ] atlas, targeted runs, recorded suite
+- [x] atlas, targeted runs, recorded suite (the suite runs on the pushed head before merge, which requires it)
 
 ## Log
 
