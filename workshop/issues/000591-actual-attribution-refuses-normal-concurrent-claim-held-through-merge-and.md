@@ -96,3 +96,10 @@ Atlas and lessons updated. Next: push, recorded pre-close, mandatory close revie
 ### 2026-10-24 — recorded pre-close queued
 
 PR426 is open. Normal central sdlc queued pre-close suite lease-1679097241 on414fdcb7 (normal FIFO, initial position10), exact run log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/36c7d6c5e8fc3826773c3fde3497f0b8/run.log. All implementation/targeted verification tasks are complete; this is not a claimed suite pass. Mandatory close review may overlap the queued check under tl-worker rules; the recorded check must pass before landing. No other suite was launched here. Central actual preview is still running and will be inspected before choosing any close recovery.
+
+
+### 2026-10-24 — SHIP and preserved suite waiter
+
+Central close returned first-round SHIP, no findings; the reviewer independently replayed all three incident fixtures against the base selector (red) and fixed selector (green), plus packages/race/native/replay controls. Actual N/A was explicitly authorized by ops:0 (receipt84c002cb-ae30-4fb3-a3e0-e666d88d91dc) after central preview reproduced this issue's own24-second main-slot3 interval08:45:03Z–08:45:27Z. No typed actual or retained snapshot modification.
+
+I entered merge before the recorded pre-close pass. CI cleared, but merge queued a second suite on the close-evidence head rather than joining the existing code-equivalent waiter. Cancelled only that newer lease-1513526416 through local-check cancel; its merge exited1 with context-canceled lock admission, no suite executed and no baseline started. Original lease-1679097241 on414fdcb7 remains queued unchanged (position6 at last read). Retry merge only after that pass. No restart/continuation while the owned check is queued.

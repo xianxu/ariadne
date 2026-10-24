@@ -1652,3 +1652,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   fresh contradictory sample cannot stand in for the historical contract.
 
 - #591 / pair#856 and pair#812: a witnessed neutral state is not missing evidence. Under concurrent claims, main-slotN is a proven resting interval: leave it visibly unassigned, with interval minutes, rather than refusing the entire numeric measurement or guessing an owner. Keep detached/missing/ambiguous history strict and adopted snapshots immutable. Recorded native reflogs plus disjoint-selector and retained-proof mutation tests defend this semantic boundary; a lexical lint cannot prove attribution.
+
+- #591 workflow: when close overlaps a queued pre-close check, wait for that check's pass before entering merge. Close-evidence commits move HEAD, and a pending ancestor run is not an inherited passing proof; entering early can queue a second full suite. Preserve the original waiter and cancel only the duplicate by exact lease ID through local-check cancel.
