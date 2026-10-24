@@ -1,8 +1,8 @@
 ---
 id: 000580
-status: codecomplete
+status: done
 created: 2026-10-23
-updated: 2026-10-23
+updated: 2026-10-24
 estimate_hours:
 github_issue:
 started: 2026-10-23T19:27:24-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 522b79112b8d6b9d89d22d57abf557f007bc235c
         evidence_commit: 38da7fe453680565be701d7154adb14f9732647e
+        landed_commit: d2272cadbc6f34efa8d82511fd47192827385e10
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
