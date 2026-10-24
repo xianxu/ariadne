@@ -78,6 +78,7 @@ holds no state and creates nothing durable.
 ## Log
 
 ### 2026-10-23
+- 2026-10-23: closed — targeted: go test ./pkg/sidedoc ./pkg/reviewexport ./cmd/tl-lead pass; round 1 fixed in-round: TestCheckCaseExcusesOnlyAnUnreadHeader (BR-1), TestChatSectionsIgnoreAnUnreadHeader asserts headings/tags/sections incl. two-CR fence (BR-2 + Minor), TestStripAnswerLinks (Minor); TestChatItemsAnsweredNeedsAValidTarget, TestLinkBulletAgreesWithTheReader, fixtures chat-answer-invalid and frontmatter-unread-tag exported; recorded suite (via --pre-close) queued on b2c0639b; review verdict: SHIP
 
 - Implemented: `ValidAnswerTarget` + `answered()` in `pkg/sidedoc/chat.go`; `linkBullet` refuses with it;
   `chatSections` starts the body after an unread closed header. Tests: `TestChatItemsAnsweredNeedsAValidTarget`,
