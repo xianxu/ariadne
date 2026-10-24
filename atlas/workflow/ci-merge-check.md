@@ -419,7 +419,14 @@ Where it counts (#473 M2):
   existing automatic check execution.
 - **Flakes:** `affected` is a test run (`isTestCheck`). It gets the known-flake rerun. The success guard refuses a
   pass of either check over an unexplained failure of either on the same head. An affected pass is a subset
-  (`flakes.Attempt.Subset`), so it never confirms a fail→pass.
+  (`flakes.Attempt.Subset`), so it never confirms a fail→pass. Its known-flake child (#586) also runs every
+  selected group, with no Go packages, through `affectedRerunBatch` (`localcheck_affected_rerun.go`). The reason is
+  that the affected command may stop at the flaky Go test before its groups, and nothing records which groups ran.
+  `sdlc local-check resume --name affected` reruns a saved affected failure the same way. It replans the selection
+  on the original head (`planAffectedSelection`), and a full or empty selection refuses with a pointer to the suite.
+  It fences the selection in a version 5 `ResumeLink`; suite links stay version 3. An older sdlc reads version 5 as
+  unsupported proof scoped to that head, where a version 3 link with `check: affected` would be an invalid record
+  that blocks the whole store's snapshot.
 - **Stats:** test-stats shows affected runs on their own row; suite numbers are unchanged.
 - **Conflict resolution:** a resolution of main's code conflict (`--fixed-then-ship --full-suite`) still asks for
   test evidence: the pre-close check (`--pre-close`, #578), the suite or, where a train runs the suite before

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -44,9 +45,15 @@ type fakeSessionSync struct {
 	frontWriteCalls int
 	frontWrites     int
 
-	writeCalls int // every WriteSection call
-	writes     int // successful writes
-	seenAll    bool
+	writeCalls int           // every WriteSection call
+	lockAt     int           // the WriteSection call (1-based) just before which the operator takes the lock
+	refuseAt   map[int]error // a WriteSection call (1-based) couch refuses with that error, as its guards do
+	// chatGuard models couch's chat guard (pair#838) on ## Operator
+	// instructions: a section write may change an ask only by appending
+	// ` → [answer](…)` at its end, before any trailing `\r`.
+	chatGuard bool
+	writes    int // successful writes
+	seenAll   bool
 
 	// The registry (#455): the paths couch tracks, any that the operator
 	// holds locked, every MarkAllSeen by path, and successful whole-file
@@ -83,6 +90,12 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 	for h, b := range f.editBefore[f.writeCalls] {
 		f.sections[h] = b
 	}
+	if f.lockAt == f.writeCalls {
+		f.holder = "operator"
+	}
+	if err := f.refuseAt[f.writeCalls]; err != nil {
+		return err
+	}
 	if f.holder == "operator" {
 		return ErrLocked
 	}
@@ -105,7 +118,11 @@ func (f *fakeSessionSync) WriteSection(_, heading, bodyPath, hash string, fold [
 	if err != nil {
 		return err
 	}
-	f.sections[heading] = strings.TrimSuffix(string(raw), "\n")
+	next := strings.TrimSuffix(string(raw), "\n")
+	if f.chatGuard && heading == instructionsHeading && !chatAppendOnly(cur, next) {
+		return errors.New("couch --session-sync write refused (editorial-chat): preserve each chat ask; only append its answer link")
+	}
+	f.sections[heading] = next
 	if f.shadow != nil {
 		f.shadow[heading] = f.sections[heading]
 	}
@@ -276,8 +293,36 @@ func (f *fakeSessionSync) Apply(file, editsPath, hash string) error {
 	if err := f.load(next); err != nil {
 		return err
 	}
+	// A whole-file apply advances couch's diff baseline to the whole new
+	// file (pair sessionsync prepareWrite → shadowAfter with no section),
+	// the operator's unread edits elsewhere included.
+	if f.shadow != nil {
+		f.seeAll()
+	}
 	f.applies++
 	return nil
+}
+
+var answerAppendRe = regexp.MustCompile(`^ → \[answer\]\([^\s()]+\)$`)
+
+// chatAppendOnly is the chat guard's rule, line by line: every changed line
+// is its old self, up to a trailing `\r`, with one answer link appended there.
+func chatAppendOnly(old, next string) bool {
+	ol, nl := strings.Split(old, "\n"), strings.Split(next, "\n")
+	if len(ol) != len(nl) {
+		return false
+	}
+	for i := range ol {
+		if ol[i] == nl[i] {
+			continue
+		}
+		ask := strings.TrimRight(ol[i], "\r")
+		tail := ol[i][len(ask):]
+		if !strings.HasPrefix(nl[i], ask) || !strings.HasSuffix(nl[i], tail) || len(nl[i]) < len(ask)+len(tail) || !answerAppendRe.MatchString(nl[i][len(ask):len(nl[i])-len(tail)]) {
+			return false
+		}
+	}
+	return true
 }
 
 // load replaces the fake's file with text, in text()'s shape.

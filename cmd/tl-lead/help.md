@@ -441,6 +441,9 @@ TALKING TO THE OPERATOR
       shows only unlinked bullets; follow-ups on linked ones are in the
       changes since your last read. `link` also lists TARGET in the file's
       discussions: index (the operator's review queue), before the link.
+      When couch refuses the link, `link` takes the entry back out; if
+      even that is refused, it prints "stays listed without its link":
+      the next reconcile drops the entry, or rerun `link`.
     - A later follow-up on a deleted bullet's topic goes to Needs you if it
       needs the operator, else into Threads or a new bullet's answer.
   - New answer docs follow universal-review collaboration-modes.md §4:
