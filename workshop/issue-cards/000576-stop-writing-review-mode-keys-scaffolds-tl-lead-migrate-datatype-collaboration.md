@@ -1,6 +1,6 @@
 ---
 id: 000576
-status: codecomplete
+status: done
 created: 2026-10-23
 updated: 2026-10-23
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 2b4928789db3a7e43f455453a4b811ff871b233c
         evidence_commit: aeec3c05b53d04f1d2d2cc73bea7932d195363f9
+        landed_commit: 354e5fac5c96e0b2c26350ee712eb835746a6d67
 ---
 
 # Stop writing review mode keys: scaffolds, tl-lead migrate, datatype collaboration-mode rows
