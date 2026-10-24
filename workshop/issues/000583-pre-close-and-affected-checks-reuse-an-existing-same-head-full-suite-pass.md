@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "de8d12eb", done: "9787f76c"}
 ---
 
 # Pre-close and affected checks reuse an existing same-head full-suite pass instead of queueing a new full run
