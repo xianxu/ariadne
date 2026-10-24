@@ -1,6 +1,6 @@
 ---
 id: 000594
-status: working
+status: codecomplete
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.80
+tracker:
+    version: 1
+    completion:
+        token: close-439afe2ebf23
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 0e1eeeb84505767cb8aab13fee3756943c5886ec
+        evidence_commit: 42a67a547432734c090abf9f238f19e7b0e6b269
 ---
 
 # Actual attribution excludes witnessed local staging intervals
