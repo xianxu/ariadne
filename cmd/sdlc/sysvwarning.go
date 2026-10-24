@@ -17,7 +17,11 @@ func nativeSysVObserver() sysvshm.Observer { return sysvshm.NewNative() }
 // Every configured host run appends a final summary, including clean runs. An
 // earlier child-output lookalike therefore cannot create its warning marker.
 func writeSysVReport(out io.Writer, check, sha string, r sysvshm.Report) {
-	fmt.Fprintf(out, "\n[sdlc SysV observation] check=%q head=%q owner-before=%d owner-after=%d\n", check, sha, r.Before, r.After)
+	counts := fmt.Sprintf("owner-before=%d owner-after=%d", r.Before, r.After)
+	if r.Unavailable != "" {
+		counts = "owner-before=unknown owner-after=unknown"
+	}
+	fmt.Fprintf(out, "\n[sdlc SysV observation] check=%q head=%q %s\n", check, sha, counts)
 	state := "observed"
 	if r.Unavailable != "" {
 		state = "unavailable"

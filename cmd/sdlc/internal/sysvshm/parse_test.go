@@ -1,6 +1,8 @@
 package sysvshm
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -61,5 +63,43 @@ func TestParseSysVEmptyAndFutureColumns(t *testing.T) {
 	}
 	if got := ParseDarwin([]byte(darwinHeader), 501, "xianxu"); got.Unavailable != "" {
 		t.Fatalf("%+v", got)
+	}
+}
+
+func TestDarwinIncidentCaptureAndTableLimits(t *testing.T) {
+	raw, err := os.ReadFile("testdata/darwin-incident.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := ParseDarwin(raw, 501, "xianxu")
+	if snapshot.Unavailable != "" || len(snapshot.Segments) != 32 {
+		t.Fatalf("incident %+v", snapshot)
+	}
+	for _, s := range snapshot.Segments {
+		if s.Attachments != 0 || s.Size != 56 || s.Creator <= 0 {
+			t.Fatalf("incident projection %+v", s)
+		}
+	}
+	var oversized strings.Builder
+	oversized.WriteString(linuxHeader)
+	for i := 0; i <= MaxRows; i++ {
+		fmt.Fprintf(&oversized, "123 %d 600 56 42 0 0 501 20 501 20 0 0 12345 0 0\n", i)
+	}
+	if got := ParseLinux([]byte(oversized.String()), 501); got.Unavailable == "" {
+		t.Fatal("accepted excessive rows")
+	}
+}
+
+func TestDeltaCountedProjectionAtEightAndSixteenRows(t *testing.T) {
+	for _, size := range []int{8, 16} {
+		before, after := Snapshot{}, Snapshot{}
+		for i := 0; i < size; i++ {
+			before.Segments = append(before.Segments, Segment{ID: i, UID: 501})
+			after.Segments = append(after.Segments, Segment{ID: i + size, UID: 501})
+		}
+		got := Delta(before, after, 501, nil)
+		if got.Before != size || got.After != size || len(got.Candidates) != size {
+			t.Fatalf("size=%d %+v", size, got)
+		}
 	}
 }

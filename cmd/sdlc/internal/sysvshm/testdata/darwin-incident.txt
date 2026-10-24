@@ -1,0 +1,36 @@
+IPC status from <running system> as of Sat Oct 24 04:18:05 PDT 2026
+T     ID     KEY        MODE       OWNER    GROUP  CREATOR   CGROUP NATTCH  SEGSZ  CPID  LPID   ATIME    DTIME    CTIME
+Shared Memory:
+m 62652416 0x10e641f1 --rw-------   xianxu    staff   xianxu    staff      0     56  45028      0 no-entry no-entry 23:09:32
+m 84148225 0x10ebcc6b --rw-------   xianxu    staff   xianxu    staff      0     56  80155      0 no-entry no-entry 23:17:43
+m 23789570 0x10ebc895 --rw-------   xianxu    staff   xianxu    staff      0     56  79905      0 no-entry no-entry 23:17:42
+m 11862019 0x10ebcf9c --rw-------   xianxu    staff   xianxu    staff      0     56  80386      0 no-entry no-entry 23:17:44
+m 64421892 0x112a3955 --rw-------   xianxu    staff   xianxu    staff      0     56  62836      0 no-entry no-entry  0:43:21
+m 25493509 0x112a3a12 --rw-------   xianxu    staff   xianxu    staff      0     56  62992      0 no-entry no-entry  0:43:22
+m 983046 0x112a3a73 --rw-------   xianxu    staff   xianxu    staff      0     56  63038      0 no-entry no-entry  0:43:23
+m 131079 0x112a3b2b --rw-------   xianxu    staff   xianxu    staff      0     56  63202      0 no-entry no-entry  0:43:24
+m 6029320 0x112a3b58 --rw-------   xianxu    staff   xianxu    staff      0     56  63229      0 no-entry no-entry  0:43:24
+m 131081 0x112a3c63 --rw-------   xianxu    staff   xianxu    staff      0     56  63399      0 no-entry no-entry  0:43:25
+m 786442 0x112a3eed --rw-------   xianxu    staff   xianxu    staff      0     56  63561      0 no-entry no-entry  0:43:26
+m 131083 0x112a3f6d --rw-------   xianxu    staff   xianxu    staff      0     56  63579      0 no-entry no-entry  0:43:26
+m 131084 0x112a410c --rw-------   xianxu    staff   xianxu    staff      0     56  63758      0 no-entry no-entry  0:43:27
+m 131085 0x112a41fc --rw-------   xianxu    staff   xianxu    staff      0     56  63859      0 no-entry no-entry  0:43:27
+m 1114126 0x112a4281 --rw-------   xianxu    staff   xianxu    staff      0     56  63919      0 no-entry no-entry  0:43:27
+m 131087 0x112a4562 --rw-------   xianxu    staff   xianxu    staff      0     56  64059      0 no-entry no-entry  0:43:28
+m 4063248 0x112a46a2 --rw-------   xianxu    staff   xianxu    staff      0     56  64176      0 no-entry no-entry  0:43:30
+m 1114129 0x112a482f --rw-------   xianxu    staff   xianxu    staff      0     56  64276      0 no-entry no-entry  0:43:31
+m 1114130 0x112a4a9d --rw-------   xianxu    staff   xianxu    staff      0     56  64415      0 no-entry no-entry  0:43:33
+m 131091 0x112a4ff7 --rw-------   xianxu    staff   xianxu    staff      0     56  64675      0 no-entry no-entry  0:43:36
+m 131092 0x112a50cd --rw-------   xianxu    staff   xianxu    staff      0     56  64797      0 no-entry no-entry  0:43:37
+m 131093 0x112a51c4 --rw-------   xianxu    staff   xianxu    staff      0     56  64913      0 no-entry no-entry  0:43:38
+m 2097174 0x112a52f8 --rw-------   xianxu    staff   xianxu    staff      0     56  64999      0 no-entry no-entry  0:43:39
+m 80674839 0x112a53a7 --rw-------   xianxu    staff   xianxu    staff      0     56  65103      0 no-entry no-entry  0:43:39
+m 48037912 0x112a5492 --rw-------   xianxu    staff   xianxu    staff      0     56  65217      0 no-entry no-entry  0:43:40
+m 52756505 0x112a55df --rw-------   xianxu    staff   xianxu    staff      0     56  65339      0 no-entry no-entry  0:43:41
+m 82837530 0x112a578b --rw-------   xianxu    staff   xianxu    staff      0     56  65478      0 no-entry no-entry  0:43:42
+m 83755035 0x112a5914 --rw-------   xianxu    staff   xianxu    staff      0     56  65584      0 no-entry no-entry  0:43:42
+m 131334172 0x112a59f9 --rw-------   xianxu    staff   xianxu    staff      0     56  65683      0 no-entry no-entry  0:43:43
+m 1245213 0x112a5b12 --rw-------   xianxu    staff   xianxu    staff      0     56  65799      0 no-entry no-entry  0:43:44
+m 524318 0x112a5c15 --rw-------   xianxu    staff   xianxu    staff      0     56  65941      0 no-entry no-entry  0:43:45
+m 13828127 0x112a5f5b --rw-------   xianxu    staff   xianxu    staff      0     56  66199      0 no-entry no-entry  0:43:47
+
