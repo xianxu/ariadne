@@ -1638,3 +1638,9 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   undercounting), use a refusing method/version boundary; additive audit fields
   alone do not make a semantic change backward compatible. Native private
   worktrees, command controls, old-reader refusal and immutable replay enforce it.
+
+- #580 BR-1 (retained-attribution-consistency): saved evidence must enforce the
+  same exhaustive kind predicates as its producer before replay or execution.
+  Own branch, foreign branch and ownership-only each constrain branch identity;
+  relabelling a contradictory interval must not turn excluded time into credit.
+  Saved-replay tamper controls exercise both own and foreign canonical branches.

@@ -151,7 +151,7 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	if measured.Status != actualMeasured || measured.Inputs == nil || measured.Inputs.Version != 3 {
 		t.Fatalf("branch actual adoption candidate lost proof: %+v", measured)
 	}
-	for _, mutation := range []string{"foreign witness", "widened selected window"} {
+	for _, mutation := range []string{"foreign witness", "widened selected window", "foreign ownership-only", "own ownership-only"} {
 		t.Run(mutation, func(t *testing.T) {
 			bad := *inputs
 			raw, err := json.Marshal(inputs.Snapshot)
@@ -168,8 +168,22 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 						w.Branch = "000336-active-a"
 					}
 				}
+			} else if strings.HasSuffix(mutation, "ownership-only") {
+				for i := range bad.Snapshot.Branches[0].Intervals {
+					w := &bad.Snapshot.Branches[0].Intervals[i]
+					if mutation == "foreign ownership-only" && w.Kind == "foreign-branch" || mutation == "own ownership-only" && w.Kind == "branch" {
+						w.Kind = "ownership-only"
+					}
+				}
+				if mutation == "foreign ownership-only" {
+					bad.Snapshot.Sources[0].Windows[0].Start = bad.Snapshot.Branches[0].Intervals[0].Start
+				}
 			} else {
 				bad.Snapshot.Sources[0].Windows[0].Start = "2026-10-14T00:19:00Z"
+			}
+			if replay, err := resolveOwnedReplay(t.Context(), worker, "335", bad.Snapshot, *inputs.Ledger); err == nil {
+				got := computeOwnedActualFor(t.Context(), worker, "335", "", replay)
+				t.Errorf("tampered saved branch proof accepted: status %v, %.1f minutes", got.Status, got.Hours*60)
 			}
 			got := computeOwnedActualFor(t.Context(), worker, "335", "", &bad)
 			if got.Status != actualError || !strings.Contains(got.Detail, "branch proof") {

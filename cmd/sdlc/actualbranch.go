@@ -308,7 +308,7 @@ func validateOwnedBranchProof(m gatestate.MeasurementInputs, id string) error {
 	for _, capture := range m.Branches {
 		for _, w := range capture.Intervals {
 			branchID := activetime.BranchIssue(w.Branch)
-			if w.Kind == "branch" && branchID != id || w.Kind == "foreign-branch" && (branchID == "" || branchID == id) {
+			if w.Kind == "branch" && branchID != id || w.Kind == "foreign-branch" && (branchID == "" || branchID == id) || w.Kind == "ownership-only" && branchID != "" {
 				return fail("branch witness does not match its issue attribution")
 			}
 			if w.Kind == "foreign-branch" {
