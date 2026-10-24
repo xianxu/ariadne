@@ -114,7 +114,7 @@ timeout verdict must be taken from the command's own end):
   from the batch; same fix in `prepareAffectedGraph`.
 - [x] Run the nine listed tests plus `TestHelperRefresh*` in and outside the
   suite environment, repeated; then the full suite at pre-close.
-- [ ] Unregister nothing: #596's tests are its own issue to close, but note in
+- [x] Unregister nothing: #596's tests are its own issue to close, but note in
   #596's Log that #599 explains this failure shape.
 
 ## Log
