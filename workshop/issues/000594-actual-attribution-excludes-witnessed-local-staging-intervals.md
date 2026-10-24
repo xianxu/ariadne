@@ -41,6 +41,8 @@ Investigate sanctioned stage/* branches as a witnessed exclusion, like resting b
 
 ## Revisions
 
+2026-10-24 — ops:0 approved the complete plan (submitted receipt a7713eb0-c36e-4728-9500-4a29a1cca2e6): attached witnessed stage/* exclusions under concurrent reservations, separate audit kind, shared predicate, visible minutes, preserved single-reservation ownership and adopted proofs, with the 172-second replay and malformed/detached/tamper controls. Proceeding through change-code.
+
 2026-10-24 — ops:0 dispatched implementation planning (verified submitted receipt 570945d9-c5e2-4ea0-96ac-87545598f26b), superseding the filing-only restriction in Spec. Proposed policy: witnessed stage/* intervals under concurrent reservations are excluded and unassigned, with visible minutes; sole-reservation ownership-only behavior and adopted snapshots stay unchanged. Awaiting hub approval before code.
 
 ## Log
