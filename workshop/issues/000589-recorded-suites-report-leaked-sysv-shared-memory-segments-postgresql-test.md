@@ -46,11 +46,13 @@ Fix, in two parts:
 
 ## Plan
 
-Durable design: [suite SysV warning plan](../plans/000589-suite-sysv-warning-plan.md). Approved by ops:0 on 2026-10-24; implementation gate completed.
+Durable design: [suite SysV warning plan](../plans/000589-recorded-suites-report-leaked-sysv-shared-memory-segments-postgresql-test-plan.md). Approved by ops:0 on 2026-10-24; implementation gate completed.
 
 - [x] Approve the warning, attribution, persistence and qualification boundaries.
 - [x] Implement pure observations/delta and stateful-fake managed lifecycle tests.
-- [ ] Qualify native single-owned-segment behavior after operator-cleared capacity, document harness guidance and existing echo#32, then recorded pre-close/close/land.
+- [x] Qualify native single-owned-segment behavior after operator-cleared capacity, document harness guidance and existing echo#32, and pass recorded pre-close.
+
+Mandatory close review and landing follow these completed implementation and verification steps.
 
 ## Log
 
