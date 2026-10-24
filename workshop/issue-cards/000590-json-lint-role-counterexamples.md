@@ -1,6 +1,6 @@
 ---
 id: 000590
-status: codecomplete
+status: done
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: aa3c9a767075f7d4a6a3a290c9988116bdafa6fc
         evidence_commit: d49451e9d4084e6d0071aa49e7a68a7e2ab9b169
+        landed_commit: fb48cafb2bf86942fc31a4266624c47633bbe3e5
 ---
 
 # Qualify recursive JSON lint against independent oracles and DOM materializers
