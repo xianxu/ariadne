@@ -82,8 +82,9 @@ ISSUE MEASUREMENT (#335)
   source intervals. Another issue's branch excludes its time, including
   its unadopted close/test/landing tail. A sole live reservation can retain
   planning time without branch proof, labelled ownership-only. Multiple claims
-  with missing, detached, resting or ambiguous branch evidence refuse a number;
-  close's explicit recovery is --no-actual with evidence in --verified.
+  with witnessed resting or stage/* evidence exclude that interval as unassigned,
+  naming its branch-window minutes. Missing, detached or ambiguous evidence refuses
+  a number; close's explicit recovery is --no-actual with evidence in --verified.
 
   Multiple --issue values partition source intervals before commit allocation.
   A different issue's allocation outside its selected partition is left

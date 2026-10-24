@@ -36,8 +36,8 @@ Investigate sanctioned stage/* branches as a witnessed exclusion, like resting b
 
 ## Plan
 
-- [ ] Approve the policy and implementation plan in workshop/plans/000594-stage-interval-attribution-plan.md with the hub before code.
-- [ ] Reproduce the 172-second staging refusal, implement witnessed staging exclusion through selection and retained-proof validation, and test adversarial controls.
+- [x] Approve the policy and implementation plan in workshop/plans/000594-actual-attribution-excludes-witnessed-local-staging-intervals-plan.md with the hub before code.
+- [x] Reproduce the 172-second staging refusal, implement witnessed staging exclusion through selection and retained-proof validation, and test adversarial controls.
 - [ ] Update help and atlas; run targeted checks and the recorded pre-close suite, close with the mandatory review, then land normally.
 
 ## Revisions
@@ -61,3 +61,7 @@ Reflog reported by pair:6:
 Hash abbreviations above are quoted peer evidence, not independently verified Git output. No actuals or source telemetry were modified.
 
 2026-10-24 — Claimed and started from current main. Recovery used issue and Git evidence; prior TTY capture remains unavailable. The existing pure selector and saved-proof validator both enumerate resting-excluded, so the extension must cover both rather than changing only live selection. Current actual/active-time help still says resting evidence refuses; correct those surfaces with the new policy.
+
+2026-10-24 — Implemented the approved rule with shared activetime.IsStagingBranch, stage-excluded validation and excluded-window rendering. RED: TestPair830StagingReplayExcludes172Seconds reproduced exactly 02:55:02Z–02:57:54Z; TestStageExcludedSavedProofAndVisibleMinutes on the pre-change v3 reader refused the unknown kind. GREEN: activetime and gatestate complete focused package runs passed (18.934s / 0.617s); command-level saved proof, minutes, tamper and real Git/tracker replay controls passed (11.292s). Race controls across the three packages passed (1.244s / 1.290s / 14.015s). Tracked-file golint catalog passed (1.358s). JSON/YAML preserve nested unknown fields; the frozen pre-v3 reader refuses new proof, while the observed pre-change v3 reader rejects stage-excluded specifically. The pair#830 replay uses synthetic object IDs and reconstructed peer-reported event messages, not an independently obtained raw reflog. Native temporary Git/tracker controls exercise the actual resolver and immutable replay after live HEAD-log deletion for resting and staging branches.
+
+2026-10-24 — change-code inferred quick flow. Renamed the durable plan to its printed canonical filename before implementation. No live actual adoption, peer checkout edit, shared-memory native test, or #564 implementation occurred.

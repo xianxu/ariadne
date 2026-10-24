@@ -1656,3 +1656,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #591 / pair#856 and pair#812: a witnessed neutral state is not missing evidence. Under concurrent claims, main-slotN is a proven resting interval: leave it visibly unassigned, with interval minutes, rather than refusing the entire numeric measurement or guessing an owner. Keep detached/missing/ambiguous history strict and adopted snapshots immutable. Recorded native reflogs plus disjoint-selector and retained-proof mutation tests defend this semantic boundary; a lexical lint cannot prove attribution.
 
 - #591 workflow: when close overlaps a queued pre-close check, wait for that check's pass before entering merge. Close-evidence commits move HEAD, and a pending ancestor run is not an inherited passing proof; entering early can queue a second full suite. Preserve the original waiter and cancel only the duplicate by exact lease ID through local-check cancel.
+
+- #594: a witnessed combined staging branch supplies neutral-state evidence,
+  not ownership for either issue in its name. Use the same validated stage/*
+  predicate in selection and retained proof, preserve the separate exclusion
+  kind, and expose unassigned minutes. Capture-backed transition replay and
+  credited-window/kind mutation controls defend this attribution rule; a lexical
+  lint cannot establish historical ownership.
