@@ -90,6 +90,9 @@ func TestJSONScannerRoleSummaryVisitsNodesOnce(t *testing.T) {
 		if s.visits+s.roleNodeVisits > 2*nodes {
 			t.Fatalf("N=%d: node visits %d + %d exceed %d", size, s.visits, s.roleNodeVisits, 2*nodes)
 		}
+		if s.roleUseVisits > nodes {
+			t.Fatalf("N=%d: binding use visits %d exceed %d", size, s.roleUseVisits, nodes)
+		}
 		t.Logf("groups=%d AST=%d summary=%d role=%d edges=%d", size, nodes, s.visits, s.roleNodeVisits, s.edgeVisits)
 		if len(roles) != size+1 {
 			t.Fatalf("N=%d: roles %d", size, len(roles))

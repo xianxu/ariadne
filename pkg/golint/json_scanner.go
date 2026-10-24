@@ -7,6 +7,7 @@ import (
 )
 
 type jsonScannerFunction struct {
+	summary                *jsonScannerSummary
 	parent                 *jsonScannerFunction
 	token, more, recursive bool
 	uses                   []jsonScannerUse
@@ -29,9 +30,14 @@ type jsonScannerReference struct {
 	call  *ast.CallExpr
 }
 type jsonScannerSummary struct {
+	useOwners      map[*ast.Object]*jsonScannerFunction
+	captured       map[*ast.Object]bool
+	indexedWrites  map[*ast.Object]bool
+	aliased        map[*ast.Object]bool
 	bindingWrites  map[*ast.Object]int
 	addressed      map[*ast.Object]bool
 	roleNodeVisits int
+	roleUseVisits  int
 	functions      []*jsonScannerFunction
 	declarations   map[*ast.Object]*jsonScannerFunction
 	references     map[*ast.Object][]jsonScannerReference
@@ -59,6 +65,15 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 		for _, lhs := range x.Lhs {
 			if id := assignedRoot(lhs); id != nil && id.Obj != nil {
 				s.bindingWrites[id.Obj]++
+			} else if id := jsonBindingRoot(lhs); id != nil && id.Obj != nil {
+				s.indexedWrites[id.Obj] = true
+			}
+		}
+		for i, rhs := range x.Rhs {
+			if id, ok := ast.Unparen(rhs).(*ast.Ident); ok && id.Obj != nil && i < len(x.Lhs) {
+				if _, indexStore := ast.Unparen(x.Lhs[i]).(*ast.IndexExpr); !indexStore {
+					s.aliased[id.Obj] = true
+				}
 			}
 		}
 		for i, rhs := range x.Rhs {
@@ -69,7 +84,7 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 			}
 		}
 	case *ast.FuncDecl:
-		fn := &jsonScannerFunction{node: x, name: x.Name, parent: v.owner}
+		fn := &jsonScannerFunction{summary: s, node: x, name: x.Name, parent: v.owner}
 		if x.Recv != nil && len(x.Recv.List) > 0 && len(x.Recv.List[0].Names) > 0 {
 			fn.receiver = x.Recv.List[0].Names[0].Obj
 		}
@@ -79,20 +94,34 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 			s.declarations[x.Name.Obj] = fn
 		}
 	case *ast.FuncLit:
-		fn := &jsonScannerFunction{node: x, name: s.closures[x], parent: v.owner}
+		fn := &jsonScannerFunction{summary: s, node: x, name: s.closures[x], parent: v.owner}
 		s.functions = append(s.functions, fn)
 		v.owner = fn
 	case *ast.ValueSpec:
 		for i, id := range x.Names {
 			if i < len(x.Values) && id.Obj != nil {
 				s.bindingWrites[id.Obj]++
+				if source, ok := ast.Unparen(x.Values[i]).(*ast.Ident); ok && source.Obj != nil {
+					s.aliased[source.Obj] = true
+				}
 			}
+		}
+	case *ast.IncDecStmt:
+		if id := jsonBindingRoot(x.X); id != nil && id.Obj != nil {
+			s.indexedWrites[id.Obj] = true
 		}
 	case *ast.UnaryExpr:
 		if x.Op == token.AND {
-			if id := assignedRoot(x.X); id != nil && id.Obj != nil {
+			if id := jsonBindingRoot(x.X); id != nil && id.Obj != nil {
 				s.addressed[id.Obj] = true
 			}
+		}
+	}
+	if id, ok := n.(*ast.Ident); ok && id.Obj != nil {
+		if owner, seen := s.useOwners[id.Obj]; seen && owner != v.owner {
+			s.captured[id.Obj] = true
+		} else if !seen {
+			s.useOwners[id.Obj] = v.owner
 		}
 	}
 	if fn := v.owner; fn != nil {
@@ -128,7 +157,7 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 }
 
 func summarizeJSONScanners(f *ast.File) *jsonScannerSummary {
-	s := &jsonScannerSummary{bindingWrites: map[*ast.Object]int{}, addressed: map[*ast.Object]bool{}, declarations: map[*ast.Object]*jsonScannerFunction{}, references: map[*ast.Object][]jsonScannerReference{}, closures: map[*ast.FuncLit]*ast.Ident{}}
+	s := &jsonScannerSummary{useOwners: map[*ast.Object]*jsonScannerFunction{}, captured: map[*ast.Object]bool{}, indexedWrites: map[*ast.Object]bool{}, aliased: map[*ast.Object]bool{}, bindingWrites: map[*ast.Object]int{}, addressed: map[*ast.Object]bool{}, declarations: map[*ast.Object]*jsonScannerFunction{}, references: map[*ast.Object][]jsonScannerReference{}, closures: map[*ast.FuncLit]*ast.Ident{}}
 	ast.Walk(jsonScannerVisitor{summary: s}, f)
 	objects, receivers := map[*ast.Object]*jsonScannerFunction{}, map[*ast.Object]*jsonScannerFunction{}
 	for _, fn := range s.functions {
@@ -209,6 +238,52 @@ func jsonSelfCall(fn *jsonScannerFunction, e ast.Expr) bool {
 	return false
 }
 
+// Project mutation/address roots once. Writes to an element do not rebind the
+// container, but do invalidate a scanner input's or child value's provenance.
+func jsonBindingRoot(e ast.Expr) *ast.Ident {
+	for {
+		switch x := e.(type) {
+		case *ast.Ident:
+			return x
+		case *ast.ParenExpr:
+			e = x.X
+		case *ast.StarExpr:
+			e = x.X
+		case *ast.IndexExpr:
+			e = x.X
+		case *ast.SelectorExpr:
+			e = x.X
+		default:
+			return nil
+		}
+	}
+}
+
+func jsonStableBinding(fn *jsonScannerFunction, obj *ast.Object, writes int) bool {
+	if obj == nil {
+		return false
+	}
+	s := fn.summary
+	return s.bindingWrites[obj] == writes && !s.addressed[obj] && !s.captured[obj]
+}
+
+func jsonStableInput(fn *jsonScannerFunction, obj *ast.Object) bool {
+	if obj == nil {
+		return false
+	}
+	writes := 0
+	switch decl := obj.Decl.(type) {
+	case *ast.AssignStmt:
+		writes = 1
+	case *ast.ValueSpec:
+		if len(decl.Values) > 0 {
+			writes = 1
+		}
+	}
+	s := fn.summary
+	return jsonStableBinding(fn, obj, writes) && !s.indexedWrites[obj] && !s.aliased[obj]
+}
+
 func jsonContainerType(e ast.Expr) bool {
 	switch x := e.(type) {
 	case *ast.MapType:
@@ -263,9 +338,26 @@ func jsonMaterializerRole(fn *jsonScannerFunction) bool {
 			}
 		}
 	}
+	// Calls other than the value-storing builtin append cannot prove that the
+	// recursive child is still the decoded value at storage time.
+	for _, use := range fn.uses {
+		if !children[use.id.Obj] {
+			continue
+		}
+		switch parent := use.parent.(type) {
+		case *ast.AssignStmt, *ast.ValueSpec: // declaration or storage; aliases are checked separately
+		case *ast.CallExpr:
+			builtin, isIdent := parent.Fun.(*ast.Ident)
+			if !isIdent || builtin.Name != "append" || builtin.Obj != nil || len(parent.Args) == 0 || parent.Args[0] == use.id {
+				children[use.id.Obj] = false
+			}
+		default:
+			children[use.id.Obj] = false
+		}
+	}
 	child := func(e ast.Expr) bool {
 		id, ok := e.(*ast.Ident)
-		return (ok && id.Obj != nil && children[id.Obj] && writes[id.Obj] == 1) || jsonSelfCall(fn, e)
+		return (ok && id.Obj != nil && children[id.Obj] && writes[id.Obj] == 1 && jsonStableBinding(fn, id.Obj, 1) && !fn.summary.indexedWrites[id.Obj] && !fn.summary.aliased[id.Obj]) || jsonSelfCall(fn, e)
 	}
 	stored := map[*ast.Object]bool{}
 	appendCalls := map[*ast.CallExpr]*ast.Object{}
@@ -323,7 +415,7 @@ func jsonMaterializerRole(fn *jsonScannerFunction) bool {
 	}
 	for _, ret := range fn.returns {
 		for _, e := range ret.Results {
-			if id, ok := e.(*ast.Ident); ok && id.Obj != nil && !escaped[id.Obj] && stored[id.Obj] && initializers[id.Obj] == 1 && writes[id.Obj] == initializers[id.Obj]+appendWrites[id.Obj] {
+			if id, ok := e.(*ast.Ident); ok && id.Obj != nil && !escaped[id.Obj] && stored[id.Obj] && initializers[id.Obj] == 1 && writes[id.Obj] == initializers[id.Obj]+appendWrites[id.Obj] && jsonStableBinding(fn, id.Obj, writes[id.Obj]) {
 				return true
 			}
 		}
@@ -395,6 +487,62 @@ func jsonComparedScanners(a, b *ast.CallExpr) bool {
 	return lok && rok && left.Obj != nil && left.Obj == right.Obj
 }
 
+// An input must be used only by compared calls. Merely preserving
+// its binding is insufficient for a mutable byte slice passed to another
+// helper. A diagnostic on the callback's actual *testing.T is observational.
+func jsonOracleInputCalls(f *ast.File, fn *jsonScannerFunction, lit *ast.FuncLit) map[*ast.Object]int {
+	diagnostics := map[*ast.Object]bool{}
+	testingName := localName(f, "testing")
+	if lit.Type.Params != nil {
+		for _, field := range lit.Type.Params.List {
+			ptr, ok := field.Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			sel, ok := ptr.X.(*ast.SelectorExpr)
+			if !ok {
+				continue
+			}
+			pkg, ok := sel.X.(*ast.Ident)
+			if ok && pkg.Name == testingName && pkg.Obj == nil && sel.Sel.Name == "T" {
+				for _, name := range field.Names {
+					diagnostics[name.Obj] = true
+				}
+			}
+		}
+	}
+	counts, unknown := map[*ast.Object]int{}, map[*ast.Object]bool{}
+	for _, use := range fn.uses {
+		obj := use.id.Obj
+		fn.summary.roleUseVisits++
+		switch parent := use.parent.(type) {
+		case *ast.Field: // declaration
+		case *ast.CallExpr:
+			if sel, ok := parent.Fun.(*ast.SelectorExpr); ok {
+				if recv, ok := sel.X.(*ast.Ident); ok && diagnostics[recv.Obj] {
+					switch sel.Sel.Name {
+					case "Fatal", "Fatalf", "Error", "Errorf", "Log", "Logf":
+						continue
+					}
+				}
+			}
+			// An identifier immediately owned by a CallExpr is either its
+			// function or a direct argument; no per-use argument-list scan.
+			if parent.Fun != use.id {
+				counts[obj]++
+			} else {
+				unknown[obj] = true
+			}
+		default:
+			unknown[obj] = true
+		}
+	}
+	for obj := range unknown {
+		counts[obj] = -1
+	}
+	return counts
+}
+
 func jsonDifferentialOracleRoles(f *ast.File, context *CheckContext, s *jsonScannerSummary) map[*jsonScannerFunction]bool {
 	eligible := map[*jsonScannerFunction]bool{}
 	if context == nil || !strings.HasSuffix(context.Path, "_test.go") {
@@ -431,6 +579,8 @@ func jsonDifferentialOracleRoles(f *ast.File, context *CheckContext, s *jsonScan
 		if !ok || !callbacks[lit] {
 			continue
 		}
+		inputCalls := jsonOracleInputCalls(f, fn, lit)
+		potential := map[*ast.CallExpr]*ast.Object{}
 		results := map[*ast.Object]*ast.CallExpr{}
 		counts := map[*ast.Object]int{}
 		for _, assign := range fn.assignments {
@@ -458,12 +608,25 @@ func jsonDifferentialOracleRoles(f *ast.File, context *CheckContext, s *jsonScan
 			}
 			x, opX := jsonNilComparison(bin.X)
 			y, opY := jsonNilComparison(bin.Y)
-			if x != nil && y != nil && counts[x] == 1 && counts[y] == 1 && opX == opY && jsonComparedScanners(results[x], results[y]) {
-				seeds[results[x]] = true
-				seeds[results[y]] = true
+			if x != nil && y != nil && counts[x] == 1 && counts[y] == 1 && jsonStableBinding(fn, x, 1) && jsonStableBinding(fn, y, 1) && opX == opY && jsonComparedScanners(results[x], results[y]) {
+				input := results[x].Args[0].(*ast.Ident)
+				if !jsonStableInput(fn, input.Obj) {
+					return true
+				}
+				potential[results[x]] = input.Obj
+				potential[results[y]] = input.Obj
 			}
 			return true
 		})
+		comparedCalls := map[*ast.Object]int{}
+		for _, input := range potential {
+			comparedCalls[input]++
+		}
+		for call, input := range potential {
+			if inputCalls[input] == comparedCalls[input] {
+				seeds[call] = true
+			}
+		}
 	}
 	var pending []*jsonScannerFunction
 	for call := range seeds {
