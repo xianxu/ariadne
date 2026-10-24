@@ -423,8 +423,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 			}
 			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
-			if c.Name == suiteCheckName && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
-				fmt.Fprintf(d.Stderr, "    after registering every named flake: sdlc local-check resume --name suite --attempt %s --rev %s\n", writer.ID, sha)
+			if isTestCheck(c.Name) && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
+				fmt.Fprintf(d.Stderr, "    after registering every named flake: sdlc local-check resume --name %s --attempt %s --rev %s\n", c.Name, writer.ID, sha)
 			}
 			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
 				fmt.Fprintf(d.Stderr, "[!] local check %s: attempt pruning: %v\n", c.Name, pruneErr)

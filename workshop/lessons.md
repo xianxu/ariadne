@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #590 / pair#861: container syntax does not establish duplicate-validation authority. A proven standalone value-producing materializer or independent differential fuzz oracle may keep a reasoned per-site json-recursive-scanner allow. Do not remove oracle independence or add an unwanted module dependency to satisfy lint. Automatic role inference grew into an incomplete dataflow proof; keep the syntactic matcher and human-reviewed site reasons instead. Diagnostics recommend the consumer module's shared strict authority, never Ariadne's inaccessible internal import. Replay the two real captures with and without annotations through both checking APIs.
+
 - #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
   every recognition boundary, including assignment targets and tuple-return
   calls, rather than only expression propagation. Recognize directly declared

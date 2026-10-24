@@ -85,6 +85,8 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: %w", err)
 	}
+	// An affected run stopped at the flake may never have reached its groups.
+	commands = affectedRerunBatch(commands, g.check.Rerun)
 	w, err := beginSuiteAttempt(g.storeRoot)
 	if err != nil {
 		return flakes.Outcome{}, fmt.Errorf("known-flake rerun: no attempt record: %w", err)
@@ -106,8 +108,8 @@ func knownFlakeStep(ctx context.Context, d localRunDeps, g suiteGateRun) (flakes
 	// Weight 1: a few named tests, not the sharded suite. Its own lease and
 	// slot, released when it exits (#383), so cancel reaches it too.
 	// Bounded by the check's own timeout as well (its declared envelope).
-	timeout := min(knownFlakeRerunTimeout, time.Duration(g.check.TimeoutMinutes)*d.minute)
-	run, err := runUnderSlotBatch(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, 1, g.subject, commands, w.LogPath, timeout)
+	weight, timeout := rerunEnvelope(g.check, d.minute)
+	run, err := runUnderSlotBatch(ctx, d, g.wt, g.helper, g.logDir, g.check.Name, g.sha, weight, g.subject, commands, w.LogPath, timeout)
 	if err != nil {
 		var startup *suiteEnvironmentError
 		if errors.As(err, &startup) {

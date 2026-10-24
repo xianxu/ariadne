@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -479,7 +480,7 @@ func retireCompletedResumeEnvironmentWithIO(ctx context.Context, d localRunDeps,
 			return err
 		}
 		decoded, _, err := decodeResumeEvidence(raw, l.ID+".json")
-		if err != nil || decoded == nil || *decoded != l {
+		if err != nil || decoded == nil || !reflect.DeepEqual(*decoded, l) {
 			return errors.New("completed resume link changed")
 		}
 		digest := resumeRecordDigest(raw)

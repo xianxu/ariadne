@@ -145,7 +145,7 @@ func TestResumeSavedReclassificationRequiresGenuineRerun(t *testing.T) {
 				if err := postLocalCheckRecord(ctx, d, cached); err == nil {
 					t.Error("cached composite posted after correction")
 				}
-				if _, err := resumeSavedSuite(ctx, d, suiteCheck("false"), sha, "aa"); err == nil {
+				if _, err := resumeSaved(ctx, d, suiteCheck("false"), nil, sha, "aa"); err == nil {
 					t.Error("completed resume reposted after correction")
 				}
 				if d.GH.(*ciFakeGH).statuses[sha][localStatusContext("suite")] == "success" {
