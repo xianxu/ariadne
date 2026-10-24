@@ -115,6 +115,11 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 			first = append(first, n)
 		}
 	}
+	// #579: every issue's links are judged before anything is published. With
+	// no first publication, republishOwned's own check is already the first.
+	if err := judgePublishLinks(env, snap, view, nums, locations, dirs.Rel[0], len(first) > 0); err != nil {
+		return err
+	}
 	for _, n := range first {
 		if err := runMoveDetail(ctx, stdout, stderr, &moveDetailFlags{Issue: n, IssuesDir: issuesDir, DryRun: dryRun}); err != nil {
 			return err
@@ -297,6 +302,39 @@ func detailsClassification(read declReader, name string, data []byte) error {
 	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", name, err)
+	}
+	return nil
+}
+
+// judgePublishLinks runs publish's side-link check (#579) for each issue before
+// any effect: a first publication carries no side docs, a republication may.
+// mixed false checks only first publications, since republishOwned judges its
+// own issues before its first effect.
+func judgePublishLinks(env *trackerEnv, snap tracker.Snapshot, view *gitx.TrunkView, nums []int, locations map[string]string, issuesRel string, mixed bool) error {
+	mergeBase, err := env.git("merge-base", "HEAD", view.Ref())
+	if err != nil {
+		return fmt.Errorf("this checkout shares no history with main: %w", err)
+	}
+	for _, n := range nums {
+		id := fmt.Sprintf("%06d", n)
+		rel, carry := locations[id], true
+		if rel != "" && !mixed {
+			continue
+		}
+		if rel == "" {
+			card, err := snap.Require(id)
+			if err != nil {
+				return err
+			}
+			rel, carry = path.Join(issuesRel, path.Base(card.Path)), false
+		}
+		data, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(rel)))
+		if err != nil {
+			continue // the publication reports a missing details file
+		}
+		if _, err := publishSideDocs(execSideLinkGit, env.root, rel, data, view, env.main.ViewOf(mergeBase), carry); err != nil {
+			return fmt.Errorf("#%d: %w — nothing was published", n, err)
+		}
 	}
 	return nil
 }

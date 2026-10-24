@@ -2,6 +2,7 @@ package sidedoc
 
 import (
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -134,5 +135,34 @@ func TestAnswerName(t *testing.T) {
 		if AnswerName(name) != want {
 			t.Errorf("AnswerName(%s) = %v", name, !want)
 		}
+	}
+}
+
+// #579: LocalLinks is the relative-link census RebaseLinks rewrites over.
+func TestLocalLinks(t *testing.T) {
+	doc := strings.Join([]string{
+		"---",
+		"parent: ../design.md",
+		"---",
+		"See [a](a.side/2026-10/x.md) and ![img](assets/p.png \"t\") and [frag](notes.md#top).",
+		"[ref]: ../plans/p.md",
+		"[dir](d.side/)",
+		"[url](https://x.y/z) [mail](mailto:a@b) [abs](/etc/passwd) [only](#here) [out](../../../x.md)",
+		"`[span](span.md)`",
+		"```",
+		"[fenced](fenced.md)",
+		"```",
+	}, "\n")
+	got := LocalLinks(doc, "workshop/issues/i.md")
+	want := []LocalLink{
+		{Target: "../design.md", Path: "workshop/design.md", Line: 2},
+		{Target: "a.side/2026-10/x.md", Path: "workshop/issues/a.side/2026-10/x.md", Line: 4},
+		{Target: "assets/p.png", Path: "workshop/issues/assets/p.png", Line: 4},
+		{Target: "notes.md#top", Path: "workshop/issues/notes.md", Line: 4},
+		{Target: "../plans/p.md", Path: "workshop/plans/p.md", Line: 5},
+		{Target: "d.side/", Path: "workshop/issues/d.side", Line: 6},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got  %+v\nwant %+v", got, want)
 	}
 }

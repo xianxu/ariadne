@@ -147,6 +147,11 @@ A question's side doc and a chat item's answer doc are both **side docs**; only 
 Side docs are ordinary collaborative documents: every rule of this file applies inside them, and a question asked in
 one opens a further side doc.
 
+**Process artifacts:** the side docs of an issue, a plan or a project are committed with it (on the issue branch,
+or carried by `sdlc issue publish` while the issue is shaped on a resting branch) and archive with it. A private
+side doc kept out of git (an operator's session notes) is never linked from a committed artifact: fold what it
+settled into the artifact instead. sdlc refuses such a link at `issue publish`, `change-code` and `close`.
+
 **Lifetime:** a side doc is one small file per ask, and it has no closed state. No round deletes, marks or locks
 one: only its references in the parent come and go (below, "The index"). The folder grows by one file per question
 or chat item, and moves with its document (§5).
