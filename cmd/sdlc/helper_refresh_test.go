@@ -169,7 +169,7 @@ func TestHelperRefreshSavedResumeLaunchAndProofOnlyRepost(t *testing.T) {
 		d.FlakeRegistry = gateRegistry(t, "example.org/p.TestOne")
 		calls := 0
 		d.refreshSuiteHelper = func(context.Context, string, io.Writer) error { calls++; return context.Canceled }
-		_, err = resumeSavedSuite(context.Background(), d, suiteCheck("false"), sha, "aa")
+		_, err = resumeSaved(context.Background(), d, suiteCheck("false"), nil, sha, "aa")
 		if !errors.Is(err, context.Canceled) || calls != 1 {
 			t.Fatalf("resume omitted prelaunch refresh: %v calls=%d", err, calls)
 		}
@@ -180,7 +180,7 @@ func TestHelperRefreshSavedResumeLaunchAndProofOnlyRepost(t *testing.T) {
 			t.Fatal("proof-only repost refreshed supplier")
 			return nil
 		}
-		r, err := resumeSavedSuite(context.Background(), d, suiteCheck("false"), sha, "aa")
+		r, err := resumeSaved(context.Background(), d, suiteCheck("false"), nil, sha, "aa")
 		if err != nil || !r.passed() {
 			t.Fatalf("proof-only repost: %+v %v", r, err)
 		}
