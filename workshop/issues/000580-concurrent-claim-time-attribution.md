@@ -35,7 +35,7 @@ Attribute each interval to the issue whose branch the slot was actually working 
 
 ## Done when
 
-A deterministic fixture with two simultaneous same-slot claims, activity on A through close/test/landing, then a main-based branch for B, attributes the intervals exactly once to their witnessed active issue. It reproduces the observed A-tail-to-B failure without the correction. Close/actual/active-time share the corrected classifier; previously adopted intervals remain excluded and ambiguous branch evidence is reported rather than guessed. No manually typed time totals are used to hide the defect.
+- A deterministic fixture with two simultaneous same-slot claims, activity on A through close/test/landing, then a main-based branch for B, attributes the intervals exactly once to their witnessed active issue. It reproduces the observed A-tail-to-B failure without the correction. Close/actual/active-time share the corrected classifier; previously adopted intervals remain excluded and ambiguous branch evidence is reported rather than guessed. No manually typed time totals are used to hide the defect.
 
 ## Plan
 
@@ -84,3 +84,5 @@ A final pure control found sole-claim fallback absorbing a witnessed foreign can
 PR 425 is open. The final private executable at Git revision df0f0a5166db83f7b297cbf9fb46ff38b5f58589 (Go 1.27.3, modified=false) passes the isolated real-command incident conformance in 18.725 s. The independent selector-disabled overlay remains an expected RED, with original tail-misattribution evidence retained under sdlc/test-stats/evidence/000580 in the common Git directory. Native capture controls additionally prove symlink aliases select the same worktree history and a removed worktree cannot fall back to the primary log (PASS 1.248 s). These last edits affect tests and this checkpoint only.
 
 Implementation and targeted verification are complete; no historical card was changed or adopted, no staging occurred, and no full suite or review is currently running. Next: push this checkpoint, run central sdlc local-check run --pre-close on the pushed head, then mandatory close review and central merge on SHIP. The approved version-3 method refuses older readers rather than allowing a silent undercount; old adopted snapshots remain immutable.
+
+Close preflight required a bullet in Done when; formatted the existing acceptance paragraph as one bullet without changing its criteria. Measured actual preview succeeded; no review was dispatched by that preflight refusal. The existing recorded suite remains queued on unchanged code.
