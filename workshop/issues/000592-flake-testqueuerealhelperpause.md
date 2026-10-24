@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestQueueRealHelperPause]
+flow: {kind: quick, provenance: inferred, spec: "096ee224", done: "a0bbe98b"}
 ---
 
 # flake: TestQueueRealHelperPause
