@@ -51,9 +51,10 @@ BRANCH ATTRIBUTION IN TRACKER REPOSITORIES (#580)
   claimed issue's branch excludes its time even when that tail was never adopted.
   A sole live reservation can retain planning time with an ownership-only label.
   Terminal cards retain attribution identity but are not live reservations.
-  Concurrent reservations plus unknown, detached, resting or ambiguous branch
-  evidence refuse numeric measurement. Explicit close recovery: --no-actual,
-  with the missing evidence and reason in --verified. No retroactive owner or
+  Under concurrent reservations, witnessed resting or stage/* branches are
+  excluded and unassigned, with visible branch-window minutes. Unknown, detached
+  or ambiguous branch evidence refuses numeric measurement. Explicit close recovery:
+  --no-actual, with the missing evidence and reason in --verified. No retroactive owner or
   handwritten hours. Unknown competing history prevents sole-claim fallback.
 
   New branch measurements retain version-4 evidence (#593), original dispatch

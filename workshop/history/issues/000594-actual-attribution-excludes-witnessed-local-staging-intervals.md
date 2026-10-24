@@ -1,0 +1,80 @@
+---
+id: 000594
+status: done
+deps: []
+github_issue:
+created: 2026-10-24
+updated: 2026-10-24
+estimate_hours:
+card_mirror: 'bbfaf3e44f2521c5c21a9e9dbd235e6cecee0d11' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T08:46:27-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "45b7dbce", done: "ba76c771"}
+actual_hours: 0.80
+---
+
+# Actual attribution excludes witnessed local staging intervals
+
+## Problem
+
+After #591, pair:6 cannot close pair#830 with numeric actuals because an explicitly witnessed local staging branch is treated as unknown/detached/ambiguous during concurrent claims.
+
+## Spec
+
+Investigate sanctioned stage/* branches as a witnessed exclusion, like resting branches: excluded and unassigned, without guessing which issue owns combined staging work. Preserve strict refusal for genuinely unknown, detached or ambiguous evidence and preserve adopted snapshots. This is a #591/#580 follow-up; no implementation or policy change is authorized by filing it.
+
+## Done when
+
+- A witnessed stage/000849-000850 interval under concurrent claims is covered by regression evidence and an approved attribution policy.
+- Any excluded staging minutes are visible and unassigned; genuinely unknown evidence remains strict.
+- Adopted snapshots remain immutable.
+
+## Plan
+
+- [x] Approve the policy and implementation plan in workshop/plans/000594-actual-attribution-excludes-witnessed-local-staging-intervals-plan.md with the hub before code.
+- [x] Reproduce the 172-second staging refusal, implement witnessed staging exclusion through selection and retained-proof validation, and test adversarial controls.
+- [x] Update help and atlas, pass targeted normal/race checks and lint, and launch the recorded pre-close suite.
+
+The recorded full suite passed and close round 2 is SHIP. Normal central merge is the remaining completion step.
+
+## Revisions
+
+2026-10-24 — ops:0 approved the complete plan (submitted receipt a7713eb0-c36e-4728-9500-4a29a1cca2e6): attached witnessed stage/* exclusions under concurrent reservations, separate audit kind, shared predicate, visible minutes, preserved single-reservation ownership and adopted proofs, with the 172-second replay and malformed/detached/tamper controls. Proceeding through change-code.
+
+2026-10-24 — ops:0 dispatched implementation planning (verified submitted receipt 570945d9-c5e2-4ea0-96ac-87545598f26b), superseding the filing-only restriction in Spec. Proposed policy: witnessed stage/* intervals under concurrent reservations are excluded and unassigned, with visible minutes; sole-reservation ownership-only behavior and adopted snapshots stay unchanged. Awaiting hub approval before code.
+
+## Log
+
+
+- 2026-10-24: closed — Addressed BR-1 in the shared README actual/close and active-time contract, matching both helps and atlas; addressed BR-2 by explicit pure entities and separate IO capture, with plan Revision and concrete function checks. No runtime delta. Pair#830 172-second exclusion, malformed/detached/unknown refusal, saved-proof tamper/visible-minutes/unknown-field controls and real Git/tracker immutable replay passed normal and race; tracked-file lint passed. Retained recorded suite lease-1425773880 on abbb560116896a1a2e18929f7e4964b7814f48ee is still running; wait for pass before merge.; review verdict: SHIP
+2026-10-24 — Filed unclaimed at ops:0 request (delivery 4ea9e0aa-75b7-4d0d-b85a-d30c69d94c1b); queued after #589. Evidence supplied directly by pair:6 (delivery ad33b571-b208-47bf-b08d-9ca25e6bf5ed), not independently reread from its checkout:
+
+sdlc close --issue 830 refused: "branch attribution for session 0bca9e6b-3a49-425b-a689-eff7360aa8a1 (pair-slot6): concurrent claims have unknown, detached or ambiguous active branch during 2026-10-24T02:55:02Z to 02:57:54Z".
+
+Reflog reported by pair:6:
+- 2026-10-24T02:55:02Z checkout 000849-cast-notes-dom-submission-loops-on-feedback-changed-and-never-submits -> stage/000849-000850. TL-authorized local staging-only branch, created from pair#849.
+- At the same timestamp, merge origin/000850-... into the stage branch; peer-reported object abbreviation 6f0478a3a.
+- 2026-10-24T02:57:54Z checkout stage/000849-000850 -> 000849-cast-notes-...; peer-reported object abbreviation 3de33c10b.
+- Claims held: pair#849 and pair#830. Window: 172 seconds (2m52s). Combined staging could reasonably be excluded, but charging it to pair#849 would infer ownership from context and needs a separate policy decision.
+
+Hash abbreviations above are quoted peer evidence, not independently verified Git output. No actuals or source telemetry were modified.
+
+2026-10-24 — Claimed and started from current main. Recovery used issue and Git evidence; prior TTY capture remains unavailable. The existing pure selector and saved-proof validator both enumerate resting-excluded, so the extension must cover both rather than changing only live selection. Current actual/active-time help still says resting evidence refuses; correct those surfaces with the new policy.
+
+2026-10-24 — Implemented the approved rule with shared activetime.IsStagingBranch, stage-excluded validation and excluded-window rendering. RED: TestPair830StagingReplayExcludes172Seconds reproduced exactly 02:55:02Z–02:57:54Z; TestStageExcludedSavedProofAndVisibleMinutes on the pre-change v3 reader refused the unknown kind. GREEN: activetime and gatestate complete focused package runs passed (18.934s / 0.617s); command-level saved proof, minutes, tamper and real Git/tracker replay controls passed (11.292s). Race controls across the three packages passed (1.244s / 1.290s / 14.015s). Tracked-file golint catalog passed (1.358s). JSON/YAML preserve nested unknown fields; the frozen pre-v3 reader refuses new proof, while the observed pre-change v3 reader rejects stage-excluded specifically. The pair#830 replay uses synthetic object IDs and reconstructed peer-reported event messages, not an independently obtained raw reflog. Native temporary Git/tracker controls exercise the actual resolver and immutable replay after live HEAD-log deletion for resting and staging branches.
+
+2026-10-24 — change-code inferred quick flow. Renamed the durable plan to its printed canonical filename before implementation. No live actual adoption, peer checkout edit, shared-memory native test, or #564 implementation occurred.
+
+2026-10-24 — PR 433 opened; hosted merge-check and local-gates guard pass. Rebuilt this slot's six tools with Go 1.27.3 using make tools; workflow commands remain on central sdlc. Recorded pre-close suite retained in terminal 21121, lease-1425773880, subject abbb560116896a1a2e18929f7e4964b7814f48ee, inflight attempt 4a728f4383fe20acb5ae518c38942561. It is waiting normally (position 2 at about 09:04 PDT), not canceled/restarted. Full suite, mandatory close review and landing remain pending. The read-only actual preview completed successfully without waiver; close must measure/adopt freshly rather than type previewed hours. Recovery screen lookup confirmed previous TTY unavailable. #589's native qualification and #564 code remain explicitly held.
+
+2026-10-24 — The retained recorded suite acquired both machine slots after 1699 seconds and is running on abbb560116896a1a2e18929f7e4964b7814f48ee. Starting the mandatory close review alongside the detached suite; no merge admission until that suite passes. This preserves its one recorded attempt and avoids a duplicate full run.
+
+2026-10-24 — Close round 1 returned FIX-THEN-SHIP but did not finalize because BR-1 (Important, README contract parity) remained open; BR-2 asked for explicit core-concept classifications. Verified both against README's shared actual/active-time paragraph and function definitions. Corrected README for resting/staging exclusion, visible branch-window minutes, sole-reservation fallback, strict unknown/detached recovery and older-reader refusal. Classified pure selection/decoding/rendering/proof validation separately from existing IO capture and appended the plan Revision. No runtime change; retained full-suite attempt is untouched. Review independently reproduced focused normal/race checks and the base reader's unknown-kind refusal; its stopped broader command regex is not passing evidence. Rerunning the mandatory close as instructed by the blocked ledger.
+
+2026-10-24 — Close round 2 returned SHIP with BR-1 and BR-2 addressed and no new findings; codecomplete is bound to evidence commit 42a67a547432734c090abf9f238f19e7b0e6b269 (Git log verified). The retained recorded suite passed: 2471 cmd/sdlc tests plus 77 other packages, zero failures/reruns, wall 1216.0 seconds (20m16s), after 1699 seconds queue wait. Subject abbb560116896a1a2e18929f7e4964b7814f48ee; saved log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/abbb560116896a1a2e18929f7e4964b7814f48ee/suite.log, digest prefix 5009bc1ec971. Later changes were documentation and generated close evidence only. Entering the central merge normally; no suite cancellation, priority request or bypass.
