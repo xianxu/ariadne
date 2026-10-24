@@ -78,3 +78,5 @@ One atomic close boundary, no Mx tags. Hold before change-code until ops:0 appro
 ## Revisions
 
 - 2026-10-24: Initial plan after reading both live Pair captures and the matcher. Choose positive structural role evidence over blanket test/package exemptions or replacement waiver annotations. Await hub approval before implementation; #589's existing recorded suite remains retained and native qualification held.
+
+- 2026-10-24: Ops:0 approved the plan (delivery 5cd939f8-dc28-440c-8b78-efec55cf79a4): positive returned-container or witnessed differential-fuzz role only; unknown/escaping/shadowed roles remain findings; existing true positives unchanged; no waiver annotation; consumer-owned strict-authority diagnostic. Proceed to change-code.

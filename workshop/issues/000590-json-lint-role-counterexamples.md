@@ -35,9 +35,9 @@ Qualify/narrow the matcher using the two counterexamples without weakening actua
 
 ## Plan
 
-Durable plan: [JSON scanner roles](../plans/000590-json-lint-role-counterexamples-plan.md). Await ops:0 approval before code.
+Durable plan: [JSON scanner roles](../plans/000590-json-lint-role-counterexamples-plan.md). Approved by ops:0 on 2026-10-24; enter change-code before implementation.
 
-- [ ] Approve role boundaries and capture both Pair counterexamples.
+- [ ] Approved role boundaries; capture both Pair counterexamples before implementation.
 - [ ] Implement positive materializer/oracle role qualification with unchanged true-positive controls, accessible remediation and counted scan tests.
 - [ ] Replay real captures, update guidance, recorded pre-close/close/land, then notify pair:3 to remove its two temporary allows.
 
@@ -53,3 +53,7 @@ Pair retains the complete observed lint log in its #838 evidence and filed adopt
 ### 2026-10-24 — claimed, investigated and planned
 
 Claimed and started from fresh main on 000590-json-lint-role-counterexamples, leaving #589's clean pushed branch intact. Its recorded pre-close suite remains retained in session31958, lease-355567331; no restart/cancel. Read current matcher and both real Pair counterexamples at Git HEAD 50a6a163f9551bd4e5a7ebfa5746eba0e7d83eda. Root cause: Token+More+self-recursion+any string map is treated as duplicate-validator authority, regardless of returned values or differential-test purpose. No peer edits, new suppression, implementation or runtime JSON policy changes made. Proposed shared bounded AST role qualification and module-owned diagnostic remediation; sent to hub before code.
+
+### 2026-10-24 — approval
+
+Ops:0 approved the proposed role boundaries (delivery 5cd939f8-dc28-440c-8b78-efec55cf79a4). Plan report receipt b87c22ef-0eb5-4cb5-a657-b92caf348a5e is submitted. #589 retained suite acquired capacity after1053s and is now running in its detached checkout; no restart or cancellation.
