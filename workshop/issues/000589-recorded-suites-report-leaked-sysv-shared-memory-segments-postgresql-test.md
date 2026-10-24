@@ -1,12 +1,12 @@
 ---
 id: 000589
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-23
 updated: 2026-10-24
 estimate_hours:
-card_mirror: 'c4f647edebc1cf26fdf1a071b3aab01aa9793348' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3f05e35ff88b4b35d8e16c073fcf5986a77ea3ed' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T03:44:14-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: N/A
 ---
 
 # Recorded suites report leaked SysV shared-memory segments; PostgreSQL test harnesses must not leak them
