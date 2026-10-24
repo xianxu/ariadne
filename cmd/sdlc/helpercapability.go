@@ -15,6 +15,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const helperHelpLimit = 64 << 10
@@ -67,20 +68,7 @@ func helperHelpOptions(help string) map[string]bool {
 // tree's own link is read against it, and failing that, anchor's own
 // Makefile.workflow is the one.
 func workflowFile(root, anchor string) (string, error) {
-	p := filepath.Join(root, "Makefile.workflow")
-	mk, err := filepath.EvalSymlinks(p)
-	if err == nil || anchor == "" {
-		return mk, err
-	}
-	if link, lerr := os.Readlink(p); lerr == nil && !filepath.IsAbs(link) {
-		if mk, lerr := filepath.EvalSymlinks(filepath.Join(anchor, link)); lerr == nil {
-			return mk, nil
-		}
-	}
-	if mk, aerr := filepath.EvalSymlinks(filepath.Join(anchor, "Makefile.workflow")); aerr == nil {
-		return mk, nil
-	}
-	return "", err
+	return workspace.WorkflowFile(root, anchor)
 }
 
 // Resolve and verify once before the run creates logs or touches worktrees.
@@ -95,7 +83,7 @@ func prepareSuiteHelper(ctx context.Context, root, anchor string) (string, error
 	if _, err := os.Stat(helper); err != nil {
 		return "", fmt.Errorf("%w: suite lock helper missing: %s", errUnboundedSuite, helper)
 	}
-	resolved, err := filepath.EvalSymlinks(helper)
+	resolved, err := workspace.SuiteHelper(root, anchor)
 	if err != nil {
 		return "", fmt.Errorf("%w: resolve suite lock helper %s: %v", errUnboundedSuite, helper, err)
 	}
