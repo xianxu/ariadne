@@ -674,7 +674,9 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	runCtx, cancel := context.WithTimeout(ownedCtx, timeout)
 	defer cancel()
 	runErr, cleanupErr := runManagedCommandBatch(runCtx, d, wt, check, commands, env, out, resource)
-	ended, timedOut := time.Now(), deadlineStopped(runErr, runCtx.Err())
+	ended := time.Now()
+	cause, stopped := stoppedBy(runErr, runCtx.Err())
+	timedOut := stopped && errors.Is(cause, context.DeadlineExceeded)
 	d.runPhase("ran")
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("%w; retained scratch %s", cleanupErr, scratch.Dir)
@@ -728,10 +730,15 @@ func runUnderResourceBatch(ctx context.Context, d localRunDeps, wt, helper, logD
 	return run, nil
 }
 
-// deadlineStopped reports whether a run's deadline, not the commands, ended it:
-// a run whose commands succeeded stands even if the deadline passed after them.
-func deadlineStopped(runErr, ctxErr error) bool {
-	return runErr != nil && errors.Is(ctxErr, context.DeadlineExceeded)
+// stoppedBy is a run's outcome once its context may have ended (#599): a
+// command that failed after its context ended was stopped by it, and the
+// context's error is the cause; a command that succeeded stands, even if the
+// context ended after it.
+func stoppedBy(runErr, ctxErr error) (cause error, stopped bool) {
+	if runErr != nil && ctxErr != nil {
+		return ctxErr, true
+	}
+	return runErr, false
 }
 
 // runPhase calls the test seam, if any, as a run passes a phase.

@@ -120,6 +120,7 @@ timeout verdict must be taken from the command's own end):
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed — Full suite passed on ef778af0 under load (sdlc-local/suite, wall 1243s, 0 failed); round-1 fixes on 8d3244d3 pass targeted runs (TestAffectedGraphPreparation*, TestLocalCheckDeadline*, TestDeadlineStopped, make probe tests); TestLocalCheckDeadlineBoundsTheCommandsOnly, TestDeadlineStopped and TestAffectedGraphPreparationSuccessOutlivesItsDeadline pin the fix, and each mutation (deadline before setup, verdict after bookkeeping, graph-prep guard dropped) fails them; the nine tests that failed on #593 head b8b2e7f9 passed 3x unsandboxed. Actuals: --no-actual under the TL standing authorization for the ariadne#593 64 KiB refusal; fleet binary refused with: measurement branch proof: measurement snapshot does not serialize: json: error calling MarshalJSON for type *gatestate.MeasurementInputs: measurement exceeds 65536 bytes. The #593 branch build (b8b2e7f9) measures #599 at 0.29h, window 2026-10-24T10:45:56-07:00 to 11:03:27-07:00, code pin ef778af0. No typed hours. (done-when: contract moved since change-code; judged by the close review); review verdict: FIX-THEN-SHIP
 
 - Plan approved by the TL. Instrumented the light-lane test: the stopped run
   measured 0.493s on a 1s bound, so setup took about 0.5s of the deadline
@@ -156,3 +157,12 @@ timeout verdict must be taken from the command's own end):
 - 2026-10-24 (close review round 1): the class sweep adds the make probe
   (`localchecks_make.go`), and the graph-preparation test is delivered through
   the phase seam rather than left to review.
+- 2026-10-24 (close review round 2, Minor BR-3, fixed in round): the three
+  sites share one pure `stoppedBy(runErr, ctxErr) (cause, stopped)`
+  (ARCH-DRY), replacing `deadlineStopped` and the two inline guards;
+  `TestStoppedBy` covers it once, so the make probe's guard is now tested. The
+  reviewer's out-of-scope list (post-hoc `ctx.Err()` reads in `golist.go`,
+  `weeklystats_inputs.go`, `weeklyresource_machine.go`, `netcheck/probe.go`,
+  `judge/dispatch.go`, `cigate.go`, and the `interrupted` read after
+  bookkeeping) is outside this issue's local-check path; reported to the TL as
+  a possible audit.

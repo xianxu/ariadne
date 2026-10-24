@@ -44,25 +44,24 @@ func TestLocalCheckDeadlineBoundsTheCommandsOnly(t *testing.T) {
 	}
 }
 
-func TestDeadlineStopped(t *testing.T) {
+func TestStoppedBy(t *testing.T) {
 	failed := &exec.ExitError{}
 	for _, tc := range []struct {
 		runErr, ctxErr error
-		want           bool
+		cause          error
+		stopped        bool
 	}{
-		{nil, context.DeadlineExceeded, false}, // finished, then the deadline passed
-		{failed, context.DeadlineExceeded, true},
-		{context.DeadlineExceeded, context.DeadlineExceeded, true}, // never started
-		{failed, nil, false},
-		{failed, context.Canceled, false},
-		{nil, nil, false},
+		{nil, context.DeadlineExceeded, nil, false}, // finished, then the deadline passed
+		{nil, context.Canceled, nil, false},         // finished, then the caller cancelled
+		{failed, context.DeadlineExceeded, context.DeadlineExceeded, true},
+		{context.DeadlineExceeded, context.DeadlineExceeded, context.DeadlineExceeded, true}, // never started
+		{failed, context.Canceled, context.Canceled, true},
+		{failed, nil, failed, false},
+		{nil, nil, nil, false},
 	} {
-		if got := deadlineStopped(tc.runErr, tc.ctxErr); got != tc.want {
-			t.Errorf("deadlineStopped(%v, %v) = %v, want %v", tc.runErr, tc.ctxErr, got, tc.want)
+		if cause, stopped := stoppedBy(tc.runErr, tc.ctxErr); cause != tc.cause || stopped != tc.stopped {
+			t.Errorf("stoppedBy(%v, %v) = %v, %v; want %v, %v", tc.runErr, tc.ctxErr, cause, stopped, tc.cause, tc.stopped)
 		}
-	}
-	if deadlineStopped(errors.New("x"), errors.Join(context.DeadlineExceeded)) != true {
-		t.Error("a wrapped deadline is still the deadline")
 	}
 }
 

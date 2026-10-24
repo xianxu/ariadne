@@ -35,9 +35,7 @@ func prepareAffectedGraph(ctx context.Context, d localRunDeps, dir string, p *af
 	// A command that succeeded stands, even if the deadline passed after it
 	// (#599). A cancellation arriving after it is left to the affected run that
 	// follows, which sees the same canceled context.
-	if err != nil && ctx.Err() != nil {
-		err = ctx.Err()
-	}
+	err, _ = stoppedBy(err, ctx.Err())
 	if err != nil {
 		return fmt.Errorf("graph preparation: %w", err)
 	}
