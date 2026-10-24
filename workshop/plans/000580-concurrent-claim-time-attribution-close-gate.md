@@ -73,6 +73,78 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: b39d6168-bb8e-4e0c-9df9-40cc0e7692f7
+            repository: github.com/xianxu/ariadne
+            issue_id: "000580"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/2c5f6f4d6f7ba6df
+            reviewed_head: dd39e615a6561921075b0066ba0cd09a8e0ca22d
+            slot: ariadne:3
+            requested_at: "2026-10-24T03:55:28.370329Z"
+          phase: finished
+          pid: 57059
+          started_at: "2026-10-24T03:55:28.469924Z"
+          finished_at: "2026-10-24T03:58:03.231204Z"
+          session_id: 01a16c0c-9e7c-7b51-95cd-059a51c55db1
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: dd39e615a6561921075b0066ba0cd09a8e0ca22d
+        tracker_head: 688e4a9c56bbee124adedaaafca5b1fcdb6b5e72
+        branch_point: 84b68e2fc5c0773ff38f13771507d93aaa08efd4
+        since: "2026-10-23T19:27:24-07:00"
+        until: "2026-10-23T20:54:56-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T19:27:24-07:00"
+              end: "2026-10-23T20:54:56-07:00"
+              began: "2026-10-23T19:27:24-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 9bd71bd5a539e0682fdc0e06d70b08a9ac8af2ead25e6a8fc0dcc406c6475306
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 143949265
+              windows:
+                - start: "2026-10-23T19:27:24-07:00"
+                  end: "2026-10-23T20:54:56-07:00"
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.07971666666666667
+        cuts:
+            - dispatched: "2026-10-23T20:46:53-07:00"
+              finalized: "2026-10-23T20:51:25-07:00"
+              finalizing: false
+      "n": 2
+      timestamp: "2026-10-23T20:58:04-07:00"
+      dispatched: "2026-10-23T20:55:28-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: actualbranch.go:311 rejects ownership-only intervals naming any canonical issue branch. Saved-replay and direct-execution regressions cover both own and foreign branches. Removing only this guard with a temporary Go overlay made both regressions fail; foreign replay again credited 29 minutes instead of 11. The pinned-head tests pass.
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: dd39e615a6561921075b0066ba0cd09a8e0ca22d
+      blocked: false
 ---
 
 # Gate ledger — ariadne#580 (boundary-review)
@@ -87,6 +159,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Important] `retained-attribution-consistency` (kind: defect) Ownership-only replay accepts a witnessed foreign issue branch
   cmd/sdlc/actualbranch.go:311–319 validates branch/foreign-branch identity but accepts ownership-only intervals regardless of their canonical branch ID; measurement_branch.go:85 also leaves this case unchecked. A temporary test overlay relabelled the incident fixture's foreign-branch interval as ownership-only and widened its saved selected window: resolveOwnedReplay and computeOwnedActualFor accepted it, crediting B with 29 minutes instead of 11. ARCH-SECURE requires contradictory persisted evidence to fail visibly. Reject ownership-only evidence naming any canonical issue branch, matching SelectBranchActivity's rule, and add a regression through saved-input replay.
 
+## Round 2 — 2026-10-23T20:58:04-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — actualbranch.go:311 rejects ownership-only intervals naming any canonical issue branch. Saved-replay and direct-execution regressions cover both own and foreign branches. Removing only this guard with a temporary Go overlay made both regressions fail; foreign replay again credited 29 minutes instead of 11. The pinned-head tests pass.
+
 ## Open findings
 
-- **BR-1** [Important] `retained-attribution-consistency` (kind: defect) Ownership-only replay accepts a witnessed foreign issue branch
+(none — every finding has been disposed)

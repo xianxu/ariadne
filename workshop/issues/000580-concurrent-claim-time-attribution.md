@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "16d489ad", done: "ec9e255c"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Active-time attribution cross-counts concurrent same-slot claims instead of active branches
@@ -58,6 +58,8 @@ Pure selector controls now pass (0.150s): exact concurrent A/B partition, no cre
 Pure HEAD-history decoder plus native worktree controls are green (0.721s). Native RED identified missing-tab creation and paired rename records, now normalized only in those exact forms. Decoder also refuses partial records, object-chain gaps, reversed timestamps and contradictory branch/tip witnesses, and preserves detached/unsupported intervals as unknown. Found and corrected a plan assumption: active-time currently has no ownership route. Authenticated TL approved the default tracked-repo semantic change (explicit dirs/time bounds only narrow eligibility; multi-issue intervals partition before allocation; no-tracker behavior unchanged), now recorded in Revisions before wiring. Production incident remains RED; no production resolver integration or full suite has run.
 
 ### 2026-10-23 20:03 PDT — production resolver branch selection
+- 2026-10-23: closed — Two-claim production resolver and real-command fixture partition A 17min/B 11min; disabling selection reproduces foreign tail attribution. BR-1 saved-replay canonical-kind contradictions fail before the fix and reject after it. Corrected private executable conformance 8.194s, focused race 8.122s, Go catalog 1.392s; prior broad owned/replay controls pass. Fresh final-code pre-close suite queued; its pass remains required before landing.; review verdict: SHIP
+- 2026-10-23: flow upgraded quick → full — 1558 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 The incident resolver regression is GREEN (3.738 s), retaining A’s unadopted tail exclusion and B’s switch boundary. Added expired-log refusal and private native capture controls for separate worktree logs, truncated/malformed/oversized history and cancellation; combined targeted controls pass (5.441 s). Immutable tracker event reads now retain lifecycle status, with the existing engagement derivation unchanged (tracker targeted tests 2.371 s). Source selection is wired before measurement persistence; additive audit provenance, standalone command wiring and the rest of the verification matrix remain unfinished. No suite, close or PR yet.
 
