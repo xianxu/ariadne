@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "7f08b9d8", done: "3887c8fb"}
 ---
 
 # Train repos: pre-close and boarding use the affected check, so the full suite runs once, in the train
