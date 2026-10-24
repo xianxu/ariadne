@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
-estimate_hours: 3.1
-card_mirror: '0b28a928e17f167cd9ad5551a6f383effdd79b62' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.48
+card_mirror: 'a9ff96093e6cad6fac95df6aeccc7b57d966cbcd' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T15:03:56-07:00
 claimant:
     operator: Xian Xu
@@ -43,8 +43,6 @@ This is a prerequisite for Pair#853, not stacked work. ops:0 assigned ariadne:5 
 - Certificate read semantics and migration boundary are documented, with invalid/older data conservatively handled and opaque future metadata preserved on rewrites.
 - Policy/selector/shared harness changes retain full selection; cmd/couch test narrowing has a qualified consumer path without reducing native fixture coverage.
 - Compatibility, trusted-policy provenance, deleted/renamed path behavior and bounded mapping cost are tested. No new per-file subprocess or unbounded group multiplication.
-- M2: a parley-style traceability file declared in affected.json, read from main, makes a change to an entry's `code` path select what its `tests` paths select. A Go test file selects its package, and a non-Go test selects the group whose `paths` match it. An entry test path that claims nothing goes full, naming the entry. Parsing is strict, and parley's real `atlas/traceability.yaml` parses as a golden.
-- M3: when the merged-head suite fails at merge and main's baseline passes, each introduced Go-test failure whose package the branch's affected selection would not have run is recorded as a missed mapping. A train failure attributed to a car whose affected record missed the package is recorded the same way. Nothing is recorded for a red main baseline, a full selection or a bare test name, and recording never changes the gate's outcome. `sdlc affected missed list` shows open entries and drops those main's mapping now covers; `dismiss` removes one. The ledger is deduped, capped and locked, and keeps unknown members on rewrite.
 
 ## Estimate
 
@@ -56,18 +54,11 @@ item: smaller-go-module      design=0.1  impl=0.2
 item: smaller-go-module      design=0.05 impl=0.16
 item: atlas-docs             design=0.05 impl=0.06
 item: milestone-review       design=0.0  impl=0.16
-item: smaller-go-module      design=0.1  impl=0.16
-item: atlas-docs             design=0.02 impl=0.04
-item: milestone-review       design=0.0  impl=0.12
-item: greenfield-go-module   design=0.3  impl=0.32
-item: smaller-go-module      design=0.1  impl=0.16
-item: atlas-docs             design=0.02 impl=0.04
-item: milestone-review       design=0.0  impl=0.16
 design-buffer: 0.15
-total: 3.1
+total: 1.48
 ```
 
-M1 = rows 1–5: mapping, sidecar and config parse; Plan integration with the loader and the gitx extraction; the qualification fixture and benchmark; atlas; review. M2 = rows 6–8: traceability. M3 = rows 9–12: ledger, merge hook and CLI; train hook; atlas; review.
+M1's rows: mapping, sidecar and config parse; Plan integration with the loader and the gitx extraction; the qualification fixture and benchmark; atlas; review. The M2 and M3 rows (originally 3.1h in total) moved to ariadne#616 with their scope.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
@@ -77,8 +68,8 @@ Durable plan: [workshop/plans/000598-affected-declared-input-ownership-plan.md](
 
 - [x] Design the generic ownership seam and certificate-read consumer contract (plan above; sent to ops:0 for approval).
 - [x] M1 — owners, full exceptions and sidecars (what pair#853 needs)
-- [ ] M2 — parley-style traceability input
-- [ ] M3 — missed mappings recorded at merge, listed for curation
+- M2 (parley-style traceability input): moved to ariadne#616; see Revisions.
+- M3 (missed mappings at merge): moved to ariadne#616; see Revisions.
 
 ## Log
 
@@ -119,4 +110,13 @@ M1 closed SHIP at round 2 (d595e3b01). Its two advisory Minors are fixed in the 
 
 Reason: the operator wants a curated low-tech mapping as the backbone, plus two separable additions: parley-style traceability input (M2) and missed-mapping recording at merge (M3). The TL approved M1. M2 and M3 wait on the operator's go.
 Delta: two Done-when bullets (M2, M3). The Plan's M2/M3 rows and the durable plan's sections for them. M1's scope is unchanged.
+
+### 2026-10-24: M2 and M3 moved to ariadne#616 (ops:0)
+
+Reason: the TL asked for M1 to land alone so pair#853 can proceed. M2 (traceability input) and M3 (the missed-mapping ledger) still wait on the operator's go.
+Delta:
+- Removed the M2 and M3 Done-when bullets and Plan rows; their acceptance criteria now live in ariadne#616, filed unclaimed.
+- #598 closes on M1's scope, the original issue's Done-when.
+- The durable plan keeps M2's and M3's design as #616's reference.
+- Estimate re-derived to M1's own rows: 3.1h → 1.48h, the same derivation minus the moved rows.
 

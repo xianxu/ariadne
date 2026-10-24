@@ -181,25 +181,25 @@ collaboration-mode: discussion
 - [x] Qualification test: a fixture modeled on pair's `affected.json` minus `tests/**`, plus the sidecars. `tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json` selects `…/cmd/internal/testcouch/agentfixture` and its dependents. `cmd/couch/x_test.go` with `except` selects `cmd/couch`. `cmd/couch/main.go` stays full. `scripts/test-affected.py` (the selector) stays full.
 - [x] Benchmark: 2,000 paths × 600 sidecars × 600 glob rules.
 - [x] atlas `ci-merge-check.md` "The affected suite": owners, `except` and sidecars, a rewrite of "What the graph can't see" (a declared owner is now the answer for a non-Go input a Go test reads), and the older-binary fallback.
-- [ ] `sdlc milestone-close --issue 598 --milestone M1`
+- [x] `sdlc milestone-close --issue 598 --milestone M1`
 
 ### M2: parley-style traceability input
 
-- [ ] `config.go`: the `traceability` member. `Compile` takes a sources struct (sidecars, traceability files) rather than growing one more parameter (M1 review).
-- [ ] `traceability.go` `ParseTraceability` with strict tests: parley's real file as a golden (copied into testdata), a bad version, unknown keys, non-string paths.
-- [ ] Plan tests: a code path selects the test files' package (Go) or group (non-Go `paths` match). A test path that claims nothing goes full, naming the traceability entry.
-- [ ] atlas: the traceability input, and that parley's own `make test-spec` reads the same file unchanged.
-- [ ] `sdlc milestone-close --issue 598 --milestone M2`
+- (moved to ariadne#616) `config.go`: the `traceability` member. `Compile` takes a sources struct (sidecars, traceability files) rather than growing one more parameter (M1 review).
+- (moved to ariadne#616) `traceability.go` `ParseTraceability` with strict tests: parley's real file as a golden (copied into testdata), a bad version, unknown keys, non-string paths.
+- (moved to ariadne#616) Plan tests: a code path selects the test files' package (Go) or group (non-Go `paths` match). A test path that claims nothing goes full, naming the traceability entry.
+- (moved to ariadne#616) atlas: the traceability input, and that parley's own `make test-spec` reads the same file unchanged.
+- (moved to ariadne#616) `sdlc milestone-close --issue 598 --milestone M2`
 
 ### M3: missed mappings
 
-- [ ] `missed.go` `Missed`, getting each failure's package from the existing `flakes.SplitTest`. Table test covering bare names and full selections.
-- [ ] `affected_missed.go` ledger: lock, dedupe, cap, round-trip of unknown members, two concurrent writers.
-- [ ] `suitebaseline.go` hook: record only when the main baseline passed and the selection was not full. A test with a fake run pair shows a recorded miss, no record on a red main, and no record for a full selection.
-- [ ] Train attribution hook: a culprit car whose affected record missed the failing package records the same entry. The test extends `landingtrain_attribution_test.go`.
-- [ ] `sdlc affected missed list|dismiss` with help text; auto-drop of entries that main now covers.
-- [ ] atlas: the curation loop.
-- [ ] `sdlc close --issue 598`
+- (moved to ariadne#616) `missed.go` `Missed`, getting each failure's package from the existing `flakes.SplitTest`. Table test covering bare names and full selections.
+- (moved to ariadne#616) `affected_missed.go` ledger: lock, dedupe, cap, round-trip of unknown members, two concurrent writers.
+- (moved to ariadne#616) `suitebaseline.go` hook: record only when the main baseline passed and the selection was not full. A test with a fake run pair shows a recorded miss, no record on a red main, and no record for a full selection.
+- (moved to ariadne#616) Train attribution hook: a culprit car whose affected record missed the failing package records the same entry. The test extends `landingtrain_attribution_test.go`.
+- (moved to ariadne#616) `sdlc affected missed list|dismiss` with help text; auto-drop of entries that main now covers.
+- (moved to ariadne#616) atlas: the curation loop.
+- (moved to ariadne#616) `sdlc close --issue 598`
 
 ## Coordination with pair#853
 
@@ -221,4 +221,8 @@ What each disposition means for selection stays pair's (for example, a `non_go_f
 - `Compile(cfg, sidecars)` takes two arguments until M2, which switches it to a sources struct.
 - Glob rule paths are scanned behind a literal-prefix prefilter (benchmark: 710 → 33 ms/op).
 - `planAffectedSelection` treats a cancelled mapping load as an interruption, not a full selection (BR-3).
+
+### 2026-10-24: M2 and M3 moved to ariadne#616
+
+The TL had M1 land alone for pair#853. The M2 and M3 sections, and Part C, stay here as the approved design ariadne#616 builds on; their rows are no longer #598's checklist.
 
