@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0a3b6838", done: "bf85bccb"}
 ---
 
 # Recorded suites report leaked SysV shared-memory segments; PostgreSQL test harnesses must not leak them
