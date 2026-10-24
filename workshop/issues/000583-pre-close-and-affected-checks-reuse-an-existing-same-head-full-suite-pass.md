@@ -69,4 +69,8 @@ a record for another head never matches (keyed by sha). ARCH-ORDER/FUNERAL/EVOLV
   runs affected; a failed saved suite is not reused, and #394's guard then refuses the affected pass over it).
 - Scope fold: close help FIXED-THEN-SHIP prose names the pre-close check (`TestCloseHelpNamesThePreCloseCheck`);
   swept `--full-suite` docs: atlas `ci-merge-check.md` conflict-resolution line updated, the others were neutral.
+- Close review round 1 (FIX-THEN-SHIP), fixed in-round: the Important (reuse branches untested) adds pre-close
+  resolving to suite (no trains), plain `--name suite` rerunning (2 attempts), and `--boarding` reuse to
+  `TestPreCloseReusesASameHeadSuitePass`; known-flake reuse is `republishSavedPass`'s, covered by `TestKnownFlakeGate`.
+  The Minor: `--pre-close` now prints "resolved to X" before the reuse check, and the reuse line names `--pre-close`.
 

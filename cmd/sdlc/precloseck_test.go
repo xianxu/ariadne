@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strconv"
@@ -104,19 +105,25 @@ func TestLocalCheckCmdPreClose(t *testing.T) {
 			want, other = affectedCheckName, suiteCheckName
 		}
 		if ci.statuses[head]["sdlc-local/"+want] != "success" || ci.statuses[head]["sdlc-local/"+other] != "" ||
-			!strings.Contains(stderr.String(), "--pre-close: running "+want) {
+			!strings.Contains(stderr.String(), "--pre-close: resolved to "+want) {
 			t.Fatalf("trains %v: statuses %v\n%s", trains, ci.statuses[head], &stderr)
 		}
 	}
 }
 
 // #583: a saved, verified suite pass on the exact head covers every
-// selection, so --pre-close and --name affected post it and run nothing; a
-// new head runs as before, and a failed saved suite is never reused.
+// selection, so --pre-close and --name affected (boarding too) post it and run
+// nothing; a plain --name suite reruns, a new head runs as before, and a
+// failed saved suite is never reused. A known-flake-qualified pass reuses by
+// the same republishSavedPass, covered in TestKnownFlakeGate.
 func TestPreCloseReusesASameHeadSuitePass(t *testing.T) {
-	setup := func(t *testing.T, suiteCmd string) (string, *ciFakeGH) {
+	setup := func(t *testing.T, suiteCmd string, trains ...bool) (string, *ciFakeGH) {
+		interval := 60
+		if len(trains) > 0 && !trains[0] {
+			interval = 0
+		}
 		dir := tempRepoWith(t, map[string]string{
-			landingConfigPath:      `{"train_interval_minutes": 60}`,
+			landingConfigPath:      fmt.Sprintf(`{"train_interval_minutes": %d}`, interval),
 			affectedConfigPath:     `{"version":1,"command":["make","test-affected"],"groups":[{"name":"fixture","paths":["feature.txt","next.txt"]}]}`,
 			localChecksPath:        `{"version":1,"checks":[{"name":"suite","command":["sh","-c",` + strconv.Quote(suiteCmd) + `],"required":true,"known_flakes":"off"}]}`,
 			"Makefile":             "test-affected:\n\t@echo affected\n",
@@ -151,7 +158,7 @@ func TestPreCloseReusesASameHeadSuitePass(t *testing.T) {
 		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err != nil {
 			t.Fatal(err)
 		}
-		for _, f := range []localCheckFlags{{PreClose: true, Rev: "HEAD"}, {Names: []string{affectedCheckName}, Rev: "HEAD"}} {
+		for _, f := range []localCheckFlags{{PreClose: true, Rev: "HEAD"}, {Names: []string{affectedCheckName}, Rev: "HEAD"}, {Names: []string{affectedCheckName}, Rev: "HEAD", Boarding: true}} {
 			var stderr bytes.Buffer
 			if err := runLocalCheckCmd(ctx, &stderr, f); err != nil {
 				t.Fatalf("%+v: %v\n%s", f, err, &stderr)
@@ -162,6 +169,28 @@ func TestPreCloseReusesASameHeadSuitePass(t *testing.T) {
 		}
 		if n := suiteRuns(t, dir); n != 1 {
 			t.Fatalf("%d suite attempts, want the one explicit run", n)
+		}
+		// A plain --name suite is an explicit request: it reruns.
+		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err != nil {
+			t.Fatal(err)
+		}
+		if n := suiteRuns(t, dir); n != 2 {
+			t.Fatalf("%d suite attempts after an explicit --name suite, want 2", n)
+		}
+	})
+
+	// Without trains --pre-close resolves to suite and still reuses the pass.
+	t.Run("pre-close resolving to suite reuses", func(t *testing.T) {
+		dir, _ := setup(t, "echo suite", false)
+		if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{suiteCheckName}, Rev: "HEAD"}); err != nil {
+			t.Fatal(err)
+		}
+		var stderr bytes.Buffer
+		if err := runLocalCheckCmd(ctx, &stderr, localCheckFlags{PreClose: true, Rev: "HEAD"}); err != nil {
+			t.Fatalf("%v\n%s", err, &stderr)
+		}
+		if !strings.Contains(stderr.String(), "resolved to suite") || !strings.Contains(stderr.String(), "covered by its saved suite pass") || suiteRuns(t, dir) != 1 {
+			t.Fatalf("pre-close (suite) did not reuse: %d attempts\n%s", suiteRuns(t, dir), &stderr)
 		}
 	})
 

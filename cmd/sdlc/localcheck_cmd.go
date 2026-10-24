@@ -168,7 +168,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 	mainHead = strings.TrimSpace(mainHead)
 	if f.PreClose {
 		name, why := resolvePreCloseCheck(git, mainHead)
-		fmt.Fprintf(stderr, "==> local-check --pre-close: running %s (%s)\n", name, why)
+		fmt.Fprintf(stderr, "==> local-check --pre-close: resolved to %s (%s)\n", name, why)
 		f.Names = []string{name}
 	}
 	out, err := git("rev-parse", "--verify", f.Rev+"^{commit}")
@@ -242,7 +242,11 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(stderr, "==> local-check %s on %s: covered by its saved suite pass; nothing to run (#583)\n", strings.Join(f.Names, ","), abbrevSHA(rec.SHA))
+			what := "--name " + strings.Join(f.Names, ",")
+			if f.PreClose {
+				what = "--pre-close"
+			}
+			fmt.Fprintf(stderr, "==> local-check %s on %s: covered by its saved suite pass; nothing to run (#583)\n", what, abbrevSHA(rec.SHA))
 			return nil
 		}
 	}
