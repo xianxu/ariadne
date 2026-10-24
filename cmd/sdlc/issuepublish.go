@@ -115,6 +115,26 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 			first = append(first, n)
 		}
 	}
+	// #579: every issue's links are judged before anything is published.
+	mergeBase, err := env.git("merge-base", "HEAD", view.Ref())
+	if err != nil {
+		return fmt.Errorf("this checkout shares no history with main: %w", err)
+	}
+	for _, n := range nums {
+		id := fmt.Sprintf("%06d", n)
+		rel, carry := locations[id], true
+		if rel == "" {
+			card, _ := snap.Require(id)
+			rel, carry = path.Join(dirs.Rel[0], path.Base(card.Path)), false
+		}
+		data, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(rel)))
+		if err != nil {
+			continue // the publication reports a missing details file
+		}
+		if _, err := publishSideDocs(execSideLinkGit, env.root, rel, data, view, env.main.ViewOf(mergeBase), carry); err != nil {
+			return fmt.Errorf("#%d: %w — nothing was published", n, err)
+		}
+	}
 	for _, n := range first {
 		if err := runMoveDetail(ctx, stdout, stderr, &moveDetailFlags{Issue: n, IssuesDir: issuesDir, DryRun: dryRun}); err != nil {
 			return err

@@ -49,10 +49,10 @@ Discussion: ops `session.side/2026-10-23-07-side-docs-in-process-artifacts.md`.
 
 Durable plan: [000579 plan](../plans/000579-unified-marker-rule-in-agents-1-process-artifact-side-docs-committed-sdlc-plan.md).
 
-- [ ] The rule in prose: AGENTS.base.md §1, review convention §6, collaboration-modes §4
-- [ ] `sidedoc.LocalLinks` extracted; `RebaseLinks` over it
-- [ ] `linkguard` census; the side-links gate in change-code, close and issue publish
-- [ ] (D1) publish carries the side docs the details link to
+- [x] The rule in prose: AGENTS.base.md §1, review convention §6, collaboration-modes §4
+- [x] `sidedoc.LocalLinks` extracted; `RebaseLinks` over it
+- [x] `linkguard` census; the side-links gate in change-code, close and issue publish
+- [x] (D1) publish carries the side docs the details link to
 - [ ] atlas, targeted runs, recorded suite
 
 ## Log
@@ -60,3 +60,7 @@ Durable plan: [000579 plan](../plans/000579-unified-marker-rule-in-agents-1-proc
 ### 2026-10-23
 - Claimed and started from ariadne:5 after #565 landed. Survey: publish carries only details and `assets/`; change-code's checkpoint commits issue, plan and gate ledger; nothing commits `.side/` before the archive. So a refusal at publish from a resting branch has no "commit it" fix unless publish carries linked side docs: decision D1 to the TL.
 - The link grammar already lives in `sidedoc.RebaseLinks`; the guard reuses it via an extracted `LocalLinks` (ARCH-DRY).
+- TL approved the plan and D1 (publish carries linked side docs). change-code inferred the quick flow; the diff will likely upgrade it at close.
+- Built: prose (AGENTS.base §1, review convention §6, collaboration-modes §4, export manifest regenerated); `LocalLinks`; `internal/linkguard` census; the guard in change-code (every flow, before the gate loop, since the gate list is skipped on quick), close/milestone-close (`--no-side-links`, catalog rows) and publish (pre-effect for every issue; carry in the one main commit, finish restores or commits the carried paths). Deviations are in the plan's Revisions.
+- Found while testing: publish's own asset bundle must count as committed (the asset tests refused otherwise); the guard defers to the asset code there. Mutations (no carry; ignored not refused) each fail their tests.
+- Targeted runs: sidedoc, linkguard, processmanual, reviewexport, and `go test ./cmd/sdlc/ -run 'Publish|Close|ChangeCode|GateCatalog|SideLink|Archive|MilestoneClose|Asset'` pass, but for five landing/train tests that fail only on the sandbox's host boot identity (operation not permitted).

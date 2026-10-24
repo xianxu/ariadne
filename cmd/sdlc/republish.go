@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -55,7 +57,19 @@ type republishItem struct {
 	publish                        []byte // the bytes main receives: read, with the card mirror refreshed
 	base                           string // the details body at the merge base of HEAD and main
 	baseOK                         bool
-	write                          bool // false: main already has these details (finish only)
+	write                          bool              // false: main already has these details (finish only)
+	side                           map[string][]byte // side docs carried with the details (#579), by root-relative path
+	sideMain                       map[string][]byte // main's copy of each when judged; nil when main had none
+}
+
+// finishPaths is every path the publication may change in the checkout: the
+// details, the asset bundles and the carried side docs.
+func (it republishItem) finishPaths() []string {
+	paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
+	for _, p := range slices.Sorted(maps.Keys(it.side)) {
+		paths = append(paths, p)
+	}
+	return paths
 }
 
 // republishOwned publishes issues' edited details (mayNotEditDetails) to main in one narrow
@@ -175,6 +189,20 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			}
 		}
 
+		if it.side, err = publishSideDocs(execSideLinkGit, env.root, it.path, it.publish, view, env.main.ViewOf(mergeBase), true); err != nil {
+			return fmt.Errorf("#%s: %w — nothing was published", issue.CLIRef(id), err)
+		}
+		it.sideMain = map[string][]byte{}
+		for p := range it.side {
+			if ok, err := view.Exists(p); err != nil {
+				return err
+			} else if ok {
+				if it.sideMain[p], err = view.Read(p); err != nil {
+					return err
+				}
+			}
+		}
+
 		_, localBody, err := issue.Parse(string(it.publish))
 		if err != nil {
 			return fmt.Errorf("%s: %w", it.path, err)
@@ -187,7 +215,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			return fmt.Errorf("main's %s: %w", it.path, err)
 		}
 		decision := republishDecision(localBody, it.base, it.baseOK, mainBody)
-		if decision == publishNothing && !assetBundlesEqual(it.assets, it.mainAssets) {
+		if decision == publishNothing && (!assetBundlesEqual(it.assets, it.mainAssets) || len(it.side) > 0) {
 			decision = publishWrite
 		}
 		if decision == publishWrite && !assetBundlesEqual(it.baseAssets, it.mainAssets) {
@@ -267,6 +295,22 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 				}
 				for _, p := range delta.Deletes {
 					deletes = append(deletes, path.Join(path.Dir(it.path), p))
+				}
+				for p, b := range it.side {
+					ok, err := v.Exists(p)
+					if err != nil {
+						return gitx.TrunkWrite{}, err
+					}
+					var cur []byte
+					if ok {
+						if cur, err = v.Read(p); err != nil {
+							return gitx.TrunkWrite{}, err
+						}
+					}
+					if judged, had := it.sideMain[p]; ok != had || !bytes.Equal(cur, judged) {
+						return gitx.TrunkWrite{}, fmt.Errorf("#%s: side doc %s changed on main while publishing; rerun `sdlc issue publish --issue %s` — nothing was published", issue.CLIRef(it.id), p, issue.CLIRef(it.id))
+					}
+					w[p] = b
 				}
 				w[it.path] = it.publish
 			}
@@ -361,6 +405,10 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			cwarn(stderr, fmt.Sprintf("%s assets changed while publishing; left unchanged — main has published bytes; reconcile and rerun issue publish", it.path))
 			continue
 		}
+		if p, changed := sideChanged(env.root, it.side); changed {
+			cwarn(stderr, fmt.Sprintf("%s changed while publishing; left as it is — main has the published copy", p))
+			continue
+		}
 		ready = append(ready, it)
 	}
 	restore := func(it republishItem) bool {
@@ -370,7 +418,7 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			return false
 		}
 		paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
-		for _, p := range paths {
+		for _, p := range it.finishPaths() {
 			if err := restoreToHead(env, p); err != nil {
 				cwarn(stderr, fmt.Sprintf("%s not restored: %v", p, err))
 				return false
@@ -408,7 +456,7 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			cwarn(stderr, fmt.Sprintf("%s not written: %v", it.path, err))
 			continue
 		}
-		paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
+		paths := it.finishPaths()
 		for p := range it.inventory {
 			if _, keep := it.assets.Files[p]; !keep {
 				if err := os.Remove(filepath.Join(env.root, filepath.FromSlash(path.Join(path.Dir(it.path), p)))); err != nil && !errors.Is(err, os.ErrNotExist) {

@@ -112,7 +112,7 @@ staging or move rights. See `sdlc stage --help` and the
 | `issue rename`    | (new #566)                  | Move an unstarted issue's card (issue-tracker) then details (main) to a new slug, bytes unchanged; the next step is `tracker.NextRenameStep` over what both refs hold, so a rerun finishes or no-ops. Slugs come from `issue.FileSlug` (every filer: 80-byte cap at a word boundary), and `gitx.CheckPathLimits` in `TrunkFile.commitSet` refuses any name over 255 bytes before a candidate exists |
 | `issue set-area` / `set-severity` | (new #348) | Classification setters: areas must be declared (or ancestors of declared values) in main's `.sdlc/vocabulary.json`; severity is the shared enum ([vocabulary](vocabulary.md#repo-defined-enums-348)) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
-| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main), carrying the side docs the details link to (#579). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
 | `trunk publish --path P` | (new #240) | Publish one dirty non-issue workshop Markdown file directly to main from an issue branch, with a CAS and path-level conflict check; the local file remains untouched |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
@@ -462,6 +462,17 @@ with reviewbox.
   `line.lock` mutex. A ticket appears already locked (it is written under a
   temporary name and renamed into place), so a scan never takes a new ticket for
   a dead one.
+- **Side-link guard (#579).** Before an issue's text reaches main, every relative
+  link in it must name a committed file (`cmd/sdlc/linkguard.go`, the pure census
+  in `internal/linkguard`, the link grammar shared with the archive's
+  `sidedoc.LocalLinks`). A target is committed, uncommitted, git-ignored or absent;
+  uncommitted and ignored refuse, absent (dangling) passes, and linked side docs are
+  walked in turn. `change-code` (every flow) and `close`/`milestone-close` judge the
+  issue, its plans and the active projects referencing it against HEAD
+  (`--no-side-links` or `--force` bypasses). `issue publish` judges the details
+  against main before any effect, with no bypass, and carries the linked side docs:
+  regular files inside the issue's own `.side/` folder that main lacks or holds
+  unchanged since base (the asset bundle stays the asset code's).
 - **Merge intents (#565).** These are the one landing record that outlives its
   process.
   - **What it is.** `sdlc merge` writes `intents/<key>` for its branch (branch,

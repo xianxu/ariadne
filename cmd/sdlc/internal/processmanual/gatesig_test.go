@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-// The 16 spine bypass gates (#172 + #180), by distinct flag name — the closed vocabulary
+// The 19 spine bypass gates (#172 + #180, #579), by distinct flag name — the closed vocabulary
 // the friction audit measures. `no-start` (claim) is a workflow toggle, not a gate.
 func TestGateFlagNames(t *testing.T) {
 	got := GateFlagNames()
 	want := []string{
 		"no-actual", "no-atlas", "no-ci", "no-done-when-fresh", "no-estimate", "no-estimate-recon",
 		"no-integrate", "no-judge", "no-ledger", "no-mvp", "no-plan-check", "no-project", "no-reclose-guard", "no-retro",
-		"no-structural", "no-validate", "no-verdict", "no-verified",
+		"no-side-links", "no-structural", "no-validate", "no-verdict", "no-verified",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("GateFlagNames() = %v, want %v", got, want)
@@ -26,10 +26,10 @@ func TestGateFlagNames(t *testing.T) {
 func TestGateFlagsForCommand(t *testing.T) {
 	cases := map[string][]string{
 		"close": {"no-actual", "no-atlas", "no-done-when-fresh", "no-integrate", "no-judge", "no-ledger", "no-plan-check",
-			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
+			"no-project", "no-reclose-guard", "no-side-links", "no-verdict", "no-verified"},
 		"milestone-close": {"no-actual", "no-atlas", "no-integrate", "no-judge", "no-ledger", "no-plan-check",
-			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
-		"change-code":   {"no-estimate", "no-estimate-recon", "no-judge", "no-structural"},
+			"no-project", "no-reclose-guard", "no-side-links", "no-verdict", "no-verified"},
+		"change-code":   {"no-estimate", "no-estimate-recon", "no-judge", "no-side-links", "no-structural"},
 		"merge":         {"no-ci", "no-judge", "no-validate"},
 		"push":          {"no-judge", "no-validate"},
 		"project close": {"no-mvp", "no-retro"},

@@ -127,3 +127,9 @@ Holds no state between events: each verb computes the census once before its fir
 ## Revisions
 
 - **2026-10-23** — TL (ops:0) approved the plan as written, and D1 as recommended: publish carries the side docs the details link to (regular files inside the issue's own `.side/` only, a closed set like assets), because side docs must be usable while shaping. Task 4 is in scope.
+- **2026-10-23** — as built:
+  - change-code's check runs on every flow, before the gate loop, not as a `changeCodeGates` row: that list is skipped entirely on the quick flow (`activeChangeCodeGates`). Same `--no-side-links` flag, same `--force <reason>` bypass and catalog row (G2).
+  - `issue publish` judges only what it publishes, the details (plans and projects reach main through the branch, where change-code and close judge them). A first publication (pre-#308 transfer) carries no side docs, so a link main lacks refuses there.
+  - The issue's own asset bundle counts as committed at publish: publication carries and checks it.
+  - No `-`-leading rule: targets reach git after `--` or as `tree:path`. Committed means `ls-tree` lists it (HEAD, or main for publish); ignored means `ls-files --others --ignored --exclude-standard` lists it.
+  - A carried side doc is written only if main lacks it or holds the base's copy, re-checked inside the publish commit; the checkout finish restores (rest) or commits (issue branch) the carried paths with the details.
