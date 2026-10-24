@@ -432,6 +432,7 @@ func printActual(w io.Writer, res actualResult, milestone string) {
 	switch res.Status {
 	case actualMeasured:
 		printActualMeasurement(w, res)
+		fmt.Fprintf(w, "  confidence: %s\n", classifyActual(res))
 		fmt.Fprintf(w, "  → close (or milestone-close, for a --milestone measurement) ADOPTS this when --actual is omitted (#178, #234)\n")
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))
@@ -448,7 +449,7 @@ func printActual(w io.Writer, res actualResult, milestone string) {
 			for _, exclusion := range res.Exclusions {
 				fmt.Fprintf(w, "  excluded %.2f minutes during %s → %s: already adopted by issue #%s in slot %s\n", exclusion.Minutes, exclusion.Start.Format(time.RFC3339Nano), exclusion.End.Format(time.RFC3339Nano), exclusion.Issue, exclusion.Slot)
 			}
-			fmt.Fprintf(w, "  → close with %s and record this exclusion.\n", rerunCmd(issueStr, milestone, " --no-actual"))
+			fmt.Fprintf(w, "  → close records this as unmeasured (actual_hours: N/A); no flag is needed (#603).\n")
 		} else {
 			cwarn(w, fmt.Sprintf("found no measurable activity for #%s; ask the TL/hub to restore its ownership/source evidence, then re-run sdlc actual --issue %s.", issueStr, issueStr))
 		}
@@ -461,7 +462,7 @@ func printActual(w io.Writer, res actualResult, milestone string) {
 			if len(ids) > 1 {
 				subject = "legacy suite attempts " + strings.Join(ids, ", ") + " lack"
 			}
-			fmt.Fprintf(w, "  → %s exact queue endpoints; those timestamps were never recorded and cannot be restored. Exclude this actual from calibration with:\n    %s\n  Include the attempt ID(s) and reason with the verification evidence.\n", subject, rerunCmd(issueStr, milestone, " --no-actual"))
+			fmt.Fprintf(w, "  → %s exact queue endpoints; those timestamps were never recorded and cannot be restored. Close records such an actual as an upper bound with no calibration weight (#603); a correction needs exact evidence.\n", subject)
 		} else if res.Recovery != "" {
 			fmt.Fprintf(w, "  → %s; record subsequent owned work, then re-run sdlc actual --issue %s.\n", res.Recovery, issueStr)
 		} else if strings.Contains(res.Detail, "retained measurement code head differs") {

@@ -176,6 +176,10 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// apply; arbitrary strings still fail instance validation (#135).
 	estimate_hours?: (number & >0) | null
 	actual_hours?:   (number & >0) | #ActualNotApplicable | null
+	// #603: how much of a measured actual was attributed, written by close in a
+	// repository without an issue tracker (a tracker repository carries it as
+	// the Close-Actual-Confidence evidence trailer instead).
+	actual_confidence?: =~"^(exact|partial|unmeasured)( |$)"
 	// flow is MODELED rather than left to the open `...` below, because a typo'd
 	// value (kind: quikc) would otherwise pass every gate silently (#231).
 	flow?: #Flow

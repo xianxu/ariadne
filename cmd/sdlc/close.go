@@ -62,7 +62,10 @@ type closeFlags struct {
 	// nil when --actual was typed, which the ledger records as split_source manual.
 	Split     *actualSplit
 	Inputs    *gatestate.MeasurementInputs
-	Verified  string
+	// Confidence is the measured actual's confidence (#603); nil when --actual
+	// was typed or measurement was skipped.
+	Confidence *actualConfidence
+	Verified   string
 	Force     bool
 	DryRun    bool
 	BrainDir  string
@@ -449,15 +452,12 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// GUESSED hours; a value sdlc measured itself can't be a guess, so the old
 	// compute-then-ask refusal ("→ close with: --actual N", copied verbatim
 	// ~45/48 times — the spine's second-largest refusal volume, #172) is now an
-	// adoption with a loud info line. Unmeasurable statuses keep the refusal.
+	// adoption with a loud info line. #603: an unmeasurable status no longer
+	// refuses either; close records it as unmeasured and proceeds.
 	adopted := false
 	if f.Actual == "" && !f.skip("actual") {
-		if res, ok := adoptOmittedActual(stderr, f, issueStr, mode); ok {
-			adopted = true
-		} else {
-			explainActual(stderr, issueStr, mode, f.Milestone, res)
-			exitWithCode(1)
-		}
+		adoptOmittedActual(stderr, f, issueStr, mode)
+		adopted = f.Actual != ""
 	}
 
 	if f.Actual != "" {
@@ -479,9 +479,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 	}
 
-	if f.Actual == "" {
-		// Reachable only via --no-actual/--force (the omit-path above either
-		// adopted or exited): genuinely nothing to measure.
+	if f.Actual == "" && !f.unmeasured() {
+		// Reachable only via --no-actual/--force (the omit-path above adopted
+		// or recorded unmeasured): genuinely nothing to measure.
 		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
 	}
 	if f.FixedThenShip || f.FullSuite != "" {
@@ -796,14 +796,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			newFM = issue.SetField(newFM, "status", "codecomplete")
 			if f.Actual != "" {
 				newFM = issue.SetField(newFM, "actual_hours", f.Actual)
-			} else if f.skip("actual") {
+			} else if f.skip("actual") || f.unmeasured() {
 				newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
+			}
+			if f.Confidence != nil {
+				newFM = issue.SetField(newFM, "actual_confidence", f.Confidence.String())
 			}
 			newFM = issue.SetField(newFM, "updated", today)
 			msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
 			if f.Actual != "" {
 				msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
-			} else if f.skip("actual") {
+			} else if f.skip("actual") || f.unmeasured() {
 				msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
 			}
 			applied = append(applied, msg)
@@ -1152,6 +1155,10 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 	}
 	if f.Split != nil {
 		row.BuildHours, row.ConvergeHours = f.Split.Build, f.Split.Converge
+	}
+	if f.Confidence != nil {
+		// #603: calibration weights the row by how much of it was attributed.
+		row.Confidence, row.AttributedShare = string(f.Confidence.Level), f.Confidence.Share()
 	}
 
 	if err := withActualCalibrationLock(commandContext(f.Context), stderr, ledgerPath, func() error {
@@ -1780,62 +1787,52 @@ func formatAdoptLine(res actualResult) string {
 	return line + ")"
 }
 
-// adoptOmittedActual is the omit-path wiring (#178): measure once via the seam,
-// adopt into f.Actual on success (deviation check is then skipped — it would
-// compare the measurement with itself), print the info line. On unmeasurable
-// statuses it returns ok=false with NO side effects — the caller explains
-// (reusing the same measurement) and exits.
+// adoptOmittedActual is the omit-path wiring (#178): measure once via the seam
+// and adopt the outcome, whatever it is (#603). A measured value goes into
+// f.Actual with its confidence; an unmeasurable one leaves f.Actual empty and
+// records confidence unmeasured, so close writes N/A and proceeds instead of
+// refusing. Either way the deviation check is skipped: it would compare the
+// measurement with itself.
 //
 // A milestone close adopts its own increment (#234 E1): the measurement keeps
 // only that milestone's phases, so per-milestone values never double-count
 // across project detail blocks (the #178 reason milestones once refused).
+// ok reports whether a number was adopted.
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
 	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
+	c := classifyActual(res)
+	f.Confidence = &c
 	v, ok := resolveOmittedActual(res)
 	if !ok {
+		explainActual(stderr, issueStr, mode, f.Milestone, res)
 		return res, false
 	}
 	f.Actual, f.Split, f.Inputs = v, res.Split, res.Inputs
 	cinfo(stderr, formatAdoptLine(res))
+	if c.Level == confidenceExact {
+		cinfo(stderr, "measured actual confidence: exact")
+	} else {
+		cwarn(stderr, "measured actual confidence: "+c.String())
+	}
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
 	}
 	return res, true
 }
 
-// explainActual is now the UNMEASURABLE explainer (#178): the omit-path adopts
-// a successful measurement, so this renders only when the engine couldn't
-// produce a number — res (already computed by the caller) says what evidence
-// needs recovery. Hours must not be invented to get past this refusal.
+// unmeasured reports a close whose measurement produced no number (#603).
+func (f *closeFlags) unmeasured() bool {
+	return f.Confidence != nil && f.Confidence.Level == confidenceUnmeasured
+}
+
+// explainActual tells the operator an unmeasurable close is proceeding without
+// hours (#603) and how to fill them in later. It renders the same diagnosis as
+// sdlc actual; hours must still never be invented.
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
-	var head []string
-	legacy := len(legacyQueueAttemptIDs(res.QueueBlockers)) > 0
-	excluded := res.Status == actualEmptyWindow && len(res.Exclusions) > 0
-	if res.Recovery != "" {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — record ownership below.%s", ansiRed, mode, ansiReset), "")
-	} else if legacy || excluded {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
-	} else {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
-	}
-	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
-	head = append(head, "             (a measured value is adopted automatically; you only land here", "             when the engine can't measure — the status below says why)", "")
-	fmt.Fprintln(stderr, strings.Join(head, "\n"))
-
-	// #68 M2: render the engine's diagnosis (telemetry gap / no window / error)
-	// with its next-action guidance. Same engine as `sdlc actual`; the caller
-	// already ran it — no re-measure.
+	c := classifyActual(res)
+	cwarn(stderr, fmt.Sprintf("measured actual unavailable for this %s close: recording actual_hours: %s, confidence %s", mode, issue.ActualNotApplicableSentinel, c))
 	printActual(stderr, res, milestone)
-	if legacy || excluded {
-		return
-	}
-
-	var tail []string
-	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	tail = append(tail, "    "+rerunCmd(issueStr, milestone, ""), "")
-	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
-	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
-	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
+	fmt.Fprintf(stderr, "  → close proceeds (#603); once the evidence is restored, fill the value with sdlc issue correct-actual --issue %s.\n", issueStr)
 }
 
 // resolveActualRoots returns the repo top (cwd fallback) and the sibling brain

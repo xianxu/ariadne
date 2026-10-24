@@ -469,7 +469,12 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	// identity a rebase or a merge of main cannot rewrite, so the landing still finds
 	// the close after the evidence commit's SHA changed.
 	token := operationToken("close")
-	message := fmt.Sprintf("#%s: close\n\n%s\nClose-Actual: %s\n%s: %s", issue.CLIRef(id), strings.Join(reviewTrailers(review), "\n"), actual, closeTokenTrailer, token)
+	confidence := ""
+	if f.Confidence != nil {
+		// #603: how much of the actual was attributed rides beside it.
+		confidence = "\nClose-Actual-Confidence: " + oneLine(f.Confidence.String())
+	}
+	message := fmt.Sprintf("#%s: close\n\n%s\nClose-Actual: %s%s\n%s: %s", issue.CLIRef(id), strings.Join(reviewTrailers(review), "\n"), actual, confidence, closeTokenTrailer, token)
 	spec := tracker.ReceiptSpec{Token: token, Repository: env.target.Repository, IssueID: id,
 		CardPath: card.Path, SourcePath: entries[0].Path, DestinationPath: entries[0].Path, SourceBranch: env.branchRef(),
 		SourceBase: reviewed, SourceHEAD: reviewed, ReviewedHEAD: reviewed, SourceBlob: blob, CardOID: card.BlobOID,

@@ -8,7 +8,8 @@ import "sort"
 type ConvergeFactor struct {
 	Model, Flow, Recipe string
 	N                   int
-	Build, Converge     float64 // hours
+	Partial             int     // of N, rows weighted by a partial share (#603)
+	Build, Converge     float64 // weighted hours
 }
 
 // K is Converge / Build, 0 when there is no build.
@@ -21,7 +22,8 @@ func (f ConvergeFactor) K() float64 {
 
 // ConvergeFactors groups the newest row of each issue that carries a split
 // with positive build (#234), by model, flow and review recipe, sorted by that
-// key. Filter, then dedupe: the order NewestPerIssue's contract requires.
+// key. Filter, then dedupe: the order NewestPerIssue's contract requires. Each
+// row's hours count by its CalibrationWeight (#603); a weight-0 row is skipped.
 func ConvergeFactors(rows []LedgerRow) []ConvergeFactor {
 	var eligible []LedgerRow
 	for _, r := range rows {
@@ -32,6 +34,10 @@ func ConvergeFactors(rows []LedgerRow) []ConvergeFactor {
 	idx := map[[3]string]int{}
 	var out []ConvergeFactor
 	for _, r := range NewestPerIssue(eligible) {
+		w := r.CalibrationWeight()
+		if w <= 0 {
+			continue
+		}
 		key := [3]string{r.Model, r.FlowKind, r.ReviewRecipe}
 		i, ok := idx[key]
 		if !ok {
@@ -40,8 +46,11 @@ func ConvergeFactors(rows []LedgerRow) []ConvergeFactor {
 			out = append(out, ConvergeFactor{Model: r.Model, Flow: r.FlowKind, Recipe: r.ReviewRecipe})
 		}
 		out[i].N++
-		out[i].Build += r.BuildHours
-		out[i].Converge += r.ConvergeHours
+		if w < 1 {
+			out[i].Partial++
+		}
+		out[i].Build += w * r.BuildHours
+		out[i].Converge += w * r.ConvergeHours
 	}
 	sort.Slice(out, func(i, j int) bool {
 		a, b := out[i], out[j]
