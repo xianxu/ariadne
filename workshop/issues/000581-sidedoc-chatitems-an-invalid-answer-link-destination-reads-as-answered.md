@@ -76,6 +76,13 @@ untrusted; an unreadable header degrades to "no declarations" plus the notice, n
 ARCH-CONSTRAINTS: still one linear pass; the counted N/2N tests keep guarding it. ARCH-ORDER/FUNERAL: pure parsing,
 holds no state and creates nothing durable.
 
+## Revisions
+
+- 2026-10-23 (implementation): `frontmatter-unread-tag`'s body marker is a command (an s1 edit), not a question
+  opening a side doc, as plan item 3 said. An unread header can hold no `discussions:` index, so a side doc there
+  would have nowhere to be listed; what a round does with a question in such a document is unspecified and left
+  as it is.
+
 ## Log
 
 ### 2026-10-23
