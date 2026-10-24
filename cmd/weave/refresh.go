@@ -13,7 +13,7 @@ import (
 )
 
 func buildRefresh() *cobra.Command {
-	var rebase, substrate, deferSettings, planning bool
+	var rebase, substrate, deferSettings, planning, suiteHelper bool
 	cmd := &cobra.Command{
 		Use:   "refresh",
 		Short: "Explicitly refresh this repository and its substrate dependencies",
@@ -48,6 +48,14 @@ composition still runs; this is not a blanket tracked-file deferral.
 --defer-settings retains the settings-only mode. Run weave refresh --substrate
 from your shell to publish protected settings while preserving an issue branch.
 
+--suite-helper is optional maintenance before a new managed suite. It only
+fast-forwards the verified private sibling ariadne on clean main, under the
+existing environment setup lease. It never compiles, rebuilds, updates the
+consumer or a primary fallback, stashes, resets, or rebases. Busy, dirty,
+off-main, unavailable and uncertain outcomes print one path/reason/repair line;
+the caller keeps existing helper preflight and admission rules. Existing waiters
+retain their loaded policy and drain naturally. Exclusive with other flags.
+
 Refresh does not reserve an issue. Package policy follows weave dependencies:
 numbered slots, Couch contexts and SDLC calls only check packages and print the
 operator's install command when missing. No brew call auto-updates metadata.
@@ -57,6 +65,9 @@ Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 			root, err := os.Getwd()
 			if err != nil {
 				return err
+			}
+			if suiteHelper {
+				return refreshSuiteHelper(cmd.Context(), root, cmd.OutOrStdout())
 			}
 			client, runner, closeSetup, err := prepareSetup(cmd.Context(), root, false, cmd.OutOrStdout(), cmd.ErrOrStderr())
 			if err != nil {
@@ -81,11 +92,15 @@ Ordinary weave compile preserves existing Git revisions; refresh is explicit.`,
 			})
 		},
 	}
+	cmd.Flags().BoolVar(&suiteHelper, "suite-helper", false, "optionally fast-forward only the private main-branch suite-helper supplier; no compile")
 	cmd.Flags().BoolVar(&rebase, "rebase", false, "allow rebasing local commits onto captured origin/main instead of fast-forward only")
 	cmd.Flags().BoolVar(&substrate, "substrate", false, "refresh only declared substrates and compile, preserving this repository's branch and HEAD")
 	cmd.Flags().BoolVar(&deferSettings, "defer-settings", false, "check Claude settings without writing them; operator refresh publishes them")
 	cmd.Flags().BoolVar(&planning, "planning", false, "planning gate: defer seeded entrypoints and protected settings; regenerate explicitly on a dedicated consumer issue branch")
 	cmd.MarkFlagsMutuallyExclusive("planning", "defer-settings")
 	cmd.MarkFlagsMutuallyExclusive("substrate", "rebase")
+	for _, flag := range []string{"rebase", "substrate", "planning", "defer-settings"} {
+		cmd.MarkFlagsMutuallyExclusive("suite-helper", flag)
+	}
 	return cmd
 }

@@ -34,6 +34,7 @@ import (
 // localRunDeps is what a local run touches: GitHub (to record), git in the
 // repository root (worktree and log location), and where to report.
 type localRunDeps struct {
+	refreshSuiteHelper func(context.Context, string, io.Writer) error
 	suiteCapabilities  func(context.Context) error // nil probes the real host; test seam only
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
 	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
@@ -233,7 +234,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	var subject suitePrioritySubject
 	if c.Resource != "runner" {
 		var err error
-		helper, err = prepareSuiteHelper(ctx, d.Root, d.WorkflowAnchor)
+		helper, err = d.prepareSuiteHelper(ctx)
 		if err != nil {
 			return rec, fmt.Errorf("local check %s: %w", c.Name, err)
 		}

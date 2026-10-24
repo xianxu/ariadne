@@ -117,7 +117,7 @@ func resumeSavedSuite(ctx context.Context, d localRunDeps, c localCheck, sha, pa
 	if err != nil {
 		return rec, err
 	}
-	helper, err := prepareSuiteHelper(ctx, d.Root, d.WorkflowAnchor)
+	helper, err := d.prepareSuiteHelper(ctx)
 	if err != nil {
 		return rec, err
 	}

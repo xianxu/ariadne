@@ -413,6 +413,7 @@ branches. On a primary checkout this explicitly includes its declared shared pee
 weave refresh          # all-repository preflight, fast-forward only, then compile
 weave refresh --rebase # explicitly permit replaying local commits, then compile
 weave refresh --substrate # preserve the consumer issue branch; refresh substrates and compile
+weave refresh --suite-helper # optional clean-main private helper update; no compile
 ```
 
 Use `--substrate` from a clean issue branch to adopt newer declared substrates
@@ -420,6 +421,25 @@ without fetching or advancing the consumer repository. Its branch, HEAD, index
 and origin/main remain unchanged; compilation can update generated composition.
 It cannot be combined with `--rebase`. Numbered slots refresh only their private
 substrates, with the same ownership, cleanliness and preflight safeguards.
+
+Before a new managed suite queues, SDLC invokes weave refresh --suite-helper
+once, including merge/train/baseline and saved-resume launches. This narrow mode
+holds the environment setup lease and fast-forwards only the verified private
+sibling ariadne supplying the actual helper, on clean main, to a captured
+origin/main. It never compiles, builds tools, changes the consumer, or updates
+a primary fallback. Dirty, off-main, busy, unavailable or uncertain outcomes
+print one checkout/reason/repair line; inspect and reconcile that checkout, then
+retry the original command. Existing helper preflight and admission still apply.
+The mode is exclusive with other refresh flags. Proof-only resume reposts and
+external runner checks do not refresh; queue status and ticket polling never fetch.
+
+Text queue status names each legacy ticket's current supplying checkout, full
+revision and dirty state, while saying its launch revision is unknown. A later
+source fast-forward cannot upgrade an existing waiter; those waiters drain
+naturally. Missing or redirected owners and unavailable Git evidence stay
+unavailable. These diagnostics do not change queue policy or frozen status JSON.
+The observation adapter disables optional Git writes, including index-cache
+refreshes, so inspecting a supplier also preserves its index bytes.
 
 Planning gates use `weave refresh --planning`: they defer all seeded entrypoints
 (Seed and SeedOnce), including tracked workflows, and the sandbox-protected
