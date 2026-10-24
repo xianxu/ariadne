@@ -9,7 +9,10 @@ WHEN TO USE
   dirs for you and prints one suggested `--actual`. Reach for `sdlc active-time`
   when you want to *inspect* the attribution — check a segment for misclassified
   work, see which commit anchored which minutes, or run a non-default
-  commit-weight. You supply the window and dirs yourself.
+  commit-weight. In a tracker repository, the default is the same verified
+  ownership/branch route as actual and close. Your --dir, --since and --until
+  narrow it; they never bypass it. Repositories without a tracker retain the
+  manual source/window behavior.
 
 THE V3 METHOD (global commit-boundary attribution)
 
@@ -44,6 +47,7 @@ OUTPUT
 
 EXIT CODES (the #68 loud-fail contract)
 
+  1  computation or required tracked-evidence failure (no numeric result).
   2  misinvocation — no --dir (no transcript source) / no --issue / no --git-repo.
   3  TELEMETRY UNAVAILABLE — the window has commits but 0 transcript events (the
      work's transcripts aren't under the given --dir folders or aged out). Never
@@ -57,8 +61,9 @@ FLAGS
   --git-repo <path>          repo to read commits from (required)
   --since / --until <iso>    window bounds (ISO-8601); events/commits outside are skipped
   --branch-point <rev>       scope boundaries to an issue branch forked at <rev> (#270):
-                             only its own commits and commits naming the first --issue
-                             bound segments, as `sdlc actual` does on an issue branch
+                             in no-tracker mode, own commits and those naming the first
+                             --issue bound segments. In tracked mode this can only
+                             narrow each issue’s verified history
   --issue <n>                issue number to track (without #); repeatable, required
   --commit-weight <f>        fraction attributed by commit refs (default 1.0)
   --prefix-commit-weight <f> commit-weight for the prefix segment (defaults to --commit-weight)
@@ -72,12 +77,29 @@ RELATED
 
 ISSUE MEASUREMENT (#335)
 
-  The standalone engine remains a manual source/window tool. sdlc actual supplies
-  ownership-proven source intervals and pinned code/source evidence; close and
-  milestone-close use that same resolver. Use the owning measurement commands
-  when comparing adopted actuals or correcting calibration.
+  Tracker repositories use one shared resolver for actual, close and this
+  command. A witnessed issue branch selects only already-owned, lineage-admitted
+  source intervals. Another issue's branch excludes its time, including
+  its unadopted close/test/landing tail. A sole live reservation can retain
+  planning time without branch proof, labelled ownership-only. Multiple claims
+  with missing, detached, resting or ambiguous branch evidence refuse a number;
+  close's explicit recovery is --no-actual with evidence in --verified.
 
-  Owned `sdlc actual` and close measurements also use recorded machine-suite
+  Multiple --issue values partition source intervals before commit allocation.
+  A different issue's allocation outside its selected partition is left
+  unattributed. Original dispatch admission precedes branch clipping; a later
+  reclaim never revives an earlier task. Explicit directories and timestamps
+  restrict inspection before branch selection, so missing evidence outside the
+  requested window does not block it. A legacy-crossing hybrid snapshot must
+  be inspected through its separately labelled sdlc actual output.
+
+  New branch-classified snapshots use version 3 and branch method names. Older
+  readers must refuse: ignoring the original dispatch windows can silently
+  undercount crossing spans. Old adopted version-1/2 inputs replay unchanged,
+  without consulting today's HEAD log. The hub rebuilds the shared binary after
+  landing; there is no raw-mode default for tracked repositories.
+
+  Tracked actual, close and active-time measurements also use recorded machine-suite
   queue attempts (#420). A wait must belong to the pinned issue engagement
   and have exact queue start/acquisition timestamps. Its interval is removed
   from activity sources mapped to that slot in full. Tool calls, results and
@@ -89,4 +111,4 @@ ISSUE MEASUREMENT (#335)
   measurement for replay. Completed issues keep
   their old snapshot until an explicit `sdlc issue correct-actual` candidate;
   if queue/source provenance is incomplete, correction refuses rather than
-  guessing hours. Standalone `sdlc active-time` has no attempt selection.
+  guessing hours. No-tracker standalone calculation has no attempt selection.

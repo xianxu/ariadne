@@ -24,6 +24,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	res := actualResult{Issue: id, CodeHead: m.CodeHead, Window: m.Since + " → " + m.Until, Warnings: actualExclusionWarnings(inputs.Warnings)}
 	fail := func(err error) actualResult { res.Status, res.Detail = actualError, err.Error(); return res }
+	if err := validateOwnedBranchProof(m, id); err != nil {
+		return fail(err)
+	}
 	if err := ctx.Err(); err != nil {
 		return fail(err)
 	}
@@ -40,7 +43,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
-		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
+		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, DispatchWindows: inputs.DispatchWindows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
 		ProtectedIntervals: inputs.Protected}
 	if inputs.LegacyPrefix != nil {
 		options.SinceISO = inputs.LegacyPrefix.Snapshot.Until
@@ -141,6 +144,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			excluded.ProtectedIntervals = nil
 			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
+			excluded.DispatchWindows = nil
 			if len(m.Engagements) > 0 {
 				excluded.ActivityWindows = make(map[string][]activetime.ActivityWindow)
 			}
@@ -169,6 +173,9 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	}
 	if err := m.Validate(); err != nil {
 		return fail(fmt.Errorf("measurement evidence incomplete: %w", err))
+	}
+	if err := validateOwnedBranchProof(m, id); err != nil {
+		return fail(err)
 	}
 	res.Inputs = &m
 	res.Warnings = append(res.Warnings, carWaitCoverageWarnings(m.CarWaits, m.CarWaitNotes)...)

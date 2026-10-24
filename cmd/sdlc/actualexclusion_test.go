@@ -269,6 +269,28 @@ func TestParkedClaimExcludesOtherAdoptedIssueInSameSlot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// This is an immutable pre-branch-method adoption, not a fresh v3
+	// candidate: its saved ownership-only algorithm credited #649 while the
+	// worktree remained on #636. New attribution must still protect that old
+	// credited interval rather than silently rewriting the historical sample.
+	legacy := prior.Snapshot
+	legacy.Version, legacy.Method = gatestate.MeasurementInputsVersion, gatestate.MeasurementMethodEngagementV1
+	legacy.Branches = nil
+	sessions, _, err := transcripts.DiscoverEvidence(t.Context(), []string{ownerRoot}, transcripts.DefaultHarnesses())
+	if err != nil || len(sessions) != 1 {
+		t.Fatalf("legacy adoption sources: %+v %v", sessions, err)
+	}
+	pin := ownedMeasurementSource(sessions[0], prior.DispatchWindows[file])
+	pin.Slot = owner.Workspace
+	legacy.Sources = []gatestate.MeasurementSource{pin}
+	if err := legacy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	prior, err = ownedReplaySources(legacy, sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prior.Scope.Issue = "649"
 	measured := computeOwnedActualFor(context.Background(), r.root, "649", "", prior)
 	if measured.Status != actualMeasured || measured.Hours <= 0 {
 		t.Fatalf("prior actual: %+v", measured)

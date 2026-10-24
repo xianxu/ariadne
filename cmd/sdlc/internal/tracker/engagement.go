@@ -19,6 +19,9 @@ type OwnershipEvent struct {
 	Owner     *issue.Claimant
 	Operation string
 	Started   time.Time
+	// Status distinguishes a live reservation from a retained terminal owner.
+	// DeriveEngagements deliberately keeps both as attribution evidence.
+	Status string
 }
 
 // EngagementWindow is a half-open interval with all source workspaces that
@@ -155,6 +158,10 @@ func (r *Repository) EngagementHistory(pin, cardPath string) ([]OwnershipEvent, 
 			return nil, err
 		}
 		event := OwnershipEvent{At: rec.at, Operation: rec.operation}
+		event.Status, err = issue.FieldString(card.Frontmatter, "status")
+		if err != nil {
+			return nil, err
+		}
 		if has {
 			event.Owner = &owner
 		}

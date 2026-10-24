@@ -1,0 +1,3 @@
+e4f88aeb4dbb39aab8f25a5dedd384c96ec918a8 bbee4ced16c388ce4643a525585a2100643c35a5 Recorded Fixture <fixture@example.invalid> 1792827862 -0700	checkout: moving from 000842-cast-broadcast-bar-a-send-button-when-sketches-or-annotations-are-pending to main-slot7
+bbee4ced16c388ce4643a525585a2100643c35a5 99846a5015f753f05edaf4778618849f377a2f71 Recorded Fixture <fixture@example.invalid> 1792827872 -0700	merge 99846a5015f753f05edaf4778618849f377a2f71: Fast-forward
+99846a5015f753f05edaf4778618849f377a2f71 99846a5015f753f05edaf4778618849f377a2f71 Recorded Fixture <fixture@example.invalid> 1792827878 -0700	checkout: moving from main-slot7 to 000863-native-fleet-explicit-hub-fleet-start-broken-since-739-second-explicit-hub-fails
