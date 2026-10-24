@@ -38,7 +38,7 @@ Qualify/narrow the matcher using the two counterexamples without weakening actua
 
 Durable plan: [JSON scanner roles](../plans/000590-json-lint-role-counterexamples-plan.md). Approved by ops:0 on 2026-10-24; enter change-code before implementation.
 
-- [ ] Approved role boundaries; capture both Pair counterexamples before implementation.
+- [x] Approved role boundaries; captured both Pair counterexamples before implementation.
 - [ ] Implement positive materializer/oracle role qualification with unchanged true-positive controls, accessible remediation and counted scan tests.
 - [ ] Replay real captures, update guidance, recorded pre-close/close/land, then notify pair:3 to remove its two temporary allows.
 
@@ -58,3 +58,9 @@ Claimed and started from fresh main on 000590-json-lint-role-counterexamples, le
 ### 2026-10-24 — approval
 
 Ops:0 approved the proposed role boundaries (delivery 5cd939f8-dc28-440c-8b78-efec55cf79a4). Plan report receipt b87c22ef-0eb5-4cb5-a657-b92caf348a5e is submitted. #589 retained suite acquired capacity after1053s and is now running in its detached checkout; no restart or cancellation.
+
+### 2026-10-24 — first implementation checkpoint
+
+change-code completed successfully. Captured immutable Pair source files (original allows retained in captures; replay strips only the two relevant annotations). Observed both real captures fail before implementing; both now pass Check and CheckSources. Existing scanner/method/closure fixture expectations remain unchanged and pass. Negative controls retain findings for self-comparison, different input, absent comparison, non-testing fuzz receiver, ordinary caller and escaped helper. Materializer controls caught and fixed overwritten map/slice values and container aliases/address/call escapes; no alternate production dependency or waiver annotation added. A red nested-closure validator control caught a candidate regression; bounded lexical feature propagation now preserves it.
+
+One lexical AST summary visits each node once:8/16 generated helper groups have421/765 AST nodes, with217/433 additional callback-node visits and62/118 graph visits; shared helper paths are visited with memoized membership rather than rescanned per root. Focused TestJSON/TestRules currently pass. Updated remediation names the consumer module's own shared strict decoder; inaccessible internal import advice is gone. Full pkg/race/catalog checks, atlas/lessons, pre-close and boundary review remain. #589's original detached suite continues running and native allocation qualification remains held.
