@@ -229,9 +229,8 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 
 ### M1: close never refuses on measurement
 
-- [ ] **Task 1: `actualConfidence` and `classifyActual`**, test-first in `actualconfidence_test.go`. The table covers every status,
-  every unattributed kind, bounded and unbounded records, the share arithmetic, rendering, and that no transcript content
-  appears.
+- [ ] **Task 1: `actualConfidence` and `classifyActual`**, test-first in `actualconfidence_test.go`. Strategy: a table test over the
+  closed (status × unattributed kind × bounded) domain.
 - [ ] **Task 2: `MeasurementUnattributed`.** Add it in gatestate with strict known fields. Tests cover the JSON and YAML round trip
   and an older-shaped reader rewriting a record without dropping the member.
 - [ ] **Task 3: `ValidateShape` and `ValidateBounds`.** The proof validator calls only `ValidateShape`. Test: more than 128 fresh
@@ -241,11 +240,8 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
   interval is recorded.
 - [ ] **Task 5: per-source attribution failure.** The source is dropped and recorded as `source-attribution`; a lineage cycle
   stays an error. Tests cover a missing owner and an ambiguous owner.
-- [ ] **Task 6: `MeasurementSummary`.** Add the `summary-v1` method, the credited intervals and coalescing. Its tests:
-  - 129 contributing sources, and separately 128 KiB + 1 byte, each give `exact` with a summary.
-  - `TestMeasurementOversizeCountedRefusal` becomes a summary test.
-  - A coalescing bound test at N and 2N credits shows that the output size stays within `MaxSummaryCredits`.
-  - An older-method reader refuses `summary-v1`.
+- [ ] **Task 6: `MeasurementSummary`.** Add the `summary-v1` method, the credited intervals and coalescing. Strategy:
+  the coalescer property test below; each bound (sources, bytes) crossed by one gives a summary.
 - [ ] **Task 7: exclusion against a summary.** `loadAdoptedExclusions` uses `Credited`. Tests: an overlapping later issue is
   measured, Σcredited must match the adopted hours, and widened minutes make the later issue `partial`.
 - [ ] **Task 8: queue degradation**, one test per site in the table. Reuse `testdata/actualqueue`. The hard errors stay
@@ -264,11 +260,7 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 
 - [ ] **Task 11: ledger columns** `confidence` and `attributed_share`. Old rows read as exact. Test the round trip, including an old
   header.
-- [ ] **Task 12: weighted calibration** in `CalibrateForecast`, `ConvergeFactors` and `DriftVerdict` (D3). Tests:
-  - an exact row plus a partial 0.5 row give the weighted point;
-  - a weight-0 row changes nothing;
-  - only rows with share ≥ 0.5 enter the quartiles;
-  - the reported N counts the partial rows.
+- [ ] **Task 12: weighted calibration** in `CalibrateForecast`, `ConvergeFactors` and `DriftVerdict` (D3). Strategy: the property test below.
 - **Test strategy:** weighted calibration gets a property test: adding a row with weight 0 leaves every output unchanged, and an
   all-exact ledger gives exactly today's numbers.
 - [ ] **Task 13: help and atlas.**
