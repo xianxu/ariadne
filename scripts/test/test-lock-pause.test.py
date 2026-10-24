@@ -109,6 +109,14 @@ class QueuePause(unittest.TestCase):
                 os.close(fd)
         return check
 
+    def committed_read(self, path):
+        """path's bytes, read under control.lock: the helper rewrites an operation
+        record in place (its descriptor is the lifetime lease), so an unlocked read
+        can find it empty (#592)."""
+        raw = []
+        self.await_(self.committed(lambda: raw.append(path.read_bytes()) or True), 'control.lock stayed busy')
+        return raw[0]
+
     def paused(self, owners):
         self.queue.mkdir(exist_ok=True)
         mutex = os.open(self.queue / 'control.lock', os.O_CREAT | os.O_RDWR, 0o600)
@@ -151,12 +159,12 @@ class QueuePause(unittest.TestCase):
         self.assertEqual((self.root / 'waiter.out').read_text(), '')
         operations = list((self.queue / 'operations').glob('*.json'))
         self.assertEqual(len(operations), 1)
-        self.assertEqual(json.loads(operations[0].read_text())['phase'], 'waiting')
+        self.assertEqual(json.loads(self.committed_read(operations[0]))['phase'], 'waiting')
         self.paused([])
         self.await_(lambda: helper.poll() is not None, 'resume did not admit queued operation')
         self.assertEqual(helper.returncode, 0)
         self.assertEqual((self.root / 'waiter.out').read_text().strip(), 'acquired')
-        self.assertEqual(json.loads(operations[0].read_text())['phase'], 'running')
+        self.assertEqual(json.loads(self.committed_read(operations[0]))['phase'], 'running')
         owner.terminate()
         owner.wait()
 
@@ -207,7 +215,7 @@ class QueuePause(unittest.TestCase):
         owner, helper = self.start('managed', dict(self.env, WF_SDLC_QUEUE_ID='managed'))
         self.await_(lambda: helper.poll() is not None, 'managed helper did not admit')
         self.assertEqual(helper.returncode, 0)
-        raw = path.read_bytes()
+        raw = self.committed_read(path)
         self.assertIn(b'{ "n" : 1e99999 }', raw)
         self.assertEqual(json.loads(raw)['phase'], 'running')
         slot = json.loads((self.root / 'capacity').read_text())
@@ -235,25 +243,16 @@ class QueuePause(unittest.TestCase):
             _, helper = self.start(name, dict(self.env, WF_SDLC_QUEUE_ID=name))
             self.await_(lambda: helper.poll() is not None, 'invalid managed binding hung')
             self.assertNotEqual(helper.returncode, 0)
-            self.assertEqual(json.loads(path.read_text())['phase'], 'waiting')
+            self.assertEqual(json.loads(self.committed_read(path))['phase'], 'waiting')
 
     def test_fast_cancellation_preserves_unknown_child_lifetime(self):
         self.fast_cancellation(self.env)
 
     def test_fast_cancellation_waits_for_the_whole_retirement(self):
         # retire writes unresolved/, then interrupted/, then unlinks the
-        # operation; a slow unlink keeps that last step visible to an unlocked
-        # read (#592).
-        shim = self.root / 'slow-unlink'
-        shim.mkdir()
-        (shim / 'sitecustomize.py').write_text(
-            'import os, time\n'
-            '_unlink = os.unlink\n'
-            'def unlink(path, *args, **kwargs):\n'
-            '    if os.sep + "operations" + os.sep in str(path) and str(path).endswith(".json"):\n'
-            '        time.sleep(.5)\n'
-            '    return _unlink(path, *args, **kwargs)\n'
-            'os.unlink = unlink\n')
+        # operation; the shim slows the unlink so an unlocked read would see
+        # the step before it (#592).
+        shim = ROOT / 'scripts/test/fixtures/slow-queue-writes'
         path = os.pathsep.join(filter(None, (str(shim), self.env.get('PYTHONPATH'))))
         self.fast_cancellation(dict(self.env, PYTHONPATH=path))
 
