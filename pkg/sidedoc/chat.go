@@ -144,7 +144,7 @@ func chatSections(doc string) (ChatScan, int) {
 		// An unread header is still a header (#581, parley.nvim#419): a tag or
 		// heading inside it declares nothing, so the body starts after it.
 		bodyStart = strings.Count(block, "\n") + 2
-		body = strings.TrimPrefix(strings.TrimPrefix(rest, "\r"), "\n")
+		_, body, _ = strings.Cut(rest, "\n") // the fence line's whole terminator, any CRs included
 	}
 	scalarChat, mapNames := scan.readFrontmatter(fm)
 	work += len(mapNames)

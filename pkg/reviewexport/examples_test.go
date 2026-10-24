@@ -162,10 +162,14 @@ func checkTree(fsys fs.FS) (sides map[string]sideDoc, errs []string) {
 		}
 		// Every index entry names a side doc whose parent: is this document
 		// (collaboration-modes.md §4, "The index").
-		// An unread header (#581) holds no index, so it is an error only in a
-		// document that links a side doc, whose entry would have to live there.
+		// An unread header (#581: a closed leading block frontmatter() refuses)
+		// holds no index, so it is an error only in a document that links a
+		// side doc, whose entry would have to live there. Every other index
+		// error stays an error.
 		entries, err := sidedoc.Entries(text)
-		if err != nil && len(sidedoc.SideLinks(text)) > 0 {
+		_, _, closed := sidedoc.FrontBlock(text)
+		_, readable := sidedoc.Fields(text)
+		if err != nil && (!closed || readable || len(sidedoc.SideLinks(text)) > 0) {
 			bad("%s: %v", p, err)
 		}
 		for _, e := range entries {

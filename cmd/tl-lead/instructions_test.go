@@ -394,3 +394,18 @@ func TestLinkBulletAgreesWithTheReader(t *testing.T) {
 		}
 	}
 }
+
+// #581 review: migrate strips only the links the reader counts as answers;
+// malformed link text is part of the ask.
+func TestStripAnswerLinks(t *testing.T) {
+	for in, want := range map[string]string{
+		"why? → [answer](qa/a.md)":     "why?",
+		"why? → [answer](broken path)": "why? → [answer](broken path)",
+		"why? → [answer]()":            "why? → [answer]()",
+		"why? → [answer](a.md) more":   "why? more",
+	} {
+		if got := stripAnswerLinks(in); got != want {
+			t.Errorf("stripAnswerLinks(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

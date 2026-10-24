@@ -409,3 +409,36 @@ func TestCodeLinesWorkIsLinear(t *testing.T) {
 		t.Errorf("work %d then %d: superlinear", w1, w2)
 	}
 }
+
+// #581 review (BR-2): nothing inside an unread header is a declaration, not a
+// section, a tag nor a heading, and what follows keeps its real line numbers,
+// whatever CRs end the fence line.
+func TestChatSectionsIgnoreAnUnreadHeader(t *testing.T) {
+	for _, tc := range []struct {
+		name, doc string
+		header    int // the header's last line
+		heading   int // the first real heading's line
+	}{
+		{"spaced closing fence", "---\ntitle: x\n@@chat@@\n## Notes\n ---\n@@chat@@\n## Ops\n1. a\n", 5, 7},
+		{"CR line endings", "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\n@@chat@@\r\n## Ops\r\n1. a\r\n", 5, 7},
+		{"two CRs before the newline", "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\r\n@@chat@@\r\n## Ops\r\n1. a\r\n", 5, 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scan := ChatSections(tc.doc)
+			if len(scan.Headings) != 1 || scan.Headings[0].Line != tc.heading {
+				t.Errorf("headings %+v, want only line %d", scan.Headings, tc.heading)
+			}
+			if !reflect.DeepEqual(scan.Tags, []int{tc.heading - 1}) || len(scan.Misplaced) != 0 {
+				t.Errorf("tags %v misplaced %v, want only line %d", scan.Tags, scan.Misplaced, tc.heading-1)
+			}
+			for _, s := range scan.Sections {
+				if s.Heading <= tc.header {
+					t.Errorf("section %+v inside the header", s)
+				}
+			}
+			if len(scan.Notices) != 1 || !strings.Contains(scan.Notices[0], "frontmatter could not be read") {
+				t.Errorf("notices %q", scan.Notices)
+			}
+		})
+	}
+}

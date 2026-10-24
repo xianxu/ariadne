@@ -108,8 +108,20 @@ const migrationExplain = "#455: the answer moved from qa/ into the session file'
 
 var (
 	bulletPrefixRE = regexp.MustCompile(`^\s*(?:\d+\.|[-*])\s+`)
-	answerLinkRE   = regexp.MustCompile(`\s*→ \[answer\]\([^)\s]*\)`)
+	answerLinkRE   = regexp.MustCompile(`\s*→ \[answer\]\(([^)]*)\)`)
 )
+
+// stripAnswerLinks drops the answer links from an ask's text: only links to a
+// target sidedoc.ValidAnswerTarget accepts (#581), the one rule a reader
+// counts as an answer, so malformed link text stays part of the ask.
+func stripAnswerLinks(s string) string {
+	return answerLinkRE.ReplaceAllStringFunc(s, func(m string) string {
+		if sidedoc.ValidAnswerTarget(answerLinkRE.FindStringSubmatch(m)[1]) {
+			return ""
+		}
+		return m
+	})
+}
 
 // planMigration plans the move of s.QA's entries into the side folder.
 func planMigration(s migSnapshot) migrationPlan {
@@ -245,7 +257,7 @@ func bulletMarkers(session, qa string) map[string]string {
 	}
 	section, _, _ := strings.Cut(after, "\n## ")
 	for _, b := range instructionBullets(section) {
-		ask := strings.TrimSpace(answerLinkRE.ReplaceAllString(bulletPrefixRE.ReplaceAllString(b.Lines[0], ""), ""))
+		ask := strings.TrimSpace(stripAnswerLinks(bulletPrefixRE.ReplaceAllString(b.Lines[0], "")))
 		for _, l := range b.Lines {
 			for _, t := range sidedoc.SideLinks(l) {
 				if c := path.Clean(t); strings.HasPrefix(c, qa+"/") {

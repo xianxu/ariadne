@@ -87,4 +87,9 @@ holds no state and creates nothing durable.
   a side doc, since an unread header can hold no index (a round there can only edit). That gap (a question marker
   in such a document) is not specified by collaboration-modes.md; noted, not widened here.
 - `pkg/golint` socket test fails only inside the sandbox, as before.
+- Close review round 1 (FIX-THEN-SHIP), all four fixed in-round: BR-1 the checker excuses an index error only for
+  an unread header (closed FrontBlock, frontmatter refused) with no side link (`TestCheckCaseExcusesOnlyAnUnreadHeader`);
+  BR-2 `TestChatSectionsIgnoreAnUnreadHeader` asserts headings, tags and sections; Minor: the body after an unread
+  header is cut at the fence line's newline (two CRs covered); Minor: migrate strips only ValidAnswerTarget links
+  (`stripAnswerLinks`, `TestStripAnswerLinks`).
 
