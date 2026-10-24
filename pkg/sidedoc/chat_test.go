@@ -29,6 +29,19 @@ func TestChatSections(t *testing.T) {
 			want: []sec{{4, 7, "tag", false}},
 		},
 		{
+			// #581 (parley.nvim#419): a closed header that frontmatter() refuses
+			// declares nothing; the body after it parses at its real lines.
+			name:    "tag and heading inside an unread header (spaced closing fence)",
+			doc:     "---\ntitle: x\n@@chat@@\n## Notes\n ---\nprose 🤖[why?]\n@@chat@@\n## Ops\n1. a\n",
+			want:    []sec{{8, 9, "tag", false}},
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
+			name:    "tag and heading inside an unread header (CR line endings)",
+			doc:     "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\nprose\r\n",
+			notices: []string{"frontmatter could not be read"},
+		},
+		{
 			name: "tag with surrounding spaces",
 			doc:  "  @@chat@@  \n## Ops\n1. a\n",
 			want: []sec{{2, 3, "tag", false}},
@@ -316,6 +329,36 @@ func TestChatItems(t *testing.T) {
 	}
 }
 
+// #581: an item is answered only by a link whose destination a writer could
+// produce (ValidAnswerTarget), so a malformed one leaves the ask open.
+func TestChatItemsAnsweredNeedsAValidTarget(t *testing.T) {
+	for _, tc := range []struct {
+		line string
+		want bool
+	}{
+		{"1. why? → [answer](a/b.md)", true},
+		{"1. why? → [answer](a/b.md)  ", true},
+		{"1. why? → [answer](broken path)", false},
+		{"1. why? → [answer]()", false},
+		{"1. why? → [answer](a\u00a0b.md)", false}, // a no-break space is whitespace too
+		{"1. why? → [answer](a b.md)", false},
+		{"1. why? → [answer](broken path) → [answer](a.md)", true},
+		{"1. why? → done: filed", true},
+	} {
+		if got := ChatItems(tc.line+"\n", false)[0].Answered; got != tc.want {
+			t.Errorf("%q answered = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+	for _, target := range []string{"", "a b", "a(b", "a)b", "a\tb", "a" + "\u00a0" + "b"} {
+		if ValidAnswerTarget(target) {
+			t.Errorf("ValidAnswerTarget(%q) = true", target)
+		}
+	}
+	if !ValidAnswerTarget("session.side/2026-10/2026-10-23-01-x.md") {
+		t.Error("a side-doc path is not a valid target")
+	}
+}
+
 func TestChatItemsWorkIsLinear(t *testing.T) {
 	section := func(n int) string {
 		var b strings.Builder
@@ -364,5 +407,38 @@ func TestCodeLinesWorkIsLinear(t *testing.T) {
 	_, w1 := codeLines(doc(1000))
 	if _, w2 := codeLines(doc(2000)); w2 > 2*w1+w1/10 {
 		t.Errorf("work %d then %d: superlinear", w1, w2)
+	}
+}
+
+// #581 review (BR-2): nothing inside an unread header is a declaration, not a
+// section, a tag nor a heading, and what follows keeps its real line numbers,
+// whatever CRs end the fence line.
+func TestChatSectionsIgnoreAnUnreadHeader(t *testing.T) {
+	for _, tc := range []struct {
+		name, doc string
+		header    int // the header's last line
+		heading   int // the first real heading's line
+	}{
+		{"spaced closing fence", "---\ntitle: x\n@@chat@@\n## Notes\n ---\n@@chat@@\n## Ops\n1. a\n", 5, 7},
+		{"CR line endings", "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\n@@chat@@\r\n## Ops\r\n1. a\r\n", 5, 7},
+		{"two CRs before the newline", "---\r\ntitle: x\r\n@@chat@@\r\n## Notes\r\n---\r\r\n@@chat@@\r\n## Ops\r\n1. a\r\n", 5, 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scan := ChatSections(tc.doc)
+			if len(scan.Headings) != 1 || scan.Headings[0].Line != tc.heading {
+				t.Errorf("headings %+v, want only line %d", scan.Headings, tc.heading)
+			}
+			if !reflect.DeepEqual(scan.Tags, []int{tc.heading - 1}) || len(scan.Misplaced) != 0 {
+				t.Errorf("tags %v misplaced %v, want only line %d", scan.Tags, scan.Misplaced, tc.heading-1)
+			}
+			for _, s := range scan.Sections {
+				if s.Heading <= tc.header {
+					t.Errorf("section %+v inside the header", s)
+				}
+			}
+			if len(scan.Notices) != 1 || !strings.Contains(scan.Notices[0], "frontmatter could not be read") {
+				t.Errorf("notices %q", scan.Notices)
+			}
+		})
 	}
 }

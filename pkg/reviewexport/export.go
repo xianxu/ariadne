@@ -55,7 +55,7 @@ var roleRank = map[string]int{"round": 0, "grammar": 1, "collaboration-modes": 2
 // carries as fixtures for pair and parley to pin (#575): the one list, read
 // by Build and by TestExportCurrent.
 var exportedCases = []string{
-	"chat-tag", "chat-tag-misplaced",
+	"chat-tag", "chat-tag-misplaced", "chat-answer-invalid", "frontmatter-unread-tag",
 	"ask-question", "ask-command", "ask-command-unclear", "ask-unsure",
 	"scope-paragraph", "scope-section", "scope-document",
 	"legacy-chat-scalar", "legacy-chat-map", "legacy-chat-comment", "legacy-keys-ignored",

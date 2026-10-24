@@ -41,6 +41,7 @@ docs' names and frontmatter; and which files are unchanged.
 | Cases | Show |
 |---|---|
 | `chat-tag`, `chat-tag-misplaced` | the `@@chat@@` carve-out: new items, a follow-up, a marker in the section's prose; a tag that is ordinary text |
+| `chat-answer-invalid`, `frontmatter-unread-tag` | #581: a chat item whose link has no valid destination is still open; a tag and heading inside an unread header declare nothing |
 | `ask-question`, `ask-command`, `ask-command-unclear`, `ask-unsure` | a marker as a question (side doc) or a command (edit), and the unclear and unsure cases |
 | `scope-paragraph`, `scope-section`, `scope-document` | scope rules s1, s2 (with a brief) and s3 |
 | `legacy-chat-scalar`, `legacy-chat-map`, `legacy-chat-comment`, `legacy-keys-ignored` | §7's legacy keys: the forms that still mean chat, and every retired key read around |
