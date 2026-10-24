@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bf10e57e", done: "1340b25d"}
 ---
 
 # Measure close windows whose branch-attribution snapshot exceeds 64 KiB instead of refusing
