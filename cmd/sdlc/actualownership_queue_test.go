@@ -122,7 +122,7 @@ func TestActualOwnershipQueueAcrossFirstClaimUsesOwnedSuffix(t *testing.T) {
 			}
 			measured := computeOwnedActualFor(t.Context(), worker, "335", "", inputs)
 			assertOwnershipGap(t, measured)
-			if measured.Inputs.Method != gatestate.MeasurementMethodHybridQueueV1 || len(measured.Inputs.QueueWaits) != 1 {
+			if measured.Inputs.Method != gatestate.MeasurementMethodBranchHybridQueueV1 || len(measured.Inputs.QueueWaits) != 1 {
 				t.Fatalf("captured queue was not selected exactly once: %+v", measured)
 			}
 			wait := measured.Inputs.QueueWaits[0]

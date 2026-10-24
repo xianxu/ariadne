@@ -57,6 +57,10 @@ type Options struct {
 	// ActivityWindows, when non-nil, admits only confirmed ownership activity
 	// for each transcript source. The gap/span calculation runs before clipping.
 	ActivityWindows map[string][]ActivityWindow
+	// DispatchWindows, when supplied, preserves original ownership/lineage
+	// admission before branch selection. Final activity is still clipped by
+	// ActivityWindows, so these cannot widen counted work.
+	DispatchWindows map[string][]ActivityWindow
 	SourcePrefixes  map[string]SourcePrefix
 	// QueueIntervals are validated exact attempt evidence; Compute applies each
 	// wait to admitted activity sources of the attempt's owning slot.
@@ -161,7 +165,11 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
-	spans, err = AdmitTaskSpans(spans, opts.ActivityWindows)
+	dispatchWindows := opts.DispatchWindows
+	if dispatchWindows == nil {
+		dispatchWindows = opts.ActivityWindows
+	}
+	spans, err = AdmitTaskSpans(spans, dispatchWindows)
 	if err != nil {
 		return Result{}, err
 	}
