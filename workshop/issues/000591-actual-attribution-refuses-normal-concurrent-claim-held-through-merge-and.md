@@ -41,7 +41,7 @@ Use one shared pure resting-branch predicate for the existing main/main-slotN co
 - [x] Investigate evidence; receive approval for the changed resting-interval boundary.
 - [x] Add recorded native reflog/refusal fixtures and red selector, saved-proof and output controls.
 - [x] Implement one resting predicate, selector exclusion and saved-proof validation; disclose interval minutes through one warning formatter on fresh and replay paths.
-- [ ] Verify focused/race/catalog and real-Git measurement controls, update atlas and lesson, push, run recorded pre-close, close and land.
+- [x] Verify focused/race/catalog and real-Git measurement controls, update atlas and lesson, push and queue the recorded pre-close check. Its pass remains a landing prerequisite; close and merge own the remaining workflow gates.
 
 Function-level adversarial strategy: SelectBranchActivity replays the recorded 68-second claim/start-plan window plus later own/foreign/resting transitions; selecting each issue must produce disjoint credit and exclude the same resting spans. Missing/detached/other-feature branches still refuse; a sole reservation keeps the existing ownership-only fallback. ValidateOwnedBranchProof mutations turn a resting exclusion into selected time or replace its branch with an issue/unknown branch and must refuse. MeasurementBranchWarnings reports exact source, interval and branch-window minutes identically for fresh/replay. Counted 8/16 transition tests retain linear sweep bounds. Existing native Git/tracker fake and three-harness source-lineage controls supply integration coverage; private executable proof avoids modifying any production actual.
 
@@ -89,3 +89,8 @@ pair:7 supplied pair#863's committed reflog capture: #842 -> main-slot7 at00:44:
 All three recorded incidents and counted 8/16 resting partitions passed0.229s. Built a private Go1.27.3 executable outside the checkout from Git head d4b1d75195dc398d778a1d515baacfb250c36bf4; build metadata confirms modified=false. Real active-time CLI against only private Git/tracker/transcript fixtures passed8.936s: branch partition, visible8.00 branch-window-minute resting exclusion, and retained replay. This private build does not run any production close or landing logic. Normal central sdlc remains the suite/close/merge binary; no staging or live historical repair.
 
 Atlas and lessons updated. Next: push, recorded pre-close, mandatory close review, normal landing. No live Pair actuals have been rerun or rewritten.
+
+
+### 2026-10-24 — recorded pre-close queued
+
+PR426 is open. Normal central sdlc queued pre-close suite lease-1679097241 on414fdcb7 (normal FIFO, initial position10), exact run log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/36c7d6c5e8fc3826773c3fde3497f0b8/run.log. All implementation/targeted verification tasks are complete; this is not a claimed suite pass. Mandatory close review may overlap the queued check under tl-worker rules; the recorded check must pass before landing. No other suite was launched here. Central actual preview is still running and will be inspected before choosing any close recovery.
