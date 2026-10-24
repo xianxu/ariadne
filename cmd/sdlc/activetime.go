@@ -40,7 +40,7 @@ func runActiveTime(opts activetime.Options, out, errOut io.Writer) int {
 		return 2
 	}
 
-	res, err := activetime.Compute(opts)
+	res, notes, err := computeActiveTime(opts)
 	if err != nil {
 		fmt.Fprintf(errOut, "error: %v\n", err)
 		return 1
@@ -48,6 +48,9 @@ func runActiveTime(opts activetime.Options, out, errOut io.Writer) int {
 
 	// Header (to stdout) — mirrors active-time-v3.py's preamble.
 	fmt.Fprintln(out, "# v3 global-boundary attribution")
+	for _, note := range notes {
+		fmt.Fprintln(out, "# "+note)
+	}
 	if opts.PrefixWeight != nil && *opts.PrefixWeight != opts.CommitWeight {
 		fmt.Fprintf(out, "# commit-weight: %g (prefix: %g)  •  threshold: %d min\n", opts.CommitWeight, *opts.PrefixWeight, opts.ThresholdMin)
 	} else {
@@ -223,6 +226,7 @@ func NewActiveTimeCmd() *cobra.Command {
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := activetime.Options{
+				Context:          cmd.Context(),
 				Dirs:             dirs,
 				GitRepo:          gitRepo,
 				SinceISO:         since,

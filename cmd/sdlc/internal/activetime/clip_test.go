@@ -137,3 +137,28 @@ func TestAdmitTaskSpansRetainsRelocationButEndsAtReclaim(t *testing.T) {
 		t.Fatal("admission mutated input")
 	}
 }
+
+func TestComputePartitionsTaskSpanAfterOriginalDispatchAdmission(t *testing.T) {
+	dir := eventsDir(t,
+		`{"timestamp":"2026-01-01T00:05:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"task","name":"Agent","input":{}}]}}`,
+		`{"timestamp":"2026-01-01T00:30:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"task","content":"done"}]}}`,
+	)
+	withGitRun(t, func(string, ...string) ([]byte, error) { return nil, nil })
+	at := func(m int) time.Time { return time.Date(2026, 1, 1, 0, m, 0, 0, time.UTC) }
+	source := filepath.Join(dir, "s.jsonl")
+	opts := Options{Dirs: []string{dir}, GitRepo: "/repo", SinceISO: wideSince, UntilISO: wideUntil, Issues: []string{"8"}, ThresholdMin: 15, IncludeAssistant: true,
+		ActivityWindows: map[string][]ActivityWindow{source: {{Start: at(20), End: at(30), Began: at(2)}}},
+		DispatchWindows: map[string][]ActivityWindow{source: {{Start: at(2), End: at(30), Began: at(2)}}},
+	}
+	got, err := Compute(opts)
+	if err != nil || got.TotalActive != 10 {
+		t.Fatalf("original dispatch lost or foreign prefix counted: %+v %v", got, err)
+	}
+	// A later claim never revives an earlier task, even if branch selection
+	// happens to admit the same later slice.
+	opts.DispatchWindows = map[string][]ActivityWindow{source: {{Start: at(20), End: at(30), Began: at(20)}}}
+	got, err = Compute(opts)
+	if err != nil || got.TotalActive != 0 {
+		t.Fatalf("reclaim revived a pre-claim dispatch: %+v %v", got, err)
+	}
+}

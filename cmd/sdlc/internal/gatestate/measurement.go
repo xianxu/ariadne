@@ -45,30 +45,31 @@ func IsHybridMethod(method string) bool {
 // adopt an actual. It holds no transcript bytes and performs no IO (ARCH-PURE).
 // Validate before persistence; ParseSidecar also validates retained evidence.
 type MeasurementInputs struct {
-	extra                 measurementUnknown      `json:"-" yaml:"-"`
-	Version               int                     `json:"version" yaml:"version"`
-	Method                string                  `json:"method" yaml:"method"`
-	Repository            string                  `json:"repository" yaml:"repository"`
-	CodeHead              string                  `json:"code_head" yaml:"code_head"`
-	TrackerHead           string                  `json:"tracker_head,omitempty" yaml:"tracker_head,omitempty"`
-	BranchPoint           string                  `json:"branch_point,omitempty" yaml:"branch_point,omitempty"`
-	Since                 string                  `json:"since" yaml:"since"`
-	Until                 string                  `json:"until" yaml:"until"`
-	BrainRoot             string                  `json:"brain_root,omitempty" yaml:"brain_root,omitempty"`
-	GapMinutes            int                     `json:"gap_minutes" yaml:"gap_minutes"`
-	CommitWeight          float64                 `json:"commit_weight" yaml:"commit_weight"`
-	IncludeAssistant      bool                    `json:"include_assistant" yaml:"include_assistant"`
-	Engagements           []MeasurementEngagement `json:"engagements,omitempty" yaml:"engagements,omitempty"`
-	Sources               []MeasurementSource     `json:"sources,omitempty" yaml:"sources,omitempty"`
-	CarWaits              []MeasurementCarWait    `json:"car_waits,omitempty" yaml:"car_waits,omitempty"`
-	CarWaitNotes          []string                `json:"car_wait_notes,omitempty" yaml:"car_wait_notes,omitempty"`
-	QueueWaits            []MeasurementQueueWait  `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
-	Protected             []MeasurementCredit     `json:"protected,omitempty" yaml:"protected,omitempty"`
-	ExcludedBrainSessions int                     `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
-	ExcludedBrainMinutes  float64                 `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
-	Cuts                  []MeasurementCut        `json:"cuts,omitempty" yaml:"cuts,omitempty"`
-	LegacyPrefix          *MeasurementInputs      `json:"legacy_prefix,omitempty" yaml:"legacy_prefix,omitempty"`
-	LegacyCutover         string                  `json:"legacy_cutover,omitempty" yaml:"legacy_cutover,omitempty"`
+	extra                 measurementUnknown          `json:"-" yaml:"-"`
+	Version               int                         `json:"version" yaml:"version"`
+	Method                string                      `json:"method" yaml:"method"`
+	Repository            string                      `json:"repository" yaml:"repository"`
+	CodeHead              string                      `json:"code_head" yaml:"code_head"`
+	TrackerHead           string                      `json:"tracker_head,omitempty" yaml:"tracker_head,omitempty"`
+	BranchPoint           string                      `json:"branch_point,omitempty" yaml:"branch_point,omitempty"`
+	Since                 string                      `json:"since" yaml:"since"`
+	Until                 string                      `json:"until" yaml:"until"`
+	BrainRoot             string                      `json:"brain_root,omitempty" yaml:"brain_root,omitempty"`
+	GapMinutes            int                         `json:"gap_minutes" yaml:"gap_minutes"`
+	CommitWeight          float64                     `json:"commit_weight" yaml:"commit_weight"`
+	IncludeAssistant      bool                        `json:"include_assistant" yaml:"include_assistant"`
+	Engagements           []MeasurementEngagement     `json:"engagements,omitempty" yaml:"engagements,omitempty"`
+	Sources               []MeasurementSource         `json:"sources,omitempty" yaml:"sources,omitempty"`
+	Branches              []MeasurementBranchEvidence `json:"branches,omitempty" yaml:"branches,omitempty"`
+	CarWaits              []MeasurementCarWait        `json:"car_waits,omitempty" yaml:"car_waits,omitempty"`
+	CarWaitNotes          []string                    `json:"car_wait_notes,omitempty" yaml:"car_wait_notes,omitempty"`
+	QueueWaits            []MeasurementQueueWait      `json:"queue_waits,omitempty" yaml:"queue_waits,omitempty"`
+	Protected             []MeasurementCredit         `json:"protected,omitempty" yaml:"protected,omitempty"`
+	ExcludedBrainSessions int                         `json:"excluded_brain_sessions,omitempty" yaml:"excluded_brain_sessions,omitempty"`
+	ExcludedBrainMinutes  float64                     `json:"excluded_brain_minutes,omitempty" yaml:"excluded_brain_minutes,omitempty"`
+	Cuts                  []MeasurementCut            `json:"cuts,omitempty" yaml:"cuts,omitempty"`
+	LegacyPrefix          *MeasurementInputs          `json:"legacy_prefix,omitempty" yaml:"legacy_prefix,omitempty"`
+	LegacyCutover         string                      `json:"legacy_cutover,omitempty" yaml:"legacy_cutover,omitempty"`
 }
 
 type MeasurementEngagement struct {
@@ -86,17 +87,18 @@ type MeasurementInterval struct {
 }
 
 type MeasurementSource struct {
-	extra    measurementUnknown    `json:"-" yaml:"-"`
-	Harness  string                `json:"harness" yaml:"harness"`
-	ID       string                `json:"id" yaml:"id"`
-	Slot     string                `json:"slot,omitempty" yaml:"slot,omitempty"`
-	CWD      string                `json:"cwd" yaml:"cwd"`
-	ParentID string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
-	Digest   string                `json:"digest" yaml:"digest"`
-	Started  string                `json:"started" yaml:"started"`
-	Spawned  bool                  `json:"spawned" yaml:"spawned"`
-	Bytes    int64                 `json:"bytes" yaml:"bytes"`
-	Windows  []MeasurementInterval `json:"windows" yaml:"windows"`
+	extra           measurementUnknown    `json:"-" yaml:"-"`
+	Harness         string                `json:"harness" yaml:"harness"`
+	ID              string                `json:"id" yaml:"id"`
+	Slot            string                `json:"slot,omitempty" yaml:"slot,omitempty"`
+	CWD             string                `json:"cwd" yaml:"cwd"`
+	ParentID        string                `json:"parent_id,omitempty" yaml:"parent_id,omitempty"`
+	Digest          string                `json:"digest" yaml:"digest"`
+	Started         string                `json:"started" yaml:"started"`
+	Spawned         bool                  `json:"spawned" yaml:"spawned"`
+	Bytes           int64                 `json:"bytes" yaml:"bytes"`
+	Windows         []MeasurementInterval `json:"windows" yaml:"windows"`
+	DispatchWindows []MeasurementInterval `json:"dispatch_windows,omitempty" yaml:"dispatch_windows,omitempty"`
 }
 
 type MeasurementCut struct {
@@ -207,6 +209,9 @@ func (m MeasurementInputs) Validate() error {
 	}
 	contributionSince, err := m.validateLegacyPrefix(since, until)
 	if err != nil {
+		return err
+	}
+	if err := m.validateBranchEvidence(contributionSince, until); err != nil {
 		return err
 	}
 	if m.BrainRoot != "" && !filepath.IsAbs(m.BrainRoot) {
@@ -345,6 +350,30 @@ func (m MeasurementInputs) Validate() error {
 		if len(s.Windows) == 0 {
 			return fmt.Errorf("measurement %s windows must not be empty", field)
 		}
+		if len(m.Branches) > 0 && len(s.DispatchWindows) == 0 {
+			return fmt.Errorf("measurement branch source lacks original dispatch windows")
+		}
+		var priorDispatch time.Time
+		for _, w := range s.DispatchWindows {
+			start, e1 := measurementTime("dispatch start", w.Start)
+			end, e2 := measurementTime("dispatch end", w.End)
+			if e1 != nil || e2 != nil || !start.Before(end) || start.Before(contributionSince) || end.After(until) || start.Before(priorDispatch) {
+				return fmt.Errorf("measurement original dispatch windows are invalid")
+			}
+			priorDispatch = end
+			contained := false
+			for _, e := range m.Engagements {
+				left, _ := time.Parse(time.RFC3339Nano, e.Start)
+				right, _ := time.Parse(time.RFC3339Nano, e.End)
+				if !start.Before(left) && !end.After(right) {
+					contained = true
+					break
+				}
+			}
+			if !contained {
+				return fmt.Errorf("measurement original dispatch window exceeds engagement")
+			}
+		}
 		for j, w := range s.Windows {
 			interval := fmt.Sprintf("%s.windows[%d]", field, j)
 			start, err := measurementTime(interval+".start", w.Start)
@@ -357,6 +386,20 @@ func (m MeasurementInputs) Validate() error {
 			}
 			if end.Before(start) || start.Before(contributionSince) || end.After(until) {
 				return fmt.Errorf("measurement %s must be ordered and within since/until", interval)
+			}
+			if len(s.DispatchWindows) > 0 {
+				contained := false
+				for _, d := range s.DispatchWindows {
+					left, _ := time.Parse(time.RFC3339Nano, d.Start)
+					right, _ := time.Parse(time.RFC3339Nano, d.End)
+					if !start.Before(left) && !end.After(right) {
+						contained = true
+						break
+					}
+				}
+				if !contained {
+					return fmt.Errorf("measurement selected window exceeds original dispatch admission")
+				}
 			}
 		}
 	}

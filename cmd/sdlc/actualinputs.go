@@ -26,22 +26,23 @@ import (
 // ownedActualInputs is the command IO seam's pinned authority and evidence.
 // Nil alone denotes an untracked repository eligible for labeled legacy input.
 type ownedActualInputs struct {
-	Snapshot      gatestate.MeasurementInputs
-	Files         []string
-	Prefixes      map[string]activetime.SourcePrefix
-	Windows       map[string][]activetime.ActivityWindow
-	Scope         activetime.Scope
-	TrackerRefs   []string
-	Sessions      []transcripts.SessionEvidence
-	ExcludedBrain []transcripts.SessionEvidence
-	Ledger        *gatestate.Ledger
-	Warnings      []string
-	SourceSlots   map[string]string
-	Replay        bool
-	Protected     []activetime.CreditedInterval
-	LegacyPrefix  *ownedActualInputs             // separately labelled, unowned pre-cutover evidence
-	CarWaits      []gatestate.MeasurementCarWait // descriptive; never passed to activity subtraction
-	CarWaitNotes  []string
+	Snapshot        gatestate.MeasurementInputs
+	Files           []string
+	Prefixes        map[string]activetime.SourcePrefix
+	Windows         map[string][]activetime.ActivityWindow
+	DispatchWindows map[string][]activetime.ActivityWindow
+	Scope           activetime.Scope
+	TrackerRefs     []string
+	Sessions        []transcripts.SessionEvidence
+	ExcludedBrain   []transcripts.SessionEvidence
+	Ledger          *gatestate.Ledger
+	Warnings        []string
+	SourceSlots     map[string]string
+	Replay          bool
+	Protected       []activetime.CreditedInterval
+	LegacyPrefix    *ownedActualInputs             // separately labelled, unowned pre-cutover evidence
+	CarWaits        []gatestate.MeasurementCarWait // descriptive; never passed to activity subtraction
+	CarWaitNotes    []string
 }
 
 type actualInputPurpose uint8
@@ -57,6 +58,7 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 }
 
 func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNum, plans string, purpose actualInputPurpose, milestones ...string) (*ownedActualInputs, error) {
+	ctx = ownedBranchRequestContext(ctx)
 	if purpose != actualHistorical && purpose != actualCloseCandidate && purpose != actualCorrectionCandidate {
 		return nil, fmt.Errorf("unsupported measurement purpose %d", purpose)
 	}
@@ -273,12 +275,16 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 			return nil, err
 		}
 	}
-	windows, _, notes, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
+	var captures []ownedBranchCapture
+	dispatchWindows := windows
+	windows, captures, notes, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, notes...)
+	snapshot.Branches = measurementBranches(captures)
 	out := &ownedActualInputs{Snapshot: snapshot, Prefixes: map[string]activetime.SourcePrefix{}, Windows: windows, Scope: scope, TrackerRefs: []string{trackerPin}, Ledger: &ledger, Warnings: warnings, LegacyPrefix: legacyPrefix}
+	out.DispatchWindows = dispatchWindows
 	for _, s := range sessions {
 		if len(windows[s.File]) == 0 {
 			if brainAbs != "" && filepath.Clean(s.CWD) == filepath.Clean(brainAbs) {
@@ -289,7 +295,9 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		out.Files = append(out.Files, s.File)
 		out.Sessions = append(out.Sessions, s)
 		out.Prefixes[s.File] = activetime.SourcePrefix{Bytes: s.Length, Digest: s.Digest}
-		out.Snapshot.Sources = append(out.Snapshot.Sources, ownedMeasurementSource(s, windows[s.File]))
+		pin := ownedMeasurementSource(s, windows[s.File])
+		pin.DispatchWindows = ownedMeasurementSource(s, dispatchWindows[s.File]).Windows
+		out.Snapshot.Sources = append(out.Snapshot.Sources, pin)
 	}
 	rounds, notes, err := freshActualRounds(ctx, repoTop, head, issueNum, milestone, splitRounds(ledger))
 	if err != nil {
@@ -384,7 +392,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	if err != nil {
 		return err
 	}
-	engagementEvents, err := repo.EngagementHistory(out.Snapshot.TrackerHead, cardPath)
+	engagementEvents, err := loadOwnedBranchHistory(ctx, repo, out.Snapshot.TrackerHead, cardPath)
 	if err != nil {
 		return err
 	}
@@ -531,7 +539,7 @@ func actualInputRecords(ctx context.Context, repo *tracker.Repository, root, det
 // ownershipSourceWindows is shared authority for active time and token usage.
 // Each caller supplies its own explicit right edge; tokens include the review tail.
 func ownershipSourceWindows(ctx context.Context, repo *tracker.Repository, pin, cardPath, repository string, until time.Time, claimIssue string) ([]transcripts.SourceWindow, error) {
-	events, err := repo.EngagementHistory(pin, cardPath)
+	events, err := loadOwnedBranchHistory(ctx, repo, pin, cardPath)
 	if err != nil {
 		return nil, err
 	}
@@ -651,6 +659,9 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		byID[key] = s
 	}
 	for _, pin := range saved.Sources {
+		if len(pin.DispatchWindows) > 0 && out.DispatchWindows == nil {
+			out.DispatchWindows = map[string][]activetime.ActivityWindow{}
+		}
 		slot := parseAdoptedSlot(pin.Slot)
 		if pin.Slot != "" && !slot.known {
 			return nil, fmt.Errorf("retained source %s/%s has no canonical pinned slot", pin.Harness, pin.ID)
@@ -671,43 +682,48 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 		out.Sessions = append(out.Sessions, s)
 		out.SourceSlots[s.File] = slot.String()
 		out.Prefixes[s.File] = activetime.SourcePrefix{Bytes: pin.Bytes, Digest: pin.Digest}
-		for _, interval := range pin.Windows {
-			start, err := time.Parse(time.RFC3339Nano, interval.Start)
-			if err != nil {
-				return nil, err
-			}
-			end, err := time.Parse(time.RFC3339Nano, interval.End)
-			if err != nil {
-				return nil, err
-			}
-			var began time.Time
-			if gatestate.IsEngagementMethod(saved.Method) {
-				for _, engagement := range saved.Engagements {
-					left, err := time.Parse(time.RFC3339Nano, engagement.Start)
-					if err != nil {
-						return nil, err
-					}
-					right, err := time.Parse(time.RFC3339Nano, engagement.End)
-					if err != nil {
-						return nil, err
-					}
-					if start.Before(left) || end.After(right) {
-						continue
-					}
-					origin, err := time.Parse(time.RFC3339Nano, engagement.Began)
-					if err != nil {
-						return nil, err
-					}
-					if !began.IsZero() && !began.Equal(origin) {
-						return nil, errors.New("retained source window has ambiguous dispatch engagement")
-					}
-					began = origin
+		for _, selection := range []struct {
+			windows []gatestate.MeasurementInterval
+			target  map[string][]activetime.ActivityWindow
+		}{{pin.Windows, out.Windows}, {pin.DispatchWindows, out.DispatchWindows}} {
+			for _, interval := range selection.windows {
+				start, err := time.Parse(time.RFC3339Nano, interval.Start)
+				if err != nil {
+					return nil, err
 				}
-				if began.IsZero() {
-					return nil, errors.New("retained source window has no dispatch engagement")
+				end, err := time.Parse(time.RFC3339Nano, interval.End)
+				if err != nil {
+					return nil, err
 				}
+				var began time.Time
+				if gatestate.IsEngagementMethod(saved.Method) {
+					for _, engagement := range saved.Engagements {
+						left, err := time.Parse(time.RFC3339Nano, engagement.Start)
+						if err != nil {
+							return nil, err
+						}
+						right, err := time.Parse(time.RFC3339Nano, engagement.End)
+						if err != nil {
+							return nil, err
+						}
+						if start.Before(left) || end.After(right) {
+							continue
+						}
+						origin, err := time.Parse(time.RFC3339Nano, engagement.Began)
+						if err != nil {
+							return nil, err
+						}
+						if !began.IsZero() && !began.Equal(origin) {
+							return nil, errors.New("retained source window has ambiguous dispatch engagement")
+						}
+						began = origin
+					}
+					if began.IsZero() {
+						return nil, errors.New("retained source window has no dispatch engagement")
+					}
+				}
+				selection.target[s.File] = append(selection.target[s.File], activetime.ActivityWindow{Start: start, End: end, Began: began})
 			}
-			out.Windows[s.File] = append(out.Windows[s.File], activetime.ActivityWindow{Start: start, End: end, Began: began})
 		}
 	}
 	return out, nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -63,6 +65,7 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 		ownedFixtureAt(t, step.minute)
 		testfix.Git(t, worker, "commit", "--allow-empty", "-qm", step.msg)
 	}
+	testfix.Git(t, r.root, "merge", "--ff-only", "000336-active-a")
 	ownedFixtureAt(t, 20)
 	testfix.Git(t, worker, "switch", "-q", "-c", "000335-reserved-b", "main")
 	ownedFixtureAt(t, 31)
@@ -91,6 +94,22 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 			t.Fatalf("B credited A's unadopted close/test/landing tail: %s -> %s; B starts at %s", window.Start, window.End, boundary)
 		}
 	}
+	if len(inputs.Snapshot.Branches) == 0 || len(inputs.Snapshot.Sources[0].DispatchWindows) == 0 {
+		t.Fatal("new measurement lost branch or original dispatch provenance")
+	}
+	if err := inputs.Snapshot.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	// The manual command must use the same selector, including when explicit
+	// raw directories and wide timestamps would have bypassed ownership before.
+	var out, diagnostics bytes.Buffer
+	opts := activetime.Options{Context: t.Context(), Dirs: []string{filepath.Dir(source)}, GitRepo: worker, Issues: []string{"336", "335"}, SinceISO: "2026-10-14T00:00:00Z", UntilISO: "2026-10-14T00:40:00Z", ThresholdMin: 15, CommitWeight: 1}
+	if code := runActiveTime(opts, &out, &diagnostics); code != 0 {
+		t.Fatalf("tracked manual measurement failed: %d %s", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "#335: 0.18 hr  (11.0 min)") || !strings.Contains(out.String(), "#336: 0.28 hr  (17.0 min)") {
+		t.Fatalf("manual attribution bypassed branch partition: %s", out.String())
+	}
 	// Expiring the selected worktree's history must not fall back to the
 	// common checkout's log or silently choose B among the two reservations.
 	logPath := strings.TrimSpace(testfix.Capture(t, worker, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"))
@@ -99,6 +118,11 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	}
 	if _, err := resolveOwnedActualInputs(t.Context(), worker, "", "335", ""); err == nil || !strings.Contains(err.Error(), "--no-actual") || !strings.Contains(err.Error(), "concurrent claims") {
 		t.Fatalf("expired history among concurrent claims: %v", err)
+	}
+	out.Reset()
+	diagnostics.Reset()
+	if code := runActiveTime(opts, &out, &diagnostics); code == 0 || !strings.Contains(diagnostics.String(), "concurrent claims") {
+		t.Fatalf("explicit raw options bypassed missing tracked branch proof: code%d %s", code, diagnostics.String())
 	}
 }
 

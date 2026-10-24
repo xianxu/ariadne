@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
@@ -27,6 +28,8 @@ type ownedBranchCapture struct {
 	Bytes                            int64
 	Intervals                        []activetime.BranchInterval
 	Unavailable                      string
+	Notes                            []gatestate.MeasurementBranchInterval
+	raw                              []byte
 }
 
 func captureOwnedBranchEvidence(ctx context.Context, root string, since, until time.Time) (capture ownedBranchCapture) {
@@ -84,6 +87,7 @@ func captureOwnedBranchEvidence(ctx context.Context, root string, since, until t
 	}
 	capture.Bytes = int64(len(raw))
 	capture.Digest = fmt.Sprintf("%x", sha256.Sum256(raw))
+	capture.raw = raw
 	capture.Intervals, err = activetime.ParseHeadHistory(raw, branch, head, since, until)
 	if err != nil {
 		capture.Unavailable = err.Error()
@@ -105,27 +109,36 @@ func branchOwnerKey(owner issue.Claimant) string {
 
 // resolveSlotClaimWindows reads each immutable card history once. Historical
 // owner changes matter even when today's owner is a different slot.
-func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, candidate string, until time.Time) (map[string][]activetime.BranchClaim, map[string]string, error) {
-	if bad := inventory.Unreadable(); len(bad) != 0 {
-		return nil, nil, fmt.Errorf("branch attribution cannot establish sole ownership: unreadable card %s", bad[0].Path)
+func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, candidate string, since, until time.Time) (map[string][]activetime.BranchClaim, map[string]string, []string, error) {
+	var unknown []string
+	for _, bad := range inventory.Unreadable() {
+		unknown = append(unknown, "unreadable card "+bad.Path)
 	}
 	claims, roots := map[string][]activetime.BranchClaim{}, map[string]string{}
 	for _, card := range inventory.Records() {
 		if err := ctx.Err(); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		events, err := repo.EngagementHistory(inventory.Ref(), card.Path)
+		events, err := loadOwnedBranchHistory(ctx, repo, inventory.Ref(), card.Path)
 		if err != nil {
-			return nil, nil, fmt.Errorf("branch claim history %s: %w", card.ID, err)
+			if strings.TrimLeft(card.ID, "0") == candidate {
+				return nil, nil, nil, fmt.Errorf("branch claim history %s: %w", card.ID, err)
+			}
+			unknown = append(unknown, fmt.Sprintf("card %s: %v", card.ID, err))
+			continue
 		}
 		// Validate owner chronology with the existing authority; keep its
 		// retained-terminal semantics unchanged for other consumers.
 		if _, err := tracker.DeriveEngagements(events, until); err != nil {
-			return nil, nil, err
+			if strings.TrimLeft(card.ID, "0") == candidate {
+				return nil, nil, nil, err
+			}
+			unknown = append(unknown, fmt.Sprintf("card %s: %v", card.ID, err))
+			continue
 		}
 		id, err := strconv.Atoi(card.ID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		firstClaim := true
 		for i, event := range events {
@@ -147,25 +160,37 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 			if strconv.Itoa(id) == candidate {
 				root := filepath.Clean(event.Owner.Worktree)
 				if prior := roots[root]; prior != "" && prior != key {
-					return nil, nil, fmt.Errorf("ambiguous historical owner for %s", root)
+					return nil, nil, nil, fmt.Errorf("ambiguous historical owner for %s", root)
 				}
 				roots[root] = key
 			}
 			model := vocab.Issue()
 			if !model.CanHoldOwner(event.Status) && !model.IsTerminal(event.Status) {
-				return nil, nil, fmt.Errorf("branch claim %s has unknown status %q", card.ID, event.Status)
+				return nil, nil, nil, fmt.Errorf("branch claim %s has unknown status %q", card.ID, event.Status)
 			}
 			claims[key] = append(claims[key], activetime.BranchClaim{Start: start, End: end, Issue: strconv.Itoa(id), Terminal: model.IsTerminal(event.Status)})
 		}
 	}
-	return claims, roots, nil
+	// Unknown competing history is never absence. It blocks the sole-claim
+	// fallback, while a directly witnessed candidate branch still selects its
+	// already verified owner. This also preserves unrelated legacy cutovers.
+	if len(unknown) > 0 {
+		keys := map[string]bool{}
+		for _, key := range roots {
+			keys[key] = true
+		}
+		for key := range keys {
+			claims[key] = append(claims[key], activetime.BranchClaim{Start: since, End: until, Issue: "unknown-competing-history"})
+		}
+	}
+	return claims, roots, unknown, nil
 }
 
 // selectOwnedBranchWindows runs only after source lineage admission. Spawned
 // sessions inherit their root author's worktree; a child cwd (e.g. brain) is
 // never mistaken for the checkout whose HEAD selects this issue.
 func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inventory tracker.Snapshot, id string, sessions []transcripts.SessionEvidence, admitted map[string][]activetime.ActivityWindow, since, until time.Time) (map[string][]activetime.ActivityWindow, []ownedBranchCapture, []string, error) {
-	claims, roots, err := resolveSlotClaimWindows(ctx, repo, inventory, id, until)
+	claims, roots, unknown, err := resolveSlotClaimWindows(ctx, repo, inventory, id, since, until)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -176,6 +201,9 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 	captures := map[string]ownedBranchCapture{}
 	out := map[string][]activetime.ActivityWindow{}
 	var warnings []string
+	for _, reason := range unknown {
+		warnings = append(warnings, "branch competing history unknown: "+reason)
+	}
 	for _, s := range sessions {
 		if len(admitted[s.File]) == 0 {
 			continue
@@ -201,7 +229,7 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 		}
 		capture, ok := captures[root]
 		if !ok {
-			capture = captureOwnedBranchEvidence(ctx, root, since, until)
+			capture = captureOwnedBranchCached(ctx, root, since, until)
 			captures[root] = capture
 		}
 		if err := ctx.Err(); err != nil {
@@ -209,15 +237,17 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 		}
 		selected, err := activetime.SelectBranchActivity(id, admitted[s.File], capture.Intervals, claims[owner])
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("branch attribution for %s (%s): %w; %s; close recovery: --no-actual with the evidence in --verified", s.ID, root, err, capture.Unavailable)
+			return nil, nil, nil, fmt.Errorf("branch attribution for %s (%s): %w; %s; close recovery: --no-actual with the evidence in --verified", s.ID, root, err, strings.Join(append([]string{capture.Unavailable}, unknown...), "; "))
 		}
 		out[s.File] = selected.Windows
 		for _, note := range selected.Notes {
+			capture.Notes = append(capture.Notes, gatestate.MeasurementBranchInterval{Source: s.Harness + "/" + s.ID, Start: note.Start.Format(time.RFC3339Nano), End: note.End.Format(time.RFC3339Nano), Branch: note.Branch, Kind: note.Kind})
 			if note.Kind == "branch" {
 				continue
 			}
 			warnings = append(warnings, fmt.Sprintf("branch attribution %s: %s %s during %s → %s", s.ID, note.Kind, note.Branch, note.Start.Format(time.RFC3339Nano), note.End.Format(time.RFC3339Nano)))
 		}
+		captures[root] = capture
 	}
 	var ordered []ownedBranchCapture
 	for _, capture := range captures {
@@ -225,4 +255,15 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Root < ordered[j].Root })
 	return out, ordered, warnings, nil
+}
+
+func measurementBranches(captures []ownedBranchCapture) []gatestate.MeasurementBranchEvidence {
+	var out []gatestate.MeasurementBranchEvidence
+	for _, c := range captures {
+		if len(c.Notes) == 0 {
+			continue
+		}
+		out = append(out, gatestate.MeasurementBranchEvidence{Root: c.Root, Path: c.Path, Head: c.Head, Branch: c.Branch, Digest: c.Digest, Bytes: c.Bytes, Unavailable: c.Unavailable, Intervals: c.Notes})
+	}
+	return out
 }

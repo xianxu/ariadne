@@ -40,7 +40,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 	res.Peers = peers
 	options := activetime.Options{Context: ctx, Files: inputs.Files, GitRepo: root, ExtraRefs: inputs.TrackerRefs, Scope: inputs.Scope,
 		SinceISO: m.Since, UntilISO: m.Until, Issues: peers, CommitWeight: m.CommitWeight, ThresholdMin: m.GapMinutes,
-		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
+		IncludeAssistant: m.IncludeAssistant, ActivityWindows: inputs.Windows, DispatchWindows: inputs.DispatchWindows, SourcePrefixes: inputs.Prefixes, SourceSlots: inputs.SourceSlots,
 		ProtectedIntervals: inputs.Protected}
 	if inputs.LegacyPrefix != nil {
 		options.SinceISO = inputs.LegacyPrefix.Snapshot.Until
@@ -141,6 +141,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 			excluded.ProtectedIntervals = nil
 			excluded.SourceSlots = nil
 			excluded.ActivityWindows = nil
+			excluded.DispatchWindows = nil
 			if len(m.Engagements) > 0 {
 				excluded.ActivityWindows = make(map[string][]activetime.ActivityWindow)
 			}
