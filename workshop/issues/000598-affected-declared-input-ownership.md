@@ -42,6 +42,8 @@ This is a prerequisite for Pair#853, not stacked work. ops:0 assigned ariadne:5 
 - Certificate read semantics and migration boundary are documented, with invalid/older data conservatively handled and opaque future metadata preserved on rewrites.
 - Policy/selector/shared harness changes retain full selection; cmd/couch test narrowing has a qualified consumer path without reducing native fixture coverage.
 - Compatibility, trusted-policy provenance, deleted/renamed path behavior and bounded mapping cost are tested. No new per-file subprocess or unbounded group multiplication.
+- M2: a parley-style traceability file declared in affected.json, read from main, makes a change to an entry's `code` path select what its `tests` paths select. A Go test file selects its package, and a non-Go test selects the group whose `paths` match it. An entry test path that claims nothing goes full, naming the entry. Parsing is strict, and parley's real `atlas/traceability.yaml` parses as a golden.
+- M3: when the merged-head suite fails at merge and main's baseline passes, each introduced Go-test failure whose package the branch's affected selection would not have run is recorded as a missed mapping. A train failure attributed to a car whose affected record missed the package is recorded the same way. Nothing is recorded for a red main baseline, a full selection or a bare test name, and recording never changes the gate's outcome. `sdlc affected missed list` shows open entries and drops those main's mapping now covers; `dismiss` removes one. The ledger is deduped, capped and locked, and keeps unknown members on rewrite.
 
 ## Plan
 
@@ -63,4 +65,11 @@ Design (ariadne:5). The TL relayed the operator's direction: a curated, low-tech
 - ARCH-DRY: all three declaration sources compile into one Mapping, and Plan and splitImpact share one ownership function.
 - Trust: declarations come from main's rev only. A sidecar's path-only alias covers added, renamed and deleted certificates; its `reads` take effect once they land.
 - Missed mappings are recorded only when the main baseline passed, so load storms such as today's add no noise.
+
+## Revisions
+
+### 2026-10-24: scope widened by the operator's direction (via ops:0)
+
+Reason: the operator wants a curated low-tech mapping as the backbone, plus two separable additions: parley-style traceability input (M2) and missed-mapping recording at merge (M3). The TL approved M1. M2 and M3 wait on the operator's go.
+Delta: two Done-when bullets (M2, M3). The Plan's M2/M3 rows and the durable plan's sections for them. M1's scope is unchanged.
 

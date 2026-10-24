@@ -62,23 +62,33 @@ collaboration-mode: discussion
   - ariadne reads only `reads`; every other member (`version`, `disposition`, `sha256`, future fields) is opaque and ignored.
   - ariadne never rewrites sidecars, so preserving those members is pair's tooling's job (ARCH-EVOLVE note below).
   - A malformed `reads` (not an array of valid globs, or a traversal) makes the plan full, naming the sidecar.
-- **Missed**: `Missed(sel Selection, failures []string, pkgOf func(test string) (string, bool)) []Miss`. For a non-full selection, it returns each introduced failure whose package is not in `sel.GoPkgs`.
-  - A failure whose package can't be told is not a miss. Group failures are out of scope, because suite logs name Go tests.
+- **Missed**: `Missed(sel Selection, failures []string) []Miss`. For a non-full selection, it returns each introduced failure whose package is not in `sel.GoPkgs`.
+  - The package comes from the existing `flakes.SplitTest` / `flakes.ParseName` (`internal/flakes/registry.go`), which train attribution already uses (ARCH-DRY: no new parser).
+  - A bare name with no package, which `suitefailures.go` can emit, is not a miss.
 
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `readAffectedConfig` | `cmd/sdlc/cigate.go` | modified | git (`ls-tree`, `show`, batch `cat-file` via `gitx.TrunkView`) |
+| `readAffectedConfig` | `cmd/sdlc/cigate.go` | unchanged | git closure (`ls-tree`, `show`) |
+| `TreeFilesSelected` | `cmd/sdlc/internal/gitx/snapshot.go` | new (extracted) | git `ls-tree` + `cat-file --batch` |
+| `loadAffectedMapping` / `affectedDeps.mapping` | `cmd/sdlc/localcheck_affected.go` | new | the reads above, at main's pinned rev |
 | `missedLedger` | `cmd/sdlc/affected_missed.go` | new | a JSON file in the common git dir |
 | `diagnoseSuiteFailure` hook | `cmd/sdlc/suitebaseline.go` | modified | the merge's existing baseline comparison |
 | `sdlc affected missed` | `cmd/sdlc/affected_missed_cmd.go` | new | CLI |
 
-- **readAffectedConfig**: still the only reader. It additionally fetches the declared traceability files and the sidecar subtrees from the same rev: one `ls-tree` and one `cat-file --batch` per prefix, through the existing `gitx.TrunkView.FilesSelected`. It then calls the pure `Compile`. It returns `(Config, Mapping, ok, err)`.
-  - Every consumer already calls it, so all of them derive from one source (ARCH-PURPOSE shadow sweep): the affected run, resume, pre-close, the car stand-in and `splitImpact`.
-  - An unreadable or invalid declaration makes the reader return an error, so the run uses the suite instead, as an invalid affected.json does today.
-  - Tests use real git in temp repos, which is how the existing `readAffectedConfig` and gitx tests run (ARCH-MOCK: git's fake is the existing temp-repo harness).
-- **splitImpact**: its uncertain-selection fallback computes owners with `Graph.Owners` alone. It switches to a shared `affected.Owned(path, g, cfg, m)`, which Plan also uses, so landing attribution sees declared ownership too.
+- **readAffectedConfig**: unchanged. It is still the one reader of affected.json, still a `git` closure, and still cheap.
+  - Its callers that need only the declared bit (`precloseck.go`, `landingcar.go`'s stand-in) never read sidecars. A bad sidecar therefore can't move pre-close or a car off affected.
+- **gitx.TreeFilesSelected(ctx, dir, rev, prefix, select)**: new, extracted from the body of `TrunkView.FilesSelected`. It does one `ls-tree` and one `cat-file --batch` under the same limits.
+  - `FilesSelected` becomes a one-line call into it (ARCH-DRY).
+  - Context and dir are explicit, so the caller's deadline bounds the reads, including the landing deadline in `splitImpact`.
+- **loadAffectedMapping(ctx, dir, rev, cfg)** (`cmd/sdlc/localcheck_affected.go`): reads the declared traceability files and sidecar prefixes through `TreeFilesSelected`, at the same pinned rev the config came from, then calls the pure `Compile`.
+  - It is wired as a new `affectedDeps.mapping` seam. `planAffectedSelection`, which the affected run and resume share, loads it next to the graph.
+  - A load error makes the selection Full with the reason, exactly as "package graph unavailable" does. The run falls back to the suite, and boarding refuses, naming the reason.
+  - `splitImpact` calls the same loader with its bounded ctx, and treats an error the way it treats a graph error: impacts stay Unknown.
+  - These three are every consumer that computes a selection (ARCH-PURPOSE shadow sweep).
+  - Tests use real git in temp repos, as the gitx and `readAffectedConfig` tests already do (ARCH-MOCK: the existing temp-repo harness is git's fake). In the planner tests, the `affectedDeps.mapping` seam takes a fixed Mapping.
+- **splitImpact**: its uncertain-selection fallback computes owners with `Graph.Owners` alone. It switches to `affected.Owned(path, g, cfg, m)`, which Plan also uses, so landing attribution sees declared ownership too.
 
 ### Part C: missed mappings (separable)
 
@@ -99,8 +109,8 @@ collaboration-mode: discussion
 
 - **Workload:** a batch check, run before an affected run, a pre-close and a merge diagnosis. It is not interactive.
 - **Inputs:** pair has 583 sidecars, about 60 KB in total; parley's traceability file is 1,572 lines with about 1,000 paths.
-  - Reading them costs one `ls-tree` and one batch `cat-file` per prefix, bounded by TrunkView's existing per-blob and aggregate output limits.
-  - Over the limit, the reader errors and the run uses the suite instead.
+  - Reading them costs one `ls-tree` and one batch `cat-file` per prefix, bounded by the existing per-entry, per-blob and aggregate output limits (`gitx` snapshot limits).
+  - Over a limit, the loader errors, so the selection is Full with that reason.
 - **Planning:** cost is (changed paths) × (rules).
   - Exact (glob-free) rule paths are indexed in a map, so sidecar `Strip` and traceability `code` lookups are O(1).
   - Globbed rules are scanned, as group paths are today. At 2,000 changed paths × 600 glob rules that is about 1.2M `Match` calls, well under a second; it is measured in a benchmark test.
@@ -110,14 +120,27 @@ collaboration-mode: discussion
 ## Trust and formats (ARCH-SECURE, ARCH-EVOLVE)
 
 - **Trust:** every declaration is read from main's rev, never from the head. A branch can't widen or narrow its own selection.
-  - A branch that adds a certificate gets the path-only `Strip` alias from main's config. That is safe because it only adds coverage.
+  - A branch that adds a certificate gets the path-only `Strip` alias from main's config. That *narrows* the certificate's path, which would otherwise be unclassified and so full, to the test's package.
+  - That narrowing is trusted because main's config declares the convention, not because the branch says so.
   - The certificate's `reads` count once it lands.
+- **Absent `reads`:** a sidecar with no `reads` member declares nothing about inputs. The alias of the sidecar's own path still applies.
+  - It never narrows an input: an undeclared input keeps whatever its own rules give it (an owner, a group, `full`, or unclassified and so full).
+  - Requiring `reads` for a given disposition is pair#853's audit, not ariadne's.
 - **affected.json changes are additive:** new optional members (`owners`, `traceability`, `sidecars`) and an object form of a `full` entry.
   - An older sdlc binary refuses the new members, because of its strict parse. That makes it use the suite instead, which is safe; this is noted in the atlas.
   - Within the new members, the parse stays strict: unknown keys, duplicate keys and wrong types refuse.
 - **Sidecars:** ariadne reads one member and writes nothing, so other members' preservation is untouched by ariadne. Pair's `--record` tool owns that, and pair#853 adds a test that a rewrite keeps `reads` and unknown members.
 - **Traceability files:** read-only; parley owns them.
 - **missed ledger:** the version and unknown members round-trip. An old reader rewriting a newer record keeps unknown members; there is a test for it.
+
+## Non-goals
+
+- ariadne never interprets certificate dispositions; they stay opaque. Pair maps them to its own `full` rules.
+- ariadne never writes sidecars or traceability files. Rewriting them is the owning repo's tooling.
+- No alias chains (one level only) and no negation in `owners`.
+- No per-test selection with `-run`: a package is the unit.
+- M3 records misses for Go tests only. A failing non-Go group is out of scope, because suite logs name Go tests.
+- No change to which check pre-close or a car requires.
 
 ## Ordering (ARCH-ORDER)
 
@@ -138,12 +161,22 @@ collaboration-mode: discussion
 
 ### M1: owners, full exceptions and sidecars (what pair#853 needs)
 
-- [ ] `config.go`: `FullRule` (string or `{glob, except}`), `owners`, `sidecars`, `traceability` parse; strict tests for each new member, including bad roots, empty `as`, strip traversal, and unknown or duplicate keys (`config_test.go`).
-- [ ] `mapping.go`: `OwnerRule`, `Compile`, the exact-path index and `Targets`. Tests: one-level alias, a strip derivation, rejecting a traversal-derived target, sidecar `reads` with opaque members ignored, a malformed `reads` resolving to a full reason.
-- [ ] `plan.go`: consult `Mapping` in the claim step through a shared `Owned`.
-  - Tests (`plan_test.go`): union with graph owners, dependents of a declared root, group roots selected via a declared root, `full` precedence over a declared rule, `except` falling through, a stale declared root going full, an alias target that claims nothing going full, an unmapped path keeping today's behavior, and an added/edited/deleted/renamed sidecar path selecting the test's package.
-- [ ] `cigate.go readAffectedConfig`: fetch the sidecars and traceability files from the rev with `TrunkView.FilesSelected` and compile. Every caller now passes the Mapping. Real-git tests show that the config and sidecars come from the base, not the head, and that an unreadable sidecar falls back to suite.
-- [ ] `landingattribution_impact.go`: the fallback uses `Owned`; extend its test with a declared owner.
+- [ ] `config.go` (`ParseConfig`): `FullRule`, `owners`, `sidecars` and `traceability`.
+  - Strategy: table tests over the strict-parse contract: each new member's valid form, a wrong type, an unknown key and a duplicate key.
+  - Plus a fuzz target seeded with today's configs. It asserts that parsing never panics and that a parsed config validates again.
+- [ ] `mapping.go` (`Compile`, `Targets`, `Owned`) and `sidecar.go` (`ParseSidecar`, the `Strip` derivation).
+  - Fuzz `ParseSidecar` and `Strip`, seeded with traversals (`..`, `/abs`, `a//b`, NUL, backslash) and malformed JSON. Assert that every derived target is clean and relative, or that the result is a full reason.
+  - A property test: for every path, `Owned` includes everything `Graph.owners` returns, because declarations only add.
+- [ ] `plan.go` (`Plan`): one table over the selection contract:
+  - union with graph owners, dependents, group roots;
+  - `full` and `except` precedence;
+  - a stale root, an alias target that claims nothing, an unmapped path;
+  - a sidecar that is added, edited, deleted or renamed.
+- [ ] Extract `gitx.TreeFilesSelected`; the existing `FilesSelected` tests keep passing unchanged. Add `loadAffectedMapping` and `affectedDeps.mapping`.
+  - Real-git tests show that declarations come from the base, not the head.
+  - They also show that an unreadable sidecar gives a Full selection with its reason: the affected run falls back to the suite, and boarding refuses, naming it.
+- [ ] `landingattribution_impact.go` (`splitImpact`): the fallback uses `Owned`, and the loader runs under its bounded ctx.
+  - Extend its test with a declared owner, and with a loader error that leaves impacts Unknown.
 - [ ] Qualification test: a fixture modeled on pair's `affected.json` minus `tests/**`, plus the sidecars. `tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json` selects `…/cmd/internal/testcouch/agentfixture` and its dependents. `cmd/couch/x_test.go` with `except` selects `cmd/couch`. `cmd/couch/main.go` stays full. `scripts/test-affected.py` (the selector) stays full.
 - [ ] Benchmark: 2,000 paths × 600 sidecars × 600 glob rules.
 - [ ] atlas `ci-merge-check.md` "The affected suite": owners, `except` and sidecars, a rewrite of "What the graph can't see" (a declared owner is now the answer for a non-Go input a Go test reads), and the older-binary fallback.
@@ -158,7 +191,7 @@ collaboration-mode: discussion
 
 ### M3: missed mappings
 
-- [ ] `missed.go` `Missed` and a package-of-test parser for suite failure names (`<import path>.TestName[/sub]`); pure tests.
+- [ ] `missed.go` `Missed`, getting each failure's package from the existing `flakes.SplitTest`. Table test covering bare names and full selections.
 - [ ] `affected_missed.go` ledger: lock, dedupe, cap, round-trip of unknown members, two concurrent writers.
 - [ ] `suitebaseline.go` hook: record only when the main baseline passed and the selection was not full. A test with a fake run pair shows a recorded miss, no record on a red main, and no record for a full selection.
 - [ ] Train attribution hook: a culprit car whose affected record missed the failing package records the same entry. The test extends `landingtrain_attribution_test.go`.
