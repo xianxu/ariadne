@@ -33,11 +33,15 @@ type ownedBranchCapture struct {
 }
 
 func captureOwnedBranchEvidence(ctx context.Context, root string, since, until time.Time) (capture ownedBranchCapture) {
-	capture.Root = root
-	capture.Unavailable = "HEAD history unavailable"
 	git := func(args ...string) (string, error) {
 		return ownedActualGit(ctx, root, append([]string{"--no-optional-locks"}, args...)...)
 	}
+	return captureOwnedBranchEvidenceWithGit(ctx, root, since, until, git)
+}
+
+func captureOwnedBranchEvidenceWithGit(ctx context.Context, root string, since, until time.Time, git func(...string) (string, error)) (capture ownedBranchCapture) {
+	capture.Root = root
+	capture.Unavailable = "HEAD history unavailable"
 	observe := func() (string, string, string, error) {
 		head, err := git("rev-parse", "--verify", "HEAD^{commit}")
 		if err != nil {
@@ -85,6 +89,13 @@ func captureOwnedBranchEvidence(ctx context.Context, root string, since, until t
 		capture.Unavailable = "HEAD identity changed during capture"
 		return
 	}
+	// A checkout can leave HEAD unchanged (A -> B -> A). Recheck the file
+	// after the final Git observations too, not just before those subprocesses.
+	final, err := os.Stat(path)
+	if err != nil || !os.SameFile(before, final) || before.Size() != final.Size() || !before.ModTime().Equal(final.ModTime()) {
+		capture.Unavailable = "HEAD history changed during final identity observation"
+		return
+	}
 	capture.Bytes = int64(len(raw))
 	capture.Digest = fmt.Sprintf("%x", sha256.Sum256(raw))
 	capture.raw = raw
@@ -120,18 +131,22 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 			return nil, nil, nil, err
 		}
 		events, err := loadOwnedBranchHistory(ctx, repo, inventory.Ref(), card.Path)
+		// Validate the same owner chronology without changing its historical
+		// retained-terminal semantics. Any competing uncertainty blocks fallback.
+		if err == nil {
+			_, err = tracker.DeriveEngagements(events, until)
+		}
+		if err == nil {
+			for _, event := range events {
+				if event.Owner != nil && !vocab.Issue().CanHoldOwner(event.Status) && !vocab.Issue().IsTerminal(event.Status) {
+					err = fmt.Errorf("unknown ownership lifecycle status %q", event.Status)
+					break
+				}
+			}
+		}
 		if err != nil {
 			if strings.TrimLeft(card.ID, "0") == candidate {
 				return nil, nil, nil, fmt.Errorf("branch claim history %s: %w", card.ID, err)
-			}
-			unknown = append(unknown, fmt.Sprintf("card %s: %v", card.ID, err))
-			continue
-		}
-		// Validate owner chronology with the existing authority; keep its
-		// retained-terminal semantics unchanged for other consumers.
-		if _, err := tracker.DeriveEngagements(events, until); err != nil {
-			if strings.TrimLeft(card.ID, "0") == candidate {
-				return nil, nil, nil, err
 			}
 			unknown = append(unknown, fmt.Sprintf("card %s: %v", card.ID, err))
 			continue
@@ -165,9 +180,6 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 				roots[root] = key
 			}
 			model := vocab.Issue()
-			if !model.CanHoldOwner(event.Status) && !model.IsTerminal(event.Status) {
-				return nil, nil, nil, fmt.Errorf("branch claim %s has unknown status %q", card.ID, event.Status)
-			}
 			claims[key] = append(claims[key], activetime.BranchClaim{Start: start, End: end, Issue: strconv.Itoa(id), Terminal: model.IsTerminal(event.Status)})
 		}
 	}
@@ -266,4 +278,81 @@ func measurementBranches(captures []ownedBranchCapture) []gatestate.MeasurementB
 		out = append(out, gatestate.MeasurementBranchEvidence{Root: c.Root, Path: c.Path, Head: c.Head, Branch: c.Branch, Digest: c.Digest, Bytes: c.Bytes, Unavailable: c.Unavailable, Intervals: c.Notes})
 	}
 	return out
+}
+
+func measurementBranchWarnings(m gatestate.MeasurementInputs) []string {
+	var notes []string
+	for _, capture := range m.Branches {
+		for _, w := range capture.Intervals {
+			if w.Kind == "branch" {
+				continue
+			}
+			notes = append(notes, fmt.Sprintf("branch attribution %s: %s %s during %s → %s", w.Source, w.Kind, w.Branch, w.Start, w.End))
+		}
+	}
+	return notes
+}
+
+// The audit facts and final eligibility must agree before a v3 result can be
+// measured or retained. This checks saved inputs only, never today's checkout.
+func validateOwnedBranchProof(m gatestate.MeasurementInputs, id string) error {
+	if !gatestate.IsBranchMethod(m.Method) {
+		return nil
+	}
+	fail := func(reason string) error { return fmt.Errorf("measurement branch proof: %s", reason) }
+	if err := m.Validate(); err != nil {
+		return fail(err.Error())
+	}
+	type interval struct{ start, end time.Time }
+	selected := map[string][]interval{}
+	for _, capture := range m.Branches {
+		for _, w := range capture.Intervals {
+			branchID := activetime.BranchIssue(w.Branch)
+			if w.Kind == "branch" && branchID != id || w.Kind == "foreign-branch" && (branchID == "" || branchID == id) {
+				return fail("branch witness does not match its issue attribution")
+			}
+			if w.Kind == "foreign-branch" {
+				continue
+			}
+			start, _ := time.Parse(time.RFC3339Nano, w.Start)
+			end, _ := time.Parse(time.RFC3339Nano, w.End)
+			selected[w.Source] = append(selected[w.Source], interval{start, end})
+		}
+	}
+	for source, windows := range selected {
+		sort.Slice(windows, func(i, j int) bool { return windows[i].start.Before(windows[j].start) })
+		var merged []interval
+		for _, w := range windows {
+			last := len(merged) - 1
+			if last >= 0 && w.start.Before(merged[last].end) {
+				return fail("overlapping branch witnesses for " + source)
+			}
+			if last >= 0 && w.start.Equal(merged[last].end) {
+				merged[last].end = w.end
+			} else {
+				merged = append(merged, w)
+			}
+		}
+		selected[source] = merged
+	}
+	for _, s := range m.Sources {
+		witnesses := selected[s.Harness+"/"+s.ID]
+		cursor := 0
+		var previous time.Time
+		for _, w := range s.Windows {
+			start, _ := time.Parse(time.RFC3339Nano, w.Start)
+			end, _ := time.Parse(time.RFC3339Nano, w.End)
+			if !end.After(start) || start.Before(previous) {
+				return fail("selected windows are not ordered")
+			}
+			previous = end
+			for cursor < len(witnesses) && !witnesses[cursor].end.After(start) {
+				cursor++
+			}
+			if cursor == len(witnesses) || start.Before(witnesses[cursor].start) || end.After(witnesses[cursor].end) {
+				return fail("selected window exceeds its branch witness")
+			}
+		}
+	}
+	return nil
 }

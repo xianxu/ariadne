@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
 // #580 reconstructs the documented parley #418 -> #322 ordering. The earlier
@@ -100,6 +103,32 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	if err := inputs.Snapshot.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	for _, harness := range []string{"claude", "codex", "qoder"} {
+		t.Run("lineage "+harness, func(t *testing.T) {
+			repo, err := tracker.NewRepository(t.Context(), worker, "origin")
+			if err != nil {
+				t.Fatal(err)
+			}
+			inventory, err := repo.SnapshotAt(inputs.Snapshot.TrackerHead)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sessions := []transcripts.SessionEvidence{{Harness: harness, ID: "root", File: "root", CWD: worker}, {Harness: harness, ID: "child", File: "child", ParentID: "root", Spawned: true, CWD: t.TempDir(), Started: time.Date(2026, 10, 14, 0, 3, 0, 0, time.UTC)}}
+			eligible, _, err := transcripts.EligibleSources(sessions, []transcripts.SourceWindow{{Start: boundary.Add(-18 * time.Minute), End: boundary.Add(11 * time.Minute), Began: boundary.Add(-18 * time.Minute), Roots: []string{worker}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			selected, captures, _, err := selectOwnedBranchWindows(t.Context(), repo, inventory, "335", sessions, eligible, boundary.Add(-18*time.Minute), boundary.Add(11*time.Minute))
+			if err != nil || len(captures) != 1 || captures[0].Root != worker {
+				t.Fatalf("child cwd replaced its admitted root: %+v %v", captures, err)
+			}
+			for _, file := range []string{"root", "child"} {
+				if len(selected[file]) != 1 || !selected[file][0].Start.Equal(boundary) || !selected[file][0].End.Equal(boundary.Add(11*time.Minute)) {
+					t.Fatalf("%s branch partition for %s: %+v", harness, file, selected[file])
+				}
+			}
+		})
+	}
 	// The manual command must use the same selector, including when explicit
 	// raw directories and wide timestamps would have bypassed ownership before.
 	var out, diagnostics bytes.Buffer
@@ -110,19 +139,94 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 	if !strings.Contains(out.String(), "#335: 0.18 hr  (11.0 min)") || !strings.Contains(out.String(), "#336: 0.28 hr  (17.0 min)") {
 		t.Fatalf("manual attribution bypassed branch partition: %s", out.String())
 	}
+	if binary := os.Getenv("WF_SDLC_580_BINARY"); binary != "" {
+		command := exec.CommandContext(t.Context(), binary, "active-time", "--git-repo", worker, "--dir", filepath.Dir(source), "--issue", "336", "--issue", "335", "--since", opts.SinceISO, "--until", opts.UntilISO)
+		command.Dir = worker
+		got, err := command.CombinedOutput()
+		if err != nil || !strings.Contains(string(got), "#335: 0.18 hr  (11.0 min)") || !strings.Contains(string(got), "#336: 0.28 hr  (17.0 min)") {
+			t.Fatalf("private executable conformance: %v\n%s", err, got)
+		}
+	}
+	measured := computeOwnedActualFor(t.Context(), worker, "335", "", inputs)
+	if measured.Status != actualMeasured || measured.Inputs == nil || measured.Inputs.Version != 3 {
+		t.Fatalf("branch actual adoption candidate lost proof: %+v", measured)
+	}
+	for _, mutation := range []string{"foreign witness", "widened selected window"} {
+		t.Run(mutation, func(t *testing.T) {
+			bad := *inputs
+			raw, err := json.Marshal(inputs.Snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(raw, &bad.Snapshot); err != nil {
+				t.Fatal(err)
+			}
+			if mutation == "foreign witness" {
+				for i := range bad.Snapshot.Branches[0].Intervals {
+					w := &bad.Snapshot.Branches[0].Intervals[i]
+					if w.Kind == "branch" {
+						w.Branch = "000336-active-a"
+					}
+				}
+			} else {
+				bad.Snapshot.Sources[0].Windows[0].Start = "2026-10-14T00:19:00Z"
+			}
+			got := computeOwnedActualFor(t.Context(), worker, "335", "", &bad)
+			if got.Status != actualError || !strings.Contains(got.Detail, "branch proof") {
+				t.Fatalf("tampered branch proof accepted: %+v", got)
+			}
+		})
+	}
 	// Expiring the selected worktree's history must not fall back to the
 	// common checkout's log or silently choose B among the two reservations.
 	logPath := strings.TrimSpace(testfix.Capture(t, worker, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"))
+	rawLog, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Remove(logPath); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := resolveOwnedActualInputs(t.Context(), worker, "", "335", ""); err == nil || !strings.Contains(err.Error(), "--no-actual") || !strings.Contains(err.Error(), "concurrent claims") {
 		t.Fatalf("expired history among concurrent claims: %v", err)
 	}
+	// A retained adoption replays the saved classifier and dispatch inputs,
+	// even when the live history has expired and new source bytes have arrived.
+	f, err := os.OpenFile(source, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("{\"timestamp\":\"2026-10-14T00:35:00Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":\"later\"}}\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := resolveOwnedReplay(t.Context(), worker, "335", *measured.Inputs, *inputs.Ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again := computeOwnedActualFor(t.Context(), worker, "335", "", replayed)
+	if again.Status != actualMeasured || again.Hours != measured.Hours {
+		t.Fatalf("expired live history changed adopted branch actual: before%+v after%+v", measured, again)
+	}
 	out.Reset()
 	diagnostics.Reset()
 	if code := runActiveTime(opts, &out, &diagnostics); code == 0 || !strings.Contains(diagnostics.String(), "concurrent claims") {
 		t.Fatalf("explicit raw options bypassed missing tracked branch proof: code%d %s", code, diagnostics.String())
+	}
+	// An expired prefix outside an explicit narrow window is irrelevant, but
+	// asking for the broad window still cannot manufacture its missing branch.
+	rows := strings.Split(strings.TrimSuffix(string(rawLog), "\n"), "\n")
+	if err := os.WriteFile(logPath, []byte(strings.Join(rows[len(rows)-2:], "\n")+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	opts.Issues = []string{"335"}
+	opts.SinceISO = "2026-10-14T00:25:00Z"
+	out.Reset()
+	diagnostics.Reset()
+	if code := runActiveTime(opts, &out, &diagnostics); code != 0 || !strings.Contains(out.String(), "#335: 0.10 hr  (6.0 min)") {
+		t.Fatalf("explicit narrowing did not remove irrelevant expired prefix: %d %s %s", code, out.String(), diagnostics.String())
 	}
 }
 
@@ -163,6 +267,45 @@ func TestOwnedBranchCaptureUsesExactWorktreeAndRejectsUnavailableHistory(t *test
 			got := captureOwnedBranchEvidence(t.Context(), worker, since, until)
 			if got.Unavailable == "" || len(got.Intervals) != 0 {
 				t.Fatalf("invalid capture accepted: %+v", got)
+			}
+		})
+	}
+	if err := os.WriteFile(capture.Path, before, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"append", "replace", "rewrite"} {
+		t.Run("capture race "+mode, func(t *testing.T) {
+			if err := os.WriteFile(capture.Path, before, 0600); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			git := func(args ...string) (string, error) {
+				calls++
+				if calls == 4 {
+					switch mode {
+					case "append":
+						if err := os.WriteFile(capture.Path, append(append([]byte(nil), before...), []byte("changed\n")...), 0600); err != nil {
+							t.Fatal(err)
+						}
+					case "replace":
+						replacement := filepath.Join(t.TempDir(), "HEAD")
+						if err := os.WriteFile(replacement, before, 0600); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.Rename(replacement, capture.Path); err != nil {
+							t.Fatal(err)
+						}
+					case "rewrite":
+						if err := os.Chtimes(capture.Path, time.Unix(1, 0), time.Unix(1, 0)); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				return ownedActualGit(t.Context(), worker, append([]string{"--no-optional-locks"}, args...)...)
+			}
+			got := captureOwnedBranchEvidenceWithGit(t.Context(), worker, since, until, git)
+			if got.Unavailable == "" || len(got.Intervals) > 0 {
+				t.Fatalf("capture race accepted: %+v", got)
 			}
 		})
 	}

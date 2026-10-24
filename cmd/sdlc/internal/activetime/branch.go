@@ -44,6 +44,9 @@ func BranchIssue(branch string) string {
 	if len(branch) < 8 || branch[6] != '-' || strings.ContainsAny(branch, " \t\r\n\x00") {
 		return ""
 	}
+	if historyBranch(branch).kind != headAttached {
+		return ""
+	}
 	for _, c := range branch[:6] {
 		if c < '0' || c > '9' {
 			return ""

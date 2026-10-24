@@ -78,3 +78,23 @@ func TestParseHeadHistoryRejectsIncompleteAndContradictoryEvidence(t *testing.T)
 		t.Fatal("captured HEAD and log tip disagree")
 	}
 }
+
+func TestBranchWitnessRejectsMalformedGitNamesAndCaptureLimits(t *testing.T) {
+	for _, name := range []string{"000335-b..x", "000335-b@{x}", "000335-b.lock", "000335-b/", "000335-b//x", "000335-b/.hidden", "000335-b\x01x"} {
+		if BranchIssue(name) != "" || historyBranch(name).kind != headUnknown {
+			t.Fatalf("malformed branch became an issue witness: %q", name)
+		}
+	}
+	messages := make([]string, HeadHistoryRecordLimit)
+	for i := range messages {
+		messages[i] = "commit: work"
+	}
+	raw := headLogFixture(messages...)
+	if _, err := ParseHeadHistory(raw, "000335-b", strings.Repeat("a", 40), branchTime(2), branchTime(31)); err != nil {
+		t.Fatalf("at record bound: %v", err)
+	}
+	raw = append(raw, []byte(fmt.Sprintf("%s %s Fixture <f@example.invalid> %d +0000\tcommit: work\n", strings.Repeat("a", 40), strings.Repeat("a", 40), branchTime(HeadHistoryRecordLimit*10).Unix()))...)
+	if _, err := ParseHeadHistory(raw, "000335-b", strings.Repeat("a", 40), branchTime(2), branchTime(31)); err == nil {
+		t.Fatal("over record bound accepted")
+	}
+}

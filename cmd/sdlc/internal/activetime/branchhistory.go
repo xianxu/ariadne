@@ -46,8 +46,18 @@ func historyBranch(s string) headBranch {
 	if s == "" || s == "HEAD" || historyOID(s) {
 		return headBranch{kind: headDetached}
 	}
-	if strings.ContainsAny(s, " \t\r\n\x00~^:?*[\\") || strings.HasPrefix(s, "-") {
+	if strings.ContainsAny(s, " \t\r\n\x00~^:?*[\\") || strings.HasPrefix(s, "-") || strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") || strings.HasSuffix(s, ".") || strings.Contains(s, "..") || strings.Contains(s, "//") || strings.Contains(s, "@{") || s == "@" {
 		return headBranch{}
+	}
+	for _, c := range s {
+		if c < 32 || c == 127 {
+			return headBranch{}
+		}
+	}
+	for _, part := range strings.Split(s, "/") {
+		if strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".lock") {
+			return headBranch{}
+		}
 	}
 	return headBranch{kind: headAttached, name: s}
 }

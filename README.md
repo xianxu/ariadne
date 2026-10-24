@@ -1199,6 +1199,18 @@ Issue actuals are measured from ownership intervals and the owning slots' agent
 sessions. Close retains its measurement evidence so later `sdlc actual` replays
 the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 
+In tracker repositories, ownership reserves the work; captured worktree-local
+HEAD history selects which claimed issue was active (#580). Another issue's
+unadopted close/test/landing tail is excluded. Sole-claim planning can count with
+an explicit ownership-only label; concurrent claims without a proven active
+branch refuse numeric measurement and name the precise `--no-actual` recovery.
+`sdlc active-time` now uses that same classifier by default. Explicit source
+directories and timestamps only narrow it, and multi-issue output partitions
+source intervals before allocation. No-tracker behavior remains manual.
+New branch snapshots use version 3, including original dispatch and final
+selected windows; older readers refuse them rather than silently undercount
+crossing spans. Existing adopted v1/v2 snapshots replay unchanged.
+
 A migrated working issue with no tracker owner refuses with
 `no owner since cutover: run sdlc claim --issue N from the slot doing the work`.
 Reconcile does not create ownership. Work between cutover and claim is unowned

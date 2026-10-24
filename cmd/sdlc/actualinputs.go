@@ -58,6 +58,12 @@ func resolveOwnedActualInputs(ctx context.Context, repoTop, brainAbs, issueNum, 
 }
 
 func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNum, plans string, purpose actualInputPurpose, milestones ...string) (*ownedActualInputs, error) {
+	return resolveOwnedActualInputsLimited(ctx, repoTop, brainAbs, issueNum, plans, purpose, nil, milestones...)
+}
+
+// Explicit standalone inspection limits apply after source provenance admission
+// and before branch selection. They never substitute for either authority.
+func resolveOwnedActualInputsLimited(ctx context.Context, repoTop, brainAbs, issueNum, plans string, purpose actualInputPurpose, limits *ownedActualLimits, milestones ...string) (*ownedActualInputs, error) {
 	ctx = ownedBranchRequestContext(ctx)
 	if purpose != actualHistorical && purpose != actualCloseCandidate && purpose != actualCorrectionCandidate {
 		return nil, fmt.Errorf("unsupported measurement purpose %d", purpose)
@@ -245,10 +251,10 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	if err != nil {
 		return nil, err
 	}
-	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementInputsVersion, Method: gatestate.MeasurementMethodEngagementV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
+	snapshot := gatestate.MeasurementInputs{Version: gatestate.MeasurementBranchInputsVersion, Method: gatestate.MeasurementMethodBranchV1, Repository: target.Repository, CodeHead: head, TrackerHead: trackerPin, BranchPoint: scope.BranchPoint, Since: sourceWindows[0].Start.Format(time.RFC3339Nano), Until: until.Format(time.RFC3339Nano), BrainRoot: brainAbs, GapMinutes: 15, CommitWeight: 1, IncludeAssistant: true}
 	if legacyPrefix != nil {
-		snapshot.Version = gatestate.MeasurementHybridInputsVersion
-		snapshot.Method = gatestate.MeasurementMethodHybridV1
+		snapshot.Version = gatestate.MeasurementBranchInputsVersion
+		snapshot.Method = gatestate.MeasurementMethodBranchHybridV1
 		snapshot.LegacyPrefix, snapshot.LegacyCutover = &legacyPrefix.Snapshot, legacyCutover
 		snapshot.Since = legacyPrefix.Snapshot.Since
 	}
@@ -277,6 +283,12 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 	}
 	var captures []ownedBranchCapture
 	dispatchWindows := windows
+	if limits != nil {
+		windows, err = limitOwnedSourceWindows(windows, *limits)
+		if err != nil {
+			return nil, err
+		}
+	}
 	windows, captures, notes, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
 	if err != nil {
 		return nil, err
@@ -480,9 +492,16 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 	out.Warnings = append(out.Warnings, attemptWarnings...)
 	out.Warnings = append(out.Warnings, notes...)
 	if len(waits) > 0 {
-		out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
-		if out.LegacyPrefix != nil {
+		switch {
+		case gatestate.IsBranchMethod(out.Snapshot.Method):
+			out.Snapshot.Method = gatestate.MeasurementMethodBranchQueueV1
+			if out.LegacyPrefix != nil {
+				out.Snapshot.Method = gatestate.MeasurementMethodBranchHybridQueueV1
+			}
+		case out.LegacyPrefix != nil:
 			out.Snapshot.Method = gatestate.MeasurementMethodHybridQueueV1
+		default:
+			out.Snapshot.Method = gatestate.MeasurementMethodQueueV1
 		}
 		out.Snapshot.QueueWaits = waits
 	}
@@ -730,6 +749,9 @@ func ownedReplaySources(saved gatestate.MeasurementInputs, found []transcripts.S
 }
 
 func resolveOwnedReplay(ctx context.Context, root, issueNum string, saved gatestate.MeasurementInputs, ledger gatestate.Ledger) (*ownedActualInputs, error) {
+	if err := validateOwnedBranchProof(saved, issueNum); err != nil {
+		return nil, err
+	}
 	var legacyPrefix *ownedActualInputs
 	if saved.LegacyPrefix != nil {
 		if err := validateRetainedLegacyPrefix(ctx, root, issueNum, saved); err != nil {
@@ -766,6 +788,7 @@ func resolveOwnedReplay(ctx context.Context, root, issueNum string, saved gatest
 	}
 	out.Scope.Issue = issueNum
 	out.Warnings = append(warnings, "replaying retained measurement inputs from its finalized boundary evidence")
+	out.Warnings = append(out.Warnings, measurementBranchWarnings(saved)...)
 	// The snapshot owns the cuts. Later ledger edits cannot move old phases.
 	ledger.Rounds = nil
 	for i, cut := range saved.Cuts {

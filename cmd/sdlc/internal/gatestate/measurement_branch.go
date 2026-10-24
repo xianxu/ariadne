@@ -9,8 +9,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// MeasurementBranchEvidence is additive audit provenance. Sources.Windows
-// remains the authority, including for readers predating branch attribution.
+// MeasurementBranchEvidence pins audit provenance for version 3 snapshots.
+// Sources.Windows remains final eligibility; older readers refuse this version.
 type MeasurementBranchEvidence struct {
 	extra       measurementUnknown          `json:"-" yaml:"-"`
 	Root        string                      `json:"root" yaml:"root"`
@@ -33,6 +33,21 @@ type MeasurementBranchInterval struct {
 }
 
 func (m MeasurementInputs) validateBranchEvidence(since, until time.Time) error {
+	if !IsBranchMethod(m.Method) {
+		if len(m.Branches) > 0 {
+			return fmt.Errorf("measurement branch evidence requires the branch method/version")
+		}
+		for _, s := range m.Sources {
+			if len(s.DispatchWindows) > 0 {
+				return fmt.Errorf("measurement original dispatch windows require the branch method/version")
+			}
+		}
+		return nil
+	}
+	if len(m.Sources) > 0 && len(m.Branches) == 0 {
+		return fmt.Errorf("measurement branch method requires capture evidence")
+	}
+
 	if len(m.Branches) > SnapshotLimitSources {
 		return fmt.Errorf("measurement branch capture count exceeds source bound")
 	}

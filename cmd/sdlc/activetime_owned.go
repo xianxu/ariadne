@@ -43,6 +43,19 @@ func computeActiveTime(opts activetime.Options) (activetime.Result, []string, er
 		}
 		dirs = append(dirs, p)
 	}
+	limits := ownedActualLimits{Dirs: dirs}
+	if opts.SinceISO != "" {
+		limits.Since, err = time.Parse(time.RFC3339Nano, opts.SinceISO)
+		if err != nil {
+			return activetime.Result{}, nil, err
+		}
+	}
+	if opts.UntilISO != "" {
+		limits.Until, err = time.Parse(time.RFC3339Nano, opts.UntilISO)
+		if err != nil {
+			return activetime.Result{}, nil, err
+		}
+	}
 	result := activetime.Result{Status: activetime.EmptyWindow, PerIssue: map[string]float64{}}
 	var notes []string
 	notes = append(notes, "tracked repository: branch/claim attribution by default; --dir, --since and --until only narrow verified source windows")
@@ -71,7 +84,7 @@ func computeActiveTime(opts activetime.Options) (activetime.Result, []string, er
 			continue
 		}
 		seen[id] = true
-		inputs, e := resolveOwnedActualInputs(ctx, root, "", id, "")
+		inputs, e := resolveOwnedActualInputsLimited(ctx, root, "", id, "", actualHistorical, &limits)
 		if e != nil {
 			return activetime.Result{}, nil, e
 		}
@@ -79,6 +92,9 @@ func computeActiveTime(opts activetime.Options) (activetime.Result, []string, er
 			return activetime.Result{}, nil, fmt.Errorf("tracker disappeared during active-time measurement")
 		}
 		m := inputs.Snapshot
+		if e := validateOwnedBranchProof(m, id); e != nil {
+			return activetime.Result{}, nil, e
+		}
 		if !inputs.Replay && codeHead != "" && (codeHead != m.CodeHead || trackerHead != m.TrackerHead) {
 			return activetime.Result{}, nil, fmt.Errorf("active-time issue authorities differ; inspect completed snapshots or retry a moving tracker")
 		}
@@ -137,20 +153,22 @@ func computeActiveTime(opts activetime.Options) (activetime.Result, []string, er
 			if e != nil {
 				return activetime.Result{}, nil, e
 			}
-			allowed := false
-			for _, dir := range dirs {
-				rel, e := filepath.Rel(dir, path)
-				if e == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
+			if !withinManualDirs(path, dirs) {
 				continue
 			}
 			options.Files = append(options.Files, source)
+			left, _ := time.Parse(time.RFC3339Nano, options.SinceISO)
+			right, _ := time.Parse(time.RFC3339Nano, options.UntilISO)
 			for _, w := range inputs.Windows[source] {
-				selected[path] = append(selected[path], selectedWindow{w.Start, w.End, id})
+				if w.Start.Before(left) {
+					w.Start = left
+				}
+				if w.End.After(right) {
+					w.End = right
+				}
+				if w.Start.Before(w.End) {
+					selected[path] = append(selected[path], selectedWindow{w.Start, w.End, id})
+				}
 			}
 		}
 		for _, q := range m.QueueWaits {

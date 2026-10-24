@@ -12,6 +12,8 @@ import (
 
 func branchMeasurement() MeasurementInputs {
 	m := validMeasurementInputs()
+	m.Version = MeasurementBranchInputsVersion
+	m.Method = MeasurementMethodBranchV1
 	for i := range m.Sources {
 		m.Sources[i].DispatchWindows = m.Sources[i].Windows
 	}
@@ -57,8 +59,8 @@ func TestMeasurementBranchEvidencePreservesUnknownAndOldAccounting(t *testing.T)
 	if err := json.Unmarshal(raw, &old); err != nil {
 		t.Fatal(err)
 	}
-	if err := old.Validate(); err != nil {
-		t.Fatal(err)
+	if err := old.Validate(); err == nil {
+		t.Fatal("old reader silently accepted branch span interpretation")
 	}
 	if !reflect.DeepEqual(old.Sources[0].Windows[0].Start, m.Sources[0].Windows[0].Start) || old.Sources[0].Windows[0].End != m.Sources[0].Windows[0].End {
 		t.Fatal("old reader widened narrowed windows")
@@ -67,6 +69,13 @@ func TestMeasurementBranchEvidencePreservesUnknownAndOldAccounting(t *testing.T)
 		var s MeasurementSource
 		if err := json.Unmarshal([]byte(data), &s); err == nil {
 			t.Fatal("malformed dispatch windows accepted")
+		}
+	}
+	for _, downgrade := range []func(*MeasurementInputs){func(m *MeasurementInputs) { m.Version = 1 }, func(m *MeasurementInputs) { m.Method = MeasurementMethodEngagementV1 }, func(m *MeasurementInputs) { m.Version = 1; m.Method = MeasurementMethodEngagementV1 }} {
+		bad := m
+		downgrade(&bad)
+		if err := bad.Validate(); err == nil {
+			t.Fatal("downgraded branch evidence accepted")
 		}
 	}
 }
