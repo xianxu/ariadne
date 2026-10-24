@@ -100,3 +100,9 @@ Single atomic issue close; these checkboxes are tasks, not milestone boundaries.
 ## Approval
 
 Await TL decision on the proposed sole-claim compatibility rule, unknown concurrent-claim refusal, captured HEAD-history evidence and private conformance/post-land rebuild. No implementation or recorded suite has started.
+
+## Revisions
+
+### 2026-10-23 19:32 PDT — authenticated TL approval
+
+TL approved all three policy choices: exclude work on another claimed issue's witnessed branch; retain labelled ownership-only attribution for sole-claim planning; refuse a numeric actual for concurrent claims with missing, resting or ambiguous branch evidence and name explicit --no-actual recovery. Approved one selector over captured per-worktree HEAD history, additive saved provenance and immutable adopted replays. Proceed to change-code. The Approval paragraph above records the original proposal state. No implementation has started at this checkpoint.
