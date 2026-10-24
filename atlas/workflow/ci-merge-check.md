@@ -206,7 +206,12 @@ first-class evidence, recorded on the commit it ran on:
   so merge's GitHub polling and landing hold no slot (#383). The log is kept under
   `<git common dir>/sdlc/local-checks/<sha>/` (newest 20 commits), and the run
   posts the commit status `sdlc-local/<name>`. A failure also posts a bounded
-  log tail as a PR comment.
+  log tail as a PR comment. `timeout_minutes` bounds the commands alone: the
+  deadline starts after the worktree, scratch and temp-listing setup, and the
+  timeout verdict is read when the commands return, never after the slot
+  release and queue bookkeeping (#599). Before #599 setup was charged to the
+  deadline, and a suite that exited (even passing) within the bookkeeping
+  window of its deadline was recorded `TimedOut`.
 - **Merge** (`decideCIGate`, `runCIGate`). A `cancel` check counts as
   *runnerless* only when the Actions jobs API reports no runner and zero steps
   (structural, measured on pair job 115490631095; a live conformance test reads
@@ -366,6 +371,7 @@ then loads the native graph. The argv runs without implicit shell interpolation,
 with SIGINT/SIGTERM ownership through affected completion, caller cancellation,
 process-group teardown and a one-second pipe-drain
 bound. Timeout defaults to two minutes (range 1..30); absent/null means no prep.
+A preparation that exits 0 stands even if its deadline passes during teardown (#599).
 Preparation failure/deadline or graph failure follows the existing full-suite
 fallback with the cause. Cancellation never publishes a passing affected result.
 The graph checkout's cleanup owns generated output; the separate affected run
