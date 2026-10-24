@@ -223,3 +223,72 @@ dispose:
 7. **Plan revision recommendations:** None. The added revision records enforcement of the existing contract.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0376edd3-207c-4bd1-8480-6f1c2358b3e8","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/0c70b9a0ea13d21c","reviewed_head":"bb006fcf0179f2943a51e05f5470b65624fdba27","slot":"ariadne:3","requested_at":"2026-10-23T16:54:37.913623Z"},"phase":"finished","pid":79901,"started_at":"2026-10-23T16:54:38.126117Z","finished_at":"2026-10-23T16:55:46.353632Z","session_id":"01a169af-9ac4-77f3-b3eb-cd9e267d7b8a","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T17:27:21-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 574 — Keep slot-sibling ariadne checkouts current so queue-helper rollouts finish |
+| repo | ariadne |
+| issue file | workshop/issues/000574-keep-slot-sibling-ariadne-checkouts-current-so-queue-helper-rollouts-finish.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a2def5eef1485936e274c10f7b9caf102aa1240b..066a54027de5d32a32764d74ff7c58d8341113fb |
+| command | sdlc close --issue 574 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-23T17:27:21-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff preserves both sides of the two conflict resolutions. Targeted tests pass, prior findings remain addressed, and no new defects or scope changes were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:416–442 documents --suite-helper, launch boundaries, eligibility, recovery and supplier provenance; these remain consistent with the implementation.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Native supplier tests cover distinct revisions, fast-forward with unchanged tickets, invalid owners, Git failure, helper symlinks and index preservation. They pass at the pinned head; this interdiff preserves their production paths.
+```
+
+1. **Strengths**
+
+   - `cmd/sdlc/localcheck_run.go:37` preserves both refresh and capability hooks, with reachable consumers.
+   - `cmd/sdlc/queue_suite_status.go:28` preserves supplier diagnostics alongside light-lane decoding and rendering.
+   - Tracker changes record review and integration outcomes without altering Spec, Done when, or the implementation plan.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Queue/helper/supplier checks passed: 73.979s.
+   - Capability checks passed: 8.089s.
+   - `git diff --check` passed; checkout unchanged.
+   - Full repository suite and mutation controls were not rerun for this conflict-resolution interdiff.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** Existing shared hooks and observation types retained.
+   - **ARCH-PURE — pass:** Dependency injection and IO boundaries preserved.
+   - **ARCH-PURPOSE — pass:** Both refresh/provenance and main’s capability/light-lane behavior survive resolution.
+   - **ARCH-EVOLVE — pass:** No persisted-format changes; supplier metadata remains excluded from JSON.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"014e5fea-ae5e-4711-8390-690d4ce146ed","repository":"github.com/xianxu/ariadne","issue_id":"000574","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/e3485ffd04b79b58","reviewed_head":"066a54027de5d32a32764d74ff7c58d8341113fb","slot":"ariadne:3","requested_at":"2026-10-24T00:25:36.045373Z"},"phase":"finished","pid":30105,"started_at":"2026-10-24T00:25:36.141607Z","finished_at":"2026-10-24T00:27:21.040913Z","session_id":"01a16b4c-79ae-7890-b0b4-4baaf31f8bb6","outcome":"returned"}] -->

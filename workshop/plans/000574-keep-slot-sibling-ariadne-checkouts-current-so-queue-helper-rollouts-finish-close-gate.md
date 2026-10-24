@@ -233,6 +233,97 @@ rounds:
       isolation: fenced
       reviewed: bb006fcf0179f2943a51e05f5470b65624fdba27
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 014e5fea-ae5e-4711-8390-690d4ce146ed
+            repository: github.com/xianxu/ariadne
+            issue_id: "000574"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/e3485ffd04b79b58
+            reviewed_head: 066a54027de5d32a32764d74ff7c58d8341113fb
+            slot: ariadne:3
+            requested_at: "2026-10-24T00:25:36.045373Z"
+          phase: finished
+          pid: 30105
+          started_at: "2026-10-24T00:25:36.141607Z"
+          finished_at: "2026-10-24T00:27:21.040913Z"
+          session_id: 01a16b4c-79ae-7890-b0b4-4baaf31f8bb6
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 066a54027de5d32a32764d74ff7c58d8341113fb
+        tracker_head: ab1c27fdb8e5a1e6fc766bfdbf69d073046c508f
+        branch_point: 1e4dd8d59b367cda6d96684d7b6d6a05e00693bd
+        since: "2026-10-23T09:02:18-07:00"
+        until: "2026-10-23T15:00:31-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T09:02:18-07:00"
+              end: "2026-10-23T15:00:31-07:00"
+              began: "2026-10-23T09:02:18-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+        sources:
+            - harness: codex
+              id: 01a14367-9218-7872-89c3-f9a28c524834
+              slot: ariadne:3
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+              digest: 3372d62cafc08f5c3f5c131ba0c0d2fd9652e4f3eca7aa5c784efffeebf25cfc
+              started: "2026-10-16T06:30:23.8Z"
+              spawned: false
+              bytes: 136987922
+              windows:
+                - start: "2026-10-23T09:02:18-07:00"
+                  end: "2026-10-23T15:00:31-07:00"
+        queue_waits:
+            - attempt_id: adc38bd2a68ef44079a7aa8480283935
+              slot: ariadne:3
+              record_digest: 39ec3a8835ca93450157afe9a3b6cee1caab02cf00e5924158c257d435306c74
+              start: "2026-10-23T16:54:08.847835Z"
+              end: "2026-10-23T17:56:24.137664Z"
+              queue_seconds: 3735.289829
+              raw_seconds: 3735.289829
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 15.241266666666666
+        cuts:
+            - dispatched: "2026-10-23T09:35:27-07:00"
+              finalized: "2026-10-23T09:37:48-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T09:46:21-07:00"
+              finalized: "2026-10-23T09:48:23-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T09:54:37-07:00"
+              finalized: "2026-10-23T09:55:47-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-23T17:27:22-07:00"
+      dispatched: "2026-10-23T17:25:36-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:416–442 documents --suite-helper, launch boundaries, eligibility, recovery and supplier provenance; these remain consistent with the implementation.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Native supplier tests cover distinct revisions, fast-forward with unchanged tickets, invalid owners, Git failure, helper symlinks and index preservation. They pass at the pinned head; this interdiff preserves their production paths.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 066a54027de5d32a32764d74ff7c58d8341113fb
+      blocked: false
 ---
 
 # Gate ledger — ariadne#574 (boundary-review)
@@ -262,6 +353,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — addressed — README.md:419–446 retains the mode, automatic boundary, eligibility and recovery documentation; the added index-preservation statement matches the shared Git adapter.
 - BR-2 — addressed — The native supplier matrix remains present and passes. The added index-invariance regression also passes at head and fails when --no-optional-locks is removed through a temporary overlay.
+
+## Round 4 — 2026-10-23T17:27:22-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:416–442 documents --suite-helper, launch boundaries, eligibility, recovery and supplier provenance; these remain consistent with the implementation.
+- BR-2 — addressed — Native supplier tests cover distinct revisions, fast-forward with unchanged tickets, invalid owners, Git failure, helper symlinks and index preservation. They pass at the pinned head; this interdiff preserves their production paths.
 
 ## Open findings
 
