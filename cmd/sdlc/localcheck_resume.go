@@ -121,7 +121,7 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 			if !planned.Full {
 				why = "nothing is affected"
 			}
-			return rec, fmt.Errorf("local-check resume: %s on %s now selects no runnable subset (%s); nothing was run: run sdlc local-check run --name %s --rev %s", affectedCheckName, abbrevSHA(sha), why, suiteCheckName, sha)
+			return rec, fmt.Errorf("local-check resume: %s on %s now selects no runnable subset (%s); nothing was run: run %s", affectedCheckName, abbrevSHA(sha), why, localCheckRunCommand(suiteCheckName, sha))
 		}
 		selection = &ResumeSelection{GoPkgs: append([]string{}, planned.GoPkgs...), Groups: append([]string{}, planned.Groups...)}
 		c.Rerun = &affectedRerun{Command: c.Command, GoPkgs: selection.GoPkgs, Groups: selection.Groups}
