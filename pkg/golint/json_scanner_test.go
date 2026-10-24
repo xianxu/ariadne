@@ -32,6 +32,7 @@ func TestJSONScannerMaterializerNeedsReturnedRecursiveValues(t *testing.T) {
 		want       int
 	}{
 		{"map", `m:=map[string]any{}; d.Token();for d.More(){v,_:=walk(d);m["key"]=v};return m,nil`, 0},
+		{"transparent map flow", `m:=(map[string]any{}); d.Token();for d.More(){v,_:=(walk)(d);(m)["key"]=(v)};return (m),nil`, 0},
 		{"slice", `_ = map[string]bool{};a:=[]any{};d.Token();for d.More(){v,_:=walk(d);a=append(a,v)};return a,nil`, 0},
 		{"unused map", `m:=map[string]any{};_ = m;d.Token();for d.More(){walk(d)};return nil,nil`, 1},
 		{"constant stored", `m:=map[string]any{};d.Token();for d.More(){v,_:=walk(d);_ = v;m["key"]=true};return m,nil`, 1},
@@ -149,6 +150,33 @@ func scan(d *json.Decoder)error {
 	got, err := Check("nested.go", []byte(src), []Rule{ruleOf(t, "json-recursive-scanner")})
 	if err != nil || len(got) != 1 {
 		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestJSONScannerClosureSelfBindingMustBeStable(t *testing.T) {
+	for _, tc := range []struct {
+		name, after string
+		want        int
+	}{
+		{"stable", "", 0},
+		{"rebound", "walk=other;", 1},
+		{"parenthesized rebound", "(walk)=other;", 1},
+		{"address escapes", "mutate(&walk);", 1},
+		{"parenthesized address", "mutate(&(walk));", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `package p
+import "encoding/json"
+func factory(d *json.Decoder){
+var walk func(*json.Decoder)(any,error)
+walk=func(d *json.Decoder)(any,error){m:=map[string]any{};d.Token();for d.More(){v,_:=walk(d);m["key"]=v};return m,nil}
+` + tc.after + `_ = walk
+}`
+			got, err := Check("factory.go", []byte(src), []Rule{ruleOf(t, "json-recursive-scanner")})
+			if err != nil || len(got) != tc.want {
+				t.Fatalf("%+v %v want %d", got, err, tc.want)
+			}
+		})
 	}
 }
 

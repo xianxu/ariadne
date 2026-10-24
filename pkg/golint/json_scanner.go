@@ -18,6 +18,7 @@ type jsonScannerFunction struct {
 	values                 []*ast.ValueSpec
 	returns                []*ast.ReturnStmt
 	maps                   bool
+	stableSelf             bool
 }
 type jsonScannerUse struct {
 	id     *ast.Ident
@@ -28,6 +29,8 @@ type jsonScannerReference struct {
 	call  *ast.CallExpr
 }
 type jsonScannerSummary struct {
+	bindingWrites  map[*ast.Object]int
+	addressed      map[*ast.Object]bool
 	roleNodeVisits int
 	functions      []*jsonScannerFunction
 	declarations   map[*ast.Object]*jsonScannerFunction
@@ -53,6 +56,11 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 	s.visits++
 	switch x := n.(type) {
 	case *ast.AssignStmt:
+		for _, lhs := range x.Lhs {
+			if id := assignedRoot(lhs); id != nil && id.Obj != nil {
+				s.bindingWrites[id.Obj]++
+			}
+		}
 		for i, rhs := range x.Rhs {
 			if lit, ok := rhs.(*ast.FuncLit); ok && i < len(x.Lhs) {
 				if id, ok := x.Lhs[i].(*ast.Ident); ok {
@@ -74,6 +82,18 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 		fn := &jsonScannerFunction{node: x, name: s.closures[x], parent: v.owner}
 		s.functions = append(s.functions, fn)
 		v.owner = fn
+	case *ast.ValueSpec:
+		for i, id := range x.Names {
+			if i < len(x.Values) && id.Obj != nil {
+				s.bindingWrites[id.Obj]++
+			}
+		}
+	case *ast.UnaryExpr:
+		if x.Op == token.AND {
+			if id := assignedRoot(x.X); id != nil && id.Obj != nil {
+				s.addressed[id.Obj] = true
+			}
+		}
 	}
 	if fn := v.owner; fn != nil {
 		if id, ok := n.(*ast.Ident); ok && id.Obj != nil {
@@ -108,11 +128,12 @@ func (v jsonScannerVisitor) Visit(n ast.Node) ast.Visitor {
 }
 
 func summarizeJSONScanners(f *ast.File) *jsonScannerSummary {
-	s := &jsonScannerSummary{declarations: map[*ast.Object]*jsonScannerFunction{}, references: map[*ast.Object][]jsonScannerReference{}, closures: map[*ast.FuncLit]*ast.Ident{}}
+	s := &jsonScannerSummary{bindingWrites: map[*ast.Object]int{}, addressed: map[*ast.Object]bool{}, declarations: map[*ast.Object]*jsonScannerFunction{}, references: map[*ast.Object][]jsonScannerReference{}, closures: map[*ast.FuncLit]*ast.Ident{}}
 	ast.Walk(jsonScannerVisitor{summary: s}, f)
 	objects, receivers := map[*ast.Object]*jsonScannerFunction{}, map[*ast.Object]*jsonScannerFunction{}
 	for _, fn := range s.functions {
 		if fn.name != nil && fn.name.Obj != nil {
+			fn.stableSelf = fn.name.Obj.Kind == ast.Fun || (s.bindingWrites[fn.name.Obj] == 1 && !s.addressed[fn.name.Obj])
 			objects[fn.name.Obj] = fn
 		}
 		if fn.receiver != nil {
@@ -180,7 +201,7 @@ func jsonSelfCall(fn *jsonScannerFunction, e ast.Expr) bool {
 	}
 	switch target := call.Fun.(type) {
 	case *ast.Ident:
-		return target.Obj != nil && target.Obj == fn.name.Obj
+		return fn.stableSelf && target.Obj != nil && target.Obj == fn.name.Obj
 	case *ast.SelectorExpr:
 		receiver, ok := target.X.(*ast.Ident)
 		return ok && fn.receiver != nil && receiver.Obj == fn.receiver && target.Sel.Name == fn.name.Name

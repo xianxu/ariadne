@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #590 / pair#861: container syntax does not establish duplicate-validation authority. Before consolidating a recursive scanner, distinguish a value-producing materializer and an independent differential oracle from a redundant validator. Qualify roles with returned-value and fuzz-comparison evidence; keep overwritten, escaping, shadowed and unresolved uses conservative. The existing json-recursive-scanner catalog owns this prevention rule and its exact Pair source replays; do not add replacement waiver annotations or tell a downstream module to import an inaccessible internal package. Normalize binding writes/address exposure with the existing assignedRoot helper so transparent parentheses cannot bypass uncertainty.
+
 - #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
   every recognition boundary, including assignment targets and tuple-return
   calls, rather than only expression propagation. Recognize directly declared

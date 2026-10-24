@@ -39,7 +39,7 @@ Qualify/narrow the matcher using the two counterexamples without weakening actua
 Durable plan: [JSON scanner roles](../plans/000590-json-lint-role-counterexamples-plan.md). Approved by ops:0 on 2026-10-24; enter change-code before implementation.
 
 - [x] Approved role boundaries; captured both Pair counterexamples before implementation.
-- [ ] Implement positive materializer/oracle role qualification with unchanged true-positive controls, accessible remediation and counted scan tests.
+- [x] Implement positive materializer/oracle role qualification with unchanged true-positive controls, accessible remediation and counted scan tests.
 - [ ] Replay real captures, update guidance, recorded pre-close/close/land, then notify pair:3 to remove its two temporary allows.
 
 ## Log
@@ -64,3 +64,7 @@ Ops:0 approved the proposed role boundaries (delivery 5cd939f8-dc28-440c-8b78-ef
 change-code completed successfully. Captured immutable Pair source files (original allows retained in captures; replay strips only the two relevant annotations). Observed both real captures fail before implementing; both now pass Check and CheckSources. Existing scanner/method/closure fixture expectations remain unchanged and pass. Negative controls retain findings for self-comparison, different input, absent comparison, non-testing fuzz receiver, ordinary caller and escaped helper. Materializer controls caught and fixed overwritten map/slice values and container aliases/address/call escapes; no alternate production dependency or waiver annotation added. A red nested-closure validator control caught a candidate regression; bounded lexical feature propagation now preserves it.
 
 One lexical AST summary visits each node once:8/16 generated helper groups have421/765 AST nodes, with217/433 additional callback-node visits and62/118 graph visits; shared helper paths are visited with memoized membership rather than rescanned per root. Focused TestJSON/TestRules currently pass. Updated remediation names the consumer module's own shared strict decoder; inaccessible internal import advice is gone. Full pkg/race/catalog checks, atlas/lessons, pre-close and boundary review remain. #589's original detached suite continues running and native allocation qualification remains held.
+
+### 2026-10-24 — role controls and docs complete
+
+Full golint package passed1.246s and race8.741s at the first checkpoint. Additional red controls then caught rebound or address-exposed closure self bindings, including parenthesized assignment/address forms; shared summary binding evidence now invalidates those roles and reuses assignedRoot for normalization. Existing package-wide scanners/closures/methods remain checked; no new blanket exemption. Atlas and lessons explain role qualification, conservative limits and consumer-owned remediation. Final full golint race run passed9.822s, including the tracked catalog and all role controls; then push and record pre-close on the final head. #589 suite remains retained separately.
