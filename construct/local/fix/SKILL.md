@@ -84,7 +84,7 @@ Two **commentary** enclosures:
 🤖~old text~[new text]             -- human-authored replacement
 ```
 
-For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](path)` and add the matching `discussions:` frontmatter entry. Creation follows the shared naming, written-defaults and backlink contract in `../universal-review/collaboration-modes.md` §4: use the round's month under the common side root, including for a further question inside a side doc; preserve existing flat files and links. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
+For a clarification, disagreement, or other exchange that cannot finish with a clean edit, open a linked side doc instead of appending `{…}`. Replace the ready marker with `→ [discussion](path)` and add the matching `discussions:` frontmatter entry. Creation follows the shared naming, frontmatter and backlink contract in `../universal-review/collaboration-modes.md` §4: use the round's month under the common side root, including for a further question inside a side doc; preserve existing flat files and links. An old chain ending in an agent `{…}` stays pending; do not resolve it without an operator response.
 
 **One line** (review-convention §3, §5). Every marker you write opens and
 closes on the same line; never let a marker span lines. Inside a `[]`/`{}`
@@ -227,8 +227,8 @@ bytes and compute H as the first 16 hex characters of its SHA-256 (the same
 whole-file hash as `couch --session-sync read --all`). Then run
 `pair review apply EDITS.json FILE --if-hash H --json`. Pair writes the whole
 batch atomically and the pane reloads its derived round with reasons. Never
-hand-write proposal markers: under `presentation: propose`, Pair converts the
-clean edits. Editing the file directly or asking "apply directly?" breaks
+hand-write proposal markers: under a legacy `presentation: propose` (an older
+document, until pair#838), Pair converts the clean edits. Editing the file directly or asking "apply directly?" breaks
 the one-writer path. The workbench announce or "…please review" poke tells
 you the pane is open.
 
@@ -237,7 +237,7 @@ you the pane is open.
 | 0 | Success; inspect the changed or empty reply below | follow Successful apply decisions |
 | 1 `edits-invalid` | `Invalid` lists 1-based bad records; nothing written | fix them and retry the whole batch |
 | 1 `propose-too-large` / `propose-unencodable` | change cannot be short marker proposals | write it in a side doc proposal, then link `→ [proposal](…)` through apply; include the matching `discussions:` entry as a frontmatter record in the same batch |
-| 1 `operator-owned` | batch tried to change `presentation:` or `collaboration-mode:` | leave it unchanged and ask the operator to set that key; do not retry through another verb |
+| 1 `operator-owned` | batch tried to change a legacy mode key line (`presentation:`, `collaboration-mode:`) | leave it unchanged: a round never writes or rewrites mode keys; do not retry through another verb |
 | 3 `operator-lock` | the operator is editing | say you are waiting for their next "finished my edits" poke; do not poll in a tight loop |
 | 6 `stale` | H no longer names the file's bytes | read again, rebuild every record, and apply again |
 
@@ -282,7 +282,7 @@ when its bytes still equal the attempted base and a fresh read permits a new
 apply; if the bytes changed, stop and report the uncertain result. Never blindly
 replay records that may have landed. Pair's hash and operator lock own the
 edit conflict, so no parallel reconciliation protocol is needed.
-Under `presentation: propose`, a record wholly within frontmatter is applied
+Under a legacy `presentation: propose`, a record wholly within frontmatter is applied
 directly through `pair review apply`; a record crossing the frontmatter boundary
 is refused. The operator-owned keys above remain protected on every path.
 Without a ready operator marker, a side-doc link may land as a pending
@@ -364,7 +364,7 @@ meaning of each mode is defined here.
   wording, framing, flow, and emphasis while preserving intended meaning and voice. Make
   targeted edits + resolve the human's `🤖[]` requests; don't invent a new argument unless
   asked. In the hosted workbench, make targeted clean edits; Pair converts
-  them under `presentation: propose` when the document asks for proposals.
+  them under a legacy `presentation: propose` when an older document asks for proposals.
   Make each record's `old` the smallest stable
   locator; do not use an entire paragraph as `old` just because the desired change is
   inside it.

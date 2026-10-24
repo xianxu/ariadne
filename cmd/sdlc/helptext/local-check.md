@@ -255,6 +255,14 @@ THE AFFECTED SUITE (#473)
   and the full-proof alternative (run --name suite, then sdlc merge --yes).
   Partial and docs-only selections behave as above.
 
+    sdlc local-check run --pre-close   # before close (#578)
+
+  --pre-close runs the repository's pre-close check and prints which and
+  why: affected (ordinary mode, as above) where main's .sdlc/landing.json
+  has trains on and main declares .sdlc/affected.json, since the train's
+  suite is the landing's one full run; suite everywhere else, or when
+  either file is unreadable. It excludes --name, --all and --boarding.
+
   Known flakes (#394). A test is a known flake while an open issue's card
   lists it in flake_tests (`sdlc flake register`). When the suite fails and
   every failure is a named, known-flake test, the run reruns just those tests
@@ -286,8 +294,8 @@ THE AFFECTED SUITE (#473)
   diagnosis labels a failure main shares as a persistent main failure,
   never a flake.
 
-  After the branch suite passes, close that tested branch without manually
-  integrating each newer main and requeueing pre-close suites. Branch code
+  After the pre-close check passes, close that tested branch without manually
+  integrating each newer main and requeueing pre-close checks. Branch code
   fixes still need verification; close's noon freshness gate still applies.
   On SHIP, run `sdlc merge --yes`: it owns a landing turn while integrating
   current main and testing the resulting code when the earlier pass cannot
@@ -409,3 +417,15 @@ USAGE
   sdlc local-check cancel                   # stop all this checkout's runs
   sdlc local-check republish --name suite   # post HEAD's saved result
   sdlc local-check reclassify --attempt ID --reason 'cache repaired'
+
+
+SUPPLIER FRESHNESS (#574)
+  Before new managed suite allocation (including merge/train/baseline and
+  saved-resume launches), sdlc invokes weave refresh --suite-helper once.
+  Only a verified clean main-branch private sibling ariadne may fast-forward.
+  No compile or tool rebuild runs; consumer and primary fallback stay unchanged.
+  Dirty/off-main/busy/unavailable prints one path, reason and repair line and
+  keeps existing helper preflight/admission. Caller cancellation stops the run.
+  Proof-only resume repost and resource:runner do not refresh. No refresh runs
+  in ticket polling or queue status. Existing legacy waiters drain naturally;
+  updating their checkout does not change their loaded ordering policy.

@@ -1601,4 +1601,31 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   points; normalize once in the shared predicate. This extends the same
   test-ps-liveness catalog rule rather than adding a second guard.
 
+
+- #574: a newly built CLI does not refresh a checkout-supplied scheduler.
+  Refresh only a verified clean-main private supplier at a new-suite boundary,
+  under weave's existing setup lease; preserve explicit skip/uncertainty and
+  existing admission. Follow both workflow and helper symlinks. Status reports
+  current checkout evidence, never invents a legacy waiter's launch revision,
+  and deduplicates probes within its deadline. Native private Git races and
+  counted repeated-supplier controls enforce this semantic ownership rule.
+
+- #574 BR-1/BR-2: enumerate each new CLI surface across README, help and atlas.
+  A checked verification matrix needs actual production-boundary controls for
+  every claimed case; injected prepared observations only prove the projection.
+  Exercise real owner/supplier identities, distinct revisions, movement after
+  ticket creation and failed Git reads. A symlink-resolved path alone cannot
+  prove the immutable ticket owner path was not redirected; require exact path
+  identity or report unavailable. The native redirected-owner regression closes
+  this semantic class; the existing boundary review owns documentation coverage.
+
+- #574 read-only proof: Git status is observational at the content level but
+  can rewrite index-cache bytes after stat changes. Disable optional Git writes
+  once in the shared read-only adapter, and defend the whole seam with a native
+  unchanged-content / changed-stat / byte-identical-index control. A blanket ban
+  on status syntax would reject legitimate mutating callers; authority belongs
+  to the observation seam rather than the command's name.
 - #575 suite: before rewriting a document other code parses (a spec, a skill, a datatype), grep every reader of its path, tests included (`grep -rln '<file>' --include='*.go'`), and run those packages while iterating. A cross-source agreement test in an unrelated package (`pkg/vocab` reading collaboration-modes.md's errors table) failed only in the recorded suite, costing a 20-minute run and a second one.
+
+- #576 review (family plan-code-drift): when a fix changes a printed or accepted token (a CLI output line, a flag, a file format), the same commit updates every prose surface that describes it: help text, command one-liners, atlas, the plan. Grep the old wording before committing.
+- #576 (pair#838's source review): don't move a hand-rolled Markdown parse into a shared library as is. tl-lead's fence toggle flipped on any fence-like line, which only became a defect class once three consumers relied on it. Before extracting a parser, check it against the repository's real parser (goldmark here) on mixed-kind and longer fences, indented code and blank lines inside fences.

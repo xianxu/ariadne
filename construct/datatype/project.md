@@ -35,7 +35,6 @@ Distinct from sibling datatypes:
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `project` |
-| `collaboration-mode` | yes | `collaboration`: the default xx-universal-review collaboration mode, from `construct/vocabulary/project.cue` (`scaffold.collaboration_mode`), which `sdlc project new` writes (ariadne#415). |
 | `name` | yes | Slug form, lowercase-hyphenated. Matches the filename without `.md`. |
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |

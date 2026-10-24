@@ -209,7 +209,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoSideLinks, "no-side-links", false, "bypass the refusal of links to uncommitted or git-ignored files (#579)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
 	cmd.Flags().BoolVar(&f.FixedThenShip, "fixed-then-ship", false, "review only the changes since the last finalized close review (fixes, conflict resolutions) with the fix-review recipe (#183)")
-	cmd.Flags().StringVar(&f.FullSuite, "full-suite", "", "with --fixed-then-ship: evidence the full test suite passed — required when the window resolves a code conflict with main")
+	cmd.Flags().StringVar(&f.FullSuite, "full-suite", "", "with --fixed-then-ship: evidence the pre-close check passed (sdlc local-check run --pre-close, #578) — required when the window resolves a code conflict with main")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
@@ -1929,7 +1929,7 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	lines = append(lines, fmt.Sprintf("  %sSemantic:%s  one-line evidence the work meets the issue's done-when.", ansiCyan, ansiReset))
 	lines = append(lines, "             Behavior, not artifacts: 'tests pass' beats 'code written'.", "")
 	lines = append(lines, fmt.Sprintf("  %sExamples:%s", ansiCyan, ansiReset))
-	lines = append(lines, "    VERIFIED='sdlc local-check run --name affected (or suite): sdlc-local/affected success on <sha>'")
+	lines = append(lines, "    VERIFIED='"+preCloseRunCommand+": sdlc-local/affected (or suite) success on <sha>'")
 	lines = append(lines, "    VERIFIED='e2e flow X→Y verified manually'")
 	lines = append(lines, "    VERIFIED='code-review subagent, all Important addressed in <sha>'")
 	lines = append(lines, "    VERIFIED='ran make nous-test-bootstrap, ROUND-TRIP-OK in 2:34'", "")

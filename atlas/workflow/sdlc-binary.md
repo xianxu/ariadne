@@ -98,7 +98,7 @@ staging or move rights. See `sdlc stage --help` and the
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `landing`         | (new #393)                  | The repository's landing line: `status` (the landing now, waiters in admission order, live grants, delay p50/p90); `grant` / `revoke` fleet-blocking priority, refused from a worker slot. `merge` waits in this line ([landing line](#landing-line-393)) |
-| `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
+| `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)). `--pre-close` (#578) runs the repository's pre-close check: affected where trains are on and main declares it, else suite |
 | `local-check cancel` | (new #400)                  | Select one owned run with `--run ID` (printed at run start), all owned runs of `--name N`, or all this checkout's checks; ID/name are exclusive and foreign/invalid/inactive IDs refuse. Same-check/different-head overlap prints a notice and exact existing-run cancellation command, preserving both FIFO places until explicit cancellation. Each run holds a flock'd lease in `<git common dir>/sdlc/local-check-runs/` naming its checkout, published already locked; cancel SIGTERMs the run (after matching the pid's kernel start time), waits for it to unwind, and sweeps leases of dead runs. The run also names its checkout in the suite lock's held-by record (`WF_TEST_LOCK_OWNER`) |
 | `local-check republish` | (new #431)                  | Post a completed check's saved attempt (test-stats store) as its commit status without rerunning: refuses another commit/check/repo, a baseline, an incomplete record or a log whose sha256 no longer matches. A run's status post retries (15/45/90 s) and its final failure names this verb; merge's local-check runner posts a saved verified pass on the exact head before it would rerun |
 | `local-check reclassify` | (new #530) | Correct one exact startup infrastructure attempt with immutable original-record audit and a nonpassing v3 disposition. Recorded owner or repository :0 only; no status rewrite or saved-pass promotion; repair and genuinely rerun |
@@ -429,9 +429,9 @@ interruption/retry coverage.
 
 ### Landing line (#393)
 
-The pre-close suite verifies the pushed issue branch; it does not reserve a
-landing turn. After that pass, close the tested branch and enter `sdlc merge`
-on SHIP. Do not manually chase each newer main with another pre-close suite.
+The pre-close check (`sdlc local-check run --pre-close`, #578: affected in a train repo that declares it, else the
+suite) verifies the pushed issue branch; it does not reserve a landing turn. After that pass, close the tested branch and enter `sdlc merge`
+on SHIP. Do not manually chase each newer main with another pre-close check.
 The existing noon freshness gate and verification after branch code fixes
 still apply. Merge integrates current main after admission and runs the
 required suite on that integrated code when the earlier record cannot cover
@@ -1738,6 +1738,33 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 - Inconclusive (a fetch or git failure): a "could not check" warning, never a pass
   line.
 
+**Private suite-helper freshness (#574).** At each new managed suite setup,
+before helper preflight or a queue ticket, the shared local-run/resume boundary
+calls installed weave refresh --suite-helper. Weave retains mutation ownership:
+the existing environment setup lease spans Git and inherited child cleanup.
+Only the verified private sibling supplying the actual helper (including helper
+symlinks), on clean main with no active operation, may fast-forward to a captured
+origin/main OID. No compile, rebuild, generated output, consumer mutation or
+primary fallback update occurs. Revalidation, declaration/ignored-collision checks,
+safe ff-only merge and read-back preserve local work. Busy/dirty/off-main/
+unavailable/uncertain outcomes print one actionable line and preserve existing
+preflight/admission; caller cancellation still stops. Optional setup is bounded
+to ten seconds plus bounded child cleanup, once per suite, never per wait poll.
+Ordinary, merge/train, baseline and saved-resume launches use this seam;
+proof-only repost and external runner checks do not.
+
+Text queue status separately identifies each legacy ticket's current supplier
+checkout, full HEAD and dirty state. It says launch revision unknown; source
+refresh never upgrades a running waiter. Status resolves each owner once and
+reads each canonical supplier once under the existing deadline, without fetch
+or mutation. Missing/invalid worktrees and deadline exhaustion stay unavailable.
+The supplier Git adapter uses --no-optional-locks on every query: even status
+must preserve index-cache bytes when unchanged tracked files have new stat data.
+Frozen queue JSON, grant compatibility and scheduling are unchanged. Old waiters
+drain naturally; #570 grant refusal/risk guidance remains in force. Main source
+helpers in ariadne issue branches remain source-owned, updated by integration,
+rather than silently replaced by a primary or sibling.
+
 **Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
 resting branch fetches origin/main for the slot and each `substrateChain` repo.
 If any trails it, start-plan runs the installed `weave refresh --planning` (the `weaveRefresh`
@@ -2822,7 +2849,7 @@ held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
 repeated every 30s. `WF_TEST_LOCK=off` skips the lock
 (loudly). `WF_TEST_LOCK_TIMEOUT=<seconds>` bounds the wait and then fails make
 with "full-suite lock not taken (timeout)" — a lock wait, not a test failure.
-Agents running the pre-close suite should run `make test` in the background so a
+Agents running the pre-close check should run it in the background so a
 wait can't trip the tool's timeout. Tests: `scripts/test/test-lock.test.sh`, which
 the `20-ci-workflow-tests` merge check runs (FIFO order under a stopped waiter, a
 dead waiter skipped, an older copy's head going first).

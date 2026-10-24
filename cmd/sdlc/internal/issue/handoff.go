@@ -278,7 +278,7 @@ func DetailsFromCard(card []byte, objectFormat, today string) ([]byte, error) {
 		}
 	}
 	body := strings.TrimRight(d.body, "\n") + "\n\n" + rest
-	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\ndeps: []\ncollaboration-mode: "+vocab.Issue().CollaborationMode()+"\n"+mirrorLine(oid), body))
+	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\ndeps: []\n"+mirrorLine(oid), body))
 	if _, err := MirrorBaselineOID(out); err != nil {
 		return nil, err
 	}

@@ -13,7 +13,6 @@ A record of a synchronous conversation: who attended, what was discussed, what w
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `meeting-notes` |
-| `collaboration-mode` | yes | `collaboration`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `date` | yes | ISO date of the meeting (`YYYY-MM-DD`). |
 | `attendees` | yes | Inline list of names: `[alice, bob, carla]`. Agent infers from context if possible, asks otherwise. |
 | `topic` | yes | One short phrase. Used as the title and (kebab-cased) as a filename hint. |

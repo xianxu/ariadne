@@ -17,7 +17,6 @@ A continuation is the **connective narrative over the session's durable artifact
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `continuation` |
-| `collaboration-mode` | yes | `collaboration`: the default xx-universal-review collaboration mode for this type's documents (ariadne#415). |
 | `slug` | yes | Short, typeable handle (3–5 words, kebab). Often the pair tag. Used in the filename and to resume (`pair continue <slug>`). |
 | `agent` | yes | The agent whose session this distills — the **original** (e.g. `claude`). Pairs with `session_id`. Not necessarily who *produced* the doc (a fresh agent may distill a dead one). |
 | `session_id` | no | Native session id of that original session. **Provenance only** — never a resume handle (byte-faithful resume is `resume`'s job). Empty if unknown. |

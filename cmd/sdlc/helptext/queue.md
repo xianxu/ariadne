@@ -69,3 +69,12 @@ ROLLOUT
   until no pre-gate runner remains, status is unknown/incomplete and names it.
   For worker checkpoint and idle obligations, read `tl-worker --help`.
   For authenticated supervisor notices and receipts, read `couch --skill`.
+
+
+LEGACY HELPER PROVENANCE (#574)
+  Text mixed-policy status names each legacy ticket's current supplying
+  checkout and full revision, including dirty state. Launch revision is unknown:
+  a later checkout fast-forward cannot prove the running helper changed.
+  Missing/unverified worktrees or exhausted observation budgets say unavailable.
+  These are deduplicated, bounded, read-only Git observations: no fetch or
+  refresh and no change to the frozen status --json schema.

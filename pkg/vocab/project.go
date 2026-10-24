@@ -52,10 +52,6 @@ func (m *ProjectModel) Discovery() Discovery { return m.Disc }
 // `sdlc project new` derives the section list from the model.
 func (m *ProjectModel) Sections() []Section { return m.Scaf.Sections }
 
-// CollaborationMode is the collaboration mode a new project's frontmatter
-// declares (#415).
-func (m *ProjectModel) CollaborationMode() string { return m.Scaf.CollaborationMode }
-
 // InitialStatus returns the status a newly-created project carries — the first
 // member of the `forming` category (the funnel's entry point). Falls back to
 // "defined" only if a corrupt model defines no forming status (mustLoadProject

@@ -6,10 +6,10 @@ permissions	own	bounded headless browser run
 permissions-ask	own	visible window, touch the :0 slot
 early-draft-pr	own	an early draft PR for CI overlap needs no hub approval
 early-draft-gates	own	close review, and `sdlc merge` gates still precede landing
-review-suite-overlap	own	may overlap a queued recorded suite
+review-suite-overlap	own	may overlap a queued recorded check
 review-suite-approval	own	without hub approval, under two conditions
-review-suite-pass-first	own	a recorded suite pass on the final head still precedes landing
-review-suite-requeue	own	requeues the suite on the final head
+review-suite-pass-first	own	a recorded check pass on the final head still precedes landing
+review-suite-requeue	own	requeues the check on the final head
 known-failure	own	`make -k`
 cancel-own-check	own	`sdlc local-check cancel`
 real-hashes	own	`git rev-parse`
@@ -65,7 +65,7 @@ drain-durable	own	commit and push the durable checkpoint
 drain-current-background	own	wait for background work that is already running to finish
 drain-idle	own	end the turn and stay idle
 drain-new-message	own	acknowledge message received, will resume processing after drain is lifted
-drain-suites	own	full suites through `sdlc local-check run --name suite`
+drain-suites	own	the pre-close check through `sdlc local-check run --pre-close`
 drain-targeted	own	targeted tests through `go test -run`
 verify-every-agent	own	every agent kind in its tests and in any live check
 live-bug-replay	own	replayed in the normal suite
