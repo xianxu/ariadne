@@ -1,12 +1,12 @@
 ---
 id: 000592
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '257d0bff731e42b79f1f00ddb9945ead8388dc57' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5026835c26ffe96ea0ee320a9e270bca75bcb2c1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T04:45:20-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestQueueRealHelperPause]
 flow: {kind: quick, provenance: inferred, spec: "096ee224", done: "a0bbe98b"}
+actual_hours: 0.47
 ---
 
 # flake: TestQueueRealHelperPause
