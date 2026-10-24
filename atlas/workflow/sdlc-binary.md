@@ -1598,6 +1598,39 @@ evidence refuses adoption; legacy no-tracker repositories retain a labeled old
 heuristic. Completed historical closes without snapshots are reconstructed from
 their exact completion binding and diagnosed explicitly.
 
+**Branch selection across reservations (#580).** `actualbranch.go` intersects
+admitted source windows with captured per-worktree HEAD history and pinned
+tracker reservations. `internal/activetime/branch.go` owns the pure interval
+selector; `branchhistory.go` decodes bounded native HEAD records. One captured
+prefix per root and one card history per generation serve a measurement request.
+Terminal owners remain attribution witnesses, not reservations. A proven foreign
+issue branch excludes its unadopted tail; sole-claim planning without a witness
+is labelled ownership-only. Incomplete competing history is unknown, so it
+prevents that fallback while a proven candidate branch still requires its own
+complete ownership and source lineage. Concurrent unresolved selection refuses
+numeric actual; close can explicitly use --no-actual with the evidence in
+--verified. No historical credit is reassigned.
+
+`active-time` has changed semantics in tracked repositories: by default it uses
+the same resolver as actual/close. Explicit --dir, --since and --until narrow
+verified inputs before classification; they never restore a raw bypass.
+Multi-issue output partitions the source intervals before allocation; other
+issues' shares outside their partition stay unattributed. `activetime_owned.go`
+owns that command preparation. No-tracker manual behavior remains unchanged.
+
+**Snapshot version boundary.** New branch measurements use schema version 3
+and the active-time-v3-branch[-queue][-legacy-prefix]-v1 method family.
+Original DispatchWindows admit task dispatch before final branch clipping by
+Sources.Windows. An old engine would silently lose the later span if it ignored
+the dispatch input, corrupting velocity calibration; therefore older readers
+must refuse v3. Branch capture identity and labelled source intervals remain
+bounded within the existing snapshot limit, preserve unknown fields on rewrite,
+and use the ledger's lifecycle. Adopted v1/v2 measurements replay their original
+windows and algorithm, without reading mutable current HEAD history. Rollout is
+the hub's immediate shared-primary rebuild after landing; no staging or live
+historical repair. The native regression reconstructs the documented parley
+#418 → #322 ordering; no raw incident TTY capture was available.
+
 **Retired review boundaries (#531).** Fresh measurement cuts use executable
 milestone membership from the canonical issue Plan at the exact code pin.
 `actualplan.go` omits only absent, unfinalized named boundaries; finalized

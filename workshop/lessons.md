@@ -1629,3 +1629,24 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #576 review (family plan-code-drift): when a fix changes a printed or accepted token (a CLI output line, a flag, a file format), the same commit updates every prose surface that describes it: help text, command one-liners, atlas, the plan. Grep the old wording before committing.
 - #576 (pair#838's source review): don't move a hand-rolled Markdown parse into a shared library as is. tl-lead's fence toggle flipped on any fence-like line, which only became a defect class once three consumers relied on it. Before extracting a parser, check it against the repository's real parser (goldmark here) on mixed-kind and longer fences, indented code and blank lines inside fences.
+
+- #580: a reservation is not evidence of which issue was active. Partition
+  already-owned source activity by captured branch witnesses before allocation;
+  test unadopted close/test/landing tails as well as previously adopted credit.
+  Preserve original dispatch admission separately from final selected windows.
+  If an old reader would silently change the measured result (even by
+  undercounting), use a refusing method/version boundary; additive audit fields
+  alone do not make a semantic change backward compatible. Native private
+  worktrees, command controls, old-reader refusal and immutable replay enforce it.
+
+- #580 BR-1 (retained-attribution-consistency): saved evidence must enforce the
+  same exhaustive kind predicates as its producer before replay or execution.
+  Own branch, foreign branch and ownership-only each constrain branch identity;
+  relabelling a contradictory interval must not turn excluded time into credit.
+  Saved-replay tamper controls exercise both own and foreign canonical branches.
+
+- #580 suite: route optional verb contexts through commandContext rather than
+  adding a fresh background fallback. When a semantic change intentionally
+  replaces the producer, historical-adoption tests must build and validate
+  the old version explicitly, then exercise unchanged replay/protection; a
+  fresh contradictory sample cannot stand in for the historical contract.

@@ -55,6 +55,9 @@ func TestEngagementHistoryPinnedAndLegacyOwnership(t *testing.T) {
 	if len(got) != 2 || got[0].Owner != nil || got[1].Owner.Worktree != a.Worktree || got[1].Operation != OpClaim || !got[1].Started.Equal(engagementTime(1)) {
 		t.Fatalf("pinned history: %#v", got)
 	}
+	if got[1].Status != "open" {
+		t.Fatalf("claim snapshot lost lifecycle status: %#v", got[1])
+	}
 	latest := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", r.TrackingRef()))
 	got, err = r.EngagementHistory(latest, testPath)
 	if err != nil {

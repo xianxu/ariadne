@@ -91,7 +91,7 @@ func TestActualAcrossLegacyCutoverRetainsBothPartsAndReplays(t *testing.T) {
 	if inputs.LegacyPrefix == nil || inputs.Snapshot.LegacyPrefix == nil || inputs.Snapshot.Since != "2026-10-14T00:01:00Z" {
 		t.Fatalf("pre-cutover work lost: %+v", inputs)
 	}
-	if inputs.Snapshot.Version != gatestate.MeasurementHybridInputsVersion || inputs.Snapshot.Method != gatestate.MeasurementMethodHybridV1 {
+	if inputs.Snapshot.Version != gatestate.MeasurementBranchInputsVersion || inputs.Snapshot.Method != gatestate.MeasurementMethodBranchHybridV1 {
 		t.Fatalf("hybrid lacks explicit schema/interpretation fence: %+v", inputs.Snapshot)
 	}
 	if inputs.LegacyPrefix.Snapshot.Until != "2026-10-14T00:10:00Z" {
@@ -105,8 +105,8 @@ func TestActualAcrossLegacyCutoverRetainsBothPartsAndReplays(t *testing.T) {
 	suffix.LegacyPrefix = nil
 	suffix.Snapshot.LegacyPrefix = nil
 	suffix.Snapshot.LegacyCutover = ""
-	suffix.Snapshot.Version = gatestate.MeasurementInputsVersion
-	suffix.Snapshot.Method = gatestate.MeasurementMethodEngagementV1
+	suffix.Snapshot.Version = gatestate.MeasurementBranchInputsVersion
+	suffix.Snapshot.Method = gatestate.MeasurementMethodBranchV1
 	suffix.Snapshot.Since = "2026-10-14T00:11:00Z"
 	suffixResult := computeOwnedActualFor(t.Context(), ownerRoot, "335", "", &suffix)
 	if suffixResult.Status != actualMeasured || result.Hours <= suffixResult.Hours {
@@ -285,7 +285,7 @@ func TestActualAcrossLegacyCutoverQueueRetainsHybridMethod(t *testing.T) {
 		t.Fatalf("hybrid queued measurement failed: %+v", measured)
 	}
 	saved := measured.Inputs
-	if saved.Version != gatestate.MeasurementHybridInputsVersion || saved.Method != gatestate.MeasurementMethodHybridQueueV1 || saved.LegacyPrefix == nil || len(saved.QueueWaits) != 1 {
+	if saved.Version != gatestate.MeasurementBranchInputsVersion || saved.Method != gatestate.MeasurementMethodBranchHybridQueueV1 || saved.LegacyPrefix == nil || len(saved.QueueWaits) != 1 {
 		t.Fatalf("queue promotion lost hybrid boundary: %+v", saved)
 	}
 	if err := saved.Validate(); err != nil {

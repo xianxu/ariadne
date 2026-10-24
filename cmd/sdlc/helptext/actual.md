@@ -44,6 +44,25 @@ WHAT IT DOES
      even with no open review rounds. Missing or ambiguous required Plan evidence
      refuses with recovery guidance.
 
+BRANCH ATTRIBUTION IN TRACKER REPOSITORIES (#580)
+
+  Ownership and admitted session lineage remain prerequisites. Captured,
+  worktree-local HEAD history selects the issue whose branch was active; another
+  claimed issue's branch excludes its time even when that tail was never adopted.
+  A sole live reservation can retain planning time with an ownership-only label.
+  Terminal cards retain attribution identity but are not live reservations.
+  Concurrent reservations plus unknown, detached, resting or ambiguous branch
+  evidence refuse numeric measurement. Explicit close recovery: --no-actual,
+  with the missing evidence and reason in --verified. No retroactive owner or
+  handwritten hours. Unknown competing history prevents sole-claim fallback.
+
+  New branch measurements retain version-3 evidence, original dispatch windows
+  and final selected source windows. Older readers must refuse the new method
+  rather than silently drop a crossing execution span. Existing adopted v1/v2
+  snapshots replay unchanged, even after live HEAD logs expire. The standalone
+  active-time command uses the same tracked defaults; its raw directories and
+  time bounds only narrow verified inputs. No-tracker behavior is unchanged.
+
 OUTPUT
 
   - measured            → "measured actual for #N: <h>h", then the build /

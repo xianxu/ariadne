@@ -179,6 +179,9 @@ func retainedMeasurementSources(inputs *ownedActualInputs, contributing map[stri
 		for _, w := range inputs.Windows[s.File] {
 			item.Windows = append(item.Windows, gatestate.MeasurementInterval{Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano)})
 		}
+		for _, w := range inputs.DispatchWindows[s.File] {
+			item.DispatchWindows = append(item.DispatchWindows, gatestate.MeasurementInterval{Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano)})
+		}
 		sources = append(sources, item)
 	}
 	sort.Slice(sources, func(i, j int) bool {
