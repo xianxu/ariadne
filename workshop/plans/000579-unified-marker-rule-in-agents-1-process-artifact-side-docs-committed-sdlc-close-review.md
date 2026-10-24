@@ -262,3 +262,88 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"02561fd7-2540-4cae-93e4-fb870fc71527","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b9878356f3581393","reviewed_head":"5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886","slot":"ariadne:5","requested_at":"2026-10-24T02:01:35.549139Z"},"phase":"finished","pid":16870,"started_at":"2026-10-24T02:01:35.699457Z","finished_at":"2026-10-24T02:02:35.811277Z","session_id":"14900503-65ea-48c9-8059-64c8c8ab590b","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-23T20:02:56-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 579 — Unified marker rule in AGENTS §1; process-artifact side docs committed; sdlc refuses links to uncommitted files |
+| repo | ariadne |
+| issue file | workshop/issues/000579-unified-marker-rule-in-agents-1-process-artifact-side-docs-committed-sdlc.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ce27b9ad113061b5f9240f5a63e24b697ddc58e7..97c870ab1019cb59e09c34c4fed94a860823e2a8 |
+| command | sdlc close --issue 579 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-23T20:02:56-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the conflict resolution against both sides of the merge.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window has no code changes and no change to the Spec, Revisions or Done-when sections. It holds three things: the merge-conflict resolution for `construct/local/fix/review-convention.md`, the hash update in `construct/local/universal-review/export.json`, and the close-gate and close-review record files under `workshop/plans/`. The base commit of the window still had conflict markers in both construct files; the head removes them. I checked the resolution against both sides of the merge (the merge-base is `56172a10`). In §6's "operator-initiated" paragraph, main had changed "The effective collaboration mode … owns routing" to "question → linked side doc, command → edit". The branch replaced the whole paragraph with the unified rule, which already says that a question opens a side doc and an instruction is carried out. Taking the branch version therefore keeps main's intent. In the "Fold into clean prose" paragraph, the resolution keeps the branch's new opening ("When you carry out an instruction or fold a settled side doc in") and main's edit ("when a marker is a command that edits in place"), so neither side loses anything. For `export.json`, the stated bytes and sha256 values match the real files: `review-convention.md` is 10513 bytes with sha `076edec6…`, and `collaboration-modes.md` is 30349 bytes with sha `fbf7b87b…` (main's text and the branch's text merged cleanly). The mirrored `universal-review/review-convention.md` is byte-identical to its source in `fix/`. No conflict markers remain in any `.md`, `.json` or `.go` file outside `workshop/history/`, and `go test ./pkg/reviewexport/...` passes.
+
+1. **Strengths**
+   - The resolution at `construct/local/fix/review-convention.md:112-114` keeps both sides' intent, as shown above.
+   - The `export.json` manifest was regenerated from the merged files, so its integrity check holds instead of carrying one side's stale hash.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none.
+
+5. **Test coverage notes:** the hash and mirror checks in `pkg/reviewexport` cover the export manifest, and they pass at head. The prose resolution has no behavior that needs a test.
+
+6. **Architectural notes:**
+   - **ARCH-DRY: pass.** The mirror is byte-identical to its single source.
+   - **ARCH-PURE: n/a.** There is no code in the window.
+   - **ARCH-PURPOSE: pass.** The resolution keeps the unified-rule statement that the issue was about.
+   - **ARCH-EVOLVE: pass.** The manifest's schema and version (v4) are unchanged; only member hashes and sizes were updated.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; nothing in this window (conflict resolution only) regresses it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; the window touches no Go code or tests.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Disposed in an earlier round (5ead6cb66 pins it); this window leaves it unchanged.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window leaves it unchanged.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window leaves it unchanged.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"6ecfb50d-020a-4ebd-ab6d-04f0d5749abf","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/534663a8d405bd3b","reviewed_head":"97c870ab1019cb59e09c34c4fed94a860823e2a8","slot":"ariadne:5","requested_at":"2026-10-24T03:01:01.413059Z"},"phase":"finished","pid":80960,"started_at":"2026-10-24T03:01:01.580814Z","finished_at":"2026-10-24T03:01:48.393677Z","session_id":"6c2533cd-ca59-46e6-8d3c-a7146c84c3e1","outcome":"returned"},{"version":1,"intent":{"disposable_root":true,"id":"3bef082c-7aae-4351-b59a-147de4e2a789","repository":"github.com/xianxu/ariadne","issue_id":"000579","recipe":"fix-review","round":4,"attempt":2,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/534663a8d405bd3b","reviewed_head":"97c870ab1019cb59e09c34c4fed94a860823e2a8","slot":"ariadne:5","requested_at":"2026-10-24T03:01:50.628855Z"},"phase":"finished","pid":22268,"started_at":"2026-10-24T03:01:50.787552Z","finished_at":"2026-10-24T03:02:55.747177Z","session_id":"832b56f9-089e-4de2-82c8-a9119e66f23b","outcome":"returned"}] -->
+
+## Review preparation and protocol diagnostics
+
+Quoted values are diagnostic data, not review verdicts.
+Protocol attempt 1
+reason: "missing valid findings block"
+output: "Checking the conflict resolution now: hashes match and the export tests pass. Next I'm running the weave universal-review test and looking at the plan-doc diffs for any scope change.\n\n```verdict\nverdict: SHIP\nconfidence: high\n```\n\nThis window has no code changes. It holds the conflict resolution for two files, `construct/local/fix/review-convention.md` and `construct/local/universal-review/export.json`, plus close bookkeeping: the gate ledger, the review record, and the card mirror and Log line on the issue. The resolution keeps the intent of both sides. Main's light-touch prose-style wording survives in the \"Fold into clean prose\" paragraph. The branch's unified marker rule (AGENTS §1 routing, committed side docs for process artifacts, refusing links to uncommitted files) replaces main's older routing sentence, which was what #579 set out to do. No conflict markers remain anywhere in the tree. `## Spec`, `## Revisions` and `## Done when` are untouched, so scope did not move. All five prior findings were disposed in earlier rounds, and this window does not reopen any of them.\n\n1. **Strengths**\n   - I recomputed the size and sha256 of `review-convention.md` and `collaboration-modes.md`. Both match the resolved `export.json` entries (10513 / `076edec6…`; 30349 / `fbf7b87b…`). `go test ./pkg/reviewexport/...` and `go test ./cmd/weave -run UniversalReview` pass.\n   - The resolved paragraph at `construct/local/fix/review-convention.md:112` uses the same terms as `collaboration-modes.md` §1: questions open side docs, commands and instructions act, \"fold in\" folds a side doc back, and \"when unsure, it is a question\". The paragraph after it keeps main's phrase \"a marker is a command that edits in place\", which matches the command vocabulary in collaboration-modes.\n   - The bookkeeping diff only changes the card mirror hash, `actual_hours` and one Log line.\n\n2. **Critical:** none.\n3. **Important:** none.\n4. **Minor:** none.\n5. **Test coverage:** The export manifest's integrity is checked by `pkg/reviewexport` and the `cmd/weave` universal-review tests, and both pass at head. The resolution changes prose only, so there is no behaviour that needs its own regression test.\n6. **Architecture, applied to this window only:**\n   - ARCH-DRY: pass. The convention points to collaboration-modes §1 instead of restating it.\n   - ARCH-PURE: not applicable (no code).\n   - ARCH-PURPOSE: pass. The unified rule wins the conflict, and the derived export manifest was regenerated to match its sources.\n   - ARCH-EVOLVE: pass. The manifest schema and version 4 are unchanged; only member hashes changed.\n7. **Plan revisions:** none.\n\n```findings\n```"
+
+truncated: false
+retained-bytes: 0000002922

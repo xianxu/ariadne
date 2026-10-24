@@ -258,6 +258,118 @@ rounds:
       isolation: fenced
       reviewed: 5ead6cb66681b6be51fb18fc5d5c67dfa2f5e886
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 6ecfb50d-020a-4ebd-ab6d-04f0d5749abf
+            repository: github.com/xianxu/ariadne
+            issue_id: "000579"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/534663a8d405bd3b
+            reviewed_head: 97c870ab1019cb59e09c34c4fed94a860823e2a8
+            slot: ariadne:5
+            requested_at: "2026-10-24T03:01:01.413059Z"
+          phase: finished
+          pid: 80960
+          started_at: "2026-10-24T03:01:01.580814Z"
+          finished_at: "2026-10-24T03:01:48.393677Z"
+          session_id: 6c2533cd-ca59-46e6-8d3c-a7146c84c3e1
+          outcome: returned
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 3bef082c-7aae-4351-b59a-147de4e2a789
+            repository: github.com/xianxu/ariadne
+            issue_id: "000579"
+            recipe: fix-review
+            round: 4
+            attempt: 2
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/534663a8d405bd3b
+            reviewed_head: 97c870ab1019cb59e09c34c4fed94a860823e2a8
+            slot: ariadne:5
+            requested_at: "2026-10-24T03:01:50.628855Z"
+          phase: finished
+          pid: 22268
+          started_at: "2026-10-24T03:01:50.787552Z"
+          finished_at: "2026-10-24T03:02:55.747177Z"
+          session_id: 832b56f9-089e-4de2-82c8-a9119e66f23b
+          outcome: returned
+      actual_inputs:
+        version: 1
+        method: active-time-v3-engagement-v1
+        repository: github.com/xianxu/ariadne
+        code_head: 97c870ab1019cb59e09c34c4fed94a860823e2a8
+        tracker_head: 8d58d780a835e215346f0216f98defbb479e40c1
+        branch_point: 84b68e2fc5c0773ff38f13771507d93aaa08efd4
+        since: "2026-10-23T16:38:06-07:00"
+        until: "2026-10-23T19:02:41-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-23T16:38:06-07:00"
+              end: "2026-10-23T19:02:41-07:00"
+              began: "2026-10-23T16:38:06-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: 9759ddfb57cf4fce41d78a2ffbc948bff572158767498481735f8b19a67fbffd
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 12807843
+              windows:
+                - start: "2026-10-23T16:38:06-07:00"
+                  end: "2026-10-23T19:02:41-07:00"
+        cuts:
+            - dispatched: "2026-10-23T18:04:16-07:00"
+              finalized: "2026-10-23T18:26:53-07:00"
+              finalizing: false
+            - dispatched: "2026-10-23T18:47:29-07:00"
+              finalized: "2026-10-23T18:59:57-07:00"
+              finalizing: true
+            - dispatched: "2026-10-23T19:01:35-07:00"
+              finalized: "2026-10-23T19:02:36-07:00"
+              finalizing: true
+      "n": 4
+      timestamp: "2026-10-23T20:02:57-07:00"
+      dispatched: "2026-10-23T20:01:01-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in an earlier round; nothing in this window (conflict resolution only) regresses it.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in an earlier round; the window touches no Go code or tests.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: Disposed in an earlier round (5ead6cb66 pins it); this window leaves it unchanged.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: Disposed in an earlier round; this window leaves it unchanged.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: Disposed in an earlier round; this window leaves it unchanged.
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: 97c870ab1019cb59e09c34c4fed94a860823e2a8
+      blocked: false
 ---
 
 # Gate ledger — ariadne#579 (boundary-review)
@@ -295,6 +407,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-3 — addressed — linkguard.go:49 and :63 pass ":(literal)"+p; TestGitLinkStateLiteralPath goes red (x*.md judged Ignored) with the literal prefix reverted, green with it.
+
+## Round 4 — 2026-10-23T20:02:57-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in an earlier round; nothing in this window (conflict resolution only) regresses it.
+- BR-2 — addressed — Disposed in an earlier round; the window touches no Go code or tests.
+- BR-3 — addressed — Disposed in an earlier round (5ead6cb66 pins it); this window leaves it unchanged.
+- BR-4 — addressed — Disposed in an earlier round; this window leaves it unchanged.
+- BR-5 — addressed — Disposed in an earlier round; this window leaves it unchanged.
 
 ## Open findings
 
