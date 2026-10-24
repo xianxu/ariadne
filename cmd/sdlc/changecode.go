@@ -69,6 +69,7 @@ type changeCodeFlags struct {
 	NoStructural    bool
 	NoEstimate      bool
 	NoEstimateRecon bool
+	NoSideLinks     bool // skip the side-link guard (#579)
 	DryRun          bool
 	Agent           string
 	AgentExplicit   bool
@@ -101,6 +102,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoStructural, "no-structural", false, "skip the structural-sanity checks")
 	cmd.Flags().BoolVar(&f.NoEstimate, "no-estimate", false, "skip the estimate_hours gate (#113)")
 	cmd.Flags().BoolVar(&f.NoEstimateRecon, "no-estimate-recon", false, "skip the ## Estimate reconciliation gate (#117)")
+	cmd.Flags().BoolVar(&f.NoSideLinks, "no-side-links", false, "skip the refusal of links to uncommitted or git-ignored files (#579)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for plan-quality judge: claude | codex | gemini (default AGENT_CMD, PAIR_AGENT/current agent, or claude)")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", false, "retired (#310): judges never get an auto-approve mode")
@@ -183,6 +185,16 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		name: name, issuePath: issuePath,
 		issueContent: gateContent, planContent: planContent,
 		flow: issueFlow.flow,
+	}
+	// #579: on every flow, the design links only committed files.
+	if !f.NoSideLinks {
+		if err := changeCodeSideLinks(stderr, issuePath, f.PlansDir); err != nil {
+			fmt.Fprintf(stderr, "side-links gate failed: %v\n", err)
+			if f.Force == "" {
+				exitWithCode(1)
+			}
+			cwarn(stderr, fmt.Sprintf("side-links gate bypassed (--force: %s)", f.Force))
+		}
 	}
 	for _, g := range activeChangeCodeGates(ctx) {
 		if err := g.run(); err != nil {

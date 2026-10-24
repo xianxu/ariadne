@@ -392,7 +392,8 @@ A head with no change against main refuses rather than recording a pass.
 still records suite) where `.sdlc/landing.json` has trains on and main declares `.sdlc/affected.json`, since the
 train's suite (or an alone car's landing-turn suite) is the landing's one full run; suite everywhere else. An
 unreadable file degrades to suite. The run prints the choice and its reason; `--pre-close` excludes `--name`,
-`--all` and `--boarding`.
+`--all` and `--boarding`. Before running, `--pre-close` and an affected-only run ask `republishSavedPass` (#431) for
+a saved, verified suite pass on the exact head and, finding one, post it and run nothing (#583).
 
 **What the graph can't see (from pair#725).** Selection follows imports and embeds, so a repo writing `affected.json`
 must cover two blind spots itself:
@@ -420,8 +421,9 @@ Where it counts (#473 M2):
   pass of either check over an unexplained failure of either on the same head. An affected pass is a subset
   (`flakes.Attempt.Subset`), so it never confirms a fail→pass.
 - **Stats:** test-stats shows affected runs on their own row; suite numbers are unchanged.
-- **Conflict resolution:** a resolution of main's code conflict (`--fixed-then-ship --full-suite`) still asks for the
-  full suite. The resolution changes main's code as well as the branch's. The name `affected` is reserved in
+- **Conflict resolution:** a resolution of main's code conflict (`--fixed-then-ship --full-suite`) still asks for
+  test evidence: the pre-close check (`--pre-close`, #578), the suite or, where a train runs the suite before
+  landing, affected. The resolution changes main's code as well as the branch's. The name `affected` is reserved in
 `local-checks.json`.
 
 ## Not the same as the publish gate or the close review

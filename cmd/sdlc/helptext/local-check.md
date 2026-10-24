@@ -262,6 +262,9 @@ THE AFFECTED SUITE (#473)
   has trains on and main declares .sdlc/affected.json, since the train's
   suite is the landing's one full run; suite everywhere else, or when
   either file is unreadable. It excludes --name, --all and --boarding.
+  With a saved, verified suite pass on the exact head (#431's republish),
+  --pre-close and --name affected post that pass and run nothing (#583):
+  it covers every selection. A plain --name suite reruns when asked.
 
   Known flakes (#394). A test is a known flake while an open issue's card
   lists it in flake_tests (`sdlc flake register`). When the suite fails and

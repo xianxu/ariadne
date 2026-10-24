@@ -32,8 +32,10 @@ skill carries the rest.
   `TestNoSpecWritesModeKeys` holds every creator's instructions to that. `vocab.LegacyCollaborationModes` is the
   read-only legacy set (`pensive.cue` still accepts it). The chat grammar is shared: `ChatSections` (sections,
   `Legacy` provenance, `Innermost`, `Tags`; linear, counted) and `ChatItems` (items, with code lines from
-  goldmark's `CodeLines`), used by the checker, tl-lead and pair#838. Ariadne's `cmd/tl-lead/answers.go`
-  validates answer-link targets before index/section publication.
+  goldmark's `CodeLines`), used by the checker, tl-lead and pair#838. `ValidAnswerTarget` is the one answer-link
+  destination rule (#581): `ChatItems` counts an item answered only by such a link, and tl-lead's `linkBullet`
+  writes only such targets. A closed leading header that cannot be read declares no tag or heading (#581).
+  Ariadne's `cmd/tl-lead/answers.go` validates answer-link targets before index/section publication.
 - **`briefs/*.md`** — five named editing briefs (copy-editing, line-editing, proofreading, developmental,
   fact-check), loaded when an ask calls for one; name-only frontmatter (#575 retired the v3 order/scope/frontier
   flags and the free-form mode). Parley snapshots them.

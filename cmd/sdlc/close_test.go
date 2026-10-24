@@ -51,7 +51,7 @@ func TestRerunCmd(t *testing.T) {
 // each --no-<gate> waives ONLY its own. A typo'd field would let one flag leak
 // into another gate (or none), which this catches.
 func TestCloseFlags_Skip(t *testing.T) {
-	gates := []string{"actual", "verified", "reclose", "atlas", "verdict", "plan", "project", "done-when-fresh", "integrate"}
+	gates := []string{"actual", "verified", "reclose", "atlas", "verdict", "plan", "project", "done-when-fresh", "integrate", "side-links"}
 
 	// --force ⇒ all gates skipped.
 	force := &closeFlags{Force: true}
@@ -75,6 +75,7 @@ func TestCloseFlags_Skip(t *testing.T) {
 		{"project", func(f *closeFlags) { f.NoProject = true }},
 		{"done-when-fresh", func(f *closeFlags) { f.NoDoneWhenFresh = true }},
 		{"integrate", func(f *closeFlags) { f.NoIntegrate = true }},
+		{"side-links", func(f *closeFlags) { f.NoSideLinks = true }},
 	}
 	for _, c := range cases {
 		f := &closeFlags{}

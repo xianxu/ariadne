@@ -89,6 +89,8 @@ type closeFlags struct {
 	NoPlanCheck bool
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
+	// NoSideLinks skips the side-link guard (#579).
+	NoSideLinks bool
 	// NoDoneWhenFresh skips the quick flow's Done-when freshness check (#231).
 	NoDoneWhenFresh bool
 	// NoIntegrate skips the integrate gate (#269): main's code before the last noon.
@@ -150,6 +152,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoDoneWhenFresh
 	case "integrate":
 		return f.NoIntegrate
+	case "side-links":
+		return f.NoSideLinks
 	}
 	return false
 }
@@ -202,6 +206,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "skip the project update entirely: no task tick, detail block or peer publish (#308)")
 	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
 	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
+	cmd.Flags().BoolVar(&f.NoSideLinks, "no-side-links", false, "bypass the refusal of links to uncommitted or git-ignored files (#579)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
 	cmd.Flags().BoolVar(&f.FixedThenShip, "fixed-then-ship", false, "review only the changes since the last finalized close review (fixes, conflict resolutions) with the fix-review recipe (#183)")
 	cmd.Flags().StringVar(&f.FullSuite, "full-suite", "", "with --fixed-then-ship: evidence the pre-close check passed (sdlc local-check run --pre-close, #578) — required when the window resolves a code conflict with main")
@@ -733,6 +738,22 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		newFM = issue.SetField(newFM, flow.Field, flow.Format(flowOutcome.flow))
 		newBody = insertLogLine(newBody, fmt.Sprintf("- %s: flow upgraded quick → full — %s", today, strings.Join(flowOutcome.crossings, "; ")))
 		applied = append(applied, "recorded flow quick → full (outside the quick-flow shell)")
+	}
+
+	// #579: the issue, its plans and its projects link only committed files.
+	if f.skip("side-links") {
+		cwarn(stderr, "--no-side-links (or --force): skipping the side-link check")
+	} else {
+		refusals, warnings, err := issueSideLinkRefusals(execSideLinkGit, repoTop, issueRelTo(repoTop, issuePath), f.plansDir(), identity)
+		for _, w := range warnings {
+			cwarn(stderr, w)
+		}
+		if err != nil {
+			die(stderr, fmt.Sprintf("side-link guard: %v (or pass --no-side-links, or --force, with the reason in --verified)", err))
+		}
+		if len(refusals) > 0 {
+			die(stderr, filepath.Base(issuePath)+" "+sideLinkError(refusals, "--no-side-links (or --force)").Error())
+		}
 	}
 
 	if mode == "milestone" {

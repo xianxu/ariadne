@@ -107,7 +107,8 @@ A **`@@chat@@`** line directly above a heading makes that section chat:
 - **The tag** is a line holding only `@@chat@@` (surrounding spaces allowed), on the line directly above an ATX
   (`#`) heading, outside fenced or indented code. A line above a setext heading is part of that heading's text in
   CommonMark, so a tag there is misplaced. Its section runs from the heading to the next heading of the same or a higher
-  level, subsections included.
+  level, subsections included. A tag or heading inside a closed leading `---` header declares nothing, even when the
+  header cannot be read as frontmatter (§7's notice says so); the body after it is read as usual (#581).
 - **A misplaced tag** (a blank line or text between it and the heading, or no heading after it) is ordinary text.
   Name it in the reply: "`@@chat@@` at line 12 is not directly above a heading". Other `@@tag@@` lines are parley's
   (outline labels, file references) and not review's.
@@ -118,7 +119,9 @@ A **`@@chat@@`** line directly above a heading makes that section chat:
   (§7) also takes `-` and `*` items, as it always did, even when a `@@chat@@` tag names it too. Chat sections nest
   but never partially overlap; a line belongs to the innermost one, whose grammar governs it. An item is **linked** by a ` → [answer](…)` ending any of its lines
   outside fenced code: the link is appended to the item's last line, and a follow-up added after it later leaves the
-  item linked. Its **extent** is all of the item except that link.
+  item linked. The link's destination must be one a round could write: nonempty, with no whitespace and no
+  parentheses (`pkg/sidedoc` `ValidAnswerTarget`, #581). `→ [answer](broken path)` or `→ [answer]()` links nothing,
+  so the item is still a new ask. Its **extent** is all of the item except that link.
 - **A new ask:** an item with no `→ [answer](…)` link. Write an answer doc (§4) and append ` → [answer](<path>)`
   to the item's last line. For a question the doc answers it. For an instruction you carry it out, and the doc
   records what was done and where. An item always gets an answer doc, whether it is a question or a command.
@@ -143,6 +146,11 @@ A **`@@chat@@`** line directly above a heading makes that section chat:
 A question's side doc and a chat item's answer doc are both **side docs**; only their names and link text differ.
 Side docs are ordinary collaborative documents: every rule of this file applies inside them, and a question asked in
 one opens a further side doc.
+
+**Process artifacts:** the side docs of an issue, a plan or a project are committed with it (on the issue branch,
+or carried by `sdlc issue publish` while the issue is shaped on a resting branch) and archive with it. A private
+side doc kept out of git (an operator's session notes) is never linked from a committed artifact: fold what it
+settled into the artifact instead. sdlc refuses such a link at `issue publish`, `change-code` and `close`.
 
 **Lifetime:** a side doc is one small file per ask, and it has no closed state. No round deletes, marks or locks
 one: only its references in the parent come and go (below, "The index"). The folder grows by one file per question
