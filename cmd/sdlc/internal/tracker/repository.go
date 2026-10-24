@@ -56,6 +56,11 @@ func (r *Repository) Snapshot() (Snapshot, error) {
 	return r.read(view)
 }
 
+// SnapshotAt reads an already captured immutable generation without fetching.
+func (r *Repository) SnapshotAt(pin string) (Snapshot, error) {
+	return r.read(r.trunk.ViewOf(pin))
+}
+
 var tokenPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 // UpdateCard writes one existing card only if the expected path and blob still

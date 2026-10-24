@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,5 +90,64 @@ func TestOwnedActualConcurrentClaimDoesNotCreditForeignBranchTail(t *testing.T) 
 		if window.Start.Before(boundary) {
 			t.Fatalf("B credited A's unadopted close/test/landing tail: %s -> %s; B starts at %s", window.Start, window.End, boundary)
 		}
+	}
+	// Expiring the selected worktree's history must not fall back to the
+	// common checkout's log or silently choose B among the two reservations.
+	logPath := strings.TrimSpace(testfix.Capture(t, worker, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"))
+	if err := os.Remove(logPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolveOwnedActualInputs(t.Context(), worker, "", "335", ""); err == nil || !strings.Contains(err.Error(), "--no-actual") || !strings.Contains(err.Error(), "concurrent claims") {
+		t.Fatalf("expired history among concurrent claims: %v", err)
+	}
+}
+
+func TestOwnedBranchCaptureUsesExactWorktreeAndRejectsUnavailableHistory(t *testing.T) {
+	ownedFixtureAt(t, 0)
+	_, card, detail, body := seededIssue(t, "000335", "b")
+	r := newTrackerRepo(t, map[string]string{"workshop/issue-cards/000335-b.md": card}, map[string]string{detail: body})
+	worker := filepath.Join(t.TempDir(), "worker")
+	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000335-b", worker)
+	ownedFixtureAt(t, 10)
+	testfix.Git(t, worker, "commit", "--allow-empty", "-qm", "#335: work")
+	since := time.Date(2026, 10, 14, 0, 1, 0, 0, time.UTC)
+	until := since.Add(10 * time.Minute)
+	capture := captureOwnedBranchEvidence(t.Context(), worker, since, until)
+	if capture.Unavailable != "" || capture.Digest == "" || capture.Bytes == 0 || len(capture.Intervals) == 0 || capture.Intervals[0].Branch != "000335-b" {
+		t.Fatalf("native capture = %+v", capture)
+	}
+	primaryLog := strings.TrimSpace(testfix.Capture(t, r.root, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD"))
+	if capture.Path == primaryLog {
+		t.Fatal("captured the primary log")
+	}
+	before, err := os.ReadFile(capture.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"truncated", before[:len(before)-1]},
+		{"malformed", []byte("not a log\n")},
+		{"limit", make([]byte, (4<<20)+1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := os.WriteFile(capture.Path, tc.data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			got := captureOwnedBranchEvidence(t.Context(), worker, since, until)
+			if got.Unavailable == "" || len(got.Intervals) != 0 {
+				t.Fatalf("invalid capture accepted: %+v", got)
+			}
+		})
+	}
+	if err := os.WriteFile(capture.Path, before, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if got := captureOwnedBranchEvidence(ctx, worker, since, until); got.Unavailable == "" {
+		t.Fatal("canceled capture succeeded")
 	}
 }

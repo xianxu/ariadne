@@ -266,6 +266,18 @@ func resolveOwnedActualInputsFor(ctx context.Context, repoTop, brainAbs, issueNu
 		return nil, err
 	}
 	warnings = append(warnings, notes...)
+	inventory := rs.CardSnapshot()
+	if inventory.Ref() != trackerPin {
+		inventory, err = repo.SnapshotAt(trackerPin)
+		if err != nil {
+			return nil, err
+		}
+	}
+	windows, _, notes, err = selectOwnedBranchWindows(ctx, repo, inventory, issueNum, sessions, windows, sourceWindows[0].Start, until)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, notes...)
 	out := &ownedActualInputs{Snapshot: snapshot, Prefixes: map[string]activetime.SourcePrefix{}, Windows: windows, Scope: scope, TrackerRefs: []string{trackerPin}, Ledger: &ledger, Warnings: warnings, LegacyPrefix: legacyPrefix}
 	for _, s := range sessions {
 		if len(windows[s.File]) == 0 {
