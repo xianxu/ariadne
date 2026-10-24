@@ -125,3 +125,7 @@ Reduced-scope code head809d52f360048acdb63188523f50a3e40b3210ff is pushed. Fresh
 ### 2026-10-24 — final boundary SHIP, recorded suite retained
 
 Round3 SHIP, no findings. Reviewer independently verified rules.go byte-identical to base except diagnostic, all role-proof entities absent, both APIs' capture regression red against the removed exemption implementation, and the diagnostic regression red against the old message. Normal/race catalog checks passed independently. Close finalized normally and pushed its bound evidence; no bypass. Recorded pre-close session14119 / lease-792232057 remains queued and must pass before merge. Leave that waiter intact while #589's corrected suite is queued separately from this slot, then return to this branch for merge after the pass. Pair's permanent-allow notification is already submitted; no removal follow-up.
+
+### 2026-10-24 — recorded pre-close passed; enter landing
+
+Retained session14119 exited0 on reduced code head809d52f360048acdb63188523f50a3e40b3210ff, attempta3d70b64a7af502f08374d438c1d5bf1: eight shards,2455 cmd/sdlc tests plus77 other packages, zero failures/reruns,17m34s after3217s capacity wait. Saved log is common Git sdlc/local-checks/809d52f360048acdb63188523f50a3e40b3210ff/suite.log; digest prefix1ac409f6262e. Both hosted checks already passed. SHIP is finalized; enter central sdlc merge --yes now. No manual main integration. #589 session61339 / lease-1305896631 acquired after3726s and is running; preserve it, native qualification still held.
