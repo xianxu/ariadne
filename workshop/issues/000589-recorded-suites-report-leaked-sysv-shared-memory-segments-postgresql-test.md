@@ -132,3 +132,13 @@ Read-only ipcs at08:29:59 PDT still showed all32 shared-memory segments unattach
 ### 2026-10-24 — native command package correction
 
 The immediately preceding command targeted the wrong package: TestNativeOwnedSysVQualification lives in cmd/sdlc/internal/sysvshm/native_unix_test.go, not cmd/sdlc. That old command would run no matching test and must not be used as qualification evidence. The authoritative next command, only after operator clearance, is: env WF_SYSV_QUALIFY=1 go test ./cmd/sdlc/internal/sysvshm -run '^TestNativeOwnedSysVQualification$' -count=1 -v -timeout 3m. Source lookup and a nonexecuting go test -list verified the exact test exists in that package. No native test or IPC allocation/removal ran. The full suite/private CLI proof are unchanged. Hub and pair:3 landing-report receipts are both submitted. No owned suite or merge remains running.
+
+### 2026-10-24 — operator-cleared native qualification passed
+
+Verified submitted ops:0 receipt b2809aee-c5d4-4c49-b816-91dcddc8f5c4 authorized the opt-in one-owned-segment qualification after the operator cleared capacity. In the existing private worktree, on Git-verified 1d1b4e2186d7463f6c8999fa78751cee47603590, ran:
+
+    env WF_SYSV_QUALIFY=1 go test ./cmd/sdlc/internal/sysvshm -run '^TestNativeOwnedSysVQualification$' -count=1 -v -timeout 3m
+
+Session19225 exited0: TestNativeOwnedSysVQualification PASS0.02s, package0.156s. Exact output: observed owned abandoned segment id=13893663 creator=9368; exact-ID cleanup registered. Read-only ipcs -m before (10:22:01 PDT) and after (10:22:36 PDT) both showed an empty table. The test verifies the child creator PID and UID before registering cleanup for only that returned ID; no foreign segment was removed. Raw evidence preserved under common Git sdlc/test-stats/evidence/000589/native-owned-qualification.txt. The corrected recorded full-suite pass and clean private CLI proof above remain valid; subsequent changes are documentation only.
+
+#594 retains the main slot's central merge runner (session56512), still alive after the Couch restart; no second runner or checkout switch. Finish this issue's mandatory close review and central landing when the source slot is free. #564 is now operator-approved with a machine-wide third scheduling wave; its revised plan is pushed separately and external scheduler seam filed unclaimed as pair#874.
