@@ -295,7 +295,7 @@ func measurementBranchWarnings(m gatestate.MeasurementInputs) []string {
 
 // Durations describe excluded attribution windows, not measured focused activity.
 func measurementBranchWarning(w gatestate.MeasurementBranchInterval) string {
-	if w.Kind == "resting-excluded" {
+	if w.Kind == "resting-excluded" || w.Kind == "stage-excluded" {
 		start, _ := time.Parse(time.RFC3339Nano, w.Start)
 		end, _ := time.Parse(time.RFC3339Nano, w.End)
 		return fmt.Sprintf("branch attribution %s: excluded and unassigned %.2f branch-window minutes on %s during %s → %s (not focused activity minutes)", w.Source, end.Sub(start).Minutes(), w.Branch, w.Start, w.End)
@@ -321,7 +321,7 @@ func validateOwnedBranchProof(m gatestate.MeasurementInputs, id string) error {
 			if w.Kind == "branch" && branchID != id || w.Kind == "foreign-branch" && (branchID == "" || branchID == id) || w.Kind == "ownership-only" && branchID != "" {
 				return fail("branch witness does not match its issue attribution")
 			}
-			if w.Kind == "foreign-branch" || w.Kind == "resting-excluded" {
+			if w.Kind == "foreign-branch" || w.Kind == "resting-excluded" || w.Kind == "stage-excluded" {
 				continue
 			}
 			start, _ := time.Parse(time.RFC3339Nano, w.Start)

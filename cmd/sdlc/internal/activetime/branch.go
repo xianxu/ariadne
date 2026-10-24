@@ -68,6 +68,12 @@ type branchEdge struct {
 	held  bool
 }
 
+// IsStagingBranch recognizes an attached local staging branch, not an issue
+// owner. Share this predicate with retained-proof validation.
+func IsStagingBranch(branch string) bool {
+	return strings.HasPrefix(branch, "stage/") && historyBranch(branch).kind == headAttached
+}
+
 // SelectBranchActivity never widens prior source admission. Claims are
 // reservations; a witnessed branch wins among concurrent reservations. Unknown
 // branch history can retain sole-claim planning, but cannot choose two owners.
@@ -154,6 +160,9 @@ func SelectBranchActivity(issue string, windows []ActivityWindow, history []Bran
 			kind = "ownership-only"
 		case workspace.IsRestingBranch(branch):
 			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "resting-excluded", Branch: branch})
+			continue
+		case IsStagingBranch(branch):
+			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "stage-excluded", Branch: branch})
 			continue
 		default:
 			return out, fmt.Errorf("concurrent claims have unknown, detached or ambiguous active branch during %s → %s", at.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))

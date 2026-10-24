@@ -58,7 +58,14 @@ func TestRestingExcludedSavedProofAndVisibleMinutes(t *testing.T) {
 	}
 }
 
-func TestOwnedActualRestingExclusionReplayAndManualPartition(t *testing.T) {
+func TestOwnedActualNeutralExclusionReplayAndManualPartition(t *testing.T) {
+	for _, branch := range []string{"main-slot1", "stage/000335-000336"} {
+		t.Run(branch, func(t *testing.T) { ownedActualNeutralExclusionReplayAndManualPartition(t, branch) })
+	}
+}
+
+func ownedActualNeutralExclusionReplayAndManualPartition(t *testing.T, neutralBranch string) {
+	t.Helper()
 	ownedFixtureAt(t, 0)
 	t.Setenv("HOME", t.TempDir())
 	pathA, cardA, detailA, bodyA := seededIssue(t, "000336", "active-a")
@@ -99,7 +106,7 @@ func TestOwnedActualRestingExclusionReplayAndManualPartition(t *testing.T) {
 	testfix.Git(t, worker, "commit", "--allow-empty", "-qm", "#336: work")
 	testfix.Git(t, r.root, "merge", "--ff-only", "000336-active-a")
 	ownedFixtureAt(t, 12)
-	testfix.Git(t, worker, "switch", "-q", "-c", "main-slot1", "main")
+	testfix.Git(t, worker, "switch", "-q", "-c", neutralBranch, "main")
 	ownedFixtureAt(t, 20)
 	testfix.Git(t, worker, "switch", "-q", "-c", "000335-reserved-b", "main")
 	ownedFixtureAt(t, 31)
