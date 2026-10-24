@@ -1,0 +1,211 @@
+package gatestate
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand"
+	"reflect"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+)
+
+// #603: unattributed minutes are audit records beside the counted evidence.
+func TestMeasurementUnattributedRoundTripAndValidation(t *testing.T) {
+	m := validMeasurementInputs()
+	m.Unattributed = []MeasurementUnattributed{
+		{Kind: UnattributedUnknownBranch, Source: "codex/main", Start: "2026-10-01T01:10:00Z", End: "2026-10-01T01:20:00Z", Bounded: true, Reason: "concurrent claims have unknown, detached or ambiguous active branch"},
+		{Kind: UnattributedQueueUnknown, Reason: "legacy suite attempt aabb lacks exact queue endpoints"},
+	}
+	m.UnattributedMinutes = 10
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseSidecar(Render(Ledger{Gate: "boundary-review", IssueNum: 603, IDPrefix: "BR", Rounds: []Round{{N: 1, ActualInputs: &m}}}, "ariadne"))
+	if err != nil || !reflect.DeepEqual(parsed.Rounds[0].ActualInputs, &m) {
+		t.Fatalf("unattributed records lost or changed: %v %#v", err, parsed.Rounds)
+	}
+	for name, mutate := range map[string]func(*MeasurementInputs){
+		"unknown kind":         func(m *MeasurementInputs) { m.Unattributed[0].Kind = "guess" },
+		"empty reason":         func(m *MeasurementInputs) { m.Unattributed[0].Reason = " " },
+		"multi-line reason":    func(m *MeasurementInputs) { m.Unattributed[0].Reason = "a\nb" },
+		"unbounded with times": func(m *MeasurementInputs) { m.Unattributed[1].Start = "2026-10-01T01:10:00Z" },
+		"outside sample":       func(m *MeasurementInputs) { m.Unattributed[0].End = "2026-10-01T04:00:00Z" },
+		"unordered":            func(m *MeasurementInputs) { m.Unattributed[0].End = m.Unattributed[0].Start },
+		"negative minutes":     func(m *MeasurementInputs) { m.UnattributedMinutes = -1 },
+		"over the record bound": func(m *MeasurementInputs) {
+			m.Unattributed = make([]MeasurementUnattributed, SnapshotLimitUnattributed+1)
+		},
+	} {
+		bad := m
+		bad.Unattributed = append([]MeasurementUnattributed(nil), m.Unattributed...)
+		mutate(&bad)
+		if bad.Validate() == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func validSummaryInputs() MeasurementInputs {
+	return MeasurementInputs{Version: MeasurementSummaryInputsVersion, Method: MeasurementMethodSummaryV1, Repository: "github.com/xianxu/ariadne", CodeHead: strings.Repeat("a", 40), TrackerHead: strings.Repeat("b", 64), Since: "2026-10-01T01:00:00Z", Until: "2026-10-01T03:00:00Z", GapMinutes: 15, CommitWeight: 1,
+		Summary: &MeasurementSummary{Sources: 140, Bytes: 200000, Hours: 1.5, Digest: strings.Repeat("f", 64), Reason: "measurement sources exceed snapshot limit 128",
+			Credited: []MeasurementCredit{{Issue: "603", Slot: "ariadne:2", Start: "2026-10-01T01:00:00Z", End: "2026-10-01T02:30:00Z"}}}}
+}
+
+// #603: a summary keeps the header and the credits, never per-source evidence.
+func TestMeasurementSummaryValidation(t *testing.T) {
+	m := validSummaryInputs()
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back MeasurementInputs
+	if err := json.Unmarshal(raw, &back); err != nil || !reflect.DeepEqual(back, m) {
+		t.Fatalf("summary round trip: %v", err)
+	}
+	full := validMeasurementInputs()
+	for name, mutate := range map[string]func(*MeasurementInputs){
+		"wrong version":        func(m *MeasurementInputs) { m.Version = MeasurementCompactBranchInputsVersion },
+		"missing summary":      func(m *MeasurementInputs) { m.Summary = nil },
+		"per-source evidence":  func(m *MeasurementInputs) { m.Sources = full.Sources },
+		"bad digest":           func(m *MeasurementInputs) { m.Summary.Digest = "x" },
+		"credit outside":       func(m *MeasurementInputs) { m.Summary.Credited[0].End = "2026-10-01T04:00:00Z" },
+		"too many credits":     func(m *MeasurementInputs) { m.Summary.Credited = make([]MeasurementCredit, MaxSummaryCredits+1) },
+		"summary on full form": func(m *MeasurementInputs) { *m = validMeasurementInputs(); m.Summary = validSummaryInputs().Summary },
+	} {
+		bad := validSummaryInputs()
+		mutate(&bad)
+		if bad.Validate() == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// #603: the bounds are a typed error, so a fresh measurement can summarise
+// instead of refusing, while the shape stays strict.
+func TestMeasurementBoundsAreTypedAndSeparateFromShape(t *testing.T) {
+	m := validMeasurementInputs()
+	base := m.Sources[0]
+	m.Sources = nil
+	for i := 0; i <= SnapshotLimitSources; i++ {
+		s := base
+		s.ID = fmt.Sprintf("s%03d", i)
+		m.Sources = append(m.Sources, s)
+	}
+	if err := m.ValidateShape(); err != nil {
+		t.Fatalf("shape refused an over-cap snapshot: %v", err)
+	}
+	var over *OversizeError
+	if err := m.ValidateBounds(); !errors.As(err, &over) || !strings.Contains(err.Error(), "sources exceed snapshot limit 128") {
+		t.Fatalf("bounds = %v, want a typed source-cap error", err)
+	}
+	if err := m.Validate(); !errors.As(err, &over) {
+		t.Fatalf("Validate = %v, want the typed bound", err)
+	}
+}
+
+func coverOf(credits []MeasurementCredit) map[[2]string][][2]time.Time {
+	out := map[[2]string][][2]time.Time{}
+	for _, c := range credits {
+		s, _ := time.Parse(time.RFC3339Nano, c.Start)
+		e, _ := time.Parse(time.RFC3339Nano, c.End)
+		k := [2]string{c.Issue, c.Slot}
+		out[k] = append(out[k], [2]time.Time{s, e})
+	}
+	for k, spans := range out {
+		sort.Slice(spans, func(i, j int) bool { return spans[i][0].Before(spans[j][0]) })
+		var merged [][2]time.Time
+		for _, x := range spans {
+			if n := len(merged) - 1; n >= 0 && !x[0].After(merged[n][1]) {
+				if x[1].After(merged[n][1]) {
+					merged[n][1] = x[1]
+				}
+				continue
+			}
+			merged = append(merged, x)
+		}
+		out[k] = merged
+	}
+	return out
+}
+
+func coveredSeconds(cover map[[2]string][][2]time.Time) float64 {
+	total := 0.0
+	for _, spans := range cover {
+		for _, x := range spans {
+			total += x[1].Sub(x[0]).Seconds()
+		}
+	}
+	return total
+}
+
+func covers(outer, inner map[[2]string][][2]time.Time) bool {
+	for k, spans := range inner {
+		for _, x := range spans {
+			ok := false
+			for _, y := range outer[k] {
+				if !x[0].Before(y[0]) && !x[1].After(y[1]) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// #603 coalescer property: within the limit, covering the input, and the
+// widened minutes are exactly the cover it added.
+func TestCoalesceCreditsProperty(t *testing.T) {
+	r := rand.New(rand.NewSource(603))
+	base := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	for trial := 0; trial < 200; trial++ {
+		n, limit := 1+r.Intn(300), 1+r.Intn(40)
+		var in []MeasurementCredit
+		for i := 0; i < n; i++ {
+			start := base.Add(time.Duration(r.Intn(36000)) * time.Second)
+			in = append(in, MeasurementCredit{Issue: fmt.Sprint(1 + r.Intn(3)), Slot: fmt.Sprintf("ariadne:%d", 1+r.Intn(2)), Start: start.Format(time.RFC3339), End: start.Add(time.Duration(1+r.Intn(600)) * time.Second).Format(time.RFC3339)})
+		}
+		out, widened := CoalesceCredits(in, limit)
+		groups := len(coverOf(in))
+		if len(out) > limit && len(out) > groups {
+			t.Fatalf("trial %d: %d credits over limit %d", trial, len(out), limit)
+		}
+		inCover, outCover := coverOf(in), coverOf(out)
+		if !covers(outCover, inCover) {
+			t.Fatalf("trial %d: output does not cover the input", trial)
+		}
+		if got, want := coveredSeconds(coverOf(widened)), coveredSeconds(outCover)-coveredSeconds(inCover); got != want {
+			t.Fatalf("trial %d: widened %vs, added cover %vs", trial, got, want)
+		}
+	}
+}
+
+// Within the limit the coalescer only merges; below it, each closed gap
+// removes exactly one credit, at N and 2N.
+func TestCoalesceCreditsWithinLimitIsMergeOnly(t *testing.T) {
+	base := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	for _, n := range []int{500, 1000} {
+		var in []MeasurementCredit
+		for i := 0; i < n; i++ {
+			start := base.Add(time.Duration(i) * time.Minute)
+			in = append(in, MeasurementCredit{Issue: "603", Slot: "ariadne:2", Start: start.Format(time.RFC3339), End: start.Add(30 * time.Second).Format(time.RFC3339)})
+		}
+		out, widened := CoalesceCredits(in, MaxSummaryCredits)
+		if len(out) != n || len(widened) != 0 {
+			t.Fatalf("n=%d: %d out, %d widened", n, len(out), len(widened))
+		}
+		out, widened = CoalesceCredits(in, n/2)
+		if len(out) != n/2 || len(widened) != n-n/2 {
+			t.Fatalf("n=%d to %d: %d out, %d widened", n, n/2, len(out), len(widened))
+		}
+	}
+}
