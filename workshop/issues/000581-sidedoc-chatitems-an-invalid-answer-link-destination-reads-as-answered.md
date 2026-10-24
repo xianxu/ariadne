@@ -67,7 +67,7 @@ after it are ordinary commands and questions.
       link) and `frontmatter-unread-tag` (spaced closing fence over a tag and heading; the body marker opens a side
       doc; the reply carries the notice); add both to `exportedCases` and README's table; regenerate `export.json`.
 - [x] collaboration-modes.md §3 states the destination rule and the header rule.
-- [ ] Targeted tests (`./pkg/... ./cmd/tl-lead/`), recorded suite, close, land; send the revision to pair:3 and
+- [x] Targeted tests (`./pkg/... ./cmd/tl-lead/`), recorded suite, close, land; send the revision to pair:3 and
       parley.nvim:3.
 
 ARCH-EVOLVE: no persisted format changes; the export manifest only gains members. ARCH-SECURE: the document is
