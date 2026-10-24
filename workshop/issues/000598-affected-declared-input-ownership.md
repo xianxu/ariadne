@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
-estimate_hours:
-card_mirror: '11cea763c8c4ea88fd905cb4276c40012aeeaca2' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.1
+card_mirror: '0b28a928e17f167cd9ad5551a6f383effdd79b62' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T15:03:56-07:00
 claimant:
     operator: Xian Xu
@@ -44,6 +44,31 @@ This is a prerequisite for Pair#853, not stacked work. ops:0 assigned ariadne:5 
 - Compatibility, trusted-policy provenance, deleted/renamed path behavior and bounded mapping cost are tested. No new per-file subprocess or unbounded group multiplication.
 - M2: a parley-style traceability file declared in affected.json, read from main, makes a change to an entry's `code` path select what its `tests` paths select. A Go test file selects its package, and a non-Go test selects the group whose `paths` match it. An entry test path that claims nothing goes full, naming the entry. Parsing is strict, and parley's real `atlas/traceability.yaml` parses as a golden.
 - M3: when the merged-head suite fails at merge and main's baseline passes, each introduced Go-test failure whose package the branch's affected selection would not have run is recorded as a missed mapping. A train failure attributed to a car whose affected record missed the package is recorded the same way. Nothing is recorded for a red main baseline, a full selection or a bare test name, and recording never changes the gate's outcome. `sdlc affected missed list` shows open entries and drops those main's mapping now covers; `dismiss` removes one. The ledger is deduped, capped and locked, and keeps unknown members on rewrite.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.3  impl=0.32
+item: smaller-go-module      design=0.1  impl=0.2
+item: smaller-go-module      design=0.05 impl=0.16
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.0  impl=0.16
+item: smaller-go-module      design=0.1  impl=0.16
+item: atlas-docs             design=0.02 impl=0.04
+item: milestone-review       design=0.0  impl=0.12
+item: greenfield-go-module   design=0.3  impl=0.32
+item: smaller-go-module      design=0.1  impl=0.16
+item: atlas-docs             design=0.02 impl=0.04
+item: milestone-review       design=0.0  impl=0.16
+design-buffer: 0.15
+total: 3.1
+```
+
+M1 = rows 1–5: mapping, sidecar and config parse; Plan integration with the loader and the gitx extraction; the qualification fixture and benchmark; atlas; review. M2 = rows 6–8: traceability. M3 = rows 9–12: ledger, merge hook and CLI; train hook; atlas; review.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
