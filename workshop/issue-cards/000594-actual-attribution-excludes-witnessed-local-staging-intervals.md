@@ -1,6 +1,6 @@
 ---
 id: 000594
-status: codecomplete
+status: done
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0e1eeeb84505767cb8aab13fee3756943c5886ec
         evidence_commit: 42a67a547432734c090abf9f238f19e7b0e6b269
+        landed_commit: e18d8b11ba19c418804716e9eacd318a87bf1750
 ---
 
 # Actual attribution excludes witnessed local staging intervals
