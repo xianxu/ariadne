@@ -400,8 +400,10 @@ sidecars through `loadAffectedMapping` (`localcheck_affected.go`):
   package. It can't change what main's `reads` declare.
 - **Attribution:** `splitImpact`'s uncertain fallback uses `affected.Owned`, the same claim step, so attribution
   sees what selection sees.
-- **Older binaries:** an sdlc older than #598 refuses the new members because its parse is strict. That
-  degrades to the suite, which is safe.
+- **Older binaries:** an sdlc older than #598 refuses the new members because its parse is strict
+  (`readAffectedConfig` errors). What that does depends on the caller. `--pre-close` and a train car's stand-in
+  require the suite instead. An explicit `local-check run --name affected` and its resume refuse with the parse error.
+  None of them can narrow anything.
 - **Cost:** exact rule paths are indexed. Globbed ones are scanned behind their literal prefix:
   `BenchmarkPlanDeclared` runs 2,000 paths against 1,200 rules in about 30 ms.
 

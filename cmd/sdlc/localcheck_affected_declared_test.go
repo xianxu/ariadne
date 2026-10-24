@@ -91,15 +91,26 @@ func TestAffectedDeclaredSidecarsFromMain(t *testing.T) {
 	}
 }
 
-// An unreadable sidecar on main narrows nothing: the selection is full, naming it, and the suite runs.
+// An unreadable sidecar on main narrows nothing: the selection is full, naming it. An ordinary run falls back to the
+// suite; boarding refuses, naming the same cause, and runs nothing.
 func TestAffectedDeclaredMalformedSidecarRunsTheSuite(t *testing.T) {
-	d, change, out, marker, cfg := declaredFixture(t, map[string]string{"tests/readers/mid/mid_test.go.json": `{"reads": "fixtures"}`})
-	sha := change(map[string]string{"leaf/leaf.go": "package leaf\n\nfunc F() int { return 3 }\n"})
-	if rec := runDeclaredFixture(t, d, cfg, sha); rec.Name != suiteCheckName || !exists(marker) || exists(out) {
-		t.Fatalf("%+v\n%s", rec, d.Stderr)
-	}
-	if !strings.Contains(fmt.Sprint(d.Stderr), "declared ownership unavailable: sidecar tests/readers/mid/mid_test.go.json") {
-		t.Fatalf("the fallback does not name the sidecar:\n%s", d.Stderr)
+	const cause = "declared ownership unavailable: sidecar tests/readers/mid/mid_test.go.json"
+	for _, mode := range []affectedExecutionMode{affectedOrdinary, affectedBoarding} {
+		d, change, out, marker, cfg := declaredFixture(t, map[string]string{"tests/readers/mid/mid_test.go.json": `{"reads": "fixtures"}`})
+		sha := change(map[string]string{"leaf/leaf.go": "package leaf\n\nfunc F() int { return 3 }\n"})
+		rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, mode)
+		if mode == affectedBoarding {
+			if err == nil || !strings.Contains(err.Error(), "boarding refused") || !strings.Contains(err.Error(), cause) || exists(marker) || exists(out) {
+				t.Fatalf("boarding: err = %v, suite ran %v", err, exists(marker))
+			}
+			continue
+		}
+		if err != nil || rec.Name != suiteCheckName || !exists(marker) || exists(out) {
+			t.Fatalf("ordinary: %+v, %v\n%s", rec, err, d.Stderr)
+		}
+		if !strings.Contains(fmt.Sprint(d.Stderr), cause) {
+			t.Fatalf("the fallback does not name the sidecar:\n%s", d.Stderr)
+		}
 	}
 }
 

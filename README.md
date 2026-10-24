@@ -935,7 +935,8 @@ covers those in one of three ways:
 - or run the test from the affected command (see pair#725).
 
 Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
-Older sdlc versions reject these members, which degrades to the suite, so upgrade the provider before adopting them.
+Older sdlc versions reject these members. Pre-close and train cars then require the suite, and an explicit
+`--name affected` run refuses with the parse error, so upgrade the provider before adopting them.
 The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 

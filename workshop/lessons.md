@@ -1679,3 +1679,8 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   interruption handling too: a `ctx.Err()` check after the call, before any
   error-to-fallback mapping. A cancelled read is not evidence that its input is
   unusable. Test it through the caller in every mode (ordinary and boarding).
+  The same round found two more cases. First, a doc claim about what happens
+  when a shared reader fails must be checked against every caller of that
+  reader: pre-close fell back while `--name affected` refused, and the doc said
+  only "falls back". Second, a test claim in a ticked row must name a test that
+  covers every mode the row names.

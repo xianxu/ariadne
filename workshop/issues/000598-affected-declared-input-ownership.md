@@ -109,6 +109,10 @@ M1 boundary review, round 1 (REWORK). All five findings fixed in this round:
 - BR-5: a shared `hasGlobMeta`.
 - Lesson added to workshop/lessons.md.
 
+M1 closed SHIP at round 2 (d595e3b01). Its two advisory Minors are fixed in the same round:
+- The README and atlas now name each caller's outcome for an older binary: pre-close and cars require the suite; an explicit affected run and its resume refuse.
+- The malformed-sidecar test covers ordinary and boarding modes.
+
 ## Revisions
 
 ### 2026-10-24: scope widened by the operator's direction (via ops:0)
