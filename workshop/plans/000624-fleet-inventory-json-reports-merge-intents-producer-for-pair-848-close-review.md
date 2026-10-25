@@ -306,3 +306,87 @@ dispose:
 7. **Plan revision recommendations:** None.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0049583e-d984-453b-9543-80d911791e10","repository":"github.com/xianxu/ariadne","issue_id":"000624","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c48da523eebf83f1","reviewed_head":"5724aaba9338a40537db4841a9e11e762fc73bd8","slot":"ariadne:3","requested_at":"2026-10-25T11:40:31.93046Z"},"phase":"finished","pid":59590,"started_at":"2026-10-25T11:40:32.091217Z","finished_at":"2026-10-25T11:43:10.088915Z","session_id":"01a172dc-c1b0-7593-8a0e-ff2e60b1a081","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T05:42:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 624 — fleet inventory --json reports merge intents (producer for pair#848) |
+| repo | ariadne |
+| issue file | workshop/issues/000624-fleet-inventory-json-reports-merge-intents-producer-for-pair-848.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4775d79248fa98a6733e01660e65a16eafbadd45..9229a4df3ed0f94b78810614b5b37cd6858dbc51 |
+| command | sdlc close --issue 624 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-25T05:42:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff correctly removes the context-free reader wrapper and threads existing caller contexts through fleet, state, and landing status. The revision records this correction without expanding scope. Focused tests pass, and no new defects were found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Shared-store authority remains intact; TestFleetMergeIntentsUsesSharedStoreDespiteBrokenMember passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Fleet retains its bounded context-aware runner; the active-probe cancellation regression passed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The complete internal/fleet suite passed, including the decoder algebra controls.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:1138 documents capability, complete-empty evidence, incomplete quality and the output bound, consistent with the implementation.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Native SIGINT/SIGTERM coverage across all three Git phases passed; the interdiff preserves signal ownership and bounded runners.
+```
+
+1. **Strengths**
+
+   - `mergeintent.go:132–136` consolidates observation behind context-taking entry points.
+   - `landingcmd.go:75`, `landingcmd.go:83`, and `state.go:264` pass their existing contexts explicitly.
+   - The existing context guard detects the removed wrapper: running it against disposable pinned-base sources failed at `context.Background()`.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   - Focused context, status, fleet merge-intent and merge-intent tests passed: **32.047s**, including native-signal and private executable conformance.
+   - Complete `internal/fleet` suite passed: **11.745s**.
+   - Pinned-range `git diff --check` passed.
+   - The negative-control source copy was removed; the checkout remains unchanged.
+   - The full module suite was not rerun during this narrow review.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** removes the redundant compatibility wrapper.
+   - **ARCH-PURE — pass:** context threading remains in the integration shell; pure placement is unchanged.
+   - **ARCH-PURPOSE — pass:** all shared-reader callers now supply their owned contexts.
+   - **ARCH-EVOLVE — pass:** no persisted formats or rewrite paths change.
+
+   This window introduces no new user-facing or architectural surface requiring README or atlas updates.
+
+7. **Plan revision recommendations:** None. The entry at `workshop/plans/000624-fleet-merge-intent-inventory-plan.md:173` accurately records the correction.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"2cc7972d-7d6d-45e6-94ce-60498f83ac50","repository":"github.com/xianxu/ariadne","issue_id":"000624","recipe":"fix-review","round":4,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/07e72e00dde83d4c","reviewed_head":"9229a4df3ed0f94b78810614b5b37cd6858dbc51","slot":"ariadne:3","requested_at":"2026-10-25T12:40:10.6412Z"},"phase":"finished","pid":24296,"started_at":"2026-10-25T12:40:10.747812Z","finished_at":"2026-10-25T12:42:19.180117Z","session_id":"01a17313-5c34-7831-9b27-d03cc1ff4cfe","outcome":"returned"}] -->
