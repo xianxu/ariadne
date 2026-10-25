@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -235,5 +239,105 @@ func TestCloseBranchPublicationPreservesNewerAuthority(t *testing.T) {
 				t.Fatalf("expected visible recovery %q: %s", message, &diagnostics)
 			}
 		})
+	}
+}
+
+// BR-1: helper-level comparison tests cannot prove that the commands carry
+// measurement authority into BOTH admission and post-review finalization.
+func TestCloseCommandsRefuseChangedAdoptions(t *testing.T) {
+	for _, verb := range []string{"close", "milestone-close"} {
+		for _, phase := range []string{"preparation", "review"} {
+			for _, change := range []string{"new", "changed"} {
+				t.Run(verb+"/"+phase+"/"+change, func(t *testing.T) {
+					plan := "- [x] implement\n"
+					if verb == "milestone-close" {
+						plan = "- [ ] M1 — implement\n"
+					}
+					r, ownCard, ownDetail := closeReadyWithPlan(t, 617, plan)
+					otherPath, otherCard, _, _ := seededIssue(t, "000649", "competing-adoption")
+					// Use the existing card setter for either initial state; it also handles
+					// scaffold formats whose empty hours spelling differs.
+					setOther := func(hours string) {
+						t.Helper()
+						if err := r.tracker.Update(otherPath, "private concurrent adoption", func(raw []byte) ([]byte, error) {
+							if len(raw) == 0 {
+								raw = []byte(otherCard)
+							}
+							return issue.SetCardField(raw, "actual_hours", hours)
+						}); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if change == "changed" {
+						setOther("0.25")
+					} else {
+						setOther("N/A")
+					}
+					beforeCard := r.card(ownCard)
+					beforeDetail, err := os.ReadFile(filepath.Join(r.root, ownDetail))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.MkdirAll(filepath.Join(r.root, "workshop/plans"), 0755); err != nil {
+						t.Fatal(err)
+					}
+					beforePlans := reviewPlanFiles(t, filepath.Join(r.root, "workshop/plans"))
+					beforeHead := r.git("rev-parse", "HEAD")
+					engine := computeActualForCloseFn
+					t.Cleanup(func() { computeActualForCloseFn = engine })
+					computeActualForCloseFn = func(ctx context.Context, _, _, _ string, _ ...string) actualResult {
+						records, err := loadIssueRecordsAt(withIssueRecordsScope(ctx), r.root, filepath.Join(r.root, "workshop/issues"), tracker.Fresh)
+						if err != nil {
+							t.Fatal(err)
+						}
+						since := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+						candidates, err := adoptedExclusionCandidates(records.All(), "617", since, since.Add(time.Hour))
+						if err != nil {
+							t.Fatal(err)
+						}
+						saved := captureAdoptionReadSet("617", filepath.Join(r.root, "workshop/issues"), since, since.Add(time.Hour), candidates)
+						if phase == "preparation" {
+							setOther("0.75")
+						}
+						return actualResult{Status: actualMeasured, Hours: 1, Window: "private authority schedule", Adoptions: saved}
+					}
+					originalJudge := judge.Run
+					t.Cleanup(func() { judge.Run = originalJudge })
+					calls := 0
+					judge.Run = func(context.Context, func(int), string, ...string) (judge.ProcessOutput, error) {
+						calls++
+						if phase == "review" {
+							setOther("0.75")
+						}
+						return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n" + emptyBoundaryFindings)}, nil
+					}
+					args := []string{verb, "--issue", "617", "--verified", "private adoption schedule", "--no-atlas", "--no-project", "--brain-dir", "../nonexistent-brain"}
+					if verb == "milestone-close" {
+						args = append(args, "--milestone", "M1")
+					}
+					_, stderr, err := executeSDLCTestCommand(args...)
+					if err == nil || !strings.Contains(err.Error(), "649") || !strings.Contains(err.Error(), "stale") {
+						t.Fatalf("changed adoption finalized or wrong refusal: %v\n%s", err, stderr)
+					}
+					wantCalls := 0
+					if phase == "review" {
+						wantCalls = 1
+					}
+					if calls != wantCalls {
+						t.Fatalf("review calls=%d, want%d", calls, wantCalls)
+					}
+					afterDetail, err := os.ReadFile(filepath.Join(r.root, ownDetail))
+					if err != nil || string(afterDetail) != string(beforeDetail) {
+						t.Fatalf("stale close changed issue: %v", err)
+					}
+					if r.card(ownCard) != beforeCard || r.git("rev-parse", "HEAD") != beforeHead {
+						t.Fatal("stale close published card or evidence")
+					}
+					if after := reviewPlanFiles(t, filepath.Join(r.root, "workshop/plans")); !reflect.DeepEqual(after, beforePlans) {
+						t.Fatalf("stale close wrote sidecar/ledger: before%v after%v", beforePlans, after)
+					}
+				})
+			}
+		}
 	}
 }
