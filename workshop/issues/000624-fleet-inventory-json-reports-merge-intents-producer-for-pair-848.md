@@ -66,6 +66,14 @@ Pair:5 authenticated receipt bba6d841-4e31-400d-a24a-71d4b4648b3e confirms capab
 
 Durable plan drafted and checkpointed for ops:0 review before change-code. It includes the visible-state table, one shared classifier/command owner, one store read per group, bounded1MiB JSON matching the consumer, counted8/16 growth controls, preserving v1 fixtures and private real-lock conformance. Proposed rollout is private executable proof plus the hub's normal post-land primary rebuild; no live staging, pause, sweep or merge-recovery execution. No implementation or test edits and no new runtime state/schema.
 
+### 2026-10-25 09:01 PDT — Parked pending #631 and primary rebuild
+
+Narrow re-close returned SHIP with zero findings and codecomplete evidence c4e094bb7df4daa1e72efd7c1a9d6eccd05986ae. CI is green; no source changes after the tested context fix. Fresh pre-close attempt3ac11e1917634f6e2a09509bfe116141 on9229a4df3ed0f94b78810614b5b37cd6858dbc51 acquired06:18:43 PDT after2473s queueing and ended06:48:51. All eight shards reached1800.4s; 537 listed tests never ran, while the other79 packages passed. Saved failed log SHA25622e2c601a592355514b27b52b7a10eb18ecf79f176083c69dc66f9fd6c83f3ea, common-dir sdlc/test-stats/failed/3ac11e1917634f6e2a09509bfe116141.log. Samples span shared scratch RemoveAll, Git Wait, transcript WalkDir and review fixtures. Both known #622/#625 train barriers also recurred. No pass/resume or new flake registration is claimed.
+
+At09:00 current load was27.16/27.38/35.33; this is later host context, not a measurement during the failed run. The runner survived the Couch restart and completed; no owned suite/review/merge runner remains.
+
+Authenticated ops:0 receipt2c7e41d6-1e44-4f29-b920-218aea8deda5 directs a hold: #631's owner measured cleanup repeatedly retrying roughly21 undeletable read-only module caches (77MB each), from roughly270 calls per shard. This is the hub's diagnosis, not independently reproduced here. Park #624/PR440 until #631 lands AND ops:0 rebuilds ariadne:0, then run one fresh pre-close on this retained candidate and proceed through central merge. No retry meanwhile. Do not resume either incomplete attempt.
+
 ## Revisions
 
 ### 2026-10-25 — Clarify terminal observation and freeze consumer vocabulary

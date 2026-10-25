@@ -173,3 +173,7 @@ Authenticated ops:0 receipt811b88c2-65e0-4ca1-976c-1fd4713400ee approves the con
 ### 2026-10-25 — Recorded static guard correction
 
 The full pre-close exposed a context.Background compatibility wrapper left around the shared reader. Remove that wrapper and pass each caller's existing context explicitly (including state and landing-status), retaining their existing signal and runner behavior. This corrects threading within the approved design, with TestVerbContextsReachTrackerReads as the RED control; no new mechanism or legacy signal migration. The same suite was incomplete due a shard alarm in shared scratch removal (filed unclaimed #631), so use a fresh recorded pre-close, not a resume.
+
+### 2026-10-25 — Verification held for #631
+
+The context correction is SHIP. The fresh full suite still timed out all8 shards with537 tests unrun, so it supplies no passing proof. Authenticated ops:0 receipt2c7e41d6-1e44-4f29-b920-218aea8deda5 parks this item until #631 lands and the primary tool rebuild is confirmed, then authorizes one fresh pre-close. Preserve PR440 and this source candidate; no retry or incomplete-attempt resume while held.
