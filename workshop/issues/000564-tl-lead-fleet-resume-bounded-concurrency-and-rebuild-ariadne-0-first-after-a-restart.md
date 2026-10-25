@@ -161,3 +161,7 @@ Central sdlc local-check run --pre-close selected suite (trains off, no affected
 ### 2026-10-24 — close blocked on new measurement size bound
 
 The close runner ended before review with exact refusal: measurement branch proof: measurement snapshot is 232727 bytes, over the version 4 bound of 131072 (72 sources, 1 branch records, 1296 branch intervals). No measurement window was printed. No actual was adopted and no review or codecomplete was claimed. The earlier64-KiB waiver ended after#593; the still-standing128-source waiver is a different condition and does not authorize bypassing this size bound. Asked the hub via receipt b559ec75-c6fd-4527-a143-f87ede99c34b whether precise --no-actual is authorized or close should wait for#603. Preserve that one queued message and inspect its receipt rather than resend. The existing recorded suite lease-2983636541 is still queued unchanged.
+
+### 2026-10-24 — precise measurement waiver authorized
+
+Verified submitted ops:0 receipt72405515-d6b7-44fd-af1b-98fefa2545ba: until ariadne#603 lands, the v4 size refusal may close with precise --no-actual, exact refusal in --verified and citation to#603; never typed hours. Fresh tracker read at2026-10-25T01:31:19Z confirms#603 working/not-landed. Retry only the close with that precise authorization. All other gates remain in force and the recorded suite waiter remains unchanged.
