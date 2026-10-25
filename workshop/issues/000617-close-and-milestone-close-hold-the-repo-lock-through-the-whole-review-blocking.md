@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "cc3bb5d2", done: "7faf0b5c"}
 ---
 
 # close and milestone-close hold the repo lock through the whole review, blocking other slots' bookkeeping
