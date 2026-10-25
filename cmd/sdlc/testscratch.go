@@ -196,13 +196,10 @@ func makeTreeWritable(root string) error {
 			return nil
 		}
 		// Not through an opened handle: opening needs the read bit a 0o311 or
-		// 0o000 directory lacks.
-		err = unix.Fchmodat(unix.AT_FDCWD, p, uint32(perm|0o700), unix.AT_SYMLINK_NOFOLLOW)
-		if errors.Is(err, unix.EOPNOTSUPP) {
-			// Linux without fchmodat2: WalkDir's lstat just found a directory here.
-			err = os.Chmod(p, perm|0o700)
-		}
-		return err
+		// 0o000 directory lacks. No path-based fallback: a kernel without
+		// fchmodat2 (Linux before 6.6) returns EOPNOTSUPP, and the removal fails
+		// and is logged rather than risk following a swapped-in symlink.
+		return unix.Fchmodat(unix.AT_FDCWD, p, uint32(perm|0o700), unix.AT_SYMLINK_NOFOLLOW)
 	})
 }
 

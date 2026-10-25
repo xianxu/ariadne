@@ -375,8 +375,26 @@ func readOnlyModCache(t *testing.T, dir string) {
 			t.Fatal(err)
 		}
 	}
-	// Leave the fixture removable whatever the code under test does.
-	t.Cleanup(func() { _ = makeTreeWritable(dir) })
+	// Leave nothing behind whatever the code under test does: repair with a
+	// walk of its own, never makeTreeWritable, so a broken fix (or a review's
+	// revert check) cannot strand the tree.
+	t.Cleanup(func() { removeFixtureTree(t, dir) })
+}
+
+func removeFixtureTree(t *testing.T, dir string) {
+	t.Helper()
+	_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && d.IsDir() {
+			_ = os.Chmod(p, 0o755)
+		}
+		return nil
+	})
+	if err := os.RemoveAll(dir); err != nil {
+		t.Errorf("fixture tree left behind: %v", err)
+	}
+	if _, err := os.Lstat(dir); !os.IsNotExist(err) {
+		t.Errorf("fixture tree %s still exists: %v", dir, err)
+	}
 }
 
 func TestSweepStaleTempRemovesReadOnlyTrees(t *testing.T) {
