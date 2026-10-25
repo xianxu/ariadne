@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
@@ -92,7 +93,7 @@ func (c *conductor) assessSplit(e landingline.AssessSplit) landingline.SplitAsse
 	if len(failures) == 0 {
 		return unverified(fmt.Errorf("failed prefix has no exact failing tests"))
 	}
-	impact, err := splitImpact(ctx, c.t.Root, lo, hi, packages)
+	impact, paths, err := splitImpactPaths(ctx, c.t.Root, lo, hi, packages)
 	if err != nil {
 		return unverified(err)
 	}
@@ -113,5 +114,41 @@ func (c *conductor) assessSplit(e landingline.AssessSplit) landingline.SplitAsse
 		}
 	}
 	done.Verdict = landingline.ClassifySplit(failures, "")
+	c.recordSplitMisses(ctx, failures, paths, lo, hi)
 	return done
+}
+
+// recordSplitMisses records the train's missed mappings (#616): an unregistered failure in a package neither
+// endpoint's narrowed, group-free selection reached (ImpactUntouched) is a test the car's affected selection would
+// not have run. It runs after the verdict and only reports: a store failure is a diagnostic line, never a verdict.
+func (c *conductor) recordSplitMisses(ctx context.Context, failures []landingline.SplitFailure, paths []string, lo, hi string) {
+	var misses []affected.Miss
+	for _, f := range failures {
+		if f.Impact != landingline.ImpactUntouched || f.RegisteredIssue != "" {
+			continue
+		}
+		if name, ok := flakes.ParseName(f.Test); ok {
+			misses = append(misses, affected.Miss{Test: f.Test, Pkg: name.Pkg})
+		}
+	}
+	if len(misses) == 0 {
+		return
+	}
+	record := c.missed
+	if record == nil {
+		record = func(ctx context.Context, misses []affected.Miss, ev affected.MissEvidence) (string, error) {
+			store, err := missedStoreFor(c.t.Root)
+			if err != nil {
+				return "", err
+			}
+			return store.record(ctx, misses, ev)
+		}
+	}
+	line, err := record(ctx, misses, affected.MissEvidence{Paths: paths, Head: hi, Main: lo, Source: "train", At: time.Now()})
+	if err != nil {
+		line = "missed mappings: not recorded (" + err.Error() + ")"
+	}
+	if c.stderr != nil {
+		fmt.Fprintf(c.stderr, "==> split %s..%s: %s\n", shortSHA(lo), shortSHA(hi), line)
+	}
 }

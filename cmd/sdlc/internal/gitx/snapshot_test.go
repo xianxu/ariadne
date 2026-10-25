@@ -258,3 +258,37 @@ func TestTreeFilesSelected(t *testing.T) {
 		}
 	}
 }
+
+// TreeFilesAt reads exact paths, at the root or nested, in one listing; a missing path is absent, never an error.
+func TestTreeFilesAt(t *testing.T) {
+	repo, _ := trunkFixture(t, "seed\n")
+	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tf.UpdateMany("traceability", func(*TrunkView) (TrunkWrite, error) {
+		return TrunkWrite{Write: map[string][]byte{"t.yaml": []byte("root"), "atlas/t.yaml": []byte("nested"), "atlas/t.yaml.bak": []byte("no")}}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := tf.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := TreeFilesAt(context.Background(), repo, view.ref, []string{"t.yaml", "atlas/t.yaml", "absent.yaml"})
+	got := map[string]string{}
+	for _, f := range files {
+		got[f.Path] = string(f.Content)
+	}
+	if err != nil || len(got) != 2 || got["t.yaml"] != "root" || got["atlas/t.yaml"] != "nested" {
+		t.Fatalf("files = %v, %v", got, err)
+	}
+	if none, err := TreeFilesAt(context.Background(), repo, view.ref, nil); err != nil || none != nil {
+		t.Fatalf("no paths = %v, %v", none, err)
+	}
+	for _, bad := range []string{"", ".", "..", "../t.yaml", "/t.yaml", "a//t.yaml", "a\\t.yaml"} {
+		if _, err := TreeFilesAt(context.Background(), repo, view.ref, []string{bad}); err == nil {
+			t.Errorf("%q: accepted", bad)
+		}
+	}
+}
