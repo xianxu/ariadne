@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '423fe4d25522a74ad3bf91da8104b0f87df583ac' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '29b6575827d40782b82a67ce143ac4eab604a045' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T03:07:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 1.46
+actual_hours: 2.05
 ---
 
 # fleet inventory --json reports merge intents (producer for pair#848)
