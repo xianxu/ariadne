@@ -936,6 +936,8 @@ covers those in one of three ways:
     `strip` prefix/suffix;
   - a `sidecars` convention (`{"prefix": "tests/affected-readers/", "suffix": ".json"}`) makes a sidecar's change
     count as a change to the file it is about, and its optional `reads` globs count as that file's inputs;
+  - a `traceability` list names parley-style traceability files (`atlas/traceability.yaml`, #616): a change to an
+    entry's `code` paths counts as a change to its `tests` paths;
 - keep the path in `full`. An entry `{"glob": "cmd/x/**", "except": ["cmd/x/*_test.go"]}` lets the excepted paths
   fall through to ordinary selection;
 - or run the test from the affected command (see pair#725).

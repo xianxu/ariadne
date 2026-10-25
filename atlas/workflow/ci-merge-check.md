@@ -375,6 +375,14 @@ that ownership in a curated, low-tech mapping, and `Plan` consults it inside the
   certificates follow this convention: `tests/affected-readers/<test path>.json`. A sidecar's optional `reads` globs
   count as X's inputs. Every other member of a sidecar is opaque to ariadne, and ariadne never writes one.
   `ParseSidecar` is strict about `reads` alone.
+- `traceability` files (#616), listed as exact paths in affected.json. Each is the parley-style
+  `version: 1`, `atlas: {key: {code: [...], tests: [...]}}`. An entry compiles to an `as` rule: a change to a `code`
+  path (or glob) counts as a change to every `tests` path. A Go test selects its package, and a non-Go spec selects
+  the group whose `paths` match it. An entry with no `code` or no `tests` declares nothing. `ParseTraceability`
+  (`internal/affected/traceability.go`) walks the `yaml.Node` tree and owns every refusal, because a Node decode skips
+  yaml.v3's own checks, duplicate keys included. It refuses aliases, anchors, merge keys, non-string scalars, unclean
+  paths and a second document. parley's `make test-spec` reads the same file unchanged; its real copy is the parser's
+  golden (`testdata/parley-traceability.yaml`).
 
 The rules are:
 - **One level.** Targets are classified as changed paths are (graph owners and group paths). A target never
@@ -383,17 +391,19 @@ The rules are:
   - a target that matches `full`;
   - a declared root that is not a package;
   - a target that claims nothing (for example, a sidecar for a deleted package);
-  - a sidecar path no target derives from.
+  - a sidecar path no target derives from;
+  - a declared traceability file main lacks or cannot parse.
 - **Absent `reads` declares nothing.** An undeclared input keeps whatever its own rules give it. Requiring `reads`
   for a kind of test is the consuming repository's audit (pair#853), not ariadne's.
 
 All declarations come from main's pinned rev, never the head's. `readAffectedConfig` stays the cheap reader of
 affected.json, which pre-close and the car stand-in use for the declared bit. The selection consumers load the
-sidecars through `loadAffectedMapping` (`localcheck_affected.go`):
+sidecars and traceability files through `loadAffectedMapping` (`localcheck_affected.go`):
 - **Which consumers:** the affected run and resume, through the `affectedDeps.mapping` seam, and `splitImpact`,
   which loads them per endpoint.
 - **How it reads:** one `ls-tree` and one batched `cat-file` per convention, through
-  `gitx.TreeFilesSelected`, which is `TrunkView.FilesSelected`'s body under an explicit context and dir.
+  `gitx.TreeFilesSelected`, which is `TrunkView.FilesSelected`'s body under an explicit context and dir; and one more
+  pair for all the traceability files, through `gitx.TreeFilesAt` (exact paths, same limits).
 - **When a sidecar fails:** a sidecar that does not compile makes the selection full ("declared ownership
   unavailable: …"), so the run falls back to the suite and boarding refuses.
 - **What a branch can do:** a branch can add a certificate, and its path-only alias narrows that path to the test's

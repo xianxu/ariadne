@@ -101,3 +101,12 @@ Claimed and started after #598 landed (PR 435, 2001041f0). The durable plan rest
 - `affectedSelectionAt` is extracted from `splitImpact`, so the merge hook and `list` share it (ARCH-DRY).
 - landingline's strict, preserving JSON codec moves to `internal/jsonstrict` so the ledger can reuse it.
 - `record` sweeps stale temp files.
+
+- M1 built:
+  - the codec move (7a4910cec);
+  - the traceability input (cb8e256d7), with the parley golden (ee938b5a), a refusal table and a fuzz target (20s, clean);
+  - `Compile(cfg, Sources)`;
+  - `gitx.TreeFilesAt`;
+  - real-git loader tests, both modes.
+- Benchmark with a 65-entry traceability file: 32 ms/op, unchanged from M1 of #598.
+- Estimate gate: INFO. The reviewer thought the store/hooks and CLI rows look light; the estimate is kept at 1.96 and the actual will say.

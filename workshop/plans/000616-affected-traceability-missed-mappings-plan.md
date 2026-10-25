@@ -199,15 +199,15 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 
 ### M1: traceability input
 
-- [ ] Move landingline's `decodeStrict` and `encodeWithExtra` to `internal/jsonstrict` (`object.go`) as `DecodeObject` and `EncodeWithExtra`, with tests. landingline calls them; `go test ./cmd/sdlc/internal/landingline/ ./cmd/sdlc/internal/jsonstrict/` passes. (This lands in M1 because it is a no-behavior refactor; M2 is its new user.)
-- [ ] `config.go`: the `traceability` member. Strategy: the existing strict-parse fuzz target gains the member in its seeds, with the guard that a parsed config validates again.
-- [ ] `traceability.go` `ParseTraceability`. Strategy:
+- [x] Move landingline's `decodeStrict` and `encodeWithExtra` to `internal/jsonstrict` (`object.go`) as `DecodeObject` and `EncodeWithExtra`, with tests. landingline calls them; `go test ./cmd/sdlc/internal/landingline/ ./cmd/sdlc/internal/jsonstrict/` passes. (This lands in M1 because it is a no-behavior refactor; M2 is its new user.)
+- [x] `config.go`: the `traceability` member. Strategy: the existing strict-parse fuzz target gains the member in its seeds, with the guard that a parsed config validates again.
+- [x] `traceability.go` `ParseTraceability`. Strategy:
   - a golden test on `testdata/parley-traceability.yaml` (parley.nvim ee938b5a, copied in);
   - a fuzz target seeded with hand-edit forms (duplicate keys at each level, aliases, merges, non-string scalars, extra documents, traversals), with the guard that it either refuses or yields only clean paths, and never panics.
-- [ ] `mapping.go`: `Sources` and `Compile(cfg, Sources)`, plus the traceability rules. Update the callers: `loadAffectedMapping` and the M1 tests.
-- [ ] Traceability through `Plan`. Strategy: the existing `Owned`-includes-graph-owners property extends to traceability rules, plus one `TestPlanTraceability` table over the claim contract (Go target, group target, unclaimed and `full` targets go full, naming `<file> <key>`). The benchmark gains the traceability case.
-- [ ] `loadAffectedMapping` reads traceability. Strategy: extend the real-git declared fixture so the file is read from main, not the head, and a missing or malformed file on main makes the selection full, naming it, in both modes.
-- [ ] atlas `ci-merge-check.md` "The affected suite": the traceability input, and the fact that parley's `make test-spec` reads the same file unchanged. README member list.
+- [x] `mapping.go`: `Sources` and `Compile(cfg, Sources)`, plus the traceability rules. Update the callers: `loadAffectedMapping` and the M1 tests.
+- [x] Traceability through `Plan`. Strategy: the existing `Owned`-includes-graph-owners property extends to traceability rules, plus one `TestPlanTraceability` table over the claim contract (Go target, group target, unclaimed and `full` targets go full, naming `<file> <key>`). The benchmark gains the traceability case.
+- [x] `loadAffectedMapping` reads traceability. Strategy: extend the real-git declared fixture so the file is read from main, not the head, and a missing or malformed file on main makes the selection full, naming it, in both modes.
+- [x] atlas `ci-merge-check.md` "The affected suite": the traceability input, and the fact that parley's `make test-spec` reads the same file unchanged. README member list.
 - [ ] `sdlc milestone-close --issue 616 --milestone M1`
 
 ### M2: missed-mapping ledger
@@ -226,6 +226,11 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 - [ ] `sdlc close --issue 616`
 
 ## Revisions
+
+### 2026-10-24: M1 as built
+
+- Traceability files are read with a new `gitx.TreeFilesAt(ctx, dir, rev, paths)`, not `TreeFilesSelected`: a root-level file would otherwise need a full-tree listing, since a "." prefix is refused. Both share one `treeFiles` body, so the listing, batch and limits are one implementation.
+- The drop-cost guard (`scripts/test-landing-drop-cost.py`) builds with `-coverpkg` over landingline and jsonstrict, and counts `jsonstrict/object.go` as the line's own, because the codec it requires moved there.
 
 ### 2026-10-24: plan-quality round 1
 
