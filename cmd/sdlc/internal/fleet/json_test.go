@@ -408,6 +408,7 @@ func FuzzJSONContractAlgebra(f *testing.F) {
 		inventory := Inventory{SchemaVersion: InventorySchemaVersion, Rows: []TreeRow{row}, Diagnostics: []RepoDiagnostic{}, DanglingClaims: []DanglingClaim{},
 			Machine: Machine{State: MachineUnknown, Error: "no identity source"}, Slots: []Slot{}}
 		assertJSONRoundTrip(t, inventory, new(Inventory))
+		assertJSONRoundTrip(t, row, new(TreeRow))
 	})
 }
 
@@ -424,8 +425,20 @@ func assertJSONRoundTrip[T any](t *testing.T, value T, decoded *T) {
 		t.Fatalf("round trip %T = %#v, want %#v", value, *decoded, value)
 	}
 	unknown := append(append([]byte{}, raw[:len(raw)-1]...), []byte(`,"unknown":true}`)...)
-	if err := json.Unmarshal(unknown, decoded); err == nil {
-		t.Fatalf("strict decoder accepted unknown field in %s", unknown)
+	err = json.Unmarshal(unknown, decoded)
+	switch any(value).(type) {
+	case Inventory, TreeRow:
+		if err != nil || !reflect.DeepEqual(value, *decoded) {
+			t.Fatalf("additive decoder changed known fields: %s: %v", unknown, err)
+		}
+	default:
+		if err == nil {
+			t.Fatalf("strict decoder accepted unknown field in %s", unknown)
+		}
+	}
+	duplicate := append(append([]byte{}, raw[:len(raw)-1]...), []byte(`,"unknown":1,"unknown":2}`)...)
+	if err := json.Unmarshal(duplicate, decoded); err == nil {
+		t.Fatalf("decoder accepted duplicate keys in %s", duplicate)
 	}
 }
 

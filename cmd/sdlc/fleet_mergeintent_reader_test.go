@@ -10,8 +10,40 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
+
+func TestFleetMergeIntentsUsesSharedStoreDespiteBrokenMember(t *testing.T) {
+	isolateFleetIntegrationGit(t)
+	base := canonicalRoot(t.TempDir())
+	root := newFleetE2ERepo(t, base, "z-healthy", "")
+	broken := filepath.Join(base, "a-prunable")
+	runFleetIntegrationGit(t, root, "worktree", "add", "-b", "000624-broken", broken)
+	if err := os.Remove(filepath.Join(broken, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	common := filepath.Join(root, ".git")
+	line, err := landingLineDir(execGitRunner{}, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hold, err := landingline.OpenIntents(line).Hold(landingline.Intent{Branch: "main", Head: git(t, root, "rev-parse", "HEAD"), Root: root, PID: 4242, StartedAt: time.Now().UTC()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hold.Release(true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := collectFleetMergeIntents(t.Context(), fleet.Inventory{Rows: []fleet.TreeRow{fleetIntentRow(broken, common), fleetIntentRow(root, common)}}, observeFleetMergeIntents, func() string { return "" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := findFleetIntegrationRow(t, got, root)
+	if row.MergeIntentsState != "complete" || len(row.MergeIntents) != 1 || row.MergeIntents[0].State != "orphaned" {
+		t.Fatalf("broken member hid accessible common store: %+v", row)
+	}
+}
 
 func TestFleetMergeIntentsReaderRetainsEarlierObservations(t *testing.T) {
 	roots, _, _ := landingFixture(t, 1)

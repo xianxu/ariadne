@@ -46,7 +46,6 @@ type fakeFleetIntentRecord struct {
 }
 type fakeFleetIntentSource struct {
 	stores     map[string]map[string]fakeFleetIntentRecord
-	roots      map[string]string
 	denied     map[string]error
 	reads      map[string]int
 	pause      string
@@ -54,7 +53,7 @@ type fakeFleetIntentSource struct {
 }
 
 func (f *fakeFleetIntentSource) observe(_ context.Context, root, note string) ([]mergeIntentReport, error) {
-	common := f.roots[root]
+	common := root
 	f.reads[common]++
 	var reports []mergeIntentReport
 	for path, record := range f.stores[common] {
@@ -80,7 +79,7 @@ func TestFleetMergeIntentsStatefulPublicCommand(t *testing.T) {
 	dep := in
 	dep.Root = dependency
 	dep.Workspace = ""
-	fake := &fakeFleetIntentSource{stores: map[string]map[string]fakeFleetIntentRecord{common: {path: {intent: in, live: true, exists: true}}, depCommon: {depPath: {intent: dep, exists: true}}}, roots: map[string]string{primary: common, slot: common, dependency: depCommon}, denied: map[string]error{}, reads: map[string]int{}}
+	fake := &fakeFleetIntentSource{stores: map[string]map[string]fakeFleetIntentRecord{common: {path: {intent: in, live: true, exists: true}}, depCommon: {depPath: {intent: dep, exists: true}}}, denied: map[string]error{}, reads: map[string]int{}}
 	rows := []fleet.TreeRow{fleetIntentRow(primary, common), fleetIntentRow(slot, common), fleetIntentRow(dependency, depCommon)}
 	deps := fleetCommandDeps{git: fleetTestGit{}, normalizeVantage: func(fleet.GitReader, string) (fleet.Vantage, error) { return fleet.Vantage{FleetRoot: base}, nil }, collectInventory: func(context.Context, string, fleet.InventoryOptions) (fleet.Inventory, error) {
 		return fleet.Inventory{Rows: rows}, nil
@@ -228,13 +227,11 @@ func TestFleetMergeIntentsStoreReadsGrowByStoresNotRows(t *testing.T) {
 		base := canonicalRoot(t.TempDir())
 		common := filepath.Join(base, ".git")
 		var rows []fleet.TreeRow
-		roots := map[string]string{}
 		for i := 0; i < n; i++ {
 			root := filepath.Join(base, fmt.Sprint(i))
 			rows = append(rows, fleetIntentRow(root, common))
-			roots[root] = common
 		}
-		fake := &fakeFleetIntentSource{stores: map[string]map[string]fakeFleetIntentRecord{}, roots: roots, denied: map[string]error{}, reads: map[string]int{}}
+		fake := &fakeFleetIntentSource{stores: map[string]map[string]fakeFleetIntentRecord{}, denied: map[string]error{}, reads: map[string]int{}}
 		got, err := collectFleetMergeIntents(context.Background(), fleet.Inventory{Rows: rows}, fake.observe, func() string { fake.pauseReads++; return "" })
 		if err != nil || len(got.Rows) != n || fake.reads[common] != 1 || fake.pauseReads != 1 {
 			t.Fatalf("N=%d repeated observations: rows=%d reads=%v pauses=%d err=%v", n, len(got.Rows), fake.reads, fake.pauseReads, err)

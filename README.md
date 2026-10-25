@@ -1135,6 +1135,13 @@ repo declaration is missing or invalid, or the requested path is outside the
 policy's declared roots. It never infers policy from a repository name. Both
 commands are read-only; omit `--json` for their human rendering.
 
+Inventory JSON advertises `capabilities.merge_intents=1` when it can report
+retained merges. Missing capability means unsupported, while a `complete`
+row with `merge_intents: []` proves an empty observation. `partial` retains
+validated observations and `unreadable` reports unavailable evidence; inspect
+their errors and repository diagnostics before acting. Output over 1 MiB is
+refused before stdout is written. See the [fleet inventory contract](atlas/workflow/sdlc-binary.md#fleet-inventory-and-policy-sdlc-fleet-200).
+
 ## Manual boundary review
 
 Persisted-format changes follow `ARCH-EVOLVE`: evolve additively, capture unknown

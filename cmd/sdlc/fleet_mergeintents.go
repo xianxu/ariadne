@@ -32,7 +32,7 @@ func observeFleetMergeIntents(ctx context.Context, root, pause string) ([]mergeI
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	reports, err := observeMergeIntentsWithPause(execGitRunner{}, root, func(mergeIntentReport) bool { return true }, func() string { return pause })
+	reports, err := observeMergeIntentsWithContext(ctx, boundedLandingGit(ctx, execGitRunner{}), root, func(mergeIntentReport) bool { return true }, func() string { return pause })
 	for n := range reports {
 		if reports[n].Root == "" {
 			continue
@@ -49,11 +49,9 @@ func observeFleetMergeIntents(ctx context.Context, root, pause string) ([]mergeI
 }
 
 func collectFleetMergeIntents(ctx context.Context, inventory fleet.Inventory, observe fleetIntentObserver, pause func() string) (fleet.Inventory, error) {
-	groups := map[string]string{}
+	groups := map[string]bool{}
 	for _, row := range inventory.Rows {
-		if old, ok := groups[row.RepoIdentity]; !ok || row.TreePath < old {
-			groups[row.RepoIdentity] = row.TreePath
-		}
+		groups[row.RepoIdentity] = true
 	}
 	keys := make([]string, 0, len(groups))
 	for key := range groups {
@@ -69,8 +67,10 @@ func collectFleetMergeIntents(ctx context.Context, inventory fleet.Inventory, ob
 		if err := ctx.Err(); err != nil {
 			return fleet.Inventory{}, err
 		}
-		reports, err := observe(ctx, groups[common], note)
-		reads = append(reads, fleetIntentRead{common, groups[common], reports, err})
+		// Git accepts the common directory as its cwd. Store and branch
+		// authority must not depend on an arbitrary member's usable checkout.
+		reports, err := observe(ctx, common, note)
+		reads = append(reads, fleetIntentRead{common, common, reports, err})
 	}
 	if err := ctx.Err(); err != nil {
 		return fleet.Inventory{}, err

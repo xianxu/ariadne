@@ -134,6 +134,13 @@ func observeMergeIntents(r gitRunner, root string, keep func(mergeIntentReport) 
 }
 
 func observeMergeIntentsWithPause(r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
+	return observeMergeIntentsWithContext(context.Background(), r, root, keep, pauseNote)
+}
+
+func observeMergeIntentsWithContext(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	lineDir, err := landingLineDir(r, root)
 	if err != nil {
 		return nil, err
@@ -146,6 +153,9 @@ func observeMergeIntentsWithPause(r gitRunner, root string, keep func(mergeInten
 	note := pauseNote()
 	var out []mergeIntentReport
 	for _, o := range observed {
+		if err := ctx.Err(); err != nil {
+			return out, errors.Join(readErr, err)
+		}
 		// The entry itself can be a rejected symlink. Resolve the store's
 		// physical directory, never redirect its diagnostic to the target.
 		if parent, pathErr := workspace.CanonicalPath(filepath.Dir(o.Path)); pathErr == nil {
