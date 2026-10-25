@@ -30,9 +30,9 @@ chmod +x "$3"
         assert result.returncode==code,result.stdout
     make(owner,'tools')
     rows=(root/'events').read_text().splitlines()
-    # Every owned cmd/ tool except the separately distributed weave gateway;
+    # Every cmd/ entrypoint except the separately distributed weave gateway;
     # derived from the tree, so a new binary can't leave a stale hand list here.
-    tools={d.name for d in (source/'cmd').iterdir() if d.is_dir() and d.name!='weave'}
+    tools={d.name for d in (source/'cmd').iterdir() if (d/'main.go').is_file() and d.name!='weave'}
     assert len(tools)>=4,tools
     assert len(rows)==len(tools),rows
     assert {p.name for p in (owner/'bin').iterdir()}==tools,rows

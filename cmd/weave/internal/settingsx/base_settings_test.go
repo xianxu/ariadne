@@ -15,7 +15,7 @@ import (
 // sandboxed. A verb the base pre-allows with arguments (`Bash(X:*)` or
 // `Bash(X *)` in permissions.allow) and also excludes from the sandbox is
 // meant to run unsandboxed with arguments, so it must be listed as `X *`.
-// Separately, every workbench binary (one per cmd/ directory, plus pair's,
+// Separately, every workbench binary (cmd/ entrypoints, plus pair's,
 // listed below) must be exempt as `X *`.
 func TestBaseSettingsExcludedVerbsMatchArguments(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", ".claude", "settings.ariadne.json")
@@ -58,16 +58,23 @@ func TestBaseSettingsExcludedVerbsMatchArguments(t *testing.T) {
 		}
 	}
 	// Every workbench binary is exempt with arguments: ariadne's own (one per
-	// cmd/ directory) and pair's, which live in a peer repo and are listed here.
-	cmdDirs, err := os.ReadDir(filepath.Join("..", "..", "..", "..", "cmd"))
+	// cmd/ entrypoint) and pair's, which live in a peer repo and are listed here.
+	cmdRoot := filepath.Join("..", "..", "..", "..", "cmd")
+	cmdDirs, err := os.ReadDir(cmdRoot)
 	if err != nil {
 		t.Fatalf("read cmd/: %v", err)
 	}
 	verbs := []string{"couch", "pair", "pair-help", "pair-hoprtt", "pair-launch-helper", "pair-notify", "pair-slug"}
 	for _, d := range cmdDirs {
-		if d.IsDir() {
-			verbs = append(verbs, d.Name())
+		if !d.IsDir() {
+			continue
 		}
+		if _, err := os.Stat(filepath.Join(cmdRoot, d.Name(), "main.go")); os.IsNotExist(err) {
+			continue // shared internal package namespaces are not commands
+		} else if err != nil {
+			t.Fatalf("read command entrypoint %s: %v", d.Name(), err)
+		}
+		verbs = append(verbs, d.Name())
 	}
 	// gh is exempt with arguments too: the operator's choice (#334), pinned so
 	// it can't silently regress (#336).

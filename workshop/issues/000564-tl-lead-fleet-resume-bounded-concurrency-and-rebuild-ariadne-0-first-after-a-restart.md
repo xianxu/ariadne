@@ -89,6 +89,14 @@ Read Pair AGENTS.local.md (root MEMORY.md is absent), current automation owner a
 The #564 revision is isolated at /Volumes/TestScratch/tmp/ariadne-slot3/ariadne564-plan.PDsTx9/repo. #594's retained merge (terminal 56512) still owns the durable slot checkout; it is first waiter behind #592. Do not switch that checkout or change its head. Once it is released, detach this private worktree before checking #564 out in the slot, then run change-code and its applicable design gates before any implementation. #589 native qualification remains held.
 
 
+### 2026-10-24 — post-close CI command-discovery correction
+
+Round2 full close finalized SHIP with BR-1 disposed and zero new findings; Git confirms evidence cd6c83803185f4dac9f38d12140e4724c9980d9c and mirror4a22ba1a7b3558739e4314a55015697960e35b27. PR436 opened. Its server merge-check then failed portable-makefile.test.sh: the expected-tool set counted every cmd/ directory and incorrectly included the new shared cmd/internal namespace. Local targeted execution reproduced the same failure. Swept directory enumeration and found two sibling instances: settingsx sandbox policy expectations and slot-dependency acceptance. Settingsx reproduced red, demanding nonexistent internal * permission; no sandbox configuration is changed.
+
+All three fixture enumerations now require a command main.go entrypoint, retaining weave's existing distributed-gateway exclusion where applicable. Portable owner/consumer test passed; settingsx targeted guard passed0.148s. Executed both actual Python selector expressions against private command, namespace, library and gateway controls; both passed. Slot-dependency shell syntax passes; its expensive clone/build matrix is not rerun outside the queue. Catalog passed2.924s. Runtime alias discovery already requires root Go source and excludes the source-only namespace; no alias mechanism changed.
+
+Canceled only old queued run lease-230394106 using the managed verb after the deterministic CI defect was known. Terminal26379 exited with context canceled while still waiting; no suite ran and no flake is claimed. The corrected fixture head needs a new recorded suite and a normal fixed-then-ship review, since these are post-close source-test changes. The existing approved recovery scope and native qualification limit remain unchanged.
+
 ## Revisions
 
 - 2026-10-24: Corrected the planning interface from the older top-level-marker/no-wake description to pair:6's verified nested asleep marker and hub-only wake semantics. Added explicit options, partial-failure/restart states, counted tests and private-conformance limits in the durable plan. This records a proposed design, not permission to execute fleet recovery.
