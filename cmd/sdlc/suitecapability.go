@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 )
@@ -69,10 +68,8 @@ func suiteHostCapabilities(ctx context.Context) error {
 		mkdir: func() (string, error) {
 			// Unix socket paths must stay short even with an arbitrarily long TMPDIR.
 			const fallback = "/tmp"
-			root, roots, _ := scratchdisk.Roots("tmp", fallback)
-			for _, old := range roots {
-				sweepStaleTemp(old, true, time.Now(), processAlive)
-			}
+			// prepareScratch's sweep covers these roots, probe folders included (#631).
+			root, _, _ := scratchdisk.Roots("tmp", fallback)
 			// A configured scratch root can itself be long, or resolve through a
 			// short symlink to a long path. Select before bind; permission errors
 			// never authorize trying a different root.

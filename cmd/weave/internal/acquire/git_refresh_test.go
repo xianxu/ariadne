@@ -54,17 +54,16 @@ func TestExecGitBoundedStreamsAndCancellation(t *testing.T) {
 		})
 	}
 	t.Run("timeout", func(t *testing.T) {
-		dir := refreshGitScript(t, "sleep 30 &\nwait\n")
-		start := time.Now()
-		//lint:allow test-shrunk-deadline — asserts only deadline classification and shutdown bound; no child readiness effect required
-		_, err := (ExecGit{Raw: true, Timeout: 30 * time.Millisecond}).Run(context.Background(), dir, "probe")
+		// Unkilled, the backgrounded sleep outlives the hang ceiling, so only
+		// the shutdown bound lets Run return (#622).
+		dir := refreshGitScript(t, "sleep 600 &\nwait\n")
+		var err error
+		testgate.Returns(t, "the timed-out git", func() {
+			//lint:allow test-shrunk-deadline — asserts only deadline classification and shutdown bound; no child readiness effect required
+			_, err = (ExecGit{Raw: true, Timeout: 30 * time.Millisecond}).Run(context.Background(), dir, "probe")
+		})
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("got %v", err)
-		}
-		// Unkilled, the backgrounded sleep holds wait for 30 s; half that is
-		// the bound, so load cannot fail a healthy kill (#325).
-		if time.Since(start) > 15*time.Second {
-			t.Fatal("cancellation shutdown was not bounded")
 		}
 	})
 }

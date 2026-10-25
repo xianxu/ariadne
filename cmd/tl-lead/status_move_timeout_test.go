@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // The helper is a real subprocess so deadline/exit handling exercises os/exec.
@@ -95,15 +97,13 @@ func moveCouchHelper(t *testing.T, mode string) string {
 func TestMoveCouchDeadline(t *testing.T) {
 	//lint:allow test-shrunk-deadline — asserts only the real elapsed bound, no helper startup effect
 	c := couchSessionSync{bin: moveCouchHelper(t, "hang"), timeout: 100 * time.Millisecond}
-	start := time.Now()
-	_, err := c.run("list", "--json")
+	var err error
+	// The helper hangs forever, so only the deadline lets run return (#622).
+	testgate.Returns(t, "the deadline-bounded couch call", func() { _, err = c.run("list", "--json") })
 	for _, want := range []string{"cannot reach Couch", "list", "100ms", "outside", "sandbox"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("error %v missing %q", err, want)
 		}
-	}
-	if time.Since(start) > 2*time.Second {
-		t.Fatal("deadline did not bound child")
 	}
 }
 

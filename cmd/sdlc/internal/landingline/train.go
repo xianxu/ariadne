@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // The landing train (#449): on an interval, the line's head lands every car
@@ -216,7 +218,7 @@ func readinessFields(r *Readiness) map[string]any {
 // DecodeReadiness parses a sidecar with the line's strict, preserving codec.
 func DecodeReadiness(data []byte) (Readiness, error) {
 	var r Readiness
-	extra, err := decodeStrict(data, readinessFields(&r))
+	extra, err := jsonstrict.DecodeObject(data, readinessFields(&r))
 	if err != nil {
 		return Readiness{}, fmt.Errorf("readiness: %w", err)
 	}
@@ -233,7 +235,7 @@ func (r Readiness) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	fields := readinessFields(&r)
-	return encodeWithExtra(base, r.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(base, r.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 var fullOID = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)

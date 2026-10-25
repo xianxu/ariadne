@@ -178,7 +178,10 @@ func ForecastTrains(p TrainPlan, cars map[IssueRef]CarEstimate, cal estimate.For
 		}
 	}
 	if cal.Collapsed {
-		f.Notes = append(f.Notes, fmt.Sprintf("only %d calibration rows (range needs %d); the range is the point", cal.N, estimate.MinRangeRows))
+		f.Notes = append(f.Notes, fmt.Sprintf("only %d calibration rows (range needs %d of weight at least %.1f); the range is the point", cal.N, estimate.MinRangeRows, estimate.MinRangeWeight))
+	}
+	if cal.Partial > 0 {
+		f.Notes = append(f.Notes, fmt.Sprintf("%d of %d calibration rows are partial actuals, weighted by their attributed share (#603)", cal.Partial, cal.N))
 	}
 	if len(unestimated) > 0 {
 		f.Notes = append(f.Notes, fmt.Sprintf("unestimated, at the %.1fh prior: %s", cal.Prior, strings.Join(unestimated, ", ")))

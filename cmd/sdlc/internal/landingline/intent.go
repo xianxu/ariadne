@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // A merge intent (#565) is the one landing record that outlives its process:
@@ -50,7 +51,7 @@ func intentFields(in *Intent) map[string]any {
 // trusted until it parses.
 func DecodeIntent(data []byte) (Intent, error) {
 	var in Intent
-	extra, err := decodeStrict(data, intentFields(&in))
+	extra, err := jsonstrict.DecodeObject(data, intentFields(&in))
 	if err != nil {
 		return Intent{}, fmt.Errorf("intent: %w", err)
 	}
@@ -68,7 +69,7 @@ func (in Intent) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	fields := intentFields(&in)
-	return encodeWithExtra(base, in.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(base, in.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 // Valid reports whether in is a well-formed intent.

@@ -271,8 +271,9 @@ WHAT THE GUARD DEFENDS
   --actual <hours>     focused dev-hours. Omit it: close measures and ADOPTS
                        the value (#178; loud info line with window + attribution).
                        An explicit value is deviation-checked (#87). Run
-                       `sdlc actual --issue N` to preview. When measurement fails,
-                       recover its named evidence; do not invent hours.
+                       `sdlc actual --issue N` to preview. Measurement never
+                       blocks the close (#603): it records a CONFIDENCE (see
+                       MEASURED ACTUALS); do not invent hours.
   --verified '<line>'  one-line evidence the work meets done-when (behavior,
                        not artifacts: "tests pass" beats "code written").
                        Required.
@@ -490,7 +491,9 @@ FLAGS
 
   --issue <n>           ariadne workshop issue ID (numeric, zero-pad
                         applied internally; required)
-  --actual <hours>      focused dev-hours (omit to measure/adopt; --no-actual records N/A)
+  --actual <hours>      focused dev-hours (omit to measure/adopt; --no-actual records N/A
+                        for a window measurement does not apply to, never as the
+                        fix for a measurement failure, #603)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
   --no-<gate>           one flag per gate, each waiving exactly that gate — the
@@ -521,8 +524,32 @@ DEEP-DIVE REFERENCES
 If --actual is missing, close runs active-time-v3 itself (brain + repo
 transcript dirs, this issue's window + auto-discovered peers) and ADOPTS the
 measured value in the same invocation (#178) — a loud info line shows the hours,
-window, and peer attribution. When the telemetry isn't available it refuses and
-names the evidence to recover before retrying. Do not invent hours. Attribution warnings print alongside
+window, and peer attribution, and a second line its confidence. Measurement never
+refuses the close (#603); it records one of:
+
+  exact       every seen minute was attributed. Resting and stage branch time
+              is shown as excluded minutes, not this issue's work (#591, #594).
+  partial s   some seen minutes could not be attributed (an unknown, detached or
+              ambiguous branch under concurrent claims; a source with no root
+              lineage or a single owner); the hours leave them out, so they are a
+              lower bound, and s is the attributed share.
+  partial, upper bound
+              a suite attempt's queue provenance is unknown, so its wait was not
+              subtracted; when such an attempt has endpoints overlapping the
+              counted time, the line says how much the hours may overstate.
+  unmeasured  no number (telemetry gap, empty or missing window, an input
+              error): close records actual_hours: N/A with the reason and prints
+              the recovery. The recorded actual stays N/A (an N/A actual is not
+              corrected later); restore the evidence before the close if it
+              should count.
+
+The confidence rides in the evidence commit's Close-Actual-Confidence trailer
+(actual_confidence frontmatter where there is no issue tracker) and in the
+calibration ledger's confidence and attributed_share columns. Calibration counts
+exact rows fully, partial rows by their share, and upper-bound and unmeasured
+rows not at all. A snapshot still over its retention bound after trimming to
+contributing sources is kept as a summary with its credited intervals: its hours
+stay exact, only its replay is lost. Do not invent hours. Attribution warnings print alongside
 the adoption; inspect them, because they identify dominant long runs or mention
 fallback where commit boundary evidence was weak. The measured value is BUILD
 + CONVERGE (#234): it is split at each boundary review's first dispatch, and the
@@ -533,8 +560,9 @@ split. If
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.
 
-Use --no-actual only when focused dev-hours are genuinely not applicable or
-cannot be measured without fabricating a number. On a full issue close, this
+Use --no-actual only when focused dev-hours are genuinely not applicable to the
+window. A measurement failure is not that: close already records it as
+unmeasured (#603), so the flag is no longer its recovery. On a full issue close, this
 writes `actual_hours: N/A` to keep the issue schema-valid and records that the
 close is excluded from velocity calibration.
 
@@ -568,5 +596,6 @@ MEASUREMENT PROVENANCE (#335)
   shared with actual and milestone-close. Explicit --brain-dir has the same
   meaning in each command. The printed right edge is a timestamp, and the
   boundary ledger retains code/tracker pins, source prefixes and phase cuts for
-  later replay. Missing required evidence refuses adoption. Whole-issue actuals
+  later replay. Missing required evidence records the close as unmeasured
+  instead of adopting a number (#603). Whole-issue actuals
   below 0.1× or above 10× estimate (at least 0.5h apart) warn for inspection.

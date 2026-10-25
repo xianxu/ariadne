@@ -195,6 +195,7 @@ func buildRoot() *cobra.Command {
 	add(NewLocalCheckCmd(), "local-check", "Run declared local checks on a pushed head and record them as commit statuses (#345)")
 	add(NewTestStatsCmd(), "test-stats", "Summarize recorded suite times, queue waits, and flakes across the local fleet")
 	add(newFlakeCmd(), "", "Register known flaky tests on their issues; list the daily flake view (#394)")
+	add(newAffectedCmd(), "", "List and dismiss the affected suite's missed mappings (#616)")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
 	add(NewNetCmd(), "net", "Compare system/direct DNS and HTTPS for a network incident")

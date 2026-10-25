@@ -338,7 +338,7 @@ func TestLandingDropRefusesWhileMergeAPIIsBlocked(t *testing.T) {
 	ghClient = adapter
 	ctx, cancel := context.WithCancel(context.Background())
 	var release sync.Once
-	var pending <-chan error
+	var pending chan error
 	defer func() {
 		cancel()
 		release.Do(func() { close(adapter.release) })
@@ -348,9 +348,9 @@ func TestLandingDropRefusesWhileMergeAPIIsBlocked(t *testing.T) {
 		}
 	}()
 	pending = s.mergeContext(ctx, s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{pending})
 	other := s.queuedCar(t, secondBranch, 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, []chan error{pending})
 	s.blocker.Release()
 	awaitDropCondition(t, "blocked train merge API", func() bool {
 		select {

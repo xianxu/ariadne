@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // Train measurements (#561): what a train's one full suite found that its
@@ -45,7 +47,7 @@ func proofFields(p *BoardingProof) map[string]any {
 // UnmarshalJSON is the line's strict, preserving codec for the nested object.
 func (p *BoardingProof) UnmarshalJSON(data []byte) error {
 	*p = BoardingProof{}
-	extra, err := decodeStrict(data, proofFields(p))
+	extra, err := jsonstrict.DecodeObject(data, proofFields(p))
 	if err != nil {
 		return fmt.Errorf("boarding proof: %w", err)
 	}
@@ -61,7 +63,7 @@ func (p BoardingProof) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	fields := proofFields(&p)
-	return encodeWithExtra(base, p.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(base, p.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 // sameBinding reports whether q proves the same thing as p: the same check,
@@ -556,7 +558,7 @@ func measurementFields(m *TrainMeasurement) map[string]any {
 // Unknown members are ignored (evidence is never rewritten).
 func decodeMeasurement(raw json.RawMessage) (TrainMeasurement, error) {
 	var m TrainMeasurement
-	if _, err := decodeStrict(raw, measurementFields(&m)); err != nil {
+	if _, err := jsonstrict.DecodeObject(raw, measurementFields(&m)); err != nil {
 		return TrainMeasurement{}, err
 	}
 	if m.Cars == nil || (m.Record != MeasureRecordStart && m.Record != MeasureRecordFinal) {

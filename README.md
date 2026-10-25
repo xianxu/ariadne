@@ -936,6 +936,8 @@ covers those in one of three ways:
     `strip` prefix/suffix;
   - a `sidecars` convention (`{"prefix": "tests/affected-readers/", "suffix": ".json"}`) makes a sidecar's change
     count as a change to the file it is about, and its optional `reads` globs count as that file's inputs;
+  - a `traceability` list names parley-style traceability files (`atlas/traceability.yaml`, #616): a change to an
+    entry's `code` paths counts as a change to its `tests` paths;
 - keep the path in `full`. An entry `{"glob": "cmd/x/**", "except": ["cmd/x/*_test.go"]}` lets the excepted paths
   fall through to ordinary selection;
 - or run the test from the affected command (see pair#725).
@@ -943,6 +945,9 @@ covers those in one of three ways:
 Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
 Older sdlc versions reject these members. Pre-close and train cars then require the suite, and an explicit
 `--name affected` run refuses with the parse error, so upgrade the provider before adopting them.
+When the merge's full suite (or a train's split) catches a failure the affected selection would not have run, it is
+recorded as a missed mapping (#616). `sdlc affected missed list` shows the open ones and drops those main's
+declarations now cover; `sdlc affected missed dismiss --id ID --reason TEXT` removes one.
 The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 
@@ -1241,8 +1246,11 @@ unadopted close/test/landing tail is excluded. Sole-claim planning can count wit
 an explicit ownership-only label. Under concurrent claims, a witnessed resting
 branch or attached valid `stage/*` branch is excluded and unassigned; output
 names its branch-window minutes rather than focused activity minutes. Missing,
-detached or ambiguous branch evidence still refuses numeric measurement and
-names the precise `--no-actual` recovery.
+detached or ambiguous branch evidence, and a source with no single owner, is
+recorded as unattributed and not counted (#603). Measurement never refuses a
+close: it records a confidence, exact, partial (with the attributed share, or as
+an upper bound when queue time could not be subtracted) or unmeasured (N/A with
+the reason), and calibration weights each close by it.
 `sdlc active-time` now uses that same classifier by default. Explicit source
 directories and timestamps only narrow it, and multi-issue output partitions
 source intervals before allocation. No-tracker behavior remains manual.

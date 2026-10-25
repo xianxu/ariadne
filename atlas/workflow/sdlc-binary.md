@@ -1655,14 +1655,16 @@ Terminal owners remain attribution witnesses, not reservations. A proven foreign
 issue branch excludes its unadopted tail; sole-claim planning without a witness
 is labelled ownership-only. Incomplete competing history is unknown, so it
 prevents that fallback while a proven candidate branch still requires its own
-complete ownership and source lineage. Concurrent unresolved selection refuses
-numeric actual; close can explicitly use --no-actual with the evidence in
---verified. Under concurrent reservations, a witnessed resting branch (main or
+complete ownership and source lineage. Concurrent unresolved selection no longer
+refuses (#603): `SelectBranchActivity` returns that activity in
+`BranchSelection.Unknown`, and the resolver records it, with any source lacking
+root lineage or a single historical owner, as `MeasurementUnattributed` records
+(`gatestate/measurement_unattributed.go`), uncounted. Under concurrent reservations, a witnessed resting branch (main or
 canonical main-slotN), or an attached valid stage/* branch (#594), is instead
 excluded and unassigned (#591). Output names
 its source, interval and branch-window minutes, which are not focused activity
 minutes. Own/foreign issue branches still select/exclude their witnessed spans;
-unknown, detached or other ambiguous history still refuses. Sole-reservation
+unknown, detached or other ambiguous history is recorded as unattributed. Sole-reservation
 planning keeps its labelled ownership-only fallback. No neighboring-branch or
 status inference assigns the resting span. New v3 audit notes use
 resting-excluded or stage-excluded; the staging predicate is shared by selection
@@ -1672,6 +1674,23 @@ pair#856 (68-second initial rest) and pair#812 (25 seconds) captures replay the
 claim/start-plan boundary in the selector tests. The pair#830 reported checkout/merge/return sequence is reconstructed with
 synthetic object IDs and proves 172 seconds of unassigned staging for both
 concurrent issues. No historical credit is reassigned.
+
+**Measurement confidence (#603).** Measurement never blocks a close.
+`actualconfidence.go` owns the one pure mapping, `classifyActual`, from a
+measurement outcome to `exact`, `partial` (attributed share; hours a lower
+bound) or `unmeasured` (the reason), and the shared interval arithmetic:
+`unattributedMinutes` is the cover of the bounded non-queue records less this
+issue's own counted cover, and `overstatedMinutes` the counted time unknown queue
+attempts overlap. An unknown queue attempt (unreadable records, unknown
+provenance, membership or endpoints) is never subtracted, so it makes the hours
+an upper bound with share 0. The records are audit-only, capped at 32
+(`SnapshotLimitUnattributed`, unbounded first) beside an uncapped minutes total,
+so a reader that ignores them replays the adopted hours. Resting and stage
+exclusions keep a close exact. Close (`adoptOmittedActual`) adopts every outcome,
+writes `Close-Actual-Confidence` in the evidence commit (frontmatter
+`actual_confidence` without a tracker) and the ledger's confidence columns, and
+an unmeasured close records N/A with its recovery. A correction still requires
+exact queue evidence. `--no-actual` remains only for inapplicable windows.
 
 `active-time` has changed semantics in tracked repositories: by default it uses
 the same resolver as actual/close. Explicit --dir, --since and --until narrow
@@ -2022,12 +2041,12 @@ owning slot and subtracts the entire interval. No tool call, result or task
 span inside it is classified or used to restore time; overlapping real work
 may therefore slightly undercount. A malformed or unreadable attempt record
 whose relevance cannot be ruled out, a relevant attempt missing queue or slot
-fields, or a legacy attempt without exact endpoints makes coverage unknown for
-both close and correction. Unknown source ownership also refuses a numeric
-measurement. The refusal retains every queue blocker: only an all-legacy set
-names its attempts and the matching `close` or `milestone-close --no-actual`
-command, with its exclusion reason. Mixed or malformed new-format evidence
-retains the restore guidance. Old completed snapshots replay unchanged; explicit
+fields, or a legacy attempt without exact endpoints makes coverage unknown.
+A correction refuses on it, retaining every queue blocker. Close and preview
+record each such attempt as a `queue-unknown` unattributed record instead
+(#603): its wait is not subtracted, so the actual is an upper bound with no
+calibration weight, and an attempt with endpoints names how much it may
+overstate. Old completed snapshots replay unchanged; explicit
 `correct-actual` builds a new candidate against the completion generation and
 can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
@@ -2040,8 +2059,19 @@ attribution interval names its source by index into `sources` and inherits its
 capture's branch, and the codec expands it to the same in-memory evidence a
 version 3 snapshot holds. The bound depends on the version
 (`measurementSnapshotLimit`): 64 KiB through version 3, 128 KiB for version 4,
-so `SnapshotLimitSources` binds before bytes do. `Validate` refuses an
-oversized snapshot with its size and its source and interval counts. A separate
+so `SnapshotLimitSources` binds before bytes do. `Validate` is
+`ValidateShape` then `ValidateBounds` (#603); the bounds fail as a typed
+`*OversizeError` with the size and the source and interval counts. The branch
+proof checks shape only, and a fresh measurement checks the bounds once, after
+trimming to contributing sources: pair#838 and #851 had refused at the proof on
+untrimmed sources. A snapshot still over its bounds is retained as a version-5
+`MeasurementSummary` (`gatestate/measurement_summary.go`, method
+`active-time-v3-summary-v1`): header, unattributed records, source count, size,
+digest, hours, and the credited intervals, coalesced to `MaxSummaryCredits` by
+`CoalesceCredits` with the closed gaps kept as `widened`. `loadAdoptedExclusions`
+reads a summary's credits instead of replaying it and records the widened gaps
+the later issue loses as `summary-widened`; only a replay of the summarised close
+refuses. Pre-#603 readers refuse version 5 by version. A separate
 512 KiB structural cap only bounds the codec's parse cost. Version 3 snapshots
 replay unchanged, and pre-#593 readers refuse version 4 by version.
 
@@ -2547,7 +2577,12 @@ rule, and a disk that refuses the write falls back), and falls back to the norma
 the normal folder; non-Darwin override fixtures retain their existing behavior.
 The check performs no capability writes; cleanup still scans rejected mounted
 roots for earlier disposable folders. It also sweeps stale run and go-build folders,
-and warns about `t.TempDir` folders a scratched run still left on the SSD temp
+once per run (the host capability probe no longer sweeps too) and never from a test
+process: TestMain registers the machine's shared temp roots with `excludeScratchSweep`
+(#631). The sweep logs each removal's root, folder, reason and duration to the run's
+stderr, and `removeTree` makes read-only directories (a Go module cache a test left
+under its TMPDIR) writable before removing, so a dead run folder goes once instead of
+failing every later sweep. It also warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 
 Fallback also owns and removes a per-run directory and explicitly overrides
@@ -2630,7 +2665,7 @@ many times slower, so a test's verdict must not ride on elapsed time. Bound wait
 with `testgate.HangCeiling` (`pkg/testgate`, so cmd/weave shares it; cmd/sdlc's
 `testfix.HangCeiling` and `hangGuard` alias it): it catches a hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
 signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
-to fail the moment one command waits for the repo lock behind another (#325).
+to fail the moment one command waits for the repo lock behind another (#325). A test that waits for an event polls through `testgate.AwaitCondition(t, what, cond, workers)` (`testfix.AwaitCondition` aliases it; #622): it is bounded only by `HangCeiling`, and its `workers []chan error` argument is required. Pass the goroutines or processes whose progress produces the condition, or `nil` with a comment saying why none can end first. A worker that ends first fails the wait at once, and its result is put back on its channel (each needs a one-value buffer), so a deferred join or a later completion wait still receives it. It refuses an unbuffered worker channel up front and a closed one on its first poll. `waitQueued` and `waitVouched` are built on it. A test that proves a bound (a cancel, a timeout, a kill) ends its call runs the call under `testgate.Returns(t, what, call)`, which waits on it with `AwaitCondition`, and makes the work the bound must stop outlast `HangCeiling` (a `sleep 600` child): then only a broken bound reaches the ceiling, and no elapsed threshold is asserted. When the bound is broken, that child outlives the failed test until its sleep ends. `AwaitCondition` owns every poll bounded by `HangCeiling`. Waits budgeted by the remainder of the test's own deadline (`landingCompletionBudget`: `awaitDropCondition`, `mergeStageAwait`), and `testfix.AwaitPIDFile` and `AwaitExit`, which return to a caller that sets the ceiling, stay separate.
 
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
@@ -2680,7 +2715,7 @@ that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagno
 `test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
+`test-tight-wallclock` (the 2026-10-15 flakes, widened by #622 after #620/#625: any elapsed upper bound, or a `time.Now().Add` deadline that a loop polls, below the hang ceiling; only an expression naming `HangCeiling` or a constant at least as long passes, and variables are matched by their declaring object; `select`/`time.After` fail-timeouts are #626) and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
 JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). #590 keeps this syntactic matcher unchanged; it does not prove materializer value flow or differential independence. Fix redundant validators by using the consumer module's own shared strict JSON authority while preserving its key semantics; Ariadne's internal implementation is not importable downstream. For a proven value-producing materializer or independent differential fuzz oracle, a reasoned per-site `//lint:allow json-recursive-scanner — <reason>` is the sanctioned answer. State why the role must remain independent (for example, a standalone sample module or an oracle compared against a different implementation). Do not consolidate away that independence, add a production dependency merely to satisfy lint, or exempt whole packages/test files. Pair's two #861 allows remain valid rather than awaiting removal. Exact source captures exercise both the unannotated finding and the reasoned annotation through Check and CheckSources. `TestAtlasNamesEveryRule` keeps this list

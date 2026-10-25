@@ -88,6 +88,26 @@ type LedgerRow struct {
 	// gate's escape hatch, and its use must show up in history.
 	GateDisputed     int
 	BoundaryDisputed int
+
+	// ── #603: how much of Actual was attributed (indices 31–32) ───────────────
+	// Confidence is exact, partial or unmeasured; "" on an older row, which
+	// reads as exact because close then refused anything less. AttributedShare
+	// is the attributed fraction (0 for an upper bound). A corrected row omits
+	// both: a correction stands on exact evidence.
+	Confidence      string
+	AttributedShare float64
+}
+
+// CalibrationWeight is how much a row counts in calibration (#603): exact
+// rows fully, partial rows by their attributed share, anything else not at all.
+func (r LedgerRow) CalibrationWeight() float64 {
+	switch r.Confidence {
+	case "", "exact":
+		return 1
+	case "partial":
+		return r.AttributedShare
+	}
+	return 0
 }
 
 // HasSplit reports a row whose actual was measured and split at its boundary
@@ -140,7 +160,8 @@ const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmode
 	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +
 	"\tflow_kind\tflow_provenance\tflow_upgraded" +
 	"\tbuild_hours\tconverge_hours\tboundary_rounds\tsplit_source\treview_recipe" +
-	"\tgate_disputed\tboundary_disputed\tcorrection"
+	"\tgate_disputed\tboundary_disputed\tcorrection" +
+	"\tconfidence\tattributed_share"
 
 // legacyCols is the column count before #187's append — the boundary between "row from an
 // older binary" and "row carrying cost metrics".
@@ -158,6 +179,9 @@ const (
 	flowCols    = 23
 	splitCols   = 28
 	disputeCols = 30 // #202's block (28–29)
+	// confidenceCols is the width through #603's block (31–32), after the
+	// correction cell (30), which such a row writes as "-".
+	confidenceCols = 33
 )
 
 // Header returns the ledger's TSV header line (written when the file is created).
@@ -175,9 +199,14 @@ func FormatRow(r LedgerRow) string {
 		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), Dash(r.SplitSource), Dash(r.ReviewRecipe),
 		itoa(r.GateDisputed), itoa(r.BoundaryDisputed),
 	}, "\t")
-	if r.Correction != nil {
+	switch {
+	case r.Correction != nil:
+		// A corrected row keeps its older width, so older readers, which refuse
+		// columns after a correction, still read it.
 		payload, _ := json.Marshal(r.Correction)
 		line += "\t" + string(payload)
+	case r.Confidence != "":
+		line += "\t-\t" + r.Confidence + "\t" + ftoa(r.AttributedShare)
 	}
 	return line
 }
@@ -211,7 +240,7 @@ func ParseRowsChecked(text string) ([]LedgerRow, error) {
 		var correction *CorrectionRecord
 		if len(c) > disputeCols && c[disputeCols] != "" && c[disputeCols] != "-" {
 			var err error
-			if len(c) != disputeCols+1 {
+			if len(c) != disputeCols+1 && len(c) != confidenceCols {
 				return nil, fmt.Errorf("ledger line %d: extra correction columns", lineNumber+1)
 			}
 			correction, err = parseCorrection(c[disputeCols])
@@ -294,6 +323,14 @@ func ParseRowsChecked(text string) ([]LedgerRow, error) {
 		if len(c) >= disputeCols { // #202's dispute block
 			row.GateDisputed = atoiOrZero(c[28])
 			row.BoundaryDisputed = atoiOrZero(c[29])
+		}
+		if len(c) >= confidenceCols { // #603's confidence block
+			row.Confidence = undash(c[31])
+			if share, ok := parseLedgerFloat(c[32]); ok && share >= 0 && share <= 1 {
+				row.AttributedShare = share
+			} else if row.Confidence == "partial" {
+				row.AttributedShare = 0 // an unreadable share carries no weight
+			}
 		}
 		rows = append(rows, row)
 	}

@@ -35,6 +35,19 @@ func planningAgentEnv(agentDir, pause, barrier string) []string {
 		fmt.Sprintf("PLANNING_SPINS=%d", testfix.HangCeiling/(10*time.Millisecond)))
 }
 
+// runPlanningCLI runs cmd on its own goroutine: done carries its error (with
+// room for testfix.AwaitCondition to put it back), and *output is safe to read
+// after a receive from done.
+func runPlanningCLI(cmd *exec.Cmd) (done chan error, output *string) {
+	done, output = make(chan error, 1), new(string)
+	go func() {
+		out, err := cmd.CombinedOutput()
+		*output = string(out)
+		done <- err
+	}()
+	return done, output
+}
+
 func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(string)) (repo, barrier string, finish func() planningCLIResult) {
 	t.Helper()
 	repo, _ = syncRepo(t)
@@ -89,8 +102,7 @@ fi
 	cmd.Dir = repo
 	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = planningAgentEnv(agentDir, pause, barrier)
-	done := make(chan planningCLIResult, 1)
-	go func() { out, err := cmd.CombinedOutput(); done <- planningCLIResult{string(out), err} }()
+	done, output := runPlanningCLI(cmd)
 	finished := false
 	t.Cleanup(func() {
 		_ = os.WriteFile(filepath.Join(barrier, "release"), nil, 0644)
@@ -103,30 +115,18 @@ fi
 			}
 		}
 	})
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if _, err := os.Stat(filepath.Join(barrier, "ready")); err == nil {
-			break
-		}
-		select {
-		case r := <-done:
-			finished = true
-			t.Fatalf("review did not pause: %v %s", r.err, r.output)
-		default:
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("review barrier timed out")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the review paused at its barrier", func() bool {
+		_, err := os.Stat(filepath.Join(barrier, "ready"))
+		return err == nil
+	}, []chan error{done})
 	finish = func() planningCLIResult {
 		t.Helper()
 		if err := os.WriteFile(filepath.Join(barrier, "release"), nil, 0644); err != nil {
 			t.Fatal(err)
 		}
-		r := <-done
+		err := <-done
 		finished = true
-		return r
+		return planningCLIResult{*output, err}
 	}
 	return
 }
@@ -403,8 +403,7 @@ func TestPlanningReviewCompetingResults(t *testing.T) {
 	cmd.Dir = repo
 	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = planningAgentEnv(first, "plan", second)
-	done := make(chan planningCLIResult, 1)
-	go func() { out, err := cmd.CombinedOutput(); done <- planningCLIResult{string(out), err} }()
+	done, output := runPlanningCLI(cmd)
 	completed := false
 	defer func() {
 		_ = os.WriteFile(filepath.Join(second, "release"), nil, 0644)
@@ -417,16 +416,10 @@ func TestPlanningReviewCompetingResults(t *testing.T) {
 			}
 		}
 	}()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if _, err := os.Stat(filepath.Join(second, "ready")); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("competing review did not start while first waited")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the competing review started while the first waited", func() bool {
+		_, err := os.Stat(filepath.Join(second, "ready"))
+		return err == nil
+	}, []chan error{done})
 	if r := finish(); r.err != nil {
 		t.Fatalf("first review failed: %v %s", r.err, r.output)
 	}
@@ -438,8 +431,9 @@ func TestPlanningReviewCompetingResults(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(second, "release"), nil, 0644); err != nil {
 		t.Fatal(err)
 	}
-	r := <-done
+	rerr := <-done
 	completed = true
+	r := planningCLIResult{*output, rerr}
 	if r.err == nil || !strings.Contains(r.output, "stale") {
 		t.Fatalf("second response accepted: %v %s", r.err, r.output)
 	}

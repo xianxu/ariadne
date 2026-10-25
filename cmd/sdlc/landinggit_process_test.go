@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func awaitLandingGitChild(t *testing.T, pidfile string) int {
@@ -156,12 +157,13 @@ func TestLocalCheckCleanupGitIsIndependentAndBounded(t *testing.T) {
 	//lint:allow test-shrunk-deadline — asserts only that the hung cleanup Git is bounded (#434); no readiness is awaited
 	localCheckCleanupTimeout = 200 * time.Millisecond
 	t.Cleanup(func() { localCheckCleanupTimeout = prev })
-	start := time.Now()
-	_, err := localCheckCleanupGit(ctx, execGitRunner{}, root)("-c", "alias.hang=!sleep 60", "hang")
+	// The alias outlives the hang ceiling unkilled, so only the budget lets
+	// the call return (#622).
+	var err error
+	testgate.Returns(t, "the budgeted cleanup git", func() {
+		_, err = localCheckCleanupGit(ctx, execGitRunner{}, root)("-c", "alias.hang=!sleep 600", "hang")
+	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("hung cleanup Git: %v", err)
-	}
-	if took := time.Since(start); took > 3*time.Second {
-		t.Fatalf("cleanup Git exceeded its budget plus drain: %s", took)
 	}
 }

@@ -48,7 +48,7 @@ func TestPairQualification(t *testing.T) {
 		t.Fatal(err)
 	}
 	const certPath = "tests/affected-readers/cmd/internal/testcouch/agentfixture/request_lifetime_test.go.json"
-	mp, err := Compile(cfg, []SidecarFile{{Path: certPath, Content: cert}})
+	mp, err := Compile(cfg, Sources{Sidecars: []SidecarFile{{Path: certPath, Content: cert}}})
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}

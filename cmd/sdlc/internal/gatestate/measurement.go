@@ -42,6 +42,9 @@ func measurementSnapshotLimit(version int) int {
 	if version == MeasurementCompactBranchInputsVersion {
 		return SnapshotLimitBytesV4
 	}
+	if version == MeasurementSummaryInputsVersion {
+		return SnapshotLimitBytesSummary
+	}
 	return SnapshotLimitBytes
 }
 
@@ -96,6 +99,12 @@ type MeasurementInputs struct {
 	Cuts                  []MeasurementCut            `json:"cuts,omitempty" yaml:"cuts,omitempty"`
 	LegacyPrefix          *MeasurementInputs          `json:"legacy_prefix,omitempty" yaml:"legacy_prefix,omitempty"`
 	LegacyCutover         string                      `json:"legacy_cutover,omitempty" yaml:"legacy_cutover,omitempty"`
+	// Unattributed records minutes seen but not counted (#603); audit only.
+	Unattributed        []MeasurementUnattributed `json:"unattributed,omitempty" yaml:"unattributed,omitempty"`
+	UnattributedMinutes float64                   `json:"unattributed_minutes,omitempty" yaml:"unattributed_minutes,omitempty"`
+	// Summary replaces the per-source evidence of a snapshot still over its
+	// bound after trimming (#603, method active-time-v3-summary-v1).
+	Summary *MeasurementSummary `json:"summary,omitempty" yaml:"summary,omitempty"`
 }
 
 type MeasurementEngagement struct {
@@ -159,6 +168,30 @@ type MeasurementCredit struct {
 	End   string             `json:"end" yaml:"end"`
 }
 
+// validate checks one credit: canonical issue and slot, ordered, in sample.
+func (credit MeasurementCredit) validate(field string, since, until time.Time) error {
+	id, err := strconv.Atoi(credit.Issue)
+	if err != nil || id <= 0 || strconv.Itoa(id) != credit.Issue {
+		return fmt.Errorf("measurement %s issue must be a canonical positive number", field)
+	}
+	address, err := workspace.ParseAddress(credit.Slot)
+	if err != nil || address.Repo == "" || address.String() != credit.Slot {
+		return fmt.Errorf("measurement %s slot is invalid", field)
+	}
+	start, err := measurementTime(field+".start", credit.Start)
+	if err != nil {
+		return err
+	}
+	end, err := measurementTime(field+".end", credit.End)
+	if err != nil {
+		return err
+	}
+	if !end.After(start) || start.Before(since) || end.After(until) {
+		return fmt.Errorf("measurement %s must be ordered and within since/until", field)
+	}
+	return nil
+}
+
 func (q MeasurementQueueWait) Validate() error {
 	address, addressErr := workspace.ParseAddress(q.Slot)
 	if len(q.AttemptID) < 2 || len(q.AttemptID) > 64 || len(q.AttemptID)%2 != 0 || !measurementHex(q.AttemptID, len(q.AttemptID)) || !measurementHex(q.RecordDigest, 64) || addressErr != nil || address.Repo == "" || address.String() != q.Slot {
@@ -187,10 +220,66 @@ func ValidateMeasurementInputs(m *MeasurementInputs) error {
 	return m.Validate()
 }
 
-// Validate checks the snapshot's shape, not issue attribution. Persistent main
-// sessions and children dispatched before relocation may start before Since;
-// only contributing source windows must lie inside the sampled interval.
+// Validate checks the snapshot's shape and then its retention bounds; it is
+// what a persisted snapshot must pass.
 func (m MeasurementInputs) Validate() error {
+	if err := m.ValidateShape(); err != nil {
+		return err
+	}
+	return m.ValidateBounds()
+}
+
+// ValidateBounds checks the retention bounds alone: the source count and the
+// serialized size (#593). A fresh measurement checks them once, after trimming
+// to contributing sources (#603); an oversize result is an *OversizeError.
+func (m MeasurementInputs) ValidateBounds() error {
+	sourceCount := len(m.Sources)
+	if m.LegacyPrefix != nil {
+		sourceCount += len(m.LegacyPrefix.Sources)
+	}
+	// The encoder refuses a value past its structural cap before this check
+	// can count it; both report the same counted refusal (#593).
+	data, err := json.Marshal(m)
+	var size *measurementSizeError
+	if err != nil && !errors.As(err, &size) {
+		return fmt.Errorf("measurement snapshot does not serialize (%s): %w", m.sizeCounts(), err)
+	}
+	bytes := len(data)
+	if size != nil {
+		bytes = size.Bytes // a lower bound: the encoder stopped there
+	}
+	switch {
+	case sourceCount > SnapshotLimitSources:
+		return &OversizeError{Bytes: bytes, Reason: fmt.Sprintf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)}
+	case size != nil:
+		return &OversizeError{Bytes: bytes, Reason: m.oversize(fmt.Sprintf("at least %d", size.Bytes)).Error()}
+	case len(data) > measurementSnapshotLimit(m.Version):
+		return &OversizeError{Bytes: bytes, Reason: m.oversize(strconv.Itoa(len(data))).Error()}
+	}
+	return nil
+}
+
+// OversizeError is a snapshot over its retention bound: the measurement holds,
+// only its full replay evidence cannot be retained (#603). Bytes is the size
+// the encoder measured, a lower bound when it stopped at its structural cap.
+type OversizeError struct {
+	Bytes  int
+	Reason string
+}
+
+func (e *OversizeError) Error() string { return e.Reason }
+
+// ValidateShape checks the snapshot's shape, not issue attribution or its
+// retention bounds. Persistent main sessions and children dispatched before
+// relocation may start before Since; only contributing source windows must lie
+// inside the sampled interval.
+func (m MeasurementInputs) ValidateShape() error {
+	if IsSummaryMethod(m.Method) {
+		return m.validateSummary()
+	}
+	if m.Summary != nil {
+		return fmt.Errorf("measurement summary requires method %s", MeasurementMethodSummaryV1)
+	}
 	// Check depth before any recursive validation or marshaling, including cycles
 	// constructed in memory. The retained prefix is exactly one legacy interval.
 	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
@@ -283,49 +372,14 @@ func (m MeasurementInputs) Validate() error {
 			return fmt.Errorf("measurement queue_waits[%d] outside sample window", i)
 		}
 	}
-	for i, credit := range m.Protected {
-		id, err := strconv.Atoi(credit.Issue)
-		if err != nil || id <= 0 || strconv.Itoa(id) != credit.Issue {
-			return fmt.Errorf("measurement protected[%d] issue must be a canonical positive number", i)
-		}
-		address, err := workspace.ParseAddress(credit.Slot)
-		if err != nil || address.Repo == "" || address.String() != credit.Slot {
-			return fmt.Errorf("measurement protected[%d] slot is invalid", i)
-		}
-		start, err := measurementTime(fmt.Sprintf("protected[%d].start", i), credit.Start)
-		if err != nil {
-			return err
-		}
-		end, err := measurementTime(fmt.Sprintf("protected[%d].end", i), credit.End)
-		if err != nil {
-			return err
-		}
-		if !end.After(start) || start.Before(contributionSince) || end.After(until) {
-			return fmt.Errorf("measurement protected[%d] must be ordered and within since/until", i)
-		}
+	if err := validateCredits("protected", m.Protected, contributionSince, until); err != nil {
+		return err
 	}
 	if err := m.ValidateCarWaitCoverage(); err != nil {
 		return err
 	}
-	sourceCount := len(m.Sources)
-	if m.LegacyPrefix != nil {
-		sourceCount += len(m.LegacyPrefix.Sources)
-	}
-	if sourceCount > SnapshotLimitSources {
-		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)
-	}
-	// The encoder refuses a value past its structural cap before this check
-	// can count it; both report the same counted refusal (#593).
-	data, err := json.Marshal(m)
-	var size *measurementSizeError
-	if errors.As(err, &size) {
-		return m.oversize(fmt.Sprintf("at least %d", size.Bytes))
-	}
-	if err != nil {
-		return fmt.Errorf("measurement snapshot does not serialize (%s): %w", m.sizeCounts(), err)
-	}
-	if len(data) > measurementSnapshotLimit(m.Version) {
-		return m.oversize(strconv.Itoa(len(data)))
+	if err := m.ValidateUnattributed(); err != nil {
+		return err
 	}
 	for i, e := range m.Engagements {
 		field := fmt.Sprintf("engagements[%d]", i)

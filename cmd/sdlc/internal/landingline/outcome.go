@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // A train's conductor tells each waiting car what happened to it through
@@ -48,7 +50,7 @@ func outcomeFields(o *Outcome) map[string]any {
 // DecodeOutcome parses an outcome with the line's strict, preserving codec.
 func DecodeOutcome(data []byte) (Outcome, error) {
 	var o Outcome
-	extra, err := decodeStrict(data, outcomeFields(&o))
+	extra, err := jsonstrict.DecodeObject(data, outcomeFields(&o))
 	if err != nil {
 		return Outcome{}, fmt.Errorf("outcome: %w", err)
 	}
@@ -63,7 +65,7 @@ func (o Outcome) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	fields := outcomeFields(&o)
-	return encodeWithExtra(base, o.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(base, o.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 // Valid reports whether o is a well-formed outcome for ticket seq.

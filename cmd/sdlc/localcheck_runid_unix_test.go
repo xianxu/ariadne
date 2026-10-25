@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -222,17 +223,13 @@ func TestLocalCheckCancelRunIDPreservesQueuedSibling(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The child check's PID marker exists only after the real helper admits it.
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
+	// nil: the child is a process, and assertRunIDChildAlive fails the wait
+	// the moment it exits, on every poll.
+	testfix.AwaitCondition(t, "the survivor was admitted after capacity released", func() bool {
 		assertRunIDChildAlive(t, older)
-		if raw, _ := os.ReadFile(older.checkPID); len(raw) > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("survivor was not admitted after capacity released:\n%s", older.output(t))
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+		raw, _ := os.ReadFile(older.checkPID)
+		return len(raw) > 0
+	}, nil)
 	// Retain a by-name compatibility control on the surviving, now-running job.
 	output, err = cancel("--name", "suite")
 	if err != nil {
@@ -343,8 +340,9 @@ func awaitRunIDCancelled(t *testing.T, c *runIDChild) {
 
 func awaitRunIDLease(t *testing.T, dir string, c *runIDChild, sha string) (string, string) {
 	t.Helper()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
+	var id, path string
+	// nil: assertRunIDChildAlive fails the wait the moment the child exits.
+	testfix.AwaitCondition(t, "the run published its lease on "+sha, func() bool {
 		assertRunIDChildAlive(t, c)
 		for _, p := range leaseFiles(t, dir) {
 			raw, err := os.ReadFile(p)
@@ -354,52 +352,50 @@ func awaitRunIDLease(t *testing.T, dir string, c *runIDChild, sha string) (strin
 			var rec runLease
 			if json.Unmarshal(raw, &rec) == nil && rec.PID == c.cmd.Process.Pid && rec.SHA == sha {
 				assertRunIDHeld(t, p)
-				return strings.TrimSuffix(filepath.Base(p), ".json"), p
+				id, path = strings.TrimSuffix(filepath.Base(p), ".json"), p
+				return true
 			}
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("run did not publish lease on %s:\n%s", sha, c.output(t))
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+		return false
+	}, nil)
+	return id, path
 }
 
 func awaitRunIDTickets(t *testing.T, dir string, want int, children ...*runIDChild) []string {
 	t.Helper()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
+	var paths []string
+	// nil: assertRunIDChildAlive fails the wait the moment a child exits.
+	testfix.AwaitCondition(t, fmt.Sprintf("%d live FIFO tickets", want), func() bool {
 		for _, c := range children {
 			assertRunIDChildAlive(t, c)
 		}
-		paths, err := filepath.Glob(filepath.Join(dir, "[0-9]*"))
+		var err error
+		paths, err = filepath.Glob(filepath.Join(dir, "[0-9]*"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(paths) == want {
-			ready := true
-			for _, p := range paths {
-				f, err := os.OpenFile(p, os.O_RDWR, 0)
-				if err != nil {
-					ready = false
-					break
-				}
-				lockErr := flock.Exclusive(f, true)
-				raw, readErr := os.ReadFile(p)
-				var ticket struct {
-					PID int `json:"pid"`
-				}
-				ready = ready && errors.Is(lockErr, syscall.EWOULDBLOCK) && readErr == nil && json.Unmarshal(raw, &ticket) == nil && ticket.PID > 1
-				f.Close()
+		if len(paths) != want {
+			return false
+		}
+		for _, p := range paths {
+			f, err := os.OpenFile(p, os.O_RDWR, 0)
+			if err != nil {
+				return false
 			}
-			if ready {
-				return paths
+			lockErr := flock.Exclusive(f, true)
+			raw, readErr := os.ReadFile(p)
+			var ticket struct {
+				PID int `json:"pid"`
+			}
+			ready := errors.Is(lockErr, syscall.EWOULDBLOCK) && readErr == nil && json.Unmarshal(raw, &ticket) == nil && ticket.PID > 1
+			f.Close()
+			if !ready {
+				return false
 			}
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("want %d live FIFO tickets; got %v", want, paths)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+		return true
+	}, nil)
+	return paths
 }
 
 func assertRunIDHeld(t *testing.T, path string) {
