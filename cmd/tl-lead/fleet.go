@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -314,7 +316,9 @@ func newFleetCmd(d deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return fleetResume(cmd.Context(), cmd.OutOrStdout(), d, cwd, apply, resumeOptions{All: all, Concurrency: concurrency})
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			return fleetResume(ctx, cmd.OutOrStdout(), d, cwd, apply, resumeOptions{All: all, Concurrency: concurrency})
 		},
 	}
 	resume.Flags().BoolVar(&apply, "apply", false, "resume explicitly asleep workers in two waves (default: a dry run)")

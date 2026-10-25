@@ -59,7 +59,7 @@ func TestCouchResumeReceiptConformance(t *testing.T) {
 			if r.timedOut || !r.normal || r.exitCode != wantExit {
 				t.Fatalf("real Couch exit=%d normal=%v timeout=%v; want%d; stdout=%q stderr=%q", r.exitCode, r.normal, r.timedOut, wantExit, r.stdout, r.stderr)
 			}
-			var receipt struct{ ID, Op, Target, Status, Detail, Warning string }
+			var receipt struct{ ID, Op, Target, Status, Detail, Warning, Code, Diagnostic string }
 			if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil || receipt.ID == "" || receipt.Op != "resume" || receipt.Target != "receipt-conformance:7" || receipt.Status != status || receipt.Detail != "isolated broker terminal evidence" || receipt.Warning != "conformance advisory" {
 				t.Fatalf("real CLI did not produce terminal standalone receipt: %+v err=%v stdout=%q stderr=%q", receipt, err, r.stdout, r.stderr)
 			}
@@ -73,6 +73,16 @@ func TestCouchResumeReceiptConformance(t *testing.T) {
 				}
 			} else if classified == nil || errors.Is(classified, errUncertain) || !strings.Contains(classified.Error(), status) {
 				t.Fatalf("actual terminal %s classified as %v", status, classified)
+			}
+			if status != "succeeded" {
+				var coded codedResumeFailure
+				if !errors.As(classified, &coded) {
+					t.Fatalf("real terminal failure lost its stable identity: %v", classified)
+				}
+				key, stable := coded.failureKey()
+				if !stable || key != (resumeFailureKey{Status: status, Code: "fixture-terminal", Diagnostic: "isolated stable cause"}) || receipt.Code != key.Code || receipt.Diagnostic != key.Diagnostic {
+					t.Fatalf("real receipt failure identity: receipt=%+v key=%+v stable=%v", receipt, key, stable)
+				}
 			}
 			select {
 			case err := <-done:
@@ -200,6 +210,7 @@ func serveResumeConformance(listener *net.UnixListener, status string) error {
 			reply := map[string]any{"Code": code, "Operation": map[string]any{
 				"ID": id, "Op": "resume", "Target": "receipt-conformance:7", "Status": state,
 				"Detail": "isolated broker terminal evidence", "Warning": "conformance advisory",
+				"Code": "fixture-terminal", "Diagnostic": "isolated stable cause",
 			}}
 			body, err := json.Marshal(reply)
 			if err != nil {
