@@ -211,3 +211,17 @@ Tests: `teststats_store_test.go`, `localcheck_typed_oldreader_test.go`, `localch
 Targeted tests per task; `python3 scripts/test-shard.test.py`; the pre-close suite on the pushed head. A manual
 check: run a fixture repo whose suite command sleeps past a 1-minute alarm in one shard, and watch one retry of that
 package only, then the typed incomplete report with the load.
+
+## Revisions
+
+- 2026-10-25, during M1: **the load is an additive attempt field, not a separate record.** The plan said a new
+  attempt key would make older readers refuse the whole store. That was wrong: `canonicalSuiteKey` accepts any
+  unknown root key that isn't a case-alias of a known one (atlas: "Attempt compatibility (#460)"). An older reader
+  refuses the new **outcome value**, which is why version 5 stays. With version 5, the `load_average` key is
+  tolerated by the old reader's unsupported-proof path, and the old-reader test covers it. So `load_average` sits on
+  the v5 attempt, valid there alone. The `incomplete/<id>.json` record, its writer and reader, and its pruning are
+  dropped (ARCH-DRY: one record, one prune). The retry's selection is re-derived from the retained log in any case
+  (ARCH-SECURE).
+- 2026-10-25, during M1: the shard runner's marker names the package (`--- shard3 hit its 30m0s test alarm in <pkg>;
+  running: …`) and prints once per alarmed package. A shard with no named failure otherwise gives no package to
+  retry, and the packages job can have several binaries alarm at once.
