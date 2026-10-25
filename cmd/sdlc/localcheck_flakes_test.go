@@ -274,13 +274,28 @@ func TestKnownFlakeGate(t *testing.T) {
 		prev := knownFlakeRerunTimeout
 		t.Cleanup(func() { knownFlakeRerunTimeout = prev })
 		knownFlakeRerunTimeout = time.Hour
-		scriptRerun(t, "sleep 10; "+gatePassJSON)
+		// Each run, the failing suite command and the rerun, is bounded by the
+		// check's declared timeout: a 5s minute leaves the suite command margin
+		// under load; the rerun's sleep far outlasts it.
+		d.minute = 5 * time.Second
+		scriptRerun(t, "sleep 120; "+gatePassJSON)
 		c := suiteFailing(gateKnown)
-		c.TimeoutMinutes = 1 // one second under the test's minute
-		start := time.Now()
+		c.TimeoutMinutes = 1 // one test minute
 		rec, err := runLocalCheck(ctx, d, c, sha)
-		if err != nil || rec.passed() || rec.Outcome != flakes.RerunInconclusive || time.Since(start) > 8*time.Second {
-			t.Fatalf("%+v %v after %s", rec, err, time.Since(start))
+		if err != nil || rec.passed() || rec.Outcome != flakes.RerunInconclusive {
+			t.Fatalf("%+v %v", rec, err)
+		}
+		// The proof is the runner's own deadline event, not the wall clock
+		// (#620): an unbounded rerun would finish its sleep and pass, and a
+		// bounded one is recorded as timed out, however loaded the machine.
+		var rerun *SuiteAttempt
+		for _, a := range gateAttempts(t, d) {
+			if a.RerunOf != "" {
+				rerun = &a
+			}
+		}
+		if rerun == nil || !rerun.TimedOut || rerun.Check != suiteRerunCheck {
+			t.Fatalf("the rerun was not stopped at the check's deadline: %+v", rerun)
 		}
 	})
 	t.Run("a blind full rerun never turns an unknown failure green; registering then republishing does (M3)", func(t *testing.T) {

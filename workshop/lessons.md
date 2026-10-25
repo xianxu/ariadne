@@ -1671,6 +1671,19 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   not only table shape. Boundary review owns this prose parity check; wording
   presence tests would not establish semantic correctness.
 
+- #598 M1 BR-1/BR-3: when a milestone's code departs from the durable plan
+  (renamed entities, a field moved to a later milestone, a changed signature),
+  write the plan's `## Revisions` entry and fix the Core concepts table in the
+  same commit as the code. A ticked row must describe what landed. When a new
+  IO seam sits next to an existing one in the same function, copy its
+  interruption handling too: a `ctx.Err()` check after the call, before any
+  error-to-fallback mapping. A cancelled read is not evidence that its input is
+  unusable. Test it through the caller in every mode (ordinary and boarding).
+  The same round found two more cases. First, a doc claim about what happens
+  when a shared reader fails must be checked against every caller of that
+  reader: pre-close fell back while `--name affected` refused, and the doc said
+  only "falls back". Second, a test claim in a ticked row must name a test that
+  covers every mode the row names.
 - #589 BR-1/2/3/5: advisory probes need budgets separate from command execution; freeze the execution result before post-run diagnostics. Mutable IPC CTIME is not allocation identity, and a current PID/start is not allocating-incarnation evidence. Prefer explicit unattributed numeric PIDs over a process monitor; compare observed IDs conservatively. Composite outcomes must combine diagnostics from every independently verified log, including targeted child reruns. Controlled execution clocks and saved-proof/fresh-publication regressions defend these rules without short startup sleeps.
 
 - #589 BR-7: freezing a deadline is not a complete execution boundary. Run diagnostic-only IO after all outcome-mutating cleanup and the existing cancellation/queue retirement, using one final defer and the original log descriptor. Test cancellation before/during/after completion for success/failure and strict cleanup, durable queue ordering, cleanup unknown, and restored default signal handling. A compatibility regression must fail when the former unsafe path is actually restored; field removal alone can accidentally make a fixture inert.

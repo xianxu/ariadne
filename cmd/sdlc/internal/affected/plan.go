@@ -17,44 +17,35 @@ func (s Selection) Empty() bool {
 
 func full(reason string) Selection { return Selection{Full: true, Reason: reason} }
 
-// Plan classifies each changed path by the plan's affected.Plan rules (#473): a `full` match selects everything;
-// otherwise package ownership (Owners) and group `paths` are additive, never first-match (PQ-1). A path neither
-// claims is ignored when it is a doc (isDoc, the caller's docs rule) and Full otherwise: a doc a package owns, an
-// embedded or testdata .md, still selects that package (close review). Changed packages then expand to their
-// dependents, and a group whose `go` root is among them is selected.
-func Plan(paths []string, g Graph, cfg Config, isDoc func(string) bool) Selection {
+// Plan classifies each changed path by the plan's affected.Plan rules (#473): a `full` match selects everything (an
+// `except` glob lets the path fall through, #598); otherwise package ownership (Owners), group `paths` and the declared
+// Mapping (#598) are additive, never first-match (PQ-1). A path none claims is ignored when it is a doc (isDoc, the
+// caller's docs rule) and Full otherwise: a doc a package owns, an embedded or testdata .md, still selects that package
+// (close review). Changed packages then expand to their dependents, and a group whose `go` root is among them is
+// selected.
+func Plan(paths []string, g Graph, cfg Config, m Mapping, isDoc func(string) bool) Selection {
 	byDir := g.byDir()
 	changed := map[string]bool{}
 	groups := map[string]bool{}
 	for _, p := range paths {
-		for _, pat := range cfg.Full {
-			ok, err := Match(pat, p)
-			if err != nil {
-				return full(fmt.Sprintf("bad glob %q: %v", pat, err))
-			}
-			if ok {
-				return full(p)
-			}
+		isFull, err := fullMatch(cfg, p)
+		if err != nil {
+			return full(err.Error())
 		}
-		claimed := false
-		for _, pkg := range g.owners(byDir, p) {
+		if isFull {
+			return full(p)
+		}
+		c := claimPath(p, g, byDir, cfg, m, true)
+		if c.full != "" {
+			return full(c.full)
+		}
+		for pkg := range c.pkgs {
 			changed[pkg] = true
-			claimed = true
 		}
-		for _, gr := range cfg.Groups {
-			for _, pat := range gr.Paths {
-				ok, err := Match(pat, p)
-				if err != nil {
-					return full(fmt.Sprintf("group %s: bad glob %q: %v", gr.Name, pat, err))
-				}
-				if ok {
-					groups[gr.Name] = true
-					claimed = true
-					break
-				}
-			}
+		for gr := range c.groups {
+			groups[gr] = true
 		}
-		if !claimed && (isDoc == nil || !isDoc(p)) {
+		if !c.claimed() && (isDoc == nil || !isDoc(p)) {
 			return full("unclassified: " + p)
 		}
 	}

@@ -58,6 +58,8 @@ func splitImpact(ctx context.Context, root, loSHA, hiSHA string, packages []stri
 		return landingGit(boundedLandingGit(cleanupCtx, execGitRunner{}), root, args...)
 	}
 	var graphs [2]affected.Graph
+	var cfgs [2]affected.Config
+	var mappings [2]affected.Mapping
 	var selections [2]affected.Selection
 	for i, sha := range []string{loSHA, hiSHA} {
 		cfg, ok, err := readAffectedConfig(git, sha)
@@ -79,7 +81,13 @@ func splitImpact(ctx context.Context, root, loSHA, hiSHA string, packages []stri
 		if err != nil {
 			return impacts, fmt.Errorf("split package graph at %s: %w", abbrevSHA(sha), err)
 		}
-		selections[i] = affected.Plan(paths, graphs[i], cfg, func(p string) bool { return !publishGateHasCodeSurface([]string{p}) })
+		// Each endpoint's own declarations, read from its exact commit, as its graph is (#598).
+		mappings[i], err = loadAffectedMapping(ctx, root, sha, cfg)
+		if err != nil {
+			return impacts, fmt.Errorf("split declared ownership at %s: %w", abbrevSHA(sha), err)
+		}
+		cfgs[i] = cfg
+		selections[i] = affected.Plan(paths, graphs[i], cfg, mappings[i], affectedIsDoc)
 	}
 	if err := ctx.Err(); err != nil {
 		return impacts, err
@@ -98,7 +106,7 @@ func splitImpact(ctx context.Context, root, loSHA, hiSHA string, packages []stri
 			uncertain = true
 			changed := map[string]bool{}
 			for _, p := range paths {
-				for _, pkg := range graphs[i].Owners(p) {
+				for _, pkg := range affected.Owned(p, graphs[i], cfgs[i], mappings[i]) {
 					changed[pkg] = true
 				}
 			}
