@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "cc3bb5d2", done: "7faf0b5c"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # close and milestone-close hold the repo lock through the whole review, blocking other slots' bookkeeping
@@ -48,6 +48,8 @@ commits), not across the review dispatch and wait; revalidate state after the re
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed — BR-1: both verbs x new/changed adoptions x preparation/review refuse before writes; all8 normal69.858s/race69.002s. Removing propagation reproduces wrong finalization in all4 new-adoption schedules (RED46.096s), removing comparison reproduces both review failures (RED24.287s); mutations restored, no production diff. Catalog0.971s. New recorded pre-close suite queued; --no-plan-check acknowledges pending suite/landing process checkboxes only, with the final recorded pass required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 504 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 ### 2026-10-24 — Diagnosis and proposed boundary
 
