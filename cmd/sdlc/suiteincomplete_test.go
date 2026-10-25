@@ -446,9 +446,9 @@ func TestResolveIncompleteResumeProof(t *testing.T) {
 		return in
 	}
 	for name, in := range map[string]ResumeProofInput{
-		"a wider selection":   withLink(func(l *ResumeLink) { l.Selection.GoPkgs = []string{"o/r/other", "o/r/pkg"} }),
-		"a group":             withLink(func(l *ResumeLink) { l.Selection.Groups = []string{"lua"} }),
-		"a known-flake link":  withLink(func(l *ResumeLink) { l.Version, l.Selection = 3, nil }),
+		"a wider selection":  withLink(func(l *ResumeLink) { l.Selection.GoPkgs = []string{"o/r/other", "o/r/pkg"} }),
+		"a group":            withLink(func(l *ResumeLink) { l.Selection.Groups = []string{"lua"} }),
+		"a known-flake link": withLink(func(l *ResumeLink) { l.Version, l.Selection = 3, nil }),
 		// The parent's own log must still say incomplete: the selection is
 		// derived from it, never from the link.
 		"a parent log no longer incomplete": func() ResumeProofInput {
