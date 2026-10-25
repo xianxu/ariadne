@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-24
 updated: 2026-10-25
 estimate_hours: 1.96
-card_mirror: 'c59147eacec4176c14c965d8b6871551d3bea399' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '35ad2b684bb94d06e722ab07654fc298000aba0a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T23:10:54-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 1.44
+actual_hours: 1.47
 ---
 
 # Affected planning: traceability input and missed-mapping ledger
