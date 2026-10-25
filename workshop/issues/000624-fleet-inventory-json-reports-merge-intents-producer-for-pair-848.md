@@ -78,6 +78,10 @@ Authenticated ops:0 receipt2c7e41d6-1e44-4f29-b920-218aea8deda5 directs a hold: 
 
 Authenticated ops:0 receipt3a1901fc-d26b-4929-a9d0-896260a62443 confirms #631 landed and primary tools rebuilt, directing one fresh pre-close then merge. Git verifies origin/main includes #631 merge40aec7205764cf132b28bca8c3318823dc50bd8c and archive e19cdb92b2c58b6d454360925f6feaee47e5c7e6; bare sdlc --version names the primary binary at that revision with modified=false. Started exactly one fresh pre-close on retained source candidate fac0902f6628d87bbb5eb18c518be1b0a724d450: attempt903573603afa11b2b8b175770a556d3f, lease-283102559, detached /Volumes/TestScratch/local-checks/sdlc-local-1000312450, currently queued fifth. Retain that runner; no duplicate/retry, no owned merge yet. On pass enter central sdlc merge --yes, then Git-verify and hand the landed producer wire/fixture paths to ops:0 and pair:5. This checkpoint is documentation only.
 
+### 2026-10-25 — Fresh pre-close passed after #631
+
+Authorized fresh attempt903573603afa11b2b8b175770a556d3f onfac0902f6628d87bbb5eb18c518be1b0a724d450 passed all2529 cmd/sdlc tests and79 other packages, zero failures/reruns, wall1097.7s (18m18s) after2858s queueing. Posted sdlc-local/suite success; saved log common-dir sdlc/local-checks/fac0902f6628d87bbb5eb18c518be1b0a724d450/suite.log, digest prefix9d2a89318370. Both SysV snapshots were empty; SSD-temp observation reported zero owned t.TempDir folders and131 unattributed entries, not a suite failure. No new code or test runs are required before landing; mandatory full and narrow reviews are SHIP, with no open findings. Checkpoint this evidence and promptly enter central sdlc merge --yes; its own current-main integration and authoritative gates precede landing.
+
 ## Revisions
 
 ### 2026-10-25 — Clarify terminal observation and freeze consumer vocabulary
