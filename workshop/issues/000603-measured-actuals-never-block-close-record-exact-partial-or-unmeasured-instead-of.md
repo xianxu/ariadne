@@ -55,7 +55,7 @@ Change:
 Durable plan: [000603-measured-actuals-never-block-close-plan.md](../plans/000603-measured-actuals-never-block-close-record-exact-partial-or-unmeasured-instead-of-plan.md).
 
 - [x] M1 — close never refuses on measurement: confidence classifier, unknown-branch and per-source notes, oversize summary, queue degradation, close adopts every outcome, replay fixtures (#856/#812/#863/#830/#851/#838)
-- [ ] M2 — calibration weights by confidence (ledger columns, weighted forecast/converge/drift); close/actual help and atlas
+- [x] M2 — calibration weights by confidence (ledger columns, weighted forecast/converge/drift); close/actual help and atlas
 
 ## Estimate
 

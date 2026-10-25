@@ -254,7 +254,7 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 - **Test strategy for the risky functions (plan-quality advisory):** the credit coalescer gets a property test over random
   credit sets: the output has at most `MaxSummaryCredits` intervals, its cover is a superset of the input cover, and the widened
   minutes equal cover(output) − cover(input). `classifyActual` stays a table test, because its domain is a closed enumeration.
-- [ ] **M1**: milestone-close.
+- [x] **M1**: milestone-close.
 
 ### M2: calibration reads confidence; docs
 
@@ -268,7 +268,7 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
     to windows where measurement does not apply.
   - Atlas: update `sdlc-binary.md` (branch selection, the v4 bound and the summary), `issue-lifecycle.md`, `ledger-landscape.md`
     and `gate-state.md`.
-- [ ] **M2**: close.
+- [x] **M2**: close.
 
 ## Revisions
 
