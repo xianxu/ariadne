@@ -24,7 +24,9 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"go.yaml.in/yaml/v3"
 )
 
 // Seams — swapped in tests so the gate runs hermetically (no git, no vocabulary
@@ -52,13 +54,18 @@ type nounGate struct {
 	checkSections bool
 }
 
-func nounGates(issuesDir string) []nounGate {
+func nounGates(issuesDir string, planRoots ...string) []nounGate {
+	planRoot := plansDir()
+	if len(planRoots) > 0 {
+		planRoot = planRoots[0]
+	}
 	if issuesDir == "" {
 		issuesDir = envOr("WF_ISSUES_DIR", vocab.Issue().Discovery().Home)
 	}
 	return []nounGate{
 		{noun: "issue", dir: issuesDir, checkSections: true},
 		{noun: "project", dir: vocab.Project().Discovery().Home},
+		{noun: "side-doc", dir: planRoot},
 	}
 }
 
@@ -82,6 +89,18 @@ func validateChangedInstances(root, base, head string, gates []nounGate, stdout,
 		gate, ok := gateForPath(ch.Path, gates)
 		if ch.Status == "D" || !ok {
 			continue
+		}
+		if gate.noun == "side-doc" {
+			data, readErr := readIssueFileFn(filepath.Join(root, ch.Path))
+			if readErr != nil {
+				return fmt.Errorf("side-doc %s: %w", ch.Path, readErr)
+			}
+			// Side trees also hold legacy evidence. Only an explicit typed
+			// Markdown document opts into the new schema; never demand issue
+			// metadata from attachments (#623).
+			if !hasSideDocType(data) {
+				continue
+			}
 		}
 		checked++
 
@@ -164,9 +183,18 @@ func shellValidateFrontmatter(noun, file string) (output string, ok bool, err er
 
 func gateForPath(path string, gates []nounGate) (nounGate, bool) {
 	for _, gate := range gates {
-		if isInstanceFile(path, gate.dir) {
-			return gate, true
+		if !isInstanceFile(path, gate.dir) {
+			continue
 		}
+		if gate.noun == "issue" || gate.noun == "side-doc" {
+			if owner, side := sidedoc.Owner(filepath.ToSlash(path)); side && isInstanceFile(owner, gate.dir) {
+				return nounGate{noun: "side-doc", dir: gate.dir}, true
+			}
+			if gate.noun == "side-doc" {
+				continue
+			} // ordinary plans are not modeled instances
+		}
+		return gate, true
 	}
 	return nounGate{}, false
 }
@@ -184,4 +212,30 @@ func indentLines(s, prefix string) string {
 		lines[i] = prefix + l
 	}
 	return strings.Join(lines, "\n")
+}
+
+// hasSideDocType classifies only explicit top-level declarations. Node parsing
+// here is not validation: the existing vocabulary/CUE boundary owns required
+// types and duplicate-key refusals. Untyped legacy evidence remains unmodeled.
+func hasSideDocType(data []byte) bool {
+	block, _, ok := sidedoc.FrontBlock(string(data))
+	if !ok {
+		return false
+	}
+	var node yaml.Node
+	if yaml.Unmarshal([]byte(block), &node) == nil && len(node.Content) > 0 {
+		fields := node.Content[0]
+		if fields.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(fields.Content); i += 2 {
+				if key := fields.Content[i]; key.Kind == yaml.ScalarNode && key.Tag == "!!str" && key.Value == "type" {
+					return true
+				}
+			}
+		}
+	}
+	// A malformed typed document still reaches CUE when its ordinary flat
+	// declaration can be recognized by the shared side-doc field reader.
+	fields, _ := sidedoc.Fields(string(data))
+	_, declared := fields["type"]
+	return declared
 }

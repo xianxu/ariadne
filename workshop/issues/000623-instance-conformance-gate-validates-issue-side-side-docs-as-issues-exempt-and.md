@@ -85,6 +85,11 @@ TL approved shared Owner, side roots conferring no ID and archive ownership inde
 
 First plan-quality round found no blocking issues. PQ-1 (Minor) identified the state table's outdated missing-type failure row; corrected it to the approved untyped-attachment compatibility rule. Added paired vocabulary/sdlc rollout guidance so compound-noun support is available before the new gate is deployed. Estimate is now derived from the accepted scope; full change-code must admit it before code or tests.
 
+
+### 2026-10-25 — implementation checkpoint
+
+Change-code admitted the approved design. Shared Owner and ID exclusions pass their focused tests; the side-doc vocabulary and compound-noun selector pass native CUE tests. Root command regressions reproduced the gate misclassification and orphan-plan-side omissions in landing, filesystem archive, recovery and abandon. Gate dispatch and configured-plan-root wiring are written but not yet verified; archive production changes remain outstanding. No recorded check or merge is running. Next: verify gate changes, implement shared archive owner inventory across these paths, then run the command regressions serially with count1. TL dispatched the historical parley repair to parley.nvim:1; this branch makes no peer edits.
+
 ## Revisions
 
 ### 2026-10-25 — approved typed-Markdown transition

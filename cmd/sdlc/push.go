@@ -128,7 +128,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Deterministic, separate from the judges (so --no-judge keeps it, and
 	// --no-validate keeps the judges). Same window the judges use.
 	if !f.NoValidate {
-		if err := validateChangedInstancesFn("", gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
+		if err := validateChangedInstancesFn("", gitx.DiffBase(), "", nounGates(f.IssuesDir, f.PlansDir), stdout, stderr); err != nil {
 			die(stderr, err.Error())
 		}
 	} else {
