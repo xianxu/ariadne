@@ -242,6 +242,12 @@ func (s SuiteEvidenceSnapshot) knownSuiteHeads() map[string]bool {
 // decodeUnsupportedProof admits a strict identity envelope, never a partly
 // decoded supported record. The versioned body stays byte-preserved and opaque.
 func decodeUnsupportedProof(data []byte, filename string) (UnsupportedProof, error) {
+	return decodeUnsupportedProofAt(data, filename, suiteAttemptReadVersion)
+}
+
+// decodeUnsupportedProofAt is that decision for a reader of readVersion at
+// most, so a test can run an older binary's rule on a newer record (#630).
+func decodeUnsupportedProofAt(data []byte, filename string, readVersion int) (UnsupportedProof, error) {
 	var p UnsupportedProof
 	if len(data) > suiteAttemptMaxJSON {
 		return p, errors.New("record exceeds byte limit")
@@ -279,7 +285,7 @@ func decodeUnsupportedProof(data []byte, filename string) (UnsupportedProof, err
 		return p, err
 	}
 	validID := func(id string) bool { return len(id) >= 2 && len(id) <= 64 && suiteHex.MatchString(id) }
-	if wire.Version <= suiteAttemptReadVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
+	if wire.Version <= readVersion || !validID(wire.ID) || filename != wire.ID+".json" || !suiteRepo.MatchString(wire.Repo) || !suiteHex.MatchString(wire.SHA) || len(wire.SHA) != 40 && len(wire.SHA) != 64 || !localCheckName.MatchString(wire.Check) {
 		return p, errors.New("invalid unsupported evidence identity")
 	}
 	if wire.RerunOf != "" && (!validID(wire.RerunOf) || wire.RerunOf == wire.ID) {

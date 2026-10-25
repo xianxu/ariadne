@@ -33,6 +33,48 @@ class ReportTest(unittest.TestCase):
         self.assertIn("TestLease/owned=true", out.getvalue())
         self.assertIn("descriptor retained", out.getvalue())
 
+    def report_of(self, events, code=1):
+        with tempfile.TemporaryDirectory(prefix="shard-report-") as root:
+            path = Path(root)
+            (path / "shard3.json").write_text("".join(json.dumps(x) + "\n" for x in events))
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                failed, _, _ = shard.report(path, [("shard3", code, 1800.4)])
+        return failed, out.getvalue()
+
+    def test_alarm_prints_a_marker_naming_the_running_tests(self):
+        package = "example/sdlc"
+        alarm = "panic: test timed out after 30m0s\n\trunning tests:\n\t\tTestSlow (29m59s)\n\t\tTestSlow/sub (2m0s)\n\t\tTestOther (1m2s)\n\ngoroutine 1 [running]:\n"
+        events = [
+            {"Action": "output", "Package": package, "Test": "TestSlow", "Output": "=== RUN   TestSlow\n"},
+            {"Action": "output", "Package": package, "Output": alarm},
+            {"Action": "fail", "Package": package},
+        ]
+        failed, out = self.report_of(events)
+        self.assertTrue(failed)
+        self.assertIn("--- shard3 hit its 30m0s test alarm in example/sdlc; running: TestSlow, TestSlow/sub, TestOther\n", out)
+
+    def test_each_alarmed_package_gets_a_marker(self):
+        def alarm(pkg):
+            return [{"Action": "output", "Package": pkg, "Output": "panic: test timed out after 5m0s\n"},
+                    {"Action": "output", "Package": pkg, "Output": "\trunning tests:\n"},
+                    {"Action": "output", "Package": pkg, "Output": "\t\tTestHang (5m0s)\n"},
+                    {"Action": "fail", "Package": pkg}]
+        _, out = self.report_of(alarm("example/a") + [{"Action": "pass", "Package": "example/b"}] + alarm("example/c"))
+        self.assertIn("hit its 5m0s test alarm in example/a; running: TestHang", out)
+        self.assertIn("hit its 5m0s test alarm in example/c; running: TestHang", out)
+        self.assertNotIn("example/b;", out)
+
+    def test_no_alarm_no_marker(self):
+        package = "example/sdlc"
+        events = [
+            {"Action": "output", "Package": package, "Test": "TestX", "Output": "x_test.go:9: boom\n"},
+            {"Action": "fail", "Package": package, "Test": "TestX"},
+            {"Action": "fail", "Package": package},
+        ]
+        _, out = self.report_of(events)
+        self.assertNotIn("test alarm", out)
+
 
 class DefaultShardTest(unittest.TestCase):
     def parse_main_args(self, argv, cpu_count=32):

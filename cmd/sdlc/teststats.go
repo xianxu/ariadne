@@ -50,6 +50,9 @@ type SuiteAttempt struct {
 	// light-lane overrun, how long the stopped light run had gone.
 	Lane               string   `json:"lane,omitempty"`
 	LaneOverrunSeconds *float64 `json:"lane_overrun_seconds,omitempty"`
+	// Additive (#630), on a version 5 incomplete (timeout) attempt only: the
+	// host's 1, 5 and 15 minute load when the alarm's run ended.
+	LoadAverage []float64 `json:"load_average,omitempty"`
 	// Reader-only projection of digest-verified raw evidence; never persisted.
 	TypedFacts *flakes.UnitFacts `json:"-"`
 }
@@ -120,7 +123,9 @@ func isTestCheck(name string) bool { return name == suiteCheckName || name == af
 // where they had failed). Every reader of fail→pass evidence uses this one
 // predicate, so a rerun's proof survives its parent's outcome being revised.
 func isFlakeEvidence(a SuiteAttempt) bool {
-	if a.ReclassificationSHA256 != "" {
+	// A run the Go test alarm cut short (#630) is execution evidence, not a
+	// test result: it never blocks a pass and never counts toward a flake.
+	if a.ReclassificationSHA256 != "" || flakes.Kind(a.Outcome) == flakes.IncompleteTimeout {
 		return false
 	}
 	return isTestCheck(a.Check) || a.Check == suiteRerunCheck && a.Exit == 0 && !a.TimedOut

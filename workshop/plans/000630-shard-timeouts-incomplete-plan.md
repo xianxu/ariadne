@@ -225,3 +225,54 @@ package only, then the typed incomplete report with the load.
 - 2026-10-25, during M1: the shard runner's marker names the package (`--- shard3 hit its 30m0s test alarm in <pkg>;
   running: …`) and prints once per alarmed package. A shard with no named failure otherwise gives no package to
   retry, and the packages job can have several binaries alarm at once.
+- 2026-10-25, plan-quality round 1 (PQ-1, PQ-2, two Minors). **M2's mechanics, named.** The resume composite is the
+  frame (link, owner fence, receipts, digest checks, retention, `guardSuitePass`'s composite verification). Its
+  child is a known-flake rerun today, so the incomplete parent needs these new, named pieces:
+  1. **Link (PQ-1).** A selection-bearing suite link is version 5, like an affected one:
+     `resumeLinkVersion(check, selected bool)` returns 5 whenever a selection is fenced, else 3 for suite. An older
+     sdlc reads a v5 suite link as unsupported proof of that head alone, as it already does for affected
+     (`localcheck_resume_evidence.go:47-56`). `validateResumeLink`'s `(Version==5) == (Selection != nil)` rule
+     (`:122`) is unchanged. `resumeEnvelope`'s `version == resumeLinkVersion(check)` (`:110`) becomes "3 or 5 for
+     suite, 5 for affected". A receipt must carry its link's version, and `resolveResumeProof` checks
+     `Receipt.Version == Link.Version`.
+  2. **Child command (PQ-1).** For an incomplete parent, `resumeSaved` builds no `flakeRerunCommands` batch. When
+     origin/main declares `.sdlc/affected.json`, the child runs the affected command under its env contract,
+     `affectedEnvCommand(cfg.Command, selection.GoPkgs, nil)`. That is the operator's "through the affected-run
+     machinery", with the selection being `classifyIncomplete(parentFacts).Packages`. When it does not (ariadne
+     today), the child runs the declared suite command whole: still one retry, still the composite. In ariadne
+     `cmd/sdlc` dominates the suite, so that costs about the same. A new `incompleteRetryCommands(c, cfg, ok, sel)`
+     is the one place this is decided, and it is pure, with a table test.
+  3. **Pass rule (PQ-1).** A new branch in `resolveResumeProof`, taken when `p.Outcome == incomplete-timeout`. After
+     the existing child identity and digest checks (`:354`), the composite is:
+     - **passed**, with outcome `flakes.IncompleteRetried` (`incomplete-retry-passed`, `Lands()==true`), when the
+       child has exit 0, is not timed out, has no failures, no unattributed reasons and no warnings, and the
+       child's log names no package outside the selection as failed;
+     - **incomplete-timeout** when the child's own facts classify incomplete;
+     - otherwise **failed**, with `Classify` over the child's facts, so known flakes, unknown failures and so on
+       behave as today.
+     `guardSuitePass` verifies it unchanged, through `resolvedResumeRecords` → `resolveResumeProof`: the composite
+     outcome replaces the parent's (`localcheck_republish.go:232-235`), and a landing outcome is explained. A test
+     has a composite pass post green and a forged child digest refuse.
+  4. **Envelope (PQ-1).** An incomplete child runs with the parent check's declared weight and timeout, not
+     `rerunEnvelope`'s 1 slot and 15 min (`localcheck_affected_rerun.go:36-42`). `rerunEnvelope` gains the parent
+     kind as an input; the known-flake path is unchanged.
+  5. **Version gates swept (PQ-2).** These are every gate on an attempt's version in the resume and retention
+     paths:
+     - the parent gate (`localcheck_resume_evidence.go:285`) admits v5 exactly when the outcome is
+       `incomplete-timeout`, and it replaces the unattributed-facts refusal (`:296`) for that parent with
+       `classifyIncomplete(parentFacts)` being ok;
+     - the child gate (`:354`) and retention (`localcheck_resume_retention.go:190`) are unchanged, because the
+       child is an ordinary v2 `suite-rerun` attempt;
+     - `suitereclassification.go:35` (v1/2 only) correctly ignores v5;
+     - the store's decoder already admits v5 (M1).
+     `grep -n 'Version [!=]= [0-9]'` over `cmd/sdlc/*.go` is the sweep's enumeration, recorded in the M2 log.
+  6. **Typed runners (PQ-2).** v5 is written only when `d.flakeContract == ""` (M1, `localcheck_run.go`). A typed
+     (v4) suite that times out keeps today's classification, so no v5 record ever lacks a contract it should bind.
+     A test pins it.
+  - **Minor:** `classifyIncomplete` selects the packages named by the marker and the named failures. Nothing
+    hard-codes `cmd/sdlc` (the base layer runs in other repositories).
+  - **Minor:** test strategy, one line per risky function. The marker parser and `classifyIncomplete` get a table
+    test plus a fuzz test over arbitrary shard output seeded with truncated and partial markers; the property is
+    that it never selects a package the log does not name, and never classifies a non-alarmed failure as
+    incomplete. `resolveResumeProof`'s incomplete branch gets a pure table test (pass, fail, incomplete again,
+    forged digest, wrong link version).

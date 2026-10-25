@@ -39,6 +39,7 @@ type localRunDeps struct {
 	sysvObserver       sysvshm.Observer                                                           // explicitly wired by production run constructors; nil is unconfigured
 	refreshSuiteHelper func(context.Context, string, io.Writer) error
 	suiteCapabilities  func(context.Context) error // nil probes the real host; test seam only
+	loadAverage        func() ([3]float64, error)  // nil reads the host's (#630); test seam only
 	CurrentSuitePolicy func(context.Context) (flakes.Policy, error)
 	PriorityIssues     func(string) []int // exact composed train prefix, nil for ordinary issue runs
 	StrictGroupCleanup bool               // resume retains its suite capacity but confirms descendant cleanup
@@ -376,6 +377,8 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	queueSeconds, wallSeconds := queueWait.Seconds(), rec.Duration.Seconds()
 	saved := false // a saved attempt is what `local-check republish` can post later
 	var gateErr error
+	var incomplete *incompleteRun
+	var load []float64
 	if writer != nil {
 		attempt := SuiteAttempt{Version: suiteAttemptVersion, ID: writer.ID, Repo: d.Repo, SHA: sha, Check: c.Name,
 			StartedAt: start.UTC(), FinishedAt: finished, MainBaseline: d.SkipRecord,
@@ -399,10 +402,21 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		} else if rec.Exit == -1 {
 			facts.Unattributed = append(facts.Unattributed, "the suite did not start or report an exit")
 		}
+		// #630: a run the Go test alarm cut short is incomplete, not failed:
+		// no known-flake step, no baseline, no split.
+		if !rec.passed() && isTestCheck(c.Name) && d.flakeContract == "" && rec.Exit > 0 && !rec.TimedOut {
+			if run, ok := classifyIncomplete(facts); ok {
+				incomplete = &run
+			}
+		}
 		var stepErr error
 		switch {
 		case rec.passed():
 			attempt.Outcome = string(flakes.Passed)
+		case incomplete != nil:
+			load = d.hostLoad()
+			attempt.Version, attempt.Outcome, attempt.LoadAverage = suiteAttemptIncompleteVersion, string(flakes.IncompleteTimeout), load
+			rec.Outcome = flakes.IncompleteTimeout
 		case isTestCheck(c.Name) && !d.SkipRecord:
 			// #394: classify; when only registered flakes failed, rerun them.
 			var o flakes.Outcome
@@ -427,7 +441,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 				rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
 			}
 			fmt.Fprintf(d.Stderr, "    saved log %s\n", rec.LogPath)
-			if isTestCheck(c.Name) && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
+			if incomplete == nil && isTestCheck(c.Name) && !d.SkipRecord && rec.Exit > 0 && !rec.TimedOut && !rec.passed() {
 				fmt.Fprintf(d.Stderr, "    after registering every named flake: sdlc local-check resume --name %s --attempt %s --rev %s\n", c.Name, writer.ID, sha)
 			}
 			if pruneErr := pruneSuiteAttempts(storeRoot, time.Now()); pruneErr != nil {
@@ -436,6 +450,10 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+	if incomplete != nil {
+		// Not a test result: nothing is posted, so no status claims the head failed.
+		return rec, &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: *incomplete, Load: load}
+	}
 	if gateErr != nil {
 		// An interrupted or unrecordable known-flake rerun records nothing new:
 		// the failed attempt is kept (unjudged) and no status is posted.

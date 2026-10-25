@@ -647,11 +647,19 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 		return fmt.Errorf("flake list: read test-stats: %w", err)
 	}
 	var mine []SuiteAttempt
+	var incompleteRows []string
 	logs := map[string]SuiteAttempt{}
 	for _, a := range attempts {
 		if a.Repo == repo && isFlakeEvidence(a) {
 			mine = append(mine, a)
 			logs[a.ID] = a
+		}
+		// #630: an incomplete run blocks nothing, but a failure that finished
+		// before the alarm still surfaces here until it is registered.
+		if a.Repo == repo && flakes.Kind(a.Outcome) == flakes.IncompleteTimeout {
+			for _, t := range flakes.Uncovered(a.Failures, nil, reg) {
+				incompleteRows = append(incompleteRows, fmt.Sprintf("  %s  attempt %s on %s, %s, log %s", t, a.ID, abbrevSHA(a.SHA), a.FinishedAt.Format(time.RFC3339), d.logPath(a)))
+			}
 		}
 	}
 	order := flakes.Sort(withTypedLogFacts(withLogSubtests(flakeAttempts(mine), mine, d.subtests), mine, d.typedFacts))
@@ -727,6 +735,9 @@ func runFlakeListMode(ctx context.Context, out io.Writer, d flakeDeps, verbose b
 	}
 	fmt.Fprintln(out, "unexplained failures older than a day:")
 	printOrNone(out, unexplained)
+	sort.Strings(incompleteRows)
+	fmt.Fprintln(out, "incomplete-run failures (the test alarm cut the run short; register one that recurs):")
+	printOrNone(out, incompleteRows)
 	fmt.Fprintln(out, "CI failures: not covered (#451)")
 	for _, w := range warnings {
 		fmt.Fprintf(out, "coverage: %s\n", w)

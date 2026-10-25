@@ -133,7 +133,7 @@ def report(tmp, results):
     for label, code, secs in results:
         lines = (tmp / f"{label}.json").read_text().splitlines(keepends=True)
         merged += [l for l in lines if l.startswith("{")]
-        out, fails = {}, []
+        out, fails, streams = {}, [], {}
         for l in lines:
             if not l.startswith("{"):
                 out.setdefault(("", ""), []).append(l)
@@ -142,11 +142,20 @@ def report(tmp, results):
             key = (ev.get("Package", ""), ev.get("Test") or "")
             if ev.get("Action") == "output":
                 out.setdefault(key, []).append(ev.get("Output", ""))
+                streams.setdefault(key[0], []).append(ev.get("Output", ""))
             elif ev.get("Action") == "fail":
                 fails.append(key)
             elif ev.get("Action") == "pass" and ev.get("Package") == MAIN_PKG and key[1] and "/" not in key[1]:
                 times[key[1]] = ev.get("Elapsed", 0.0)
         print(f"{label:9} exit {code}  {secs:7.1f}s  {len(fails)} failed")
+        # The saved log keeps only tails, so the panic itself may not survive;
+        # these lines are how sdlc tells a timed-out process (#630). Each
+        # package binary has its own alarm, so the packages job may print several.
+        for pkg, chunks in streams.items():
+            alarm = test_alarm("".join(chunks))
+            if pkg and alarm:
+                after, running = alarm
+                print(f"--- {label} hit its {after} test alarm in {pkg}; running: {', '.join(running) or 'none listed'}")
         for pkg, test in fails:
             # test2json assigns assertion output to the exact subtest, not
             # its parent. Keep that evidence when reporting a failed child.
@@ -159,6 +168,30 @@ def report(tmp, results):
                 print(f"--- {label} exited {code} with no failing test; last output:")
                 print("".join(tail), end="")
     return failed, times, merged
+
+
+ALARM = re.compile(r"^panic: test timed out after (\S+)$")
+RUNNING = re.compile(r"^\s+(\S+) \([^)]*\)$")
+
+
+def test_alarm(text):
+    """The Go test alarm in a process's output: (its duration, the tests it
+    names as running), or None. Only the first alarm counts; a binary has one."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        m = ALARM.match(line)
+        if not m:
+            continue
+        running = []
+        rest = lines[i + 1:]
+        if rest and rest[0].strip() == "running tests:":
+            for r in rest[1:]:
+                n = RUNNING.match(r)
+                if not n:
+                    break
+                running.append(n.group(1))
+        return m.group(1), running
+    return None
 
 
 def ran_tests(lines):

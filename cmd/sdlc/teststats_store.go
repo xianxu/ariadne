@@ -48,6 +48,7 @@ var suiteAttemptJSONFields = map[string]bool{
 	"reclassification_sha256": true,
 	"runner_contract_sha256":  true,
 	"lane":                    true, "lane_overrun_seconds": true, // additive (#559)
+	"load_average": true, // additive (#630), version 5 only
 }
 
 // suiteAttemptVersion is the version the writer records. Version 2 (#394)
@@ -56,8 +57,13 @@ var suiteAttemptJSONFields = map[string]bool{
 const suiteAttemptVersion = 2
 
 // Go-only runs remain v2 for older fleet readers. Audited nonpassing corrections
-// use v3; ordinary runs with declared typed runners explicitly opt into v4.
-const suiteAttemptReadVersion = 4
+// use v3; ordinary runs with declared typed runners explicitly opt into v4; an
+// incomplete (timeout) run is v5 (#630) with v2's fields, so a v4 reader keeps
+// it as an unsupported proof of that head alone and never reads it as a pass.
+const suiteAttemptReadVersion = 5
+
+// suiteAttemptIncompleteVersion carries exactly one outcome, incomplete-timeout.
+const suiteAttemptIncompleteVersion = 5
 
 var suiteAttemptV2Fields = []string{"outcome", "known_flakes", "rerun_of"}
 
@@ -181,7 +187,12 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	} else if keys["reclassification_sha256"] {
 		return a, errors.New("reclassification requires version 3")
 	}
-	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && !suiteOutcomes[flakes.Kind(a.Outcome)] {
+	if (a.Version == suiteAttemptIncompleteVersion) != (a.Outcome == string(flakes.IncompleteTimeout)) ||
+		a.Version == suiteAttemptIncompleteVersion && (!isTestCheck(a.Check) || a.Exit <= 0 || a.TimedOut || a.RerunOf != "") ||
+		keys["load_average"] && (a.Version != suiteAttemptIncompleteVersion || !validLoadAverage(a.LoadAverage)) {
+		return a, errors.New("invalid incomplete (timeout) envelope")
+	}
+	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && a.Version != suiteAttemptIncompleteVersion && !suiteOutcomes[flakes.Kind(a.Outcome)] {
 		return a, fmt.Errorf("invalid outcome %q", a.Outcome)
 	}
 	if (a.Lane != "" && a.Lane != suiteLaneLight) || (a.LaneOverrunSeconds != nil && !(*a.LaneOverrunSeconds > 0 && *a.LaneOverrunSeconds < 1e9)) {
