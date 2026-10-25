@@ -207,7 +207,7 @@ func TestSuiteCapabilityResumeEligibilityBeforeEffects(t *testing.T) {
 	calls := 0
 	d.suiteCapabilities = func(context.Context) error { calls++; return suiteCapabilityDenied() }
 	before := capabilityEvidenceFiles(t, d)
-	_, err = resumeSavedSuite(context.Background(), d, suiteCheck("true"), sha, "aa")
+	_, err = resumeSaved(context.Background(), d, suiteCheck("true"), nil, sha, "aa")
 	assertCapabilityRefusal(t, err, suiteCheckName, sha)
 	if calls != 1 || !strings.Contains(err.Error(), "sdlc local-check resume --name suite --attempt aa --rev "+sha) {
 		t.Fatalf("resume retry identity lost: calls=%d err=%v", calls, err)
@@ -230,7 +230,7 @@ func TestSuiteCapabilitySavedResumeRepostBypassesProbe(t *testing.T) {
 		t.Fatal("saved-pass repost probed execution capabilities")
 		return suiteCapabilityDenied()
 	}
-	rec, err := resumeSavedSuite(context.Background(), d, suiteCheck("false"), sha, "aa")
+	rec, err := resumeSaved(context.Background(), d, suiteCheck("false"), nil, sha, "aa")
 	if err != nil || !rec.passed() || rec.ResumeParent != "aa" || rec.ResumeChild != "cc" {
 		t.Fatalf("saved-pass repost failed: %+v %v", rec, err)
 	}
@@ -267,11 +267,11 @@ func TestSuiteCapabilityResumeRetryAfterRepair(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.suiteCapabilities = func(context.Context) error { return suiteCapabilityDenied() }
-	_, err := resumeSavedSuite(context.Background(), d, suiteCheck("true"), sha, "aa")
+	_, err := resumeSaved(context.Background(), d, suiteCheck("true"), nil, sha, "aa")
 	assertCapabilityRefusal(t, err, suiteCheckName, sha)
 	d.suiteCapabilities = func(context.Context) error { return nil }
 	scriptRerun(t, `printf '%s\n' '{"Action":"pass","Package":"example.org/p","Test":"TestOne"}' '{"Action":"pass","Package":"example.org/p","Elapsed":1}'`)
-	rec, err := resumeSavedSuite(context.Background(), d, suiteCheck("true"), sha, "aa")
+	rec, err := resumeSaved(context.Background(), d, suiteCheck("true"), nil, sha, "aa")
 	if err != nil || !rec.passed() || rec.ResumeParent != "aa" {
 		t.Fatalf("repair did not permit exact retry: %+v %v", rec, err)
 	}

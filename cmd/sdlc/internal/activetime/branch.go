@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // BranchInterval describes a witnessed half-open worktree branch interval.
@@ -64,6 +66,12 @@ type branchEdge struct {
 	issue string
 	delta int
 	held  bool
+}
+
+// IsStagingBranch recognizes an attached local staging branch, not an issue
+// owner. Share this predicate with retained-proof validation.
+func IsStagingBranch(branch string) bool {
+	return strings.HasPrefix(branch, "stage/") && historyBranch(branch).kind == headAttached
 }
 
 // SelectBranchActivity never widens prior source admission. Claims are
@@ -150,8 +158,14 @@ func SelectBranchActivity(issue string, windows []ActivityWindow, history []Bran
 			continue
 		case len(reserved) == 1 && reserved[issue] > 0:
 			kind = "ownership-only"
+		case workspace.IsRestingBranch(branch):
+			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "resting-excluded", Branch: branch})
+			continue
+		case IsStagingBranch(branch):
+			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "stage-excluded", Branch: branch})
+			continue
 		default:
-			return out, fmt.Errorf("concurrent claims have unknown, resting or ambiguous active branch during %s → %s", at.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
+			return out, fmt.Errorf("concurrent claims have unknown, detached or ambiguous active branch during %s → %s", at.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
 		}
 		part := windows[wi]
 		part.Start, part.End = at, end

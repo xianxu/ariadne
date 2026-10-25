@@ -1016,7 +1016,11 @@ pass with the issue link and no rerun; `off`) is the operator's policy.
 An already saved suite failure can be resumed after its failures are registered:
 `sdlc local-check resume --name suite --attempt ID --rev ORIGINAL_SHA` runs only
 the exact package tests on that pushed commit. It preserves the original suite
-record and duration. Repeating it validates and reposts completed proof without
+record and duration. A saved affected failure resumes the same way with
+`--name affected` (#586): it replans the original head against main's current
+`.sdlc/affected.json`, reruns the registered flakes, then runs every selected
+group, and records `sdlc-local/affected`. A selection that is now full or
+empty runs nothing and points at `--name suite`. Repeating it validates and reposts completed proof without
 executing tests. A pending or interrupted resume blocks later success on the
 same commit. After a crash, the operator or :0 steward verifies all descendants
 stopped, then runs the exact `local-check reconcile --attempt ID --link-digest
@@ -1149,6 +1153,12 @@ The dispute is committed in the gate ledger; the next review round answers it
 against the evidence, and a Critical keeps blocking until it does. See
 `sdlc finding dispute --help` and `atlas/workflow/gate-state.md`.
 
+Recorded host checks also retain advisory SysV shared-memory observations in their
+hashed logs and a `SysV warning` status marker. Creator PIDs stay unattributed;
+these warnings preserve the test outcome and never remove segments. The optional
+`WF_SYSV_QUALIFY=1` owned-segment test requires operator-cleared capacity; see
+[host observation scope and qualification](atlas/workflow/sdlc-binary.md#recorded-host-sysv-observations-589).
+
 ## Project records
 
 Projects live in `workshop/projects/` and coordinate issue-backed work across
@@ -1202,14 +1212,18 @@ the same inputs; `sdlc actual --milestone Mx` replays a finalized milestone.
 In tracker repositories, ownership reserves the work; captured worktree-local
 HEAD history selects which claimed issue was active (#580). Another issue's
 unadopted close/test/landing tail is excluded. Sole-claim planning can count with
-an explicit ownership-only label; concurrent claims without a proven active
-branch refuse numeric measurement and name the precise `--no-actual` recovery.
+an explicit ownership-only label. Under concurrent claims, a witnessed resting
+branch or attached valid `stage/*` branch is excluded and unassigned; output
+names its branch-window minutes rather than focused activity minutes. Missing,
+detached or ambiguous branch evidence still refuses numeric measurement and
+names the precise `--no-actual` recovery.
 `sdlc active-time` now uses that same classifier by default. Explicit source
 directories and timestamps only narrow it, and multi-issue output partitions
 source intervals before allocation. No-tracker behavior remains manual.
 New branch snapshots use version 3, including original dispatch and final
 selected windows; older readers refuse them rather than silently undercount
-crossing spans. Existing adopted v1/v2 snapshots replay unchanged.
+crossing spans. The `stage-excluded` audit kind is also refused by earlier
+strict v3 readers. Existing adopted snapshots replay unchanged.
 
 A migrated working issue with no tracker owner refuses with
 `no owner since cutover: run sdlc claim --issue N from the slot doing the work`.

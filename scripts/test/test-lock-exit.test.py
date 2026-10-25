@@ -18,6 +18,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('direct_exit_helper', ROOT / 'scripts/test-lock.py')
 HELPER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(HELPER)
+QUEUE_READS = importlib.util.spec_from_file_location('queue_reads', ROOT / 'scripts/test/fixtures/queue_reads.py')
+queue_reads = importlib.util.module_from_spec(QUEUE_READS)
+QUEUE_READS.loader.exec_module(queue_reads)
 
 
 class DirectSuiteExit(unittest.TestCase):
@@ -39,6 +42,12 @@ class DirectSuiteExit(unittest.TestCase):
                 return
             time.sleep(.02)
         self.fail(message)
+
+    def committed(self, predicate):
+        return queue_reads.committed(self.queue, predicate)
+
+    def committed_read(self, path):
+        return queue_reads.committed_read(self.await_, self.queue, path)
 
     def cleanup(self):
         for group in self.detached_groups:
@@ -70,7 +79,7 @@ class DirectSuiteExit(unittest.TestCase):
         finally:
             os.close(fd)
 
-    def start_make(self, exit_status=0, survivor=False, shared_group=False, supervisor=False):
+    def start_make(self, exit_status=0, survivor=False, shared_group=False, supervisor=False, slow=False):
         top = self.root / ('make-' + str(len(self.children)))
         top.mkdir()
         recipe = top / 'recipe.py'
@@ -84,6 +93,8 @@ class DirectSuiteExit(unittest.TestCase):
                                      f'.PHONY: test\ntest:\n\t@{sys.executable} recipe.py\n')
         env = dict(os.environ, WF_TEST_LOCK_FILE=str(self.capacity), WF_SDLC_QUEUE_ROOT=str(self.queue),
                    WF_TEST_SUITES='1', WF_TEST_WEIGHT='1', WF_TEST_LOCK_OWNER=str(top), WF_TEST_LOCK_TIMEOUT='8')
+        if slow:
+            env = queue_reads.slow_writes(env)
         for key in ('WF_SDLC_QUEUE_ID', 'WF_SDLC_QUEUE_STOP_IF_PAUSED', 'WF_TEST_LOCK', 'WF_TEST_LOCK_HELD_BY', 'MAKEFLAGS', 'MFLAGS'):
             env.pop(key, None)
         out = (top / 'stdout').open('w')
@@ -108,7 +119,7 @@ class DirectSuiteExit(unittest.TestCase):
         self.assertIsNone(owner.poll(), (top / 'stderr').read_text())
         operations = list((self.queue / 'operations').glob('*.json'))
         self.assertEqual(len(operations), 1)
-        operation = json.loads(operations[0].read_bytes())
+        operation = json.loads(self.committed_read(operations[0]))
         if not shared_group and not supervisor:
             self.assertEqual(operation['pid'], owner.pid)
         self.assertEqual(operation['phase'], 'running')
@@ -126,7 +137,7 @@ class DirectSuiteExit(unittest.TestCase):
 
     def unknown(self, operation):
         path = self.queue / 'unresolved' / (operation['id'] + '.json')
-        self.await_(path.exists, 'uncertain ending lost unresolved lifetime')
+        self.await_(self.committed(path.exists), 'uncertain ending lost unresolved lifetime')
         unknown = json.loads(path.read_bytes())
         self.assertEqual(unknown['phase'], 'unknown')
         self.assertEqual(unknown['pid_started'], operation['pid_started'])
@@ -209,7 +220,7 @@ class DirectSuiteExit(unittest.TestCase):
         os.kill(watcher, 0)
         self.assertFalse(self.slot_free(), 'launcher exit released the still-running make')
         path = self.queue / 'operations' / (operation['id'] + '.json')
-        self.assertEqual(json.loads(path.read_bytes())['phase'], 'running')
+        self.assertEqual(json.loads(self.committed_read(path))['phase'], 'running')
         self.assertEqual(list((self.queue / 'unresolved').glob('*.json')), [])
         (top / 'release').touch()
         self.await_(self.slot_free, 'independent watcher did not finish after launcher exit')
@@ -246,7 +257,7 @@ class DirectSuiteExit(unittest.TestCase):
         os.kill(watcher, signal.SIGKILL)
         self.await_(self.slot_free, 'killed watcher retained capacity')
         path = self.queue / 'operations' / (operation['id'] + '.json')
-        raw = json.loads(path.read_bytes())
+        raw = json.loads(self.committed_read(path))
         self.assertEqual(raw['phase'], 'running')
         self.assertNotIn('exit_status', raw)
         self.assertNotIn('exit_observed_at', raw)
@@ -255,7 +266,15 @@ class DirectSuiteExit(unittest.TestCase):
         self.assertTrue(path.exists(), 'watcher crash erased unknown completion')
 
     def test_cancellation_wins_before_recipe_completion(self):
-        owner, top, operation = self.start_make()
+        self.cancellation_wins()
+
+    def test_cancellation_wait_reads_the_record_whole(self):
+        # The watcher rewrites the operation record in place; the shim slows the
+        # write after the truncate, so an unlocked read would find it empty (#592).
+        self.cancellation_wins(slow=True)
+
+    def cancellation_wins(self, slow=False):
+        owner, top, operation = self.start_make(slow=slow)
         cancel = self.queue / 'cancel' / (operation['id'] + '.json')
         mutex = os.open(self.queue / 'control.lock', os.O_RDWR)
         try:
@@ -266,7 +285,7 @@ class DirectSuiteExit(unittest.TestCase):
         finally:
             os.close(mutex)
         path = self.queue / 'operations' / (operation['id'] + '.json')
-        self.await_(lambda: not path.exists() or json.loads(path.read_bytes())['phase'] == 'interrupting',
+        self.await_(self.committed(lambda: not path.exists() or json.loads(path.read_bytes())['phase'] == 'interrupting'),
                     'watcher did not acknowledge cancellation')
         self.finish_make(owner, top)
         self.unknown(operation)

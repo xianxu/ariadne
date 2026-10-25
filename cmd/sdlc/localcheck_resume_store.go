@@ -246,7 +246,7 @@ func publishResumeEvidence(root string, lock *resumeParentLock, raw []byte) erro
 	// Supported links are the input to receipt publication, not a refusal.
 	// Unknown versions still fence the parent; the supported graph is checked
 	// explicitly below before any publication effect.
-	if err := s.unsupportedProofError(proofSubject{Repo: repo, SHA: sha, Check: suiteCheckName, ID: parent}); err != nil {
+	if err := s.unsupportedProofError(proofSubject{Repo: repo, SHA: sha, Check: lock.Attempt.Check, ID: parent}); err != nil {
 		return err
 	}
 	if len(s.Attempts)+len(s.Resumes)+len(s.Reconciliations)+len(s.Unsupported) > testStatsRecordLimit-3 {

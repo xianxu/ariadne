@@ -153,9 +153,17 @@ func TestLinkBullet(t *testing.T) {
 	if got, err := linkBullet("1. what does S4 cost?", 1, side, true); err != nil || got != "1. what does S4 cost? → [answer]("+side+")" {
 		t.Errorf("a .side/ target: %q, %v", got, err)
 	}
-	// CRLF: the carriage return is trimmed before the link, as rstrip() does.
-	if got, _ := linkBullet("1. a\r", 1, target, true); got != "1. a → [answer]("+target+")" {
-		t.Errorf("CRLF line: %q", got)
+	// #588: the ask keeps every byte, trailing whitespace included; a CRLF
+	// line's `\r` stays last.
+	for in, want := range map[string]string{
+		"1. a\r":  "1. a → [answer](" + target + ")\r",
+		"1. a ":   "1. a  → [answer](" + target + ")",
+		"1. a\t":  "1. a\t → [answer](" + target + ")",
+		"1. a \r": "1. a  → [answer](" + target + ")\r",
+	} {
+		if got, _ := linkBullet(in, 1, target, true); got != want {
+			t.Errorf("%q: %q, want %q", in, got, want)
+		}
 	}
 	for _, pos := range []int{0, 6} {
 		if _, err := linkBullet(opSection, pos, target, true); err == nil || !strings.Contains(err.Error(), "no bullet") {
@@ -177,7 +185,7 @@ func TestInstructionsListAndLink(t *testing.T) {
 	}
 	a, b, c := answerDoc(t, file, "2026-10-18-01-a.md"), answerDoc(t, file, "2026-10-18-02-b.md"), answerDoc(t, file, "2026-10-18-03-c.md")
 	out, err = run(t, deps{ss: f}, "status", "instructions", "link", file, "2", a, "--hash", h)
-	if err != nil || f.writes != 1 || !strings.Contains(f.sections[instructionsHeading], "1. Rename the train → [answer]("+a+")") {
+	if err != nil || f.writes != 1 || f.applies != 0 || !strings.Contains(f.sections[instructionsHeading], "1. Rename the train → [answer]("+a+")") {
 		t.Fatalf("link: err %v, writes %d, out %q", err, f.writes, out)
 	}
 	// The section moved (this write changed it): the old hash now refuses.

@@ -3,6 +3,7 @@ package gatestate
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -14,21 +15,35 @@ import (
 )
 
 const (
-	MeasurementInputsVersion             = 1
-	MeasurementHybridInputsVersion       = 2
-	MeasurementBranchInputsVersion       = 3
-	MeasurementMethodBranchV1            = "active-time-v3-branch-v1"
-	MeasurementMethodBranchQueueV1       = "active-time-v3-branch-queue-v1"
-	MeasurementMethodBranchHybridV1      = "active-time-v3-branch-legacy-prefix-v1"
-	MeasurementMethodBranchHybridQueueV1 = "active-time-v3-branch-queue-legacy-prefix-v1"
-	MeasurementMethodHybridV1            = "active-time-v3-engagement-legacy-prefix-v1"
-	MeasurementMethodHybridQueueV1       = "active-time-v3-engagement-queue-legacy-prefix-v1"
-	MeasurementMethodEngagementV1        = "active-time-v3-engagement-v1"
-	MeasurementMethodQueueV1             = "active-time-v3-engagement-queue-v1"
-	MeasurementMethodLegacyV1            = "legacy-v1"
-	SnapshotLimitSources                 = 128
-	SnapshotLimitBytes                   = 64 * 1024
+	MeasurementInputsVersion              = 1
+	MeasurementHybridInputsVersion        = 2
+	MeasurementBranchInputsVersion        = 3
+	MeasurementCompactBranchInputsVersion = 4
+	MeasurementMethodBranchV1             = "active-time-v3-branch-v1"
+	MeasurementMethodBranchQueueV1        = "active-time-v3-branch-queue-v1"
+	MeasurementMethodBranchHybridV1       = "active-time-v3-branch-legacy-prefix-v1"
+	MeasurementMethodBranchHybridQueueV1  = "active-time-v3-branch-queue-legacy-prefix-v1"
+	MeasurementMethodHybridV1             = "active-time-v3-engagement-legacy-prefix-v1"
+	MeasurementMethodHybridQueueV1        = "active-time-v3-engagement-queue-legacy-prefix-v1"
+	MeasurementMethodEngagementV1         = "active-time-v3-engagement-v1"
+	MeasurementMethodQueueV1              = "active-time-v3-engagement-queue-v1"
+	MeasurementMethodLegacyV1             = "legacy-v1"
+	SnapshotLimitSources                  = 128
+	SnapshotLimitBytes                    = 64 * 1024
+	SnapshotLimitBytesV4                  = 128 * 1024
+	// measurementStructuralLimit bounds the codec's parse cost for any
+	// measurement value; the snapshot's own bound is measurementSnapshotLimit.
+	measurementStructuralLimit = 512 * 1024
 )
+
+// measurementSnapshotLimit is a whole snapshot's byte bound (#593): version 4's
+// compact branch proof sizes it so SnapshotLimitSources, not bytes, binds.
+func measurementSnapshotLimit(version int) int {
+	if version == MeasurementCompactBranchInputsVersion {
+		return SnapshotLimitBytesV4
+	}
+	return SnapshotLimitBytes
+}
 
 // IsEngagementMethod includes the versioned hybrid methods, whose suffix uses
 // the same verified ownership semantics as ordinary engagement measurements.
@@ -181,7 +196,7 @@ func (m MeasurementInputs) Validate() error {
 	if m.LegacyPrefix != nil && (m.LegacyPrefix.LegacyPrefix != nil || m.LegacyPrefix.LegacyCutover != "") {
 		return fmt.Errorf("measurement legacy_prefix cannot contain another legacy prefix or cutover")
 	}
-	if m.Version != MeasurementInputsVersion && m.Version != MeasurementHybridInputsVersion && m.Version != MeasurementBranchInputsVersion {
+	if m.Version != MeasurementInputsVersion && m.Version != MeasurementHybridInputsVersion && m.Version != MeasurementBranchInputsVersion && m.Version != MeasurementCompactBranchInputsVersion {
 		return fmt.Errorf("measurement version %d is unsupported", m.Version)
 	}
 	if !IsEngagementMethod(m.Method) && m.Method != MeasurementMethodLegacyV1 {
@@ -194,6 +209,10 @@ func (m MeasurementInputs) Validate() error {
 		expectedVersion = MeasurementBranchInputsVersion
 	} else if IsHybridMethod(m.Method) {
 		expectedVersion = MeasurementHybridInputsVersion
+	}
+	// Version 4 is version 3 in the compact branch encoding (#593).
+	if IsBranchMethod(m.Method) && m.Version == MeasurementCompactBranchInputsVersion {
+		expectedVersion = MeasurementCompactBranchInputsVersion
 	}
 	if m.Version != expectedVersion || IsHybridMethod(m.Method) != (m.LegacyPrefix != nil) {
 		return fmt.Errorf("measurement method %s requires version %d and matching legacy-prefix interpretation", m.Method, expectedVersion)
@@ -295,12 +314,18 @@ func (m MeasurementInputs) Validate() error {
 	if sourceCount > SnapshotLimitSources {
 		return fmt.Errorf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)
 	}
+	// The encoder refuses a value past its structural cap before this check
+	// can count it; both report the same counted refusal (#593).
 	data, err := json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("measurement snapshot does not serialize: %w", err)
+	var size *measurementSizeError
+	if errors.As(err, &size) {
+		return m.oversize(fmt.Sprintf("at least %d", size.Bytes))
 	}
-	if len(data) > SnapshotLimitBytes {
-		return fmt.Errorf("measurement snapshot exceeds %d bytes", SnapshotLimitBytes)
+	if err != nil {
+		return fmt.Errorf("measurement snapshot does not serialize (%s): %w", m.sizeCounts(), err)
+	}
+	if len(data) > measurementSnapshotLimit(m.Version) {
+		return m.oversize(strconv.Itoa(len(data)))
 	}
 	for i, e := range m.Engagements {
 		field := fmt.Sprintf("engagements[%d]", i)
@@ -490,4 +515,17 @@ func measurementTime(field, value string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("measurement %s must be RFC3339: %w", field, err)
 	}
 	return parsed, nil
+}
+
+func (m MeasurementInputs) oversize(bytes string) error {
+	return fmt.Errorf("measurement snapshot is %s bytes, over the version %d bound of %d (%s)", bytes, m.Version, measurementSnapshotLimit(m.Version), m.sizeCounts())
+}
+
+// sizeCounts names what a snapshot's size grows with, for a refusal (#593).
+func (m MeasurementInputs) sizeCounts() string {
+	intervals := 0
+	for _, b := range m.Branches {
+		intervals += len(b.Intervals)
+	}
+	return fmt.Sprintf("%d sources, %d branch records, %d branch intervals", len(m.Sources), len(m.Branches), intervals)
 }

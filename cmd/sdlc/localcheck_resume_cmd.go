@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 )
@@ -17,12 +20,12 @@ type resumeFlags struct{ Name, Attempt, Rev string }
 
 func newLocalCheckResumeCmd() *cobra.Command {
 	var f resumeFlags
-	c := &cobra.Command{Use: "resume", Short: "Rerun the registered flakes of one saved suite failure on its original pushed commit", Long: renderLong("local-check"), Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
+	c := &cobra.Command{Use: "resume", Short: "Rerun the registered flakes of one saved suite or affected failure (and an affected run's groups) on its original pushed commit", Long: renderLong("local-check"), Args: cobra.NoArgs, SilenceUsage: true, RunE: func(c *cobra.Command, _ []string) error {
 		if f.Name == "" {
-			return errors.New("local-check resume: give --name suite")
+			return errors.New("local-check resume: give --name suite or --name affected")
 		}
-		if f.Name != suiteCheckName {
-			return errors.New("local-check resume: only suite is supported")
+		if !isTestCheck(f.Name) {
+			return errors.New("local-check resume: only suite or affected is supported")
 		}
 		if f.Attempt == "" {
 			return errors.New("local-check resume: give --attempt")
@@ -53,17 +56,52 @@ func newLocalCheckResumeCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		rec, err := resumeSavedSuite(commandContext(c.Context()), d, check, sha, f.Attempt)
+		ctx := commandContext(c.Context())
+		var sel resumeSelectionFunc
+		if f.Name == affectedCheckName {
+			if check, sel, err = affectedResumePlan(d, check, sha, func(base string, cfg affected.Config) affectedDeps { return productionAffectedDeps(d, base, cfg) }); err != nil {
+				return err
+			}
+		}
+		rec, err := resumeSaved(ctx, d, check, sel, sha, f.Attempt)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(c.ErrOrStderr(), "==> local check suite: %s recorded on %s\n", rec.statusDescription(), abbrevSHA(sha))
+		fmt.Fprintf(c.ErrOrStderr(), "==> local check %s: %s recorded on %s\n", f.Name, rec.statusDescription(), abbrevSHA(sha))
 		return nil
 	}}
-	c.Flags().StringVar(&f.Name, "name", "", "suite (required)")
-	c.Flags().StringVar(&f.Attempt, "attempt", "", "original failed suite attempt ID (required)")
+	c.Flags().StringVar(&f.Name, "name", "", "suite or affected (required)")
+	c.Flags().StringVar(&f.Attempt, "attempt", "", "original failed attempt ID (required)")
 	c.Flags().StringVar(&f.Rev, "rev", "HEAD", "original pushed commit")
 	return c
+}
+
+// affectedResumePlan is an affected resume's check and selection planner
+// (#586): main's current affected.json, planned on the original head exactly
+// as a fresh affected run plans it. deps builds the planner's seams from the
+// pinned main and its config (productionAffectedDeps outside tests).
+func affectedResumePlan(d localRunDeps, suite localCheck, sha string, deps func(base string, cfg affected.Config) affectedDeps) (localCheck, resumeSelectionFunc, error) {
+	main, err := d.Git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return suite, nil, fmt.Errorf("local-check resume: pin origin/main: %w", err)
+	}
+	main = strings.TrimSpace(main)
+	cfg, ok, err := readAffectedConfig(d.Git, main)
+	if err != nil {
+		return suite, nil, err
+	}
+	if !ok {
+		return suite, nil, fmt.Errorf("local-check resume: origin/main declares no %s; resume --name %s", affectedConfigPath, suiteCheckName)
+	}
+	ad := deps(main, cfg)
+	return affectedCheckDecl(cfg, suite), func(ctx context.Context) (affected.Selection, error) {
+		if cfg.GraphPrepare != nil {
+			var stop func()
+			ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+			defer stop()
+		}
+		return planAffectedSelection(ctx, d, ad, cfg, suite, sha)
+	}, nil
 }
 func resumeCommandDeps(ctx context.Context, stderr io.Writer) (localRunDeps, error) {
 	root, err := gitx.RepoTopLevel()
@@ -78,7 +116,7 @@ func resumeCommandDeps(ctx context.Context, stderr io.Writer) (localRunDeps, err
 	if err != nil {
 		return localRunDeps{}, err
 	}
-	return localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}, nil
+	return localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}, nil
 }
 func newLocalCheckReconcileCmd(authority landingDeps) *cobra.Command {
 	var parent, digest, note string

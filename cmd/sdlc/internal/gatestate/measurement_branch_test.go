@@ -106,3 +106,59 @@ func TestMeasurementBranchEvidenceRejectsKnownCorruption(t *testing.T) {
 		}
 	}
 }
+
+func TestMeasurementNeutralExclusionStrictAndPreserved(t *testing.T) {
+	for _, tc := range []struct{ kind, branch string }{
+		{"resting-excluded", "main-slot4"}, {"stage-excluded", "stage/000849-000850"},
+	} {
+		t.Run(tc.kind, func(t *testing.T) { measurementNeutralExclusionStrictAndPreserved(t, tc.kind, tc.branch) })
+	}
+}
+
+func measurementNeutralExclusionStrictAndPreserved(t *testing.T, kind, branch string) {
+	t.Helper()
+	m := branchMeasurement()
+	w := &m.Branches[0].Intervals[0]
+	w.Kind = kind
+	w.Branch = branch
+	w.extra = measurementUnknown(`{"future":{"n":9007199254740993}}`)
+	for _, useYAML := range []bool{false, true} {
+		var raw []byte
+		var err error
+		var again MeasurementInputs
+		if useYAML {
+			raw, err = yaml.Marshal(m)
+			if err == nil {
+				err = yaml.Unmarshal(raw, &again)
+			}
+		} else {
+			raw, err = json.Marshal(m)
+			if err == nil {
+				err = json.Unmarshal(raw, &again)
+			}
+		}
+		if err != nil || !reflect.DeepEqual(m, again) {
+			t.Fatalf("neutral exclusion changed: %v", err)
+		}
+		if err := again.Validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old oldmeasurement.MeasurementInputs
+	if err := json.Unmarshal(raw, &old); err != nil {
+		t.Fatal(err)
+	}
+	if err := old.Validate(); err == nil {
+		t.Fatal("old reader accepted neutral exclusion proof")
+	}
+	for _, branch := range []string{"", "feature", "000856-cast", "main-slot04", "stage/", "stage/a..b", "stage/a.lock", "refs/heads/stage/a"} {
+		w.Branch = branch
+		if err := m.Validate(); err == nil {
+			t.Fatalf("invalid neutral exclusion accepted: %s", branch)
+		}
+	}
+}

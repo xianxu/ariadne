@@ -1609,7 +1609,21 @@ is labelled ownership-only. Incomplete competing history is unknown, so it
 prevents that fallback while a proven candidate branch still requires its own
 complete ownership and source lineage. Concurrent unresolved selection refuses
 numeric actual; close can explicitly use --no-actual with the evidence in
---verified. No historical credit is reassigned.
+--verified. Under concurrent reservations, a witnessed resting branch (main or
+canonical main-slotN), or an attached valid stage/* branch (#594), is instead
+excluded and unassigned (#591). Output names
+its source, interval and branch-window minutes, which are not focused activity
+minutes. Own/foreign issue branches still select/exclude their witnessed spans;
+unknown, detached or other ambiguous history still refuses. Sole-reservation
+planning keeps its labelled ownership-only fallback. No neighboring-branch or
+status inference assigns the resting span. New v3 audit notes use
+resting-excluded or stage-excluded; the staging predicate is shared by selection
+and saved validation. Earlier strict v3 readers refuse an unknown kind rather than
+reinterpret it. Existing adopted snapshots are never rewritten. Recorded
+pair#856 (68-second initial rest) and pair#812 (25 seconds) captures replay the
+claim/start-plan boundary in the selector tests. The pair#830 reported checkout/merge/return sequence is reconstructed with
+synthetic object IDs and proves 172 seconds of unassigned staging for both
+concurrent issues. No historical credit is reassigned.
 
 `active-time` has changed semantics in tracked repositories: by default it uses
 the same resolver as actual/close. Explicit --dir, --since and --until narrow
@@ -1971,6 +1985,17 @@ can exclude an unverifiable calibration sample without inventing hours.
 The retained snapshot keeps a wait's binding transcript even when all of that
 source's activity was subtracted, and queue-aware corrections carry the same
 ownership-proven calibration trust as engagement measurements.
+
+The snapshot's branch evidence (#580) is written at measurement version 4
+(#593). `gatestate/measurement_branch_v4.go` is the compact wire form: an
+attribution interval names its source by index into `sources` and inherits its
+capture's branch, and the codec expands it to the same in-memory evidence a
+version 3 snapshot holds. The bound depends on the version
+(`measurementSnapshotLimit`): 64 KiB through version 3, 128 KiB for version 4,
+so `SnapshotLimitSources` binds before bytes do. `Validate` refuses an
+oversized snapshot with its size and its source and interval counts. A separate
+512 KiB structural cap only bounds the codec's parse cost. Version 3 snapshots
+replay unchanged, and pre-#593 readers refuse version 4 by version.
 
 Retained train-wait coverage (#547) is descriptive. `landingline/wait_evidence.go`
 owns versioned start/bind/end facts under the existing ticket/head lifetime and
@@ -2610,7 +2635,7 @@ that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagno
 `test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
-JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). `TestAtlasNamesEveryRule` keeps this list
+JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). #590 keeps this syntactic matcher unchanged; it does not prove materializer value flow or differential independence. Fix redundant validators by using the consumer module's own shared strict JSON authority while preserving its key semantics; Ariadne's internal implementation is not importable downstream. For a proven value-producing materializer or independent differential fuzz oracle, a reasoned per-site `//lint:allow json-recursive-scanner — <reason>` is the sanctioned answer. State why the role must remain independent (for example, a standalone sample module or an oracle compared against a different implementation). Do not consolidate away that independence, add a production dependency merely to satisfy lint, or exempt whole packages/test files. Pair's two #861 allows remain valid rather than awaiting removal. Exact source captures exercise both the unannotated finding and the reasoned annotation through Check and CheckSources. `TestAtlasNamesEveryRule` keeps this list
 in step with `Catalog`. Packages are matched by the
 name the file imports them under, and generated files are skipped. Rules read only the syntax tree (stdlib
 `go/parser`, no type-checking, no external linter), and `TestTrackedGoFilesPassTheCatalog`
@@ -3368,3 +3393,15 @@ to registration/proof, never executable arguments. The producer is a no-op
 outside its managed private-channel environment. Re-run explicit native
 conformance after changes to the producer, wrapper or Plenary dependency:
 `SDLC_PRIVATE_TYPED_CONFORMANCE=1 SDLC_PLENARY_DIR=/path/to/plenary.nvim go test ./cmd/sdlc -run '^TestLocalCheckTypedConformance$' -count=1 -v`.
+
+## Recorded host SysV observations (#589)
+
+The host command-batch boundary in `localcheck_run.go` takes two bounded shared-memory snapshots: after admission and before commands, then after managed command cleanup and before log hashing. Darwin reads owner-filtered `ipcs`; Linux reads `/proc/sysvipc/shm`. `internal/sysvshm` owns strict table projection and the linear numeric-ID delta. The execution timeout starts after the before-probe. Named execution and cleanup results, joined cancellation consumers, resource release and serialized queue retirement precede the final after-probe. The original log descriptor remains open until diagnostics finish, before outer hashing. Diagnostic time cannot turn a completed success into a timeout or interruption. Requests before retirement remain interrupted; unconfirmed cleanup remains retained. Later caller/queue cancellation cannot reclassify the result. A later signal has its original default disposition and can terminate publication, so inspect saved proof before republish or rerun. Runner/VM checks imply no guest IPC coverage.
+
+Newly observed owner IDs left unattached are advisory: **new segments appeared during this run, not attributed**. Logs name numeric kernel creator PIDs, with command/relationship unknown: current PID membership or a current start time cannot establish the allocating incarnation. No process scan or kernel process-witness machinery runs. Before/after observation proves neither causality nor an immutable allocation generation. Same-ID metadata changes (including CTIME) never produce a new candidate; a same-ID replacement cannot be detected reliably. Owner-table appearance may reflect ownership changes rather than allocation.
+
+The existing hashed log retains IDs, CPIDs and counts. Its final summary supplies the **SysV warning** status marker. Composite resume publication unions warnings from the independently digest-verified parent and child logs, on fresh publication and saved replay; replay never probes the current host. Missing, malformed or bounded-out snapshots say **observation unavailable**, never empty. No attempt schema, test exit, flake decision, landing policy or cleanup authority changes. A killed owner may leave an incomplete beginning marker. Pre-existing IDs becoming unattached and allocations removed before the final snapshot are outside coverage.
+
+Cost is exactly two IPC captures per admitted host batch, independent of command count, with linear ID-map work. Each capture has its own two-second budget, one-MiB output limit and 4,096-row limit. There is no periodic monitor, per-segment subprocess or automatic removal. Inspect the named run and repair its harness; never sweep machine-wide IPC as test recovery.
+
+PostgreSQL still allocates a 56-byte SysV interlock with mmap; its own ID is on postmaster.pid line 7. Every harness exit path must stop its owned server gracefully, including a guardian for a killed test owner, then verify that exact segment disappeared. Use bounded escalation; SIGKILL alone can leak the interlock. Existing echo#32 owns that harness repair (SIGQUIT before bounded escalation). The opt-in `TestNativeOwnedSysVQualification` requires operator-cleared capacity and `WF_SYSV_QUALIFY=1`; default tests use private fake tables and allocate no kernel IPC. Native qualification removes only the exact test-child allocation after independent UID/creator verification.

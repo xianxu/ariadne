@@ -8,6 +8,8 @@
 
 # Lessons
 
+- #590 / pair#861: container syntax does not establish duplicate-validation authority. A proven standalone value-producing materializer or independent differential fuzz oracle may keep a reasoned per-site json-recursive-scanner allow. Do not remove oracle independence or add an unwanted module dependency to satisfy lint. Automatic role inference grew into an incomplete dataflow proof; keep the syntactic matcher and human-reviewed site reasons instead. Diagnostics recommend the consumer module's shared strict authority, never Ariadne's inaccessible internal import. Replay the two real captures with and without annotations through both checking APIs.
+
 - #549 BR-1/BR-2: a syntax provenance rule must normalize transparent syntax at
   every recognition boundary, including assignment targets and tuple-return
   calls, rather than only expression propagation. Recognize directly declared
@@ -1650,3 +1652,25 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   replaces the producer, historical-adoption tests must build and validate
   the old version explicitly, then exercise unchanged replay/protection; a
   fresh contradictory sample cannot stand in for the historical contract.
+
+- #591 / pair#856 and pair#812: a witnessed neutral state is not missing evidence. Under concurrent claims, main-slotN is a proven resting interval: leave it visibly unassigned, with interval minutes, rather than refusing the entire numeric measurement or guessing an owner. Keep detached/missing/ambiguous history strict and adopted snapshots immutable. Recorded native reflogs plus disjoint-selector and retained-proof mutation tests defend this semantic boundary; a lexical lint cannot prove attribution.
+
+- #591 workflow: when close overlaps a queued pre-close check, wait for that check's pass before entering merge. Close-evidence commits move HEAD, and a pending ancestor run is not an inherited passing proof; entering early can queue a second full suite. Preserve the original waiter and cancel only the duplicate by exact lease ID through local-check cancel.
+
+- #594: a witnessed combined staging branch supplies neutral-state evidence,
+  not ownership for either issue in its name. Use the same validated stage/*
+  predicate in selection and retained proof, preserve the separate exclusion
+  kind, and expose unassigned minutes. Capture-backed transition replay and
+  credited-window/kind mutation controls defend this attribution rule; a lexical
+  lint cannot establish historical ownership.
+
+- #594 BR-1/BR-2: an attribution behavior change needs the README paragraph
+  shared by actual/close and active-time as well as help and atlas. Core-concept
+  tables must classify each actual function: HEAD capture performs IO; decoding,
+  rendering and saved-proof validation are pure. Check the concrete referents,
+  not only table shape. Boundary review owns this prose parity check; wording
+  presence tests would not establish semantic correctness.
+
+- #589 BR-1/2/3/5: advisory probes need budgets separate from command execution; freeze the execution result before post-run diagnostics. Mutable IPC CTIME is not allocation identity, and a current PID/start is not allocating-incarnation evidence. Prefer explicit unattributed numeric PIDs over a process monitor; compare observed IDs conservatively. Composite outcomes must combine diagnostics from every independently verified log, including targeted child reruns. Controlled execution clocks and saved-proof/fresh-publication regressions defend these rules without short startup sleeps.
+
+- #589 BR-7: freezing a deadline is not a complete execution boundary. Run diagnostic-only IO after all outcome-mutating cleanup and the existing cancellation/queue retirement, using one final defer and the original log descriptor. Test cancellation before/during/after completion for success/failure and strict cleanup, durable queue ordering, cleanup unknown, and restored default signal handling. A compatibility regression must fail when the former unsafe path is actually restored; field removal alone can accidentally make a fixture inert.

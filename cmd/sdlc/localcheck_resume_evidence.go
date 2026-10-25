@@ -32,7 +32,41 @@ type ResumeLink struct {
 	ChildID            string      `json:"child_id"`
 	Owner              ResumeOwner `json:"owner"`
 	CreatedAt          time.Time   `json:"created_at"`
+	// Selection is the affected selection the child ran (#586): required on
+	// a version 5 (affected) link, absent on a version 3 (suite) one.
+	Selection *ResumeSelection `json:"selection,omitempty"`
 }
+
+// ResumeSelection is an affected resume's fenced selection (#586). Each name
+// becomes part of one env argv entry, never shell text.
+type ResumeSelection struct {
+	GoPkgs []string `json:"go_pkgs"`
+	Groups []string `json:"groups"`
+}
+
+// resumeLinkVersion is the link and receipt version for a check (#586): an
+// affected bundle is version 5 so an older sdlc, which reads a version above
+// its own as unsupported proof, fences that one head instead of reading the
+// record as invalid and refusing the whole store's snapshot.
+func resumeLinkVersion(check string) int {
+	if check == affectedCheckName {
+		return 5
+	}
+	return 3
+}
+
+func validResumeSelection(sel ResumeSelection) bool {
+	names := func(list []string) bool {
+		for i, name := range list {
+			if name == "" || len(name) > 512 || strings.ContainsFunc(name, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) || (i > 0 && list[i-1] >= name) {
+				return false
+			}
+		}
+		return true
+	}
+	return sel.GoPkgs != nil && sel.Groups != nil && names(sel.GoPkgs) && names(sel.Groups) && len(sel.GoPkgs)+len(sel.Groups) > 0
+}
+
 type ResumeOwner struct {
 	PID        int    `json:"pid"`
 	PIDStarted string `json:"pid_started"`
@@ -73,7 +107,7 @@ func resumeText(s string, max int) bool {
 	return strings.TrimSpace(s) != "" && len(s) <= max && !strings.ContainsFunc(s, unicode.IsControl)
 }
 func resumeEnvelope(version int, id, repo, sha, check, parent string) error {
-	if version != 3 || !resumeValidID(id) || !resumeValidID(parent) || id == parent || !suiteRepo.MatchString(repo) || !suiteHex.MatchString(sha) || (len(sha) != 40 && len(sha) != 64) || check != suiteCheckName {
+	if !isTestCheck(check) || version != resumeLinkVersion(check) || !resumeValidID(id) || !resumeValidID(parent) || id == parent || !suiteRepo.MatchString(repo) || !suiteHex.MatchString(sha) || (len(sha) != 40 && len(sha) != 64) {
 		return errors.New("invalid resume evidence identity")
 	}
 	return nil
@@ -84,6 +118,9 @@ func validateResumeLink(l ResumeLink) error {
 	}
 	if l.Kind != "resume-link" || !resumeValidID(l.ChildID) || l.ChildID == l.ID || l.ChildID == l.RerunOf || !resumeValidDigest(l.ParentRecordSHA256) || !resumeValidDigest(l.ParentLogSHA256) || !resumeUTC(l.CreatedAt) || l.Owner.PID <= 0 || !resumeText(l.Owner.PIDStarted, 256) || !resumeText(l.Owner.BootID, 256) || !resumeText(l.Owner.Host, 256) {
 		return errors.New("invalid resume link")
+	}
+	if (l.Version == 5) != (l.Selection != nil) || l.Selection != nil && !validResumeSelection(*l.Selection) {
+		return errors.New("invalid resume link selection")
 	}
 	return nil
 }
@@ -140,9 +177,22 @@ func decodeResumeEvidence(raw []byte, filename string) (*ResumeLink, *ResumeReco
 	}
 	switch kind {
 	case "resume-link":
-		fields, err = resumeObject(raw, append(common, "parent_record_sha256", "parent_log_sha256", "owner", "created_at"))
+		required := append(common, "parent_record_sha256", "parent_log_sha256", "owner", "created_at")
+		var version int
+		if err = json.Unmarshal(fields["version"], &version); err != nil {
+			return nil, nil, err
+		}
+		if version == 5 {
+			required = append(required, "selection")
+		}
+		fields, err = resumeObject(raw, required)
 		if err != nil {
 			return nil, nil, err
+		}
+		if version == 5 {
+			if _, err = resumeObject(fields["selection"], []string{"go_pkgs", "groups"}); err != nil {
+				return nil, nil, err
+			}
 		}
 		if _, err = resumeObject(fields["owner"], []string{"pid", "pid_started", "boot_id", "host"}); err != nil {
 			return nil, nil, err
@@ -230,8 +280,8 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if !in.Complete {
 		return refuse("incomplete evidence snapshot")
 	}
-	if (p.Version != 1 && p.Version != 2 && p.Version != 4) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || p.Check != suiteCheckName || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)]) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
-		return refuse("parent is not an ordinary completed resumable suite failure")
+	if (p.Version != 1 && p.Version != 2 && p.Version != 4) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || !isTestCheck(p.Check) || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)]) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
+		return refuse("parent is not an ordinary completed resumable suite or affected failure")
 	}
 	if p.Version == 4 && (!resumeValidDigest(in.RunnerContractSHA256) || p.RunnerContractSHA256 != in.RunnerContractSHA256) {
 		return refuse("typed runner contract is absent or changed")

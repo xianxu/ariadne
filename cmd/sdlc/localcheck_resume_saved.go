@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
@@ -127,6 +128,12 @@ func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (local
 	rec.KnownFlakes = slices.Clone(proof.Outcome.Known)
 	rec.ResumeParent = a.ID
 	rec.ResumeChild = proof.ChildID
+	if in.Child != nil {
+		rec.resumeSysVWarning = hasSysVWarning(resumeLogTail(in.ChildLog), a.Check, a.SHA)
+	}
+	if in.Link != nil && in.Link.Selection != nil {
+		rec.Scope = affectedScope(affected.Selection{GoPkgs: in.Link.Selection.GoPkgs, Groups: in.Link.Selection.Groups})
+	}
 	return rec, nil
 }
 

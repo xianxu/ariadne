@@ -18,6 +18,9 @@ HELPER = ROOT / 'scripts/test-lock.py'
 spec = importlib.util.spec_from_file_location('pause_lock_helper', HELPER)
 lock = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lock)
+QUEUE_READS = importlib.util.spec_from_file_location('queue_reads', ROOT / 'scripts/test/fixtures/queue_reads.py')
+queue_reads = importlib.util.module_from_spec(QUEUE_READS)
+QUEUE_READS.loader.exec_module(queue_reads)
 
 
 class QueuePause(unittest.TestCase):
@@ -94,6 +97,12 @@ class QueuePause(unittest.TestCase):
             time.sleep(.02)
         self.fail(why + '\n' + '\n'.join(p.read_text() for p in self.root.glob('*.err')))
 
+    def committed(self, predicate):
+        return queue_reads.committed(self.queue, predicate)
+
+    def committed_read(self, path):
+        return queue_reads.committed_read(self.await_, self.queue, path)
+
     def paused(self, owners):
         self.queue.mkdir(exist_ok=True)
         mutex = os.open(self.queue / 'control.lock', os.O_CREAT | os.O_RDWR, 0o600)
@@ -136,12 +145,12 @@ class QueuePause(unittest.TestCase):
         self.assertEqual((self.root / 'waiter.out').read_text(), '')
         operations = list((self.queue / 'operations').glob('*.json'))
         self.assertEqual(len(operations), 1)
-        self.assertEqual(json.loads(operations[0].read_text())['phase'], 'waiting')
+        self.assertEqual(json.loads(self.committed_read(operations[0]))['phase'], 'waiting')
         self.paused([])
         self.await_(lambda: helper.poll() is not None, 'resume did not admit queued operation')
         self.assertEqual(helper.returncode, 0)
         self.assertEqual((self.root / 'waiter.out').read_text().strip(), 'acquired')
-        self.assertEqual(json.loads(operations[0].read_text())['phase'], 'running')
+        self.assertEqual(json.loads(self.committed_read(operations[0]))['phase'], 'running')
         owner.terminate()
         owner.wait()
 
@@ -192,7 +201,7 @@ class QueuePause(unittest.TestCase):
         owner, helper = self.start('managed', dict(self.env, WF_SDLC_QUEUE_ID='managed'))
         self.await_(lambda: helper.poll() is not None, 'managed helper did not admit')
         self.assertEqual(helper.returncode, 0)
-        raw = path.read_bytes()
+        raw = self.committed_read(path)
         self.assertIn(b'{ "n" : 1e99999 }', raw)
         self.assertEqual(json.loads(raw)['phase'], 'running')
         slot = json.loads((self.root / 'capacity').read_text())
@@ -220,18 +229,29 @@ class QueuePause(unittest.TestCase):
             _, helper = self.start(name, dict(self.env, WF_SDLC_QUEUE_ID=name))
             self.await_(lambda: helper.poll() is not None, 'invalid managed binding hung')
             self.assertNotEqual(helper.returncode, 0)
-            self.assertEqual(json.loads(path.read_text())['phase'], 'waiting')
+            self.assertEqual(json.loads(self.committed_read(path))['phase'], 'waiting')
 
     def test_fast_cancellation_preserves_unknown_child_lifetime(self):
+        self.fast_cancellation(self.env)
+
+    def test_fast_cancellation_waits_for_the_whole_retirement(self):
+        # retire writes unresolved/, then interrupted/, then unlinks the
+        # operation; the shim slows the unlink so an unlocked read would see
+        # the step before it (#592).
+        self.fast_cancellation(queue_reads.slow_writes(self.env))
+
+    def fast_cancellation(self, env):
         child_file = self.root / 'surviving-child'
+        # The pid lands by rename: the wait below must never read a partial file.
         owner = subprocess.Popen(['python3', '-c',
-            'import pathlib,subprocess,sys,time; p=subprocess.Popen(["sleep","60"]); '
-            'pathlib.Path(sys.argv[1]).write_text(str(p.pid)); time.sleep(60)', str(child_file)])
+            'import os,pathlib,subprocess,sys,time; p=subprocess.Popen(["sleep","60"]); '
+            't=pathlib.Path(sys.argv[1] + ".tmp"); t.write_text(str(p.pid)); os.replace(t, sys.argv[1]); '
+            'time.sleep(60)', str(child_file)])
         self.children.append(owner)
         self.await_(child_file.exists, 'child owner failed to start')
         child_pid = int(child_file.read_text())
         self.descendants.append(child_pid)
-        result = subprocess.run(['python3', str(HELPER), 'acquire', '--watch', str(owner.pid)], env=self.env,
+        result = subprocess.run(['python3', str(HELPER), 'acquire', '--watch', str(owner.pid)], env=env,
                                 capture_output=True, text=True, timeout=8)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), 'acquired')
@@ -243,7 +263,8 @@ class QueuePause(unittest.TestCase):
         owner.wait()
         unresolved = self.queue / 'unresolved' / path.name
         interrupted = self.queue / 'interrupted' / path.name
-        self.await_(lambda: unresolved.exists() and interrupted.exists(), 'unknown/interrupted evidence missing')
+        self.await_(self.committed(lambda: unresolved.exists() and interrupted.exists() and not path.exists()),
+                    'unknown/interrupted evidence missing')
         os.kill(child_pid, 0)
         unknown = json.loads(unresolved.read_text())
         evidence = json.loads(interrupted.read_text())
