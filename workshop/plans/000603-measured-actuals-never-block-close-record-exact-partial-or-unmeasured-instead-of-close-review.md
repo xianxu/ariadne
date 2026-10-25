@@ -140,3 +140,86 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"799a3ac6-7360-4a04-a1f7-3efb61631361","repository":"github.com/xianxu/ariadne","issue_id":"000603","recipe":"fix-review","round":5,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/29492748be80d90b","reviewed_head":"3f77a47a8ac4c70c8191da54bb72504e5041584a","slot":"ariadne:2","requested_at":"2026-10-25T05:21:53.228655Z"},"phase":"finished","pid":93374,"started_at":"2026-10-25T05:21:53.366989Z","finished_at":"2026-10-25T05:22:41.216657Z","session_id":"522039a6-6250-48fe-9069-8a5cd81e15e0","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T04:00:22-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 603 — Measured actuals never block close: record exact, partial or unmeasured instead of refusing |
+| repo | ariadne |
+| issue file | workshop/issues/000603-measured-actuals-never-block-close-record-exact-partial-or-unmeasured-instead-of.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d44120397014f3cb407aeda803ea37b141626dad..9e84f7def5418b0b4144f2e98609b3c7f8320f0f |
+| command | sdlc close --issue 603 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T04:00:22-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the guard's nil handling, then running the new test with and without the fix.
+
+Now I'll revert the guard and confirm the test fails.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window integrates main (#617 adoption guard, #620) into #603. It resolves one conflict in `cmd/sdlc/close.go` and makes one behavioral change: the #617 adoption guard now applies only to measured closes. The resolution keeps both sides. The struct keeps #617's `Adoptions` and `effects` alongside #603's `Confidence`. `adoptOmittedActual` assigns both `f.Confidence` and `f.Adoptions` before `resolveOmittedActual`, so main's intent holds: the read-set is captured even when measurement fails. The duplicate post-resolve assignment is gone. No conflict markers remain in `cmd/` or `internal/`, the changed files are gofmt-clean, and the package builds and passes `go vet`. The guard scoping is not scope creep. Without it, the two features combined would refuse any close whose measurement failed while loading exclusions. #617's `compareAdoptionReadSet` returns "read-set is unavailable" for a non-nil read-set with nil cards, and that contradicts #603's purpose that measurement never blocks a close. Nothing in the issue file's `## Spec`, `## Revisions` or `## Done when` changed. The only edits there are the status flip, `actual_hours` and Log lines.
+
+1. **Strengths**
+   - `cmd/sdlc/closeprepare.go:123-127`: the guard condition uses the existing `f.unmeasured()` (`close.go:1838`). That is exactly `Status != actualMeasured`, the same condition under which `resolveOmittedActual` adopts nothing. An unmeasured close therefore never carries authority it lacks, and a measured close keeps full revalidation.
+   - `cmd/sdlc/close_confidence_test.go:144-170`: the regression test runs the real command path (capture, then flags, then the prepare guard) for both `close` and `milestone-close`. That is the command-wiring proof the #617 BR-1 lesson asks for.
+   - I reverted the guard to an unconditional `guard.adopted = f.Adoptions` and the test went red (`FAIL`). With the guard restored it passes, and so do the targeted `Confidence` and `Adoption` tests (`ok … 99.460s`).
+   - `workshop/lessons.md`: the #603 lesson was moved to sit with the other #603 entries, not duplicated. The text is unchanged.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none.
+
+5. **Test coverage notes:** The test covers the unavailable read-set (`&adoptionReadSet{}`, nil cards) for both verbs. It does not cover a measured close whose adoptions change during review. That is #617's existing coverage, and this window does not touch the measured branch.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The guard reuses the existing `unmeasured()` predicate, with no parallel condition.
+   - **ARCH-PURE: pass.** The change is one conditional in the prepare shell, and the comparison logic stays in `compareAdoptionReadSet`.
+   - **ARCH-PURPOSE: pass.** It keeps #603's never-block purpose across the new #617 consumer. The only place the guard reads the read-set is `closeprepare.go:80`, and that is now gated.
+   - **ARCH-EVOLVE: pass.** No persisted format changes. `Adoptions` is transient and never serialized.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; nothing in this interdiff reopens it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this interdiff does not touch CoalesceCredits.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this interdiff does not touch the unattributed writer.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; the Log records the OversizeError size assertion and a mutation check.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; no plan Task text changes in this interdiff.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; persistedLine is unchanged here.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"fd67477f-d1cb-4c72-80f4-b3edd3afef7e","repository":"github.com/xianxu/ariadne","issue_id":"000603","recipe":"fix-review","round":6,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/9713b66009b62b84","reviewed_head":"9e84f7def5418b0b4144f2e98609b3c7f8320f0f","slot":"ariadne:2","requested_at":"2026-10-25T10:57:39.870773Z"},"phase":"finished","pid":34531,"started_at":"2026-10-25T10:57:39.961483Z","finished_at":"2026-10-25T11:00:20.849172Z","session_id":"5a304653-f9cc-4dd1-aaed-61277d245763","outcome":"returned"}] -->
