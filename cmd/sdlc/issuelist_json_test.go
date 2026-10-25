@@ -123,7 +123,7 @@ func TestIssueListJSONFieldSetIsPinned(t *testing.T) {
 		}
 		return out
 	}
-	if got, want := keys(IssueListJSON{}), []string{"schema_version", "tracker", "cards"}; !reflect.DeepEqual(got, want) || issueListSchema != 1 {
+	if got, want := keys(IssueListJSON{}), []string{"schema_version", "tracker", "stale", "cards"}; !reflect.DeepEqual(got, want) || issueListSchema != 1 {
 		t.Fatalf("v1 document keys %v (schema %d), want %v", got, issueListSchema, want)
 	}
 	want := []string{"id", "title", "status", "created", "updated", "kind", "severity", "area", "claimant_workspace", "unreadable"}

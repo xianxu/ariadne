@@ -664,7 +664,7 @@ matches couch/broadcast/web, not couch/broadcaster), --severity and --kind.
 Broader than 'sdlc state', which surfaces only the working set + drift.
 
 --json (#633) prints every matching issue as one object,
-{"schema_version": 1, "tracker": bool, "cards": [{id, title, status, created,
+{"schema_version": 1, "tracker": bool, "stale": bool, "cards": [{id, title, status, created,
 updated, kind, severity, area, claimant_workspace, unreadable}]}. In a
 repository with an issue tracker it includes the terminal (done, wontfix,
 punt) cards, whose "updated" is their close date (setters leave it alone) and
@@ -672,7 +672,8 @@ whose "claimant_workspace" is the slot that closed them. A card or details file
 that cannot be read is a row with status "unreadable" and its reason; no filter
 removes it. A repository without a tracker ("tracker": false) lists its details
 files only, so its closed issues, archived under workshop/history, are not
-counted. Within schema_version 1 keys are only added.`,
+counted. "stale" is true when the tracker could not be fetched and the cards
+are this checkout's last copy. Within schema_version 1 keys are only added.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {

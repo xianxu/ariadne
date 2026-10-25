@@ -19,8 +19,11 @@ type IssueListJSON struct {
 	SchemaVersion int `json:"schema_version"`
 	// Tracker says the repository has an issue tracker; without one the list
 	// holds only details files, so closes are not visible.
-	Tracker bool      `json:"tracker"`
-	Cards   []CardRow `json:"cards"`
+	Tracker bool `json:"tracker"`
+	// Stale says the tracker could not be fetched and the cards are this
+	// checkout's last copy, so recent changes may be missing.
+	Stale bool      `json:"stale"`
+	Cards []CardRow `json:"cards"`
 }
 
 // CardRow is one issue. A terminal card's Updated is its close date: setters
@@ -77,7 +80,7 @@ func runIssueListJSON(ctx context.Context, stdout, stderr io.Writer, issuesDir s
 	if stale {
 		cwarn(stderr, staleTrackerNote)
 	}
-	doc := IssueListJSON{SchemaVersion: issueListSchema, Tracker: tracked, Cards: []CardRow{}}
+	doc := IssueListJSON{SchemaVersion: issueListSchema, Tracker: tracked, Stale: stale, Cards: []CardRow{}}
 	for _, is := range issues {
 		row := cardRowOf(is)
 		// An unreadable row has no status or classification to filter on;

@@ -106,3 +106,12 @@ Items:
   - BR-2: README.
   - Minors: malformed details become unreadable rows, the enum-growth limit is noted, errors use `die` consistently, the file is renamed, and a `--status done` test is added.
 - 2026-10-25: live smoke (new sdlc in this slot): `sdlc issue list --json` reads 630 ariadne cards (485 done, 33 wontfix, 9 punt; 309 with a claimant; 0 unreadable). tl-lead's renderer over that output: 103 open and 527 closed unclassified (no kinds yet; the back-fill is the TL's), and a bug quota of 11 a week (the median over 11 slot-weeks, last 4 whole weeks).
+- 2026-10-25: M2 built.
+  - `tl-lead triage stats [--repo R] [--weeks N]` (`triage_stats.go`) works through `SDLC.RepoCards` (`sdlc issue list --json`). It decodes tolerantly of fields and strictly on `schema_version`.
+  - The pure core works over civil days: `weekStats`, `slotVelocity` (median done issues per slot-week, over 4 whole weeks, active slot-weeks only), `bugQuota` (rounded down, floor 1) and `unclassified`.
+  - `thisHub` is extracted from `team issues` (ARCH-DRY). help.md gains WEEKLY BACKLOG TRIAGE, and the atlas `tl-skills.md` gains an entry.
+  - M1 round 2 Minor: `stale` is an additive v1 key, and tl-lead prints a stale line for it.
+  - Tests:
+    - `TestWeekStatsReconcilesOpenBugs`: generated cards, 5 todays across US DST and the ISO week-year boundary, 50 seeds each. Mutating the open-at-end condition turns it red, and restoring the code makes it green.
+    - `TestWeekStatsCases`, `TestSlotVelocityAndQuota`, `TestDecodeRepoCards` (unknown keys tolerated, schema 2 refused), `TestTriageStats` (3 repos: an error, no tracker, stale, unreadable, `--repo`), `TestDayOfIsTheLocalDate` and `TestLeadHelpWeeklyTriage` (steps in order).
+  - The whole cmd/tl-lead package is green.

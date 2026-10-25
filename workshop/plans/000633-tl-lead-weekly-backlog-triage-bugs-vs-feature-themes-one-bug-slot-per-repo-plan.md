@@ -123,13 +123,13 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
     - The text output stays unchanged.
   - [x] Atlas: `sdlc-binary.md`, the issue-card fields and the `issue list --json` contract.
 - [ ] M2: `tl-lead triage stats` and the duty
-  - [ ] Pure core tests first:
+  - [x] Pure core tests first:
     - `weekStats` over a fake card list spanning week boundaries, including a bug opened and closed in the same week, a terminal card closed before the window, and unclassified cards.
     - `slotVelocity`, including an idle slot and the quota's floor of 1.
-  - [ ] `SDLC.RepoCards` and the `fakeSDLC` extension; decode tests against raw JSON, including an unknown schema version.
-  - [ ] `tl-lead triage stats [--repo R] [--weeks N]`: for each repository, a table of the weeks, the unclassified count and the suggested bug quota; a failed repository prints `?` and the rest continue.
-  - [ ] `help.md`: the WEEKLY BACKLOG TRIAGE section. A help test checks the steps are in order and that the marks, the one-bug-slot default, velocity sizing, themes as projects and the Needs-you shape are all present.
-  - [ ] Atlas: the tl-lead entry.
+  - [x] `SDLC.RepoCards` and the `fakeSDLC` extension; decode tests against raw JSON, including an unknown schema version.
+  - [x] `tl-lead triage stats [--repo R] [--weeks N]`: for each repository, a table of the weeks, the unclassified count and the suggested bug quota; a failed repository prints `?` and the rest continue.
+  - [x] `help.md`: the WEEKLY BACKLOG TRIAGE section. A help test checks the steps are in order and that the marks, the one-bug-slot default, velocity sizing, themes as projects and the Needs-you shape are all present.
+  - [x] Atlas: the tl-lead entry.
 
 **Proofs:**
 - Targeted tests per package, one run at a time.
@@ -174,3 +174,7 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
   - The JSON path reports errors with `die`, as the text path does.
   - The file is renamed to `issuelist_json.go`, beside `issuelist.go`.
   - A `--status done --json` test covers the closes query.
+
+### 2026-10-25 — M1 boundary review round 2 (SHIP; one Minor, folded into M2)
+
+- **Machine output reports a stale read.** `issue list --json` gains an additive v1 key, `stale`: the tracker fetch failed and the cards are the checkout's last copy. The pinned-keys test was updated. tl-lead decodes the key and prints a "stale" line for that repository, so a trend is never counted silently from an old snapshot.
