@@ -76,7 +76,7 @@ func TestFleetMergeIntentsReaderRetainsEarlierObservations(t *testing.T) {
 		}
 		return nil
 	}}
-	got, err := observeMergeIntents(r, root, func(mergeIntentReport) bool { return true })
+	got, err := observeMergeIntents(t.Context(), r, root, func(mergeIntentReport) bool { return true })
 	if !errors.Is(err, cause) || len(got) != 2 {
 		t.Fatalf("lost partial results: got=%+v err=%v", got, err)
 	}
@@ -185,7 +185,7 @@ func TestFleetMergeIntentsBranchProbeGrowth(t *testing.T) {
 			}
 			return nil
 		}}
-		got, err := observeMergeIntentsWithPause(r, root, func(mergeIntentReport) bool { return true }, func() string { return "" })
+		got, err := observeMergeIntentsWithPause(t.Context(), r, root, func(mergeIntentReport) bool { return true }, func() string { return "" })
 		if err != nil || len(got) != n || probes != n || calls != n+1 {
 			t.Fatalf("N=%d reports=%d Git=%d probes=%d err=%v", n, len(got), calls, probes, err)
 		}

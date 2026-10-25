@@ -129,15 +129,11 @@ func formatMergeIntent(r mergeIntentReport) string {
 
 // observeMergeIntents reads the repository's intents for the status
 // surfaces; keep selects which to report (all, or one slot's own).
-func observeMergeIntents(r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
-	return observeMergeIntentsWithPause(r, root, keep, queuePauseNote)
+func observeMergeIntents(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
+	return observeMergeIntentsWithPause(ctx, r, root, keep, queuePauseNote)
 }
 
-func observeMergeIntentsWithPause(r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
-	return observeMergeIntentsWithContext(context.Background(), r, root, keep, pauseNote)
-}
-
-func observeMergeIntentsWithContext(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
+func observeMergeIntentsWithPause(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ func observeFleetMergeIntents(ctx context.Context, root, pause string) ([]mergeI
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	reports, err := observeMergeIntentsWithContext(ctx, boundedLandingGit(ctx, execGitRunner{}), root, func(mergeIntentReport) bool { return true }, func() string { return pause })
+	reports, err := observeMergeIntentsWithPause(ctx, boundedLandingGit(ctx, execGitRunner{}), root, func(mergeIntentReport) bool { return true }, func() string { return pause })
 	for n := range reports {
 		if reports[n].Root == "" {
 			continue

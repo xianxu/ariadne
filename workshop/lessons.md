@@ -1706,3 +1706,5 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #624 review: observe a shared Git store through its captured common-directory authority, not an arbitrary member checkout; thread cancellation into actual subprocesses and stop later probes. When making a decoder additive, update its algebra oracle while keeping duplicate/type controls strict.
 
 - #624 BR-5: an isolated subprocess runner needs a signal-aware public entry point as well as a cancellable internal context. Prove native SIGINT/SIGTERM through the public executable at every production phase, with pipe-holding children and positive readiness; injected context cancellation alone misses default signal exit.
+
+- #624 full-suite guard: a context-aware helper must not retain a context.Background compatibility wrapper when callers already own contexts. Thread them explicitly, and include repository-wide static guard tests alongside feature-name matches before queueing the suite.

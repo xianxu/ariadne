@@ -169,3 +169,7 @@ Proposed single owner: add only fleet inventory to executeCLI's existing SIGINT/
 ### 2026-10-25 — Native signal re-plan approved and qualified
 
 Authenticated ops:0 receipt811b88c2-65e0-4ca1-976c-1fd4713400ee approves the consolidated re-plan, leaving other legacy commands alone. TestFleetMergeIntentsCLISignalsJoinAllGitPhases runs the public built executable against private stores and six phase/signal combinations. Before the fix, all six reproduced CLI default-signal exit with both Git and its pipe-holding child surviving; after adding fleet inventory to the existing owner and using bounded Git for all its phases, all six passed (11.103s package). Zero JSON, no further Git invocation and joined parent/child are asserted. No new handler, runner or state.
+
+### 2026-10-25 — Recorded static guard correction
+
+The full pre-close exposed a context.Background compatibility wrapper left around the shared reader. Remove that wrapper and pass each caller's existing context explicitly (including state and landing-status), retaining their existing signal and runner behavior. This corrects threading within the approved design, with TestVerbContextsReachTrackerReads as the RED control; no new mechanism or legacy signal migration. The same suite was incomplete due a shard alarm in shared scratch removal (filed unclaimed #631), so use a fresh recorded pre-close, not a resume.
