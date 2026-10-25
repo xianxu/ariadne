@@ -86,12 +86,13 @@ Familiarity is 1.0 because #598 M1 built the mapping these extend.
 
 Durable plan: `workshop/plans/000616-affected-traceability-missed-mappings-plan.md`.
 
-- [ ] M1 — traceability input: `traceability` member, `ParseTraceability` (strict yaml.Node walk, parley golden), `Compile(cfg, Sources)`, loader reads from main; the shared strict JSON object codec moves to `internal/jsonstrict`.
+- [x] M1 — traceability input: `traceability` member, `ParseTraceability` (strict yaml.Node walk, parley golden), `Compile(cfg, Sources)`, loader reads from main; the shared strict JSON object codec moves to `internal/jsonstrict`.
 - [ ] M2 — missed-mapping ledger: `Missed`, `MissedLedger` (pure, preserving), the locked store in the common git dir, the merge-diagnosis and train-split hooks via the extracted `affectedSelectionAt`, `sdlc affected missed list|dismiss`.
 
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed M1 — targeted: go test ./cmd/sdlc/internal/affected ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/jsonstrict ./cmd/sdlc/internal/landingline pass; go test ./cmd/sdlc -run Affected|SplitImpact|Attribution pass (180s), incl. real-git traceability-from-main, missing and malformed on main in ordinary and boarding modes; parley golden (ee938b5a) parses; FuzzParseTraceability 20s and FuzzDecodeObject 15s clean; BenchmarkPlanDeclared with 65-entry traceability 32 ms/op; drop-cost guard passes with the moved codec; review verdict: SHIP
 
 Split from ariadne#598 by ops:0's direction: M1 landed alone so pair#853 could proceed. These were #598's M2 and M3. The approved design is in #598's durable plan, and M1's review notes for them are in that plan's Revisions (for example, `Compile` taking a sources struct).
 
