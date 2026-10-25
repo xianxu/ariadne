@@ -237,28 +237,35 @@ func (m MeasurementInputs) ValidateBounds() error {
 	if m.LegacyPrefix != nil {
 		sourceCount += len(m.LegacyPrefix.Sources)
 	}
-	if sourceCount > SnapshotLimitSources {
-		return &OversizeError{Reason: fmt.Sprintf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)}
-	}
 	// The encoder refuses a value past its structural cap before this check
 	// can count it; both report the same counted refusal (#593).
 	data, err := json.Marshal(m)
 	var size *measurementSizeError
-	if errors.As(err, &size) {
-		return &OversizeError{Reason: m.oversize(fmt.Sprintf("at least %d", size.Bytes)).Error()}
-	}
-	if err != nil {
+	if err != nil && !errors.As(err, &size) {
 		return fmt.Errorf("measurement snapshot does not serialize (%s): %w", m.sizeCounts(), err)
 	}
-	if len(data) > measurementSnapshotLimit(m.Version) {
-		return &OversizeError{Reason: m.oversize(strconv.Itoa(len(data))).Error()}
+	bytes := len(data)
+	if size != nil {
+		bytes = size.Bytes // a lower bound: the encoder stopped there
+	}
+	switch {
+	case sourceCount > SnapshotLimitSources:
+		return &OversizeError{Bytes: bytes, Reason: fmt.Sprintf("measurement sources exceed snapshot limit %d", SnapshotLimitSources)}
+	case size != nil:
+		return &OversizeError{Bytes: bytes, Reason: m.oversize(fmt.Sprintf("at least %d", size.Bytes)).Error()}
+	case len(data) > measurementSnapshotLimit(m.Version):
+		return &OversizeError{Bytes: bytes, Reason: m.oversize(strconv.Itoa(len(data))).Error()}
 	}
 	return nil
 }
 
 // OversizeError is a snapshot over its retention bound: the measurement holds,
-// only its full replay evidence cannot be retained (#603).
-type OversizeError struct{ Reason string }
+// only its full replay evidence cannot be retained (#603). Bytes is the size
+// the encoder measured, a lower bound when it stopped at its structural cap.
+type OversizeError struct {
+	Bytes  int
+	Reason string
+}
 
 func (e *OversizeError) Error() string { return e.Reason }
 

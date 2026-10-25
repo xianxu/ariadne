@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // #603: unattributed minutes are audit records beside the counted evidence.
@@ -183,8 +184,15 @@ func TestCoalesceCreditsProperty(t *testing.T) {
 		if !covers(outCover, inCover) {
 			t.Fatalf("trial %d: output does not cover the input", trial)
 		}
-		if got, want := coveredSeconds(coverOf(widened)), coveredSeconds(outCover)-coveredSeconds(inCover); got != want {
-			t.Fatalf("trial %d: widened %vs, added cover %vs", trial, got, want)
+		// The first pass's gaps are exactly the added cover; bounding them can
+		// only widen what a later issue is told it lost, never hide any.
+		_, exact := coalesceCredits(in, limit)
+		added := coveredSeconds(outCover) - coveredSeconds(inCover)
+		if got := coveredSeconds(coverOf(exact)); got != added {
+			t.Fatalf("trial %d: widened %vs, added cover %vs", trial, got, added)
+		}
+		if len(widened) > limit && len(widened) > len(coverOf(widened)) || !covers(coverOf(widened), coverOf(exact)) {
+			t.Fatalf("trial %d: %d widened gaps over limit %d, or they lost cover", trial, len(widened), limit)
 		}
 	}
 }
@@ -255,7 +263,46 @@ func TestMeasurementPair866ShapeIsTypedOversize(t *testing.T) {
 	}
 	var over *OversizeError
 	err := m.ValidateBounds()
-	if !errors.As(err, &over) || !strings.Contains(err.Error(), "over the version 4 bound of 131072 (119 sources, 1 branch records, 860 branch intervals)") {
+	if !errors.As(err, &over) || over.Bytes <= SnapshotLimitBytesV4 || !strings.Contains(err.Error(), "over the version 4 bound of 131072 (119 sources, 1 branch records, 860 branch intervals)") {
 		t.Fatalf("bounds = %v, want pair#866's typed oversize", err)
+	}
+}
+
+// #603: the writer's bounds match the validator's: a window with far more than
+// twice MaxSummaryCredits credits still summarises into a valid snapshot.
+func TestCoalesceCreditsBoundsWidenedForTheValidator(t *testing.T) {
+	base := time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)
+	var in []MeasurementCredit
+	for i := 0; i < 3*MaxSummaryCredits; i++ {
+		start := base.Add(time.Duration(2*i) * time.Second)
+		in = append(in, MeasurementCredit{Issue: "603", Slot: "ariadne:2", Start: start.Format(time.RFC3339), End: start.Add(time.Second).Format(time.RFC3339)})
+	}
+	out, widened := CoalesceCredits(in, MaxSummaryCredits)
+	if len(out) > MaxSummaryCredits || len(widened) > MaxSummaryCredits {
+		t.Fatalf("%d credits, %d widened gaps over %d", len(out), len(widened), MaxSummaryCredits)
+	}
+	if _, exact := coalesceCredits(in, MaxSummaryCredits); !covers(coverOf(widened), coverOf(exact)) {
+		t.Fatal("bounding the widened gaps lost cover")
+	}
+	m := validSummaryInputs()
+	m.Since, m.Until = base.Format(time.RFC3339), base.Add(4*time.Hour).Format(time.RFC3339)
+	m.Summary.Credited, m.Summary.Widened = out, widened
+	if err := m.Validate(); err != nil {
+		t.Fatalf("a writer-bounded summary fails validation: %v", err)
+	}
+}
+
+// #603: one bound for persisted reasons, cut on a rune boundary.
+func TestBoundReason(t *testing.T) {
+	long := strings.Repeat("é", UnattributedReasonLimit) // two bytes a rune
+	got := BoundReason("line one\n" + long)
+	if len(got) > UnattributedReasonLimit || !utf8.ValidString(got) || strings.ContainsAny(got, "\r\n") || !strings.HasSuffix(got, "...") {
+		t.Fatalf("bounded %d bytes, valid %v: %q", len(got), utf8.ValidString(got), got[:20])
+	}
+	if u := (MeasurementUnattributed{Kind: UnattributedQueueUnknown, Reason: got}); u.Validate() != nil {
+		t.Fatalf("a bounded reason fails validation: %v", u.Validate())
+	}
+	if BoundReason("short") != "short" {
+		t.Fatal("a short reason changed")
 	}
 }

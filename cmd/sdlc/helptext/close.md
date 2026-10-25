@@ -527,7 +527,8 @@ refuses the close (#603); it records one of:
               lower bound, and s is the attributed share.
   partial, upper bound
               a suite attempt's queue provenance is unknown, so its wait was not
-              subtracted; the line says how much the hours may overstate.
+              subtracted; when such an attempt has endpoints overlapping the
+              counted time, the line says how much the hours may overstate.
   unmeasured  no number (telemetry gap, empty or missing window, an input
               error): close records actual_hours: N/A with the reason and prints
               the recovery. The recorded actual stays N/A (an N/A actual is not

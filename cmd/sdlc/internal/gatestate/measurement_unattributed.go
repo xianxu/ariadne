@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -15,8 +16,28 @@ const (
 	UnattributedQueueUnknown      = "queue-unknown"      // a suite attempt whose queue provenance is unknown
 	UnattributedSummaryWidened    = "summary-widened"    // an earlier issue's summarised credits over-protect
 	SnapshotLimitUnattributed     = 32
-	unattributedReasonLimit       = 400
+	UnattributedReasonLimit       = 400
 )
+
+// BoundLine is the one rule for bounding diagnostic text that sdlc persists:
+// collapsed to a single line and cut on a UTF-8 boundary to at most limit
+// bytes, an ellipsis marking the cut. Every MeasurementUnattributed writer
+// passes its reason through BoundReason, so the validator never refuses what
+// a writer produced.
+func BoundLine(s string, limit int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) <= limit {
+		return s
+	}
+	cut := limit - len("...")
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + "..."
+}
+
+// BoundReason bounds an unattributed record's reason to what Validate admits.
+func BoundReason(s string) string { return BoundLine(s, UnattributedReasonLimit) }
 
 // MeasurementUnattributed records minutes the measurement saw but did not
 // count (#603). It is audit evidence only: the sources' counted windows never
@@ -41,7 +62,7 @@ func (u MeasurementUnattributed) Validate() error {
 	default:
 		return fmt.Errorf("measurement unattributed kind %q is invalid", u.Kind)
 	}
-	if strings.TrimSpace(u.Reason) == "" || len(u.Reason) > unattributedReasonLimit || strings.ContainsAny(u.Reason, "\r\n\x00") || strings.ContainsAny(u.Source, "\r\n\x00") {
+	if strings.TrimSpace(u.Reason) == "" || len(u.Reason) > UnattributedReasonLimit || strings.ContainsAny(u.Reason, "\r\n\x00") || strings.ContainsAny(u.Source, "\r\n\x00") {
 		return fmt.Errorf("measurement unattributed reason or source is invalid")
 	}
 	if !u.Bounded {

@@ -76,7 +76,7 @@ func TestSourceCapMeasuresInsteadOfRefusing(t *testing.T) {
 				return
 			}
 			s := res.Inputs.Summary
-			if s.Sources != tc.active || s.Hours != res.Hours || len(s.Credited) == 0 || !strings.Contains(s.Reason, tc.reason) {
+			if s.Sources != tc.active || s.Hours != res.Hours || s.Bytes <= 0 || len(s.Credited) == 0 || !strings.Contains(s.Reason, tc.reason) {
 				t.Fatalf("summary = %+v, hours %.4f", s, res.Hours)
 			}
 			if _, err := resolveOwnedReplay(context.Background(), r.root, "335", *res.Inputs, gatestate.Ledger{}); err == nil || !strings.Contains(err.Error(), "not replayable") {

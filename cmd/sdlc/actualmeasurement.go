@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -202,7 +201,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 		if inputs.Replay || !errors.As(err, &over) {
 			return fail(fmt.Errorf("measurement evidence incomplete: %w", err))
 		}
-		summary, widened, err := summariseMeasurement(m, res, inputs, id, over.Reason)
+		summary, widened, err := summariseMeasurement(m, res, inputs, id, *over)
 		if err != nil {
 			return fail(fmt.Errorf("measurement summary: %w", err))
 		}
@@ -227,7 +226,7 @@ func computeOwnedActualFor(ctx context.Context, root, id, milestone string, inpu
 // summariseMeasurement is the retained form of a snapshot over its bounds
 // (#603): the header, the unattributed record and the summary with the credited
 // intervals a later overlapping issue must not count again.
-func summariseMeasurement(m gatestate.MeasurementInputs, res actualResult, inputs *ownedActualInputs, id, reason string) (gatestate.MeasurementInputs, int, error) {
+func summariseMeasurement(m gatestate.MeasurementInputs, res actualResult, inputs *ownedActualInputs, id string, over gatestate.OversizeError) (gatestate.MeasurementInputs, int, error) {
 	credited, err := creditedIntervals(id, res.Segments, res.CountedPhases, inputs.SourceSlots)
 	if err != nil {
 		return gatestate.MeasurementInputs{}, 0, err
@@ -262,16 +261,12 @@ func summariseMeasurement(m gatestate.MeasurementInputs, res actualResult, input
 	for _, s := range m.Sources {
 		fmt.Fprintf(h, "%s/%s %s %d\n", s.Harness, s.ID, s.Digest, s.Bytes)
 	}
-	bytes := 0
-	if data, err := json.Marshal(m); err == nil {
-		bytes = len(data)
-	}
 	out := gatestate.MeasurementInputs{Version: gatestate.MeasurementSummaryInputsVersion, Method: gatestate.MeasurementMethodSummaryV1,
 		Repository: m.Repository, CodeHead: m.CodeHead, TrackerHead: m.TrackerHead, BranchPoint: m.BranchPoint, Since: m.Since, Until: m.Until,
 		BrainRoot: m.BrainRoot, GapMinutes: m.GapMinutes, CommitWeight: m.CommitWeight, IncludeAssistant: m.IncludeAssistant, Cuts: m.Cuts,
 		ExcludedBrainSessions: m.ExcludedBrainSessions, ExcludedBrainMinutes: m.ExcludedBrainMinutes,
 		Unattributed: m.Unattributed, UnattributedMinutes: m.UnattributedMinutes,
-		Summary: &gatestate.MeasurementSummary{Sources: len(m.Sources), Bytes: bytes, Hours: res.Hours, Digest: hex.EncodeToString(h.Sum(nil)), Reason: reason, Credited: credits, Widened: widened}}
+		Summary: &gatestate.MeasurementSummary{Sources: len(m.Sources), Bytes: over.Bytes, Hours: res.Hours, Digest: hex.EncodeToString(h.Sum(nil)), Reason: over.Reason, Credited: credits, Widened: widened}}
 	if err := out.Validate(); err != nil {
 		return gatestate.MeasurementInputs{}, 0, err
 	}

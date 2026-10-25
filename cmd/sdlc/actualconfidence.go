@@ -140,14 +140,10 @@ const maxReasonBytes = 240
 // confidenceReason is one bounded, single-line reason. A path under the home
 // directory is shown from ~, so the trailer names no account layout.
 func confidenceReason(s string) string {
-	s = oneLine(s)
 	if home, err := os.UserHomeDir(); err == nil && len(home) > 1 {
 		s = strings.ReplaceAll(s, home+string(filepath.Separator), "~"+string(filepath.Separator))
 	}
-	if len(s) > maxReasonBytes {
-		s = strings.ToValidUTF8(s[:maxReasonBytes-3], "") + "..."
-	}
-	return s
+	return gatestate.BoundLine(s, maxReasonBytes)
 }
 
 type span struct{ start, end time.Time }

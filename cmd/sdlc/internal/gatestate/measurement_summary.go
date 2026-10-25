@@ -96,8 +96,18 @@ func validateCredits(field string, credits []MeasurementCredit, since, until tim
 // CoalesceCredits bounds credits to limit intervals (#603). It merges each
 // (issue, slot) group's touching intervals, then repeatedly closes the
 // smallest gap inside a group until the total fits. Coalescing only widens, so
-// the result covers the input; widened is the added cover, per group.
+// the result covers the input; widened is the added cover, per group, itself
+// bounded to limit intervals: past that its gaps are coalesced too, which can
+// only overstate what a later issue loses, never hide it.
 func CoalesceCredits(credits []MeasurementCredit, limit int) (out []MeasurementCredit, widened []MeasurementCredit) {
+	out, widened = coalesceCredits(credits, limit)
+	if len(widened) > limit {
+		widened, _ = coalesceCredits(widened, limit)
+	}
+	return out, widened
+}
+
+func coalesceCredits(credits []MeasurementCredit, limit int) (out []MeasurementCredit, widened []MeasurementCredit) {
 	type span struct{ start, end time.Time }
 	type group struct {
 		issue, slot string

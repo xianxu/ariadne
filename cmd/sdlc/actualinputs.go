@@ -555,11 +555,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 // subtracted: bounded by its queue interval inside the sample when it has
 // one, else unbounded.
 func queueUnattributed(a *SuiteAttempt, reason string, since, until time.Time) gatestate.MeasurementUnattributed {
-	reason = oneLine(reason)
-	if len(reason) > 400 {
-		reason = reason[:397] + "..."
-	}
-	u := gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedQueueUnknown, Reason: reason}
+	u := gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedQueueUnknown, Reason: gatestate.BoundReason(reason)}
 	if a == nil || a.QueuedAt == nil || a.AcquiredAt == nil {
 		return u
 	}

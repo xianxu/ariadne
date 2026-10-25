@@ -306,3 +306,9 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
   - **Reasons** in a rendering are bounded (240 bytes each) and home-relative.
   - Exclusion checks a summary's recorded hours (as the replay path checks replayed hours), not Σcredited.
   - Task 13: `atlas/workflow/gate-state.md` holds no measurement content and was not changed; `README.md` was.
+- 2026-10-24, M1 boundary review round 2 (FIX-THEN-SHIP; fixed in the round): writer bounds now match the validator's.
+  `CoalesceCredits` bounds `widened` to `MaxSummaryCredits` too (coalescing gaps can only overstate what a later issue
+  loses); every unattributed reason passes one UTF-8-safe `gatestate.BoundReason`/`BoundLine`, which the rendering bound
+  shares; the summary's `Bytes` comes from the `OversizeError` the encoder measured. Task 10 as delivered: the pair#856,
+  #812, #863 and #830 fixtures are selection-level `SelectBranchActivity` tests asserting no unattributed activity (the
+  close seam adds nothing to them); pair#838, #851 and #866 run through the real resolver and engine.
