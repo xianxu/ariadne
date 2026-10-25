@@ -784,9 +784,21 @@ the issue namespace, object store, and remote refs that the motivating races
 touched. The lock does not serialize another clone or machine, so remote
 push/ref races still surface through the existing push/merge retry guidance.
 
-`change-code`, `close` and `milestone-close` prepare under the lock, release it
-while external reviewers run, then reacquire and validate before recording any
-response (#244). `reviewstate.go` shares the capture/compare policy: canonical
+`change-code` prepares under the lock, releases it while external reviewers
+run, then reacquires and validates before recording a response (#244).
+`close` and `milestone-close` capture their initial authority under the lock,
+then run expensive preparation (transcript/history measurement, project discovery
+and churn collection) unlocked (#617). They reacquire and freshly validate the
+read-set before review admission and again before any result is written; the
+review itself stays unlocked. The own-card generation and original numeric-adoption
+candidates participate: a new or changed adoption requires a rerun, while an
+unrelated claim does not. The candidate filter is shared with
+`loadAdoptedExclusions`; validation never replays transcript measurement.
+Authoritative issue/ledger/evidence/card transactions retain the lock. Warning-only
+peer publication and the exact finalized issue-branch push run after releasing
+it; the push's local tracking-ref update uses a short reacquisition. A failed
+optional push preserves the close and its existing next-boundary/PR recovery.
+ `reviewstate.go` shares the capture/compare policy: canonical
 repository and private worktree Git directory, branch identity, issue/plan bytes
 (including absent plans), and the relevant gate ledger. Close also protects every
 prepared project edit and its first-round plan-ledger seed. `change-code` requires

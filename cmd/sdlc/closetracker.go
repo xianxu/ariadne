@@ -510,7 +510,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 		cwarn(stderr, w)
 	}
 	commitCloseMirror(env, stderr, id, entries[0].Path)
-	boundaryPush(env, stderr, "close")
+	pushCloseBranch(f, env, stderr, "close")
 	fmt.Fprintln(stdout, tracker.EvidenceCommit(final))
 	return nil
 }

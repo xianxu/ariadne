@@ -95,11 +95,13 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 				started, release := blockedBoundaryReviewer(t, "SHIP")
 				if change == "relock" {
 					original := repoLockAcquireForCommand
-					calls := 0
 					repoLockAcquireForCommand = func(cmd *cobra.Command) (func() error, error) {
-						calls++
-						if calls == 2 {
+						// Target finalization, independently of preparation's
+						// own capture/admission lock acquisitions (#617).
+						select {
+						case <-started:
 							return nil, errors.New("injected reacquire failure")
+						default:
 						}
 						return original(cmd)
 					}

@@ -23,6 +23,10 @@ var boundaryPushTimeout = 2 * time.Minute
 // `sdlc pr` pushes again. A resting branch, main or a detached HEAD has
 // nothing to push.
 func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
+	boundaryPushAt(env, stderr, verb, "", nil)
+}
+
+func boundaryPushAt(env *trackerEnv, stderr io.Writer, verb, head string, lock func(func() error) error) {
 	branch := env.branch
 	if branch == "" || env.onRest() || branch == "main" {
 		return
@@ -33,7 +37,7 @@ func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
 	defer cancel()
 	bounded := *env
 	bounded.ctx = ctx
-	if err := pushIssueBranch(&bounded, branch); err != nil {
+	if err := leasedBranchHeadPush(bounded.git, bounded.target.Remote, branch, head, lock); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s: %s was not pushed: %v — the %s itself is done; the next boundary or `sdlc pr` pushes it", verb, branch, err, verb))
 		return
 	}
@@ -57,20 +61,31 @@ func pushIssueBranch(env *trackerEnv, branch string) error {
 // yet), never a fresh read that would turn it into a blind force (#284 BR-24).
 // The explicit refspec publishes without configuring an issue-branch upstream.
 func leasedBranchPush(git gitFn, remote, branch string) error {
+	return leasedBranchHeadPush(git, remote, branch, "", nil)
+}
+
+func leasedBranchHeadPush(git gitFn, remote, branch, head string, lock func(func() error) error) error {
 	tracking := gitx.RemoteTrackingRef(remote, branch)
 	expect, err := git("for-each-ref", "--format=%(objectname)", tracking)
 	if err != nil {
 		return err
 	}
 	ref := "refs/heads/" + branch
-	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, remote, ref+":"+ref); err != nil {
+	source := head
+	if source == "" {
+		source = ref
+	}
+	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, remote, source+":"+ref); err != nil {
 		if strings.Contains(err.Error(), "stale info") {
 			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before the next push)", err, branch)
 		}
 		return err
 	}
-	_, err = git("update-ref", tracking, ref)
-	return err
+	update := func() error { _, err := git("update-ref", tracking, source); return err }
+	if lock != nil {
+		return lock(update)
+	}
+	return update()
 }
 
 // deleteRemoteBranch removes branch from the publication remote only while it

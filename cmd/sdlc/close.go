@@ -62,6 +62,8 @@ type closeFlags struct {
 	// nil when --actual was typed, which the ledger records as split_source manual.
 	Split     *actualSplit
 	Inputs    *gatestate.MeasurementInputs
+	Adoptions *adoptionReadSet // transient dependencies of this measurement, never serialized
+	effects   *closeEffects
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -473,7 +475,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone, f.plansDir(), f.BrainDir); derr != nil {
+			measured := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
+			f.Adoptions = measured.Adoptions
+			if derr := checkMeasuredActualDeviation(stderr, issueStr, v, measured); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -1005,11 +1009,13 @@ func applyClose(stdout, stderr io.Writer, f *closeFlags, res closeResult) {
 			continue
 		}
 		label := filepath.Base(e.repoDir) + "/" + filepath.Base(e.path)
-		if err := publishPeerProject(ctx, e, res.repoName+"#"+res.issueStr); err != nil {
-			cwarn(stderr, fmt.Sprintf("project %s NOT updated on its origin: %v\n      the peer checkout was left untouched; the TL or owner applies the tick there", label, err))
-			continue
-		}
-		cok(stderr, fmt.Sprintf("published %s's close-time update to %s's origin main", label, filepath.Base(e.repoDir)))
+		afterClose(f, func() {
+			if err := publishPeerProject(ctx, e, res.repoName+"#"+res.issueStr); err != nil {
+				cwarn(stderr, fmt.Sprintf("project %s NOT updated on its origin: %v\n      the peer checkout was left untouched; the TL or owner applies the tick there", label, err))
+				return
+			}
+			cok(stderr, fmt.Sprintf("published %s's close-time update to %s's origin main", label, filepath.Base(e.repoDir)))
+		})
 	}
 
 	// ── The cost report (#187 D1–D3) ─────────────────────────────────────────
@@ -1258,7 +1264,10 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	// boundary review runs against the un-mutated working tree, and applyClose
 	// fires only after a finalizing verdict.
 	r := computeClose(stderr, f)
+	return runPreparedCloseWithReview(stdout, stderr, f, r)
+}
 
+func runPreparedCloseWithReview(stdout, stderr io.Writer, f *closeFlags, r closeResult) error {
 	base, baseLong, head, windowBase := closeReviewAnchors(f, r)
 	switch {
 	case f.skip("judge"):
@@ -1332,34 +1341,30 @@ func closeRecipe(f *closeFlags, r closeResult) judge.Category {
 
 func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags) error {
 	f.Context = cmd.Context()
-	if f.Milestone != "" || f.skip("judge") || f.DryRun {
-		return withRequiredRepoTransactionLock(cmd, func() error {
-			return runCloseWithReview(stdout, stderr, f)
-		})
+	f.effects = &closeEffects{lock: func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }}
+	defer func() { f.effects.finish(); f.effects = nil }()
+	if f.Milestone != "" || f.Issue <= 0 {
+		return runCloseWithReview(stdout, stderr, f)
 	}
-
-	var r closeResult
-	var base, baseLong, head, windowBase string
-	var snapshot closeReviewSnapshot
-	var prior string
-	var admission gatestate.Ledger
-	if err := withRequiredRepoTransactionLock(cmd, func() error {
-		r = computeClose(stderr, f)
-		base, baseLong, head, windowBase = closeReviewAnchors(f, r)
-		captured, captureErr := captureCloseReviewSnapshot(r, head, "", f.plansDir())
-		if captureErr != nil {
-			return captureErr
-		}
-		snapshot = captured
-		memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, PlansDir: f.plansDir()}
-		prior = boundaryPriorFindings(stderr, memoryParams)
-		var lerr error
-		admission, lerr = boundaryAdmissionLedger(memoryParams)
-		return lerr
-	}); err != nil {
+	r, snapshot, err := prepareCloseTransaction(cmd, stderr, f)
+	if err != nil {
 		return err
 	}
-
+	if f.skip("judge") || f.DryRun {
+		return withRequiredRepoTransactionLock(cmd, func() error {
+			if _, err := snapshot.validate(); err != nil {
+				return err
+			}
+			return runPreparedCloseWithReview(stdout, stderr, f, r)
+		})
+	}
+	base, baseLong, head, windowBase := closeReviewAnchors(f, r)
+	memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, PlansDir: f.plansDir()}
+	prior := boundaryPriorFindings(stderr, memoryParams)
+	admission, err := boundaryAdmissionLedger(memoryParams)
+	if err != nil {
+		return err
+	}
 	return reviewThenFinalizeLocked(cmd, stdout, stderr, f, r, boundaryReviewParams{
 		Label:           "#" + strconv.Itoa(f.Issue),
 		Base:            base,
@@ -1602,7 +1607,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			// #304/#197: the evidence commit and its pin come BEFORE the push, so
 			// the pushed tip carries the binary's own Review-Verdict commit.
 			finalizeMilestoneEvidence(stderr, f, r, review, true)
-			milestonePush(commandContext(f.Context), stderr)
+			milestonePush(f, stderr)
 		} else if w := pinReviewed(fmt.Sprintf("%06d", f.Issue), "", review.Head); w != "" {
 			cwarn(stderr, w) // legacy whole-issue close: the agent commits; pin the reviewed head
 		}
@@ -1634,9 +1639,10 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 // finalization can tell whether that state still holds when the review returns ~20
 // minutes later.
 type closeReviewSnapshot struct {
-	reviewed  string
-	milestone string
-	prepared  preparedReview
+	reviewed    string
+	milestone   string
+	prepared    preparedReview
+	preparation *closePreparationReadSet
 }
 
 // Compatibility names for the boundary-specific tests/callers; shared capture
@@ -1697,6 +1703,11 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir 
 // optional canonical plan, so a mid-review content or presence change is a genuine
 // invalidation. Only the HEAD check was ever stricter than its own purpose.
 func (s closeReviewSnapshot) validate() (string, error) {
+	if s.preparation != nil {
+		if err := s.preparation.validate(); err != nil {
+			return "", err
+		}
+	}
 	if err := s.prepared.validateIdentityAndArtifacts(); err != nil {
 		return "", err
 	}
@@ -1791,11 +1802,13 @@ func formatAdoptLine(res actualResult) string {
 // across project detail blocks (the #178 reason milestones once refused).
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
 	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
+	f.Adoptions = res.Adoptions
 	v, ok := resolveOmittedActual(res)
 	if !ok {
 		return res, false
 	}
 	f.Actual, f.Split, f.Inputs = v, res.Split, res.Inputs
+	f.Adoptions = res.Adoptions
 	cinfo(stderr, formatAdoptLine(res))
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
@@ -1906,6 +1919,10 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // increment (#234 E1). Unavailable measurements never gate.
 func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string, brain ...string) error {
 	res := computeActualForCloseFn(ctx, issueStr, milestone, plans, brain...)
+	return checkMeasuredActualDeviation(stderr, issueStr, passed, res)
+}
+
+func checkMeasuredActualDeviation(stderr io.Writer, issueStr string, passed float64, res actualResult) error {
 	if res.Status != actualMeasured {
 		return nil // unavailable comparison does not establish a deviation
 	}

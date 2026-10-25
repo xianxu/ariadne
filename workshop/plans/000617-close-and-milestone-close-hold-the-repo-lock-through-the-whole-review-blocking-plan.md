@@ -106,3 +106,7 @@ The filed Spec described a lock held during review. Owner evidence instead locat
 ### 2026-10-24 — TL approval
 
 Ops:0 approved unlocked expensive preparation, fresh read-set validation before admission and writes, unlocked review, short authoritative writes under the lock, peer/branch side effects outside it, and adoption candidates captured at their original read and rechecked. New or changed adoptions stale; unrelated claims do not. Private barrier conformance and no new state/schema are confirmed. Proceed through change-code.
+
+### 2026-10-24 — Implementation naming and publication detail
+
+The invocation guard is `closePreparationReadSet` in closeprepare.go and is an IO integration, since its validate method gathers fresh authority. Pure comparisons reuse `comparePreparedReview`, `closeCardAuthority` and `compareAdoptionReadSet` rather than adding the conceptual `compareClosePreparation` name. Preparation shares one fresh tracker view for own-card and adoption comparison. Optional branch publication pins the finalized commit; its short local tracking-ref update reacquires the existing lock after network IO. These are implementations of the approved boundary, with no new durable state or measurement policy.

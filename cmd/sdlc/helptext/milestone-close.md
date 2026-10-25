@@ -91,9 +91,12 @@ WHAT IT DOES
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.
 
-The command prepares the close under the repository lock, releases it for
-review, then reacquires and validates the prepared state before any durable
-write. Repository/worktree/branch identity, issue/project/plan bytes and the
+The command captures initial authority under the repository lock, then runs
+expensive preparation (measurement included) unlocked. It freshly validates
+before review admission and before durable writes; review stays unlocked.
+New or changed numeric adoptions make measurement stale; unrelated claims do
+not. Optional peer and exact finalized issue-branch publication run outside
+the lock; a push warning preserves the milestone evidence. Repository/worktree/branch identity, issue/project/plan bytes and the
 boundary ledger must still match; the first round also protects its plan-ledger
 seed. A docs-only descendant remains allowed when those inputs are unchanged.
 This validation precedes every verdict, including REWORK and malformed output.
