@@ -42,7 +42,15 @@ diagnose against main only if a test actually fails. Report the load average at 
 
 ## Plan
 
-- [ ]
+Durable plan: [000630-shard-timeouts-incomplete-plan.md](../plans/000630-shard-timeouts-incomplete-plan.md) (TL decisions
+2026-10-25: a passing retry posts green; the retry covers the unfinished packages plus every package with a named
+failure).
+
+- [ ] M1 — classify, record, report, skip diagnosis: the shard runner's alarm marker, parsed process facts,
+  `classifyIncomplete` and `flakes.IncompleteTimeout`, the v5 attempt plus the separate load record, the typed
+  `suiteIncompleteError` (no main baseline, no train split), the guard and flake-view treatment.
+- [ ] M2 — the one retry: an incomplete parent is resumable with its own package selection; `runLocalCheck` retries
+  once through `resumeSaved`; a pass posts green, incomplete again stops, a real failure diagnoses as today.
 
 ## Log
 
