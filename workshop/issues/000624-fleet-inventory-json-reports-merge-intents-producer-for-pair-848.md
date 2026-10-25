@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "e57bf477", done: "dc5eb85e"}
 ---
 
 # fleet inventory --json reports merge intents (producer for pair#848)
