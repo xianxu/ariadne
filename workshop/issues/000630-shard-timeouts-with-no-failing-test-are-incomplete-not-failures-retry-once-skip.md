@@ -1,0 +1,40 @@
+---
+id: 000630
+status: open
+deps: []
+github_issue:
+created: 2026-10-25
+updated: 2026-10-25
+estimate_hours:
+card_mirror: '41c105df6be346dc8ca764ddb4bb0270d705594c' # card fields mirrored from issue-cards; edit via sdlc
+---
+
+# Shard timeouts with no failing test are 'incomplete', not failures: retry once, skip the main-baseline diagnosis
+
+## Problem
+
+## Spec
+
+**An all-shard timeout under load is treated as an unattributable failure and triggers a full main-baseline run
+(ariadne:5 on ariadne#616, 10-25).** #616's integrated merge suite (04:31–05:01) hit the 1800 s shard timeout on every
+shard while the machine's load average was 30–50; 764 `cmd/sdlc` tests never ran (the same suite took 19–20 min
+earlier). sdlc classified it as an unattributable failure and started a main-baseline diagnosis: another full ariadne
+suite (both machine slots), queued behind everything, holding ariadne's landing line for an hour or more, to diagnose
+a run that didn't fail any test.
+
+A run where shards time out without a failing test isn't evidence against the code or main. Classify it as
+"incomplete (timeout)", distinct from a failure: retry the same head's suite once (in its normal queue turn), and
+diagnose against main only if a test actually fails. Report the load average at the timeout in the outcome.
+
+## Done when
+
+- A suite whose shards time out with no failing test records "incomplete (timeout)" with the load at the time,
+  retries once, and runs no main-baseline diagnosis; a real test failure still diagnoses as now. Tests for both.
+
+## Plan
+
+- [ ]
+
+## Log
+
+### 2026-10-25
