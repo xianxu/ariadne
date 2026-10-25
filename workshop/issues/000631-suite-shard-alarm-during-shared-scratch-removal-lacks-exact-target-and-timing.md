@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "90e3e2cf", done: "79bd4978"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Suite shard alarm during shared scratch removal lacks exact target and timing evidence
@@ -87,6 +87,10 @@ persisted format. ARCH-MOCK: no external service; filesystem fixtures.
 
 ## Log
 
+
+
+- 2026-10-25: closed — Root cause measured (dead run folders holding read-only Go module caches that RemoveAll cannot remove, rescanned by ~270 test call sites per shard). New tests fail without removeTree and pass with it (TestSweepStaleTempRemovesReadOnlyTrees, TestPrepareScratchCleanupRemovesReadOnlyTrees); TestExcludedScratchRootIsNeverSwept, TestStaleTempReason, the protected-kept log assertion in TestRunnerArtifacts*, TestSweepStaleTemp*, TestPrepareScratch*, TestSuiteCapability*, TestLocalCheck*/TestPreClose*, pkg/golint and internal/scratchdisk pass. Pre-close suite green on 86c2c6fb in 24m13s (0 failed) where the two earlier merge suites timed out at 30 min on every shard.; review verdict: SHIP
+- 2026-10-25: flow upgraded quick → full — 105 added lines in code files (limit 100)
 2026-10-25: filed unclaimed on ops:0 instruction d2ab6974-89ff-4d6c-9a9d-1783efd0025b. Candidate Git head 5724aaba9338a40537db4841a9e11e762fc73bd8, attempt d27b2c86f3f1abbc6864ec1451e9738c, exact saved log SHA256 bdb8d31e93054c9ec57539e5917a86f1479f71b5441aaa203ff09c7190873462. Admitted 05:01:34 PDT; finished 05:31:40, wall1803.71s. Shard3 exit1 at1800.4s; 22 listed tests did not run. Other failures were the candidate's context guard and the independently owned #622/#625 train-barrier family.
 
 At05:30 host uptime reported load15.49/20.83/29.62 (1/5/15 minute averages). TestScratch was the admitted run's scratch facility. The stack shows sweep root length0x18 (24 bytes), matching /Volumes/TestScratch/tmp; neither this SysV test nor localRunRepo overrides WF_TEST_SCRATCH. This is the inferred shared TestScratch root, not an observed private fixture. Gap: the removed target's full path is NOT recoverable from the saved stack: it prints pointer+length0x38 (56 bytes), not string contents. Do not invent its basename. Temporary raw per-shard JSON was removed by scripts/test-shard.py's TemporaryDirectory; retained failed log contains this stack and attempt metadata. No cleanup, signals or retries against that root were performed for diagnosis.
