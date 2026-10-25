@@ -150,7 +150,7 @@ func TestAllLegacyQueueBlockersNameEveryAttempt(t *testing.T) {
 	var out bytes.Buffer
 	printActual(&out, res, "M2")
 	got := out.String()
-	if !strings.Contains(got, "aabb, ccdd") || !strings.Contains(got, "sdlc milestone-close --issue 428 --milestone M2 --no-actual") || strings.Contains(got, "ask the TL/hub to restore") {
+	if !strings.Contains(got, "aabb, ccdd") || !strings.Contains(got, "upper bound with no calibration weight") || strings.Contains(got, "--no-actual") || strings.Contains(got, "ask the TL/hub to restore") {
 		t.Fatalf("all-legacy refusal lost complete exclusion guidance: %s", got)
 	}
 }

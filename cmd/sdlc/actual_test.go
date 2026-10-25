@@ -92,6 +92,8 @@ func TestPrintActualWarnings(t *testing.T) {
 	}
 }
 
+// #603: legacy queue evidence no longer needs a --no-actual exclusion; close
+// records the actual as an upper bound with no calibration weight.
 func TestLegacyQueueActualRefusalNamesBoundarySpecificExclusion(t *testing.T) {
 	legacyWarning := "legacy suite attempt a1e58a0cc16a26a44f96927be6753621 lacks exact queue endpoints; queue idle is unknown and this sample is not calibration evidence"
 	legacy := actualErrorResult("428", &queueEvidenceError{Blockers: []string{legacyWarning}})
@@ -99,16 +101,16 @@ func TestLegacyQueueActualRefusalNamesBoundarySpecificExclusion(t *testing.T) {
 		name, want string
 		render     func(*bytes.Buffer)
 	}{
-		{"preview", "sdlc close --issue 428 --no-actual --verified", func(out *bytes.Buffer) { printActual(out, legacy, "") }},
-		{"milestone preview", "sdlc milestone-close --issue 428 --milestone M2 --no-actual --verified", func(out *bytes.Buffer) { printActual(out, legacy, "M2") }},
-		{"issue close", "sdlc close --issue 428 --no-actual --verified", func(out *bytes.Buffer) { explainActual(out, "428", "issue", "", legacy) }},
-		{"milestone close", "sdlc milestone-close --issue 428 --milestone M2 --no-actual --verified", func(out *bytes.Buffer) { explainActual(out, "428", "milestone", "M2", legacy) }},
+		{"preview", "upper bound with no calibration weight", func(out *bytes.Buffer) { printActual(out, legacy, "") }},
+		{"milestone preview", "upper bound with no calibration weight", func(out *bytes.Buffer) { printActual(out, legacy, "M2") }},
+		{"issue close", "upper bound with no calibration weight", func(out *bytes.Buffer) { explainActual(out, "428", "issue", "", legacy) }},
+		{"milestone close", "upper bound with no calibration weight", func(out *bytes.Buffer) { explainActual(out, "428", "milestone", "M2", legacy) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
 			tc.render(&out)
 			got := out.String()
-			if !strings.Contains(got, tc.want) || !strings.Contains(got, "a1e58a0cc16a26a44f96927be6753621") || !strings.Contains(got, "cannot be restored") || strings.Contains(got, "ask the TL/hub to restore") {
+			if !strings.Contains(got, tc.want) || !strings.Contains(got, "a1e58a0cc16a26a44f96927be6753621") || !strings.Contains(got, "cannot be restored") || strings.Contains(got, "ask the TL/hub to restore") || strings.Contains(got, "--no-actual") {
 				t.Fatalf("legacy refusal did not give the correct exclusion command:\n%s", got)
 			}
 		})

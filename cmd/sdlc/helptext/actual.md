@@ -52,17 +52,29 @@ BRANCH ATTRIBUTION IN TRACKER REPOSITORIES (#580)
   A sole live reservation can retain planning time with an ownership-only label.
   Terminal cards retain attribution identity but are not live reservations.
   Under concurrent reservations, witnessed resting or stage/* branches are
-  excluded and unassigned, with visible branch-window minutes. Unknown, detached
-  or ambiguous branch evidence refuses numeric measurement. Explicit close recovery:
-  --no-actual, with the missing evidence and reason in --verified. No retroactive owner or
-  handwritten hours. Unknown competing history prevents sole-claim fallback.
+  excluded and unassigned, with visible branch-window minutes. Activity under an
+  unknown, detached or ambiguous branch, and a source with no admitted root
+  lineage or a single historical owner, is recorded as UNATTRIBUTED and not
+  counted (#603): the result is partial, with the attributed share, and close
+  proceeds. A lineage cycle still refuses numeric measurement. No retroactive
+  owner or handwritten hours. Unknown competing history prevents sole-claim
+  fallback.
+
+  The unattributed records are audit evidence beside the counted windows, capped
+  at 32 with the minutes total kept whole; a reader that ignores them replays
+  exactly the adopted hours.
 
   New branch measurements retain version-4 evidence (#593), original dispatch
   windows and final selected source windows. Version 4 is version 3's evidence
   in a compact form: an attribution interval names its source by position and
   inherits its capture's branch, and the snapshot is bounded at 128 KiB rather
-  than 64 KiB, so the 128-source bound binds first. A snapshot still over its
-  bound refuses with its size, the bound and its source and interval counts.
+  than 64 KiB, so the 128-source bound binds first. The bounds are checked once,
+  after trimming to contributing sources (the branch proof checks shape only).
+  A snapshot still over them is retained as a version-5 summary (#603): the
+  hours stay exact, the summary keeps its size, its source count, a digest and
+  the credited intervals (at most 2048, neighbours coalesced, the coalesced gaps
+  kept) so a later overlapping issue still excludes them without a replay. Only
+  a replay of the summarised close itself is lost.
   Adopted version 3 snapshots replay unchanged. Older readers must refuse the
   new method or version rather than silently drop a crossing execution span.
   Existing adopted v1/v2 snapshots replay unchanged, even after live HEAD logs
@@ -84,11 +96,14 @@ OUTPUT
                             out / in an unsupported harness transcript shape).
                             Ask the TL/hub to restore the owning slot's transcripts,
                             then re-run sdlc actual --issue N.
-  - legacy suite attempt → exact queue endpoints were never recorded. The
-                            refusal names every legacy attempt and the matching
-                            close or milestone-close --no-actual command only
-                            when all blockers are legacy; include the reason
-                            with verification evidence.
+  - legacy suite attempt → exact queue endpoints were never recorded. Close
+                            records the attempt as unknown queue evidence: its
+                            wait is not subtracted, so the hours are an upper
+                            bound with no calibration weight (#603). The same
+                            holds for unknown queue or slot provenance and an
+                            unknown issue-head attribution; an attempt with
+                            endpoints shows how much the hours may overstate.
+                            A correction still refuses: it needs exact evidence.
   - malformed suite data → restore the named recoverable evidence and re-run.
   - unverified coverage → "N min in a retained train wait" describes overlapping
                             whole waiter invocations with verified car membership.

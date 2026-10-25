@@ -1,0 +1,125 @@
+---
+id: 000617
+status: done
+deps: []
+github_issue:
+created: 2026-10-24
+updated: 2026-10-25
+estimate_hours:
+card_mirror: '02f3721de3fb6d4c87ea02d7f44db5c77874d85f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T20:25:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.17
+---
+
+# close and milestone-close hold the repo lock through the whole review, blocking other slots' bookkeeping
+
+## Problem
+
+## Spec
+
+**`sdlc close` and `sdlc milestone-close` hold the repo's shared transaction lock for their whole run, including the
+boundary review, blocking every other slot's bookkeeping in that repo (TL observation, 10-24).** pair:5's
+`sdlc milestone-close --issue 859 --milestone M1` (pid 77562) held pair's repo lock for 25+ minutes while its review
+ran; meanwhile pair:4's `sdlc stage --clear` and other slots' doc-only pushes and issue publishes waited on it. The same
+happened earlier with pair#851 waiting on another close's lock. With 8 to 9 active slots per repo, one long review
+serializes everyone's bookkeeping.
+
+Fix: take the lock only around the short critical sections (reading and writing tracker or card state, publishing
+commits), not across the review dispatch and wait; revalidate state after the review before writing the verdict.
+
+## Done when
+
+- A close or milestone-close holds the repo lock only for its bookkeeping writes; a concurrent `stage --clear`,
+  `issue publish` or another close's bookkeeping proceeds while a review runs; tested with a slow fake review.
+- A state change during the review is detected at the post-review write (refuse or re-run), never overwritten.
+
+## Plan
+
+- [x] Implement the approved phased preparation/read-set/revalidation plan in workshop/plans/000617-close-and-milestone-close-hold-the-repo-lock-through-the-whole-review-blocking-plan.md.
+- [ ] Prove independent bookkeeping during preparation/review with private tracker worktrees, preserve stale/cancel refusal, and complete normal verification/landing.
+
+## Log
+
+### 2026-10-24
+- 2026-10-24: closed — BR-1: both verbs x new/changed adoptions x preparation/review refuse before writes; all8 normal69.858s/race69.002s. Removing propagation reproduces wrong finalization in all4 new-adoption schedules (RED46.096s), removing comparison reproduces both review failures (RED24.287s); mutations restored, no production diff. Catalog0.971s. New recorded pre-close suite queued; --no-plan-check acknowledges pending suite/landing process checkboxes only, with the final recorded pass required before landing. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 504 added lines in code files (limit 100); an earlier round of this close already ran the full review
+
+### 2026-10-24 — Diagnosis and proposed boundary
+
+Claimed and entered start-plan from main. Current source has manually scoped close locks since #166; targeted TestCloseCommandsReleaseLockDuringBoundaryReview plus TestReviewConcurrencySchedules passed94.650s. Pair:5 confirms #859 pid77562 spent17:00:50 to17:12:10 before its measured-actual line and reviewer dispatch, then completed M1 SHIP normally. The sample at17:06:47 and exact transcript establish preparation, not reviewer execution, as the observed hold. Pair:7 supplied exact #879 waiter lines but no holder stack/phase; no stronger attribution is claimed.
+
+Ops:0 approved the diagnosis/direction and asked for this plan. Ariadne:2 (#603) agreed on the seam: preserve measurement/confidence semantics and wrap preparation/revalidation; whichever lands second integrates. Their follow-up identifies the adoption candidate filter as the needed concurrency read-set: no existing write-time guard rejects another issue's newly adopted interval. The plan reuses that filter, captures at the original read, and validates with fresh records scope rather than a cached tracker snapshot. Durable plan written for TL approval; no production edits or change-code yet. One read-only test exploration agent returned existing coverage and the real executable/tracker/linked-worktree gap; it changed nothing.
+
+### 2026-10-24 — First implementation checkpoint
+
+change-code inferred quick from the current design; no flow pin or gate bypass was used. The final diff will leave the code shell and close must supply its full review. The preparation regression first failed correctly for BOTH verbs: computeActualForCloseFn ran with held=1 (2.427s). The new phased wrapper captures initial input authority, computes unlocked, validates fresh own-card and adopted-candidate authority at admission and again before writes, and retains the existing reviewer snapshot. Metadata comparison reuses one fresh card view per phase. Measurement confidence/algorithms remain owned by #603.
+
+Transient adoption read-set and existing parked/legacy exclusion controls passed43.015s, including a real private tracker with cached preparation records followed by an intervening numeric adoption. Core command regressions passed60.504s: measurement unlocked, stale issue/plan/HEAD refused before dispatch, and actual issue-branch pre-push hooks see the lock absent. Branch publication first reproduced locked for both verbs; its fixture needed an explicit private core.hooksPath, and later a destination-ref match because publication now pins a SHA. The exact finalized issue commit is deferred; peer publication and churn collection also leave the lock, while authoritative writes and the short local tracking-ref update stay serialized.
+
+Real executable/private tracker/linked-worktree conformance passed33.970s, package exit0: both verbs permit a sibling title setter during a real churn-read preparation barrier and a private reviewer barrier; finalization preserves the unrelated title and emits valid evidence. An earlier body-pass run was correctly REJECTED by TestMain because I edited docs while it ran; it is not passing evidence. There were no live locks or fleet processes manipulated. No targeted runner remains after that accepted repeat. One final pin regression and the existing concurrency/publication controls remain, followed by race/catalog checks, queued pre-close suite and close/PR/merge. Source/docs are checkpointed as implementation in progress, not codecomplete.
+
+## Revisions
+
+### 2026-10-24 — Observed hold was preparation, not reviewer execution
+
+Pair:5's retained owner output places #859's long shared lock hold before its measured-actual line and reviewer dispatch. Existing reviewer release/reacquire code and tests work. Preserve that path; fix expensive preparation under the lock, validate consumed local/card/adoption authority, and move warning-only post-close effects outside the authoritative section. Ops:0 approved this diagnosis/direction; detailed plan is pending approval. Ariadne:2 confirmed the #603 coordination seam and the currently missing write-time adoption check.
+
+### 2026-10-24 — TL approved implementation
+
+Receipt25803def-0436-4cbb-ad57-7223be72b210 approved the durable plan. Record the boundary before change-code. Pair:5 independently confirmed exact start/first-output times and normal SHIP completion; its sample hash matches the plan. No retained targeted/background runner remains; the pre-design concurrency test completed exit0.
+
+### 2026-10-24 — Consolidated publication boundary approved
+
+Ops:0 receipt d1246e0f-8e5c-4188-856f-be14df1d44bf approves one immutable publication record captured under the finalization lock: repository/transport, branch, finalized commit and expected remote tip. The unlocked push uses exactly that lease; changed remote authority refuses, and local tracking metadata updates with CAS under a short lock. No retry, persistent state or schema. This is the third design delta: a fourth cuts scope to retaining publication under the lock and moving measurement only.
+
+The newer-authority regression reproduced both failures (5.115s): the deferred push rewound a newer remote tip, and reading a changed tracking ref late refused the intended finalized commit. Existing concurrency/publication controls passed237.702s; fresh adoption checks used19 Git calls for both8 and16 candidates (3.264s). The focused measurement/stale/reviewer-lock race controls passed63.847s; that regex did not include the adoption/publication families, which still need a current race run. Implementation remains in progress.
+
+### 2026-10-24 — Publication boundary verified
+
+The consolidated immutable record now captures finalized SHA and remote lease under the lock, pushes to that captured transport, and updates tracking metadata with CAS under a short lock. The real-Git newer-remote and newer-tracking controls went green. The first combined run found only a legacy warning-text assertion regression; restoring that existing warning preserved the unrelated boundary contract. The corrected combined race run passed100.780s, covering adoption read-sets, unlocked measurement, stale preparation, reviewer unlock, finalized-head/transport/newer-authority publication and existing push controls. The complete tracked Go lint catalog passed1.138s; git diff --check is clean. No fourth mechanism delta appeared. Next: PR, recorded queued pre-close suite, mandatory close review, then central merge; no full suite or live staging has run yet.
+
+### 2026-10-24 — Recorded verification queued; review overlaps
+
+PR437 is open. The central pre-close command resolved to suite on044aa40f and retained lease-495839293, private checkout /Volumes/TestScratch/local-checks/sdlc-local-3742177344. It is normal FIFO, initially position10, behind the existing fleet work; no duplicate or cancellation. Mandatory close review may overlap the queued check under tl-worker's rule; the final recorded pass still gates landing. The precise --no-plan-check acknowledgment covers the remaining process checkboxes (recorded suite and landing), not unfinished implementation. Targeted/race/native evidence above is complete; no full-suite pass is claimed. Previous recovery screen was requested and reported unavailable; recovery relies on the committed Log, plan and Git evidence.
+
+### 2026-10-24 — BR-1 command wiring coverage
+
+Round1 was FIX-THEN-SHIP, Important BR-1 (authority-invalidation-command-coverage), with no Critical findings. Helper comparison and --no-actual executable conformance did not prove actualResult.Adoptions → closeFlags → preparation guard wiring. Added TestCloseCommandsRefuseChangedAdoptions: both close verbs, new/changed numeric adoption, preparation/review interleavings; each refuses before issue/card/evidence or sidecar/ledger mutation. Private tracker only, deterministic callback ordering, no timing threshold.
+
+The first run exposed a missing private plans directory (fixture setup, corrected). All8 schedules then passed69.858s. Removing only guard.adopted propagation made all4 new-adoption command/phase schedules wrongly finalize (RED46.096s); restoring it and removing only the adoption comparison made both review-time schedules wrongly finalize (RED24.287s). Both temporary source mutations were fully restored (closeprepare.go diff empty). Final all8 race run passed69.002s. This is the already-planned test coverage, not a fourth mechanism delta. The old queued044aa40f suite lacks these new tests and will be canceled by its exact owned lease before the updated head is queued.
+
+Ariadne:2 confirms #603 integration must carry closeFlags.Confidence with Actual/Split/Inputs; verify TestLegacyCloseRecordsEveryConfidence and TestTrackerCloseCarriesConfidenceTrailer after whichever landing integrates the other. Its current pre-close suite is running; no #603 integration is claimed yet.
+
+### 2026-10-24 — SHIP; retained current verification
+
+Round2 returned SHIP, disposed BR-1 and introduced no new findings; close exited0 and published codecomplete. Git confirms evidence10c4351a2b2005514b8d435639108268547ac0d9 and mirrorca4d68308a34965b89d80938bb9ff7cc64e2ba01. Measured actual1.17h was adopted by the central binary; no hours were typed or waived. PR437 CI is green (merge-check and local-gates guard).
+
+The updated recorded suite remains retained: terminal62218, run lease-3216410702, check suite on a48c52009784e47e2329184fb3a596a85f9331d1, checkout /Volumes/TestScratch/local-checks/sdlc-local-2876008657, raw log /Users/xianxu/workspace/ariadne/.git/sdlc/test-stats/inflight/b08e705708fd3cd51853ca7db034b9f2/run.log. It is queued normal FIFO, last observed position9. Terminal21173 close has exited0; the obsolete044aa40f suite was canceled through its owned exact lease and terminal33842 exited. No merge runner exists yet. Next: retain62218 to its result, satisfy any actual failure under the flake policy, then central sdlc merge --yes (no duplicate suite, no staging). Integrate #603 if it lands first and carry Confidence with the existing output fields, running its two named confidence controls and fixing any conflict through the normal review gate.
+
+### 2026-10-24 — Recorded suite passed; entering merge
+
+Retained terminal62218 completed exit0. The suite acquired both slots after3544s and passed all2504 cmd/sdlc tests plus79 other packages, zero failures/reruns, wall1068.2s (17m48s). Recorded sdlc-local/suite on a48c52009784e47e2329184fb3a596a85f9331d1; saved log /Users/xianxu/workspace/ariadne/.git/sdlc/local-checks/a48c52009784e47e2329184fb3a596a85f9331d1/suite.log, returned hash prefix eb9897979ba2. SysV observation was observed with owner-before0/after0. No suite runner remains. Close round2 is SHIP and current source is unchanged; only this evidence note follows. Enter central sdlc merge --yes, retaining its landing turn and any required integrated verification. The remaining plan checkbox includes landing/reporting and is intentionally not claimed complete before those effects.
+
+### 2026-10-25 — Hub hold on red main (#620)
+
+Authenticated ops:0 receipt0e9e3131-8a5a-45ab-a058-ceaf36c9165a directs: hold #617 merge until #620 lands; ariadne:2 fixes persistent main TestKnownFlakeGate BR-16 under a grant, then #603 lands, then #617. Peer receipt e66fc928-a110-41ab-b091-dc6f1ff453d7 reports #603 refused after that registered test failed twice on its candidate and also on main. No failure is attributed to #617: its recorded branch suite passed2504 tests/79 other packages with zero failures.
+
+Retained merge terminal49333 (own pid16074) is still queued, not running a suite. Fresh landing status confirms no active landing and normal admissions held by #620's grant until04:28:24-07:00; #617 is the one normal waiter. Preserve it; no duplicate merge, cancellation, suite, code edit or live staging. Current source remains the reviewed pre-#603 code. Next independent action is blocked until #620 lands; follow the resulting landing line.
+
+Composition clarification with ariadne:2 (authenticated receipt086a722c-840f-4ee6-b512-b2914ef96c76): #603's unmeasured close adopts nothing. On integration, use its existing unmeasured() authority so an unused/unavailable Adoptions read-set cannot block that outcome. Cover this through both close commands, plus TestLegacyCloseRecordsEveryConfidence and TestTrackerCloseCarriesConfidenceTrailer. No such integration or correction has been made yet; #603 is not landed. Watch the retained merge's HEAD at admission, handle any conflict through normal gates, and prevent landing of the identified unmeasured composition defect. This is preservation of the approved #603 measurement seam, not a fourth publication-mechanism delta.
+
+Previous recovery screen was unavailable; committed issue/plan/Git and retained runner evidence supplied continuity. Pair:4 offered another read-only live pre-review hold in #858, matching the established root; no additional sampling or process changes were needed.
+
+### 2026-10-25 — Integrated suite and recorded flake resume
+
+The retained merge integrated main including #620 at cdd00f6294a1b87f8d8a94548eabcbd7d24f6755 and passed CI and instance conformance. Its full suite completed all2509 command tests and79 other packages in1267.4s; only TestLandingTrainSplitRefreshesRegisteredFlake failed (33.43s, its passing-prefix registration barrier). Attempt7b97ba46047872efe0d2553087669993 and hashed failed log remain saved. The same test passed alone28.291s on that exact unchanged head with a clean tree; filed unclaimed #625 and registered that fail/pass evidence under the standing flake rule. The fixture's fixed30s barrier is related to #622; no production or test code was changed here.
+
+Stopped only the still-queued diagnostic main baseline through owned lease-3292853097; merge terminal49333 exited, without claiming main failed. Recorded local-check resume linked child07efc37fab19f40b2b822fc7e307909e to the original attempt on the same head. After1626s FIFO wait, the exact-package/whole-test rerun passed28.41s (package28.909s), terminal78069 exit0, and SDLC posted the linked passing suite proof naming #625. Original evidence is unchanged; no full-suite retry or gate waiver. No check runner remains. Re-enter central merge now, per authenticated hub receipt5dfc9e9a-566b-422b-b8d3-3d099800fe58; #603 follows this landing and owns the documented unmeasured/confidence composition. Authenticated dispatch e9543a32-7d72-4df4-83a0-4c4ee9a25619 queues #624 after #617, plan before change-code.

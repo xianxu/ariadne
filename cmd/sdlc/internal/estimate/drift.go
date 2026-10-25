@@ -78,6 +78,8 @@ func latestTrustedActual(rows []LedgerRow) int {
 // (#234; legacy rows measured under the old rule never mix in). Both the sample
 // filter and the latest-row selection read it — a trailing row without one must
 // not become the "latest" and switch drift off.
+// A row needs MinRangeWeight to cast a drift vote (#603): a vote cannot be
+// weighted, and a mostly unattributed build would vote on noise.
 func calibratable(r LedgerRow) bool {
-	return r.WindowTrusted && r.Actual > 0 && !r.ExcludedFromCalibration() && r.HasSplit() && r.BuildHours > 0
+	return r.WindowTrusted && r.Actual > 0 && !r.ExcludedFromCalibration() && r.HasSplit() && r.BuildHours > 0 && r.CalibrationWeight() >= MinRangeWeight
 }

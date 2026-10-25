@@ -175,7 +175,10 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	// runs against the un-mutated tree; applyClose fires only after a finalizing
 	// verdict, so a REWORK/unexpected milestone review leaves nothing written.
 	r := computeClose(stderr, closeF)
+	return runPreparedMilestoneClose(stdout, stderr, f, closeF, r)
+}
 
+func runPreparedMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags, closeF *closeFlags, r closeResult) error {
 	// Step 2: figure out the review window (used regardless of whether the judge
 	// actually runs — the trailer always carries it). The base is the prior review
 	// boundary so inter-milestone #N-but-not-Mx commits are covered (#58); resolving
@@ -206,7 +209,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// evidence too (#197), after every write it records, but pin nothing — no
 		// review read anything.
 		finalizeMilestoneEvidence(stderr, closeF, r, skipped, false)
-		milestonePush(commandContext(f.Context), stderr)
+		milestonePush(closeF, stderr)
 		return nil
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
@@ -232,38 +235,35 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 
 func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	f.Context = cmd.Context()
-	if f.Milestone == "" || f.Issue <= 0 || f.NoJudge || f.Force || f.DryRun {
-		return withRequiredRepoTransactionLock(cmd, func() error {
-			return runMilestoneClose(stdout, stderr, f)
-		})
+	if f.Milestone == "" || f.Issue <= 0 {
+		return runMilestoneClose(stdout, stderr, f)
 	}
-
 	closeF := f.closeFlags()
-	var r closeResult
-	var base, baseLong, head, windowBase, prior string
-	var snapshot closeReviewSnapshot
-	var admission gatestate.Ledger
-	if err := withRequiredRepoTransactionLock(cmd, func() error {
-		r = computeClose(stderr, closeF)
-		issuePath, perr := issueFilePath(f.IssuesDir, f.Issue)
-		if perr != nil {
-			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
-		}
-		base, baseLong, head, windowBase = resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
-		captured, captureErr := captureCloseReviewSnapshot(r, head, f.Milestone, resolvePlansDir(f.PlansDir))
-		if captureErr != nil {
-			return captureErr
-		}
-		snapshot = captured
-		memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir)}
-		prior = boundaryPriorFindings(stderr, memoryParams)
-		var lerr error
-		admission, lerr = boundaryAdmissionLedger(memoryParams)
-		return lerr
-	}); err != nil {
+	closeF.effects = &closeEffects{lock: func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }}
+	defer func() { closeF.effects.finish(); closeF.effects = nil }()
+	r, snapshot, err := prepareCloseTransaction(cmd, stderr, closeF)
+	if err != nil {
 		return err
 	}
-
+	if f.NoJudge || f.Force || f.DryRun {
+		return withRequiredRepoTransactionLock(cmd, func() error {
+			if _, err := snapshot.validate(); err != nil {
+				return err
+			}
+			return runPreparedMilestoneClose(stdout, stderr, f, closeF, r)
+		})
+	}
+	issuePath, err := issueFilePath(f.IssuesDir, f.Issue)
+	if err != nil {
+		return err
+	}
+	base, baseLong, head, windowBase := resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
+	memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir)}
+	prior := boundaryPriorFindings(stderr, memoryParams)
+	admission, err := boundaryAdmissionLedger(memoryParams)
+	if err != nil {
+		return err
+	}
 	return reviewThenFinalizeLocked(cmd, stdout, stderr, closeF, r, boundaryReviewParams{
 		Label:           fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
 		Base:            base,
@@ -929,11 +929,10 @@ func (p boundaryReviewParams) recipe() judge.Category {
 	return p.Category
 }
 
-// milestonePush is milestone-close's boundary push (#286). The verb commits
-// nothing (the agent commits its trailers), so it pushes HEAD as it stands;
-// the trailer commit goes up at the next boundary. A legacy repository has no
-// tracker and no boundary pushes.
-func milestonePush(ctx context.Context, stderr io.Writer) {
+// milestonePush captures its exact branch/head inside finalization and
+// performs only the optional publication after releasing the repository lock.
+func milestonePush(f *closeFlags, stderr io.Writer) {
+	ctx := commandContext(f.Context)
 	if tracked, err := repositoryTracked(ctx, "."); err != nil || !tracked {
 		return
 	}
@@ -942,7 +941,7 @@ func milestonePush(ctx context.Context, stderr io.Writer) {
 		cwarn(stderr, fmt.Sprintf("milestone-close: the issue branch was not pushed: %v", err))
 		return
 	}
-	boundaryPush(env, stderr, "milestone-close")
+	pushCloseBranch(f, env, stderr, "milestone-close")
 }
 
 // boundaryReviewTimeout sizes the review's limit by the window's added lines

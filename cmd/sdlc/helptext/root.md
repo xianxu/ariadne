@@ -48,7 +48,12 @@ LOCAL REPO TRANSACTION LOCK
     available. `change-code`, `close`, and `milestone-close` release the lock
     while external reviewers run, then reacquire and validate their prepared
     repository, branch, artifacts and ledger before recording any result.
-    Stale or interrupted reviews refuse; rerun against the current state.
+    Close and milestone-close also run expensive preparation (measurement
+    included) unlocked, revalidating fresh input authority before admission
+    and writes; optional peer/issue-branch publication runs outside the lock.
+    New or changed numeric adoptions make the prepared measurement stale;
+    unrelated claims do not. Stale or interrupted reviews refuse; rerun
+    against the current state.
     `merge` holds it for short Git, landing and archive transactions, releasing
     it for publish replay, GitHub polling, CI waits and the local suite. It
     revalidates HEAD, worktree and main on reacquisition. `push` retains its

@@ -1670,6 +1670,15 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   rendering and saved-proof validation are pure. Check the concrete referents,
   not only table shape. Boundary review owns this prose parity check; wording
   presence tests would not establish semantic correctness.
+- #603 (three review rounds in one family, `writer-bound-matches-validator`): when
+  a writer emits records a strict validator later reads, derive the writer's
+  bound from the validator's predicate, never a parallel rule. The summary
+  writer coalesced credits to the limit but not its widened gaps; reasons were
+  cut by three rules (and one kept NUL) while Validate refused all three. Put the
+  predicate in one function both call (`persistedLine` / `BoundLine` /
+  `Normalised`), and pin it with a property test asserting
+  `Validate(normalise(x)) == nil` over adversarial input on every field, plus a
+  test at more than twice each count bound.
 
 - #598 M1 BR-1/BR-3: when a milestone's code departs from the durable plan
   (renamed entities, a field moved to a later milestone, a changed signature),
@@ -1699,3 +1708,6 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #616 PQ-1: decoding into a `yaml.Node` skips every decode-time check yaml.v3 runs for maps and structs, duplicate keys included (`uniqueKeys` never runs). A strict parser that walks Node trees owns each refusal itself, through one pair-yielding helper used at every mapping level. Never cite a library check for a decode path that does not run it; seed the fuzz corpus with each refusal at each level.
 - #616 fuzz: a strict, preserving codec (`jsonstrict.DecodeObject`) checks the type and nullness of the members that are present, not that required members are there. A record missing a required slice decodes to nil and re-encodes as `null`, which the same decoder then refuses. Validate required members after decoding, and keep a round-trip fuzz target (decode, encode, decode again) for every persisted record type.
+- #617 / pair#859: unlocked reviewer dispatch does not imply an unlocked slow checkpoint. Trace preparation and finalization separately: measurement/history scans belong outside the repository transaction lock, with consumed artifact/card/adoption authority revalidated before writes. Capture competing-adoption dependencies at their original read, never after calculation, and validate in a fresh records scope. Native linked-worktree barriers must prove independent bookkeeping during preparation and review; exact-head optional publication runs after unlocking.
+
+- #617 BR-1: authority-comparison helper tests do not prove command wiring. Exercise each command's capture → result → flags → validator path with changes both before admission and during review; require removal of propagation and validation to make the command regression fail before accepting the proof.

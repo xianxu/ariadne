@@ -37,6 +37,9 @@ type BranchNote struct {
 type BranchSelection struct {
 	Windows []ActivityWindow
 	Notes   []BranchNote
+	// Unknown is activity under concurrent claims whose branch is unknown,
+	// detached or ambiguous: seen, not counted, recorded by the caller (#603).
+	Unknown []ActivityWindow
 	steps   int
 }
 
@@ -76,7 +79,8 @@ func IsStagingBranch(branch string) bool {
 
 // SelectBranchActivity never widens prior source admission. Claims are
 // reservations; a witnessed branch wins among concurrent reservations. Unknown
-// branch history can retain sole-claim planning, but cannot choose two owners.
+// branch history can retain sole-claim planning, but cannot choose two owners:
+// such activity is returned in Unknown instead of counted (#603).
 // Sorting once and sweeping all edges avoids a scan of every claim per event.
 func SelectBranchActivity(issue string, windows []ActivityWindow, history []BranchInterval, claims []BranchClaim) (BranchSelection, error) {
 	var out BranchSelection
@@ -165,7 +169,12 @@ func SelectBranchActivity(issue string, windows []ActivityWindow, history []Bran
 			out.Notes = appendBranchNote(out.Notes, BranchNote{Start: at, End: end, Kind: "stage-excluded", Branch: branch})
 			continue
 		default:
-			return out, fmt.Errorf("concurrent claims have unknown, detached or ambiguous active branch during %s → %s", at.Format(time.RFC3339Nano), end.Format(time.RFC3339Nano))
+			if n := len(out.Unknown) - 1; n >= 0 && out.Unknown[n].End.Equal(at) {
+				out.Unknown[n].End = end
+			} else {
+				out.Unknown = append(out.Unknown, ActivityWindow{Start: at, End: end})
+			}
+			continue
 		}
 		part := windows[wi]
 		part.Start, part.End = at, end

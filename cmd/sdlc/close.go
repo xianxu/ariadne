@@ -62,11 +62,16 @@ type closeFlags struct {
 	// nil when --actual was typed, which the ledger records as split_source manual.
 	Split     *actualSplit
 	Inputs    *gatestate.MeasurementInputs
-	Verified  string
-	Force     bool
-	DryRun    bool
-	BrainDir  string
-	IssuesDir string
+	Adoptions *adoptionReadSet // transient dependencies of this measurement, never serialized
+	// Confidence is the measured actual's confidence (#603); nil when --actual
+	// was typed or measurement was skipped.
+	Confidence *actualConfidence
+	effects    *closeEffects
+	Verified   string
+	Force      bool
+	DryRun     bool
+	BrainDir   string
+	IssuesDir  string
 	// PlansDir holds durable plans and the gate sidecars beside them. Added in #187 as a
 	// FIELD rather than a third inline envOr: the boundary review already resolved it twice
 	// inline, and the cost report needs it a third time to find the plan-gate ledger
@@ -281,8 +286,9 @@ func printSemanticWarmup(w io.Writer) {
 		"             sdlc measures it — omit --actual and close ADOPTS the measured",
 		"             value (#178), or run `sdlc actual --issue N` to preview.",
 		"             (method: 42shots/velocity/baseline-v3.md)",
-		"             Pass --no-actual (or --force) only if there's genuinely nothing",
-		"             to measure; close records actual_hours: N/A and skips calibration.",
+		"             Measurement never blocks the close (#603): it records exact,",
+		"             partial or unmeasured. Pass --no-actual (or --force) only if",
+		"             there's genuinely nothing to measure; close records N/A.",
 		"",
 		fmt.Sprintf("  %sVERIFIED%s = one-line evidence of behavior matching done-when.", ansiCyan, ansiReset),
 		"             'tests pass' beats 'code written'. See AGENTS.md §5.",
@@ -434,6 +440,7 @@ type closeResult struct {
 // memory, returning a closeResult — it writes NOTHING. Gate failures still die() /
 // exitWithCode(1) fast, before any review (#139: extracted from runClose).
 func computeClose(stderr io.Writer, f *closeFlags) closeResult {
+	f.Adoptions = nil
 	printSemanticWarmup(stderr)
 	var applied []string
 
@@ -449,15 +456,12 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// GUESSED hours; a value sdlc measured itself can't be a guess, so the old
 	// compute-then-ask refusal ("→ close with: --actual N", copied verbatim
 	// ~45/48 times — the spine's second-largest refusal volume, #172) is now an
-	// adoption with a loud info line. Unmeasurable statuses keep the refusal.
+	// adoption with a loud info line. #603: an unmeasurable status no longer
+	// refuses either; close records it as unmeasured and proceeds.
 	adopted := false
 	if f.Actual == "" && !f.skip("actual") {
-		if res, ok := adoptOmittedActual(stderr, f, issueStr, mode); ok {
-			adopted = true
-		} else {
-			explainActual(stderr, issueStr, mode, f.Milestone, res)
-			exitWithCode(1)
-		}
+		adoptOmittedActual(stderr, f, issueStr, mode)
+		adopted = f.Actual != ""
 	}
 
 	if f.Actual != "" {
@@ -473,15 +477,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone, f.plansDir(), f.BrainDir); derr != nil {
+			measured := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
+			f.Adoptions = measured.Adoptions
+			if derr := checkMeasuredActualDeviation(stderr, issueStr, v, measured); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
 	}
 
-	if f.Actual == "" {
-		// Reachable only via --no-actual/--force (the omit-path above either
-		// adopted or exited): genuinely nothing to measure.
+	if f.Actual == "" && !f.unmeasured() {
+		// Reachable only via --no-actual/--force (the omit-path above adopted
+		// or recorded unmeasured): genuinely nothing to measure.
 		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
 	}
 	if f.FixedThenShip || f.FullSuite != "" {
@@ -796,14 +802,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			newFM = issue.SetField(newFM, "status", "codecomplete")
 			if f.Actual != "" {
 				newFM = issue.SetField(newFM, "actual_hours", f.Actual)
-			} else if f.skip("actual") {
+			} else if f.skip("actual") || f.unmeasured() {
 				newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
+			}
+			if f.Confidence != nil {
+				newFM = issue.SetField(newFM, "actual_confidence", f.Confidence.Token())
 			}
 			newFM = issue.SetField(newFM, "updated", today)
 			msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
 			if f.Actual != "" {
 				msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
-			} else if f.skip("actual") {
+			} else if f.skip("actual") || f.unmeasured() {
 				msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
 			}
 			applied = append(applied, msg)
@@ -1005,11 +1014,13 @@ func applyClose(stdout, stderr io.Writer, f *closeFlags, res closeResult) {
 			continue
 		}
 		label := filepath.Base(e.repoDir) + "/" + filepath.Base(e.path)
-		if err := publishPeerProject(ctx, e, res.repoName+"#"+res.issueStr); err != nil {
-			cwarn(stderr, fmt.Sprintf("project %s NOT updated on its origin: %v\n      the peer checkout was left untouched; the TL or owner applies the tick there", label, err))
-			continue
-		}
-		cok(stderr, fmt.Sprintf("published %s's close-time update to %s's origin main", label, filepath.Base(e.repoDir)))
+		afterClose(f, func() {
+			if err := publishPeerProject(ctx, e, res.repoName+"#"+res.issueStr); err != nil {
+				cwarn(stderr, fmt.Sprintf("project %s NOT updated on its origin: %v\n      the peer checkout was left untouched; the TL or owner applies the tick there", label, err))
+				return
+			}
+			cok(stderr, fmt.Sprintf("published %s's close-time update to %s's origin main", label, filepath.Base(e.repoDir)))
+		})
 	}
 
 	// ── The cost report (#187 D1–D3) ─────────────────────────────────────────
@@ -1153,6 +1164,10 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 	if f.Split != nil {
 		row.BuildHours, row.ConvergeHours = f.Split.Build, f.Split.Converge
 	}
+	if f.Confidence != nil {
+		// #603: calibration weights the row by how much of it was attributed.
+		row.Confidence, row.AttributedShare = string(f.Confidence.Level), f.Confidence.Share()
+	}
 
 	if err := withActualCalibrationLock(commandContext(f.Context), stderr, ledgerPath, func() error {
 		existing, rerr := os.ReadFile(ledgerPath)
@@ -1258,7 +1273,10 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	// boundary review runs against the un-mutated working tree, and applyClose
 	// fires only after a finalizing verdict.
 	r := computeClose(stderr, f)
+	return runPreparedCloseWithReview(stdout, stderr, f, r)
+}
 
+func runPreparedCloseWithReview(stdout, stderr io.Writer, f *closeFlags, r closeResult) error {
 	base, baseLong, head, windowBase := closeReviewAnchors(f, r)
 	switch {
 	case f.skip("judge"):
@@ -1332,34 +1350,30 @@ func closeRecipe(f *closeFlags, r closeResult) judge.Category {
 
 func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags) error {
 	f.Context = cmd.Context()
-	if f.Milestone != "" || f.skip("judge") || f.DryRun {
-		return withRequiredRepoTransactionLock(cmd, func() error {
-			return runCloseWithReview(stdout, stderr, f)
-		})
+	f.effects = &closeEffects{lock: func(run func() error) error { return withRequiredRepoTransactionLock(cmd, run) }}
+	defer func() { f.effects.finish(); f.effects = nil }()
+	if f.Milestone != "" || f.Issue <= 0 {
+		return runCloseWithReview(stdout, stderr, f)
 	}
-
-	var r closeResult
-	var base, baseLong, head, windowBase string
-	var snapshot closeReviewSnapshot
-	var prior string
-	var admission gatestate.Ledger
-	if err := withRequiredRepoTransactionLock(cmd, func() error {
-		r = computeClose(stderr, f)
-		base, baseLong, head, windowBase = closeReviewAnchors(f, r)
-		captured, captureErr := captureCloseReviewSnapshot(r, head, "", f.plansDir())
-		if captureErr != nil {
-			return captureErr
-		}
-		snapshot = captured
-		memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, PlansDir: f.plansDir()}
-		prior = boundaryPriorFindings(stderr, memoryParams)
-		var lerr error
-		admission, lerr = boundaryAdmissionLedger(memoryParams)
-		return lerr
-	}); err != nil {
+	r, snapshot, err := prepareCloseTransaction(cmd, stderr, f)
+	if err != nil {
 		return err
 	}
-
+	if f.skip("judge") || f.DryRun {
+		return withRequiredRepoTransactionLock(cmd, func() error {
+			if _, err := snapshot.validate(); err != nil {
+				return err
+			}
+			return runPreparedCloseWithReview(stdout, stderr, f, r)
+		})
+	}
+	base, baseLong, head, windowBase := closeReviewAnchors(f, r)
+	memoryParams := boundaryReviewParams{IssuesDir: f.IssuesDir, IssueNum: f.Issue, PlansDir: f.plansDir()}
+	prior := boundaryPriorFindings(stderr, memoryParams)
+	admission, err := boundaryAdmissionLedger(memoryParams)
+	if err != nil {
+		return err
+	}
 	return reviewThenFinalizeLocked(cmd, stdout, stderr, f, r, boundaryReviewParams{
 		Label:           "#" + strconv.Itoa(f.Issue),
 		Base:            base,
@@ -1602,7 +1616,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			// #304/#197: the evidence commit and its pin come BEFORE the push, so
 			// the pushed tip carries the binary's own Review-Verdict commit.
 			finalizeMilestoneEvidence(stderr, f, r, review, true)
-			milestonePush(commandContext(f.Context), stderr)
+			milestonePush(f, stderr)
 		} else if w := pinReviewed(fmt.Sprintf("%06d", f.Issue), "", review.Head); w != "" {
 			cwarn(stderr, w) // legacy whole-issue close: the agent commits; pin the reviewed head
 		}
@@ -1634,9 +1648,10 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 // finalization can tell whether that state still holds when the review returns ~20
 // minutes later.
 type closeReviewSnapshot struct {
-	reviewed  string
-	milestone string
-	prepared  preparedReview
+	reviewed    string
+	milestone   string
+	prepared    preparedReview
+	preparation *closePreparationReadSet
 }
 
 // Compatibility names for the boundary-specific tests/callers; shared capture
@@ -1697,6 +1712,11 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir 
 // optional canonical plan, so a mid-review content or presence change is a genuine
 // invalidation. Only the HEAD check was ever stricter than its own purpose.
 func (s closeReviewSnapshot) validate() (string, error) {
+	if s.preparation != nil {
+		if err := s.preparation.validate(); err != nil {
+			return "", err
+		}
+	}
 	if err := s.prepared.validateIdentityAndArtifacts(); err != nil {
 		return "", err
 	}
@@ -1780,62 +1800,53 @@ func formatAdoptLine(res actualResult) string {
 	return line + ")"
 }
 
-// adoptOmittedActual is the omit-path wiring (#178): measure once via the seam,
-// adopt into f.Actual on success (deviation check is then skipped — it would
-// compare the measurement with itself), print the info line. On unmeasurable
-// statuses it returns ok=false with NO side effects — the caller explains
-// (reusing the same measurement) and exits.
+// adoptOmittedActual is the omit-path wiring (#178): measure once via the seam
+// and adopt the outcome, whatever it is (#603). A measured value goes into
+// f.Actual with its confidence; an unmeasurable one leaves f.Actual empty and
+// records confidence unmeasured, so close writes N/A and proceeds instead of
+// refusing. Either way the deviation check is skipped: it would compare the
+// measurement with itself.
 //
 // A milestone close adopts its own increment (#234 E1): the measurement keeps
 // only that milestone's phases, so per-milestone values never double-count
 // across project detail blocks (the #178 reason milestones once refused).
+// ok reports whether a number was adopted.
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
 	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir(), f.BrainDir)
+	c := classifyActual(res)
+	f.Confidence = &c
+	f.Adoptions = res.Adoptions
 	v, ok := resolveOmittedActual(res)
 	if !ok {
+		explainActual(stderr, issueStr, mode, f.Milestone, res)
 		return res, false
 	}
 	f.Actual, f.Split, f.Inputs = v, res.Split, res.Inputs
 	cinfo(stderr, formatAdoptLine(res))
+	if c.Level == confidenceExact {
+		cinfo(stderr, "measured actual confidence: exact")
+	} else {
+		cwarn(stderr, "measured actual confidence: "+c.String())
+	}
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
 	}
 	return res, true
 }
 
-// explainActual is now the UNMEASURABLE explainer (#178): the omit-path adopts
-// a successful measurement, so this renders only when the engine couldn't
-// produce a number — res (already computed by the caller) says what evidence
-// needs recovery. Hours must not be invented to get past this refusal.
+// unmeasured reports a close whose measurement produced no number (#603).
+func (f *closeFlags) unmeasured() bool {
+	return f.Confidence != nil && f.Confidence.Level == confidenceUnmeasured
+}
+
+// explainActual tells the operator an unmeasurable close is proceeding without
+// hours (#603) and how to fill them in later. It renders the same diagnosis as
+// sdlc actual; hours must still never be invented.
 func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
-	var head []string
-	legacy := len(legacyQueueAttemptIDs(res.QueueBlockers)) > 0
-	excluded := res.Status == actualEmptyWindow && len(res.Exclusions) > 0
-	if res.Recovery != "" {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — record ownership below.%s", ansiRed, mode, ansiReset), "")
-	} else if legacy || excluded {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — use the documented exclusion below.%s", ansiRed, mode, ansiReset), "")
-	} else {
-		head = append(head, fmt.Sprintf("%sMeasured actual unavailable for %s close — recover the evidence below.%s", ansiRed, mode, ansiReset), "")
-	}
-	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
-	head = append(head, "             (a measured value is adopted automatically; you only land here", "             when the engine can't measure — the status below says why)", "")
-	fmt.Fprintln(stderr, strings.Join(head, "\n"))
-
-	// #68 M2: render the engine's diagnosis (telemetry gap / no window / error)
-	// with its next-action guidance. Same engine as `sdlc actual`; the caller
-	// already ran it — no re-measure.
+	c := classifyActual(res)
+	cwarn(stderr, fmt.Sprintf("measured actual unavailable for this %s close: recording actual_hours: %s, confidence %s", mode, issue.ActualNotApplicableSentinel, c))
 	printActual(stderr, res, milestone)
-	if legacy || excluded {
-		return
-	}
-
-	var tail []string
-	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	tail = append(tail, "    "+rerunCmd(issueStr, milestone, ""), "")
-	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
-	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
-	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
+	fmt.Fprintf(stderr, "  → close proceeds (#603) and the recorded actual stays N/A: an N/A actual is not corrected later. Restore the named evidence before the close if this one should count (preview: sdlc actual --issue %s).\n", issueStr)
 }
 
 // resolveActualRoots returns the repo top (cwd fallback) and the sibling brain
@@ -1906,6 +1917,10 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // increment (#234 E1). Unavailable measurements never gate.
 func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string, brain ...string) error {
 	res := computeActualForCloseFn(ctx, issueStr, milestone, plans, brain...)
+	return checkMeasuredActualDeviation(stderr, issueStr, passed, res)
+}
+
+func checkMeasuredActualDeviation(stderr io.Writer, issueStr string, passed float64, res actualResult) error {
 	if res.Status != actualMeasured {
 		return nil // unavailable comparison does not establish a deviation
 	}

@@ -13,7 +13,9 @@ WHAT IT DOES
      - updates the project file's task row + detail block (if any); a
        TL-owned project (`tl:` frontmatter, #326) is skipped, not edited
      - appends a verification log entry
-     - refuses without --actual / --verified (unless --force)
+     - refuses without --verified (unless --force); an omitted --actual is
+       measured and recorded with its confidence, and an unmeasurable one is
+       recorded as unmeasured instead of refusing (#603, see sdlc close --help)
      - refuses if atlas/ wasn't touched in the window (unless --force);
        auto-satisfied when the window has no code surface (#177)
      - upgrades a quick-flow issue to `flow: {kind: full, provenance:
@@ -91,9 +93,12 @@ WHAT IT DOES
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.
 
-The command prepares the close under the repository lock, releases it for
-review, then reacquires and validates the prepared state before any durable
-write. Repository/worktree/branch identity, issue/project/plan bytes and the
+The command captures initial authority under the repository lock, then runs
+expensive preparation (measurement included) unlocked. It freshly validates
+before review admission and before durable writes; review stays unlocked.
+New or changed numeric adoptions make measurement stale; unrelated claims do
+not. Optional peer and exact finalized issue-branch publication run outside
+the lock; a push warning preserves the milestone evidence. Repository/worktree/branch identity, issue/project/plan bytes and the
 boundary ledger must still match; the first round also protects its plan-ledger
 seed. A docs-only descendant remains allowed when those inputs are unchanged.
 This validation precedes every verdict, including REWORK and malformed output.
@@ -116,6 +121,9 @@ FLAGS
                         or run `sdlc actual --issue N --milestone Mx` to preview.
                         A passed value is sanity-checked against the measurement
                         (#87, inherited from close): ≥3× warns, ≥10× refuses.
+                        The adopted increment carries its confidence (exact,
+                        partial or unmeasured), limited to the milestone's own
+                        phases (#603).
   --verified '<line>'   one-line behavior evidence
   --force               bypass close's guards (record reason in --verified)
   --dry-run             plan only; skip both close mutation and judge dispatch

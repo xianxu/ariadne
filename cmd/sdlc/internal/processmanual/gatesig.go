@@ -82,6 +82,9 @@ var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
 	// paren+colon form; refusal = the exact per-gate tail (NOT the shared prefix —
 	// the printSemanticWarmup `only if there's genuinely nothing` must not match).
+	// no-actual's refusal has no live producer since #603 (measurement never
+	// refuses a close); the pattern stays so the friction miner still counts
+	// the refusals in transcripts written before it.
 	{Commands: closeMclose, Flag: "no-actual", Gate: "actual-hours required", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-actual \(or --force\): closing with actual_hours`,
 		RefusalPat: `Pass --no-actual \(or --force\) only when measurement is not applicable`},
