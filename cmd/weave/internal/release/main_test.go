@@ -61,23 +61,20 @@ func fixture(t *testing.T) (string, string, []string) {
 			return
 		}
 		for _, stage := range stages(output) {
-			deadline := time.Now().Add(testgate.HangCeiling)
-			for {
+			// nil: the producer is being killed on every poll; its lease
+			// release is the event.
+			await(t, nil, func() bool {
 				lease, err := staging.Exclusive(stage)
 				if err == nil {
 					lease.Close()
-					break
+					return true
 				}
 				if !errors.Is(err, staging.ErrInUse) {
-					break
+					return true
 				}
 				syscall.Kill(-pid, syscall.SIGKILL)
-				if time.Now().After(deadline) {
-					t.Error("producer lease survived test cleanup")
-					break
-				}
-				time.Sleep(10 * time.Millisecond)
-			}
+				return false
+			})
 		}
 	})
 	template, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "packaging", "homebrew", "Formula", "weave.rb"))

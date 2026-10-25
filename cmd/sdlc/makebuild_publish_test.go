@@ -159,11 +159,11 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	}
 	// make exits on the signal without waiting for its recipe shell, so the
 	// staging dir goes when that shell's EXIT trap runs, just after.
-	for end := time.Now().Add(testfix.HangCeiling); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
-		if ents, err := os.ReadDir(filepath.Join(repo, "bin")); err == nil && len(ents) == 1 {
-			break
-		}
-	}
+	// nil: make has exited; the recipe shell's EXIT trap is the only actor left.
+	testfix.AwaitCondition(t, "the interrupted build's staging dir went", func() bool {
+		ents, err := os.ReadDir(filepath.Join(repo, "bin"))
+		return err == nil && len(ents) == 1
+	}, nil)
 	noStaging(t, repo)
 }
 

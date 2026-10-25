@@ -244,11 +244,12 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 	type child struct {
 		cmd     *exec.Cmd
 		done    chan error
+		exited  chan error // the run's result, for testfix.AwaitCondition
 		pidFile string
 		out     *bytes.Buffer
 	}
 	start := func(root string) *child {
-		c := &child{done: make(chan error, 1), pidFile: filepath.Join(t.TempDir(), "check.pid"), out: &bytes.Buffer{}}
+		c := &child{done: make(chan error, 1), exited: make(chan error, 1), pidFile: filepath.Join(t.TempDir(), "check.pid"), out: &bytes.Buffer{}}
 		c.cmd = exec.Command(os.Args[0], "-test.run=^TestLocalCheckLeaseRunChild$")
 		processgroup.Configure(c.cmd)
 		c.cmd.Dir = root
@@ -259,7 +260,9 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 			t.Fatal(err)
 		}
 		go func() {
-			c.done <- c.cmd.Wait()
+			err := c.cmd.Wait()
+			c.exited <- err
+			c.done <- err
 			close(c.done)
 		}()
 		t.Cleanup(func() {
@@ -282,13 +285,9 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 		pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
 		return pid
 	}
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for len(leaseFiles(t, runs)) < 2 || checkPID(a) == 0 || checkPID(b) == 0 {
-		if time.Now().After(deadline) {
-			t.Fatalf("runs did not start:\nA: %s\nB: %s", a.out.String(), b.out.String())
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "both runs started", func() bool {
+		return len(leaseFiles(t, runs)) >= 2 && checkPID(a) != 0 && checkPID(b) != 0
+	}, []chan error{a.exited, b.exited})
 	checkA, checkB := checkPID(a), checkPID(b)
 
 	var out bytes.Buffer
