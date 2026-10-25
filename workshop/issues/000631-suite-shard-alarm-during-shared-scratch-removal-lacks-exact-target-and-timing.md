@@ -83,7 +83,7 @@ persisted format. ARCH-MOCK: no external service; filesystem fixtures.
 - [x] Sweep log lines (before: root, candidate, reason; after: duration, result; kept: protected).
 - [x] Drop the capability probe's sweep.
 - [x] `excludeScratchSweep` plus TestMain registration; a test that a registered root is never swept.
-- [ ] Targeted tests (testscratch, suitecapability, localcheck artifacts), then the recorded suite through the queue.
+- [x] Targeted tests (testscratch, suitecapability, localcheck artifacts), then the recorded suite through the queue.
 
 ## Log
 
@@ -136,3 +136,4 @@ created by testing.(*T).Run in goroutine 1
 	testing/testing.go:2260 +0x3b8
 ```
 - 2026-10-25: built. New tests fail on main (a dead run folder holding a read-only module cache survives both the sweep and the run's own Cleanup) and pass with removeTree. Targeted: TestSweepStaleTemp*, TestPrepareScratch*, TestSuiteCapability*, TestRunnerArtifacts*, TestRunUnderSlotUsesScratch, TestSweepStaleLocalWorktrees*, TestExcludedScratchRootIsNeverSwept, TestStaleTempReason, TestLocalCheck*/TestPreClose*/TestKnownFlakeGate, pkg/golint (incl. TestTrackedGoFilesPassTheCatalog), internal/scratchdisk: all ok.
+- 2026-10-25: pre-close suite green on 86c2c6fb in 24m13s wall (8 shards 1012-1451 s, 0 failed), against two merge suites that hit the 1800 s shard alarm on every shard earlier; the runner was still :0's binary, so the gain is the test-side exclusion alone. Producer of the read-only trees sent to pair:4 for pair887: pair cmd/internal/launcher TestMain sets HOME to a pair-launcher-* root and go defaults GOMODCACHE under it.
