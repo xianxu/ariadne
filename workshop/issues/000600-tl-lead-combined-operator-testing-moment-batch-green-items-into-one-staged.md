@@ -48,3 +48,11 @@ The procedure that worked (ops session side doc 2026-10-24-04 has the full write
 ## Log
 
 ### 2026-10-24
+
+## Log
+
+- 2026-10-24 (ops:0): requirement from a failed combined stage (pair:0 at 93a57a38 couldn't attach to the operator's
+  existing warm threads; the operator had to revert pair:0 by hand): before a combined stage reaches the operator, the
+  coordinator starts the staged build in a disposable fleet seeded with sessions created by the *current* main build,
+  and confirms warm attach and normal startup. Per-item tests never start a candidate against older sessions, which is
+  the operator's situation at every restart. Add this as a required step of the procedure and a check the verb runs.
