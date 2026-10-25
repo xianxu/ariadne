@@ -94,11 +94,12 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 	proof := resolveResumeProof(in)
 	state := proof.State
 	if state == ResumePassed {
-		rec, err = resolvedSavedRecord(in, tail, hostName())
+		var logOwner SuiteAttempt
+		rec, logOwner, err = resolvedSavedRecord(in, tail, hostName())
 		if err != nil {
 			return rec, err
 		}
-		rec.LogPath = suiteAttemptLogFile(store, in.Parent)
+		rec.LogPath = suiteAttemptLogFile(store, logOwner)
 		if err = resumeAdvance(&state, ResumeProofValidated, ResumeRepost); err != nil {
 			return rec, err
 		}

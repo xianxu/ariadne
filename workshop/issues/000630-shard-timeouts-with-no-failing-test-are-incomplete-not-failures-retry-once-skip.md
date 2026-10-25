@@ -105,3 +105,4 @@ failure).
   - Regression slices pass: Resume/KnownFlake/LocalCheck/Suite/Saved/Republish/TypedSuite/Flake;
     LandingTrain (572 s); Merge; Diagnose/PreClose/CIGate/Stats/Weekly/Recovery/Help/Queue/Decode;
     pkg/golint; internal/flakes; scripts/test-shard.test.py.
+- 2026-10-25: M2 closed (4781322d3, SHIP, window d81ab024..28d76cca, after integrating origin/main at 28d76ccae). Its Minor is fixed: resolvedSavedRecord returns the attempt whose log backs the record (the parent, or an incomplete parent's failed retry), so both callers set LogPath from it instead of inferring it from digest equality.

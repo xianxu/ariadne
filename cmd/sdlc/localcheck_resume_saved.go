@@ -114,7 +114,9 @@ func resumeLogTail(log string) []string {
 	}
 	return tail
 }
-func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (localRunRecord, error) {
+// The returned attempt is the one whose log backs the record: the parent, or an
+// incomplete parent's failed retry (#630).
+func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (localRunRecord, SuiteAttempt, error) {
 	proof := resolveResumeProof(in)
 	// #630: an incomplete parent's finished retry is a result either way. A
 	// failed retry is an ordinary failed run of the head (the guard then judges
@@ -122,15 +124,16 @@ func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (local
 	// every reader ignores, so a later run of the head is never blocked.
 	incomplete := proof.Selection != nil && in.Child != nil
 	if proof.State != ResumePassed && !(incomplete && proof.State == ResumeFailed) {
-		return localRunRecord{}, resumeSavedError(in, proof.Reason)
+		return localRunRecord{}, SuiteAttempt{}, resumeSavedError(in, proof.Reason)
 	}
-	a := in.Parent
+	a, logOwner := in.Parent, in.Parent
 	if incomplete {
 		a.Outcome = "" // the composite's outcome replaces the parent's below
 		if proof.State == ResumeFailed {
 			c := in.Child
 			a.Exit, a.TimedOut, a.WallSeconds, a.LogSHA256 = c.Exit, c.TimedOut, c.WallSeconds, c.LogSHA256
 			tail = resumeLogTail(in.ChildLog)
+			logOwner = *c
 		}
 	}
 	logSHA := in.ParentLogSHA256
@@ -139,7 +142,7 @@ func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (local
 	}
 	rec, err := savedAttemptRecord(a, logSHA, tail, a.Repo, a.SHA, a.Check, host)
 	if err != nil {
-		return rec, err
+		return rec, logOwner, err
 	}
 	rec.Outcome = proof.Outcome.Kind
 	rec.KnownFlakes = slices.Clone(proof.Outcome.Known)
@@ -151,7 +154,7 @@ func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (local
 	if in.Link != nil && in.Link.Selection != nil {
 		rec.Scope = affectedScope(affected.Selection{GoPkgs: in.Link.Selection.GoPkgs, Groups: in.Link.Selection.Groups})
 	}
-	return rec, nil
+	return rec, logOwner, nil
 }
 
 // resolvedResumeRecords validates every relevant parent, not just the newest
@@ -238,14 +241,11 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 		in.Policy = policy
 		in.Registry = reg
 		in.RegistryErr = regErr
-		rec, resolveErr := resolvedSavedRecord(in, tail, host)
+		rec, logOwner, resolveErr := resolvedSavedRecord(in, tail, host)
 		if resolveErr != nil {
 			return nil, resolveErr
 		}
-		rec.LogPath = suiteAttemptLogFile(store, in.Parent)
-		if in.Child != nil && rec.LogSHA256 == in.ChildLogSHA256 {
-			rec.LogPath = suiteAttemptLogFile(store, *in.Child) // an incomplete parent's failed retry (#630)
-		}
+		rec.LogPath = suiteAttemptLogFile(store, logOwner)
 		records[id] = rec
 	}
 	if hasTyped {
