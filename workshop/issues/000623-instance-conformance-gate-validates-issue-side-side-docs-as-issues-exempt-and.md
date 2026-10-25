@@ -46,7 +46,7 @@ archive step uses (one shared helper, not a second path rule).
 
 - [x] Approve [the shared side-folder design](../plans/000623-side-folder-rule-plan.md), then enter change-code.
 - [x] Implement shared ownership, typed conformance, ID-space exclusions and complete archive/recovery coverage with red-first tests.
-- [ ] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
+- [x] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
 - [ ] Complete required verification, close review and landing.
 
 ## Estimate
@@ -140,6 +140,13 @@ Parley owner delivery196fc20b-e5cc-4944-9e0a-8c3b343636e3 reports #445 still UNL
 Retained lease-1277475827 completed exit0 on634cecd1816203313d7d74e999d84cf158cab142 after3140s queue wait. All8 SDLC shards passed (2549tests), plus79other packages; wall1141.1s. SDLC recorded sdlc-local/suite on that exact head. Durable saved log: common Git dir sdlc/local-checks/634cecd1816203313d7d74e999d84cf158cab142/suite.log, printed sha256 prefixdb40690686b7. No flake rerun or new failure classification was needed. Retained terminal52908 is complete; no own check or review is queued/running, so do not launch another suite on unchanged code.
 
 TL deliveryd7463c81-bd6a-4b8d-bbb7-f2a81e0075b8 reports parley#445 remains unlanded and needs a new head/suite because its old unexplained failure refused; TL will send landing confirmation. #623's implementation and recorded verification are complete, but BR-3 remains an external close blocker. Next: on confirmed #445 landing, independently verify destination main-tree blob, active-path absence and archived relative linkage; record proof, then run the third close review with the simplified YAML admission and selected-blob regression. Public CI is released; after SHIP enter normal PR/merge gates. No additional implementation or test work is authorized/needed while that dependency is unresolved.
+
+
+### 2026-10-25 — parley repair LANDED and independently verified
+
+Owner delivery49d8ed02-b23f-4bc6-9ada-43e82d141248 and authenticated TL delivery9980f05b-6b6d-4163-b986-dd71ffe1f3fe confirm parley.nvim PR355 landed at71328abc6d9df6d2687bc537be0a18be7b81692c. Independently verified that commit is an ancestor of the peer's pinned origin/main cfe19d6e6f889b23e10b0391ace76b86d360d4d8. That main tree holds workshop/history/plans/000440-a-predicate-wait-doing-child-rpc-never-times-out-plan.side/upstream-neovim-draft.md as mode100644, blob019dc761539e225e0164bb94a882ef50545afbc6,2784bytes: identical to the pre-repair source. git ls-tree -r confirms the entire old workshop/plans/000440-...-plan.side tree is absent. The archived #440 issue contains ../plans/000440-a-predicate-wait-doing-child-rpc-never-times-out-plan.side/upstream-neovim-draft.md, which resolves exactly to the existing destination in that same immutable main tree. BR-3's landed proof is now complete; no peer files were changed by this worker.
+
+Implementation remains the suite-passing code634cecd1816203313d7d74e999d84cf158cab142; subsequent commits are Log-only. Next run third close review on the approved single-decoder policy and selected-blob IO correction, then normal landing gates on SHIP. The only unchecked issue Plan row is the closing/landing workflow itself.
 
 ## Revisions
 

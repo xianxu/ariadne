@@ -81,7 +81,7 @@ No new lock, cache, runtime journal or persisted field is introduced. Existing a
 - [x] Approve this design; run full-flow change-code before implementation. No estimate before plan-quality.
 - [x] Add red regressions for the three reported failures, implement the shared core and schema, then run targeted tests serially.
 - [x] Integrate the common owner inventory through all archive preparation/recovery/publication consumers, retaining negative controls; checkpoint.
-- [ ] Update atlas/README entry points and record a clean-binary private conformance run. Coordinate the parley.nvim owner-run leftover repair with the hub before any peer write.
+- [x] Update atlas/README entry points and record a clean-binary private conformance run. Coordinate the parley.nvim owner-run leftover repair with the hub before any peer write.
 - [ ] Report the concrete tested branch to ops:0. Current machine policy allows targeted runs only; do not queue a full pre-close check or launch merge until the hub authorizes that phase. Then complete the required recorded check, mandatory close review and landing.
 
 | Function | Adversarial strategy and independent mechanical guard |
