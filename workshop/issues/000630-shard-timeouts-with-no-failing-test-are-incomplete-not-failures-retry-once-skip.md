@@ -30,6 +30,7 @@ diagnose against main only if a test actually fails. Report the load average at 
 
 - A suite whose shards time out with no failing test records "incomplete (timeout)" with the load at the time,
   retries once, and runs no main-baseline diagnosis; a real test failure still diagnoses as now. Tests for both.
+- **The retry runs only the packages that didn't finish** (operator, 10-25): Go reports results per package and sdlc records which passed in the attempt, so the retry selects the unfinished packages through the affected-run machinery instead of rerunning the whole suite; test-level granularity is a non-goal. Test: a timed-out attempt with some packages passed retries only the rest.
 
 ## Plan
 
