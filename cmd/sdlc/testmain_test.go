@@ -16,6 +16,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/testgate"
 )
@@ -186,6 +187,10 @@ func TestMain(m *testing.M) {
 	weaveRefresh = func(context.Context, string, io.Writer) error {
 		return errors.New("test: weave refresh is not faked in this test")
 	}
+	// #631: tests never sweep the machine's shared temp roots (every shard
+	// rescanned them per test); a root a test makes is still swept.
+	_, sharedTemp, _ := scratchdisk.Roots("tmp", os.TempDir())
+	excludeScratchSweep(sharedTemp...)
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()
