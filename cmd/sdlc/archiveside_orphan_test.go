@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
 
 func TestLandingArchiveOrphanPlanSideFolders(t *testing.T) {
@@ -172,5 +173,42 @@ func TestAbandonOrphanPlanSideFolder(t *testing.T) {
 	r.git("fetch", "-q", "origin")
 	if got := r.git("show", "origin/main:"+archived); !strings.Contains(got, "second") {
 		t.Fatalf("successor orphan was not replaced: %q", got)
+	}
+}
+
+func TestSideArchiveInventoryLinearVisits(t *testing.T) {
+	for _, n := range []int{8, 16} {
+		var paths []string
+		for i := 0; i < n; i++ {
+			paths = append(paths, fmt.Sprintf("workshop/plans/000143-plan-%d.side/nested/evidence.json", i))
+		}
+		paths = append(paths, "workshop/plans/000144-other.side/unrelated.md")
+		visits := 0
+		index := indexSideMembers(paths, func(p string) (string, bool) {
+			visits++
+			return sidedoc.Owner(p)
+		})
+		if visits != len(paths) || len(index) != len(paths) {
+			t.Fatalf("N%d: visits%d indexed%d paths%d", n, visits, len(index), len(paths))
+		}
+		docs := sideArchiveDocsForIssue("workshop/issues/000143-owner.md", "workshop/history/issues/000143-owner.md", paths, "workshop/plans", "workshop/history")
+		if len(docs) != n+1 {
+			t.Fatalf("N%d: docs%d, want issue plus every orphan owner", n, len(docs))
+		}
+		current := landingArchiveSnapshot{}
+		for _, p := range paths {
+			current[p] = landingArchiveBlob{mode: "100644", content: []byte(p)}
+		}
+		moves := 0
+		err := planLandingSideMoves(current, docs, func(src, dst string, body []byte) error {
+			moves++
+			if strings.Contains(src, "000144-") || dst != strings.Replace(src, "workshop/plans/", "workshop/history/plans/", 1) || string(body) != src {
+				t.Fatalf("incorrect member move %s -> %s", src, dst)
+			}
+			return nil
+		})
+		if err != nil || moves != n {
+			t.Fatalf("N%d: moves%d error%v", n, moves, err)
+		}
 	}
 }

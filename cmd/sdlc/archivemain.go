@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"path/filepath"
-	"slices"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -186,23 +183,25 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
-		sideDocs := []sideArchiveDoc{{detailRel, archivedDetail}}
+		// Side ownership comes from the tree inventory, including orphan
+		// plan-side folders, independently of the plan document's presence.
+		paths := make([]string, 0, len(plans)+len(a.Plans)+len(a.Sides))
 		for _, p := range plans {
-			if planArtifactBelongsToIssue(base, path.Base(p.Path)) {
+			paths = append(paths, p.Path)
+			if path.Dir(p.Path) == a.Dirs.Plans && planArtifactBelongsToIssue(base, path.Base(p.Path)) {
 				dest := archiveDestination(a.Dirs.History, vocab.ArchivePlans, path.Base(p.Path))
 				w.Write[dest] = p.Content
 				w.Delete = append(w.Delete, p.Path)
-				if strings.HasSuffix(p.Path, ".md") {
-					sideDocs = append(sideDocs, sideArchiveDoc{p.Path, filepath.ToSlash(dest)})
-				}
 			}
 		}
 		for name := range a.Plans {
-			if strings.HasSuffix(name, ".md") && !slices.ContainsFunc(sideDocs, func(d sideArchiveDoc) bool { return path.Base(d.Src) == name }) {
-				sideDocs = append(sideDocs, sideArchiveDoc{path.Join(a.Dirs.Plans, name), filepath.ToSlash(archiveDestination(a.Dirs.History, vocab.ArchivePlans, name))})
-			}
+			paths = append(paths, path.Join(a.Dirs.Plans, name))
 		}
-		// #424: the issue's and its plans' side folders move with them.
+		for _, f := range a.Sides {
+			paths = append(paths, f.Path)
+		}
+		sideDocs := sideArchiveDocsForIssue(detailRel, archivedDetail, paths, a.Dirs.Plans, a.Dirs.History)
+		// #424/#623: every owned side folder moves, bytes unchanged.
 		if err := trunkSideArchive(view, sideDocs, &w, a.Sides); err != nil {
 			return gitx.TrunkWrite{}, err
 		}

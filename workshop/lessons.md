@@ -1715,3 +1715,11 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 - #631: a test fixture that builds hard-to-remove state (read-only or unreadable directories, immutable files) must remove it with code of its own, never the helper under test: the red check and a reviewer's revert check run that helper broken, and a fixture that cleans up through it strands its tree in shared scratch exactly then. Make the cleanup fail the test if the tree is still there.
 
 - #631: a fix for a race finding names the rule, not the call site. "No permission change during tree repair may follow a symlink at the final component" covered the path-based fallback the first fix left in place; a second round found it because the first answered only the line it was shown.
+
+- #623: distinguish side-folder ownership from issue identity and from the
+  broader residue inventory used to refuse unsafe archives. Discover canonical
+  owners from the path tree, even without the plan document, across preparation,
+  recovery, immutable publication and abandon/reopen. Keep the noncanonical
+  naming reader broad enough to reject old invalid families. Native Git/CUE
+  fixtures and counted owner-index visits defend this semantic class; a lexical
+  ban on paths would also reject valid attachments.

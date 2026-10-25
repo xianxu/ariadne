@@ -69,3 +69,37 @@ func TestTypedSideDocRefusalDoesNotDemandIssueSections(t *testing.T) {
 		})
 	}
 }
+
+func TestSideDocGateConfiguredRoots(t *testing.T) {
+	gates := nounGates("tickets", "designs")
+	for _, tc := range []struct{ path, noun string }{
+		{"tickets/000001-owner.side/nested/typed.md", "side-doc"},
+		{"designs/000001-owner-plan.side/typed.md", "side-doc"},
+		{"tickets/000001-owner.md", "issue"},
+		{"designs/000001-owner-plan.md", ""},
+		{"workshop/plans/000001-owner-plan.side/typed.md", ""},
+		{"designs/000001-owner-plan.side/evidence.json", ""},
+	} {
+		gate, ok := gateForPath(tc.path, gates)
+		if ok != (tc.noun != "") || (ok && gate.noun != tc.noun) {
+			t.Errorf("%s: noun%q ok%v; want%q", tc.path, gate.noun, ok, tc.noun)
+		}
+	}
+}
+
+func TestSideDocExplicitTypeSelection(t *testing.T) {
+	for _, tc := range []struct {
+		body  string
+		typed bool
+	}{
+		{"---\ntype: side-doc\nparent: owner.md\n---\n", true},
+		{"---\n\"type\": 123\n---\n", true},
+		{"---\nparent: owner.md\ntype: [invalid\n---\n", true},
+		{"---\nmetadata: {type: evidence}\n---\n", false},
+		{"# notes\ntype: side-doc\n", false},
+	} {
+		if got := hasSideDocType([]byte(tc.body)); got != tc.typed {
+			t.Errorf("selection for %q: got%v want%v", tc.body, got, tc.typed)
+		}
+	}
+}

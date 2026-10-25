@@ -45,7 +45,7 @@ archive step uses (one shared helper, not a second path rule).
 ## Plan
 
 - [x] Approve [the shared side-folder design](../plans/000623-side-folder-rule-plan.md), then enter change-code.
-- [ ] Implement shared ownership, typed conformance, ID-space exclusions and complete archive/recovery coverage with red-first tests.
+- [x] Implement shared ownership, typed conformance, ID-space exclusions and complete archive/recovery coverage with red-first tests.
 - [ ] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
 - [ ] Complete required verification, close review and landing.
 
@@ -89,6 +89,11 @@ First plan-quality round found no blocking issues. PQ-1 (Minor) identified the s
 ### 2026-10-25 — implementation checkpoint
 
 Change-code admitted the approved design. Shared Owner and ID exclusions pass their focused tests; the side-doc vocabulary and compound-noun selector pass native CUE tests. Root command regressions reproduced the gate misclassification and orphan-plan-side omissions in landing, filesystem archive, recovery and abandon. Gate dispatch and configured-plan-root wiring are written but not yet verified; archive production changes remain outstanding. No recorded check or merge is running. Next: verify gate changes, implement shared archive owner inventory across these paths, then run the command regressions serially with count1. TL dispatched the historical parley repair to parley.nvim:1; this branch makes no peer edits.
+
+
+### 2026-10-25 — targeted implementation verified
+
+Shared inventory now covers filesystem archive/recovery, immutable landing, trunk archive, kept abandon trees, reopen and successor replacement. New real-Git regressions first reproduced absent-plan omissions, then passed (38.208s), preserving exact blobs, selected membership and idempotent retry. Existing and new side-related command controls plus ordinary gate controls passed serially (297.200s): go test ./cmd/sdlc -run '^(Test.*Side.*|TestNounGatesDefaultIssueHomeComesFromVocabulary|TestValidateChangedInstancesDispatchesByNoun|TestValidateChangedIssues|TestIssueIDGateIgnoresSideDirectories)$' -count=1 -parallel=1 -timeout15m. Counted8/16-family indexing asserts one owner visit per path. Separate serial focused pkg/sidedoc, internal/issue and cmd/vocabulary tests passed (0.164s/0.175s/0.402s), including native CUE required types and additive metadata. Updated atlas and lessons; no full suite or PR has started. Next: clean paired vocabulary/sdlc build and private conformance, collect parley.nvim:1 repair evidence, then report to hub for recorded-check authorization. GitHub Actions outage is infrastructure; any later CI gate waits for authenticated recovery, without reruns or bypass.
 
 ## Revisions
 

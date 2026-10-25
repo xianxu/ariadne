@@ -390,6 +390,15 @@ Identity validation still applies before history is filtered.
 the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts and their side folders (#424). Retry verifies
 reachable provenance and the complete archived generation before cleanup.
+Side ownership (#623) is `pkg/sidedoc.Owner`: a canonical `.side` root or
+member belongs to its synthetic `.md` owner without requiring that document
+on disk. ID scans ignore these roots and members. Issue/plan side Markdown
+with an explicit frontmatter type uses `#SideDoc` conformance (literal
+`side-doc`, nonempty `parent`); untyped Markdown and non-Markdown evidence
+remain unmodeled attachments. Normal issue validation is unchanged. Archive,
+recovery and abandon/reopen derive plan-side trees from their inventories,
+so orphan trees move byte-for-byte without creating a plan document.
+Deploy the vocabulary and sdlc binaries together for the compound noun.
 The shared `validateArchiveSideNames` policy (#532) rejects active
 `<document>.md.side` bundles at close, pinned-head landing preflight (including
 train readiness), and immutable archive planning; rename to the canonical

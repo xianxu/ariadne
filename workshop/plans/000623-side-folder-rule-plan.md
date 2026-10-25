@@ -41,7 +41,8 @@ Parley#440's leftover is workshop/plans/000440-a-predicate-wait-doing-child-rpc-
 | sidedoc.Owner | pkg/sidedoc/tree.go | new; root/member to owning document path |
 | #SideDoc | construct/vocabulary/side-doc.cue | new; typed frontmatter schema, no lifecycle |
 | sideArchiveDocsForIssue | cmd/sdlc/archiveside.go | new; deduplicated issue/plan side-owner inventory |
-| gateForPath | cmd/sdlc/validategate.go | modified; side membership selects side-doc validation |
+| gateForPath; hasSideDocType | cmd/sdlc/validategate.go | modified/new; configured-root side membership and explicit type selection |
+| indexSideMembers | cmd/sdlc/landingarchive.go | new; one owner lookup per inventory path, counted at8/16 families |
 | PathsByID | cmd/sdlc/internal/issue/scaffold.go | modified; side roots/members confer no issue identity |
 
 Owner returns the document's synthetic .md path for a canonical .side root or any member beneath its first side root. It does not access disk or require the owner document to exist. An ordinary path and a similarly named .sidecar path are not members. Existing .md.side naming refusals remain explicit; never silently rename such trees. Issue identity is still the existing six-digit parser, not a new interpretation of the filename.
@@ -76,9 +77,9 @@ No new lock, cache, runtime journal or persisted field is introduced. Existing a
 
 ## Execution and function-level verification
 
-- [ ] Approve this design; run full-flow change-code before implementation. No estimate before plan-quality.
-- [ ] Add red regressions for the three reported failures, implement the shared core and schema, then run targeted tests serially.
-- [ ] Integrate the common owner inventory through all archive preparation/recovery/publication consumers, retaining negative controls; checkpoint.
+- [x] Approve this design; run full-flow change-code before implementation. No estimate before plan-quality.
+- [x] Add red regressions for the three reported failures, implement the shared core and schema, then run targeted tests serially.
+- [x] Integrate the common owner inventory through all archive preparation/recovery/publication consumers, retaining negative controls; checkpoint.
 - [ ] Update atlas/README entry points and record a clean-binary private conformance run. Coordinate the parley.nvim owner-run leftover repair with the hub before any peer write.
 - [ ] Report the concrete tested branch to ops:0. Current machine policy allows targeted runs only; do not queue a full pre-close check or launch merge until the hub authorizes that phase. Then complete the required recorded check, mandatory close review and landing.
 
@@ -86,9 +87,9 @@ No new lock, cache, runtime journal or persisted field is introduced. Existing a
 |---|---|
 | sidedoc.Owner | Root/member/nested and misleading path classes; pure owner/membership assertions, preserving existing Folder behavior |
 | titleCase; validateInstanceFile | Single/compound noun and malformed typed YAML; native CUE validation proves discriminator/required string checks and additive-field tolerance |
-| gateForPath; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
+| gateForPath; hasSideDocType; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
 | PathsByID; LocalPathsByID; refIDSpace | Nonrecursive directory entries and recursive side members; pure/local/native Git spaces show one issue identity and retain real duplicate detection |
-| sideArchiveDocsForIssue; planLandingSideMoves | Missing owner documents and many disjoint trees; independent expected owner/move inventory and counted N/2N path visits prevent repeated full-inventory scans |
+| sideArchiveDocsForIssue; indexSideMembers; planLandingSideMoves | Missing owner documents and many disjoint trees; independent expected owner/move inventory and counted N/2N path visits prevent repeated full-inventory scans |
 | issueArchiveDocs; recoverSideArchiveMoves | Interrupted orphan-tree moves and unrelated status entries; filesystem recovery verifies exact bytes and refuses duplicates/conflicts |
 | planLandingArchive; archiveLandingPR | Real-Git issue closure with absent/present plan document; archived member bytes, no active residue, unchanged other issue and confirmed idempotent retry |
 | archiveIssueOnMain; trunkSideReplace | Abandon/reopen and replacement episodes with orphan trees; native Git proves selected-tree preservation/deletion without moving another issue's content |
@@ -114,3 +115,7 @@ ARCH-DRY/PURE: one existing side-path owner, one CUE frontmatter authority and o
 ### 2026-10-25 — plan-quality advisory and tool rollout
 
 PQ-1 found the original state table's missing-type row contradicted the approved transition. Corrected the whole visible-state table to distinguish accepted untyped attachments from malformed typed documents. Deployment must rebuild vocabulary as well as sdlc: the new side-doc noun and compound-definition lookup are a paired capability, resolved through the normal supplying substrate. Do not deploy the new gate against an old vocabulary binary or stage :0 without hub approval. Native conformance builds both tools from the same clean source.
+
+### 2026-10-25 — implemented inventory and compatibility controls
+
+The archive inventory also feeds abandon's kept-tree selection and reopen, because discovery there otherwise discards orphan members before trunk publication. Replacement episodes index both old archived owners and kept owners, preserving removals as well as writes. Immutable landing indexes plan families once and applies one side-member index after collecting all selected owners. The existing broader landingSideRelated/Folder relation deliberately remains: it admits noncanonical paths into the proof/preflight inventory so the existing naming guard can refuse them. Owner decides canonical move membership, not whether contradictory residue may be ignored. Configured plan roots flow through every instance-gate caller; hasSideDocType selects only explicit top-level declarations and delegates validation to vocabulary/CUE.

@@ -439,7 +439,9 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 		}
 	}
 	for _, m := range moves {
-		if strings.HasSuffix(m.IssuePath, ".md") && !sidedoc.InSideDir(filepath.ToSlash(m.IssuePath)) {
+		if owner, ok := sidedoc.Owner(filepath.ToSlash(m.IssuePath)); ok {
+			removeEmptyDirs(sidedoc.SideDir(filepath.FromSlash(owner)))
+		} else if strings.HasSuffix(m.IssuePath, ".md") {
 			removeEmptyDirs(sidedoc.SideDir(m.IssuePath))
 		}
 	}
@@ -561,7 +563,7 @@ func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issue
 	if err != nil {
 		return nil, nil, err
 	}
-	sides, sideOther, err := recoverSideArchiveMoves(moves, sideEntries, gitSrcUntracked(pushRunner.Git))
+	sides, sideOther, err := recoverSideArchiveMoves(moves, sideEntries, issuesDir, plansDir, historyDir, gitSrcUntracked(pushRunner.Git))
 	if err != nil {
 		return nil, nil, err
 	}
