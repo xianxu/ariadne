@@ -209,3 +209,53 @@ func TestCoalesceCreditsWithinLimitIsMergeOnly(t *testing.T) {
 		}
 	}
 }
+
+// pair#866 (#603): under the source cap, over the version 4 byte bound on its
+// branch intervals. Its close refused "measurement snapshot is 182432 bytes,
+// over the version 4 bound of 131072 (119 sources, 1 branch records, 860
+// branch intervals)"; the bound is now a typed error a fresh measurement
+// summarises, while the shape stays valid.
+func TestMeasurementPair866ShapeIsTypedOversize(t *testing.T) {
+	m := windowShaped(119)
+	record := &m.Branches[0]
+	var intervals []MeasurementBranchInterval
+	for _, w := range record.Intervals {
+		if w.Kind != "branch" {
+			intervals = append(intervals, w)
+			continue
+		}
+		// Each source's branch span becomes six alternating slivers (seven
+		// intervals per source), and the first source takes the remainder, so
+		// the capture carries 860 intervals, as the long issue's did.
+		start, _ := time.Parse(time.RFC3339, w.Start)
+		end, _ := time.Parse(time.RFC3339, w.End)
+		parts := 6
+		if w.Source == record.Intervals[1].Source {
+			parts += 860 - 119*7
+		}
+		step := end.Sub(start) / time.Duration(parts)
+		for k := 0; k < parts; k++ {
+			a, b := start.Add(time.Duration(k)*step), start.Add(time.Duration(k+1)*step)
+			if k == parts-1 {
+				b = end
+			}
+			kind, branch := "branch", w.Branch
+			if k%2 == 1 {
+				kind, branch = "ownership-only", "main-slot2"
+			}
+			intervals = append(intervals, MeasurementBranchInterval{Source: w.Source, Start: a.Format("2006-01-02T15:04:05-07:00"), End: b.Format("2006-01-02T15:04:05-07:00"), Branch: branch, Kind: kind})
+		}
+	}
+	record.Intervals = intervals
+	if len(record.Intervals) != 860 {
+		t.Fatalf("fixture carries %d intervals, want 860", len(record.Intervals))
+	}
+	if err := m.ValidateShape(); err != nil {
+		t.Fatalf("pair#866's shape is invalid: %v", err)
+	}
+	var over *OversizeError
+	err := m.ValidateBounds()
+	if !errors.As(err, &over) || !strings.Contains(err.Error(), "over the version 4 bound of 131072 (119 sources, 1 branch records, 860 branch intervals)") {
+		t.Fatalf("bounds = %v, want pair#866's typed oversize", err)
+	}
+}
