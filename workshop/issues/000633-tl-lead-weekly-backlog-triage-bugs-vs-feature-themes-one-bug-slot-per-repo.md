@@ -58,3 +58,4 @@ Durable plan: [000633 plan](../plans/000633-tl-lead-weekly-backlog-triage-bugs-v
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: plan approved by the TL. kind is a card field with no heuristics; the TL back-fills the last 4 weeks of closed cards once after M1 lands; the unknown-key test runs first.

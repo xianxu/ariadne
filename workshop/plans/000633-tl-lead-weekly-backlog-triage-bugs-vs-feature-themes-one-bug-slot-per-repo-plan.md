@@ -140,3 +140,11 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
 - Automating the marks. The TL judges them and the operator approves.
 - Creating the project files. Proposing themes is the duty; making a project follows the operator's yes, with the project datatype.
 - Back-filling `kind` on the 629 existing cards. The first triage pass marks the open ones, and closed cards stay unclassified, which the stats report as such.
+
+## Revisions
+
+### 2026-10-25 — TL approval
+
+- `kind` is a card field (`bug` or `feature`), and the stats use no heuristics.
+- Back-fill, which replaces the non-goal above: after M1 lands, the TL marks the closed cards from the last 4 weeks once (the bug quota's window), so the first triage has a real quota and trend. Older cards stay unclassified. This work is the TL's, not this issue's.
+- The ARCH-EVOLVE unknown-key test stays M1's first step. If a setter drops unknown keys, the work stops and goes back to the TL.
