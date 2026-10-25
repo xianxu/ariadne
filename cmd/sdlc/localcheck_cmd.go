@@ -233,7 +233,7 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return err
 	}
 	pr := currentBranchPR(git, repo)
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+	d := localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: pr, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 	// #583: a pre-close or affected-only run first takes a saved, verified
 	// suite pass on this exact head (#431's republish, as merge does): it
 	// covers every selection, so nothing runs. A plain --name suite reruns.
@@ -304,7 +304,7 @@ func runLocalCheckRepublish(ctx context.Context, stderr io.Writer, f republishFl
 	if err != nil {
 		return err
 	}
-	d := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+	d := localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: repo, Root: root, Git: git, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 	logDir, err := localCheckLogDir(d)
 	if err != nil {
 		return err

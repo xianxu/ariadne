@@ -618,7 +618,7 @@ func runDurableMergeAttempt(stdout, stderr io.Writer, f *mergeFlags, t landingTa
 					return err
 				}
 			}
-			localDeps := localRunDeps{GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), PR: pr.Number, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
+			localDeps := localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: t.Repo, Root: t.Root, Git: landingGitCall, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), PR: pr.Number, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 			localRun := newLocalCheckRunner(localDeps)
 			if err = waitCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, localRun, f.NoCI, stderr, func(ioCtx context.Context) func(...string) (string, error) {
 				readRunner := withLandingGitContext(ioCtx, r)

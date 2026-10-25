@@ -116,7 +116,7 @@ func resumeCommandDeps(ctx context.Context, stderr io.Writer) (localRunDeps, err
 	if err != nil {
 		return localRunDeps{}, err
 	}
-	return localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}, nil
+	return localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: repo, Root: root, Git: git, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}, nil
 }
 func newLocalCheckReconcileCmd(authority landingDeps) *cobra.Command {
 	var parent, digest, note string
