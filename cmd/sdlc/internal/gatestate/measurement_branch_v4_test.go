@@ -165,8 +165,7 @@ func TestMeasurementOversizeCountedRefusal(t *testing.T) {
 	if err == nil || strings.Contains(err.Error(), "does not serialize") || !strings.Contains(err.Error(), "over the version 4 bound of 131072") || !strings.Contains(err.Error(), "128 sources, 1 branch records, 256 branch intervals") {
 		t.Fatalf("oversize refusal: %v", err)
 	}
-	// #603: the typed bound carries the size the encoder measured, a lower
-	// bound when it stopped at its structural cap, never a made-up 0.
+	// #603: the typed bound carries the size the encoder measured.
 	var over *OversizeError
 	if !errors.As(err, &over) || over.Bytes <= SnapshotLimitBytesV4 {
 		t.Fatalf("oversize carries %+v, want the measured size over the bound", over)
@@ -269,5 +268,11 @@ func TestMeasurementPastStructuralCapCountedRefusal(t *testing.T) {
 	err := m.Validate()
 	if err == nil || strings.Contains(err.Error(), "does not serialize") || !strings.Contains(err.Error(), "bytes, over the version 4 bound of 131072") || !strings.Contains(err.Error(), "at least ") || !strings.Contains(err.Error(), "4256 branch intervals") {
 		t.Fatalf("past the structural cap: %v", err)
+	}
+	// #603: past the structural cap the encoder stops, and the typed bound
+	// still carries the size it reached (a lower bound), never a made-up 0.
+	var over *OversizeError
+	if !errors.As(err, &over) || over.Bytes <= SnapshotLimitBytesV4 {
+		t.Fatalf("structural-cap oversize carries %+v, want the size the encoder reached", over)
 	}
 }
