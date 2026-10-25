@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func splitImpactFixture(t *testing.T) (string, string, func(map[string]string) string) {

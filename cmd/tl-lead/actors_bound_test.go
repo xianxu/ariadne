@@ -3,12 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestFleetResumeBoundedRecheck(t *testing.T) {

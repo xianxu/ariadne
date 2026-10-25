@@ -3,7 +3,6 @@ package fleet
 import (
 	"context"
 	"encoding/json"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // trackedRepo makes <fleet>/<name>: a migrated repository with a bare origin

@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func awaitLandingGitChild(t *testing.T, pidfile string) int {

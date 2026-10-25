@@ -3,12 +3,13 @@
 package testfix
 
 import (
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // A hung build is bounded even when a descendant holds the output pipe: the

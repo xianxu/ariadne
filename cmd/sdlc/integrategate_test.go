@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // integrateFixture is a working repository (cwd) with a bare origin, and a second

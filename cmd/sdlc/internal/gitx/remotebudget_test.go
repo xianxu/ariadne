@@ -3,10 +3,11 @@ package gitx
 import (
 	"context"
 	"errors"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // remoteCommand is a git command that contacts the remote.

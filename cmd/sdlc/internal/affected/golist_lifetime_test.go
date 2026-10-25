@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestGoListCancellationReclaimsDescendants(t *testing.T) {

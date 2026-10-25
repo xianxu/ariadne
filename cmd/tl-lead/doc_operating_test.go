@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/pkg/procgroup"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 type operatingFixture struct{ root, remote, target string }

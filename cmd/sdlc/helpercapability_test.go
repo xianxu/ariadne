@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestStaleSuiteHelperRefusesBeforeAcquisition(t *testing.T) {

@@ -60,13 +60,13 @@ The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pr
 
 ## Plan
 
-- [ ] M1 — rule, group A and #625
+- [x] M1 — rule, group A and #625
   - [ ] Rule: widened `tightWallclock`, `hangBound`, polled-deadline detection; rule tests including the pre-fix #620 BR-16 shape (`err != nil || time.Since(start) > 8*time.Second`) red and `HangCeiling` bounds green.
   - [ ] `wallclockPending`: the B/C/D files, so the repo lint test passes; group A files are not on it.
   - [ ] Group A edits, #625 first (fail fast when either landing ends before the barrier).
   - [ ] Proof: `pkg/golint` tests; per package touched, the changed tests with `-count=10`, one run at a time; #625's test also under `nice -n 19`.
   - [ ] Mutation: revert #625's fix to a 0.1 s deadline under `nice -n 19` → red; restored → green.
-- [ ] M2 — groups B, C, D and enforce
+- [x] M2 — groups B, C, D and enforce
   - [ ] Group B edits; group C allow or injected clock; group D event or allow.
   - [ ] Delete `wallclockPending`; the repo lint test passes with the rule enforcing.
   - [ ] Proof: per package `-count=10`, one at a time; mutation for one B site (break the kill) → hang-guard failure, not a timing failure.
@@ -106,3 +106,9 @@ The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pr
 - M1 advisory: `AwaitCondition` refuses an unbuffered or closed worker channel up front.
 - Remaining poll loops converted to `AwaitCondition` with explicit workers or a reasoned nil: `planningreview` ×2 (via `runPlanningCLI`), `localcheck_signal_unix` ×2, `reviewer_accounting_integration`, `localcheck_runid_unix` ×3 (nil: `assertRunIDChildAlive` fails each poll on exit), `localcheck_lease` (an `exited` channel beside the closed `done`), `makebuild_publish`'s post-exit wait, weave `generator_lifetime` ×2 and the `release` cleanup. Left as they are, since they are not test poll loops: tl-lead `doc_operating` (a timer guard that already selects on its workers), the judge helper subprocess's wait (no test there), and `repolock`'s deadline arguments to production code.
 - `wallclockPending` deleted; the rule enforces on every file.
+
+### 2026-10-25 — close review round 5
+
+- BR-12 (Important): atlas `sdlc-binary.md` documents `testgate.Returns` and its convention (the work the bound must stop outlasts `HangCeiling`), the up-front refusal of unbuffered or closed worker channels, and that a broken bound leaves its long child running past the failed test.
+- `duplicated-poll-loop` (Minor, 3rd in family), the rule's scope stated: `AwaitCondition` owns every poll bounded by `HangCeiling`. Deliberately left: `awaitDropCondition` and `mergeStageAwait`, whose budget is `landingCompletionBudget` (the remainder of the test's own deadline, not a wall-clock threshold, and `mergeStageAwait` dumps goroutine stacks on exhaustion); `testfix.AwaitPIDFile` and `testfix.AwaitExit`, which return a value to a caller that sets the ceiling rather than failing a test. The atlas says so.
+- Minor: `pkg/testgate` imports sit in the module group (15 files); the M1/M2 checkboxes are ticked.

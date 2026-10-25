@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/pkg/testgate"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 const suiteQueueFixture = `{"version":1,"available":true,"policy_seconds":3600,"protected_through":2,"priority_overridden":true,"tickets":[{"number":1,"position":1,"age_seconds":null,"protected":true,"granted":false,"priority_overridden":false,"reason":"protected_prefix","record":{"repo":"first","future":{"nested":true}}},{"number":2,"position":2,"age_seconds":3600,"protected":true,"granted":false,"priority_overridden":false,"reason":"aged_fifo","record":{"repo":"old"}},{"number":3,"position":3,"age_seconds":20,"protected":false,"granted":true,"priority_overridden":true,"reason":"grant_priority","record":{"repo":"granted"}}]}`
