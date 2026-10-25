@@ -50,8 +50,10 @@ func renderConvergeReport(w io.Writer, groups []estimate.ConvergeFactor) {
 		fmt.Fprintln(w, "no rows with a build/converge split yet (ariadne#234; historical backfill is ariadne#323)")
 		return
 	}
-	fmt.Fprintf(w, "%-6s %-22s %-36s %4s %8s %10s %6s\n", "flow", "model", "recipe", "n", "build h", "converge h", "k")
+	// #603: n counts weighted rows; partial says how many of them a partial
+	// attributed share weights, so the hours are weighted hours.
+	fmt.Fprintf(w, "%-6s %-22s %-36s %4s %7s %8s %10s %6s\n", "flow", "model", "recipe", "n", "partial", "build h", "converge h", "k")
 	for _, g := range groups {
-		fmt.Fprintf(w, "%-6s %-22s %-36s %4d %8.2f %10.2f %6.2f\n", estimate.Dash(g.Flow), estimate.Dash(g.Model), estimate.Dash(g.Recipe), g.N, g.Build, g.Converge, g.K())
+		fmt.Fprintf(w, "%-6s %-22s %-36s %4d %7d %8.2f %10.2f %6.2f\n", estimate.Dash(g.Flow), estimate.Dash(g.Model), estimate.Dash(g.Recipe), g.N, g.Partial, g.Build, g.Converge, g.K())
 	}
 }

@@ -1670,6 +1670,15 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   rendering and saved-proof validation are pure. Check the concrete referents,
   not only table shape. Boundary review owns this prose parity check; wording
   presence tests would not establish semantic correctness.
+- #603 (three review rounds in one family, `writer-bound-matches-validator`): when
+  a writer emits records a strict validator later reads, derive the writer's
+  bound from the validator's predicate, never a parallel rule. The summary
+  writer coalesced credits to the limit but not its widened gaps; reasons were
+  cut by three rules (and one kept NUL) while Validate refused all three. Put the
+  predicate in one function both call (`persistedLine` / `BoundLine` /
+  `Normalised`), and pin it with a property test asserting
+  `Validate(normalise(x)) == nil` over adversarial input on every field, plus a
+  test at more than twice each count bound.
 
 - #598 M1 BR-1/BR-3: when a milestone's code departs from the durable plan
   (renamed entities, a field moved to a later milestone, a changed signature),

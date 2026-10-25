@@ -14,6 +14,7 @@ import (
 // Prior is the class prior for an unestimated issue: the median estimate.
 type ForecastCalibration struct {
 	N                int
+	Partial          int // of N, rows weighted by a partial share (#603)
 	Point, Low, High float64
 	K                float64
 	Prior            float64
@@ -23,11 +24,19 @@ type ForecastCalibration struct {
 // MinRangeRows is the fewest eligible rows a percentile range is drawn from.
 const MinRangeRows = 3
 
+// MinRangeWeight is the least calibration weight a row needs to enter a
+// percentile range or cast a drift vote (#603): a mostly unattributed row
+// still counts in the weighted sums, but cannot widen the range on its own.
+const MinRangeWeight = 0.5
+
 // CalibrateForecast reads the ledger rows eligible for an est↔build↔converge
 // comparison: a measured split with positive build, a real estimate, not
 // excluded from calibration, newest row per issue (the ConvergeFactors
 // eligibility plus a usable estimate). A hand-edited negative estimate or
-// converge is not a data point: it would yield a negative multiplier. ok=false when no row qualifies.
+// converge is not a data point: it would yield a negative multiplier. Each row
+// counts by its CalibrationWeight (#603): the sums are weighted, a weight-0 row
+// is no data point, and only rows of at least MinRangeWeight enter the
+// percentiles. ok=false when no row qualifies.
 func CalibrateForecast(rows []LedgerRow) (ForecastCalibration, bool) {
 	var eligible []LedgerRow
 	for _, r := range rows {
@@ -36,20 +45,36 @@ func CalibrateForecast(rows []LedgerRow) (ForecastCalibration, bool) {
 		}
 	}
 	eligible = NewestPerIssue(eligible)
-	if len(eligible) == 0 {
+	var est, build, conv float64
+	var per, ests, weighted []float64
+	c := ForecastCalibration{}
+	for _, r := range eligible {
+		w := r.CalibrationWeight()
+		if w <= 0 {
+			continue
+		}
+		c.N++
+		if w < 1 {
+			c.Partial++
+		}
+		est += w * r.Estimate
+		build += w * r.BuildHours
+		conv += w * r.ConvergeHours
+		weighted = append(weighted, r.Estimate)
+		if w >= MinRangeWeight {
+			per = append(per, (r.BuildHours+r.ConvergeHours)/r.Estimate)
+			ests = append(ests, r.Estimate)
+		}
+	}
+	if c.N == 0 {
 		return ForecastCalibration{}, false
 	}
-	var est, build, conv float64
-	var per, ests []float64
-	for _, r := range eligible {
-		est += r.Estimate
-		build += r.BuildHours
-		conv += r.ConvergeHours
-		per = append(per, (r.BuildHours+r.ConvergeHours)/r.Estimate)
-		ests = append(ests, r.Estimate)
+	c.Point, c.K = (build+conv)/est, conv/build
+	if len(ests) == 0 {
+		ests = weighted // the prior is an estimate's typical size, not a measurement
 	}
-	c := ForecastCalibration{N: len(eligible), Point: (build + conv) / est, K: conv / build, Prior: quantile(ests, 0.5)}
-	if c.N < MinRangeRows {
+	c.Prior = quantile(ests, 0.5)
+	if len(per) < MinRangeRows {
 		c.Low, c.High, c.Collapsed = c.Point, c.Point, true
 		return c, true
 	}

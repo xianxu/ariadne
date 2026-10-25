@@ -3,10 +3,18 @@ package activetime
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 )
+
+// assertUnknownOnly pins #603: activity under concurrent claims with an
+// unknown, detached or ambiguous branch is recorded in Unknown, never counted.
+func assertUnknownOnly(t *testing.T, got BranchSelection, err error, start, end time.Time) {
+	t.Helper()
+	if err != nil || len(got.Windows) != 0 || len(got.Unknown) != 1 || !got.Unknown[0].Start.Equal(start) || !got.Unknown[0].End.Equal(end) {
+		t.Fatalf("unknown branch activity = %+v %v, want only Unknown %s → %s", got, err, start, end)
+	}
+}
 
 func branchTime(minute int) time.Time {
 	return time.Date(2026, 10, 14, 0, minute, 0, 0, time.UTC)
@@ -24,9 +32,8 @@ func TestSelectBranchActivityPartitionsConcurrentReservations(t *testing.T) {
 		t.Fatalf("B windows = %+v", got.Windows)
 	}
 	for _, branch := range []BranchInterval{{Start: branchTime(0), End: branchTime(31)}} {
-		if _, err := SelectBranchActivity("335", []ActivityWindow{window}, []BranchInterval{branch}, claims); err == nil || !strings.Contains(err.Error(), "concurrent claims") {
-			t.Fatalf("unknown branch selected a reservation: %v", err)
-		}
+		got, err := SelectBranchActivity("335", []ActivityWindow{window}, []BranchInterval{branch}, claims)
+		assertUnknownOnly(t, got, err, window.Start, window.End)
 	}
 	solo, err := SelectBranchActivity("335", []ActivityWindow{window}, nil, claims[1:])
 	if err != nil || len(solo.Windows) != 1 || !solo.Windows[0].Start.Equal(window.Start) || len(solo.Notes) != 1 || solo.Notes[0].Kind != "ownership-only" {
@@ -110,7 +117,7 @@ func TestSelectBranchActivityClaimAndDispatchBoundaries(t *testing.T) {
 	windows := []ActivityWindow{{Start: start, End: end, Began: start}}
 	history := []BranchInterval{{Start: start, End: branchTime(10), Branch: "000335-b", Known: true}, {Start: branchTime(10), End: end}}
 	got, err := SelectBranchActivity("335", windows, history, []BranchClaim{claim, {Start: branchTime(20), End: end, Issue: "336"}})
-	if err == nil || !strings.Contains(err.Error(), "00:20:00") {
+	if err != nil || len(got.Unknown) != 1 || !got.Unknown[0].Start.Equal(branchTime(20)) || !got.Unknown[0].End.Equal(end) || len(got.Windows) != 1 || !got.Windows[0].End.Equal(branchTime(20)) {
 		t.Fatalf("ambiguity did not start at the second claim: %+v %v", got, err)
 	}
 	got, err = SelectBranchActivity("335", windows, history[:1], []BranchClaim{claim})

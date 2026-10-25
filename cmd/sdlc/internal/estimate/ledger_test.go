@@ -14,8 +14,9 @@ func TestFormatRow_Stable(t *testing.T) {
 	}
 	got := FormatRow(r)
 	cols := strings.Split(got, "\t")
-	// Ordinary rows retain the pre-correction width; the final header column is optional.
-	if want := len(strings.Split(Header(), "\t")) - 1; len(cols) != want {
+	// Ordinary rows retain the pre-correction width; the correction and the
+	// #603 confidence columns are optional.
+	if want := disputeCols; len(cols) != want {
 		t.Fatalf("FormatRow produced %d columns, header has %d: %q", len(cols), want, got)
 	}
 	if cols[0] != "ariadne#117" || cols[6] != "estimate-logic-v2" || cols[8] != "no" {
@@ -50,8 +51,8 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
 		Rework: 2.4, GateRounds: 6, GateForced: 1,
 		GateAddressed: 2, GateWithdrawn: 1, GateOpen: 3}
 	cols := strings.Split(FormatRow(r), "\t")
-	if len(cols) != len(strings.Split(Header(), "\t"))-1 {
-		t.Fatalf("row has %d columns, header has %d", len(cols), len(strings.Split(Header(), "\t")))
+	if len(cols) != disputeCols {
+		t.Fatalf("row has %d columns, want %d", len(cols), disputeCols)
 	}
 	// Positional, because ParseRows indexes positionally: these assertions are what makes
 	// "append, never reorder" enforceable rather than a comment.
@@ -330,7 +331,7 @@ func TestLedgerSplitColumns(t *testing.T) {
 		FlowKind: "full", FlowProvenance: "inferred",
 		BuildHours: 2.4, ConvergeHours: 0.7, BoundaryRounds: 3, SplitSource: "dispatch", ReviewRecipe: "milestone-review"}
 	line := FormatRow(r)
-	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t"))-1 || n != disputeCols {
+	if n := len(strings.Split(line, "\t")); n != disputeCols {
 		t.Fatalf("row has %d columns, header %d, want %d", n, len(strings.Split(Header(), "\t")), disputeCols)
 	}
 	got := ParseRows(line)
@@ -395,5 +396,32 @@ func TestNoEstimateRowIsNotACalibrationPoint(t *testing.T) {
 	rows = append(rows, full)
 	if warn, _ := DriftVerdict(rows, 5); !warn {
 		t.Error("drift went silent behind a trailing est-0 row")
+	}
+}
+
+// #603: the confidence block round-trips after a "-" correction cell, a row
+// without it reads as exact, and a corrected row keeps its older width.
+func TestLedgerConfidenceColumns(t *testing.T) {
+	r := LedgerRow{Issue: "ariadne#603", Estimate: 4.17, Actual: 3, Model: "estimate-logic-v3.1", WindowTrusted: true, Date: "2026-10-24", Confidence: "partial", AttributedShare: 0.75}
+	line := FormatRow(r)
+	cols := strings.Split(line, "\t")
+	if len(cols) != confidenceCols || len(cols) != len(strings.Split(Header(), "\t")) || cols[disputeCols] != "-" || cols[31] != "partial" || cols[32] != "0.75" {
+		t.Fatalf("confidence row = %q", line)
+	}
+	got, err := ParseRowsChecked(line)
+	if err != nil || len(got) != 1 || got[0].Confidence != "partial" || got[0].AttributedShare != 0.75 || got[0].CalibrationWeight() != 0.75 || got[0].Correction != nil {
+		t.Fatalf("round trip = %+v %v", got, err)
+	}
+	if old := ParseRows(FormatRow(LedgerRow{Issue: "ariadne#1", Estimate: 1, Actual: 1})); len(old) != 1 || old[0].Confidence != "" || old[0].CalibrationWeight() != 1 {
+		t.Fatalf("a row without confidence must read as exact: %+v", old)
+	}
+	for conf, want := range map[string]float64{"exact": 1, "unmeasured": 0, "guess": 0} {
+		if w := (LedgerRow{Confidence: conf, AttributedShare: 0.5}).CalibrationWeight(); w != want {
+			t.Errorf("%s weight = %v, want %v", conf, w, want)
+		}
+	}
+	r.Correction = &CorrectionRecord{}
+	if n := len(strings.Split(FormatRow(r), "\t")); n != disputeCols+1 {
+		t.Fatalf("corrected row has %d columns, want the older %d", n, disputeCols+1)
 	}
 }

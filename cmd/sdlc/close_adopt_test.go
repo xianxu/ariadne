@@ -9,8 +9,8 @@ import (
 
 // #178: the omit-path ADOPTS a measured actual instead of refusing with a
 // "→ close with: --actual N" suggestion the agent copies verbatim (the spine's
-// second-largest refusal volume, #172). Only actualMeasured adopts; every other
-// status keeps the explainActual refusal.
+// second-largest refusal volume, #172). Only actualMeasured adopts a number;
+// every other status is recorded as unmeasured and the close proceeds (#603).
 func TestResolveOmittedActual(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -20,10 +20,10 @@ func TestResolveOmittedActual(t *testing.T) {
 	}{
 		{"measured adopts, %.2f pinned", actualResult{Status: actualMeasured, Hours: 1.234}, "1.23", true},
 		{"measured adopts whole hours", actualResult{Status: actualMeasured, Hours: 7.0}, "7.00", true},
-		{"telemetry gap refuses", actualResult{Status: actualTelemetryGap}, "", false},
-		{"empty window refuses", actualResult{Status: actualEmptyWindow}, "", false},
-		{"no window refuses", actualResult{Status: actualNoWindow}, "", false},
-		{"engine error refuses", actualResult{Status: actualError}, "", false},
+		{"telemetry gap adopts no number", actualResult{Status: actualTelemetryGap}, "", false},
+		{"empty window adopts no number", actualResult{Status: actualEmptyWindow}, "", false},
+		{"no window adopts no number", actualResult{Status: actualNoWindow}, "", false},
+		{"engine error adopts no number", actualResult{Status: actualError}, "", false},
 	}
 	for _, tc := range cases {
 		got, ok := resolveOmittedActual(tc.res)
@@ -96,8 +96,8 @@ func TestAdoptOmittedActual(t *testing.T) {
 		t.Errorf("adopt info line not printed: %q", out)
 	}
 
-	// unmeasurable → no adoption, no output side effects (the caller then runs
-	// explainActual + exit; that arm's decision is pinned by TestResolveOmittedActual)
+	// unmeasurable → no number adopted; the confidence is unmeasured and the
+	// explanation printed, and the close proceeds with N/A (#603)
 	computeActualForCloseFn = func(context.Context, string, string, string, ...string) actualResult {
 		return actualResult{Status: actualTelemetryGap}
 	}
@@ -107,8 +107,8 @@ func TestAdoptOmittedActual(t *testing.T) {
 	if ok2 {
 		t.Fatal("telemetry gap must not adopt")
 	}
-	if f2.Actual != "" {
-		t.Errorf("f.Actual must stay empty on refusal, got %q", f2.Actual)
+	if f2.Actual != "" || !f2.unmeasured() || !strings.Contains(stderr2.String(), "recording actual_hours: N/A") {
+		t.Errorf("an unmeasurable close must record unmeasured N/A, got actual %q confidence %+v: %s", f2.Actual, f2.Confidence, stderr2.String())
 	}
 	if res.Status != actualTelemetryGap {
 		t.Errorf("the measurement must be returned for the caller's explainActual (no re-measure), got %v", res.Status)

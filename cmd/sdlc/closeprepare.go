@@ -120,7 +120,11 @@ func prepareCloseTransaction(cmd *cobra.Command, stderr io.Writer, f *closeFlags
 			f.effects.churn = report
 		}
 	}
-	guard.adopted = f.Adoptions
+	// An unmeasured close (#603) adopts nothing, so it holds no adoption
+	// authority to revalidate; its read-set may be unavailable by cause.
+	if !f.unmeasured() {
+		guard.adopted = f.Adoptions
+	}
 	snapshot, err := captureCloseReviewSnapshot(r, guard.initial.reviewed, f.Milestone, f.plansDir())
 	if err != nil {
 		return r, snapshot, err

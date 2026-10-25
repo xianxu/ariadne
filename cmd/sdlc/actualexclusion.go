@@ -374,6 +374,17 @@ func loadAdoptedExclusionsWithReadSet(ctx context.Context, root, issueNum, plans
 		} else {
 			context = fmt.Sprintf("issue #%s adopted actual overlaps this slot during %s → %s", id, overlapStart.Format(time.RFC3339Nano), overlapEnd.Format(time.RFC3339Nano))
 		}
+		if gatestate.IsSummaryMethod(saved.Method) {
+			// A summarised close keeps its credited intervals, so exclusion
+			// needs no replay (#603). Its hours still pin the adopted value.
+			credits, lost, err := summaryProtection(id, *saved, adoptedHours, windows, since, until)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", context, err)
+			}
+			protected = append(protected, credits...)
+			current.Unattributed = append(current.Unattributed, lost...)
+			continue
+		}
 		prior, err := resolveOwnedReplay(ctx, root, id, *saved, ledger)
 		if err != nil {
 			return nil, fmt.Errorf("%s but cannot be replayed: %w", context, err)
@@ -392,17 +403,86 @@ func loadAdoptedExclusionsWithReadSet(ctx context.Context, root, issueNum, plans
 		if err != nil {
 			return nil, fmt.Errorf("issue #%s adopted actual: %w", id, err)
 		}
-		for _, interval := range credited {
-			if _, _, ok := overlappingSlotInterval(interval.Slot, interval.Start, interval.End, windows); ok {
-				if interval.Start.Before(since) {
-					interval.Start = since
-				}
-				if interval.End.After(until) {
-					interval.End = until
-				}
-				protected = append(protected, activetime.CreditedInterval{Issue: interval.Issue, Slot: interval.Slot.String(), Start: interval.Start, End: interval.End})
-			}
-		}
+		protected = append(protected, overlappingCredits(credited, windows, since, until)...)
 	}
 	return protected, nil
+}
+
+// overlappingCredits keeps the credits in this candidate's slot windows,
+// clipped to its sample: the minutes it must not count again.
+func overlappingCredits(credited []adoptedCredit, windows []actualSlotWindow, since, until time.Time) []activetime.CreditedInterval {
+	var out []activetime.CreditedInterval
+	for _, interval := range credited {
+		if _, _, ok := overlappingSlotInterval(interval.Slot, interval.Start, interval.End, windows); !ok {
+			continue
+		}
+		if interval.Start.Before(since) {
+			interval.Start = since
+		}
+		if interval.End.After(until) {
+			interval.End = until
+		}
+		if interval.End.After(interval.Start) {
+			out = append(out, activetime.CreditedInterval{Issue: interval.Issue, Slot: interval.Slot.String(), Start: interval.Start, End: interval.End})
+		}
+	}
+	return out
+}
+
+// summaryProtection is what a summarised earlier close protects in this
+// candidate's slot windows (#603): its credited intervals, plus the coalesced
+// gaps it over-protects, which the candidate records as unattributed.
+func summaryProtection(id string, saved gatestate.MeasurementInputs, adoptedHours float64, windows []actualSlotWindow, since, until time.Time) ([]activetime.CreditedInterval, []gatestate.MeasurementUnattributed, error) {
+	credits, widened, err := summaryCredits(id, saved, adoptedHours)
+	if err != nil {
+		return nil, nil, err
+	}
+	// A gap costs this candidate only where it meets the candidate's own slot
+	// window inside the sample.
+	var lost []gatestate.MeasurementUnattributed
+	for _, gap := range widened {
+		start, end, ok := overlappingSlotInterval(gap.Slot, gap.Start, gap.End, windows)
+		if !ok {
+			continue
+		}
+		if start.Before(since) {
+			start = since
+		}
+		if end.After(until) {
+			end = until
+		}
+		if end.After(start) {
+			lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: start.Format(time.RFC3339Nano), End: end.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"}.Normalised())
+		}
+	}
+	return overlappingCredits(credits, windows, since, until), lost, nil
+}
+
+// summaryCredits reads a summarised close's credited intervals (#603). Its
+// recorded hours must match the adopted actual, as a replay's must.
+func summaryCredits(id string, saved gatestate.MeasurementInputs, adoptedHours float64) (credited, widened []adoptedCredit, err error) {
+	if saved.Summary == nil {
+		return nil, nil, fmt.Errorf("summarised measurement lacks its summary")
+	}
+	if math.Abs(saved.Summary.Hours-adoptedHours) > 0.00501 {
+		return nil, nil, fmt.Errorf("summarised measurement %.4fh disagrees with adopted actual %.2fh", saved.Summary.Hours, adoptedHours)
+	}
+	read := func(list []gatestate.MeasurementCredit) ([]adoptedCredit, error) {
+		var out []adoptedCredit
+		for _, c := range list {
+			start, e1 := time.Parse(time.RFC3339Nano, c.Start)
+			end, e2 := time.Parse(time.RFC3339Nano, c.End)
+			slot := parseAdoptedSlot(c.Slot)
+			if e1 != nil || e2 != nil || !slot.known || c.Issue != id {
+				return nil, fmt.Errorf("summarised measurement credit %s %s → %s is not this issue's canonical credit", c.Slot, c.Start, c.End)
+			}
+			out = append(out, adoptedCredit{Issue: c.Issue, Slot: slot, Start: start, End: end})
+		}
+		return out, nil
+	}
+	if credited, err = read(saved.Summary.Credited); err != nil {
+		return nil, nil, err
+	}
+	widened, err = read(saved.Summary.Widened)
+	return credited, widened, err
 }
