@@ -41,7 +41,8 @@ Parley#440's leftover is workshop/plans/000440-a-predicate-wait-doing-child-rpc-
 | sidedoc.Owner | pkg/sidedoc/tree.go | new; root/member to owning document path |
 | #SideDoc | construct/vocabulary/side-doc.cue | new; typed frontmatter schema, no lifecycle |
 | sideArchiveDocsForIssue | cmd/sdlc/archiveside.go | new; deduplicated issue/plan side-owner inventory |
-| gateForPath; hasSideDocType | cmd/sdlc/validategate.go | modified/new; configured-root side membership and explicit type selection |
+| gateForPath | cmd/sdlc/validategate.go | modified; configured-root side membership |
+| classifySideDoc; sideTypeKey; declaresSideType | cmd/sdlc/validategate_sidedoc.go | new; typed/error distinction and bounded malformed-declaration recognition |
 | indexSideMembers | cmd/sdlc/landingarchive.go | new; one owner lookup per inventory path, counted at8/16 families |
 | PathsByID | cmd/sdlc/internal/issue/scaffold.go | modified; side roots/members confer no issue identity |
 
@@ -87,7 +88,7 @@ No new lock, cache, runtime journal or persisted field is introduced. Existing a
 |---|---|
 | sidedoc.Owner | Root/member/nested and misleading path classes; pure owner/membership assertions, preserving existing Folder behavior |
 | titleCase; validateInstanceFile | Single/compound noun and malformed typed YAML; native CUE validation proves discriminator/required string checks and additive-field tolerance |
-| gateForPath; hasSideDocType; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
+| gateForPath; classifySideDoc; sideTypeKey; declaresSideType; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
 | PathsByID; LocalPathsByID; refIDSpace | Nonrecursive directory entries and recursive side members; pure/local/native Git spaces show one issue identity and retain real duplicate detection |
 | sideArchiveDocsForIssue; indexSideMembers; planLandingSideMoves | Missing owner documents and many disjoint trees; independent expected owner/move inventory and counted N/2N path visits prevent repeated full-inventory scans |
 | issueArchiveDocs; recoverSideArchiveMoves | Interrupted orphan-tree moves and unrelated status entries; filesystem recovery verifies exact bytes and refuses duplicates/conflicts |
@@ -118,4 +119,8 @@ PQ-1 found the original state table's missing-type row contradicted the approved
 
 ### 2026-10-25 — implemented inventory and compatibility controls
 
-The archive inventory also feeds abandon's kept-tree selection and reopen, because discovery there otherwise discards orphan members before trunk publication. Replacement episodes index both old archived owners and kept owners, preserving removals as well as writes. Immutable landing indexes plan families once and applies one side-member index after collecting all selected owners. The existing broader landingSideRelated/Folder relation deliberately remains: it admits noncanonical paths into the proof/preflight inventory so the existing naming guard can refuse them. Owner decides canonical move membership, not whether contradictory residue may be ignored. Configured plan roots flow through every instance-gate caller; hasSideDocType selects only explicit top-level declarations and delegates validation to vocabulary/CUE.
+The archive inventory also feeds abandon's kept-tree selection and reopen, because discovery there otherwise discards orphan members before trunk publication. Replacement episodes index both old archived owners and kept owners, preserving removals as well as writes. Immutable landing indexes plan families once and applies one side-member index after collecting all selected owners. The existing broader landingSideRelated/Folder relation deliberately remains: it admits noncanonical paths into the proof/preflight inventory so the existing naming guard can refuse them. Owner decides canonical move membership, not whether contradictory residue may be ignored. Configured plan roots flow through every instance-gate caller; classifySideDoc selects only explicit top-level declarations and delegates validation to vocabulary/CUE.
+
+### 2026-10-25 — BR-1 malformed declaration class
+
+Round1 reproduced an exemption bypass: a recognizable typed declaration with malformed quoted/spaced YAML or no closing delimiter was mistaken for untyped evidence. Replace the ambiguous boolean selector with classifySideDoc's (typed, error) result. Valid syntax uses YAML nodes; on parse failure, a bounded discriminator recognizes top-level block/flow keys (plain, quoted/escaped, indented and explicit forms), leaving schema validation with vocabulary. A recognized typed malformed or unterminated header visibly refuses as side-doc; untyped malformed evidence, nested keys and literal-block text remain exempt. Red-first cases enumerate these forms, and8/16-key visit/byte counts guard against rescanning prefixes. Discovery/indexing is linear in inventory bytes/paths; deterministic output sorting retains the existing O(M log M) ordering cost.

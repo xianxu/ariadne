@@ -1723,3 +1723,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   naming reader broad enough to reject old invalid families. Native Git/CUE
   fixtures and counted owner-index visits defend this semantic class; a lexical
   ban on paths would also reject valid attachments.
+
+- #623 BR-1: an opt-in conformance discriminator must distinguish absent
+  declarations from malformed declarations. Parse failure is not an exemption.
+  Keep recognizable quoted/spaced/escaped/explicit/flow type keys and incomplete
+  typed headers refusing, while malformed untyped attachments and nested or
+  literal type text remain exempt. Red-first gate cases and counted key/byte
+  visits defend this classification boundary; schema validation stays with CUE.

@@ -38,6 +38,10 @@ func TestUntypedSideEvidenceRemainsValid(t *testing.T) {
 		{"metadata.md", "---\nsource: fixture\nparent: absent-is-allowed-here\n---\n# evidence\n"},
 		{"record.json", "{\"evidence\":true}\n"},
 		{"record.log", "terminal capture\n"},
+		{"malformed-untyped.md", "---\nsource: [legacy evidence\n---\n"},
+		{"nested-flow-type.md", "---\n{metadata: {type: [invalid}}\n---\n"},
+		{"literal-type.md", "---\nsource: |\n  type: [evidence\nother: [invalid\n---\n"},
+		{"unterminated-untyped.md", "---\nsource: legacy evidence\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			name := "workshop/issues/000858-owner.side/evidence/" + tc.name
@@ -98,8 +102,57 @@ func TestSideDocExplicitTypeSelection(t *testing.T) {
 		{"---\nmetadata: {type: evidence}\n---\n", false},
 		{"# notes\ntype: side-doc\n", false},
 	} {
-		if got := hasSideDocType([]byte(tc.body)); got != tc.typed {
+		if got, _ := classifySideDoc([]byte(tc.body)); got != tc.typed {
 			t.Errorf("selection for %q: got%v want%v", tc.body, got, tc.typed)
+		}
+	}
+}
+
+func TestMalformedTypedSideDocsRefuse(t *testing.T) {
+	for _, tc := range []struct{ name, body string }{
+		{"quoted", "---\n\"type\": [invalid\n---\n"},
+		{"single quoted", "---\n'type': [invalid\n---\n"},
+		{"spaced", "---\ntype : [invalid\n---\n"},
+		{"escaped key", "---\n\"ty\\u0070e\": [invalid\n---\n"},
+		{"explicit key", "---\n? type\n: [invalid\n---\n"},
+		{"flow", "---\n{source: kept, type: [invalid}\n---\n"},
+		{"indented block", "---\n  type: [invalid\n---\n"},
+		{"indented flow", "---\n  {source: kept, type: [invalid}\n---\n"},
+		{"unterminated", "---\ntype: side-doc\nparent: owner.md\n"},
+		{"unterminated CRLF", "---\r\n\"type\": side-doc\r\nparent: owner.md\r\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name := "workshop/issues/000623-owner.side/evidence.md"
+			defer stubGate(t, []gitx.FileChange{{Status: "A", Path: name}}, true, nil, map[string]string{name: tc.body})()
+			var out bytes.Buffer
+			err := validateChangedInstances("", "BASE", "HEAD", nounGates("workshop/issues"), &out, io.Discard)
+			if err == nil || !strings.Contains(err.Error(), "side-doc") || !strings.Contains(err.Error(), name) {
+				t.Fatalf("malformed typed side doc escaped: %v; %s", err, out.String())
+			}
+		})
+	}
+}
+
+func TestSideTypeDeclarationLinearKeys(t *testing.T) {
+	for _, n := range []int{8, 16} {
+		for _, flow := range []bool{false, true} {
+			keys := make([]string, n)
+			for i := range keys {
+				keys[i] = fmt.Sprintf("source%d: kept", i)
+			}
+			header := strings.Join(keys, "\n")
+			if flow {
+				header = "{" + strings.Join(keys, ", ") + "}"
+			}
+			visits, keyBytes := 0, 0
+			found := declaresSideType(header, func(key string) bool {
+				visits++
+				keyBytes += len(key)
+				return sideTypeKey(key)
+			})
+			if found || visits > 2*n || keyBytes > len(header) {
+				t.Fatalf("N%d flow%v: found%v key visits%d bytes%d/header%d", n, flow, found, visits, keyBytes, len(header))
+			}
 		}
 	}
 }
