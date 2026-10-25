@@ -76,13 +76,13 @@ persisted format. ARCH-MOCK: no external service; filesystem fixtures.
 
 ## Plan
 
-- [ ] Failing test first: a fixture run folder with a read-only module-cache tree survives `sweepStaleTemp` and
+- [x] Failing test first: a fixture run folder with a read-only module-cache tree survives `sweepStaleTemp` and
   `scratchPreparation.Cleanup` on main.
-- [ ] `removeTree`; the sweep and Cleanup use it; symlink and protected-folder cases.
-- [ ] Pure `staleTempCandidates` with reasons; table test covering today's `TestSweepStaleTemp` cases.
-- [ ] Sweep log lines (before: root, candidate, reason; after: duration, result; kept: protected).
-- [ ] Drop the capability probe's sweep.
-- [ ] `excludeScratchSweep` plus TestMain registration; a test that a registered root is never swept.
+- [x] `removeTree`; the sweep and Cleanup use it; symlink and protected-folder cases.
+- [x] Pure `staleTempReason` with reasons (per entry; the shell keeps the loop); table test covering today's `TestSweepStaleTemp` cases.
+- [x] Sweep log lines (before: root, candidate, reason; after: duration, result; kept: protected).
+- [x] Drop the capability probe's sweep.
+- [x] `excludeScratchSweep` plus TestMain registration; a test that a registered root is never swept.
 - [ ] Targeted tests (testscratch, suitecapability, localcheck artifacts), then the recorded suite through the queue.
 
 ## Log
@@ -135,3 +135,4 @@ testing.tRunner(0x33016dfde908, 0x1042a9f60)
 created by testing.(*T).Run in goroutine 1
 	testing/testing.go:2260 +0x3b8
 ```
+- 2026-10-25: built. New tests fail on main (a dead run folder holding a read-only module cache survives both the sweep and the run's own Cleanup) and pass with removeTree. Targeted: TestSweepStaleTemp*, TestPrepareScratch*, TestSuiteCapability*, TestRunnerArtifacts*, TestRunUnderSlotUsesScratch, TestSweepStaleLocalWorktrees*, TestExcludedScratchRootIsNeverSwept, TestStaleTempReason, TestLocalCheck*/TestPreClose*/TestKnownFlakeGate, pkg/golint (incl. TestTrackedGoFilesPassTheCatalog), internal/scratchdisk: all ok.

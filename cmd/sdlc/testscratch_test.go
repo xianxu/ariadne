@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,11 +41,11 @@ func TestSweepStaleTemp(t *testing.T) {
 	mk("other-tool-100-6", old)       // another tool's <name>-<n>-<n> folder: never ours to take
 	alive := func(pid int) bool { return pid == 200 }
 
-	sweepStaleTemp(dir, false, now, alive)
+	sweepStaleTemp(dir, false, now, alive, io.Discard)
 	if _, err := os.Stat(filepath.Join(dir, "sdlc-run-suite-100-1")); err != nil {
 		t.Fatal("swept a run folder in a folder that holds none")
 	}
-	sweepStaleTemp(dir, true, now, alive)
+	sweepStaleTemp(dir, true, now, alive, io.Discard)
 	want := []string{"TestKeep123", "go-build222", "other-tool-100-6", "sdlc-run-go-lint-200-5", "sdlc-run-suite-200-2"}
 	entries, _ := os.ReadDir(dir)
 	var got []string
@@ -343,6 +344,117 @@ func TestPrepareScratchRepairedRunRootAfterRecovery(t *testing.T) {
 			if _, err := os.Stat(path); err != nil {
 				t.Fatalf("fresh/live or unrelated folder removed: %s: %v", path, err)
 			}
+		}
+	}
+}
+
+// readOnlyModCache builds what a Go test leaves when it sets GOMODCACHE under
+// its TMPDIR (#631): a module tree whose directories are read-only, which a
+// plain os.RemoveAll cannot take.
+func readOnlyModCache(t *testing.T, dir string) {
+	t.Helper()
+	mod := filepath.Join(dir, "launcher-1", "go", "pkg", "mod", "example.com", "m@v1.0.0", "sub")
+	if err := os.MkdirAll(mod, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mod, "x.go"), []byte("package sub\n"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	for p := mod; p != filepath.Join(dir, "launcher-1", "go", "pkg", "mod"); p = filepath.Dir(p) {
+		if err := os.Chmod(p, 0o555); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Leave the fixture removable whatever the code under test does.
+	t.Cleanup(func() { _ = makeTreeWritable(dir) })
+}
+
+func TestSweepStaleTempRemovesReadOnlyTrees(t *testing.T) {
+	dir := t.TempDir()
+	dead := filepath.Join(dir, "sdlc-run-suite-100-1")
+	readOnlyModCache(t, dead)
+	outside := t.TempDir()
+	if err := os.Chmod(outside, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(outside, 0o755) })
+	if err := os.Symlink(outside, filepath.Join(dead, "link")); err != nil {
+		t.Fatal(err)
+	}
+	var log bytes.Buffer
+	sweepStaleTemp(dir, true, time.Now(), func(int) bool { return false }, &log)
+	if _, err := os.Stat(dead); !os.IsNotExist(err) {
+		t.Fatalf("a dead run folder with a read-only tree survived: %v\n%s", err, log.String())
+	}
+	if info, err := os.Stat(outside); err != nil || info.Mode().Perm() != 0o555 {
+		t.Fatalf("the sweep followed a symlink out of the tree: %v %v", info.Mode(), err)
+	}
+	for _, want := range []string{"removing " + dead + " (owner pid 100 exited)", "removed " + dead + " in "} {
+		if !strings.Contains(log.String(), want) {
+			t.Fatalf("log lacks %q:\n%s", want, log.String())
+		}
+	}
+}
+
+func TestPrepareScratchCleanupRemovesReadOnlyTrees(t *testing.T) {
+	t.Setenv("WF_TEST_SCRATCH", "off")
+	t.Setenv("TMPDIR", t.TempDir())
+	var note bytes.Buffer
+	p, err := prepareScratch(&note, "suite", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnlyModCache(t, p.Dir)
+	p.Cleanup()
+	if _, err := os.Stat(p.Dir); !os.IsNotExist(err) {
+		t.Fatalf("a run's own cleanup left its read-only tree: %v", err)
+	}
+}
+
+// A registered root is never swept, and TestMain registers the machine's
+// shared temp roots, so tests only ever sweep roots they made (#631).
+func TestExcludedScratchRootIsNeverSwept(t *testing.T) {
+	dir := t.TempDir()
+	dead := filepath.Join(dir, "sdlc-run-suite-100-1")
+	if err := os.Mkdir(dead, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	excludeScratchSweep(dir)
+	t.Cleanup(func() { scratchSweepExcluded.Delete(sweepRootKey(dir)) })
+	var log bytes.Buffer
+	sweepStaleTemp(dir, true, time.Now(), func(int) bool { return false }, &log)
+	if _, err := os.Stat(dead); err != nil || log.Len() != 0 {
+		t.Fatalf("an excluded root was swept: %v\n%s", err, log.String())
+	}
+	_, shared, _ := scratchdisk.Roots("tmp", os.TempDir())
+	for _, root := range append(shared, "/tmp") {
+		if _, ok := scratchSweepExcluded.Load(sweepRootKey(root)); !ok {
+			t.Errorf("shared root %s is sweepable from tests", root)
+		}
+	}
+}
+
+func TestStaleTempReason(t *testing.T) {
+	now := time.Now()
+	old := now.Add(-staleTempAge - time.Hour)
+	alive := func(pid int) bool { return pid == 200 }
+	for _, c := range []struct {
+		name    string
+		mtime   time.Time
+		runDirs bool
+		want    string
+	}{
+		{"go-build1", old, false, "go-build older than 24h0m0s"},
+		{"go-build2", now, true, ""},
+		{"sdlc-run-suite-100-1", now, true, "owner pid 100 exited"},
+		{"sdlc-run-suite-100-1", now, false, ""},
+		{"sdlc-run-suite-200-2", now, true, ""},
+		{"sdlc-run-suite-200-3", old, true, "older than 24h0m0s, owner pid 200 reused"},
+		{"sdlc-run-go-lint-100-4", now, true, "owner pid 100 exited"},
+		{"other-tool-100-6", old, true, ""},
+	} {
+		if got := staleTempReason(c.name, c.mtime, c.runDirs, now, alive); got != c.want {
+			t.Errorf("%s (runDirs %v): %q, want %q", c.name, c.runDirs, got, c.want)
 		}
 	}
 }
