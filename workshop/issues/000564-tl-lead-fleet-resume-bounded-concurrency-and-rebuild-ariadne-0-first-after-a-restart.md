@@ -108,6 +108,10 @@ CURRENT RETAINED WORK: terminal44711, suite lease-3100257590 on d6fdeba76cdfb6a3
 
 Observed host load161.75/102.59/59.81 at19:09 and reported to ops:0 in submitted receipt5d950c3b-6f03-426d-ac98-14488328adcf; no unqueued full suite/stressor/live recovery was started here. No reviewer remains active. Publish this docs-only checkpoint/PR update, report waiting for operator repair, then retain the existing queued suite. After the hold lifts, inspect terminal44711 first; if it was lost with a restart, inspect managed evidence before an unchanged rerun. A verified passing recorded suite, current CI and normal sdlc merge --yes still precede landing; then Git-verify merge/archive/clean resting state and report to the hub for the primary rebuild. Native pair#870 stays the approved explicit qualification limit; pair#874 stays an external seam.
 
+### 2026-10-24 — Freeze lifted; original waiter retained
+
+Authenticated ops:0 receipt75671bc9-3ae7-4470-958b-48508c167188 lifts the freeze after the operator repaired fseventsd and resumed the queue. Recovery confirms terminal44711 and lease-3100257590 survived: the original d6 recorded suite is first in line, waiting for both slots behind pair-slot9. No duplicate run, cancellation or unqueued full check was started. The prior screen is unavailable; recovery used the committed Log, sdlc state, current tracker/review evidence and the live retained terminal. PR436 CI is green, the worktree is clean, and the next action remains: observe this suite's terminal result before entering normal sdlc merge --yes. The operator repair hold is over; the retained queue wait is ordinary admission.
+
 ## Revisions
 
 - 2026-10-24: Corrected the planning interface from the older top-level-marker/no-wake description to pair:6's verified nested asleep marker and hub-only wake semantics. Added explicit options, partial-failure/restart states, counted tests and private-conformance limits in the durable plan. This records a proposed design, not permission to execute fleet recovery.
