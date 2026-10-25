@@ -165,3 +165,9 @@ The close runner ended before review with exact refusal: measurement branch proo
 ### 2026-10-24 — precise measurement waiver authorized
 
 Verified submitted ops:0 receipt72405515-d6b7-44fd-af1b-98fefa2545ba: until ariadne#603 lands, the v4 size refusal may close with precise --no-actual, exact refusal in --verified and citation to#603; never typed hours. Fresh tracker read at2026-10-25T01:31:19Z confirms#603 working/not-landed. Retry only the close with that precise authorization. All other gates remain in force and the recorded suite waiter remains unchanged.
+
+### 2026-10-24 — review SHIP rejected by foreign-home-entry guard; safe rerun
+
+The full reviewer returned SHIP/high confidence with no findings and independently passed package, focused race, six private executable cases and real-Couch receipts. SDLC correctly did not finalize: its filesystem guard detected new entry /Users/xianxu/couch-profile-871-restage-20261024 outside review directories. Close exited1, leaving the slot checkout clean; that verdict is not an accepted close. Stat showed birth18:38:12 PDT.
+
+Hub provenance question15f3559f-2f81-42b5-abdd-fa0a0e18d46a was submitted. Verified submitted ops:0 reply37a216f7-a1a4-4543-b4bd-76d45a14d738 confirms it is the operator's COUCH_PROFILE_DIR output for tonight's combined check, started18:38; leave it untouched and rerun close. The parallel pair:7 questionf8fc9fc5-0f7d-4e01-b0e1-98e019a26c5d remained queued and needs no resend now that provenance is answered. No foreign directory was edited/removed and no guard bypass is used. The post-restart suite runner25050/lease-2983636541 remains alive and queued unchanged. Rerun the same full close with the already-authorized precise measurement waiver; no code change is required.
