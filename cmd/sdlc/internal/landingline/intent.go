@@ -336,7 +336,7 @@ func (s Intents) files() ([]string, error) {
 	}
 	var out []string
 	for _, e := range entries {
-		if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), ".") {
+		if !strings.HasPrefix(e.Name(), ".") {
 			out = append(out, filepath.Join(s.dir, e.Name()))
 		}
 	}
@@ -345,9 +345,25 @@ func (s Intents) files() ([]string, error) {
 
 func observeIntent(path string) (ObservedIntent, bool) {
 	o := ObservedIntent{Path: path}
+	info, err := os.Lstat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return o, false
+		}
+		o.Err = err
+		return o, true
+	}
+	if !info.Mode().IsRegular() {
+		o.Err = errors.New("intent is not a regular file; inspect it without following it")
+		return o, true
+	}
 	f, err := os.Open(path)
 	if err != nil {
-		return o, false // gone meanwhile
+		if errors.Is(err, os.ErrNotExist) {
+			return o, false
+		} // confirmed disappearance
+		o.Err = err
+		return o, true // unreadable is not absent
 	}
 	defer f.Close()
 	if info, err := f.Stat(); err == nil {

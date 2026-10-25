@@ -1712,6 +1712,13 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #617 BR-1: authority-comparison helper tests do not prove command wiring. Exercise each command's capture → result → flags → validator path with changes both before admission and during review; require removal of propagation and validation to make the command regression fail before accepting the proof.
 
+- #624: a recovery inventory must preserve both read quality and the observations obtained before an error. Only confirmed disappearance is absence; permission/IO failures and nonregular records need inspection evidence. Key deduplication by canonical physical record identity and placement by the validated exact root within its common-dir store. A missing capability or missing store observation must never become complete empty. Test these through the public command as well as the shared reader.
+
+- #624 review: observe a shared Git store through its captured common-directory authority, not an arbitrary member checkout; thread cancellation into actual subprocesses and stop later probes. When making a decoder additive, update its algebra oracle while keeping duplicate/type controls strict.
+
+- #624 BR-5: an isolated subprocess runner needs a signal-aware public entry point as well as a cancellable internal context. Prove native SIGINT/SIGTERM through the public executable at every production phase, with pipe-holding children and positive readiness; injected context cancellation alone misses default signal exit.
+
+- #624 full-suite guard: a context-aware helper must not retain a context.Background compatibility wrapper when callers already own contexts. Thread them explicitly, and include repository-wide static guard tests alongside feature-name matches before queueing the suite.
 - #631: a test fixture that builds hard-to-remove state (read-only or unreadable directories, immutable files) must remove it with code of its own, never the helper under test: the red check and a reviewer's revert check run that helper broken, and a fixture that cleans up through it strands its tree in shared scratch exactly then. Make the cleanup fail the test if the tree is still there.
 
 - #631: a fix for a race finding names the rule, not the call site. "No permission change during tree repair may follow a symlink at the final component" covered the path-based fallback the first fix left in place; a second round found it because the first answered only the line it was shown.
