@@ -87,7 +87,7 @@ Familiarity is 1.0 because #598 M1 built the mapping these extend.
 Durable plan: `workshop/plans/000616-affected-traceability-missed-mappings-plan.md`.
 
 - [x] M1 — traceability input: `traceability` member, `ParseTraceability` (strict yaml.Node walk, parley golden), `Compile(cfg, Sources)`, loader reads from main; the shared strict JSON object codec moves to `internal/jsonstrict`.
-- [ ] M2 — missed-mapping ledger: `Missed`, `MissedLedger` (pure, preserving), the locked store in the common git dir, the merge-diagnosis and train-split hooks via the extracted `affectedSelectionAt`, `sdlc affected missed list|dismiss`.
+- [x] M2 — missed-mapping ledger: `Missed`, `MissedLedger` (pure, preserving), the locked store in the common git dir, the merge-diagnosis and train-split hooks via the extracted `affectedSelectionAt`, `sdlc affected missed list|dismiss`.
 
 ## Log
 
