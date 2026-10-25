@@ -53,16 +53,16 @@ Durable plan: `workshop/plans/000622-sweep-second-scale-wall-clock-bounds-from-c
 model: estimate-logic-v3.1
 familiarity: 1.0
 item: smaller-go-module        design=0.2 impl=0.2
-item: cross-cutting-refactor   design=0.5 impl=0.2
-item: cross-cutting-refactor   design=0.8 impl=0.2
-item: cross-cutting-refactor   design=0.4 impl=0.2
+item: cross-cutting-refactor   design=0.5 impl=0.3
+item: cross-cutting-refactor   design=0.8 impl=0.5
+item: cross-cutting-refactor   design=0.4 impl=0.25
 item: milestone-review         design=0.0 impl=0.2
 item: milestone-review         design=0.0 impl=0.2
 design-buffer: 0.15
-total: 3.39
+total: 3.84
 ```
 
-*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Items: the rule extends an existing one (smaller module); three refactor sweeps, one per site family: group A polled deadlines (13, mechanical), group B kill/cancel outcomes (~14, each needs its own outcome oracle, so the most design), groups C+D allows or events (~8); two milestone reviews. `impl=` at 40% of the v2 table midpoints; design from the v2 ranges, with a +15% buffer since the plan is thorough. Proof runs (`-count=10` per package, one at a time) are inside impl.
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Items: the rule extends an existing one (smaller module); three refactor sweeps, one per site family: group A polled deadlines (13, mechanical), group B kill/cancel outcomes (~14, each needs its own outcome oracle, so the most design), groups C+D allows or events (~8); two milestone reviews. `impl=` at 40% of the v2 table midpoints; design from the v2 ranges, with a +15% buffer since the plan is thorough. Proof runs (`-count=10` per package, one at a time) and the mutation checks are inside impl; the estimate-quality review (INFO) judged the flat 0.2 impl too low for group B and the serial proofs, so A, B and C+D impl were raised to 0.3, 0.5 and 0.25 before implementation began.
 
 ## Log
 
