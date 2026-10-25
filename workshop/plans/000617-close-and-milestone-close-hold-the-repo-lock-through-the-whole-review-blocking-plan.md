@@ -95,10 +95,14 @@ Private linked-worktree/executable proof exercises the actual lock and tracker a
 
 ## Approval
 
-Pending TL approval. No change-code or implementation has run for #617.
+Approved by ops:0 receipt25803def-0436-4cbb-ad57-7223be72b210 (2026-10-24T20:33:28-07:00). Enter change-code before implementation.
 
 ## Revisions
 
 ### 2026-10-24 — Evidence narrows the incident and identifies measurement authority
 
 The filed Spec described a lock held during review. Owner evidence instead locates #859's observed hold in pre-review measurement, so this plan preserves the existing reviewer-unlock path and fixes the enclosing preparation/finalization phases. Ariadne:2 confirmed no existing validator detects newly adopted competing time; the shared adoption candidate read-set is necessary to preserve accounting while moving preparation outside the lock. No confidence/measurement algorithm change is proposed. Approval remains pending.
+
+### 2026-10-24 — TL approval
+
+Ops:0 approved unlocked expensive preparation, fresh read-set validation before admission and writes, unlocked review, short authoritative writes under the lock, peer/branch side effects outside it, and adoption candidates captured at their original read and rechecked. New or changed adoptions stale; unrelated claims do not. Private barrier conformance and no new state/schema are confirmed. Proceed through change-code.

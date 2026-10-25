@@ -59,3 +59,7 @@ Ops:0 approved the diagnosis/direction and asked for this plan. Ariadne:2 (#603)
 ### 2026-10-24 — Observed hold was preparation, not reviewer execution
 
 Pair:5's retained owner output places #859's long shared lock hold before its measured-actual line and reviewer dispatch. Existing reviewer release/reacquire code and tests work. Preserve that path; fix expensive preparation under the lock, validate consumed local/card/adoption authority, and move warning-only post-close effects outside the authoritative section. Ops:0 approved this diagnosis/direction; detailed plan is pending approval. Ariadne:2 confirmed the #603 coordination seam and the currently missing write-time adoption check.
+
+### 2026-10-24 — TL approved implementation
+
+Receipt25803def-0436-4cbb-ad57-7223be72b210 approved the durable plan. Record the boundary before change-code. Pair:5 independently confirmed exact start/first-output times and normal SHIP completion; its sample hash matches the plan. No retained targeted/background runner remains; the pre-design concurrency test completed exit0.
