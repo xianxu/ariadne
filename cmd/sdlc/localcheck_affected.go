@@ -119,11 +119,11 @@ func planAffectedSelection(ctx context.Context, d localRunDeps, ad affectedDeps,
 // affectedIsDoc is the planner's docs rule: a path with no code surface.
 func affectedIsDoc(p string) bool { return !publishGateHasCodeSurface([]string{p}) }
 
-// loadAffectedMapping reads the sidecars cfg declares from rev's tree in dir's repository (#598), one listing and one
+// loadAffectedMapping reads the sidecars and traceability files cfg declares from rev's tree in dir's repository (#598), one listing and one
 // batch per convention, and compiles the Mapping. rev is the pinned main the config came from, so the head can
 // neither declare nor undeclare its own selection; any error is the caller's full fallback.
 func loadAffectedMapping(ctx context.Context, dir, rev string, cfg affected.Config) (affected.Mapping, error) {
-	var files []affected.SidecarFile
+	var src affected.Sources
 	for _, sc := range cfg.Sidecars {
 		got, err := gitx.TreeFilesSelected(ctx, dir, rev, strings.TrimSuffix(sc.Prefix, "/"), func(f gitx.TreeFile) bool {
 			return strings.HasSuffix(f.Path, sc.Suffix)
@@ -132,10 +132,18 @@ func loadAffectedMapping(ctx context.Context, dir, rev string, cfg affected.Conf
 			return affected.Mapping{}, fmt.Errorf("sidecars under %s on %s: %w", sc.Prefix, abbrevSHA(rev), err)
 		}
 		for _, f := range got {
-			files = append(files, affected.SidecarFile{Path: f.Path, Content: f.Content})
+			src.Sidecars = append(src.Sidecars, affected.SidecarFile{Path: f.Path, Content: f.Content})
 		}
 	}
-	return affected.Compile(cfg, files)
+	// One listing and one batch for every traceability file (#616); Compile names a declared file main lacks.
+	got, err := gitx.TreeFilesAt(ctx, dir, rev, cfg.Traceability)
+	if err != nil {
+		return affected.Mapping{}, fmt.Errorf("traceability files on %s: %w", abbrevSHA(rev), err)
+	}
+	for _, f := range got {
+		src.Traceability = append(src.Traceability, affected.TraceabilityFile{Path: f.Path, Content: f.Content})
+	}
+	return affected.Compile(cfg, src)
 }
 
 // boardingRefusal is a full selection in boarding mode (#561): nothing ran

@@ -56,6 +56,10 @@ func TestParseConfigDeclaredRefuses(t *testing.T) {
 		{"sidecar empty suffix", `"sidecars":[{"prefix":"r/","suffix":""}]}`, "suffix"},
 		{"sidecar slash suffix", `"sidecars":[{"prefix":"r/","suffix":"/x.json"}]}`, "suffix"},
 		{"sidecar unknown key", `"sidecars":[{"prefix":"r/","suffix":".json","reads":[]}]}`, "unknown field"},
+		{"traceability not an array", `"traceability":"atlas/t.yaml"}`, "cannot unmarshal"},
+		{"traceability glob", `"traceability":["atlas/*.yaml"]}`, "exact"},
+		{"traceability traversal", `"traceability":["../t.yaml"]}`, "exact"},
+		{"traceability duplicate", `"traceability":["t.yaml","t.yaml"]}`, "duplicate"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -70,7 +74,9 @@ func TestParseConfigDeclaredRefuses(t *testing.T) {
 // FuzzParseConfig: a config either refuses or reparses from its own fields to the same rules; never a panic.
 func FuzzParseConfig(f *testing.F) {
 	for _, s := range []string{exampleConfig, declaredConfig, `{"version":1,"command":["x"],"full":[{"glob":"a/**","except":["a/b"]}]}`,
-		`{"version":1,"command":["x"],"owners":[{"paths":["a"],"strip":{"prefix":"../","suffix":""}}]}`} {
+		`{"version":1,"command":["x"],"owners":[{"paths":["a"],"strip":{"prefix":"../","suffix":""}}]}`,
+		`{"version":1,"command":["x"],"traceability":["atlas/traceability.yaml"]}`,
+		`{"version":1,"command":["x"],"traceability":["atlas/*.yaml","../t.yaml","a","a"]}`} {
 		f.Add([]byte(s))
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
@@ -92,6 +98,13 @@ func FuzzParseConfig(f *testing.F) {
 			if err := validSidecar(sc.Prefix, sc.Suffix); err != nil {
 				t.Fatalf("accepted sidecar %+v: %v", sc, err)
 			}
+		}
+		seen := map[string]bool{}
+		for _, p := range cfg.Traceability {
+			if !cleanRelPath(p) || hasGlobMeta(p) || seen[p] {
+				t.Fatalf("accepted traceability path %q", p)
+			}
+			seen[p] = true
 		}
 	})
 }
@@ -171,7 +184,7 @@ func declaredGraph() Graph {
 
 func declaredMapping(t *testing.T, cfg Config, sidecars ...SidecarFile) Mapping {
 	t.Helper()
-	m, err := Compile(cfg, sidecars)
+	m, err := Compile(cfg, Sources{Sidecars: sidecars})
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
@@ -240,7 +253,7 @@ func TestCompileRefuses(t *testing.T) {
 		"no derivable target": {Path: "tests/readers/.json", Content: []byte(`{}`)},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := Compile(cfg, []SidecarFile{f}); err == nil {
+			if _, err := Compile(cfg, Sources{Sidecars: []SidecarFile{f}}); err == nil {
 				t.Fatal("Compile accepted it")
 			}
 		})
@@ -273,8 +286,8 @@ func TestOwnedProperty(t *testing.T) {
 	}
 }
 
-// BenchmarkPlanDeclared is the operating envelope: 2000 changed paths against 600 sidecar reads rules (exact) and
-// 600 globbed owners rules.
+// BenchmarkPlanDeclared is the operating envelope: 2000 changed paths against 600 sidecar reads rules (exact),
+// 600 globbed owners rules and a 65-entry traceability file.
 func BenchmarkPlanDeclared(b *testing.B) {
 	g := testGraph()
 	const m = "example.com/m"
@@ -290,17 +303,30 @@ func BenchmarkPlanDeclared(b *testing.B) {
 		cfg.Owners = append(cfg.Owners, OwnerDecl{Paths: []string{fmt.Sprintf("assets/g%d/**/*.dat", i)}, Go: []string{fmt.Sprintf("./p%d", i)}})
 		sidecars = append(sidecars, SidecarFile{Path: fmt.Sprintf("tests/readers/p%d/x_test.go.json", i), Content: []byte(fmt.Sprintf(`{"reads":["inputs/p%d.txt"]}`, i))})
 	}
-	mp, err := Compile(cfg, sidecars)
+	// #616: a parley-sized traceability file, 65 entries of 20 exact code paths each.
+	var trace strings.Builder
+	trace.WriteString("version: 1\natlas:\n")
+	for e := range 65 {
+		fmt.Fprintf(&trace, "  f%d:\n    code:\n", e)
+		for c := range 20 {
+			fmt.Fprintf(&trace, "      - src/f%d/c%d.lua\n", e, c)
+		}
+		fmt.Fprintf(&trace, "    tests: [p%d/x_test.go]\n", e)
+	}
+	cfg.Traceability = []string{"atlas/traceability.yaml"}
+	mp, err := Compile(cfg, Sources{Sidecars: sidecars, Traceability: []TraceabilityFile{{Path: "atlas/traceability.yaml", Content: []byte(trace.String())}}})
 	if err != nil {
 		b.Fatal(err)
 	}
 	var paths []string
 	for i := range 2000 {
-		switch i % 3 {
+		switch i % 4 {
 		case 0:
 			paths = append(paths, fmt.Sprintf("inputs/p%d.txt", i%600))
 		case 1:
 			paths = append(paths, fmt.Sprintf("tests/readers/p%d/x_test.go.json", i%600))
+		case 2:
+			paths = append(paths, fmt.Sprintf("src/f%d/c%d.lua", i%65, i%20))
 		default:
 			paths = append(paths, fmt.Sprintf("p%d/f%d.go", i%600, i))
 		}
