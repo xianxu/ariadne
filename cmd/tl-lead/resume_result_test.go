@@ -62,7 +62,7 @@ func TestFleetResumeStopsAtFirstFailure(t *testing.T) {
 				c.resumeErr["pair:6"] = fmt.Errorf("%w: request req-6", errUncertain)
 			}
 			var out strings.Builder
-			err := fleetResume(&out, d, cwd, true)
+			err := fleetResume(t.Context(), &out, d, cwd, true)
 			if err == nil {
 				t.Fatalf("failure must stop with nonzero: %s", out.String())
 			}
@@ -85,7 +85,7 @@ func TestFleetResumeSerialCompletion(t *testing.T) {
 		c.resumeErr = map[string]error{}
 		c.delays = map[string]time.Duration{"pair:2": 10 * time.Second, "pair:6": 20 * time.Second, "pair:8": 30 * time.Second}
 		done := make(chan error, 1)
-		go func() { done <- fleetResume(&strings.Builder{}, d, cwd, true) }()
+		go func() { done <- fleetResume(t.Context(), &strings.Builder{}, d, cwd, true) }()
 		synctest.Wait()
 		if strings.Join(c.attempts(), ",") != "pair:2" {
 			t.Fatalf("didn't wait for first completion: %v", c.attempts())
@@ -147,7 +147,7 @@ func TestFleetResumeAllIsVisibilityOnly(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	c.resumeErr = map[string]error{}
 	var out strings.Builder
-	if err := fleetResume(&out, d, cwd, true, true); err != nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, true, true); err != nil {
 		t.Fatal(err)
 	}
 	for _, addr := range []string{"brain:1", "echo:1", "pair:7", "ops-echo:0"} {
@@ -222,7 +222,7 @@ func TestFleetResumeUncertainObservationIsDiagnostic(t *testing.T) {
 				c.failureActorsErr = errors.New("recheck denied")
 			}
 			var out strings.Builder
-			if err := fleetResume(&out, d, cwd, true); !errors.Is(err, errUncertain) {
+			if err := fleetResume(t.Context(), &out, d, cwd, true); !errors.Is(err, errUncertain) {
 				t.Fatalf("promoted uncertain result: %v", err)
 			}
 			want := "observed pair:6 running; operation outcome remains uncertain"

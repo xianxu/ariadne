@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -89,28 +90,29 @@ type slotClass int
 
 const (
 	classRunning    slotClass = iota // a live agent: left alone
-	classIdle                        // down, no work in flight: left down
-	classResume                      // down, work in flight, a proven conversation
+	classSkipped                     // no positive asleep evidence: no mutation
+	classResume                      // explicitly asleep, complete proven conversation
 	classAmbiguous                   // needs the operator: never guessed
 	classUnknown                     // a read failed: never treated as down
-	classCandidates                  // down with work: its candidates decide (planner-internal)
+	classCandidates                  // explicitly asleep: candidates decide (planner-internal)
 	classExcluded                    // visible with --all, never a mutation candidate
 )
 
-var classNames = map[slotClass]string{classRunning: "running", classIdle: "idle", classResume: "resume", classAmbiguous: "ambiguous", classUnknown: "unknown", classExcluded: "excluded"}
+var classNames = map[slotClass]string{classRunning: "running", classSkipped: "skipped", classResume: "resume", classAmbiguous: "ambiguous", classUnknown: "unknown", classExcluded: "excluded"}
 
 type resumeRow struct {
-	Addr  string
-	Class slotClass
-	Why   string
+	Addr    string
+	Class   slotClass
+	Why     string
+	Pending bool
 }
 
 // resumeInputs is everything planResume reads, already fetched. Each
-// slot's claims come from the inventory (FleetSlot.Claims).
+// slot's asleep and pending evidence comes from one Couch recovery report.
 type resumeInputs struct {
 	Scope     hubScope
 	All       bool
-	Slots     []FleetSlot
+	Slots     []RecoverySlot
 	Actors    map[string]Actor
 	ActorsErr error
 }
@@ -118,14 +120,15 @@ type resumeInputs struct {
 // planResume classifies every slot that resolves to this hub alone. A tied
 // or unclaimed slot is ambiguous, since the order that breaks it is Couch's
 // command line; a failed read makes the affected slots unknown. Slots of
-// other hubs are counted, not listed. Down slots with work come back as
+// other hubs are counted, not listed. Explicitly asleep workers come back as
 // classCandidates: finishResume decides them once their candidates are read.
 func planResume(in resumeInputs) (rows []resumeRow, others, unclaimed int) {
-	for _, sl := range in.Slots {
+	for _, evidence := range in.Slots {
+		sl := evidence.FleetSlot
 		addr := sl.Address
-		if sl.Repo == in.Scope.self && sl.Slot == 0 {
+		if sl.Slot == 0 {
 			if in.All {
-				rows = append(rows, resumeRow{addr, classExcluded, "this hub"})
+				rows = append(rows, resumeRow{addr, classExcluded, "hub slot", false})
 			}
 			continue
 		}
@@ -139,42 +142,47 @@ func planResume(in resumeInputs) (rows []resumeRow, others, unclaimed int) {
 			case own.Unclaimed:
 				unclaimed++
 				if in.All {
-					rows = append(rows, resumeRow{addr, classAmbiguous, why})
+					rows = append(rows, resumeRow{addr, classAmbiguous, why, false})
 				}
 			case containsStr(own.Owners, in.Scope.self):
-				rows = append(rows, resumeRow{addr, classAmbiguous, why})
+				rows = append(rows, resumeRow{addr, classAmbiguous, why, false})
 			default:
 				others++
 				if in.All {
-					rows = append(rows, resumeRow{addr, classExcluded, why})
+					rows = append(rows, resumeRow{addr, classExcluded, why, false})
 				}
 			}
 			continue
 		} else if who != in.Scope.self {
 			others++
 			if in.All {
-				rows = append(rows, resumeRow{addr, classExcluded, "belongs to " + who})
+				rows = append(rows, resumeRow{addr, classExcluded, "belongs to " + who, false})
 			}
 			continue
 		}
 		if in.ActorsErr != nil {
-			rows = append(rows, resumeRow{addr, classUnknown, ""})
+			rows = append(rows, resumeRow{addr, classUnknown, "", false})
 			continue
 		}
 		if _, live := in.Actors[addr]; live {
-			rows = append(rows, resumeRow{addr, classRunning, ""})
+			rows = append(rows, resumeRow{addr, classRunning, "", false})
 			continue
 		}
-		if !sl.ClaimsKnown {
-			rows = append(rows, resumeRow{addr, classUnknown, "claims unreadable: " + sl.ClaimsWhy})
+		if evidence.Unknown != "" {
+			rows = append(rows, resumeRow{addr, classUnknown, evidence.Unknown, false})
 			continue
 		}
-		if len(sl.Claims) == 0 {
-			rows = append(rows, resumeRow{addr, classIdle, ""})
+		if !evidence.Asleep {
+			rows = append(rows, resumeRow{addr, classSkipped, "no explicit asleep mark (not asleep or older Couch)", false})
 			continue
 		}
-		rows = append(rows, resumeRow{addr, classCandidates, strings.Join(sl.Claims, ", ")})
+		why := strings.Join(sl.Claims, ", ")
+		if why == "" {
+			why = "explicitly asleep"
+		}
+		rows = append(rows, resumeRow{addr, classCandidates, why, evidence.Pending})
 	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Addr < rows[j].Addr })
 	return rows, others, unclaimed
 }
 
@@ -183,6 +191,8 @@ func finishResume(r resumeRow, c ResumeCandidates, err error) resumeRow {
 	switch {
 	case err != nil:
 		r.Class, r.Why = classUnknown, r.Why+"; candidates unreadable: "+err.Error()
+	case c.Incomplete:
+		r.Class, r.Why = classUnknown, r.Why+"; candidates incomplete: "+strings.Join(c.Reasons, "; ")
 	case c.Proven:
 		r.Class = classResume
 	default:
@@ -206,7 +216,7 @@ const invisibleLayers = "note: Couch runtime moves (couch --move-slot since Couc
 // fleetResume reads, plans, prints, and with apply resumes the resume class
 // one slot at a time. Every unsuccessful outcome stops the batch; uncertainty
 // permits only read-only inspection, never an automatic mutation retry.
-func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool) error {
+func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply bool, allFlags ...bool) error {
 	all := len(allFlags) > 0 && allFlags[0]
 	scope, err := readHubScope(cwd)
 	if err != nil {
@@ -215,7 +225,10 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool
 	if !scope.enabled {
 		return fmt.Errorf("no .hub at repository root: run from a team's ops repo")
 	}
-	fleet, err := d.sdlc.FleetInventory(cwd)
+	if d.recovery == nil {
+		return fmt.Errorf("Couch recovery provider unavailable; inspect couch --recover-plan-from-sdlc")
+	}
+	fleet, err := d.recovery.Recovery(ctx, cwd)
 	if err != nil {
 		return err
 	}
@@ -232,7 +245,7 @@ func fleetResume(out io.Writer, d deps, cwd string, apply bool, allFlags ...bool
 	if in.ActorsErr != nil {
 		fmt.Fprintf(out, "couch --actors unreadable: %v; run tl-lead as a bare call if sandbox exclusions apply\n", in.ActorsErr)
 	}
-	for _, cl := range []slotClass{classResume, classAmbiguous, classUnknown, classRunning, classIdle, classExcluded} {
+	for _, cl := range []slotClass{classResume, classAmbiguous, classUnknown, classRunning, classSkipped, classExcluded} {
 		for _, r := range rows {
 			if r.Class == cl {
 				fmt.Fprintf(out, "%-9s %s  %s\n", classNames[cl], r.Addr, r.Why)
@@ -300,7 +313,7 @@ func newFleetCmd(d deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return fleetResume(cmd.OutOrStdout(), d, cwd, apply, all)
+			return fleetResume(cmd.Context(), cmd.OutOrStdout(), d, cwd, apply, all)
 		},
 	}
 	resume.Flags().BoolVar(&apply, "apply", false, "resume the resume class, one slot at a time (default: a dry run)")

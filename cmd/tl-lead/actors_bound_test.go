@@ -24,7 +24,7 @@ func TestFleetResumeBoundedRecheck(t *testing.T) {
 	d.actors = recheck
 	var out strings.Builder
 	began := time.Now()
-	err := fleetResume(&out, d, cwd, true)
+	err := fleetResume(t.Context(), &out, d, cwd, true)
 	if !errors.Is(err, errUncertain) || time.Since(began) > 5*time.Second {
 		t.Fatalf("unbounded/wrong result: %v\n%s", err, out.String())
 	}
