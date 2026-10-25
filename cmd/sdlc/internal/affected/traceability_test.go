@@ -35,12 +35,15 @@ func TestParseTraceabilityParleyGolden(t *testing.T) {
 // Every hand-edit form the walk owns refuses, at each level it can appear.
 func TestParseTraceabilityRefuses(t *testing.T) {
 	const ok = "version: 1\natlas:\n  a:\n    code: [x.go]\n    tests: [x_test.go]\n"
-	if _, err := ParseTraceability([]byte(ok)); err != nil {
-		t.Fatalf("baseline refused: %v", err)
+	for _, doc := range []string{ok, ok + "---\n", ok + "---\n---\n"} {
+		if _, err := ParseTraceability([]byte(doc)); err != nil {
+			t.Fatalf("%q refused: %v", doc, err)
+		}
 	}
 	cases := []struct{ name, doc, want string }{
 		{"empty", "", "empty"},
 		{"two documents", ok + "---\nversion: 1\n", "more than one"},
+		{"a null second document", ok + "---\n~\n", "more than one"},
 		{"version 2", strings.Replace(ok, "version: 1", "version: 2", 1), "version"},
 		{"version string", strings.Replace(ok, "version: 1", `version: "1"`, 1), "version"},
 		{"no version", strings.Replace(ok, "version: 1\n", "", 1), "version"},
@@ -162,19 +165,7 @@ func TestPlanTraceability(t *testing.T) {
 			}
 		})
 	}
-	// Declarations only add: Owned keeps every graph owner and gains the traceability tests' packages.
 	g := declaredGraph()
-	for _, p := range []string{"ui/toolbar.txt", "mid/testdata/x", "ui/gone.txt", "leaf/leaf.go"} {
-		owned := map[string]bool{}
-		for _, pkg := range Owned(p, g, cfg, mp) {
-			owned[pkg] = true
-		}
-		for _, pkg := range g.Owners(p) {
-			if !owned[pkg] {
-				t.Errorf("Owned(%s) lost graph owner %s", p, pkg)
-			}
-		}
-	}
 	if got := Owned("ui/toolbar.txt", g, cfg, mp); !reflect.DeepEqual(got, []string{m + "mid"}) {
 		t.Fatalf("Owned(ui/toolbar.txt) = %q", got)
 	}

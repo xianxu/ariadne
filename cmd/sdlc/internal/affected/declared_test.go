@@ -260,16 +260,24 @@ func TestCompileRefuses(t *testing.T) {
 	}
 }
 
-// TestOwnedProperty: declarations only add — Owned holds every graph owner of every path, declared or not.
+// TestOwnedProperty: declarations only add — Owned holds every graph owner of every path, declared or not, with every
+// source compiled in (owners, sidecars, sidecar reads and, #616, traceability entries).
 func TestOwnedProperty(t *testing.T) {
 	cfg, err := ParseConfig([]byte(declaredConfig))
 	if err != nil {
 		t.Fatal(err)
 	}
 	g := declaredGraph()
-	mp := declaredMapping(t, cfg, SidecarFile{Path: "tests/readers/mid/mid_test.go.json", Content: []byte(`{"reads":["fixtures/**"]}`)})
+	cfg.Traceability = []string{"atlas/traceability.yaml"}
+	mp, err := Compile(cfg, Sources{
+		Sidecars:     []SidecarFile{{Path: "tests/readers/mid/mid_test.go.json", Content: []byte(`{"reads":["fixtures/**"]}`)}},
+		Traceability: []TraceabilityFile{{Path: "atlas/traceability.yaml", Content: []byte(traceDoc)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	paths := []string{"leaf/leaf.go", "mid/testdata/x", "rt/assets/init.lua", "docs/leaf/a", "fixtures/shared.txt", "fixtures/mid/a",
-		"golden/top/t.out", "tests/readers/mid/mid_test.go.json", "tests/readers/gone/x.json", "cmd/couch/x_test.go", "other/blob.bin"}
+		"golden/top/t.out", "tests/readers/mid/mid_test.go.json", "tests/readers/gone/x.json", "cmd/couch/x_test.go", "other/blob.bin",
+		"ui/toolbar.txt", "ui/icons/a.png", "ui/gone.txt", "ui/couch.txt", "ui/notes.txt"}
 	for _, p := range paths {
 		owned := map[string]bool{}
 		for _, pkg := range Owned(p, g, cfg, mp) {

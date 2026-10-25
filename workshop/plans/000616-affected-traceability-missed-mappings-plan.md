@@ -49,6 +49,8 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 | `Sources` | `cmd/sdlc/internal/affected/mapping.go` | new |
 | `Compile` | `cmd/sdlc/internal/affected/mapping.go` | modified |
 | `ParseTraceability` | `cmd/sdlc/internal/affected/traceability.go` | new |
+| `TraceabilityFile` / `TraceEntry` | `cmd/sdlc/internal/affected/traceability.go` | new |
+| `TreeFilesAt` | `cmd/sdlc/internal/gitx/snapshot.go` | new |
 | `Missed` / `Miss` | `cmd/sdlc/internal/affected/missed.go` | new |
 | `MissedLedger` | `cmd/sdlc/internal/affected/missed.go` | new |
 | `DecodeObject` / `EncodeWithExtra` | `cmd/sdlc/internal/jsonstrict/object.go` | new (moved from landingline) |
@@ -230,6 +232,9 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 ### 2026-10-24: M1 as built
 
 - Traceability files are read with a new `gitx.TreeFilesAt(ctx, dir, rev, paths)`, not `TreeFilesSelected`: a root-level file would otherwise need a full-tree listing, since a "." prefix is refused. Both share one `treeFiles` body, so the listing, batch and limits are one implementation.
+- `ParseTraceability(data)` takes the bytes alone; `Compile` adds the file's path to its error.
+- The `Owned` property test (`TestOwnedProperty`) compiles every source, traceability included, and checks the traceability paths too (M1 review).
+- A bare trailing `---` (an empty document) is tolerated; any second document with content still refuses (M1 review).
 - The drop-cost guard (`scripts/test-landing-drop-cost.py`) builds with `-coverpkg` over landingline and jsonstrict, and counts `jsonstrict/object.go` as the line's own, because the codec it requires moved there.
 
 ### 2026-10-24: plan-quality round 1

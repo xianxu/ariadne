@@ -40,9 +40,16 @@ func ParseTraceability(data []byte) ([]TraceEntry, error) {
 		}
 		return nil, err
 	}
-	var extra yaml.Node
-	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-		return nil, errors.New("more than one document")
+	// A bare trailing "---" (an empty document) is tolerated; any document with content is a second one.
+	for {
+		var extra yaml.Node
+		err := dec.Decode(&extra)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil || !emptyDocument(&extra) {
+			return nil, errors.New("more than one document")
+		}
 	}
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 {
 		return nil, errors.New("not one document")
@@ -100,6 +107,19 @@ func ParseTraceability(data []byte) ([]TraceEntry, error) {
 		}
 	}
 	return out, nil
+}
+
+// emptyDocument is a document with nothing in it, which yaml.v3 yields for a bare "---" as one null scalar.
+func emptyDocument(n *yaml.Node) bool {
+	if n.Kind != yaml.DocumentNode {
+		return false
+	}
+	for _, c := range n.Content {
+		if c.Kind != yaml.ScalarNode || c.ShortTag() != "!!null" || c.Value != "" || c.Anchor != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // mappingPairs yields a mapping node's key/value pairs, refusing anything the format does not allow at any level: a
