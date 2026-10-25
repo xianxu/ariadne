@@ -493,6 +493,8 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 		for i := range attempts {
 			unknownQueue(&attempts[i], blockers[i])
 		}
+		out.Warnings = append(out.Warnings, evidence.coverageNotes(strings.TrimPrefix(repository, "github.com/"))...)
+		out.Warnings = append(out.Warnings, attemptWarnings...)
 		out.Warnings = append(out.Warnings, blockers...)
 		return nil
 	}

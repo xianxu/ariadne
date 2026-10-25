@@ -530,7 +530,9 @@ refuses the close (#603); it records one of:
               subtracted; the line says how much the hours may overstate.
   unmeasured  no number (telemetry gap, empty or missing window, an input
               error): close records actual_hours: N/A with the reason and prints
-              the recovery; fill the value later with sdlc issue correct-actual.
+              the recovery. The recorded actual stays N/A (an N/A actual is not
+              corrected later); restore the evidence before the close if it
+              should count.
 
 The confidence rides in the evidence commit's Close-Actual-Confidence trailer
 (actual_confidence frontmatter where there is no issue tracker) and in the

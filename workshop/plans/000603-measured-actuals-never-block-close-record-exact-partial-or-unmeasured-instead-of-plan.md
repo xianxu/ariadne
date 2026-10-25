@@ -293,3 +293,16 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 - 2026-10-24, sequencing: Tasks 11-13 (ledger columns, weighted calibration, help and atlas) landed in the same commits
   as M1, so the M1 milestone review covers them; M2's close reviews what follows. The summary branch of exclusion is a pure
   `summaryProtection`, unit-tested, rather than an end-to-end overlapping-card fixture.
+- 2026-10-24, M1 boundary review round 1 (all findings fixed in the round):
+  - **Frontmatter:** `actual_confidence` persists the bare `Token()` (exact, partial 0.83, partial upper-bound,
+    unmeasured), never the reason text, which made invalid YAML; the cue field matches exactly that set.
+  - **Unmeasured recovery:** an N/A actual cannot be corrected later (`correct-actual` needs a numeric actual and a ledger
+    row), so close no longer advertises it; it says to restore the evidence before the close. Supporting N/A-to-number
+    corrections would be a fourth design delta, which the TL ruled is a scope cut. State table: the unmeasured row's
+    recovery is "restore the evidence before the close"; the lost hours stay lost.
+  - **Corrections** require an exact measurement, since a correction row carries no confidence columns.
+  - **Ambiguous owner:** the claim stays filed under its real owner key; only the shared root is marked ambiguous.
+  - **Widened gaps** count only where they meet the candidate's slot window.
+  - **Reasons** in a rendering are bounded (240 bytes each) and home-relative.
+  - Exclusion checks a summary's recorded hours (as the replay path checks replayed hours), not Σcredited.
+  - Task 13: `atlas/workflow/gate-state.md` holds no measurement content and was not changed; `README.md` was.

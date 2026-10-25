@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,6 +69,19 @@ func (c actualConfidence) String() string {
 	return fmt.Sprintf("partial %.2f (%.0fm unattributed: %s)", c.Share(), c.UnattributedMinutes, reasons)
 }
 
+// Token is the confidence as a bare machine value: exact, partial <share>,
+// partial upper-bound or unmeasured. It is what frontmatter persists, so it
+// holds no reason text (no colon or hash a YAML scalar would misread).
+func (c actualConfidence) Token() string {
+	switch {
+	case c.Level == confidencePartial && !c.Bounded:
+		return "partial upper-bound"
+	case c.Level == confidencePartial:
+		return "partial " + c.ShareField()
+	}
+	return string(c.Level)
+}
+
 // ShareField is the ledger's attributed_share column.
 func (c actualConfidence) ShareField() string {
 	return strconv.FormatFloat(c.Share(), 'f', 2, 64)
@@ -87,7 +102,7 @@ func classifyActual(res actualResult) actualConfidence {
 		if res.Recovery != "" {
 			reason += "; " + res.Recovery
 		}
-		return actualConfidence{Level: confidenceUnmeasured, Reasons: []string{oneLine(reason)}}
+		return actualConfidence{Level: confidenceUnmeasured, Reasons: []string{confidenceReason(reason)}}
 	}
 	c := actualConfidence{Level: confidenceExact, AttributedMinutes: res.Hours * 60, Bounded: true}
 	if res.Inputs == nil {
@@ -101,7 +116,7 @@ func classifyActual(res actualResult) actualConfidence {
 		if !u.Bounded || u.Kind == gatestate.UnattributedQueueUnknown {
 			c.Bounded = false
 		}
-		if r := oneLine(u.Reason); !seen[r] && len(reasons) < maxConfidenceReasons {
+		if r := confidenceReason(u.Reason); !seen[r] && len(reasons) < maxConfidenceReasons {
 			seen[r] = true
 			reasons = append(reasons, r)
 		}
@@ -116,6 +131,23 @@ func classifyActual(res actualResult) actualConfidence {
 
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// maxReasonBytes bounds one reason in a rendering, which reaches the evidence
+// commit's trailer and so the pushed history.
+const maxReasonBytes = 240
+
+// confidenceReason is one bounded, single-line reason. A path under the home
+// directory is shown from ~, so the trailer names no account layout.
+func confidenceReason(s string) string {
+	s = oneLine(s)
+	if home, err := os.UserHomeDir(); err == nil && len(home) > 1 {
+		s = strings.ReplaceAll(s, home+string(filepath.Separator), "~"+string(filepath.Separator))
+	}
+	if len(s) > maxReasonBytes {
+		s = strings.ToValidUTF8(s[:maxReasonBytes-3], "") + "..."
+	}
+	return s
 }
 
 type span struct{ start, end time.Time }

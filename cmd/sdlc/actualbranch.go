@@ -128,6 +128,7 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 		unknown = append(unknown, "unreadable card "+bad.Path)
 	}
 	claims, roots := map[string][]activetime.BranchClaim{}, map[string]string{}
+	ownerKeys := map[string]bool{} // every slot that owned the candidate
 	for _, card := range inventory.Records() {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, err
@@ -175,11 +176,15 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 			}
 			key := branchOwnerKey(*event.Owner)
 			if strconv.Itoa(id) == candidate {
+				// The claim stays filed under its real owner; only the root
+				// that two owners shared is marked ambiguous.
+				ownerKeys[key] = true
 				root := filepath.Clean(event.Owner.Worktree)
-				if prior, seen := roots[root]; seen && prior != key {
-					key = ambiguousOwner
+				if prior, seen := roots[root]; !seen {
+					roots[root] = key
+				} else if prior != key {
+					roots[root] = ambiguousOwner
 				}
-				roots[root] = key
 			}
 			model := vocab.Issue()
 			claims[key] = append(claims[key], activetime.BranchClaim{Start: start, End: end, Issue: strconv.Itoa(id), Terminal: model.IsTerminal(event.Status)})
@@ -189,13 +194,7 @@ func resolveSlotClaimWindows(ctx context.Context, repo *tracker.Repository, inve
 	// fallback, while a directly witnessed candidate branch still selects its
 	// already verified owner. This also preserves unrelated legacy cutovers.
 	if len(unknown) > 0 {
-		keys := map[string]bool{}
-		for _, key := range roots {
-			if key != ambiguousOwner {
-				keys[key] = true
-			}
-		}
-		for key := range keys {
+		for key := range ownerKeys {
 			claims[key] = append(claims[key], activetime.BranchClaim{Start: since, End: until, Issue: "unknown-competing-history"})
 		}
 	}

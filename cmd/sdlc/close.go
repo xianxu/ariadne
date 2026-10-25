@@ -801,7 +801,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 				newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
 			}
 			if f.Confidence != nil {
-				newFM = issue.SetField(newFM, "actual_confidence", f.Confidence.String())
+				newFM = issue.SetField(newFM, "actual_confidence", f.Confidence.Token())
 			}
 			newFM = issue.SetField(newFM, "updated", today)
 			msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
@@ -1833,7 +1833,7 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 	c := classifyActual(res)
 	cwarn(stderr, fmt.Sprintf("measured actual unavailable for this %s close: recording actual_hours: %s, confidence %s", mode, issue.ActualNotApplicableSentinel, c))
 	printActual(stderr, res, milestone)
-	fmt.Fprintf(stderr, "  → close proceeds (#603); once the evidence is restored, fill the value with sdlc issue correct-actual --issue %s.\n", issueStr)
+	fmt.Fprintf(stderr, "  → close proceeds (#603) and the recorded actual stays N/A: an N/A actual is not corrected later. Restore the named evidence before the close if this one should count (preview: sdlc actual --issue %s).\n", issueStr)
 }
 
 // resolveActualRoots returns the repo top (cwd fallback) and the sibling brain

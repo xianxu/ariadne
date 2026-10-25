@@ -349,3 +349,28 @@ func TestOwnedBranchCaptureUsesExactWorktreeAndRejectsUnavailableHistory(t *test
 		t.Fatalf("missing owner fell back to a primary log: %+v", got)
 	}
 }
+
+// #603: a worktree root with two historical owners attributes its sources to
+// neither: they are recorded as unattributed instead of failing the resolve.
+func TestOwnedActualAmbiguousOwnerIsUnattributed(t *testing.T) {
+	r, cardPath, _, owner, _ := ownedResolverFixture(t)
+	writeOwnedSessions(t, owner.Worktree, 2, 0, 0)
+	other := owner
+	other.Workspace = "ariadne:9"
+	ownedFixtureAt(t, 5)
+	ownedFixtureCard(t, r, cardPath, "reassign", func(raw []byte) ([]byte, error) {
+		return issue.SetCardClaimant(raw, other)
+	})
+	got, err := resolveOwnedActualInputs(t.Context(), r.root, "", "335", "")
+	if err != nil {
+		t.Fatalf("an ambiguous owner failed the resolve: %v", err)
+	}
+	if len(got.Snapshot.Sources) != 0 || len(got.Unattributed) == 0 {
+		t.Fatalf("ambiguous-owner sources were counted: %d sources, %+v", len(got.Snapshot.Sources), got.Unattributed)
+	}
+	for _, u := range got.Unattributed {
+		if u.Kind != gatestate.UnattributedSourceAttribution || !strings.Contains(u.Reason, "ambiguous historical owner") || !u.Bounded {
+			t.Fatalf("record %+v", u)
+		}
+	}
+}

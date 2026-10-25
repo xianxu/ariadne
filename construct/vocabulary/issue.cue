@@ -179,7 +179,7 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// #603: how much of a measured actual was attributed, written by close in a
 	// repository without an issue tracker (a tracker repository carries it as
 	// the Close-Actual-Confidence evidence trailer instead).
-	actual_confidence?: =~"^(exact|partial|unmeasured)( |$)"
+	actual_confidence?: =~"^(exact|unmeasured|partial upper-bound|partial (0\\.[0-9]{2}|1\\.00))$"
 	// flow is MODELED rather than left to the open `...` below, because a typo'd
 	// value (kind: quikc) would otherwise pass every gate silently (#231).
 	flow?: #Flow

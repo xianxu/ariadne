@@ -1209,8 +1209,11 @@ unadopted close/test/landing tail is excluded. Sole-claim planning can count wit
 an explicit ownership-only label. Under concurrent claims, a witnessed resting
 branch or attached valid `stage/*` branch is excluded and unassigned; output
 names its branch-window minutes rather than focused activity minutes. Missing,
-detached or ambiguous branch evidence still refuses numeric measurement and
-names the precise `--no-actual` recovery.
+detached or ambiguous branch evidence, and a source with no single owner, is
+recorded as unattributed and not counted (#603). Measurement never refuses a
+close: it records a confidence, exact, partial (with the attributed share, or as
+an upper bound when queue time could not be subtracted) or unmeasured (N/A with
+the reason), and calibration weights each close by it.
 `sdlc active-time` now uses that same classifier by default. Explicit source
 directories and timestamps only narrow it, and multi-issue output partitions
 source intervals before allocation. No-tracker behavior remains manual.

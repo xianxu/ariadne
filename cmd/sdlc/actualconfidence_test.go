@@ -2,6 +2,8 @@ package main
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -90,5 +92,19 @@ func TestUnattributedAndOverstatedMinutes(t *testing.T) {
 	}
 	if kept := retainUnattributed(append(many, records[4])); len(kept) != gatestate.SnapshotLimitUnattributed || kept[0].Bounded {
 		t.Fatalf("retained %d records, first bounded=%v: an unbounded record must survive the cap", len(kept), kept[0].Bounded)
+	}
+}
+
+// Reasons reach a public trailer: one line, bounded, home-relative, and only
+// sdlc's own diagnostics (an unattributed record never carries transcript text).
+func TestConfidenceReasonIsBoundedAndHomeRelative(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip(err)
+	}
+	long := "branch source has no pinned worktree owner for " + filepath.Join(home, "workspace", "repo") + " " + strings.Repeat("x", 500)
+	got := classifyActual(actualResult{Status: actualError, Detail: long}).String()
+	if strings.Contains(got, home+string(filepath.Separator)) || !strings.Contains(got, "~"+string(filepath.Separator)+"workspace") || len(got) > maxReasonBytes+len("unmeasured ()") {
+		t.Fatalf("reason %q is not home-relative and bounded", got)
 	}
 }

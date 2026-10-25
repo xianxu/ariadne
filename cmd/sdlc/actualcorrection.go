@@ -736,6 +736,11 @@ func runActualCorrection(ctx context.Context, stdout, stderr io.Writer, issuesDi
 		if measured.Status != actualMeasured || measured.Inputs == nil {
 			return measurementRefusal(fmt.Errorf("correction requires trustworthy measured input: status %d, %s, %s", measured.Status, measured.Detail, strings.Join(measured.Warnings, "; ")))
 		}
+		// A correction row is recorded as exact (it carries no confidence
+		// columns), so it must stand on an exact measurement (#603).
+		if c := classifyActual(measured); c.Level != confidenceExact {
+			return measurementRefusal(fmt.Errorf("correction requires an exact measurement, this one is %s", c))
+		}
 		inputs = *measured.Inputs
 		if math.IsNaN(measured.Hours) || math.IsInf(measured.Hours, 0) || measured.Hours < 0 {
 			return measurementRefusal(errors.New("correction measured invalid actual"))

@@ -446,9 +446,23 @@ func summaryProtection(id string, saved gatestate.MeasurementInputs, adoptedHour
 	if err != nil {
 		return nil, nil, err
 	}
+	// A gap costs this candidate only where it meets the candidate's own slot
+	// window inside the sample.
 	var lost []gatestate.MeasurementUnattributed
-	for _, gap := range overlappingCredits(widened, windows, since, until) {
-		lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: gap.Start.Format(time.RFC3339Nano), End: gap.End.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"})
+	for _, gap := range widened {
+		start, end, ok := overlappingSlotInterval(gap.Slot, gap.Start, gap.End, windows)
+		if !ok {
+			continue
+		}
+		if start.Before(since) {
+			start = since
+		}
+		if end.After(until) {
+			end = until
+		}
+		if end.After(start) {
+			lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: start.Format(time.RFC3339Nano), End: end.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"})
+		}
 	}
 	return overlappingCredits(credits, windows, since, until), lost, nil
 }
