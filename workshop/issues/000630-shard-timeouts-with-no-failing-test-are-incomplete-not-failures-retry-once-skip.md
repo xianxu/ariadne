@@ -76,7 +76,7 @@ Durable plan: [000630-shard-timeouts-incomplete-plan.md](../plans/000630-shard-t
 2026-10-25: a passing retry posts green; the retry covers the unfinished packages plus every package with a named
 failure).
 
-- [ ] M1 — classify, record, report, skip diagnosis: the shard runner's alarm marker, parsed process facts,
+- [x] M1 — classify, record, report, skip diagnosis: the shard runner's alarm marker, parsed process facts,
   `classifyIncomplete` and `flakes.IncompleteTimeout`, the v5 attempt with an additive `load_average`, the typed
   `suiteIncompleteError` (no main baseline, no train split), the guard and flake-view treatment.
 - [ ] M2 — the one retry: an incomplete parent is resumable with its own package selection; `runLocalCheck` retries
@@ -85,6 +85,7 @@ failure).
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: closed M1 — Round 2 after REWORK, all nine findings answered in d81ab0241: BR-2 plan tables corrected with a Revisions entry and the issue M1 bullet fixed; BR-3 hostload_other.go (GOOS=freebsd and linux builds ok); BR-4 savedAttemptRecord refuses incomplete-timeout (TestSavedAttemptRecord row, and republishSavedPass reuses nothing and posts nothing in TestSuiteIncompleteIsNotATestResult), with the outcome-consumer sweep listed in the plan; BR-5 incompleteEligible pins the typed-contract guard (TestIncompleteEligible) and the classifier typed-facts case is a table row; BR-6 scripts/test-shard.test.py runs the real Go alarm through go test -json and test2json and asserts the marker; Minors: Running in the report, the Baseline wording, v5 refuses typed identities and known_flakes, and TestSuiteMixedAlarmAndRealFailureDiagnoses. Plus the earlier M1 tests, the fuzz test, regression slices and pkg/golint.; review verdict: FIX-THEN-SHIP
 - 2026-10-25: plan-quality: round 1 FAILURE (PQ-1 M2 resume reuse claimed unchanged; PQ-2 version gates and typed contract), answered by naming the M2 mechanics in the plan Revisions; rounds 2-3 INFO. PQ-5 (Minor, carried to close): in ariadne, which declares no .sdlc/affected.json, the retry reruns the whole suite; asked the TL whether to revise the Done when or make the suite honor a package list.
 - 2026-10-25: estimate 1.99 (v3.1, Method A). estimate-quality INFO: impl looks thin on the two version-gated rows and expects 2.5-3h; kept, the measured actual will say.
 - 2026-10-25: commit bf93b4f38 is titled plan: but carries the M1 code (a pathspec-less commit took the staged M1 files); cbf1db7e7 adds the fuzz test. A history rewrite to split them was refused by the auto-mode classifier (force-push), so the history stands as is; M1 is bf93b4f38 plus cbf1db7e7.
