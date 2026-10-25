@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -46,16 +47,16 @@ func TestIssueListJSONIncludesTerminalCards(t *testing.T) {
 		t.Fatalf("issue list --json: %v\n%s", err, out)
 	}
 	doc := decodeIssueList(t, out)
-	rows := map[string]IssueState{}
-	for _, is := range doc.Issues {
-		rows[is.ID] = is
+	rows := map[string]CardRow{}
+	for _, c := range doc.Cards {
+		rows[c.ID] = c
 	}
 	if !doc.Tracker || len(rows) != 4 {
-		t.Fatalf("want 4 rows from a tracker repository, got tracker=%v %+v", doc.Tracker, doc.Issues)
+		t.Fatalf("want 4 rows from a tracker repository, got tracker=%v %+v", doc.Tracker, doc.Cards)
 	}
 	done := rows["000003"]
-	if done.Status != "done" || done.Kind != "bug" || done.Created != "2026-09-01" || done.Updated != "2026-09-03" || done.Owner == nil || done.Owner.Workspace != "ariadne:3" {
-		t.Fatalf("done card row: %+v (owner %+v)", done, done.Owner)
+	if done.Status != "done" || done.Kind != "bug" || done.Created != "2026-09-01" || done.Updated != "2026-09-03" || done.ClaimantWorkspace != "ariadne:3" {
+		t.Fatalf("done card row: %+v", done)
 	}
 	if rows["000001"].Status != "open" || rows["000002"].Status != "working" {
 		t.Fatalf("open/working rows: %+v %+v", rows["000001"], rows["000002"])
@@ -64,16 +65,26 @@ func TestIssueListJSONIncludesTerminalCards(t *testing.T) {
 		t.Fatalf("unreadable card row: %+v", bad)
 	}
 
-	out, err = runSdlc(t, "issue", "list", "--json", "--kind", "bug")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var ids []string
-	for _, is := range decodeIssueList(t, out).Issues {
-		ids = append(ids, is.ID)
-	}
-	if strings.Join(ids, ",") != "000003,000004" {
-		t.Fatalf("--kind bug kept %v; want the bug and the unreadable row", ids)
+	for _, q := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--kind", "bug"}, "000003,000004"},
+		// the triage's closes query: terminal card-only cards, plus the unreadable row
+		{[]string{"--status", "done"}, "000003,000004"},
+		{[]string{"--status", "open"}, "000001,000004"},
+	} {
+		out, err := runSdlc(t, append([]string{"issue", "list", "--json"}, q.args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ids []string
+		for _, c := range decodeIssueList(t, out).Cards {
+			ids = append(ids, c.ID)
+		}
+		if strings.Join(ids, ",") != q.want {
+			t.Fatalf("%v kept %v; want %s (the unreadable row is never filtered out)", q.args, ids, q.want)
+		}
 	}
 
 	out, err = runSdlc(t, "issue", "list")
@@ -95,7 +106,36 @@ func TestIssueListJSONWithoutTracker(t *testing.T) {
 		t.Fatalf("issue list --json: %v\n%s", err, out)
 	}
 	doc := decodeIssueList(t, out)
-	if doc.Tracker || len(doc.Issues) != 1 || doc.Issues[0].ID != "000001" || doc.Issues[0].Created != "2026-09-01" {
+	if doc.Tracker || len(doc.Cards) != 1 || doc.Cards[0].ID != "000001" || doc.Cards[0].Created != "2026-09-01" {
 		t.Fatalf("legacy listing: %+v", doc)
+	}
+}
+
+// Schema version 1's keys are pinned: renaming or removing one, or adding one
+// to the document without updating this list, fails here, so a format change
+// is a decision (ARCH-EVOLVE) and never a side effect of another view's edit.
+func TestIssueListJSONFieldSetIsPinned(t *testing.T) {
+	keys := func(v any) []string {
+		var out []string
+		ty := reflect.TypeOf(v)
+		for i := 0; i < ty.NumField(); i++ {
+			out = append(out, strings.Split(ty.Field(i).Tag.Get("json"), ",")[0])
+		}
+		return out
+	}
+	if got, want := keys(IssueListJSON{}), []string{"schema_version", "tracker", "cards"}; !reflect.DeepEqual(got, want) || issueListSchema != 1 {
+		t.Fatalf("v1 document keys %v (schema %d), want %v", got, issueListSchema, want)
+	}
+	want := []string{"id", "title", "status", "created", "updated", "kind", "severity", "area", "claimant_workspace", "unreadable"}
+	if got := keys(CardRow{}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("v1 row keys %v, want %v", got, want)
+	}
+}
+
+// A details file that cannot be parsed is an unreadable row with its path.
+func TestCardRowOfUnparsedDetails(t *testing.T) {
+	row := cardRowOf(IssueState{ID: "000009", Path: "workshop/issues/000009-x.md"})
+	if row.Status != "unreadable" || !strings.Contains(row.Unreadable, "000009-x.md") {
+		t.Fatalf("%+v", row)
 	}
 }

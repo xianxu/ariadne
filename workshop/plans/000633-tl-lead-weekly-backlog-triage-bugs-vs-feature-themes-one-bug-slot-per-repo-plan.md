@@ -35,14 +35,14 @@ collaboration-mode: discussion
 | Name | Lives in | Status |
 |------|----------|--------|
 | `kind` card field (`bug`, `feature`) | `construct/vocabulary/issue.cue` | new |
-| `CardSummary` JSON row | `cmd/sdlc/issue_list.go` (new file beside `issue.go`) | new |
+| `CardRow` and `IssueListJSON` (the `--json` format) | `cmd/sdlc/issuelist_json.go` | new |
 | `weekStats` (per-repo week buckets) | `cmd/tl-lead/triage_stats.go` | new |
 | `slotVelocity` | `cmd/tl-lead/triage_stats.go` | new |
 
 - **`kind`** is a shared enum like `severity`, with setter `sdlc issue set-kind`. Unset means unclassified; triage's first pass sets it.
   - The stats report the unclassified count instead of guessing. A title heuristic (such as "flake:" or "fix") would mislabel issues and give the trend a false precision.
   - DRY: one mark, set once, and every consumer reads it.
-  - Future extensions: more kinds, such as `chore`, are a one-word enum edit.
+  - Future extensions: more kinds, such as `chore`. This is not additive, because `ParseCard` refuses a value outside the enum, so a new value lands only once every pinned reader knows it (see the round 1 revision).
 - **`CardSummary`** is one card: `{id, title, status, created, updated, kind, severity, area[], claimant_workspace}`.
   - The output is `{schema_version: 1, repo, cards[], unreadable[]}`.
   - A card that fails to parse goes into `unreadable` with the error, so it is never silently dropped (ARCH-SECURE).
@@ -57,7 +57,7 @@ collaboration-mode: discussion
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `sdlc issue list --json` | `cmd/sdlc/issue_list.go` (new; `issue.go`'s `runIssueList` dispatches to it) | new | the issue-tracker cards (`origin/issue-tracker`) |
+| `sdlc issue list --json` | `cmd/sdlc/issuelist_json.go` (new; `issue.go`'s `runIssueList` dispatches to it) | new | the issue-tracker cards (`origin/issue-tracker`) |
 | `sdlc issue set-kind` | `cmd/sdlc/cardsetters.go` | new | card CAS, like `set-severity` |
 | `SDLC.RepoCards(root)` | `cmd/tl-lead/sdlc.go` | new | `sdlc issue list --json` per repository |
 | `tl-lead triage stats` | `cmd/tl-lead/triage_stats.go` | new | stdout |
@@ -156,3 +156,21 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
 - **Legacy repositories have no close history.** Their closed issues live in `workshop/history/`, so `--json` there lists the open details files only, and `triage stats` reports such a repository as "no tracker: open counts only".
 - **`weekStats` test strategy.** Generated card sets that span DST changes and ISO week-year boundaries. Property: for each week, bugs opened minus bugs closed equals the change in open bugs, given no reopens.
 - **Open at a week's end** means `created <= end`, and either the card is non-terminal or `updated > end`. A reopened card makes the figure approximate, and help says so.
+
+### 2026-10-25 — M1 boundary review round 1 (REWORK: BR-1 to BR-3 and 2 Minors, fixed in this round)
+
+- **BR-1 (Critical): the contract as shipped.** It replaces the `CardSummary` envelope described above.
+  - `sdlc issue list --json` prints `{schema_version: 1, tracker, cards[]}`.
+  - Each `CardRow` is `{id, title, status, created, updated, kind, severity, area[], claimant_workspace, unreadable}`.
+  - Unreadable cards and unparseable details files are rows with `status: "unreadable"` and a reason. There is no separate array, and no filter removes them.
+  - `tracker: false` means a repository with no tracker, which tl-lead reports as "no tracker: open counts only".
+  - Decode policy: tl-lead decodes tolerantly, ignoring fields it does not use, which v1 may add. It is strict on `schema_version`: another version is refused, naming it.
+  - The `repo` key is dropped, because the caller knows which repository it asked.
+- **BR-3 (Important): the format has its own row type.** `CardRow` replaces the `state --json` `IssueState` rows, so an edit to `state` never moves it. `TestIssueListJSONFieldSetIsPinned` pins v1's document and row keys (ARCH-EVOLVE).
+- **BR-2 (Important): README.** The Classifying issues section documents `kind`, `set-kind`, `--kind` and `--json`.
+- **Minor: malformed details stay in the output.** A details file that fails to parse (empty status) becomes an unreadable row with its path. `TestCardRowOfUnparsedDetails` covers it, and the `--status done` and `--status open` queries keep unreadable rows.
+- **Minor: the kind enum is closed in the reader.** A value outside it makes a card unreadable to an older pinned sdlc, as with severity, so the enum cannot grow additively. The atlas `vocabulary.md` says so, and so does the future-extensions line above.
+- **Minor: smaller fixes.**
+  - The JSON path reports errors with `die`, as the text path does.
+  - The file is renamed to `issuelist_json.go`, beside `issuelist.go`.
+  - A `--status done --json` test covers the closes query.

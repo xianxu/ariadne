@@ -247,7 +247,11 @@ embedded export, so a repo cannot extend the model in place).
 
 - **Model** (`construct/vocabulary/issue.cue`):
   - `enums` holds the shared closed enums (`severity: critical | high | medium | low`,
-    and `kind: bug | feature`, the weekly triage's mark, #633).
+    and `kind: bug | feature`, the weekly triage's mark, #633). They are closed in
+    the reader as well: `ParseCard` refuses a value outside the enum. So adding a
+    value is not additive, because an older pinned sdlc cannot read a card that
+    carries it. A new value lands only once every pinned reader in the fleet knows
+    it.
   - `repoEnums` holds the repo-defined ones. It gives `declarationPath`
     (`.sdlc/vocabulary.json`) and, per field, the syntax: `area` is a `/`-path of
     `segment`s, up to `maxDepth`, multi-valued up to `maxItems`.

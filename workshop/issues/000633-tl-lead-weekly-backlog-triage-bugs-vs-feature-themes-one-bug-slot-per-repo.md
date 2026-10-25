@@ -99,3 +99,9 @@ Items:
   - Help, the recovery catalog and the atlas (`sdlc-binary.md`, `vocabulary.md`) are updated.
   - Tests: `TestIssueSetKind` (set, a rerun is a no-op, refusals, clear, a done card keeps `updated`), `TestParseCardRefusesUnknownKind`, `TestIssueListJSONIncludesTerminalCards` (open, working, done card-only with owner and kind, unreadable, `--kind`, text unchanged), `TestIssueListJSONWithoutTracker`, and `--kind` filter cases.
   - Green: those tests, the issue-list, malformed-card and severity tests, pkg/vocab, internal/issue, internal/recovery, cmd/vocabulary, the CUE vet script, and the cmd/sdlc help, recovery and catalog tests.
+- 2026-10-25: M1 review round 1 returned REWORK, all fixed in this round (see the plan Revisions).
+  - BR-1: the contract is recorded as shipped, with the decode policy: tolerant of fields, strict on version.
+  - BR-3: `CardRow` is its own row type, and the v1 key set is pinned by a test.
+  - BR-2: README.
+  - Minors: malformed details become unreadable rows, the enum-growth limit is noted, errors use `die` consistently, the file is renamed, and a `--status done` test is added.
+- 2026-10-25: live smoke (new sdlc in this slot): `sdlc issue list --json` reads 630 ariadne cards (485 done, 33 wontfix, 9 punt; 309 with a claimant; 0 unreadable). tl-lead's renderer over that output: 103 open and 527 closed unclassified (no kinds yet; the back-fill is the TL's), and a bug quota of 11 a week (the median over 11 slot-weeks, last 4 whole weeks).

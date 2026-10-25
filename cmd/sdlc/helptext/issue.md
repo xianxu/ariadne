@@ -52,8 +52,8 @@ SUBCOMMANDS
                  --area (a /-path prefix by whole segments), --severity and
                  --kind filter; severity and area columns appear when a listed
                  issue has them. --json prints every matching card, terminal
-                 ones included, for readers such as tl-lead's triage stats
-                 (#633)
+                 ones included, as schema_version 1 rows for readers such as
+                 tl-lead's triage stats (#633; see `issue list --help`)
   show           Print an issue's frontmatter + section headers (no bodies)
 
 NEW REPOSITORY SETUP (#543)
