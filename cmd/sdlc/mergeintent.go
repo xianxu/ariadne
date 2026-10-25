@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -110,7 +111,7 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 func formatMergeIntent(r mergeIntentReport) string {
 	switch r.State {
 	case "unreadable":
-		return fmt.Sprintf("unreadable merge intent %q: %q (inspect it, then remove it)", r.Path, r.Note)
+		return fmt.Sprintf("unreadable merge intent %q: %q (inspect the named source, then rerun)", r.Path, r.Note)
 	case string(landingline.IntentOrphaned):
 		issue := ""
 		if r.Issue > 0 {
@@ -145,8 +146,10 @@ func observeMergeIntentsWithPause(r gitRunner, root string, keep func(mergeInten
 	note := pauseNote()
 	var out []mergeIntentReport
 	for _, o := range observed {
-		if physical, pathErr := workspace.CanonicalPath(o.Path); pathErr == nil {
-			o.Path = physical
+		// The entry itself can be a rejected symlink. Resolve the store's
+		// physical directory, never redirect its diagnostic to the target.
+		if parent, pathErr := workspace.CanonicalPath(filepath.Dir(o.Path)); pathErr == nil {
+			o.Path = filepath.Join(parent, filepath.Base(o.Path))
 		} else {
 			o.Err = errors.Join(o.Err, fmt.Errorf("merge intent path identity unavailable: %w", pathErr))
 		}

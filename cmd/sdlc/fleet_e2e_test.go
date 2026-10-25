@@ -132,11 +132,14 @@ func TestFleetEndToEnd(t *testing.T) {
 	if peerRows != 1 {
 		t.Fatalf("peer rows = %d, want 1", peerRows)
 	}
-	if len(baseline.Diagnostics) != 1 {
-		t.Fatalf("top-level diagnostics = %#v, want one malformed-repository diagnostic", baseline.Diagnostics)
+	if len(baseline.Diagnostics) != 2 {
+		t.Fatalf("top-level diagnostics = %#v, want malformed repository and unavailable merge-store diagnostics", baseline.Diagnostics)
 	}
 	if diagnostic := baseline.Diagnostics[0]; diagnostic.RepoPath != canonicalBroken || diagnostic.Stage != "git" {
 		t.Fatalf("malformed-repository diagnostic = %#v, want repo_path %q and git stage", diagnostic, canonicalBroken)
+	}
+	if diagnostic := baseline.Diagnostics[1]; diagnostic.RepoPath != canonicalBroken || diagnostic.Stage != "merge_intents" {
+		t.Fatalf("missing merge-store uncertainty for malformed repository: %#v", diagnostic)
 	}
 
 	primaryResult := runFleetE2EPolicy(t, binary, filepath.Join(alphaNested, "prospective", "task"))

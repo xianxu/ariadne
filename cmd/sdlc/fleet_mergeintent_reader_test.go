@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,9 @@ func TestFleetMergeIntentsReaderRetainsEarlierObservations(t *testing.T) {
 			if report.State != "unreadable" || report.Reentry != "" || !strings.Contains(report.Note, cause.Error()) {
 				t.Fatalf("failed branch probe invented authority: %+v", report)
 			}
+			if strings.Contains(formatMergeIntent(report), "remove it") {
+				t.Fatal("a failed Git probe must not advise removing a valid recovery intent")
+			}
 		}
 	}
 	if !found {
@@ -96,5 +100,62 @@ func TestFleetMergeIntentsCanonicalPhysicalIdentity(t *testing.T) {
 	}
 	if reports[0].Identity != want {
 		t.Fatalf("identity %q is not physical %q", reports[0].Identity, want)
+	}
+	outside := filepath.Join(t.TempDir(), "outside")
+	if err := os.WriteFile(outside, []byte("private target must not be followed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(line, "intents", "invalid")); err != nil {
+		t.Fatal(err)
+	}
+	reports, err = observeFleetMergeIntents(context.Background(), root, "")
+	if err != nil || len(reports) != 2 {
+		t.Fatalf("invalid entry: %+v %v", reports, err)
+	}
+	for _, report := range reports {
+		if report.State == "unreadable" && report.Path != filepath.Join(canonicalRoot(physical), "intents", "invalid") {
+			t.Fatalf("rejected symlink's diagnostic followed its target: %+v", report)
+		}
+	}
+}
+
+func TestFleetMergeIntentsBranchProbeGrowth(t *testing.T) {
+	isolateFleetIntegrationGit(t)
+	for _, n := range []int{8, 16} {
+		base := t.TempDir()
+		root := filepath.Join(base, "sample")
+		runFleetIntegrationGit(t, base, "init", "-b", "main", root)
+		runFleetIntegrationGit(t, root, "config", "user.name", "fixture")
+		runFleetIntegrationGit(t, root, "config", "user.email", "fixture@example.test")
+		runFleetIntegrationGit(t, root, "commit", "--allow-empty", "-qm", "initial")
+		head := strings.TrimSpace(string(runFleetIntegrationGit(t, root, "rev-parse", "HEAD")))
+		line, err := landingLineDir(execGitRunner{}, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := landingline.OpenIntents(line)
+		for i := 0; i < n; i++ {
+			branch := fmt.Sprintf("000624-case-%d", i)
+			runFleetIntegrationGit(t, root, "branch", branch)
+			hold, err := store.Hold(landingline.Intent{Branch: branch, Head: head, Root: canonicalRoot(root), PID: 4242, StartedAt: time.Now().UTC()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := hold.Release(true); err != nil {
+				t.Fatal(err)
+			}
+		}
+		calls, probes := 0, 0
+		r := landingHookRunner{gitRunner: execGitRunner{}, before: func(_ string, args []string) error {
+			calls++
+			if len(args) > 1 && args[0] == "rev-parse" && args[1] == "--verify" {
+				probes++
+			}
+			return nil
+		}}
+		got, err := observeMergeIntentsWithPause(r, root, func(mergeIntentReport) bool { return true }, func() string { return "" })
+		if err != nil || len(got) != n || probes != n || calls != n+1 {
+			t.Fatalf("N=%d reports=%d Git=%d probes=%d err=%v", n, len(got), calls, probes, err)
+		}
 	}
 }

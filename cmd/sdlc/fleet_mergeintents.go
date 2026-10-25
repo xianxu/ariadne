@@ -102,9 +102,33 @@ func placeFleetMergeIntents(inventory fleet.Inventory, reads []fleetIntentRead) 
 		}
 		groupRows[row.RepoIdentity] = append(groupRows[row.RepoIdentity], n)
 	}
+	// A repository whose worktrees could not be discovered has no row on which
+	// to carry quality. Preserve that uncertainty for merge-only consumers too.
+	unknownRepos := map[string]bool{}
+	for _, d := range inventory.Diagnostics {
+		if d.Stage == "merge_intents" {
+			unknownRepos[d.RepoIdentity+"\x00"+d.RepoPath] = true
+		}
+	}
+	for _, d := range inventory.Diagnostics {
+		if d.Stage != "git" && d.Stage != "worktrees" {
+			continue
+		}
+		if d.RepoIdentity != "" && len(groupRows[d.RepoIdentity]) > 0 {
+			continue
+		}
+		key := d.RepoIdentity + "\x00" + d.RepoPath
+		if unknownRepos[key] {
+			continue
+		}
+		unknownRepos[key] = true
+		inventory.Diagnostics = append(inventory.Diagnostics, fleet.RepoDiagnostic{RepoIdentity: d.RepoIdentity, RepoPath: d.RepoPath, Stage: "merge_intents", Message: "merge intent store unavailable because repository discovery failed: " + d.Message})
+	}
 	seen := map[string]mergeIntentReport{}
 	conflicts := map[string]bool{}
+	observed := map[string]bool{}
 	for _, read := range reads {
+		observed[read.Common] = true
 		for _, report := range read.Reports {
 			if old, ok := seen[report.Identity]; ok && old != report {
 				conflicts[report.Identity] = true
@@ -118,6 +142,11 @@ func placeFleetMergeIntents(inventory fleet.Inventory, reads []fleetIntentRead) 
 		if read.Err != nil {
 			groupErrors[read.Common] = append(groupErrors[read.Common], read.Err.Error())
 			unreadable[read.Common] = len(read.Reports) == 0
+			key := read.Common + "\x00read"
+			if !diagnosed[key] {
+				diagnosed[key] = true
+				inventory.Diagnostics = append(inventory.Diagnostics, fleet.RepoDiagnostic{RepoIdentity: read.Common, RepoPath: read.Root, Stage: "merge_intents", Message: read.Err.Error()})
+			}
 		}
 		for _, report := range read.Reports {
 			counts.Records++
@@ -154,11 +183,22 @@ func placeFleetMergeIntents(inventory fleet.Inventory, reads []fleetIntentRead) 
 			row.MergeIntents = append(row.MergeIntents, report)
 			if report.State == "unreadable" {
 				groupErrors[read.Common] = append(groupErrors[read.Common], report.Path+": "+report.Note)
+				if !diagnosed[report.Identity] {
+					diagnosed[report.Identity] = true
+					inventory.Diagnostics = append(inventory.Diagnostics, fleet.RepoDiagnostic{RepoIdentity: read.Common, RepoPath: read.Root, Stage: "merge_intents", Message: report.Path + ": " + report.Note})
+				}
 			}
 		}
 	}
 	for common, rows := range groupRows {
-		message := strings.Join(groupErrors[common], "; ")
+		if !observed[common] {
+			groupErrors[common] = append(groupErrors[common], "merge intent store was not observed")
+			unreadable[common] = true
+		}
+		message := ""
+		if len(groupErrors[common]) > 0 {
+			message = "merge intent read incomplete; inspect records and repository diagnostics: " + common
+		}
 		for _, n := range rows {
 			row := &inventory.Rows[n]
 			if message != "" {
@@ -170,19 +210,14 @@ func placeFleetMergeIntents(inventory fleet.Inventory, reads []fleetIntentRead) 
 			slices.SortFunc(row.MergeIntents, func(a, b mergeIntentReport) int { return strings.Compare(a.Identity, b.Identity) })
 		}
 	}
-	slices.SortFunc(inventory.Diagnostics, func(a, b fleet.RepoDiagnostic) int {
-		if c := strings.Compare(a.RepoIdentity, b.RepoIdentity); c != 0 {
-			return c
-		}
-		if c := strings.Compare(a.Stage, b.Stage); c != 0 {
-			return c
-		}
-		return strings.Compare(a.Message, b.Message)
-	})
+	fleet.SortDiagnostics(inventory.Diagnostics)
 	return inventory, counts
 }
 
 func writeFleetInventoryJSON(ctx context.Context, out io.Writer, inventory fleet.Inventory) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	raw, err := json.Marshal(inventory)
 	if err != nil {
 		return err

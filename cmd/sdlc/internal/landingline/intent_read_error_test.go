@@ -1,6 +1,7 @@
 package landingline
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,29 @@ func TestIntentOpenFailureIsNotAbsence(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "gone")
 	if _, present := observeIntent(missing); present {
 		t.Fatal("confirmed disappearance should be omitted")
+	}
+}
+
+func TestIntentPermissionFailureRetainsAnObservation(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "intents")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "denied")
+	if err := os.WriteFile(path, []byte("not readable"), 0000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0600) })
+	if f, err := os.Open(path); err == nil {
+		f.Close()
+		t.Skip("privileged user bypasses file permissions")
+	} else if !errors.Is(err, os.ErrPermission) {
+		t.Fatal(err)
+	}
+	got, err := OpenIntents(root).List()
+	if err != nil || len(got) != 1 || !errors.Is(got[0].Err, os.ErrPermission) {
+		t.Fatalf("permission error became absence: %+v %v", got, err)
 	}
 }
 

@@ -91,30 +91,30 @@ No new state machine is persisted: each command produces a fresh observation and
 
 Files: create cmd/sdlc/internal/fleet/mergeintents.go and mergeintents_test.go; modify types.go, json_test.go and cmd/sdlc/mergeintent.go; add cmd/sdlc/testdata/merge-intents-v1/ fixtures.
 
-- [ ] RED tests: legacy inventory missing capability remains unsupported; capable complete empty emits []; null/missing/malformed collections and quality/error combinations refuse; duplicates and known-type validation remain strict; additive unknown fields do not invalidate reads.
-- [ ] Pin literal pre-change v1 intent JSON, optional workspace absence and unknown nested members. Decode with the existing preserving codec, verify read-only bytes unchanged, and retain its existing decode/rewrite preservation tests.
-- [ ] Promote the report DTO with a main-package alias; retain the existing classifier and command builder. Add stable physical identity without changing live/orphaned/stale semantics or the v1 writer.
-- [ ] GREEN targeted commands: go test ./cmd/sdlc/internal/fleet -run 'Test.*MergeIntent|TestJSON' -count=1; go test ./cmd/sdlc/internal/landingline -run '^TestIntent' -count=1. Use final exact test names once written.
+- [x] RED tests: legacy inventory missing capability remains unsupported; capable complete empty emits []; null/missing/malformed collections and quality/error combinations refuse; duplicates and known-type validation remain strict; additive unknown fields do not invalidate reads.
+- [x] Pin literal pre-change v1 intent JSON, optional workspace absence and unknown nested members. Decode with the existing preserving codec, verify read-only bytes unchanged, and retain its existing decode/rewrite preservation tests.
+- [x] Promote the report DTO with a main-package alias; retain the existing classifier and command builder. Add stable physical identity without changing live/orphaned/stale semantics or the v1 writer.
+- [x] GREEN targeted commands: go test ./cmd/sdlc/internal/fleet -run 'Test.*MergeIntent|TestJSON' -count=1; go test ./cmd/sdlc/internal/landingline -run '^TestIntent' -count=1. Use final exact test names once written.
 
 ### Task 2 — preserve uncertainty and assemble one observation per store
 
 Files: create cmd/sdlc/fleet_mergeintents.go and fleet_mergeintents_test.go; modify fleet.go, mergeintent.go, internal/landingline/intent.go and intent_test.go.
 
-- [ ] RED lower-boundary tests: permission/IO open failure is not absent; confirmed disappearance is omitted; held lock remains live even if content is temporarily unreadable; a later failure retains earlier valid observations; branch lookup failure cannot become stale. Inject errors deterministically rather than relying only on chmod under privileged test users.
-- [ ] RED pure placement cases: shared linked worktrees; declared independent dependency clone; identical branch in separate stores; several intents on one root; optional/mismatching workspace cannot redirect Root; unmatched/corrupt root diagnosed once; valid+corrupt mixed store retains reports with partial quality; conflicting identity never supplies executable guidance.
-- [ ] Add the grouped command-layer adapter and defaults. Read queue pause state once, call the shared observer once per physical common directory, normalize roots once, then pure placement. Test callers injecting inventory also inject the stateful observer so no fake root accesses live state.
-- [ ] Drive fake hold → live, interrupt → orphaned, pause/unpause, terminal removal → complete empty, branch deletion → stale, denial/corruption → partial/unreadable. Assert repeated calls never mutate intent bytes or queue ownership.
-- [ ] Count at N=8 and2N=16: one observer/store, one root index/row, one placement/record and at most one local branch probe/readable record. Doubling rows sharing one store must not double store reads; reject per-row rescans and per-slot SDLC subprocesses.
-- [ ] GREEN targeted command: go test ./cmd/sdlc -run '^(TestFleetMergeIntents|TestMergeIntent)' -count=1; then the same focused names under -race. One targeted runner at a time.
+- [x] RED lower-boundary tests: permission/IO open failure is not absent; confirmed disappearance is omitted; held lock remains live even if content is temporarily unreadable; a later failure retains earlier valid observations; branch lookup failure cannot become stale. Inject errors deterministically rather than relying only on chmod under privileged test users.
+- [x] RED pure placement cases: shared linked worktrees; declared independent dependency clone; identical branch in separate stores; several intents on one root; optional/mismatching workspace cannot redirect Root; unmatched/corrupt root diagnosed once; valid+corrupt mixed store retains reports with partial quality; conflicting identity never supplies executable guidance.
+- [x] Add the grouped command-layer adapter and defaults. Read queue pause state once, call the shared observer once per physical common directory, normalize roots once, then pure placement. Test callers injecting inventory also inject the stateful observer so no fake root accesses live state.
+- [x] Drive fake hold → live, interrupt → orphaned, pause/unpause, terminal removal → complete empty, branch deletion → stale, denial/corruption → partial/unreadable. Assert repeated calls never mutate intent bytes or queue ownership.
+- [x] Count at N=8 and2N=16: one observer/store, one root index/row, one placement/record and at most one local branch probe/readable record. Doubling rows sharing one store must not double store reads; reject per-row rescans and per-slot SDLC subprocesses.
+- [x] GREEN targeted command: go test ./cmd/sdlc -run '^(TestFleetMergeIntents|TestMergeIntent)' -count=1; then the same focused names under -race. One targeted runner at a time.
 
 ### Task 3 — qualify the public producer and document rollout
 
 Files: modify cmd/sdlc/fleet_integration_test.go and fleet_test.go; cmd/sdlc/helptext/fleet-inventory.md; atlas/workflow/sdlc-binary.md (existing indexed fleet section).
 
-- [ ] RED/GREEN private real-executable fixture: linked worktree plus independent dependency store, real held lock then released interrupted intent, terminal removal and stale branch, corrupt record and private queue pause. Observe stdout through the real fleet inventory command, decode with strict typed contract, and assert no store bytes or directory entries changed. Private Git/tracker and WF_SDLC_QUEUE_ROOT only; never pause/read intent fixtures in the production queue/store.
-- [ ] Bound JSON to1MiB before stdout. Boundary test exact fit and overflow with zero partial output; check cancellation before publication and propagate stdout write errors without claiming atomic transport. Other command errors stay stderr/nonzero. Keep one inventory command for the whole fixture fleet.
-- [ ] Qualify existing state and landing-status surfaces against the promoted report and conservative reader so the shared owner does not regress their command text or liveness semantics.
-- [ ] Document capability, row quality, physical identity, Root/slot-member association, diagnostics, absence of terminal tombstones, legacy rollout, consumer byte limit and read-only/no-sweep behavior. No Pair source changes or activation in this issue.
+- [x] RED/GREEN private real-executable fixture: linked worktree plus independent dependency store, real held lock then released interrupted intent, terminal removal and stale branch, corrupt record and private queue pause. Observe stdout through the real fleet inventory command, decode with strict typed contract, and assert no store bytes or directory entries changed. Private Git/tracker and WF_SDLC_QUEUE_ROOT only; never pause/read intent fixtures in the production queue/store.
+- [x] Bound JSON to1MiB before stdout. Boundary test exact fit and overflow with zero partial output; check cancellation before publication and propagate stdout write errors without claiming atomic transport. Other command errors stay stderr/nonzero. Keep one inventory command for the whole fixture fleet.
+- [x] Qualify existing state and landing-status surfaces against the promoted report and conservative reader so the shared owner does not regress their command text or liveness semantics.
+- [x] Document capability, row quality, physical identity, Root/slot-member association, diagnostics, absence of terminal tombstones, legacy rollout, consumer byte limit and read-only/no-sweep behavior. No Pair source changes or activation in this issue.
 - [ ] Ask pair:5 to run its real decoder against a retained private new-binary capture; if its implementation is not ready, retain that fixture and state the consumer limit. Propose private executable conformance plus the hub's ordinary post-land :0 rebuild; no live staging, grants or merge re-entry for qualification.
 - [ ] Push candidate; run recorded sdlc local-check run --pre-close; satisfy the single binary-owned close review; land through central sdlc merge --yes. Tell ops:0 and pair:5 the Git-verified merge and final schema so #848 can proceed from main.
 
@@ -143,3 +143,11 @@ Pair:5 confirmed the exact capability, quality and terminal-removal semantics an
 ### 2026-10-25 — Hub approved implementation
 
 Authenticated receipt565af516-d8bc-4ef8-b8c8-46042ce3b16e approves the plan, including the shared reader's lost-partial-result correction, consumer wire, bounds, legacy fixtures, counted growth and private conformance plus the hub's post-land primary rebuild. Proceed to change-code; keep that reader fix explicitly tested and named in the Log.
+
+### 2026-10-25 — Qualification details and bounded partial diagnostics
+
+Added source/read-quality controls for absent store observations and repositories whose discovery failed before any row could carry quality. They remain explicit merge_intents diagnostics, never complete empty. Nonregular records are inspection evidence; physical identity resolves the store directory without redirecting a rejected symlink's diagnostic to its target. The shared status hint now says inspect the named source and rerun, since a failed branch probe is not authority to remove a valid intent.
+
+Counted growth includes D existing/new diagnostics and encoded bytes B: O(R+I+D+B), plus deterministic sorting. A RED8→16 mixed-read payload grew9820→28284 bytes because every row repeated every error. Details now occur once in repository diagnostics and each affected row has a short pointer; the fixed-path8/16 encoded-size control is linear. Existing diagnostic ordering is extracted unchanged as fleet.SortDiagnostics and reused, not restated by the adapter.
+
+Private real-executable conformance and the frozen literal v1 schema fixture passed; the fixture is explicitly not a live-fleet capture. Broad fleet/intent race qualification passed33.470s; internal wire/intent race controls passed1.231s/1.280s. The final inspection-hint control passed4.820s after its RED proof. Pair:5's authenticated consumer reply says #848 remains parked pending this producer, so new-Couch decoder qualification is after this prerequisite lands; no consumer code or live fleet was used. Recorded pre-close, close review and landing are still outstanding.

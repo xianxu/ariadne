@@ -119,10 +119,16 @@ func (r TreeRow) validateMergeIntents(required bool) error {
 		if r.MergeIntentsError == "" {
 			return errors.New("incomplete merge read requires an error")
 		}
+		if r.MergeIntentsState == "unreadable" && len(r.MergeIntents) != 0 {
+			return errors.New("an unreadable store cannot carry observations; use partial")
+		}
 	default:
 		return errors.New("missing or invalid merge_intents_state")
 	}
 	for _, report := range r.MergeIntents {
+		if report.Root != r.TreePath {
+			return errors.New("merge intent root must equal its inventory row")
+		}
 		if err := report.validate(); err != nil {
 			return err
 		}

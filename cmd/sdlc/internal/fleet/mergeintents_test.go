@@ -91,3 +91,34 @@ func TestMergeIntentCapabilityRejectsNullAndToleratesFutureMetadata(t *testing.T
 		}
 	}
 }
+
+func TestMergeIntentInventoryReportAuthority(t *testing.T) {
+	path := "/repo/.git/sdlc/landing/intents/legacy"
+	report := `{"state":"orphaned","branch":"000624-example","issue":624,"head":"` + strings.Repeat("a", 40) + `","root":"/repo","pid":42,"started_at":"2026-10-25T00:00:00Z","reentry":"sdlc merge --branch 000624-example --yes","path":"` + path + `","identity":"` + path + `","future":{"x":1}}`
+	decode := func(raw string, quality string) error {
+		fields := `,"merge_intents":[` + raw + `],"merge_intents_state":"` + quality + `"`
+		if quality != "complete" {
+			fields += `,"merge_intents_error":"inspection needed"`
+		}
+		var inventory Inventory
+		return json.Unmarshal(mergeInventoryWire(t, fields), &inventory)
+	}
+	if err := decode(report, "complete"); err != nil {
+		t.Fatal(err)
+	}
+	for name, bad := range map[string]string{
+		"foreign root":      strings.Replace(report, `"root":"/repo"`, `"root":"/other"`, 1),
+		"relative identity": strings.ReplaceAll(report, path, "relative"),
+		"wrong command":     strings.Replace(report, "sdlc merge --branch 000624-example --yes", "sdlc merge --yes", 1),
+		"live command":      strings.Replace(report, `"state":"orphaned"`, `"state":"live"`, 1),
+		"duplicate":         strings.Replace(report, `"state":"orphaned"`, `"state":"orphaned","state":"live"`, 1),
+		"wrong pid type":    strings.Replace(report, `"pid":42`, `"pid":"42"`, 1),
+	} {
+		if err := decode(bad, "complete"); err == nil {
+			t.Errorf("accepted %s", name)
+		}
+	}
+	if err := decode(report, "unreadable"); err == nil {
+		t.Error("unreadable store carried usable observations instead of partial")
+	}
+}

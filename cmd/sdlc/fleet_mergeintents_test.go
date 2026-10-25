@@ -222,3 +222,126 @@ func TestFleetMergeIntentsBoundedJSON(t *testing.T) {
 type shortFleetWriter struct{}
 
 func (shortFleetWriter) Write(p []byte) (int, error) { return len(p) - 1, nil }
+
+func TestFleetMergeIntentsStoreReadsGrowByStoresNotRows(t *testing.T) {
+	for _, n := range []int{8, 16} {
+		base := canonicalRoot(t.TempDir())
+		common := filepath.Join(base, ".git")
+		var rows []fleet.TreeRow
+		roots := map[string]string{}
+		for i := 0; i < n; i++ {
+			root := filepath.Join(base, fmt.Sprint(i))
+			rows = append(rows, fleetIntentRow(root, common))
+			roots[root] = common
+		}
+		fake := &fakeFleetIntentSource{stores: map[string]map[string]fakeFleetIntentRecord{}, roots: roots, denied: map[string]error{}, reads: map[string]int{}}
+		got, err := collectFleetMergeIntents(context.Background(), fleet.Inventory{Rows: rows}, fake.observe, func() string { fake.pauseReads++; return "" })
+		if err != nil || len(got.Rows) != n || fake.reads[common] != 1 || fake.pauseReads != 1 {
+			t.Fatalf("N=%d repeated observations: rows=%d reads=%v pauses=%d err=%v", n, len(got.Rows), fake.reads, fake.pauseReads, err)
+		}
+	}
+}
+
+func TestFleetMergeIntentsMissingReadIsUnknown(t *testing.T) {
+	base := canonicalRoot(t.TempDir())
+	common := filepath.Join(base, ".git")
+	got, _ := placeFleetMergeIntents(fleet.Inventory{Rows: []fleet.TreeRow{fleetIntentRow(base, common)}}, nil)
+	if got.Rows[0].MergeIntentsState != "unreadable" || got.Rows[0].MergeIntentsError == "" {
+		t.Fatalf("missing observation became absence: %+v", got.Rows[0])
+	}
+}
+
+func TestFleetMergeIntentsUndiscoveredStoreHasDiagnostic(t *testing.T) {
+	base := canonicalRoot(t.TempDir())
+	inventory := fleet.Inventory{Diagnostics: []fleet.RepoDiagnostic{{RepoPath: base, Stage: "git", Message: "common directory unavailable"}}}
+	got, _ := placeFleetMergeIntents(inventory, nil)
+	found := 0
+	for _, d := range got.Diagnostics {
+		if d.Stage == "merge_intents" {
+			found++
+			if !strings.Contains(d.Message, "unavailable") {
+				t.Fatal("lost discovery reason")
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("no row and no merge-read diagnostic: %+v", got)
+	}
+}
+
+func TestFleetMergeIntentsPartialPayloadGrowth(t *testing.T) {
+	previous := 0
+	for _, n := range []int{8, 16} {
+		const base = "/fixture"
+		common := filepath.Join(base, ".git")
+		var rows []fleet.TreeRow
+		var reports []mergeIntentReport
+		for i := 0; i < n; i++ {
+			root := filepath.Join(base, fmt.Sprintf("%02d", i))
+			path := filepath.Join(common, "sdlc/landing/intents", fmt.Sprintf("%02d", i))
+			rows = append(rows, fleetIntentRow(root, common))
+			reports = append(reports, mergeIntentReport{State: "unreadable", Root: root, Identity: path, Path: path, Note: "branch authority unavailable"})
+		}
+		got, _ := placeFleetMergeIntents(fleet.Inventory{Rows: rows}, []fleetIntentRead{{Common: common, Root: base, Reports: reports}})
+		raw, err := json.Marshal(got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if previous > 0 && len(raw) > 2*previous {
+			t.Fatalf("8→16 partial rows/records grew beyond linear encoded bytes: %d→%d", previous, len(raw))
+		}
+		previous = len(raw)
+	}
+}
+
+func TestFleetMergeIntentsPreservesDiagnosticOrder(t *testing.T) {
+	input := fleet.Inventory{Diagnostics: []fleet.RepoDiagnostic{
+		{RepoIdentity: "same", RepoPath: "/z", Stage: "facts", Message: "a"},
+		{RepoIdentity: "same", RepoPath: "/a", Stage: "facts", Message: "z"},
+	}}
+	got, _ := placeFleetMergeIntents(input, nil)
+	if got.Diagnostics[0].RepoPath != "/a" {
+		t.Fatalf("changed the existing repository/path-first diagnostic order: %+v", got.Diagnostics)
+	}
+}
+
+func TestFleetMergeIntentsCancellationDoesNotPublishPartialEvidence(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	base := canonicalRoot(t.TempDir())
+	row := fleetIntentRow(base, filepath.Join(base, ".git"))
+	got, err := collectFleetMergeIntents(ctx, fleet.Inventory{Rows: []fleet.TreeRow{row}}, func(context.Context, string, string) ([]mergeIntentReport, error) { cancel(); return nil, nil }, func() string { return "" })
+	if !errors.Is(err, context.Canceled) || got.Capabilities.MergeIntents != 0 {
+		t.Fatalf("canceled partial observation became a report: %+v %v", got, err)
+	}
+}
+
+func TestFleetMergeIntentsSeveralBranchesAndAmbiguousRoot(t *testing.T) {
+	const root = "/fixture/worktree/sample-slot1/sample"
+	const common = "/fixture/sample/.git"
+	row := fleetIntentRow(root, common)
+	var reports []mergeIntentReport
+	for _, suffix := range []string{"a", "b"} {
+		branch := "000624-" + suffix
+		path := filepath.Join(common, "sdlc/landing/intents", suffix)
+		reports = append(reports, mergeIntentReport{State: "orphaned", Branch: branch, Head: strings.Repeat("a", 40), Root: root, PID: 42, StartedAt: time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC), Reentry: "sdlc merge --branch " + branch + " --yes", Path: path, Identity: path})
+	}
+	got, _ := placeFleetMergeIntents(fleet.Inventory{Rows: []fleet.TreeRow{row}}, []fleetIntentRead{{Common: common, Root: root, Reports: reports}})
+	if len(got.Rows[0].MergeIntents) != 2 || got.Rows[0].MergeIntentsState != "complete" {
+		t.Fatalf("several branches on one root lost: %+v", got)
+	}
+	if _, err := json.Marshal(got); err != nil {
+		t.Fatal(err)
+	}
+	ambiguous, _ := placeFleetMergeIntents(fleet.Inventory{Rows: []fleet.TreeRow{row, row}}, []fleetIntentRead{{Common: common, Root: root, Reports: reports[:1]}})
+	if len(ambiguous.Diagnostics) != 1 || len(ambiguous.Rows[0].MergeIntents) != 0 || len(ambiguous.Rows[1].MergeIntents) != 0 {
+		t.Fatalf("ambiguous root guessed an owner: %+v", ambiguous)
+	}
+}
+
+func TestFleetMergeIntentsHeldCorruptionIsNeverOrphaned(t *testing.T) {
+	report := reportMergeIntent(landingline.ObservedIntent{Path: "/fixture/.git/sdlc/landing/intents/a", Locked: true, Err: errors.New("partial owner write")}, true, nil)
+	if report.State != "live" || report.Reentry != "" || report.Root != "" {
+		t.Fatalf("corrupt held record invented orphan authority: %+v", report)
+	}
+}
