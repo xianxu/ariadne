@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "e57bf477", done: "dc5eb85e"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # fleet inventory --json reports merge intents (producer for pair#848)
@@ -55,6 +55,8 @@ them" (it must then say upgrade and rerun, never claim none).
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: closed — Round-two BR-1 through BR-4 verified addressed. BR-5 native public-executable SIGINT/SIGTERM controls reproduce surviving Git and pipe children before the fix in vantage, collection and intents; all six pass after inventory uses the existing CLI signal owner and bounded Git throughout. Broad fleet/intent/README race plus unchanged CLI lock-unwind and net signal controls pass 87.873s, catalog 1.939s. Private real-lock/store conformance, frozen v1, strict/additive algebra, 8/16 growth and 1 MiB boundary controls pass. Recorded pre-close retained on pushed head 5724aaba9338a40537db4841a9e11e762fc73bd8 must pass before landing. Plan bypass acknowledges remaining suite/close/landing process checkboxes only. Consumer #848 remains plan-only until producer lands, per pair:5. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-25: flow upgraded quick → full — 627 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Claimed and entered start-plan from main after #617 landed (Git merge954c8b922af48d0fcc1a5bc148ccefb57be73c2d). No retained check or merge runner remains. Read the existing fleet collection, common-directory identity, slot/dependency rows, state/landing shared intent observer and preserving lock-based v1 store. Read pair#848's approved plan through its issue branch without changing that peer checkout; pair:5 is working elsewhere. Its consumer remains parked until this producer lands.
 

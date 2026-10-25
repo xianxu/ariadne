@@ -213,3 +213,96 @@ Done-when: current — its state/lifecycle, quality, shared-store, legacy, capab
    Append a `## Revisions` entry defining supported CLI interruption and subprocess ownership, enumerating affected entry points, and requiring native signal cleanup tests. Amend the claim that the command returns with no background work once that invariant is enforced.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"3ff7f6d2-86f0-4ca4-9ceb-bd85ec543882","repository":"github.com/xianxu/ariadne","issue_id":"000624","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/e8e84a00460838eb","reviewed_head":"7f2957f419edd82be881e442d434ebfbc54da943","slot":"ariadne:3","requested_at":"2026-10-25T11:24:27.007581Z"},"phase":"finished","pid":16612,"started_at":"2026-10-25T11:24:27.109345Z","finished_at":"2026-10-25T11:28:24.208577Z","session_id":"01a172ce-079d-7470-ad92-41819f4aa098","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T04:43:12-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 624 — fleet inventory --json reports merge intents (producer for pair#848) |
+| repo | ariadne |
+| issue file | workshop/issues/000624-fleet-inventory-json-reports-merge-intents-producer-for-pair-848.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fa73ecc8751c6ab4b65e9dd2ca9f0cdd37a038cd..5724aaba9338a40537db4841a9e11e762fc73bd8 |
+| command | sdlc close --issue 624 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-25T04:43:12-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The implementation delivers the revised producer contract, and BR-5 is addressed with meaningful production-path regression coverage. Shared-store grouping, exact-root placement, explicit uncertainty, additive capability reporting and bounded JSON publication match the issue and plan. No new blocking findings.
+
+Done-when: current — its state, quality, lifecycle, compatibility, bounded-output and capability requirements still cover the revised implementation, including terminal removal as complete empty evidence.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Common-directory observation avoids reliance on member usability; TestFleetMergeIntentsUsesSharedStoreDespiteBrokenMember passed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The production observer uses context-bound Git; TestFleetMergeIntentsCancelsActiveGitProbe passed and verifies no subsequent branch probe.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The algebra oracle distinguishes additive inventory/row decoding from strict policy decoding while retaining duplicate-key rejection; the complete internal/fleet suite passed.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md now documents capability, complete-empty versus unavailable evidence and the output limit; these agree with fleet_mergeintents.go and the expanded atlas contract.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      main.go gives fleet inventory signal-owned cancellation, and fleet.go bounds discovery and collection Git alongside intent probes. All six native phase/signal cases passed. Removing both changes in a disposable pinned-head copy made all six fail with surviving Git and pipe-holding children; the copy was removed.
+```
+
+1. **Strengths**
+
+   - [fleet_mergeintents.go](/Volumes/TestScratch/review-checkouts/c48da523eebf83f1/cmd/sdlc/fleet_mergeintents.go:52) groups reads by physical common directory and keeps placement separate from IO.
+   - [mergeintent.go](/Volumes/TestScratch/review-checkouts/c48da523eebf83f1/cmd/sdlc/mergeintent.go:140) preserves earlier observations and represents failed branch probes as uncertainty without executable guidance.
+   - [fleet_mergeintents_process_test.go](/Volumes/TestScratch/review-checkouts/c48da523eebf83f1/cmd/sdlc/fleet_mergeintents_process_test.go:21) exercises the public executable with positive readiness, both supported signals, all three Git phases and pipe-holding descendants.
+   - README, atlas and help explain the capability, identity, quality, terminal-removal and publication contracts consistently.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - Complete `internal/fleet` suite: 32.348s.
+   - Complete `internal/landingline` suite: 13.108s.
+   - Command tests matching `TestFleetMergeIntents` and `TestMergeIntent`: 48.372s.
+   - Pinned-range `git diff --check`.
+
+   The fix-removed native regression failed all six cases as expected. Stateful lifecycle, private executable/store conformance, legacy fixtures, malformed wire data, physical deduplication and growth controls were inspected. The full module suite was not rerun during this review.
+
+6. **Architectural notes for upcoming work**
+
+   - **ARCH-DRY — pass:** report fields, classification and re-entry construction share one owner; diagnostic ordering reuses a shared helper.
+   - **ARCH-PURE — pass:** placement and validation remain deterministic; store, Git and queue access stay in the integration shell. Core-concept entities exist at their documented locations.
+   - **ARCH-PURPOSE — pass:** linked worktrees and dependency stores participate; failed discovery and unassignable records remain visible.
+   - **ARCH-MOCK — pass:** stateful observer tests use the production injection seam, supplemented by real Git, lock and executable conformance.
+   - **ARCH-CONSTRAINTS — pass:** counted growth controls exercise shared-store scaling; output is checked against 1 MiB before publication; Git execution is bounded.
+   - **ARCH-SECURE — pass:** persisted records pass through the existing strict codec; invalid roots and failed probes produce inspection evidence.
+   - **ARCH-ORDER — pass:** native cancellation reaches active subprocess groups, joins their execution and prevents later probes. Inventory retains no state between calls.
+   - **ARCH-FUNERAL — pass:** no new durable runtime artifacts; existing intent removal and retention remain authoritative, and fixtures have scoped cleanup.
+   - **ARCH-EVOLVE — pass:** v1 storage remains preserving and unchanged; inventory additions retain schema 1 and distinguish unsupported producers. Inventory decoding is not a persisted rewrite authority.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"0049583e-d984-453b-9543-80d911791e10","repository":"github.com/xianxu/ariadne","issue_id":"000624","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c48da523eebf83f1","reviewed_head":"5724aaba9338a40537db4841a9e11e762fc73bd8","slot":"ariadne:3","requested_at":"2026-10-25T11:40:31.93046Z"},"phase":"finished","pid":59590,"started_at":"2026-10-25T11:40:32.091217Z","finished_at":"2026-10-25T11:43:10.088915Z","session_id":"01a172dc-c1b0-7593-8a0e-ff2e60b1a081","outcome":"returned"}] -->
