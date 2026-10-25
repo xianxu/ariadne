@@ -73,7 +73,7 @@ func TestRecoverySourceCoverageCannotProveAbsence(t *testing.T) {
 func TestDecodeRecoveryStrictEnvelope(t *testing.T) {
 	for _, raw := range []string{
 		`null`, `{}`, `{"schema_version":1}`, `{"schema_version":1,"rows":null}`,
-		`{"schema_version":1,"rows":[{"address":"pair:2"},{"address":"pair:2"}]}`,
+		recoveryEnvelopePrefix + `[{"address":"pair:2"},{"address":"pair:2"}]}`,
 		strings.Replace(asleepRecoveryFixture, `"schema_version":1`, `"schema_version":2`, 1),
 		strings.Replace(asleepRecoveryFixture, `"schema_version":1`, `"schema_version":1,"SCHEMA_VERSION":1`, 1),
 		strings.Replace(asleepRecoveryFixture, `"threads":1`, `"threads":"1"`, 1),

@@ -17,7 +17,7 @@ import (
 
 // CouchResume is the seam over Couch's per-slot resume verbs (couch
 // --skill): `--resume-candidates repo:N --json` (seconds; read-only) and
-// `--resume repo:N` (heavy; one at a time). Tests use a stateful fake.
+// `--resume repo:N` (heavy; bounded by the batch). Tests use a stateful fake.
 type CouchResume interface {
 	Candidates(addr string) (ResumeCandidates, error)
 	Resume(addr string) error

@@ -61,7 +61,7 @@ this resume for its own asleep workers.
 Durable design: [fleet-resume plan](../plans/000564-tl-lead-fleet-resume-bounded-concurrency-and-rebuild-ariadne-0-first-after-a-restart-plan.md). Operator approval is recorded in Revisions; change-code remains the implementation gate.
 
 - [x] Review/approve the options and recovery state table through the hub; operator approval and third-wave clarification recorded below.
-- [ ] Implement the explicit-asleep planner and bounded receipt-driven scheduler with adversarial tests.
+- [x] Implement the explicit-asleep planner and bounded receipt-driven scheduler with adversarial tests.
 - [ ] Update restart guidance; qualify privately, run recorded pre-close, close and land.
 
 ## Log
@@ -147,3 +147,9 @@ Fresh Pair tracker read at2026-10-25T01:14:57Z still shows pair#870 open/not-lan
 ### 2026-10-24 — signal registration ownership control
 
 The final package run exposed a real fixture/runtime interaction after89.106s: Go's process-global signal initialization touched a synctest-owned channel from outside its bubble. Do not hide it with a timeout or remove the executable SIGTERM qualification. Move signal-source construction into main's injected resume-context factory, invoked only around fleet resume; in-process deterministic callers retain their supplied context. The scoped-lifecycle control and same concurrent-wave/model family now pass0.608s. The production executable still installs SIGINT/SIGTERM and must pass its actual CLI qualification after rebuilding. No remote-call cancellation or new supervisor is added.
+
+### 2026-10-24 — final targeted verification
+
+Final clean private executable at Git6f1f57d4160f2a4acf7beebc98f4beb0c59d1a3a matched embedded revision and modified=false. With opt-in executable/real-Couch conformance enabled, shared strict JSON and the entire tl-lead package passed (0.093s and141.559s respectively); no old-path wrapper tests remain because their unchanged tests moved with the implementation. Focused recovery/model/coordinator/receipt family passed under race6.366s. The catalog first flagged an unused suppression comment in the short-root fixture; removing its directive while keeping the ordinary explanation resolved it. Final catalog passed1,713 tracked Go files against19 rules2.502s; strengthened duplicate-address coverage now uses a complete valid source envelope, and that/short-root controls passed0.198s. No behavior changed after the final package/race proof, only that strengthened test and explanatory comments.
+
+Private/native limits remain as recorded above. The complete repository suite still needs its normal recorded queued run; mandatory close review and landing have not run yet. All owned targeted runners are finished.

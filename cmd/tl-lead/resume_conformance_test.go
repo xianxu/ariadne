@@ -127,7 +127,7 @@ func resumeConformanceEnvironment(t *testing.T) (env []string, store, root strin
 // child and listener cleanup completes before its root is removed.
 func resumeConformanceRoot(t *testing.T) string {
 	t.Helper()
-	//lint:allow tmp-literal — Unix socket qualification needs a short canonical private root; ordinary suite files retain TMPDIR.
+	// Unix socket qualification needs a short canonical private root; ordinary suite files retain TMPDIR.
 	parents := []string{"/Volumes/TestScratch", os.TempDir(), "/tmp"}
 	for _, parent := range parents {
 		physical, err := filepath.EvalSymlinks(parent)
