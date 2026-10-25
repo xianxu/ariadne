@@ -1,12 +1,20 @@
 ---
 id: 000617
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '8d421a02c4db6b3dd2c12334e2dfe49ee1607c11' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1e02bc7596fd42d6b4ffb312b4bcc452e97e1f22' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T20:25:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # close and milestone-close hold the repo lock through the whole review, blocking other slots' bookkeeping
@@ -33,8 +41,21 @@ commits), not across the review dispatch and wait; revalidate state after the re
 
 ## Plan
 
-- [ ]
+- [ ] Implement the approved phased preparation/read-set/revalidation plan in workshop/plans/000617-close-and-milestone-close-hold-the-repo-lock-through-the-whole-review-blocking-plan.md.
+- [ ] Prove independent bookkeeping during preparation/review with private tracker worktrees, preserve stale/cancel refusal, and complete normal verification/landing.
 
 ## Log
 
 ### 2026-10-24
+
+### 2026-10-24 — Diagnosis and proposed boundary
+
+Claimed and entered start-plan from main. Current source has manually scoped close locks since #166; targeted TestCloseCommandsReleaseLockDuringBoundaryReview plus TestReviewConcurrencySchedules passed94.650s. Pair:5 confirms #859 pid77562 spent17:00:50 to17:12:10 before its measured-actual line and reviewer dispatch, then completed M1 SHIP normally. The sample at17:06:47 and exact transcript establish preparation, not reviewer execution, as the observed hold. Pair:7 supplied exact #879 waiter lines but no holder stack/phase; no stronger attribution is claimed.
+
+Ops:0 approved the diagnosis/direction and asked for this plan. Ariadne:2 (#603) agreed on the seam: preserve measurement/confidence semantics and wrap preparation/revalidation; whichever lands second integrates. Their follow-up identifies the adoption candidate filter as the needed concurrency read-set: no existing write-time guard rejects another issue's newly adopted interval. The plan reuses that filter, captures at the original read, and validates with fresh records scope rather than a cached tracker snapshot. Durable plan written for TL approval; no production edits or change-code yet. One read-only test exploration agent returned existing coverage and the real executable/tracker/linked-worktree gap; it changed nothing.
+
+## Revisions
+
+### 2026-10-24 — Observed hold was preparation, not reviewer execution
+
+Pair:5's retained owner output places #859's long shared lock hold before its measured-actual line and reviewer dispatch. Existing reviewer release/reacquire code and tests work. Preserve that path; fix expensive preparation under the lock, validate consumed local/card/adoption authority, and move warning-only post-close effects outside the authoritative section. Ops:0 approved this diagnosis/direction; detailed plan is pending approval. Ariadne:2 confirmed the #603 coordination seam and the currently missing write-time adoption check.
