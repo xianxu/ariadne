@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
-estimate_hours:
-card_mirror: 'ef95d347a68f5e50ff1951bfd2d0c72785e82e66' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.39
+card_mirror: '2fe0210cabdb24a5fe5bc41a364186f46abce6bb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T04:05:12-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Sweep second-scale wall-clock bounds from correctness tests; golint rule for the shape
