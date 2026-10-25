@@ -1,12 +1,20 @@
 ---
 id: 000630
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '41c105df6be346dc8ca764ddb4bb0270d705594c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cecdb40c8c7221289acf9fbd9dca5282e9afca00' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T09:51:07-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Shard timeouts with no failing test are 'incomplete', not failures: retry once, skip the main-baseline diagnosis
