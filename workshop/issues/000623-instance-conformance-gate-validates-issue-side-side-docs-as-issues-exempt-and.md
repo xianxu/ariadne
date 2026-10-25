@@ -72,6 +72,7 @@ Design0.56×1.15=0.644 plus implementation1.20 gives1.844h, rounded1.84h.
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: closed — Recorded pre-close PASS on code 634cecd1816203313d7d74e999d84cf158cab142: 8 shards, 2549 SDLC tests and 79 packages, wall1141.1s, no flake retry; subsequent edits are issue/plan bookkeeping only. BR-1: approved single YAML decoder replaces partial recovery grammar; malformed/unterminated headers refuse, valid untyped/no-frontmatter evidence stays exempt; red-first explicit/tagged-flow and ambiguity cases pass. Selected-owner blob IO regression failed red on foreign >1MiB evidence and passes with unchanged foreign blob. BR-2 README documents behavior and paired clean binaries. BR-3: parley PR355 LANDED at 71328abc6d9df6d2687bc537be0a18be7b81692c; Log independently verifies current main ancestry, identical 2784-byte blob, old tree absent and archived link resolving. --no-plan-check acknowledges only the final closing/landing workflow row; implementation and verification are complete.; review verdict: SHIP
 
 ### 2026-10-25 — claimed; design checkpoint
 

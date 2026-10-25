@@ -179,3 +179,79 @@ dispose:
    Append a `## Revisions` entry refining BR-1’s declaration rule to include explicit-flow keys and tagged mapping prefixes, with valid/malformed paired regressions. Keep historical repair completion pending until landed evidence exists.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5f4a8b13-1a4b-4c85-834f-1d0e6e2e6ed5","repository":"github.com/xianxu/ariadne","issue_id":"000623","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/abaa590146e4d8ec","reviewed_head":"b3cdd26015edacff6f1803334633fc3d797b80d5","slot":"ariadne:1","requested_at":"2026-10-25T20:11:59.576941Z"},"phase":"finished","pid":16887,"started_at":"2026-10-25T20:11:59.670589Z","finished_at":"2026-10-25T20:14:39.227715Z","session_id":"01a174b1-0269-7ee2-82db-3e7e17e93b32","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T16:39:51-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 623 — Instance-conformance gate validates issue .side/ side docs as issues; exempt and validate by type |
+| repo | ariadne |
+| issue file | workshop/issues/000623-instance-conformance-gate-validates-issue-side-side-docs-as-issues-exempt-and.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a141d5da4078701e806ca7716ca9591aff9fd0c9..39e166868d68ac36635a9485fead71c1e5566e8f |
+| command | sdlc close --issue 623 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-25T16:39:51-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned implementation matches the Spec and approved Plan revisions. Both open findings are addressed: malformed frontmatter now fails closed, and the historical repair has verifiable landed evidence. Targeted tests passed, including archive recovery and refusal controls. No new findings.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      validategate_sidedoc.go:15-45 replaces partial declaration recovery with YAML decoding and stream-completion checks. All 15 malformed-header regressions pass at head; substituting the previous classifier through a temporary Go overlay makes five cases fail, including explicit-flow and tagged-flow bypasses.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Independently verified repair commit 71328abc is an ancestor of pinned parley.nvim main cfe19d6e. Source at 354bb2a7 and archived destination share blob 019dc761539e225e0164bb94a882ef50545afbc6, mode 100644, 2784 bytes. The active tree is absent and archived issue linkage resolves. Durable completion evidence appears in the issue Log at lines 145-149.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:128-138 documents side-doc validation, attachment compatibility, malformed-header recovery and paired vocabulary/sdlc deployment; these agree with the classifier, schema and atlas documentation.
+```
+
+1. **Strengths**
+
+   - `pkg/sidedoc/tree.go:18` supplies shared ownership without requiring an owner document to exist.
+   - Archive coverage reaches filesystem recovery, immutable landing, abandon, reopen and successor replacement.
+   - `cmd/sdlc/archiveside.go:384` selects historical owners before reading blobs; the regression preserves unrelated evidence exceeding 1 MiB.
+   - README and atlas describe the new surface and compatibility policy.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Serial targeted tests passed for ownership, ID scanning, native CUE validation, gate dispatch, malformed headers, orphan archives, recovery, replacement and existing conflict/symlink refusals. The pre-fix overlay demonstrated meaningful regression failures. No full-suite rerun was performed; tracked files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** consumers derive canonical ownership from the shared helper.
+   - **ARCH-PURE — Pass:** path projection, classification and inventory logic remain separate from IO.
+   - **ARCH-PURPOSE — Pass:** all three reported consumer families and the historical repair are delivered.
+   - **ARCH-MOCK — Pass:** existing injected seams and portable private Git/CUE fixtures remain in use; no new external dependency.
+   - **ARCH-CONSTRAINTS — Pass:** indexed side membership has counted growth checks; historical blob reads are selected.
+   - **ARCH-SECURE — Pass:** ambiguous headers refuse visibly; archive safety controls remain exercised.
+   - **ARCH-ORDER — Pass:** existing transaction boundaries remain authoritative; interrupted recovery and confirmed retries are covered.
+   - **ARCH-FUNERAL — Pass:** no new runtime artifact family; moved trees use existing archive cleanup.
+   - **ARCH-EVOLVE — Pass:** additive metadata is accepted and archive moves preserve original bytes.
+
+7. **Plan revision recommendations:** None. The approved final revision explicitly supersedes the earlier malformed-untyped exemption.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"493b3b31-0603-4e45-83d2-6ca3e84b4e03","repository":"github.com/xianxu/ariadne","issue_id":"000623","recipe":"milestone-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/42440ee3c150ce92","reviewed_head":"39e166868d68ac36635a9485fead71c1e5566e8f","slot":"ariadne:1","requested_at":"2026-10-25T23:37:36.903762Z"},"phase":"finished","pid":46549,"started_at":"2026-10-25T23:37:37.004653Z","finished_at":"2026-10-25T23:39:49.036129Z","session_id":"01a1756d-432e-7650-9a94-703c65371f3b","outcome":"returned"}] -->
