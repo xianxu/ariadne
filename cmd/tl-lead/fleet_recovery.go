@@ -38,12 +38,12 @@ type recoveryWireGit struct {
 }
 
 type recoveryWireAgent struct {
-	State   string
-	Threads *int
-	Rows    []struct {
-		RepoScope  string `json:"repo_scope"`
-		Tag, State string
-		AsleepAt   json.RawMessage `json:"asleep_at"`
+	State, Error string
+	Threads      *int
+	Rows         []struct {
+		RepoScope          string `json:"repo_scope"`
+		Tag, State, Reason string
+		AsleepAt           json.RawMessage `json:"asleep_at"`
 	}
 }
 
@@ -98,8 +98,8 @@ func decodeRecovery(raw []byte) (RecoverySnapshot, error) {
 }
 
 func projectRecovery(sl *RecoverySlot, row recoveryWireRow) {
-	if row.Agent == nil {
-		sl.Unknown = "agent evidence missing"
+	if problem := recoveryAgentProblem(row.Agent); problem != "" {
+		sl.Unknown = problem
 		return
 	}
 	a := row.Agent
@@ -110,13 +110,13 @@ func projectRecovery(sl *RecoverySlot, row recoveryWireRow) {
 	if !marked {
 		return
 	} // old producer and not asleep are indistinguishable
-	if a.State != "parked" || a.Threads == nil || *a.Threads != 1 || len(a.Rows) != 1 {
-		sl.Unknown = "asleep mark has ambiguous or non-parked threads"
+	if a.State != "parked" {
+		sl.Unknown = "asleep mark has a non-parked thread"
 		return
 	}
 	thread := a.Rows[0]
 	var text string
-	if thread.State != "parked" || thread.Tag == "" || thread.RepoScope == "" || json.Unmarshal(thread.AsleepAt, &text) != nil {
+	if json.Unmarshal(thread.AsleepAt, &text) != nil {
 		sl.Unknown = "asleep thread evidence invalid"
 		return
 	}
@@ -127,6 +127,43 @@ func projectRecovery(sl *RecoverySlot, row recoveryWireRow) {
 	}
 	sl.Asleep = true
 	sl.Pending, sl.Unknown = recoveryPending(row)
+}
+
+// Marker absence is a skip only inside complete, consistent agent evidence.
+// An unreadable store and an old producer without marks are different facts.
+func recoveryAgentProblem(a *recoveryWireAgent) string {
+	if a == nil {
+		return "agent evidence missing"
+	}
+	if a.Error != "" {
+		return fmt.Sprintf("agent evidence unavailable (%s): %s", a.State, a.Error)
+	}
+	switch a.State {
+	case "none", "parked", "live", "detached", "busy":
+	default:
+		detail := a.State
+		if len(a.Rows) == 1 && a.Rows[0].Reason != "" {
+			detail += ": " + a.Rows[0].Reason
+		}
+		return fmt.Sprintf("agent evidence unavailable or unknown (%s)", detail)
+	}
+	if a.Threads == nil || *a.Threads < 0 || *a.Threads != len(a.Rows) {
+		return "agent evidence has missing or conflicting thread count"
+	}
+	if a.State == "none" {
+		if *a.Threads != 0 {
+			return "agent evidence has threads despite state none"
+		}
+		return ""
+	}
+	if *a.Threads != 1 {
+		return "agent evidence needs one unambiguous thread"
+	}
+	thread := a.Rows[0]
+	if thread.RepoScope == "" || thread.Tag == "" || thread.State != a.State {
+		return "agent evidence has missing identity or conflicting thread state"
+	}
+	return ""
 }
 
 func recoveryPending(row recoveryWireRow) (bool, string) {

@@ -224,3 +224,65 @@ func TestFleetResumeRejectsLimitBeforeExternalReads(t *testing.T) {
 		}
 	}
 }
+
+func TestRecoveryAgentEvidenceBeforeMarkerAbsence(t *testing.T) {
+	for _, tc := range []struct {
+		name, agent string
+		unknown     bool
+	}{
+		{"missing", `null`, true},
+		{"empty", `{}`, true},
+		{"unavailable", `{"state":"unavailable","error":"thread store unreadable"}`, true},
+		{"unknown", `{"state":"unknown","threads":0}`, true},
+		{"unusable", `{"state":"unusable","threads":1,"rows":[{"state":"unusable","reason":"bad conversation"}]}`, true},
+		{"unusable unknown", `{"state":"unusable-unknown","threads":1}`, true},
+		{"orphaned", `{"state":"orphaned","threads":1}`, true},
+		{"missing count", `{"state":"parked"}`, true},
+		{"negative count", `{"state":"none","threads":-1}`, true},
+		{"conflicting none", `{"state":"none","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"parked"}]}`, true},
+		{"missing thread", `{"state":"parked","threads":1}`, true},
+		{"many threads", `{"state":"parked","threads":2,"rows":[{"repo_scope":"s","tag":"a","state":"parked"},{"repo_scope":"s","tag":"b","state":"parked"}]}`, true},
+		{"missing identity", `{"state":"parked","threads":1,"rows":[{"state":"parked"}]}`, true},
+		{"conflicting state", `{"state":"parked","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"live"}]}`, true},
+		{"diagnostic on known state", `{"state":"none","threads":0,"error":"thread store unreadable"}`, true},
+		{"known none", `{"state":"none","threads":0}`, false},
+		{"old parked", `{"state":"parked","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"parked"}]}`, false},
+		{"known live", `{"state":"live","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"live"}]}`, false},
+		{"known detached", `{"state":"detached","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"detached"}]}`, false},
+		{"known busy", `{"state":"busy","threads":1,"rows":[{"repo_scope":"s","tag":"t","state":"busy"}]}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := recoveryEnvelopePrefix + `[{"address":"pair:2","agent":` + tc.agent + `}]}`
+			snapshot, err := decodeRecovery([]byte(raw))
+			if err != nil || len(snapshot.Slots) != 1 {
+				t.Fatalf("decode: %+v %v", snapshot, err)
+			}
+			row := snapshot.Slots[0]
+			if row.Asleep || (row.Unknown != "") != tc.unknown {
+				t.Fatalf("agent without mark: %+v; want unknown=%v", row, tc.unknown)
+			}
+			if strings.Contains(tc.agent, "thread store unreadable") && !strings.Contains(row.Unknown, "thread store unreadable") {
+				t.Fatalf("lost diagnostic: %+v", row)
+			}
+			if tc.name == "unusable" && !strings.Contains(row.Unknown, "bad conversation") {
+				t.Fatalf("lost thread reason: %+v", row)
+			}
+		})
+	}
+}
+
+func TestFleetResumeUnknownAgentBlocksHandoff(t *testing.T) {
+	d, c, cwd := fleetFixture(t)
+	c.live = map[string]bool{}
+	c.recoveryData, c.recoveryErr = decodeRecovery([]byte(recoveryEnvelopePrefix + `[{"address":"pair:2","agent":{"state":"unavailable","error":"thread store unreadable"}}]}`))
+	t.Chdir(cwd)
+	var out bytes.Buffer
+	root := buildRoot(d)
+	root.SetOut(&out)
+	root.SetContext(t.Context())
+	root.SetArgs([]string{"fleet", "resume", "--apply"})
+	err := root.Execute()
+	if err == nil || !strings.Contains(out.String(), "unknown   pair:2") || !strings.Contains(out.String(), "thread store unreadable") || !strings.Contains(out.String(), "worker waves incomplete") || strings.Contains(out.String(), "worker waves 1 and 2 complete") || c.candReads != 0 || len(c.attempts()) != 0 {
+		t.Fatalf("unknown agent handoff: err=%v candidates=%d attempts=%v\n%s", err, c.candReads, c.attempts(), &out)
+	}
+}

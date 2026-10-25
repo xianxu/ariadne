@@ -136,8 +136,9 @@ TEAMS (ariadne#456: one team per ops repo)
     One `couch --recover-plan-from-sdlc` report supplies pending-work and explicit
     asleep evidence. Only a valid nested rows[].agent.rows[].asleep_at plus one
     unambiguous parked thread and complete proven candidate permit a resume.
-    An absent mark means not asleep or an older Couch: skip it, never infer awake
-    or idle. All hub slots and live workers stay untouched. Unknown, malformed
+    Only complete, consistent agent evidence permits interpreting an absent mark
+    as not asleep or an older Couch: skip it, never infer awake or idle. Unavailable
+    agent evidence stays unknown even without a mark and blocks the handoff. All hub slots and live workers stay untouched. Unknown, malformed
     or conflicting evidence stays visible and unattempted. Scope still follows
     .hub; Couch runtime moves (--move-slot) are not visible, and the command says so.
     Wave 1 resumes eligible asleep workers with pending work; every started call

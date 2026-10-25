@@ -63,7 +63,7 @@ func TestFleetResumeExecutableConformance(t *testing.T) {
 	}
 	for _, tc := range []struct{ agent, mode string }{
 		{"claude", "success"}, {"codex", "success"}, {"qoder", "success"},
-		{"codex", "shared"}, {"claude", "lost"}, {"codex", "signal"},
+		{"codex", "shared"}, {"claude", "lost"}, {"codex", "signal"}, {"codex", "unavailable"},
 	} {
 		t.Run(tc.agent+"/"+tc.mode, func(t *testing.T) {
 			env, _, root := resumeConformanceEnvironment(t)
@@ -191,6 +191,23 @@ func TestFleetResumeExecutableConformance(t *testing.T) {
 					}
 				}
 			})
+			if tc.mode == "unavailable" {
+				select {
+				case <-done:
+				case <-ctx.Done():
+					t.Fatal("unavailable evidence did not return:", ctx.Err())
+				}
+				final := read()
+				if runErr == nil || !strings.Contains(stdout.String(), "unknown   fixture:1") || !strings.Contains(stdout.String(), "thread store unreadable") || !strings.Contains(stdout.String(), "worker waves incomplete") || strings.Contains(stdout.String(), "worker waves 1 and 2 complete") || len(final.Started) != 0 {
+					t.Fatalf("unavailable agent claimed complete: %v state=%+v\n%s\n%s", runErr, final, &stdout, &stderr)
+				}
+				for _, argv := range final.Argv {
+					if len(argv) != 0 && argv[0] != "--recover-plan-from-sdlc" && argv[0] != "--actors" {
+						t.Fatalf("unavailable evidence authorized IO: %v", argv)
+					}
+				}
+				return
+			}
 			initial := await(func(s fleetCLIState) bool { return len(s.Started) == 2 })
 			first := append([]string(nil), initial.Started...)
 			sort.Strings(first)

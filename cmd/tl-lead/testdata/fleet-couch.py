@@ -53,6 +53,9 @@ if args == ["--recover-plan-from-sdlc"]:
                                  "dirty": "no", "unlanded": "no", "operation": "no"},
                          "claims": {"quality": "present", **({"active": f"fixture#{n}"} if pending else {})},
                          "agent": {"state": thread["state"], "threads": 1, "rows": [thread]}})
+        if s["mode"] == "unavailable":
+            for row in rows:
+                row["agent"] = {"state": "unavailable", "error": "thread store unreadable"}
         result = {"schema_version": 1, "fleets": [{"root": str(root), "state": "present"}],
                   "couch": {"state": "ok"}, "rows": rows}
     reply(result)

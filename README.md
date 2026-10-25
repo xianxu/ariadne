@@ -375,7 +375,8 @@ automatic resume authority. After explicit operator recovery and the steward's
 verified ariadne:0 rebuild, `--apply` resumes explicitly asleep workers with
 bounded concurrency (default 3): pending-work wave first, then remaining asleep
 workers. It joins started calls on cancellation or a stop, retains partial outcomes,
-and hands both worker waves to the machine steward. Only that steward releases
+and hands both worker waves to the machine steward. Unavailable or conflicting
+agent evidence blocks the handoff even without an asleep mark. Only that steward releases
 machine-wide scheduled tasks after all hub handoffs or explicit operator go;
 resume itself never toggles automation or scheduling. See
 [TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
