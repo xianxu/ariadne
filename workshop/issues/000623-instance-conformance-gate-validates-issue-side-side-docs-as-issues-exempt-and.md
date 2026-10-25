@@ -30,6 +30,7 @@ archive step uses (one shared helper, not a second path rule).
 - A repo with an issue `.side/` side doc passes the gate; a malformed side doc (missing type or parent) fails with a
   side-doc message; a malformed issue still fails as before. Tests for all three.
 - The archive step and the gate share the side-folder rule.
+- **Plan side, same gap:** merge's archive step refuses a `workshop/plans/<issue>-…-plan.side/` folder whose plan document doesn't exist ('active or conflicting archive artifact'), leaving it on main after the issue archives (parley.nvim#440: its upstream-neovim-draft.md stayed in workshop/plans while the archived issue's link points under history/plans). A side folder archives with its issue whether or not a plan document exists; test both. Then archive parley.nvim's leftover file.
 
 ## Plan
 
