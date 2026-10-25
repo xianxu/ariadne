@@ -203,3 +203,77 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"176a21e4-2f82-4d37-a319-fd3f23e398c7","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/a59b87d2df75d3f7","reviewed_head":"6fc21e0fc04e6f8650062b16a00c5649d297154d","slot":"ariadne:5","requested_at":"2026-10-25T16:09:25.553747Z"},"phase":"finished","pid":15129,"started_at":"2026-10-25T16:09:25.727472Z","finished_at":"2026-10-25T16:11:45.628097Z","session_id":"b8c8c6ac-13a7-4dc8-9dfa-8722326ebc6d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T09:18:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 931efc51cdebab13c6ff8ff4c4f37c6ea59bf90e..6d087a5bf4446137d052a8b381a91d243c203c1a |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:18:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert the fix to the O_RDONLY-open variant (the version BR-5 named) and confirm the test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-5 is fixed, and the new interdiff adds no Critical or Important defects. `makeTreeWritable` now changes permissions with `unix.Fchmodat(AT_FDCWD, p, perm|0o700, AT_SYMLINK_NOFOLLOW)` instead of opening each directory first. That removes the need for the read bit and keeps the no-follow protection from BR-3. The fixture `readOnlyModCache` now adds a `0o311` directory and a `0o000` directory, each with an inner subdirectory. I put the earlier `O_RDONLY|O_NOFOLLOW` version (6fc21e0fc) back into this checkout and reran the tests. Both `TestSweepStaleTempRemovesReadOnlyTrees` and `TestPrepareScratchCleanupRemovesReadOnlyTrees` failed with `open …/launcher-1/none: permission denied`. With the head restored, both pass. The new `## Revisions` entry only records the BR-4 rename (`staleTempCandidates` → `staleTempReason`), so it does not change scope. The only new code is the BR-5 fix and a darwin-only test for the failed-removal log, which is BR-2's regression test. No other behavior was added.
+
+1. **Strengths**
+   - `cmd/sdlc/testscratch.go:199`: one `fchmodat` call with `AT_SYMLINK_NOFOLLOW` covers both BR-3 (symlink swap) and BR-5 (missing read bit). The earlier code needed an open plus `fchmod`; this needs neither an open nor a file handle.
+   - `cmd/sdlc/testscratch_test.go:368-377`: the fix went into the shared fixture, not a one-off test. Both the sweep path and the prepare-cleanup path now cover directories without owner read, so the whole class is tested, not just the site BR-5 named.
+   - `cmd/sdlc/testscratch_darwin_test.go`: it uses `chflags uchg` to force a removal failure that no `chmod` can lift. That is a real, non-mocked way to reach the "could not remove … and continue" path, and the test restores the flag in `t.Cleanup`.
+   - Running `GOOS=linux go vet ./cmd/sdlc/` passes. A Windows build was already failing at the base (`pkg/layergraph` uses `syscall.O_NOFOLLOW`), so this window does not break Windows.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `cmd/sdlc/testscratch.go:200-203`: on Linux kernels without `fchmodat2` (older than 6.6), the `EOPNOTSUPP` fallback goes back to a path-based `os.Chmod`. That reopens the BR-3 symlink-swap window on those hosts. The code comment says so openly. This tool is mainly darwin-targeted, and current `ubuntu-latest` runner kernels have `fchmodat2`. Details are in the findings block.
+
+5. **Test coverage notes**
+   - I confirmed that BR-5's regression test goes red without the fix, as described above.
+   - The `EOPNOTSUPP` fallback branch is not tested. It can only be reached on old Linux kernels.
+   - The new darwin test needs the `chflags` binary. That is fine because the filename limits it to darwin builds.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The fixture extension reuses `readOnlyModCache`, and the test cleanup reuses `makeTreeWritable`.
+   - **ARCH-PURE: pass.** `makeTreeWritable` is filesystem IO that was already isolated, and the interdiff adds no business logic to it.
+   - **ARCH-PURPOSE: pass.** The fix covers the class of directories without owner read (`0o311` and `0o000`), at both call paths, not just the single site.
+   - **ARCH-EVOLVE: n/a.** No persisted format changes.
+
+7. **Plan revision recommendations:** none. The 2026-10-25 Revisions entry already records the BR-4 rename correctly.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      testscratch.go:199 uses Fchmodat AT_SYMLINK_NOFOLLOW with no open; readOnlyModCache now adds 0o311 and 0o000 dirs; restoring 6fc21e0fc's O_RDONLY open turns TestSweepStaleTempRemovesReadOnlyTrees and TestPrepareScratchCleanupRemovesReadOnlyTrees red (open launcher-1/none: permission denied), and head passes.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: symlink-toctou-chmod
+    title: |
+      On Linux without fchmodat2, makeTreeWritable falls back to path-based os.Chmod, which can follow a swapped-in symlink
+    detail: |
+      This is the 2nd finding in family symlink-toctou-chmod. The rule covering both: every permission change during tree repair must use a primitive that cannot follow a symlink at the final path component. Darwin and Linux kernels from 6.6 meet this through Fchmodat with AT_SYMLINK_NOFOLLOW. The EOPNOTSUPP fallback at testscratch.go:200-203 does not: it relies on an earlier lstat (BR-3's race). Fix for kernels without fchmodat2: open the parent directory O_DIRECTORY|O_NOFOLLOW, Fstatat the base name with AT_SYMLINK_NOFOLLOW to confirm it is a directory, then Fchmodat relative to that parent fd (still a small race), or skip the entry and return the error. Low practical risk because the tool is darwin-first and CI kernels have fchmodat2.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dff19e32-ee61-497d-9dfd-eaf08c828f97","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/32a7db33a0776b90","reviewed_head":"6d087a5bf4446137d052a8b381a91d243c203c1a","slot":"ariadne:5","requested_at":"2026-10-25T16:16:59.962128Z"},"phase":"finished","pid":29634,"started_at":"2026-10-25T16:17:00.074699Z","finished_at":"2026-10-25T16:18:24.629772Z","session_id":"9cd782d6-52c4-415b-bf48-a7b0c4d68a75","outcome":"returned"}] -->
