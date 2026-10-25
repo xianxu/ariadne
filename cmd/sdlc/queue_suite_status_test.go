@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 const suiteQueueFixture = `{"version":1,"available":true,"policy_seconds":3600,"protected_through":2,"priority_overridden":true,"tickets":[{"number":1,"position":1,"age_seconds":null,"protected":true,"granted":false,"priority_overridden":false,"reason":"protected_prefix","record":{"repo":"first","future":{"nested":true}}},{"number":2,"position":2,"age_seconds":3600,"protected":true,"granted":false,"priority_overridden":false,"reason":"aged_fifo","record":{"repo":"old"}},{"number":3,"position":3,"age_seconds":20,"protected":false,"granted":true,"priority_overridden":true,"reason":"grant_priority","record":{"repo":"granted"}}]}`
@@ -133,16 +133,15 @@ func TestSuiteQueueStatusTextAndFrozenJSON(t *testing.T) {
 }
 
 func TestSuiteQueueObservationCancellation(t *testing.T) {
-	root := suiteQueueHelperFixture(t, "import time\ntime.sleep(60)\n")
+	// The helper outlives the hang ceiling, so only declining to start it
+	// (or killing it) lets the observation return (#622).
+	root := suiteQueueHelperFixture(t, "import time\ntime.sleep(600)\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	start := time.Now()
-	got := observeSuiteQueue(ctx, root)
+	var got suiteQueueObservation
+	testgate.Returns(t, "the cancelled observation", func() { got = observeSuiteQueue(ctx, root) })
 	if got.Available || !strings.Contains(got.Reason, "canceled") {
 		t.Fatalf("cancellation: %+v", got)
-	}
-	if time.Since(start) > time.Second {
-		t.Fatal("cancelled observation started slow work")
 	}
 }
 

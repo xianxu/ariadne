@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 	"github.com/xianxu/ariadne/pkg/workspace"
@@ -82,19 +85,7 @@ func sweepMergeIntents(r gitRunner, root string, store landingline.Intents, stde
 
 // mergeIntentReport is one intent as the status surfaces show it; it is also
 // sdlc state --json's merge_intents[] member, which Couch's restart plan reads.
-type mergeIntentReport struct {
-	State     string    `json:"state"` // live, orphaned, stale or unreadable
-	Branch    string    `json:"branch,omitempty"`
-	Issue     int       `json:"issue,omitempty"`
-	Head      string    `json:"head,omitempty"`
-	Root      string    `json:"root,omitempty"`
-	Workspace string    `json:"workspace,omitempty"`
-	PID       int       `json:"pid,omitempty"`
-	StartedAt time.Time `json:"started_at,omitzero"`
-	Reentry   string    `json:"reentry,omitempty"` // orphaned only: run in Root
-	Note      string    `json:"note,omitempty"`
-	Path      string    `json:"path"`
-}
+type mergeIntentReport = fleet.MergeIntentReport
 
 // reportMergeIntent is the pure reading of one observed intent. The command
 // is built from the validated branch, never copied from the file.
@@ -104,20 +95,14 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 		if o.Locked {
 			state = string(landingline.IntentLive) // its merge may still be writing it
 		}
-		return mergeIntentReport{State: state, Note: o.Err.Error(), Path: o.Path}
+		return mergeIntentReport{State: state, Note: o.Err.Error(), Path: o.Path, Identity: o.Path}
 	}
 	in := o.Intent
 	r := mergeIntentReport{State: string(landingline.ClassifyIntent(o.Locked, branchExists)), Branch: in.Branch, Issue: in.Issue,
-		Head: in.Head, Root: in.Root, Workspace: in.Workspace, PID: in.PID, StartedAt: in.StartedAt, Path: o.Path}
+		Head: in.Head, Root: in.Root, Workspace: in.Workspace, PID: in.PID, StartedAt: in.StartedAt, Path: o.Path, Identity: o.Path}
 	if r.State == string(landingline.IntentOrphaned) {
 		r.Reentry = "sdlc merge --branch " + in.Branch + " --yes"
-		if len(paused) > 0 {
-			var by []string
-			for _, p := range paused {
-				by = append(by, fmt.Sprintf("%q (%q)", p.Owner, p.Reason))
-			}
-			r.Note = "the machine queue is paused by " + strings.Join(by, ", ") + "; re-enter after it resumes"
-		}
+		r.Note = mergePauseOwnersNote(paused)
 	}
 	return r
 }
@@ -126,7 +111,7 @@ func reportMergeIntent(o landingline.ObservedIntent, branchExists bool, paused [
 func formatMergeIntent(r mergeIntentReport) string {
 	switch r.State {
 	case "unreadable":
-		return fmt.Sprintf("unreadable merge intent %q: %q (inspect it, then remove it)", r.Path, r.Note)
+		return fmt.Sprintf("unreadable merge intent %q: %q (inspect the named source, then rerun)", r.Path, r.Note)
 	case string(landingline.IntentOrphaned):
 		issue := ""
 		if r.Issue > 0 {
@@ -144,41 +129,77 @@ func formatMergeIntent(r mergeIntentReport) string {
 
 // observeMergeIntents reads the repository's intents for the status
 // surfaces; keep selects which to report (all, or one slot's own).
-func observeMergeIntents(r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
+func observeMergeIntents(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool) ([]mergeIntentReport, error) {
+	return observeMergeIntentsWithPause(ctx, r, root, keep, queuePauseNote)
+}
+
+func observeMergeIntentsWithPause(ctx context.Context, r gitRunner, root string, keep func(mergeIntentReport) bool, pauseNote func() string) ([]mergeIntentReport, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	lineDir, err := landingLineDir(r, root)
 	if err != nil {
 		return nil, err
 	}
 	observed, err := landingline.OpenIntents(lineDir).List()
-	if err != nil || len(observed) == 0 {
+	if len(observed) == 0 {
 		return nil, err
 	}
-	paused := queuePauseOwners()
+	readErr := err
+	note := pauseNote()
 	var out []mergeIntentReport
 	for _, o := range observed {
+		if err := ctx.Err(); err != nil {
+			return out, errors.Join(readErr, err)
+		}
+		// The entry itself can be a rejected symlink. Resolve the store's
+		// physical directory, never redirect its diagnostic to the target.
+		if parent, pathErr := workspace.CanonicalPath(filepath.Dir(o.Path)); pathErr == nil {
+			o.Path = filepath.Join(parent, filepath.Base(o.Path))
+		} else {
+			o.Err = errors.Join(o.Err, fmt.Errorf("merge intent path identity unavailable: %w", pathErr))
+		}
 		exists := false
+		var branchErr error
 		if o.Err == nil {
 			head, err := localBranchHead(r, root, o.Intent.Branch)
-			if err != nil {
-				return nil, err
-			}
+			branchErr = err
 			exists = head != ""
 		}
-		if rep := reportMergeIntent(o, exists, paused); keep(rep) {
+		rep := reportMergeIntent(o, exists, nil)
+		if branchErr != nil {
+			rep.State, rep.Reentry, rep.Note = "unreadable", "", branchErr.Error()
+			readErr = errors.Join(readErr, branchErr)
+		} else if rep.State == string(landingline.IntentOrphaned) {
+			rep.Note = note
+		}
+		if keep(rep) {
 			out = append(out, rep)
 		}
 	}
 	slices.SortFunc(out, func(a, b mergeIntentReport) int { return strings.Compare(a.Path, b.Path) })
-	return out, nil
+	return out, readErr
 }
 
-// queuePauseOwners is who holds the machine queue paused; unreadable means
-// no note, since the line still names the command.
-func queuePauseOwners() []queuegate.PauseOwner {
+func queuePauseNote() string {
 	s, err := defaultQueueCommandDeps().store()
 	if err != nil {
-		return nil
+		return "queue pause information unavailable: " + err.Error()
 	}
-	owners, _ := s.PauseOwners()
-	return owners
+	owners, err := s.PauseOwners()
+	if err != nil {
+		return "queue pause information unavailable: " + err.Error()
+	}
+	return mergePauseOwnersNote(owners)
+}
+
+func mergePauseOwnersNote(owners []queuegate.PauseOwner) string {
+	if len(owners) == 0 {
+		return ""
+	}
+	var by []string
+	for _, p := range owners {
+		by = append(by, fmt.Sprintf("%q (%q)", p.Owner, p.Reason))
+	}
+	return "the machine queue is paused by " + strings.Join(by, ", ") + "; re-enter after it resumes"
 }

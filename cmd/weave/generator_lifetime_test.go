@@ -17,17 +17,17 @@ import (
 	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
-func waitGeneratorFile(t *testing.T, path string) []byte {
+// waitGeneratorFile waits for the generator to write path; workers are the
+// compiles or processes whose progress writes it (#622).
+func waitGeneratorFile(t *testing.T, path string, workers []chan error) []byte {
 	t.Helper()
-	deadline := time.Now().Add(testgate.HangCeiling)
-	for time.Now().Before(deadline) {
-		if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
-			return data
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("generator did not signal %s", path)
-	return nil
+	var data []byte
+	testgate.AwaitCondition(t, "the generator signalled "+path, func() bool {
+		var err error
+		data, err = os.ReadFile(path)
+		return err == nil && len(data) > 0
+	}, workers)
+	return data
 }
 
 func lateWriterFixture(t *testing.T) (leaf, marker string) {
@@ -83,7 +83,7 @@ func TestCompileCancellationStopsLateGeneratorChild(t *testing.T) {
 	defer output.Close()
 	done := make(chan error, 1)
 	go func() { done <- runCompile(ctx, weavefs.OSFS{}, leaf, plan.TargetAll, false, output) }()
-	waitGeneratorFile(t, filepath.Join(leaf, "child-ready"))
+	waitGeneratorFile(t, filepath.Join(leaf, "child-ready"), []chan error{done})
 	cancel()
 	select {
 	case err := <-done:
@@ -119,12 +119,14 @@ func TestCompileParentDeathRetainsStageUntilLateWriterExits(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = child.Process.Kill() })
-	output := string(waitGeneratorFile(t, filepath.Join(leaf, "child-ready")))
+	exited := make(chan error, 1)
+	go func() { exited <- child.Wait() }()
+	output := string(waitGeneratorFile(t, filepath.Join(leaf, "child-ready"), []chan error{exited}))
 	stage := filepath.Dir(output)
 	if err := child.Process.Kill(); err != nil {
 		t.Fatal(err)
 	}
-	_ = child.Wait()
+	<-exited
 	if err := os.Remove(marker); err != nil {
 		t.Fatal(err)
 	}
@@ -135,19 +137,18 @@ func TestCompileParentDeathRetainsStageUntilLateWriterExits(t *testing.T) {
 		t.Errorf("recovery removed ownership while descendant was alive: %v", err)
 	}
 	mkfile(t, filepath.Join(leaf, "release-child"), "release")
-	waitGeneratorFile(t, filepath.Join(leaf, "child-done"))
+	// nil: the late writer is detached from the killed owner; its file is the event.
+	waitGeneratorFile(t, filepath.Join(leaf, "child-done"), nil)
 	// The shell exits immediately after the signal; retry until its inherited
 	// resources close, bounded to make leaked ownership fail the test.
-	deadline := time.Now().Add(testgate.HangCeiling)
-	for time.Now().Before(deadline) {
+	// nil: each recovery run is synchronous; the stage's removal is the event.
+	testgate.AwaitCondition(t, "recovery retired the stage", func() bool {
 		if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, io.Discard); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := os.Stat(stage); os.IsNotExist(err) {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+		_, err := os.Stat(stage)
+		return os.IsNotExist(err)
+	}, nil)
 	assertNoGenerationStages(t, leaf)
 	if _, err := os.Stat(filepath.Join(leaf, "construct/generated/late/SKILL.md")); !os.IsNotExist(err) {
 		t.Fatalf("late output was published: %v", err)

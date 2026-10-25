@@ -5,14 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
@@ -114,7 +116,7 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		s.blocker.Release()
 		workers.Wait()
 	})
-	start := func(root string) <-chan error {
+	start := func(root string) chan error {
 		done := make(chan error, 1)
 		workers.Add(1)
 		go func() {
@@ -139,25 +141,22 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		return done
 	}
 	one := start(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := start(suspect)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
+	// The barrier file is the event (#625): a landing that ends first fails
+	// at once, and only a hang waits out the ceiling. The script creates the
+	// file before it writes the SHA, so an empty read is not the event yet.
 	var prefix string
-	deadline := time.Now().Add(30 * time.Second)
-	for prefix == "" {
+	testfix.AwaitCondition(t, "the passing split prefix reached the registration barrier", func() bool {
 		data, readErr := os.ReadFile(ready)
-		if readErr == nil {
-			prefix = strings.TrimSpace(string(data))
-		} else if !errors.Is(readErr, os.ErrNotExist) {
+		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 			t.Fatal(readErr)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("the passing split prefix never reached the registration barrier")
-		}
-		// Poll a bounded file barrier, rather than assuming a suite duration.
-		time.Sleep(time.Millisecond)
-	}
+		prefix = strings.TrimSpace(string(data))
+		return prefix != ""
+	}, []chan error{one, two})
 	failed := ""
 	s.gh.ciFakeGH.mu.Lock()
 	for sha, statuses := range s.gh.ciFakeGH.statuses {
@@ -271,6 +270,50 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		}
 	}
 	wantNoTrainBranch(t, s.gh.remote)
+	// #616: an unregistered failure in an untouched package is a missed mapping in the clone's ledger; a registered
+	// flake explains its failure and records nothing.
+	store, err := missedStoreFor(s.first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger, err := store.read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if register {
+		if len(ledger.Entries) != 0 {
+			t.Fatalf("a registered flake was recorded as a missed mapping: %+v", ledger.Entries)
+		}
+	} else if len(ledger.Entries) != 1 || ledger.Entries[0].Test != splitBroadcastTest || ledger.Entries[0].Package != "example.com/train/broadcast" ||
+		ledger.Entries[0].Source != "train" || !reflect.DeepEqual(ledger.Entries[0].Paths, []string{"scribe/scribe.go"}) || ledger.Entries[0].Head != failed {
+		t.Fatalf("missed mapping: %+v", ledger.Entries)
+	}
+}
+
+// Only an untouched, unregistered failure is a missed mapping, and a store failure is a diagnostic line, never a
+// verdict (the verdict is computed before recording).
+func TestRecordSplitMisses(t *testing.T) {
+	var stderr bytes.Buffer
+	var got []affected.Miss
+	c := &conductor{stderr: &stderr, missed: func(_ context.Context, misses []affected.Miss, ev affected.MissEvidence) (string, error) {
+		got = misses
+		if ev.Source != "train" || ev.Head != "hi" || ev.Main != "lo" {
+			t.Fatalf("evidence %+v", ev)
+		}
+		return "", errors.New("disk full")
+	}}
+	c.recordSplitMisses(context.Background(), []landingline.SplitFailure{
+		{Test: "example.com/m/a.TestUntouched", Impact: landingline.ImpactUntouched},
+		{Test: "example.com/m/b.TestRegistered", Impact: landingline.ImpactUntouched, RegisteredIssue: "000771"},
+		{Test: "example.com/m/c.TestAffected", Impact: landingline.ImpactAffected},
+		{Test: "example.com/m/d.TestUnknown", Impact: landingline.ImpactUnknown},
+	}, []string{"x"}, "lo", "hi")
+	if !reflect.DeepEqual(got, []affected.Miss{{Test: "example.com/m/a.TestUntouched", Pkg: "example.com/m/a"}}) {
+		t.Fatalf("misses %+v", got)
+	}
+	if !strings.Contains(stderr.String(), "missed mappings: not recorded (disk full)") {
+		t.Fatalf("stderr %q", stderr.String())
+	}
 }
 
 // writeTrainAttributionGraph installs valid endpoint graph inputs without

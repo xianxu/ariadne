@@ -155,16 +155,10 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 		cmd.SetContext(ctx)
 		return runMerge(io.Discard, io.Discard, f)
 	})
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if _, err := os.Stat(started); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("suite did not start")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the suite started", func() bool {
+		_, err := os.Stat(started)
+		return err == nil
+	}, []chan error{worker.exited})
 	if locks.Load() == 0 {
 		t.Fatal("merge never acquired the repo transaction lock")
 	}

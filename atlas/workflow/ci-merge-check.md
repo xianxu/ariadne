@@ -397,6 +397,14 @@ that ownership in a curated, low-tech mapping, and `Plan` consults it inside the
   certificates follow this convention: `tests/affected-readers/<test path>.json`. A sidecar's optional `reads` globs
   count as X's inputs. Every other member of a sidecar is opaque to ariadne, and ariadne never writes one.
   `ParseSidecar` is strict about `reads` alone.
+- `traceability` files (#616), listed as exact paths in affected.json. Each is the parley-style
+  `version: 1`, `atlas: {key: {code: [...], tests: [...]}}`. An entry compiles to an `as` rule: a change to a `code`
+  path (or glob) counts as a change to every `tests` path. A Go test selects its package, and a non-Go spec selects
+  the group whose `paths` match it. An entry with no `code` or no `tests` declares nothing. `ParseTraceability`
+  (`internal/affected/traceability.go`) walks the `yaml.Node` tree and owns every refusal, because a Node decode skips
+  yaml.v3's own checks, duplicate keys included. It refuses aliases, anchors, merge keys, non-string scalars, unclean
+  paths and a second document. parley's `make test-spec` reads the same file unchanged; its real copy is the parser's
+  golden (`testdata/parley-traceability.yaml`).
 
 The rules are:
 - **One level.** Targets are classified as changed paths are (graph owners and group paths). A target never
@@ -405,17 +413,19 @@ The rules are:
   - a target that matches `full`;
   - a declared root that is not a package;
   - a target that claims nothing (for example, a sidecar for a deleted package);
-  - a sidecar path no target derives from.
+  - a sidecar path no target derives from;
+  - a declared traceability file main lacks or cannot parse.
 - **Absent `reads` declares nothing.** An undeclared input keeps whatever its own rules give it. Requiring `reads`
   for a kind of test is the consuming repository's audit (pair#853), not ariadne's.
 
 All declarations come from main's pinned rev, never the head's. `readAffectedConfig` stays the cheap reader of
 affected.json, which pre-close and the car stand-in use for the declared bit. The selection consumers load the
-sidecars through `loadAffectedMapping` (`localcheck_affected.go`):
+sidecars and traceability files through `loadAffectedMapping` (`localcheck_affected.go`):
 - **Which consumers:** the affected run and resume, through the `affectedDeps.mapping` seam, and `splitImpact`,
   which loads them per endpoint.
 - **How it reads:** one `ls-tree` and one batched `cat-file` per convention, through
-  `gitx.TreeFilesSelected`, which is `TrunkView.FilesSelected`'s body under an explicit context and dir.
+  `gitx.TreeFilesSelected`, which is `TrunkView.FilesSelected`'s body under an explicit context and dir; and one more
+  pair for all the traceability files, through `gitx.TreeFilesAt` (exact paths, same limits).
 - **When a sidecar fails:** a sidecar that does not compile makes the selection full ("declared ownership
   unavailable: …"), so the run falls back to the suite and boarding refuses.
 - **What a branch can do:** a branch can add a certificate, and its path-only alias narrows that path to the test's
@@ -428,6 +438,38 @@ sidecars through `loadAffectedMapping` (`localcheck_affected.go`):
   None of them can narrow anything.
 - **Cost:** exact rule paths are indexed. Globbed ones are scanned behind their literal prefix:
   `BenchmarkPlanDeclared` runs 2,000 paths against 1,200 rules in about 30 ms.
+
+**Missed mappings (#616).** A declaration nobody wrote shows up as a missed mapping: a failure the full suite caught
+that the branch's affected selection would not have run. Two producers record one:
+- **The merge gate.** `diagnoseSuiteFailure` (`suitebaseline.go`) handles a merged-head suite that fails where main's
+  baseline passes. It plans the head's delta as an affected run would (main's config and declarations over the head's
+  graph, through `affectedSelectionAt`) and records each introduced failure whose package that selection skips. The
+  result is one more label on the comparison (`missed mappings: recorded N`, or `not recorded (why)`).
+- **A train's split.** `assessSplit` records an unregistered failure whose impact is `ImpactUntouched`, a package
+  neither endpoint's narrowed selection reached.
+
+`affected.Missed` (`internal/affected/missed.go`) is the one definition. Only a narrowed, group-free selection is
+evidence. A full selection, a red main, a bare test name and a registered flake record nothing. Recording only
+reports, so the gate's error and the split verdict are unchanged. An entry stores its first 20 changed paths (keyed by
+the full set), and `list` prunes by planning only those, so an entry whose culprit path was cut off stays until it is
+dismissed; `list` marks such an entry with its `+N more`.
+
+The ledger is one file per clone: `<git-common-dir>/sdlc/affected-missed.json`, the pure `affected.MissedLedger`
+behind `missedLedgerStore` (`affected_missed.go`).
+- **Locking and writes:** every write is a read-modify-write under one flock, by temporary file and rename. A
+  writer's crash leaves the old file, and `record` sweeps temp files older than an hour.
+- **Entries:** each entry is keyed by package plus the full changed-path set, stores the first 20 paths and counts
+  hits. The ledger is capped at 200 entries, and the oldest sighting goes first.
+- **Format:** strict on known members. Unknown members survive at both levels, through `jsonstrict.DecodeObject` and
+  `EncodeWithExtra`. A version other than 1, or a malformed file, is refused and never rewritten.
+
+The curation loop is `sdlc affected missed list`:
+1. It plans each entry again against origin/main's declarations over main's graph, loaded once.
+2. It drops the entries whose paths now select their package.
+3. It prints the rest.
+
+Declare the ownership on main (an `owners` rule, a sidecar's `reads`, a traceability entry) and the next `list` drops
+the entry. `sdlc affected missed dismiss --id ID --reason TEXT` removes an entry that was not a missing declaration.
 
 For ignored/generated graph inputs, optional `graph_prepare` in affected.json
 declares `{ "command": ["make", "generate"], "timeout_minutes": 2 }` (#517).

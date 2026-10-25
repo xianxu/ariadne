@@ -49,3 +49,7 @@ func (w *Watch) String() string {
 	defer w.mu.Unlock()
 	return w.buf.String()
 }
+
+// AwaitCondition is testgate.AwaitCondition, the one poll-until-event helper
+// with required workers (#622), shared with cmd/weave and cmd/tl-lead.
+var AwaitCondition = testgate.AwaitCondition

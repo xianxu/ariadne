@@ -32,6 +32,7 @@ type Config struct {
 	Groups         []Group       `json:"groups,omitempty"`
 	Owners         []OwnerDecl   `json:"owners,omitempty"`
 	Sidecars       []SidecarDecl `json:"sidecars,omitempty"`
+	Traceability   []string      `json:"traceability,omitempty"` // traceability files (#616), exact repository paths
 	GraphPrepare   *Preparation  `json:"graph_prepare,omitempty"`
 }
 
@@ -178,6 +179,16 @@ func ParseConfig(data []byte) (Config, error) {
 		if err := validSidecar(sc.Prefix, sc.Suffix); err != nil {
 			return Config{}, fmt.Errorf("affected.json: sidecars[%d]: %w", i, err)
 		}
+	}
+	files := map[string]bool{}
+	for _, f := range cfg.Traceability {
+		if !cleanRelPath(f) || hasGlobMeta(f) {
+			return Config{}, fmt.Errorf("affected.json: traceability: %q must be an exact, clean repository-relative path", f)
+		}
+		if files[f] {
+			return Config{}, fmt.Errorf("affected.json: traceability: duplicate %q", f)
+		}
+		files[f] = true
 	}
 	seen := map[string]bool{}
 	for _, gr := range cfg.Groups {

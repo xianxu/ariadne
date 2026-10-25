@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 // A merge intent (#565) is the one landing record that outlives its process:
@@ -50,7 +51,7 @@ func intentFields(in *Intent) map[string]any {
 // trusted until it parses.
 func DecodeIntent(data []byte) (Intent, error) {
 	var in Intent
-	extra, err := decodeStrict(data, intentFields(&in))
+	extra, err := jsonstrict.DecodeObject(data, intentFields(&in))
 	if err != nil {
 		return Intent{}, fmt.Errorf("intent: %w", err)
 	}
@@ -68,7 +69,7 @@ func (in Intent) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	fields := intentFields(&in)
-	return encodeWithExtra(base, in.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(base, in.Extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 // Valid reports whether in is a well-formed intent.
@@ -335,7 +336,7 @@ func (s Intents) files() ([]string, error) {
 	}
 	var out []string
 	for _, e := range entries {
-		if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), ".") {
+		if !strings.HasPrefix(e.Name(), ".") {
 			out = append(out, filepath.Join(s.dir, e.Name()))
 		}
 	}
@@ -344,9 +345,25 @@ func (s Intents) files() ([]string, error) {
 
 func observeIntent(path string) (ObservedIntent, bool) {
 	o := ObservedIntent{Path: path}
+	info, err := os.Lstat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return o, false
+		}
+		o.Err = err
+		return o, true
+	}
+	if !info.Mode().IsRegular() {
+		o.Err = errors.New("intent is not a regular file; inspect it without following it")
+		return o, true
+	}
 	f, err := os.Open(path)
 	if err != nil {
-		return o, false // gone meanwhile
+		if errors.Is(err, os.ErrNotExist) {
+			return o, false
+		} // confirmed disappearance
+		o.Err = err
+		return o, true // unreadable is not absent
 	}
 	defer f.Close()
 	if info, err := f.Stat(); err == nil {

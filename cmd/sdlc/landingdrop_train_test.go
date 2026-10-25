@@ -37,7 +37,7 @@ func TestLandingDropReformsRealTrain(t *testing.T) {
 			droppedHead := s.heads[branches[drop]]
 			s.declareSuite(t, fmt.Sprintf("if git merge-base --is-ancestor %s HEAD; then touch '%s'; while test ! -e '%s'; do sleep 0.01; done; fi; echo suite passed", droppedHead, started, gate))
 			ctx, cancel := context.WithCancel(context.Background())
-			pending := map[int]<-chan error{}
+			pending := map[int]chan error{}
 			defer func() {
 				cancel()
 				_ = os.WriteFile(gate, nil, 0o600)
@@ -50,9 +50,9 @@ func TestLandingDropReformsRealTrain(t *testing.T) {
 			}()
 			for _, i := range []int{1, 2, 3} {
 				pending[i] = s.mergeContext(ctx, roots[i])
-				waitQueued(t, s.line, i)
+				waitQueued(t, s.line, i, workerList(pending))
 			}
-			waitVouched(t, s.line, 3)
+			waitVouched(t, s.line, 3, workerList(pending))
 			s.blocker.Release()
 			awaitDropCondition(t, "old native suite", func() bool { _, err := os.Stat(started); return err == nil })
 			d := defaultLandingDeps()

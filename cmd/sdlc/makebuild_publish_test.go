@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,16 +97,10 @@ func TestMakeBuildPublishesByRename(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if _, err := os.Stat(filepath.Join(fakeDir, "started")); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("the fake compiler never started:\n%s", out)
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the fake compiler started", func() bool {
+		_, err := os.Stat(filepath.Join(fakeDir, "started"))
+		return err == nil
+	}, []chan error{done})
 	if got := readBin(t, repo); got != "old-complete" {
 		t.Errorf("bin/x mid-build = %q, want the old complete binary", got)
 	}
@@ -147,20 +142,16 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if _, err := os.Stat(filepath.Join(fakeDir, "started")); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the fake compiler never started")
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	testfix.AwaitCondition(t, "the fake compiler started", func() bool {
+		_, err := os.Stat(filepath.Join(fakeDir, "started"))
+		return err == nil
+	}, []chan error{done})
 	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
-	if err := cmd.Wait(); err == nil {
+	if err := <-done; err == nil {
 		t.Fatal("make build succeeded after SIGTERM")
 	}
 	if got := readBin(t, repo); got != "old-complete" {
@@ -168,11 +159,11 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	}
 	// make exits on the signal without waiting for its recipe shell, so the
 	// staging dir goes when that shell's EXIT trap runs, just after.
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
-		if ents, err := os.ReadDir(filepath.Join(repo, "bin")); err == nil && len(ents) == 1 {
-			break
-		}
-	}
+	// nil: make has exited; the recipe shell's EXIT trap is the only actor left.
+	testfix.AwaitCondition(t, "the interrupted build's staging dir went", func() bool {
+		ents, err := os.ReadDir(filepath.Join(repo, "bin"))
+		return err == nil && len(ents) == 1
+	}, nil)
 	noStaging(t, repo)
 }
 

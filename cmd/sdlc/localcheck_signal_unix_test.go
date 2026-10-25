@@ -141,14 +141,7 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 				}
 			})
 			ticketDir := lockPath + ".tickets"
-			deadline := time.Now().Add(testfix.HangCeiling)
-			for time.Now().Before(deadline) {
-				select {
-				case err := <-done:
-					finished = true
-					t.Fatalf("production handler exited before queue: %v %s", err, output.String())
-				default:
-				}
+			testfix.AwaitCondition(t, "the run reached the queue", func() bool {
 				raw, _ := os.ReadFile(helperPIDPath)
 				helperPID, _ = strconv.Atoi(string(raw))
 				paths, _ := filepath.Glob(filepath.Join(ticketDir, "[0-9]*"))
@@ -161,14 +154,8 @@ func TestLocalCheckSignalCancelsQueuedHelper(t *testing.T) {
 						ownerPID = rec.PID
 					}
 				}
-				if helperPID > 0 && ownerPID > 0 {
-					break
-				}
-				time.Sleep(5 * time.Millisecond)
-			}
-			if helperPID == 0 || ownerPID == 0 {
-				t.Fatal("run did not reach the queue")
-			}
+				return helperPID > 0 && ownerPID > 0
+			}, []chan error{done})
 			if err := cmd.Process.Signal(sig); err != nil {
 				t.Fatal(err)
 			}
@@ -384,22 +371,10 @@ func TestLocalCheckSignalPreservesOutsideOwnedPhase(t *testing.T) {
 							}
 						}
 					})
-					deadline := time.Now().Add(testfix.HangCeiling)
-					for {
-						if raw, _ := os.ReadFile(ready); len(raw) > 0 {
-							break
-						}
-						select {
-						case err := <-done:
-							finished = true
-							t.Fatalf("production handler exited before blocked phase: %v %s", err, output.String())
-						default:
-						}
-						if time.Now().After(deadline) {
-							t.Fatal("production blocking phase did not start")
-						}
-						time.Sleep(5 * time.Millisecond)
-					}
+					testfix.AwaitCondition(t, "the production blocking phase started", func() bool {
+						raw, _ := os.ReadFile(ready)
+						return len(raw) > 0
+					}, []chan error{done})
 					if err := cmd.Process.Signal(sig); err != nil {
 						t.Fatal(err)
 					}

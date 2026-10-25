@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -80,11 +81,11 @@ func (id WaitIdentity) valid() error {
 	return nil
 }
 func (id *WaitIdentity) UnmarshalJSON(data []byte) error {
-	_, err := decodeStrict(data, map[string]any{"repo": &id.Repo, "root": &id.Root, "slot": &id.Slot, "head": &id.Head, "operation_id": &id.OperationID, "pid": &id.PID, "pid_started": &id.PIDStarted, "branch": &id.Branch})
+	_, err := jsonstrict.DecodeObject(data, map[string]any{"repo": &id.Repo, "root": &id.Root, "slot": &id.Slot, "head": &id.Head, "operation_id": &id.OperationID, "pid": &id.PID, "pid_started": &id.PIDStarted, "branch": &id.Branch})
 	return err
 }
 func (w *WaitFact) UnmarshalJSON(data []byte) error {
-	_, err := decodeStrict(data, map[string]any{"version": &w.Version, "identity": &w.Identity, "conductor": &w.Conductor})
+	_, err := jsonstrict.DecodeObject(data, map[string]any{"version": &w.Version, "identity": &w.Identity, "conductor": &w.Conductor})
 	return err
 }
 func validWaitEvent(e Event) error {
@@ -122,7 +123,7 @@ func DecodeWaitEvent(raw []byte) (Event, error) {
 	if len(raw) > maxTicket {
 		return e, errors.New("wait event capacity exceeded")
 	}
-	_, err := decodeStrict(raw, map[string]any{"kind": &e.Kind, "at": &e.At, "seq": &e.Seq, "issue": &e.Issue, "branch": &e.Branch, "pr": &e.PR, "train": &e.Train, "wait": &e.Wait})
+	_, err := jsonstrict.DecodeObject(raw, map[string]any{"kind": &e.Kind, "at": &e.At, "seq": &e.Seq, "issue": &e.Issue, "branch": &e.Branch, "pr": &e.PR, "train": &e.Train, "wait": &e.Wait})
 	if err != nil {
 		return e, err
 	}

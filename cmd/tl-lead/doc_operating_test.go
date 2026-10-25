@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/pkg/procgroup"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 type operatingFixture struct{ root, remote, target string }
@@ -403,7 +404,7 @@ func TestOperatingCancellationStopsGitHookDescendants(t *testing.T) {
 	go func() { b := make([]byte, 1); _, e := signal.Read(b); arrived <- e }()
 	deadline, _ := t.Deadline()
 	if deadline.IsZero() {
-		deadline = time.Now().Add(time.Minute)
+		deadline = time.Now().Add(testgate.HangCeiling)
 	}
 	guard := time.NewTimer(time.Until(deadline))
 	defer guard.Stop()

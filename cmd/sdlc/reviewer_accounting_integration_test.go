@@ -184,15 +184,8 @@ func TestProductionPlanningCancellationRetainsAccountingOnly(t *testing.T) {
 			}
 		}
 	}()
-	deadline := time.Now().Add(testfix.HangCeiling)
 	var started reviewusage.Record
-	for started.Phase != reviewusage.Started {
-		select {
-		case err := <-done:
-			finished = true
-			t.Fatalf("command returned before launch confirmation: %v\n%s", err, out.String())
-		default:
-		}
+	testfix.AwaitCondition(t, "the production dispatch persisted its started receipt", func() bool {
 		records, _, err := loadUsageReviewers(context.Background(), []string{repo}, reviewerTestScope(t, repo, 206))
 		if err != nil {
 			t.Fatal(err)
@@ -202,13 +195,8 @@ func TestProductionPlanningCancellationRetainsAccountingOnly(t *testing.T) {
 				started = r
 			}
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("production dispatch never persisted started receipt")
-		}
-		if started.Phase != reviewusage.Started {
-			time.Sleep(10 * time.Millisecond)
-		}
-	}
+		return started.Phase == reviewusage.Started
+	}, []chan error{done})
 	ledger := filepath.Join(repo, "workshop/plans/000206-issue-sync-verb-plan-gate.md")
 	if _, err := os.Stat(ledger); !os.IsNotExist(err) {
 		t.Fatalf("launched receipt advanced semantic ledger: %v", err)

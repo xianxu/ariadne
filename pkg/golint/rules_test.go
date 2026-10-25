@@ -184,7 +184,34 @@ func TestRules(t *testing.T) {
 		{"test-tight-wallclock", "if time.Since(start) > 700*time.Millisecond { panic(0) }", true, true},
 		{"test-tight-wallclock", "elapsed := time.Since(start)\nif elapsed >= 500*time.Millisecond { panic(0) }", true, true},
 		{"test-tight-wallclock", "if 200*time.Millisecond < time.Since(start) { panic(0) }", true, true},
-		{"test-tight-wallclock", "if time.Since(start) > 3*time.Second { panic(0) }", true, false},
+		// #620: an 8s bound was the oracle, not a hang guard; #625: a 30s poll deadline.
+		{"test-tight-wallclock", "if err != nil || time.Since(start) > 8*time.Second { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > tc.timeout+2*time.Second { panic(0) }", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Now().Before(deadline) {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nif time.Now().After(deadline) { panic(0) }", true, true},
+		{"test-tight-wallclock", "stamp := time.Now().Add(-time.Hour)\n_ = stamp", true, false},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Now().Before(deadline) {\n}\ndeadline = time.Now().Add(testgate.HangCeiling)\n_ = deadline", true, true},
+		{"test-tight-wallclock", "HangCeiling := time.Second\nif time.Since(start) > HangCeiling { panic(0) }", true, true},
+		{"test-tight-wallclock", "const HangCeiling = time.Second\nif time.Since(start) > HangCeiling { panic(0) }", true, true},
+		{"test-tight-wallclock", "var deadline = time.Now().Add(30 * time.Second)\nfor time.Now().Before(deadline) {\n}", true, true},
+		{"test-tight-wallclock", "ok, deadline := true, time.Now().Add(30 * time.Second)\n_ = ok\nfor time.Now().Before(deadline) {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Now().Compare(deadline) < 0 {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Since(deadline) < 0 {\n}", true, true},
+		{"test-tight-wallclock", "var elapsed = time.Since(start)\nif elapsed > 5*time.Second { panic(0) }", true, true},
+		{"test-tight-wallclock", "ok, elapsed := true, time.Since(start)\n_ = ok\nif elapsed > 5*time.Second { panic(0) }", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor deadline.Sub(time.Now()) > 0 {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Now().UnixNano() < deadline.UnixNano() {\n}", true, true},
+		{"test-tight-wallclock", "x := struct{ HangCeiling time.Duration }{time.Second}\nif time.Since(start) > x.HangCeiling { panic(0) }", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\ndeadline = time.Now().Add(testgate.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > 2*time.Minute { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling/1200 { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling-time.Minute { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling+time.Second { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > 2*testgate.HangCeiling { panic(0) }", true, false},
+		{"test-tight-wallclock", "deadline := time.Now().Add(5 * time.Second)\nfor time.Until(deadline) > 0 {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(5 * time.Second)\nfor !deadline.Before(time.Now()) {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(testfix.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
 		{"test-tight-wallclock", "if elapsed := time.Since(start); elapsed < budget { panic(0) }", true, false},
 		{"test-tight-wallclock", "if time.Since(start) < 500*time.Millisecond { panic(0) }", true, false},
 		{"test-tight-wallclock", "if time.Since(start) > 700*time.Millisecond { panic(0) }", false, false},
@@ -413,5 +440,39 @@ func TestLandingCompletionWaitRule(t *testing.T) {
 				t.Fatalf("findings = %v, want %d", got, tc.want)
 			}
 		})
+	}
+}
+
+// #622: tightWallclock keys variables by their declaring object, so a name
+// reused across functions neither borrows nor hides another's deadline.
+func TestTightWallclockScopesNamesPerFunction(t *testing.T) {
+	src := header + `func short() {
+	deadline := time.Now().Add(30 * time.Second)
+	_ = deadline
+}
+
+func long() {
+	deadline := time.Now().Add(2 * time.Minute)
+	for time.Now().Before(deadline) {
+	}
+	start := time.Now()
+	elapsed := time.Since(start)
+	_ = elapsed
+}
+
+func bounded() {
+	elapsed := 3 * time.Second
+	if elapsed > time.Second {
+	}
+}
+`
+	got, err := Check("x_test.go", []byte(src), Catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range got {
+		if f.Rule == "test-tight-wallclock" {
+			t.Fatalf("a name reused across functions was confused: %+v", f)
+		}
 	}
 }

@@ -682,8 +682,9 @@ repository/worktree rows across the shared filtered fleet walk. Each row places
 measured Git evidence (HEAD SHA, commit timestamp, base divergence, and dirty
 count) beside branch-associated issue metadata whose declared status is
 explicitly attributed with `branch-prefix` provenance. It reports observations
-only: neither the typed contract nor the human renderer derives `cold`, `drift`,
-`liveness`, `staleness`, or a similar judgment.
+only: neither the typed contract nor the human renderer infers actor liveness,
+`cold`, `drift`, worktree `staleness`, or a similar judgment. Merge-intent owner
+locks are separate observed evidence, described below.
 
 Rows also carry this machine's tracker **claims** (#288): `fleet.PlaceClaims`
 (pure, `internal/fleet/claims.go`) joins each repository's claims — one
@@ -694,6 +695,41 @@ worktree matches no row are `dangling_claims`. Each row's `claims_state`
 (present/stale/partial/unknown/absent) is read quality, so an empty list is
 "none" only when the read carried value. This is the bulk, cross-slot
 counterpart of `issue show --json`'s per-issue assignment.
+
+**Merge intents** (#624): the command-layer `collectFleetMergeIntents`
+(`fleet_mergeintents.go`) enriches the existing inventory with one shared
+`observeMergeIntents` read per canonical Git common directory, dependencies
+included. Pure `placeFleetMergeIntents` indexes common-dir/root and physical
+record identity; it never assigns by issue number or workspace text. The row's
+existing slot/member association remains the slot authority. Each intent is
+placed once; unresolved/corrupt roots appear once in repository diagnostics,
+stage `merge_intents`, and make the store's read partial without erasing its
+valid observations or other stores.
+
+The additive schema-1 capability is `capabilities.merge_intents=1`. Capable rows
+carry `merge_intents: []` and read quality `merge_intents_state`:
+`complete`, `partial`, or `unreadable`, with `merge_intents_error` for incomplete
+reads. Missing capability means unsupported, never proven empty. The shared
+report type lives in `internal/fleet/mergeintents.go`; state and landing status
+use the same classifier and command owner. `identity`/`path` is the canonical
+physical record path. Record states stay `live`, `orphaned`, `stale` and
+`unreadable`; only the validated orphan gets `reentry`, run at its exact `root`.
+The owner flock, not a PID scan, witnesses liveness. Queue pause and unavailable
+pause information are carried notes, never a new admission authority.
+
+This reader never sweeps or rewrites. Terminal intent removal is observed as
+complete empty on the next read; no tombstone was added. Existing preserving v1
+storage and its 30-day lifecycle remain unchanged. Non-ENOENT open failures,
+nonregular entries and partial branch-probe failures remain inspection evidence.
+Inventory JSON is encoded before publishing and capped at the consumer's 1 MiB
+limit; overflow emits no JSON. Native SIGINT/SIGTERM cancel all inventory Git
+phases through the existing CLI signal owner and bounded Git group cleanup,
+joining children and inherited pipes before a nonzero return with no JSON.
+This producer precedes pair#848's read-only
+recovery report; consumers check the capability and actual merge re-entry still
+revalidates normal SDLC authority. Qualification uses private real stores and
+the executable, followed by the hub's ordinary primary rebuild; no live queue
+pause or recovery action is part of this change.
 
 **Slots** (#289): `discoverSlots` finds each workspace from row paths
 (`repo:0` = a fleet primary, `repo:N` = `workspace.SlotPath`); a numbered slot's
@@ -2629,7 +2665,7 @@ many times slower, so a test's verdict must not ride on elapsed time. Bound wait
 with `testgate.HangCeiling` (`pkg/testgate`, so cmd/weave shares it; cmd/sdlc's
 `testfix.HangCeiling` and `hangGuard` alias it): it catches a hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
 signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
-to fail the moment one command waits for the repo lock behind another (#325).
+to fail the moment one command waits for the repo lock behind another (#325). A test that waits for an event polls through `testgate.AwaitCondition(t, what, cond, workers)` (`testfix.AwaitCondition` aliases it; #622): it is bounded only by `HangCeiling`, and its `workers []chan error` argument is required. Pass the goroutines or processes whose progress produces the condition, or `nil` with a comment saying why none can end first. A worker that ends first fails the wait at once, and its result is put back on its channel (each needs a one-value buffer), so a deferred join or a later completion wait still receives it. It refuses an unbuffered worker channel up front and a closed one on its first poll. `waitQueued` and `waitVouched` are built on it. A test that proves a bound (a cancel, a timeout, a kill) ends its call runs the call under `testgate.Returns(t, what, call)`, which waits on it with `AwaitCondition`, and makes the work the bound must stop outlast `HangCeiling` (a `sleep 600` child): then only a broken bound reaches the ceiling, and no elapsed threshold is asserted. When the bound is broken, that child outlives the failed test until its sleep ends. `AwaitCondition` owns every poll bounded by `HangCeiling`. Waits budgeted by the remainder of the test's own deadline (`landingCompletionBudget`: `awaitDropCondition`, `mergeStageAwait`), and `testfix.AwaitPIDFile` and `AwaitExit`, which return to a caller that sets the ceiling, stay separate.
 
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
@@ -2679,7 +2715,7 @@ that taught it (`test-ps-liveness` #567 (test process-state snapshots are diagno
 `test-socket-fixture-root` #549 / pair#792 (inherited temporary roots reaching Unix socket paths or the isolation parent),
 `session-move-batched-reads` and `session-move-raw-fields` #504,
 `resume-cleanup-effect` #463 (live-owner resume cleanup must use one ctx-and-authorize effect boundary), `unit-child-process-group` #556 (inner typed-unit adapters inherit the enclosing helper's group and cannot create/signal groups or nest managed helpers), `suite-line-provenance` #476, `test-hardcoded-arch-count` #454, `test-batch-shell-runner` #448, `test-shrunk-deadline` #434/#514 (assignments and struct literal duration fields), `tmp-literal` #342, `test-go-build` pair#602,
-`test-tight-wallclock` and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
+`test-tight-wallclock` (the 2026-10-15 flakes, widened by #622 after #620/#625: any elapsed upper bound, or a `time.Now().Add` deadline that a loop polls, below the hang ceiling; only an expression naming `HangCeiling` or a constant at least as long passes, and variables are matched by their declaring object; `select`/`time.After` fail-timeouts are #626) and `test-fixed-sleep` the 2026-10-15 flakes, `test-reads-workshop`
 #469 (a test reading `workshop/plans` or `workshop/issues`, which move to history on
 landing), `wire-strict-decode` pair#594, and `json-recursive-scanner` #489, a hand-rolled recursive duplicate-key
 JSON scanner outside `cmd/sdlc/internal/jsonstrict`, the one owner of that rule). #590 keeps this syntactic matcher unchanged; it does not prove materializer value flow or differential independence. Fix redundant validators by using the consumer module's own shared strict JSON authority while preserving its key semantics; Ariadne's internal implementation is not importable downstream. For a proven value-producing materializer or independent differential fuzz oracle, a reasoned per-site `//lint:allow json-recursive-scanner — <reason>` is the sanctioned answer. State why the role must remain independent (for example, a standalone sample module or an oracle compared against a different implementation). Do not consolidate away that independence, add a production dependency merely to satisfy lint, or exempt whole packages/test files. Pair's two #861 allows remain valid rather than awaiting removal. Exact source captures exercise both the unannotated finding and the reasoned annotation through Check and CheckSources. `TestAtlasNamesEveryRule` keeps this list

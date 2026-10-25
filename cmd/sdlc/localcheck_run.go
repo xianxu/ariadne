@@ -62,6 +62,10 @@ type localRunDeps struct {
 	// the open issues' flake_tests, from a fresh tracker read. nil means no
 	// registry is available, which blocks like an unknown failure.
 	FlakeRegistry func(ctx context.Context) (flakes.Registry, error)
+	// RecordMissed records the missed mappings of a failed merge suite (#616): the introduced failures the branch's
+	// affected selection would not have run. It returns a line for the comparison, or "" for nothing to say; nil
+	// skips the check. Its error never changes the gate's outcome.
+	RecordMissed func(ctx context.Context, main, head string, introduced []string) (string, error)
 	// normalTempDir selects the fallback candidate; nil keeps strict host selection.
 	normalTempDir func() (string, error)
 	// minute is the unit of timeout_minutes; tests shrink it.

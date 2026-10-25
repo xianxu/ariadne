@@ -142,8 +142,14 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 		}
 		return inventory.Rows[i].TreePath < inventory.Rows[j].TreePath
 	})
-	sort.Slice(inventory.Diagnostics, func(i, j int) bool {
-		left, right := inventory.Diagnostics[i], inventory.Diagnostics[j]
+	SortDiagnostics(inventory.Diagnostics)
+	return inventory, nil
+}
+
+// SortDiagnostics is the existing inventory ordering, shared by enrichers.
+func SortDiagnostics(diagnostics []RepoDiagnostic) {
+	sort.Slice(diagnostics, func(i, j int) bool {
+		left, right := diagnostics[i], diagnostics[j]
 		if left.RepoIdentity != right.RepoIdentity {
 			return left.RepoIdentity < right.RepoIdentity
 		}
@@ -158,7 +164,6 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 		}
 		return left.Message < right.Message
 	})
-	return inventory, nil
 }
 
 // collectClaims judges every repository's claims against this machine: one

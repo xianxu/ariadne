@@ -311,7 +311,7 @@ func TestAffectedResumePlanWiring(t *testing.T) {
 				return affected.Graph{Module: "example.com/m", Dir: map[string]string{"example.com/m/leaf": "leaf", "example.com/m/mid": "mid"},
 					Deps: map[string]map[string]bool{"example.com/m/mid": {"example.com/m/leaf": true}}}, nil
 			},
-			mapping: func(context.Context) (affected.Mapping, error) { return affected.Compile(cfg, nil) },
+			mapping: func(context.Context) (affected.Mapping, error) { return affected.Compile(cfg, affected.Sources{}) },
 		}
 	}
 	d := localRunDeps{Git: git(true), Stderr: &strings.Builder{}, suiteCapabilities: func(context.Context) error { return nil }}
