@@ -46,6 +46,23 @@ Durable plan: `workshop/plans/000622-sweep-second-scale-wall-clock-bounds-from-c
 - [ ] M1 — the widened `test-tight-wallclock` rule (a transitional per-file pending list), group A polled deadlines, and #625
 - [ ] M2 — groups B, C, D; delete the pending list so the rule enforces; close #625 with this issue
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module        design=0.2 impl=0.2
+item: cross-cutting-refactor   design=0.5 impl=0.2
+item: cross-cutting-refactor   design=0.8 impl=0.2
+item: cross-cutting-refactor   design=0.4 impl=0.2
+item: milestone-review         design=0.0 impl=0.2
+item: milestone-review         design=0.0 impl=0.2
+design-buffer: 0.15
+total: 3.39
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Items: the rule extends an existing one (smaller module); three refactor sweeps, one per site family: group A polled deadlines (13, mechanical), group B kill/cancel outcomes (~14, each needs its own outcome oracle, so the most design), groups C+D allows or events (~8); two milestone reviews. `impl=` at 40% of the v2 table midpoints; design from the v2 ranges, with a +15% buffer since the plan is thorough. Proof runs (`-count=10` per package, one at a time) are inside impl.
+
 ## Log
 
 ### 2026-10-25
