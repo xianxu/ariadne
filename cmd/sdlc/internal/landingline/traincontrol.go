@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/jsonstrict"
 )
 
 const TrainControlVersion = 1
@@ -233,13 +235,13 @@ func marshalTrainObject(base any, extra map[string]json.RawMessage, fields map[s
 	if err != nil {
 		return nil, err
 	}
-	return encodeWithExtra(data, extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
+	return jsonstrict.EncodeWithExtra(data, extra, func(k string) bool { _, ok := fields[k]; return ok }), nil
 }
 
 // Every schema field is present in v1 writes. In particular, omission of a
 // nested irreversible marker is unreadable state, never a false default.
 func decodeTrainObject(data []byte, fields map[string]any) (map[string]json.RawMessage, error) {
-	extra, err := decodeStrict(data, fields)
+	extra, err := jsonstrict.DecodeObject(data, fields)
 	if err != nil {
 		return nil, err
 	}
