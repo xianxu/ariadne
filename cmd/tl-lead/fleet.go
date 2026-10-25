@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -316,8 +314,12 @@ func newFleetCmd(d deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
+			ctx := cmd.Context()
+			if d.resumeContext != nil {
+				var stop context.CancelFunc
+				ctx, stop = d.resumeContext(ctx)
+				defer stop()
+			}
 			return fleetResume(ctx, cmd.OutOrStdout(), d, cwd, apply, resumeOptions{All: all, Concurrency: concurrency})
 		},
 	}

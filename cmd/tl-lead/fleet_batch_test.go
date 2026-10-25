@@ -354,3 +354,20 @@ func TestResumeCoordinatorStopJoinsEveryStartedCall(t *testing.T) {
 		})
 	}
 }
+
+func TestFleetResumeScopesExecutableCancellation(t *testing.T) {
+	d, c, cwd := fleetFixture(t)
+	c.recoveryErr = errors.New("private report unavailable")
+	started, stopped := 0, 0
+	d.resumeContext = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		started++
+		return ctx, func() { stopped++ }
+	}
+	t.Chdir(cwd)
+	root := buildRoot(d)
+	root.SetContext(t.Context())
+	root.SetArgs([]string{"fleet", "resume"})
+	if err := root.Execute(); err == nil || started != 1 || stopped != 1 {
+		t.Fatalf("context lifecycle on report refusal: err=%v start=%d stop=%d", err, started, stopped)
+	}
+}
