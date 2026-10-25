@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 )
 
 // The missed-mapping ledger (#616) is one file per clone, in the common git dir, so every worktree's merges and
@@ -133,4 +134,49 @@ func (s missedLedgerStore) record(ctx context.Context, misses []affected.Miss, e
 		line += fmt.Sprintf("; the ledger is at its cap, dropped the %d oldest", dropped)
 	}
 	return line, nil
+}
+
+// missedMergeRecorder is the merge gate's recorder (#616): when the merged head's suite fails where main's passes, it
+// plans the head's delta from main as an affected run would (main's config and declarations over the head's graph)
+// and records each introduced failure that selection would not have run. A repository without affected.json has
+// nothing to miss. It runs under its own budget; the gate's outcome never depends on it.
+func missedMergeRecorder(root string, registry func(context.Context) (flakes.Registry, error)) func(ctx context.Context, main, head string, introduced []string) (string, error) {
+	return func(ctx context.Context, main, head string, introduced []string) (string, error) {
+		ctx, cancel := context.WithTimeout(ctx, missedRecordLimit)
+		defer cancel()
+		r := boundedLandingGit(ctx, execGitRunner{})
+		git := func(args ...string) (string, error) { return landingGit(r, root, args...) }
+		paths, err := changedPathsBetween(git, main, head)
+		if err != nil {
+			return "", fmt.Errorf("changed paths: %w", err)
+		}
+		cleanupGit, retire := retiringCleanupGit(ctx, root)
+		defer retire()
+		at, cleanup, err := affectedSelectionAt(ctx, root, git, cleanupGit, main, head, paths)
+		if cleanup != nil {
+			defer cleanup()
+		}
+		if errors.Is(err, errAffectedUndeclared) {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if registry == nil {
+			return "", errors.New("no flake registry")
+		}
+		reg, err := registry(withIssueRecordsScope(ctx))
+		if err != nil {
+			return "", fmt.Errorf("flake registry: %w", err)
+		}
+		misses := affected.Missed(at.sel, introduced, func(f string) bool { _, ok := reg.Cover(f); return ok })
+		if len(misses) == 0 {
+			return "", nil
+		}
+		store, err := missedStoreFor(root)
+		if err != nil {
+			return "", err
+		}
+		return store.record(ctx, misses, affected.MissEvidence{Paths: paths, Head: head, Main: main, Source: "merge", At: time.Now()})
+	}
 }

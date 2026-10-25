@@ -39,13 +39,13 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 	}
 	merged := parseSuiteLogFacts(string(mergedLog)).Failures
 	base := parseSuiteLogFacts(string(baselineLog)).Failures
-	var labels []string
+	var labels, introduced, preexisting []string
 	if !baseline.passed() && len(base) == 0 {
 		labels = append(labels, "main is red (unparsed); introduced failures cannot be determined")
 	} else if len(merged) == 0 {
 		labels = append(labels, "merged suite failed (unparsed); introduced failures cannot be determined")
 	} else {
-		introduced, preexisting := classifyFailures(merged, base)
+		introduced, preexisting = classifyFailures(merged, base)
 		if len(introduced) > 0 {
 			labels = append(labels, "introduced: "+strings.Join(introduced, ", "))
 		}
@@ -64,8 +64,24 @@ func diagnoseSuiteFailure(ctx context.Context, gateErr error, main string, deps 
 	}
 	if baseline.passed() {
 		labels = append(labels, "main baseline passed")
+		if line := recordMissedMappings(ctx, deps, main, failed.Head, introduced); line != "" {
+			labels = append(labels, line)
+		}
 	} else {
 		labels = append(labels, "main baseline failed; log "+baseline.LogPath)
 	}
 	return fmt.Errorf("%w\n  suite comparison: %s", gateErr, strings.Join(labels, "; "))
+}
+
+// recordMissedMappings runs the merge's missed-mapping check (#616) when main passed and the merge introduced
+// failures. Any failure to record is one more label: the comparison reports it, and the gate's error is unchanged.
+func recordMissedMappings(ctx context.Context, deps localRunDeps, main, head string, introduced []string) string {
+	if deps.RecordMissed == nil || len(introduced) == 0 {
+		return ""
+	}
+	line, err := deps.RecordMissed(ctx, main, head, introduced)
+	if err != nil {
+		return "missed mappings: not recorded (" + err.Error() + ")"
+	}
+	return line
 }
