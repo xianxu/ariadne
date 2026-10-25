@@ -102,10 +102,7 @@ func TestCouchResumeReceiptConformance(t *testing.T) {
 // models Couch's documented isolated runtime, without launching its supervisor.
 func resumeConformanceEnvironment(t *testing.T) (env []string, store, root string) {
 	t.Helper()
-	root, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	root = resumeConformanceRoot(t)
 	store = filepath.Join(root, "store")
 	data, identity := filepath.Join(root, "data", "pair"), filepath.Join(root, "identity")
 	for _, dir := range []string{store, data, identity, filepath.Join(root, "home"), filepath.Join(root, "tmp"), filepath.Join(root, "singleton")} {
@@ -125,14 +122,54 @@ func resumeConformanceEnvironment(t *testing.T) (env []string, store, root strin
 	return env, store, root
 }
 
+// A socket is the one fixture resource that cannot inherit arbitrarily long
+// TMPDIR paths. Own a short canonical directory and register removal first, so
+// child and listener cleanup completes before its root is removed.
+func resumeConformanceRoot(t *testing.T) string {
+	t.Helper()
+	//lint:allow tmp-literal — Unix socket qualification needs a short canonical private root; ordinary suite files retain TMPDIR.
+	parents := []string{"/Volumes/TestScratch", os.TempDir(), "/tmp"}
+	for _, parent := range parents {
+		physical, err := filepath.EvalSymlinks(parent)
+		if err != nil || len(filepath.Join(physical, "rc-1234567890", "m", strings.Repeat("a", 40)+".sock")) > 103 {
+			continue
+		}
+		root, err := os.MkdirTemp(physical, "rc-")
+		if err != nil {
+			continue
+		}
+		t.Cleanup(func() {
+			if err := os.RemoveAll(root); err != nil {
+				t.Error("remove owned conformance root:", err)
+			}
+		})
+		return root
+	}
+	t.Fatal("cannot allocate a private short Couch socket root")
+	return ""
+}
+
+func TestResumeConformanceShortSocketRoot(t *testing.T) {
+	long := filepath.Join(t.TempDir(), strings.Repeat("long", 40))
+	if err := os.MkdirAll(long, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", long)
+	_, store, root := resumeConformanceEnvironment(t)
+	socket := filepath.Join(root, "m", strings.Repeat("a", 40)+".sock")
+	if len(socket) > 103 || filepath.Dir(store) != root {
+		t.Fatalf("isolated socket root is unusable: %s", root)
+	}
+}
+
 // This is the external couchmessage.SocketPath/framing contract, deliberately
 // independent of our classifier. Couch still validates the request, owns the
 // request ID, polls and turns these broker envelopes into its public output.
 func resumeConformanceBroker(t *testing.T, store, status string) <-chan error {
 	t.Helper()
 	digest := sha256.Sum256([]byte(store + "\x00broker"))
-	//lint:allow tmp-literal — Couch's cross-process socket contract always uses this UID-private directory, independent of TMPDIR.
-	dir := filepath.Join("/tmp", fmt.Sprintf("pair-message-%d", os.Getuid()))
+	// Explicit isolation routes every message socket into its selected root.
+	dir := filepath.Join(filepath.Dir(store), "m")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}

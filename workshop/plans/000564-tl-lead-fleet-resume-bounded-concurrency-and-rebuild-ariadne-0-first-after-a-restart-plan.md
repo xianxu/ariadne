@@ -1,6 +1,6 @@
 # Fleet resume after full shutdown — Implementation Plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Wake each hub's explicitly asleep workers, pending work first, with bounded concurrent resume operations and confirmed per-slot outcomes, after the shared tools have been rebuilt, then hand completion to the machine steward for the separate scheduled-task wave.
 
@@ -93,19 +93,19 @@ One atomic issue close/review boundary; no artificial milestone tags.
 
 Files: create `cmd/tl-lead/fleet_recovery.go` and `_test.go`; modify `fleet.go`, `main.go`, `fleet_test.go`.
 
-- [ ] Write decoder/planner red tests for the actual nested wire; absent marker on old schema-1 reports; explicit marked no-claim worker; invalid timestamp; unknown fields; duplicate keys/addresses; wrong types; trailing JSON; unsupported schema; conflicting thread rows; incomplete candidates; foreign/tied ownership; slot-zero hubs; and stale marked live actors.
-- [ ] Run focused tests and retain the expected failures. Implement one typed projection and one classifier, with pending-first phases and deterministic reasons. Preserve strict types/required fields/duplicates using the repository's JSON facilities.
-- [ ] Count 8 and 16 workers: one recovery capture, one initial actor capture, at most one candidate read per eligible worker, and no per-completion fleet/report rescan. Assert untouched absent-marker rows never invoke a mutation.
-- [ ] Run the focused controls and commit implementation plus issue Log.
+- [x] Write decoder/planner red tests for the actual nested wire; absent marker on old schema-1 reports; explicit marked no-claim worker; invalid timestamp; unknown fields; duplicate keys/addresses; wrong types; trailing JSON; unsupported schema; conflicting thread rows; incomplete candidates; foreign/tied ownership; slot-zero hubs; and stale marked live actors.
+- [x] Run focused tests and retain the expected failures. Implement one typed projection and one classifier, with pending-first phases and deterministic reasons. Preserve strict types/required fields/duplicates using the repository's JSON facilities.
+- [x] Count 8 and 16 workers: one recovery capture, one initial actor capture, at most one candidate read per eligible worker, and no per-completion fleet/report rescan. Assert untouched absent-marker rows never invoke a mutation.
+- [x] Run the focused controls and commit implementation plus issue Log.
 
 ### 2. Bounded execution and receipt failure classes
 
 Files: create `cmd/tl-lead/fleet_batch.go` and `_test.go`; modify `fleet.go`, `resume_result.go`, `resume_result_test.go`, `fleet_test.go`.
 
-- [ ] Write red pure transition tests for positive N, N=1 and N=3, ordered phase admission, out-of-order completion, repeated matching codes with different IDs/targets, distinct coded failures, unclassified failures, uncertainty, cancellation and exact not-attempted accounting.
-- [ ] Extend the stateful fake with barrier-controlled calls. Hold N calls active and prove N+1 cannot start; release one and prove exactly one starts; prove idle-phase calls wait for all pending-phase outcomes; stop on the second shared failure while retaining and joining every already-started call. Assert every address has one final outcome and all workers return before the command does.
-- [ ] Implement the coordinator and `--concurrency` default 3. Validate N before side effects. Preserve dry-run, --all authority, per-slot receipts, bounded actor diagnostics and nonzero partial failure. Update serial assumptions deliberately, keeping N=1 controls.
-- [ ] Extend receipt tests for coded failures, mismatched receipts, timeouts, malformed replies, exit/status disagreement and actor-present uncertainty. Run focused tests and race controls, then commit.
+- [x] Write red pure transition tests for positive N, N=1 and N=3, ordered phase admission, out-of-order completion, repeated matching codes with different IDs/targets, distinct coded failures, unclassified failures, uncertainty, cancellation and exact not-attempted accounting.
+- [x] Extend the stateful fake with barrier-controlled calls. Hold N calls active and prove N+1 cannot start; release one and prove exactly one starts; prove idle-phase calls wait for all pending-phase outcomes; stop on the second shared failure while retaining and joining every already-started call. Assert every address has one final outcome and all workers return before the command does.
+- [x] Implement the coordinator and `--concurrency` default 3. Validate N before side effects. Preserve dry-run, --all authority, per-slot receipts, bounded actor diagnostics and nonzero partial failure. Update serial assumptions deliberately, keeping N=1 controls.
+- [x] Extend receipt tests for coded failures, mismatched receipts, timeouts, malformed replies, exit/status disagreement and actor-present uncertainty. Run focused tests and race controls, then commit.
 
 ### Function-level adversarial contracts
 
@@ -119,10 +119,10 @@ Files: create `cmd/tl-lead/fleet_batch.go` and `_test.go`; modify `fleet.go`, `r
 
 Files: modify `cmd/tl-lead/help.md`, `cmd/tl-lead/drain_test.go`, `cmd/tl-lead/main_test.go`, `README.md`, `atlas/workflow/tl-skills.md`, and `cmd/tl-lead/resume_conformance_test.go` as needed.
 
-- [ ] Replace serial/first-failure wording with the approved bound and stop rule. Put steward `make tools` in ariadne:0 and `go version -m bin/sdlc` verification before the fleet notice; build/verification failure stops the procedure. Preserve explicit operator start-recovery authorization and the hubs-only quiet hold. Replace the first-operator-message automation toggle with the machine-steward-only third-wave handoff, after every hub reports both worker waves complete (or explicit operator go).
-- [ ] Phrase-guard ordering and authority, pending-before-idle, absent marker no-op, per-invocation concurrency, partial outcomes, scoped completion handoff, machine-wide wave three, zero per-hub scheduler toggles, and exact recovery instructions. Add stateful/executable controls proving no automation or schedule control on success, partial failure, cancellation or dry run. Update the existing linked atlas page; no new standalone map needed.
-- [ ] Run `go test ./cmd/tl-lead -count=1` and focused `-race` scheduler/receipt tests. Run existing opt-in private CLI conformance with `TL_LEAD_RESUME_CONFORMANCE=1`, extending its fake executable/report seam to cover nested asleep markers and bounded calls. No production slots are resumed.
-- [ ] Obtain pair:6's landed #830 evidence and qualify the reader against its real report fixture. The earlier skipped-native gap predates pair#863 landing: inspect the current disposable-Couch harness and use the existing supported private qualification. Report only tests actually executed; never equate producer landing with consumer conformance. If unavailable, ask the hub to approve the explicit private conformance limit before close.
+- [x] Replace serial/first-failure wording with the approved bound and stop rule. Put steward `make tools` in ariadne:0 and `go version -m bin/sdlc` verification before the fleet notice; build/verification failure stops the procedure. Preserve explicit operator start-recovery authorization and the hubs-only quiet hold. Replace the first-operator-message automation toggle with the machine-steward-only third-wave handoff, after every hub reports both worker waves complete (or explicit operator go).
+- [x] Phrase-guard ordering and authority, pending-before-idle, absent marker no-op, per-invocation concurrency, partial outcomes, scoped completion handoff, machine-wide wave three, zero per-hub scheduler toggles, and exact recovery instructions. Add stateful/executable controls proving no automation or schedule control on success, partial failure, cancellation or dry run. Update the existing linked atlas page; no new standalone map needed.
+- [x] Run `go test ./cmd/tl-lead -count=1` and focused `-race` scheduler/receipt tests. Run existing opt-in private CLI conformance with `TL_LEAD_RESUME_CONFORMANCE=1`, extending its fake executable/report seam to cover nested asleep markers and bounded calls. No production slots are resumed.
+- [x] Obtain pair:6's landed #830 evidence and qualify the reader against its real report fixture. The earlier skipped-native gap predates pair#863 landing: inspect the current disposable-Couch harness and use the existing supported private qualification. Report only tests actually executed; never equate producer landing with consumer conformance. If unavailable, ask the hub to approve the explicit private conformance limit before close.
 - [ ] Push, run `sdlc local-check run --pre-close`, and use normal close/PR/merge gates. After landing ask the hub to rebuild ariadne:0. No staging or live fleet recovery is part of this change without separate operator authorization.
 
 ## Growth and constraints
@@ -140,3 +140,5 @@ Planning is linear in report/thread rows plus address sorting; dispatch creates 
 - 2026-10-24 — ops:0 supplied the approved pair#874 scheduler seam in submitted receipt dd147d9c-989b-4a5b-9420-412cbbdf3ce6: fresh Couch holds scheduled tasks; the main hub releases a generation-bound hold with couch --schedule resume and reason all-handoffs or operator-go, reconciling lost replies through status. Keep per-hub automation separate. Record the precise steward handoff without invoking or depending on this unlanded capability for #564 close; pair#874 waits on pair#737. #589 still lands before this issue's implementation.
 
 - 2026-10-24 — implementation inspection: cmd/sdlc/internal/jsonstrict cannot be imported by tl-lead. Extract its unchanged implementation/tests to cmd/internal/jsonstrict, retaining a forwarding package at the old path, so both command consumers reuse one strict authority (ARCH-DRY). No key semantics or report schema changes. The initial claim-without-asleep regression is observed red; the approved recovery projection and scheduler remain the implementation scope.
+
+- 2026-10-24 — private CLI qualification exposed SIGTERM bypassing the existing caller-cancellation coordinator. A context scoped only to fleet resume now handles SIGINT/SIGTERM and joins admitted calls; the actual executable red/green control verifies it. Updated the independent real-Couch fixture to the current isolated socket contract and a bounded owned short root. Pair#870 is still not landed, so native wake remains explicitly unqualified under the approved private-conformance limit. Package/race/catalog and final SDLC evidence follow in the issue Log.
