@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +20,65 @@ func adoptionReadSetCard(id, hours, extra string) tracker.IssueRecord {
 	fm := "id: " + id + "\ncreated: 2026-10-14\nupdated: 2026-10-14\nactual_hours: " + hours + "\n" + extra
 	raw := []byte("---\n" + fm + "---\n# adoption\n")
 	return tracker.IssueRecord{ID: id, Card: &tracker.Record{ID: id, Path: "issues/" + id + ".md", BlobOID: "blob-" + id, Card: issue.Card{Frontmatter: fm}, Raw: raw}}
+}
+
+// Count the actual Git boundary rather than timing a scan on a loaded host.
+// Doubling candidate records must not introduce per-record history rescans.
+func TestAdoptionReadSetValidationHasBoundedGitReads(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[int]int{}
+	for _, size := range []int{8, 16} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			cards, details := map[string]string{}, map[string]string{}
+			for i := 0; i < size; i++ {
+				cardPath, card, detailPath, detail := seededIssue(t, fmt.Sprintf("%06d", 640+i), fmt.Sprintf("candidate-%d", i))
+				raw, err := issue.SetCardField([]byte(card), "actual_hours", "0.25")
+				if err != nil {
+					t.Fatal(err)
+				}
+				cards[cardPath], details[detailPath] = string(raw), detail
+			}
+			r := newTrackerRepo(t, cards, details)
+			detailRoot := filepath.Join(r.root, "workshop/issues")
+			records, err := loadIssueRecordsAt(withIssueRecordsScope(context.Background()), r.root, detailRoot, tracker.Fresh)
+			if err != nil {
+				t.Fatal(err)
+			}
+			since := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+			candidates, err := adoptedExclusionCandidates(records.All(), "636", since, since.Add(time.Hour))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(candidates) != size {
+				t.Fatalf("fixture has %d candidates, want %d", len(candidates), size)
+			}
+			saved := captureAdoptionReadSet("636", detailRoot, since, since.Add(time.Hour), candidates)
+			bin := t.TempDir()
+			counter := filepath.Join(bin, "calls")
+			body := "#!/bin/sh\nprintf x >> \"$ADOPTION_READSET_COUNTER\"\nexec \"$ADOPTION_READSET_REAL_GIT\" \"$@\"\n"
+			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(body), 0755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("ADOPTION_READSET_COUNTER", counter)
+			t.Setenv("ADOPTION_READSET_REAL_GIT", realGit)
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			if err := validateObservedAdoptions(context.Background(), r.root, saved); err != nil {
+				t.Fatal(err)
+			}
+			calls, err := os.ReadFile(counter)
+			if err != nil {
+				t.Fatal(err)
+			}
+			counts[size] = len(calls)
+		})
+	}
+	if counts[8] == 0 || counts[16] > 2*counts[8]+2 {
+		t.Fatalf("Git read growth: N=8: %d; 2N=16: %d", counts[8], counts[16])
+	}
+	t.Logf("Git boundary calls: N=8: %d; 2N=16: %d", counts[8], counts[16])
 }
 
 func TestAdoptionReadSetCandidateChanges(t *testing.T) {
@@ -91,7 +153,7 @@ func TestAdoptionReadSetFreshValidation(t *testing.T) {
 	if saved.cards == nil || len(saved.cards) != 0 {
 		t.Fatalf("original read not captured: %+v", saved)
 	}
-	if err := validateAdoptionReadSet(ctx, r.root, &saved); err != nil {
+	if err := validateObservedAdoptions(ctx, r.root, &saved); err != nil {
 		t.Fatal(err)
 	}
 	repo, err := tracker.NewRepository(context.Background(), r.root, "origin")
@@ -115,7 +177,20 @@ func TestAdoptionReadSetFreshValidation(t *testing.T) {
 	}
 	// This error is about authority movement, not replay: an incomplete numeric
 	// card still must invalidate preparation before a writer can use the result.
-	if err := validateAdoptionReadSet(ctx, r.root, &saved); err == nil || !strings.Contains(err.Error(), "649") {
+	if err := validateObservedAdoptions(ctx, r.root, &saved); err == nil || !strings.Contains(err.Error(), "649") {
 		t.Fatalf("new adoption escaped fresh validation: %v", err)
 	}
+}
+
+// Exercise the same fresh observation and pure decision used by the close
+// guard, without duplicating either policy in this test helper.
+func validateObservedAdoptions(ctx context.Context, root string, saved *adoptionReadSet) error {
+	records, err := observeClosePreparationCards(ctx, root, saved.details)
+	if err != nil {
+		return err
+	}
+	if !records.Tracker {
+		return errors.New("tracker evidence unavailable")
+	}
+	return compareAdoptionReadSet(saved, records.All())
 }

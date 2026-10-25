@@ -110,3 +110,9 @@ Ops:0 approved unlocked expensive preparation, fresh read-set validation before 
 ### 2026-10-24 — Implementation naming and publication detail
 
 The invocation guard is `closePreparationReadSet` in closeprepare.go and is an IO integration, since its validate method gathers fresh authority. Pure comparisons reuse `comparePreparedReview`, `closeCardAuthority` and `compareAdoptionReadSet` rather than adding the conceptual `compareClosePreparation` name. Preparation shares one fresh tracker view for own-card and adoption comparison. Optional branch publication pins the finalized commit; its short local tracking-ref update reacquires the existing lock after network IO. These are implementations of the approved boundary, with no new durable state or measurement policy.
+
+### 2026-10-24 — Consolidated publication boundary approved
+
+Ops:0 receipt d1246e0f-8e5c-4188-856f-be14df1d44bf approves one immutable publication record captured under the finalization lock: repository/transport, branch, finalized commit and expected remote tip. The unlocked push uses exactly that lease; changed remote authority refuses, and local tracking metadata updates with CAS under a short lock. No retry, persistent state or schema. This is the third design delta: a fourth cuts scope to retaining publication under the lock and moving measurement only.
+
+The newer-authority regression reproduced both failures (5.115s): the deferred push rewound a newer remote tip, and reading a changed tracking ref late refused the intended finalized commit. Existing concurrency/publication controls passed237.702s; fresh adoption checks used19 Git calls for both8 and16 candidates (3.264s). The focused measurement/stale/reviewer-lock race controls passed63.847s; that regex did not include the adoption/publication families, which still need a current race run. Implementation remains in progress.

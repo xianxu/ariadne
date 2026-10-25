@@ -37,7 +37,11 @@ func boundaryPushAt(env *trackerEnv, stderr io.Writer, verb, head string, lock f
 	defer cancel()
 	bounded := *env
 	bounded.ctx = ctx
-	if err := leasedBranchHeadPush(bounded.git, bounded.target.Remote, branch, head, lock); err != nil {
+	transport := ""
+	if head != "" {
+		transport = bounded.target.PushURL
+	}
+	if err := leasedBranchHeadPush(bounded.git, bounded.target.Remote, branch, head, transport, lock); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s: %s was not pushed: %v — the %s itself is done; the next boundary or `sdlc pr` pushes it", verb, branch, err, verb))
 		return
 	}
@@ -61,10 +65,10 @@ func pushIssueBranch(env *trackerEnv, branch string) error {
 // yet), never a fresh read that would turn it into a blind force (#284 BR-24).
 // The explicit refspec publishes without configuring an issue-branch upstream.
 func leasedBranchPush(git gitFn, remote, branch string) error {
-	return leasedBranchHeadPush(git, remote, branch, "", nil)
+	return leasedBranchHeadPush(git, remote, branch, "", "", nil)
 }
 
-func leasedBranchHeadPush(git gitFn, remote, branch, head string, lock func(func() error) error) error {
+func leasedBranchHeadPush(git gitFn, remote, branch, head, transport string, lock func(func() error) error) error {
 	tracking := gitx.RemoteTrackingRef(remote, branch)
 	expect, err := git("for-each-ref", "--format=%(objectname)", tracking)
 	if err != nil {
@@ -75,7 +79,10 @@ func leasedBranchHeadPush(git gitFn, remote, branch, head string, lock func(func
 	if source == "" {
 		source = ref
 	}
-	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, remote, source+":"+ref); err != nil {
+	if transport == "" {
+		transport = remote
+	}
+	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, transport, source+":"+ref); err != nil {
 		if strings.Contains(err.Error(), "stale info") {
 			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before the next push)", err, branch)
 		}

@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // closeEffects is a lexical, synchronous tail, not a durable job queue. Only
@@ -44,5 +45,27 @@ func pushCloseBranch(f *closeFlags, env *trackerEnv, stderr io.Writer, verb stri
 		cwarn(stderr, fmt.Sprintf("%s: issue branch tip unavailable for push: %v", verb, err))
 		return
 	}
-	afterClose(f, func() { boundaryPushAt(env, stderr, verb, head, f.effects.lock) })
+	afterClose(f, func() {
+		validate := func(run func() error) error {
+			check := func() error {
+				target, err := gitx.ResolvePublicationTarget(env.ctx, env.root, env.resting)
+				if err != nil {
+					return err
+				}
+				if target != env.target {
+					return fmt.Errorf("close publication target changed; inspect it before pushing")
+				}
+				return run()
+			}
+			if f.effects.lock != nil {
+				return f.effects.lock(check)
+			}
+			return check()
+		}
+		if err := validate(func() error { return nil }); err != nil {
+			cwarn(stderr, fmt.Sprintf("%s: issue branch was not pushed: %v", verb, err))
+			return
+		}
+		boundaryPushAt(env, stderr, verb, head, validate)
+	})
 }

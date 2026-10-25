@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // The incident happened before reviewer dispatch: measuring transcripts while
@@ -38,6 +40,42 @@ func TestClosePreparationMeasuresWithoutRepoLock(t *testing.T) {
 			}
 			if calls != 1 {
 				t.Fatalf("measurement ran %d times, want one", calls)
+			}
+		})
+	}
+}
+
+func TestCloseReviewRefusesChangedPublicationTarget(t *testing.T) {
+	for _, verb := range []string{"close", "milestone-close"} {
+		t.Run(verb, func(t *testing.T) {
+			plan := "- [x] implement\n"
+			if verb == "milestone-close" {
+				plan = "- [ ] M1 — implement\n"
+			}
+			r, cardPath, detailPath := closeReadyWithPlan(t, 617, plan)
+			mirror := filepath.Join(t.TempDir(), "mirror.git")
+			r.git("clone", "--bare", "-q", r.origin, mirror)
+			before := r.card(cardPath)
+			original := judge.Run
+			t.Cleanup(func() { judge.Run = original })
+			judge.Run = func(context.Context, func(int), string, ...string) (judge.ProcessOutput, error) {
+				r.git("remote", "set-url", "origin", mirror)
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n" + emptyBoundaryFindings)}, nil
+			}
+			args := []string{verb, "--issue", "617", "--no-actual", "--no-atlas", "--no-project", "--verified", "private destination mutation"}
+			if verb == "milestone-close" {
+				args = append(args, "--milestone", "M1")
+			}
+			_, stderr, err := executeSDLCTestCommand(args...)
+			if err == nil {
+				t.Fatalf("changed publication target finalized: %s", stderr)
+			}
+			r.git("remote", "set-url", "origin", r.origin)
+			if got := r.card(cardPath); got != before {
+				t.Fatal("original card overwritten")
+			}
+			if raw, err := os.ReadFile(filepath.Join(r.root, detailPath)); err != nil || strings.Contains(string(raw), "closed —") {
+				t.Fatalf("stale target wrote close: %q %v", raw, err)
 			}
 		})
 	}
@@ -159,5 +197,39 @@ func TestCloseBranchPublicationPinsFinalizedHead(t *testing.T) {
 	f.effects.finish()
 	if got := remoteTip(t, r, s09Branch); got != pinned {
 		t.Fatalf("published %s, want finalized %s: %s", got, pinned, &diagnostics)
+	}
+}
+
+func TestCloseBranchPublicationPreservesNewerAuthority(t *testing.T) {
+	for _, changed := range []string{"remote", "tracking"} {
+		t.Run(changed, func(t *testing.T) {
+			r, _, _ := startedHere(t)
+			r.git("commit", "--allow-empty", "-qm", "finalized close")
+			pinned := r.git("rev-parse", "HEAD")
+			f := &closeFlags{effects: &closeEffects{}}
+			var diagnostics strings.Builder
+			pushCloseBranch(f, boundaryEnv(t), &diagnostics, "fixture")
+			r.git("commit", "--allow-empty", "-qm", "newer actor work")
+			newer := r.git("rev-parse", "HEAD")
+			if changed == "remote" {
+				r.git("push", "-q", "origin", "refs/heads/"+s09Branch)
+			} else {
+				r.git("update-ref", "refs/remotes/origin/"+s09Branch, newer)
+			}
+			f.effects.finish()
+			want := pinned
+			if changed == "remote" {
+				want = newer
+			}
+			if got := remoteTip(t, r, s09Branch); got != want {
+				t.Fatalf("remote=%s, want %s; %s", got, want, &diagnostics)
+			}
+			if got := r.git("rev-parse", "refs/remotes/origin/"+s09Branch); got != newer {
+				t.Fatalf("newer tracking metadata overwritten: %s, want %s; %s", got, newer, &diagnostics)
+			}
+			if diagnostics.Len() == 0 {
+				t.Fatal("refusal or partial publication needs visible recovery")
+			}
+		})
 	}
 }

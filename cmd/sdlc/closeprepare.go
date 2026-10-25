@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -21,6 +22,8 @@ type closePreparationReadSet struct {
 	cardOID  string
 	adopted  *adoptionReadSet
 	ctx      context.Context
+	resting  string
+	target   gitx.PublicationTarget
 }
 
 func captureCloseCard(ctx context.Context, issues, id string) (bool, string, string, error) {
@@ -52,10 +55,18 @@ func (s *closePreparationReadSet) validate() error {
 	if err := s.initial.prepared.validateIdentityAndArtifacts(); err != nil {
 		return err
 	}
+	if s.tracked {
+		target, err := gitx.ResolvePublicationTarget(commandContext(s.ctx), s.initial.prepared.root, s.resting)
+		if err != nil {
+			return err
+		}
+		if target != s.target {
+			return fmt.Errorf("close publication target changed during preparation or review")
+		}
+	}
 	// A fresh scope is essential: the preparation's command cache deliberately
 	// retains one generation and cannot establish current write authority.
-	ctx := withIssueRecordsScope(commandContext(s.ctx))
-	records, err := loadIssueRecords(ctx, s.issues, tracker.Fresh)
+	records, err := observeClosePreparationCards(s.ctx, s.initial.prepared.root, s.issues)
 	if err != nil {
 		return err
 	}
@@ -88,6 +99,13 @@ func prepareCloseTransaction(cmd *cobra.Command, stderr io.Writer, f *closeFlags
 			return err
 		}
 		guard.tracked, guard.cardPath, guard.cardOID, err = captureCloseCard(commandContext(f.Context), f.IssuesDir, guard.issue)
+		if err == nil && guard.tracked {
+			env, e := openTracker(commandContext(f.Context))
+			if e != nil {
+				return e
+			}
+			guard.resting, guard.target = env.resting, env.target
+		}
 		return err
 	})
 	if err != nil {

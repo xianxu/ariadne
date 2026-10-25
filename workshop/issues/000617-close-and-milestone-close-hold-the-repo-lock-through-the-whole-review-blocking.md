@@ -72,3 +72,9 @@ Pair:5's retained owner output places #859's long shared lock hold before its me
 ### 2026-10-24 — TL approved implementation
 
 Receipt25803def-0436-4cbb-ad57-7223be72b210 approved the durable plan. Record the boundary before change-code. Pair:5 independently confirmed exact start/first-output times and normal SHIP completion; its sample hash matches the plan. No retained targeted/background runner remains; the pre-design concurrency test completed exit0.
+
+### 2026-10-24 — Consolidated publication boundary approved
+
+Ops:0 receipt d1246e0f-8e5c-4188-856f-be14df1d44bf approves one immutable publication record captured under the finalization lock: repository/transport, branch, finalized commit and expected remote tip. The unlocked push uses exactly that lease; changed remote authority refuses, and local tracking metadata updates with CAS under a short lock. No retry, persistent state or schema. This is the third design delta: a fourth cuts scope to retaining publication under the lock and moving measurement only.
+
+The newer-authority regression reproduced both failures (5.115s): the deferred push rewound a newer remote tip, and reading a changed tracking ref late refused the intended finalized commit. Existing concurrency/publication controls passed237.702s; fresh adoption checks used19 Git calls for both8 and16 candidates (3.264s). The focused measurement/stale/reviewer-lock race controls passed63.847s; that regex did not include the adoption/publication families, which still need a current race run. Implementation remains in progress.

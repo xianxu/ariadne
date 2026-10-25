@@ -81,29 +81,9 @@ func compareAdoptionReadSet(saved *adoptionReadSet, records []tracker.IssueRecor
 	return nil
 }
 
-// validateAdoptionReadSet must run under the close's authoritative write lock.
-// A new records scope prevents preparation's cached view from satisfying it.
-// Fresh refuses an unavailable remote rather than accepting a stale snapshot.
-func validateAdoptionReadSet(ctx context.Context, root string, saved *adoptionReadSet) error {
-	if saved == nil {
-		return nil
-	}
+// observeClosePreparationCards starts a fresh observation, shared by own-card
+// and adoption comparisons. It must not reuse preparation's cached generation.
+func observeClosePreparationCards(ctx context.Context, root, details string) (tracker.Records, error) {
 	ctx = withIssueRecordsScope(commandContext(ctx))
-	repo, err := recordsRepository(ctx, root)
-	if err != nil {
-		return err
-	}
-	var records tracker.Records
-	if local, _ := ctx.Value(localMeasurementContextKey{}).(bool); local {
-		records, err = actualInputRecords(ctx, repo, root, saved.details)
-	} else {
-		records, err = tracker.LoadRecords(ctx, repo, saved.details, tracker.Fresh)
-	}
-	if err != nil {
-		return err
-	}
-	if records.Stale {
-		return fmt.Errorf("adopted-actual tracker evidence is stale: %v", records.FetchErr)
-	}
-	return compareAdoptionReadSet(saved, records.All())
+	return loadIssueRecordsAt(ctx, root, details, tracker.Fresh)
 }

@@ -436,6 +436,7 @@ type closeResult struct {
 // memory, returning a closeResult — it writes NOTHING. Gate failures still die() /
 // exitWithCode(1) fast, before any review (#139: extracted from runClose).
 func computeClose(stderr io.Writer, f *closeFlags) closeResult {
+	f.Adoptions = nil
 	printSemanticWarmup(stderr)
 	var applied []string
 
