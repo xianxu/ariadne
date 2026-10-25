@@ -16,6 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ebecbae0", done: "66a225b1"}
 ---
 
 # tl-lead fleet resume: bounded concurrency, and rebuild ariadne:0 first after a restart
