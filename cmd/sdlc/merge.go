@@ -649,7 +649,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) (err error) {
 			die(stderr, err.Error())
 		}
 		root := gitx.Capture("rev-parse", "--show-toplevel")
-		localDeps := localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: prNum, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
+		localDeps := localRunDeps{sysvObserver: nativeSysVObserver(), GH: ghClient, Repo: repo, Root: root, Git: gitCall, CleanupGit: localCheckCleanupGit(ctx, mergeRunner, root), PR: prNum, Stderr: stderr, FlakeRegistry: gateFlakeRegistry(root)}
 		localRun := newLocalCheckRunner(localDeps)
 		if err := runCIGate(ctx, ghClient, repo, prNum, main, head, gitCall, localRun, f.NoCI, stderr); err != nil {
 			die(stderr, err.Error())

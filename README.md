@@ -371,8 +371,14 @@ See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding
-automatic resume authority. `--apply` waits for each terminal receipt and
-stops at the first failure or uncertainty, naming untouched slots. See
+automatic resume authority. After explicit operator recovery and the steward's
+verified ariadne:0 rebuild, `--apply` resumes explicitly asleep workers with
+bounded concurrency (default 3): pending-work wave first, then remaining asleep
+workers. It joins started calls on cancellation or a stop, retains partial outcomes,
+and hands both worker waves to the machine steward. Unavailable or conflicting
+agent evidence blocks the handoff even without an asleep mark. Only that steward releases
+machine-wide scheduled tasks after all hub handoffs or explicit operator go;
+resume itself never toggles automation or scheduling. See
 [TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
 
 Before filing a new project's implementation issues, follow SHAPING in
@@ -922,9 +928,22 @@ Before close, `sdlc local-check run --pre-close` (#578) picks the check for you:
 the landing's one full run; `suite` everywhere else, or when either file is unreadable. It excludes `--name`, `--all`
 and `--boarding`.
 
-Selection follows imports and embeds only. A Go test that scans *other* packages' source, or reads a non-Go file
-outside its own `testdata/` and embeds, is invisible to it, so the repo's affected command or its `full` globs must
-cover such tests (see pair#725). The schema, the classification rules and these blind spots are in [the affected
+Selection follows imports and embeds, plus whatever ownership the repo declares (#598). It cannot see a Go test that
+scans *other* packages' source, or one that reads a non-Go file outside its own `testdata/` and embeds. The repo
+covers those in one of three ways:
+- declare the ownership in `affected.json`:
+  - an `owners` rule maps paths to Go roots (`go`), to target paths (`as`), or to a target derived with
+    `strip` prefix/suffix;
+  - a `sidecars` convention (`{"prefix": "tests/affected-readers/", "suffix": ".json"}`) makes a sidecar's change
+    count as a change to the file it is about, and its optional `reads` globs count as that file's inputs;
+- keep the path in `full`. An entry `{"glob": "cmd/x/**", "except": ["cmd/x/*_test.go"]}` lets the excepted paths
+  fall through to ordinary selection;
+- or run the test from the affected command (see pair#725).
+
+Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
+Older sdlc versions reject these members. Pre-close and train cars then require the suite, and an explicit
+`--name affected` run refuses with the parse error, so upgrade the provider before adopting them.
+The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 
 Recorded suites and their baselines replace unusable inherited `TMPDIR` and
@@ -1152,6 +1171,12 @@ sdlc finding dispute --issue <n> --id BR-4 \
 The dispute is committed in the gate ledger; the next review round answers it
 against the evidence, and a Critical keeps blocking until it does. See
 `sdlc finding dispute --help` and `atlas/workflow/gate-state.md`.
+
+Recorded host checks also retain advisory SysV shared-memory observations in their
+hashed logs and a `SysV warning` status marker. Creator PIDs stay unattributed;
+these warnings preserve the test outcome and never remove segments. The optional
+`WF_SYSV_QUALIFY=1` owned-segment test requires operator-cleared capacity; see
+[host observation scope and qualification](atlas/workflow/sdlc-binary.md#recorded-host-sysv-observations-589).
 
 ## Project records
 

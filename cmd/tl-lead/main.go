@@ -7,10 +7,13 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,11 +26,15 @@ var rootHelp string
 // deps are the seams to the world: couch's session-sync verbs and actor list,
 // sdlc's JSON contracts, the clock. Tests pass stateful fakes.
 type deps struct {
-	ss     SessionSync
-	sdlc   SDLC
-	actors CouchActors
-	resume CouchResume      // couch --resume-candidates / --resume (fleet resume)
-	now    func() time.Time // nil: the wall clock
+	ss       SessionSync
+	sdlc     SDLC
+	actors   CouchActors
+	recovery CouchRecovery
+	// Only the executable wires OS signals; deterministic callers supply their
+	// own context without registering a process-global signal source.
+	resumeContext func(context.Context) (context.Context, context.CancelFunc)
+	resume        CouchResume      // couch --resume-candidates / --resume (fleet resume)
+	now           func() time.Time // nil: the wall clock
 	// landing reads the fleet's newest landing; nil: no landing.
 	landing   func(file string) (Landing, error)
 	documents DocRepository // nil: real Git/SDLC publication
@@ -41,7 +48,10 @@ func (d deps) clock() time.Time {
 }
 
 func main() {
-	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, resume: execResume{bin: "couch"}, landing: gitNewestLanding}
+	d := deps{ss: couchSessionSync{bin: "couch"}, sdlc: execSDLC{bin: "sdlc"}, actors: execActors{bin: "couch"}, resume: execResume{bin: "couch"}, recovery: execRecovery{bin: "couch"}, landing: gitNewestLanding}
+	d.resumeContext = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	}
 	if err := buildRoot(d).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		var ee exitError

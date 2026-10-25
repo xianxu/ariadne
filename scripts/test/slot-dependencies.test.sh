@@ -98,7 +98,7 @@ for number,host in enumerate(slots,1):
     assert (host/'Makefile.workflow').resolve()==dep/'Makefile.workflow'
     assert (host/'.agents/skills/xx-issues').resolve()==dep/'construct/local/issues'
     assert (host/'.agents/skills/xx-datatype/SKILL.md').is_file()
-    tools=sorted(d.name for d in (dep/'cmd').iterdir() if d.is_dir() and d.name!='weave')  # every owned tool but the distributed gateway
+    tools=sorted(d.name for d in (dep/'cmd').iterdir() if (d/'main.go').is_file() and d.name!='weave')  # entrypoints only; cmd/internal is a namespace, not a tool
     assert len(tools)>=4,tools
     for tool in tools:assert os.access(dep/'bin'/tool,os.X_OK),tool
     (scratch/f'tracked-diff-{number}.txt').write_text(git(host,'diff','--stat')+'\n'+git(host,'diff')+'\n')

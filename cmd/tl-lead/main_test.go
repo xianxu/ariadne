@@ -25,6 +25,34 @@ func helpOutput(t *testing.T, args ...string) string {
 	return out.String()
 }
 
+func TestLeadHelpDescribesWorkerWavesAndStewardHandoff(t *testing.T) {
+	for _, args := range [][]string{{"--help"}, {}} {
+		help := strings.Join(strings.Fields(strings.ReplaceAll(helpOutput(t, args...), "`", "")), " ")
+		_, section, ok := strings.Cut(help, "Resuming the fleet is one verb")
+		if !ok {
+			t.Fatal("missing fleet resume procedure")
+		}
+		for _, want := range []string{
+			"never run at startup", "default concurrency 3 per invocation", "--concurrency 1",
+			"rows[].agent.rows[].asleep_at", "complete proven candidate", "older Couch",
+			"All hub slots and live workers stay untouched", "an explicitly asleep worker needs no claim",
+			"Wave 1 resumes", "wave 2 starts", "positive integer", "per invocation",
+			"second matching (Status, Code, Diagnostic)", "distinct stable coded failures may continue",
+			"unclassified failure stops immediately", "Caller cancellation stops dispatch and joins",
+			"six-minute bound", "exact untouched list", "incomplete handoff",
+			"Wave 3 is machine-wide", "every hub's handoff or explicit operator go",
+			"never toggles automation or scheduling", "Pair#874 landing is not a close prerequisite",
+		} {
+			if !strings.Contains(section, want) {
+				t.Errorf("missing recovery rule %q", want)
+			}
+		}
+		if !(strings.Index(section, "Wave 1 resumes") < strings.Index(section, "wave 2 starts") && strings.Index(section, "wave 2 starts") < strings.Index(section, "Wave 3 is machine-wide")) {
+			t.Error("recovery wave ordering moved")
+		}
+	}
+}
+
 // Each row names a topic the lead's procedure must cover and a phrase that
 // only that topic's text carries.
 func TestLeadHelpCoversPlaybook(t *testing.T) {

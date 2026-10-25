@@ -39,7 +39,7 @@ func testGraph() Graph {
 func testConfig() Config {
 	return Config{
 		Version: 1, Command: []string{"make", "test-affected"}, Weight: 1, TimeoutMinutes: 30,
-		Full: []string{"Makefile*", "go.mod", ".sdlc/**"},
+		Full: []FullRule{{Glob: "Makefile*"}, {Glob: "go.mod"}, {Glob: ".sdlc/**"}},
 		Groups: []Group{
 			{Name: "lua", Paths: []string{"**/*.lua", "tests/lua/**"}},
 			{Name: "cli", Paths: []string{"tests/cli-*.sh"}, Go: []string{"./top"}},
@@ -88,7 +88,7 @@ func TestPlan(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := Plan(c.paths, testGraph(), testConfig(), isDocTest)
+			got := Plan(c.paths, testGraph(), testConfig(), Mapping{}, isDocTest)
 			if c.want.Full {
 				if !got.Full || !strings.Contains(got.Reason, c.want.Reason) {
 					t.Fatalf("Plan = %+v; want full naming %q", got, c.want.Reason)
@@ -117,10 +117,10 @@ func norm(s Selection) Selection {
 func TestPlanRootPackageDoesNotClaimSubdirectories(t *testing.T) {
 	g := testGraph()
 	g.Dir["example.com/m"], g.Deps["example.com/m"] = ".", map[string]bool{}
-	if got := Plan([]string{"scripts/deploy.sh"}, g, testConfig(), isDocTest); !got.Full {
+	if got := Plan([]string{"scripts/deploy.sh"}, g, testConfig(), Mapping{}, isDocTest); !got.Full {
 		t.Fatalf("Plan = %+v; a root package claimed scripts/", got)
 	}
-	if got := Plan([]string{"main.go"}, g, testConfig(), isDocTest); got.Full || !reflect.DeepEqual(got.GoPkgs, []string{"example.com/m"}) {
+	if got := Plan([]string{"main.go"}, g, testConfig(), Mapping{}, isDocTest); got.Full || !reflect.DeepEqual(got.GoPkgs, []string{"example.com/m"}) {
 		t.Fatalf("Plan = %+v; the root's own file", got)
 	}
 }
@@ -128,7 +128,7 @@ func TestPlanRootPackageDoesNotClaimSubdirectories(t *testing.T) {
 func TestPlanStaleGoRoot(t *testing.T) {
 	cfg := testConfig()
 	cfg.Groups[1].Go = []string{"./gone"}
-	got := Plan([]string{"leaf/leaf.go"}, testGraph(), cfg, isDocTest)
+	got := Plan([]string{"leaf/leaf.go"}, testGraph(), cfg, Mapping{}, isDocTest)
 	if !got.Full || got.Reason != "group cli: ./gone is not a package" {
 		t.Fatalf("Plan = %+v", got)
 	}
@@ -200,7 +200,7 @@ func TestPlanProperty(t *testing.T) {
 				paths = append(paths, fmt.Sprintf("p%d/f.go", i))
 			}
 		}
-		sel := Plan(paths, g, Config{Version: 1, Command: []string{"x"}}, isDocTest)
+		sel := Plan(paths, g, Config{Version: 1, Command: []string{"x"}}, Mapping{}, isDocTest)
 		if sel.Full {
 			t.Fatalf("iter %d: unexpected full: %s", iter, sel.Reason)
 		}
