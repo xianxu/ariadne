@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestKnownFlakeGate]
+flow: {kind: quick, provenance: inferred, spec: "ccc7e7b8", done: "a0bbe98b"}
 ---
 
 # flake: TestKnownFlakeGate
