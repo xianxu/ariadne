@@ -50,6 +50,7 @@ Root cause: wall clock as the oracle. The runner already records the deadline ev
 ### 2026-10-24
 
 ### 2026-10-25
+- 2026-10-25: closed — Close-review Minor fixed in a6ade9674: the BR-16 comment now says each run is bounded by the check declared timeout. Comment-only change; targeted BR-16 green before it; full suite green on 71f220cc. (fixed-then-ship); review verdict: SHIP
 - 2026-10-25: closed — BR-16 now asserts the saved rerun attempt TimedOut instead of an 8s wall bound. Mutation (rerunEnvelope without the check-timeout bound) fails the test. Targeted -count=10 green twice, once under nice -n 19 and -cpu 1 at load 7-20. Full pre-close suite green on 71f220cc (sdlc-local/suite, 19m47s, 0 failed). Test-only fix, no new surface.; review verdict: SHIP
 
 - TL dispatched (main red on BR-16, blocking #603's landing). Fix: assert the runner's `TimedOut` record instead of elapsed time.
