@@ -45,7 +45,7 @@ true performance tests), so new ones are caught at lint time.
 Durable plan: `workshop/plans/000622-sweep-second-scale-wall-clock-bounds-from-correctness-tests-golint-rule-for-the-plan.md`.
 
 - [x] M1 — the widened `test-tight-wallclock` rule (a transitional per-file pending list), group A polled deadlines, and #625
-- [ ] M2 — groups B, C, D; delete the pending list so the rule enforces; close #625 with this issue
+- [x] M2 — groups B, C, D; delete the pending list so the rule enforces; close #625 with this issue
 
 ## Estimate
 
@@ -76,3 +76,6 @@ total: 3.84
 - M1 built: widened rule with object-keyed variables (it also caught 3 deadlines the name-keyed version hid: queue_interruption:47, landingtrain:520, makebuild_publish:99), transitional `wallclockPending` for the M2 files, 16 group A deadlines to `HangCeiling`, #625 fails fast when a landing ends before its barrier, processgroup's 5s shutdown contract under a reasoned allow.
 - Proof found my own bug: #625's barrier file exists before the script writes the SHA; my early `break` took an empty read as the event (5/20 runs). Fixed to re-read on empty.
 - M1 proofs (niced, one run at a time): cmd/sdlc 12 group A tests -count=10 green at load ~11 apart from the split pair; split pair -count=10 green after the fix at load 35–59; tl-lead TestOperatingCancellationStopsGitHookDescendants, weavefs TestSetupLeaseSurvivesRunnerParentDeath, weave/release package -count=10 green. Mutation: #625 deadline at HangCeiling/1200 (100ms) → red with "never reached the registration barrier"; restored → green. pkg/golint green including the repo catalog test.
+- M2 built: group B on `testgate.Returns` (children outlive `HangCeiling`), group C reasoned allows, the remaining ~18 test poll loops on `AwaitCondition` with explicit workers or reasoned nils, `wallclockPending` deleted, so the rule enforces repo-wide.
+- Proof found my own race: `golist` cancelled on a 100ms timer could fire before its descendant existed (1 of 10 under load). It now cancels on the descendant's pid cue; -count=10 green.
+- M2 proofs (niced, one package at a time, -count=10): testgate, testfix, affected, fleet, gitx, judge, tl-lead, weave, weave/acquire, weave/release, and the 21 changed cmd/sdlc tests, all green at load ~25. Mutation: `runBounded` with the timer's kill removed fails with "the bounded build returned: not reached within 2m0s" (the hang guard, not a timing check); restored green. pkg/golint green with the rule enforcing on every file.

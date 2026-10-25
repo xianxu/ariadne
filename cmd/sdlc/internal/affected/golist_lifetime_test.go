@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestGoListCancellationReclaimsDescendants(t *testing.T) {
@@ -26,14 +25,34 @@ func TestGoListCancellationReclaimsDescendants(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("GO_LIST_MARKER", marker)
 	t.Setenv("GO_LIST_PID", pidFile)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	// Cancel on the descendant's cue, not on a timer: a fixed timeout could
+	// fire before the descendant exists, under load, and prove nothing.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	returned := make(chan struct{})
+	pids := make(chan int, 1)
+	go func() {
+		// Stop watching if goList returns first: no descendant to cue on.
+		pid := testfix.AwaitPIDFile(pidFile, testgate.HangCeiling, func() bool {
+			select {
+			case <-returned:
+				return true
+			default:
+				return false
+			}
+		})
+		pids <- pid
+		cancel()
+	}()
 	var err error
-	testgate.Returns(t, "the cancelled go list", func() { _, err = goList(ctx, dir, "-m") })
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("error = %v, want deadline", err)
+	testgate.Returns(t, "the cancelled go list", func() {
+		_, err = goList(ctx, dir, "-m")
+		close(returned)
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("error = %v, want cancellation", err)
 	}
-	pid := testfix.AwaitPIDFile(pidFile, testgate.HangCeiling, nil)
+	pid := <-pids
 	if pid <= 0 {
 		t.Fatal("the descendant never reported its pid")
 	}
