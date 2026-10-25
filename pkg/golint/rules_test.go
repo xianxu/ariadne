@@ -190,6 +190,7 @@ func TestRules(t *testing.T) {
 		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nfor time.Now().Before(deadline) {\n}", true, true},
 		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\nif time.Now().After(deadline) { panic(0) }", true, true},
 		{"test-tight-wallclock", "stamp := time.Now().Add(-time.Hour)\n_ = stamp", true, false},
+		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\ndeadline = time.Now().Add(testgate.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
 		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling { panic(0) }", true, false},
 		{"test-tight-wallclock", "if time.Since(start) > 2*time.Minute { panic(0) }", true, false},
 		{"test-tight-wallclock", "deadline := time.Now().Add(testfix.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
@@ -421,5 +422,39 @@ func TestLandingCompletionWaitRule(t *testing.T) {
 				t.Fatalf("findings = %v, want %d", got, tc.want)
 			}
 		})
+	}
+}
+
+// #622: tightWallclock keys variables by their declaring object, so a name
+// reused across functions neither borrows nor hides another's deadline.
+func TestTightWallclockScopesNamesPerFunction(t *testing.T) {
+	src := header + `func short() {
+	deadline := time.Now().Add(30 * time.Second)
+	_ = deadline
+}
+
+func long() {
+	deadline := time.Now().Add(2 * time.Minute)
+	for time.Now().Before(deadline) {
+	}
+	start := time.Now()
+	elapsed := time.Since(start)
+	_ = elapsed
+}
+
+func bounded() {
+	elapsed := 3 * time.Second
+	if elapsed > time.Second {
+	}
+}
+`
+	got, err := Check("x_test.go", []byte(src), Catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range got {
+		if f.Rule == "test-tight-wallclock" {
+			t.Fatalf("a name reused across functions was confused: %+v", f)
+		}
 	}
 }

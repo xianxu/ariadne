@@ -488,18 +488,20 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 		pkg, ok := sel.X.(*ast.Ident)
 		return ok && pkg.Name == timePkg && sel.Sel.Name == "Since"
 	}
-	elapsed := map[string]bool{}
+	// Variables are keyed by their declaring object, so a name reused in
+	// another function, or a variable reassigned, is never confused.
+	elapsed := map[any]bool{}
 	ast.Inspect(f, func(n ast.Node) bool {
 		if as, ok := n.(*ast.AssignStmt); ok && len(as.Lhs) == 1 && len(as.Rhs) == 1 && isSince(as.Rhs[0]) {
 			if id, ok := as.Lhs[0].(*ast.Ident); ok {
-				elapsed[id.Name] = true
+				elapsed[varKey(id)] = true
 			}
 		}
 		return true
 	})
 	measured := func(e ast.Expr) bool {
 		if id, ok := e.(*ast.Ident); ok {
-			return elapsed[id.Name]
+			return elapsed[varKey(id)]
 		}
 		return isSince(e)
 	}
@@ -535,7 +537,7 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 		pkg, isPkg := fnIdent(fn)
 		return ok && isPkg && pkg == timePkg && fn.Sel.Name == "Now"
 	}
-	deadlines := map[string]*ast.CallExpr{}
+	deadlines := map[any]*ast.CallExpr{}
 	ast.Inspect(f, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
 		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
@@ -547,7 +549,9 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 			return true
 		}
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Add" && isNow(sel.X) && !hangBound(timePkg, call.Args[0]) {
-			deadlines[id.Name] = call
+			deadlines[varKey(id)] = call
+		} else {
+			delete(deadlines, varKey(id)) // reassigned to a hang bound or another value
 		}
 		return true
 	})
@@ -558,7 +562,7 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 			return true
 		}
 		id, ok := call.Args[0].(*ast.Ident)
-		if !ok || deadlines[id.Name] == nil {
+		if !ok || deadlines[varKey(id)] == nil {
 			return true
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
@@ -567,7 +571,7 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 		}
 		pkg, isPkg := fnIdent(sel)
 		if (sel.Sel.Name == "After" || sel.Sel.Name == "Before") && isNow(sel.X) || isPkg && pkg == timePkg && sel.Sel.Name == "Until" {
-			if d := deadlines[id.Name]; !polled[d] {
+			if d := deadlines[varKey(id)]; !polled[d] {
 				polled[d] = true
 				out = append(out, d)
 			}
@@ -575,6 +579,15 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 		return true
 	})
 	return out
+}
+
+// varKey identifies a variable by its declaring object when the parser
+// resolved one, else by name.
+func varKey(id *ast.Ident) any {
+	if id.Obj != nil {
+		return id.Obj
+	}
+	return id.Name
 }
 
 // fnIdent names the package of a qualified call such as time.Now.

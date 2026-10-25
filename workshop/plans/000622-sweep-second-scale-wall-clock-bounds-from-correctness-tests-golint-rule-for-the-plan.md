@@ -41,6 +41,16 @@ None new. The tests under change already use real processes, git and the fakes t
 - **ARCH-ORDER:** waits observe events (a barrier file, a recorded timeout, a worker's exit); where a worker can finish before the barrier, the wait fails at once instead of waiting out the ceiling.
 - **ARCH-SECURE, ARCH-EVOLVE, ARCH-FUNERAL:** creates nothing durable and changes no persisted format; only test code and a lint rule change. ARCH-PURE: the rule is pure AST code.
 
+## Non-goals
+
+- **`select { case <-time.After(d): t.Fatal(…) }` fail-timeouts** (about 33 sites): the same class, but a different AST shape. Filed as ariadne#626, which reuses this rule's `hangBound` (TL scope call on PQ-1).
+- **`context.WithTimeout(…, d)` deadlines** (about 17 sites): these usually bound the code under test, which is a production deadline being tested rather than the test's own wait; `test-shrunk-deadline` already owns the sub-second ones.
+- **Lower bounds** (proof that a wait happened), **sub-second deadlines** (`test-shrunk-deadline`) and **fixed sleeps** (`test-fixed-sleep`) belong to their own rules.
+
+## Rule test strategy (adversarial inputs)
+
+The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pre-fix #620 shape (red), a non-constant bound (`tc.timeout+2*time.Second`, red), a polled 30 s deadline in both `After` and `Before` forms (red), an unpolled `time.Now().Add(-time.Hour)` fixture timestamp (green), `HangCeiling` and `2*time.Minute` bounds (green), a deadline reassigned to `HangCeiling` before polling (green), and one name reused across functions with different meanings (`TestTightWallclockScopesNamesPerFunction`, green; it fails when variables are keyed by name). Variables are keyed by the parser's declaring object (`varKey`). An aliased `time` import is covered by `localName`.
+
 ## Site groups (from the rule, 35 sites)
 
 - **A — polled deadlines (13):** `landingtrain_attribution_test.go:147` (#625), `localcheck_resume_conformance_test.go:808`, `merge_main_test.go:77`, `queue_interruption_test.go:122`, `landingtrain_test.go:610`, `landingintegrate_test.go:158`, `landingtrain_archive_test.go:163`, `landingqueue_test.go:53`, `publishgate_cancel_test.go:36`, `makebuild_publish_test.go:150,171`, `cmd/weave/internal/release/main_test.go:61`, `cmd/weave/internal/weavefs/runner_setup_test.go:145`, `cmd/tl-lead/doc_operating_test.go:406` (fallback when the test has no deadline). Fix: the deadline becomes `HangCeiling`; fail fast where a worker can exit before the event.
@@ -61,3 +71,10 @@ None new. The tests under change already use real processes, git and the fakes t
   - [ ] Delete `wallclockPending`; the repo lint test passes with the rule enforcing.
   - [ ] Proof: per package `-count=10`, one at a time; mutation for one B site (break the kill) → hang-guard failure, not a timing failure.
   - [ ] Close #625 with the issue (its registered flake unregisters on close).
+
+## Revisions
+
+### 2026-10-25 — plan-quality round 1
+
+- PQ-1 (Important): `time.After` fail-timeouts and `context.WithTimeout` are outside the rule. TL chose to keep #622 at 35 sites: both are stated as non-goals, and the `time.After` shape is filed as ariadne#626.
+- Minors: added Non-goals; added the rule's adversarial-input strategy. Variables are now keyed by declaring object (`varKey`), and a reassignment case plus a cross-function test were added, mutation-checked.
