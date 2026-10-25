@@ -682,8 +682,9 @@ repository/worktree rows across the shared filtered fleet walk. Each row places
 measured Git evidence (HEAD SHA, commit timestamp, base divergence, and dirty
 count) beside branch-associated issue metadata whose declared status is
 explicitly attributed with `branch-prefix` provenance. It reports observations
-only: neither the typed contract nor the human renderer derives `cold`, `drift`,
-`liveness`, `staleness`, or a similar judgment.
+only: neither the typed contract nor the human renderer infers actor liveness,
+`cold`, `drift`, worktree `staleness`, or a similar judgment. Merge-intent owner
+locks are separate observed evidence, described below.
 
 Rows also carry this machine's tracker **claims** (#288): `fleet.PlaceClaims`
 (pure, `internal/fleet/claims.go`) joins each repository's claims — one
@@ -694,6 +695,41 @@ worktree matches no row are `dangling_claims`. Each row's `claims_state`
 (present/stale/partial/unknown/absent) is read quality, so an empty list is
 "none" only when the read carried value. This is the bulk, cross-slot
 counterpart of `issue show --json`'s per-issue assignment.
+
+**Merge intents** (#624): the command-layer `collectFleetMergeIntents`
+(`fleet_mergeintents.go`) enriches the existing inventory with one shared
+`observeMergeIntents` read per canonical Git common directory, dependencies
+included. Pure `placeFleetMergeIntents` indexes common-dir/root and physical
+record identity; it never assigns by issue number or workspace text. The row's
+existing slot/member association remains the slot authority. Each intent is
+placed once; unresolved/corrupt roots appear once in repository diagnostics,
+stage `merge_intents`, and make the store's read partial without erasing its
+valid observations or other stores.
+
+The additive schema-1 capability is `capabilities.merge_intents=1`. Capable rows
+carry `merge_intents: []` and read quality `merge_intents_state`:
+`complete`, `partial`, or `unreadable`, with `merge_intents_error` for incomplete
+reads. Missing capability means unsupported, never proven empty. The shared
+report type lives in `internal/fleet/mergeintents.go`; state and landing status
+use the same classifier and command owner. `identity`/`path` is the canonical
+physical record path. Record states stay `live`, `orphaned`, `stale` and
+`unreadable`; only the validated orphan gets `reentry`, run at its exact `root`.
+The owner flock, not a PID scan, witnesses liveness. Queue pause and unavailable
+pause information are carried notes, never a new admission authority.
+
+This reader never sweeps or rewrites. Terminal intent removal is observed as
+complete empty on the next read; no tombstone was added. Existing preserving v1
+storage and its 30-day lifecycle remain unchanged. Non-ENOENT open failures,
+nonregular entries and partial branch-probe failures remain inspection evidence.
+Inventory JSON is encoded before publishing and capped at the consumer's 1 MiB
+limit; overflow emits no JSON. Native SIGINT/SIGTERM cancel all inventory Git
+phases through the existing CLI signal owner and bounded Git group cleanup,
+joining children and inherited pipes before a nonzero return with no JSON.
+This producer precedes pair#848's read-only
+recovery report; consumers check the capability and actual merge re-entry still
+revalidates normal SDLC authority. Qualification uses private real stores and
+the executable, followed by the hub's ordinary primary rebuild; no live queue
+pause or recovery action is part of this change.
 
 **Slots** (#289): `discoverSlots` finds each workspace from row paths
 (`repo:0` = a fleet primary, `repo:N` = `workspace.SlotPath`); a numbered slot's

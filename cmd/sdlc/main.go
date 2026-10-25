@@ -99,13 +99,16 @@ func main() {
 	}
 }
 
-// Reviewer commands and net check own signal shutdown: their isolated process
+// Reviewer commands, net check and fleet inventory own signal shutdown: their isolated process
 // groups must be cancelled and reaped before the CLI exits. Other commands
 // retain their existing signal behavior, including legacy Git callers whose
 // runners do not yet consume contexts.
 type cliSignalContextKey struct{}
 
 func cliOwnsReviewSignals(cmd *cobra.Command) bool {
+	if cmd.Name() == "inventory" && cmd.Parent() != nil && cmd.Parent().Name() == "fleet" {
+		return true
+	}
 	if cmd.Name() == "check" && cmd.Parent() != nil && cmd.Parent().Name() == "net" {
 		return true
 	}

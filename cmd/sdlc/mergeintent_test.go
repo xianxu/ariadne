@@ -160,7 +160,7 @@ func TestOrphanedMergeOnStatusSurfaces(t *testing.T) {
 	}
 	want := fmt.Sprintf("re-enter in %q: sdlc merge --branch %s --yes", canonicalRoot(roots[1]), landingTestBranch)
 	var status bytes.Buffer
-	if err := runLandingStatus(&status, roots[1], defaultLandingDeps()); err != nil {
+	if err := runLandingStatus(t.Context(), &status, roots[1], defaultLandingDeps()); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(status.String(), "orphaned merge: #1 branch \""+landingTestBranch+"\"") || !strings.Contains(status.String(), want) {

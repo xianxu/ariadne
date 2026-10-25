@@ -72,14 +72,16 @@ func newLandingCmd(d landingDeps) *cobra.Command {
 		Long:  "Placeholder — replaced by helptext.MustGet(\"landing\") in main.go.",
 		Args:  cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLandingStatus(cmd.OutOrStdout(), repo, d)
+			return runLandingStatus(cmd.Context(), cmd.OutOrStdout(), repo, d)
 		},
 	}
 	cmd.PersistentFlags().StringVar(&repo, "repo", ".", "a checkout of the repository whose line to use")
 	status := &cobra.Command{
 		Use: "status", Short: "Show the landing now, the waiting merges in order, live grants and the delay p50/p90",
 		Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error { return runLandingStatus(cmd.OutOrStdout(), repo, d) },
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runLandingStatus(cmd.Context(), cmd.OutOrStdout(), repo, d)
+		},
 	}
 	var issueN int
 	var reason string
@@ -202,7 +204,7 @@ func trainFilterLines(f landingline.TrainFilterStats) string {
 	return b.String()
 }
 
-func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
+func runLandingStatus(ctx context.Context, out io.Writer, repo string, d landingDeps) error {
 	line, err := openRepoLine(repo)
 	if err != nil {
 		return err
@@ -267,7 +269,7 @@ func runLandingStatus(out io.Writer, repo string, d landingDeps) error {
 	if lineDir, err := landingLineDir(execGitRunner{}, repo); err == nil {
 		sweepMergeIntents(execGitRunner{}, repo, landingline.OpenIntents(lineDir), &b)
 	}
-	intents, err := observeMergeIntents(execGitRunner{}, repo, func(r mergeIntentReport) bool { return formatMergeIntent(r) != "" })
+	intents, err := observeMergeIntents(ctx, execGitRunner{}, repo, func(r mergeIntentReport) bool { return formatMergeIntent(r) != "" })
 	if err != nil {
 		fmt.Fprintf(&b, "merge intents: unreadable (%v)\n", err)
 	}
