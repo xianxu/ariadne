@@ -44,7 +44,7 @@ true performance tests), so new ones are caught at lint time.
 
 Durable plan: `workshop/plans/000622-sweep-second-scale-wall-clock-bounds-from-correctness-tests-golint-rule-for-the-plan.md`.
 
-- [ ] M1 — the widened `test-tight-wallclock` rule (a transitional per-file pending list), group A polled deadlines, and #625
+- [x] M1 — the widened `test-tight-wallclock` rule (a transitional per-file pending list), group A polled deadlines, and #625
 - [ ] M2 — groups B, C, D; delete the pending list so the rule enforces; close #625 with this issue
 
 ## Estimate
@@ -67,6 +67,7 @@ total: 3.84
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: closed M1 — Round 5. BR-8: atlas sdlc-binary.md documents AwaitCondition (required workers, nil with a reason, one-value buffer, put-back). duplicated-poll-loop: AwaitCondition moved to pkg/testgate (testgate.T, no testing import), testfix aliases it; weave release await takes workers via waitFor, weavefs passes nil with its reason; the remaining ~18 repo-wide loops are a TL-approved M2 task. Lint: one bindings collector feeds elapsed and deadline matchers; comparisons combining a deadline with time.Now() and v.Sub(time.Now()) are polls; rule tests for each. Proof: testgate AwaitCondition -count=10, weave release and weavefs -count=10 niced, sdlc callers via the alias green; pkg/golint green incl. repo catalog. Earlier rounds: 93 changed-file tests once and 8 representatives -count=10 green.; review verdict: FIX-THEN-SHIP
 
 ### 2026-10-25
 
