@@ -16,7 +16,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "ebecbae0", done: "66a225b1"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # tl-lead fleet resume: bounded concurrency, and rebuild ariadne:0 first after a restart
@@ -70,6 +70,8 @@ Durable design: [fleet-resume plan](../plans/000564-tl-lead-fleet-resume-bounded
 
 
 ### 2026-10-24 — recovery and design checkpoint
+- 2026-10-24: closed — BR-1 reproduced red in decoder/CLI and actual old private executable, then fixed by validating enclosing agent evidence before marker absence. Final focused recovery/coordinator/receipt/help tests passed 4.300s; race 5.351s; all seven private executable cases passed 5.58s and real Couch receipt conformance 3.14s (combined 8.835s); catalog 1713 files/19 rules passed 1.664s. Clean private build e6cf6c1fb6da7a050796104274daea5f220e2699 metadata matched Git with modified=false. No live agents/scheduler driven. Pair#870 freshly open/not-landed; approved private qualification limit; pair#874 not a dependency. Corrected-head recorded suite lease-230394106 on 77425d4f8952fa41f8b20d4ae304eecf63608a7e is queued, NOT a full-suite pass; old queued run canceled before execution. Precise --no-actual authorized by ops:0 receipt 72405515-d6b7-44fd-af1b-98fefa2545ba until ariadne#603 lands, freshly confirmed working/not-landed. Exact original refusal: measurement branch proof: measurement snapshot is 232727 bytes, over the version 4 bound of 131072 (72 sources, 1 branch records, 1296 branch intervals). No window printed; no hours typed; citing ariadne#603. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-24: flow upgraded quick → full — 838 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 #580 landed before starting this issue (PR 425); no retained suite/merge remains here. Claimed #564, ran start-plan, and read current fleet/resume/receipt code and recovery guidance. #533 remains parked.
 

@@ -40,6 +40,41 @@ rounds:
       recipe: milestone-review
       isolation: fenced
       blocked: true
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 7e28675a-9c6c-49a0-9da5-e8fc86a14168
+            repository: github.com/xianxu/ariadne
+            issue_id: "000564"
+            recipe: milestone-review
+            round: 2
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/c5241420f2a0ddc3
+            reviewed_head: 77425d4f8952fa41f8b20d4ae304eecf63608a7e
+            slot: ariadne:3
+            requested_at: "2026-10-25T01:51:19.843063Z"
+          phase: finished
+          pid: 69727
+          started_at: "2026-10-25T01:51:19.954877Z"
+          finished_at: "2026-10-25T01:53:54.021845Z"
+          session_id: 01a170c1-5442-7122-94dc-98a60b800fa5
+          outcome: returned
+      "n": 2
+      timestamp: "2026-10-24T18:53:54-07:00"
+      dispatched: "2026-10-24T18:51:19-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: fleet_recovery.go:101 validates agent evidence before marker absence and retains diagnostics. Decoder and CLI regressions pass at HEAD; removing the guard in a disposable checkout makes both fail and reproduces the false successful handoff. The private executable unavailable-evidence case also passes. Disposable artifacts were removed.
+          round: 2
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 77425d4f8952fa41f8b20d4ae304eecf63608a7e
+      blocked: false
 ---
 
 # Gate ledger — ariadne#564 (boundary-review)
@@ -54,6 +89,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-1** [Critical] `recovery-evidence-integrity` (kind: defect) Unavailable agent evidence can produce a successful worker-wave handoff
   cmd/tl-lead/fleet_recovery.go:110 returns on an absent asleep marker before validating agent evidence quality; recoveryWireAgent also discards error diagnostics. With an owned worker containing agent: {"state":"unavailable","error":"thread store unreadable"}, the pinned CLI prints "skipped", exits 0, and reports worker waves complete. This contradicts the plan's requirement that unavailable evidence remain unknown and block completion (ARCH-SECURE, ARCH-ORDER, ARCH-PURPOSE). Validate agent evidence before treating marker absence as an ordinary skip, retain relevant diagnostics, and add decoder and CLI regressions requiring a named unknown row and nonzero incomplete handoff.
 
+## Round 2 — 2026-10-24T18:53:54-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — fleet_recovery.go:101 validates agent evidence before marker absence and retains diagnostics. Decoder and CLI regressions pass at HEAD; removing the guard in a disposable checkout makes both fail and reproduces the false successful handoff. The private executable unavailable-evidence case also passes. Disposable artifacts were removed.
+
 ## Open findings
 
-- **BR-1** [Critical] `recovery-evidence-integrity` (kind: defect) Unavailable agent evidence can produce a successful worker-wave handoff
+(none — every finding has been disposed)
