@@ -492,9 +492,9 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 	// another function, or a variable reassigned, is never confused.
 	elapsed := map[any]bool{}
 	ast.Inspect(f, func(n ast.Node) bool {
-		if as, ok := n.(*ast.AssignStmt); ok && len(as.Lhs) == 1 && len(as.Rhs) == 1 && isSince(as.Rhs[0]) {
-			if id, ok := as.Lhs[0].(*ast.Ident); ok {
-				elapsed[varKey(id)] = true
+		for _, b := range bindings(n) {
+			if b.value != nil && isSince(b.value) {
+				elapsed[varKey(b.name)] = true
 			}
 		}
 		return true
@@ -548,35 +548,25 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		}
 	}
 	ast.Inspect(f, func(n ast.Node) bool {
-		// Every binding: x := …, x, y = …, …, and var x = ….
-		var names []*ast.Ident
-		var values []ast.Expr
-		switch v := n.(type) {
-		case *ast.AssignStmt:
-			for _, l := range v.Lhs {
-				id, _ := l.(*ast.Ident)
-				names = append(names, id)
-			}
-			values = v.Rhs
-		case *ast.ValueSpec:
-			names, values = v.Names, v.Values
-		}
-		if len(names) > 0 {
-			for i, id := range names {
-				if id == nil {
-					continue
-				}
-				var value ast.Expr
-				if len(values) == len(names) {
-					value = values[i]
-				}
-				if d := deadlineCall(timePkg, value, isNow); d != nil {
-					deadlines[varKey(id)] = d
+		if bs := bindings(n); bs != nil {
+			for _, b := range bs {
+				if d := deadlineCall(timePkg, b.value, isNow); d != nil {
+					deadlines[varKey(b.name)] = d
 				} else {
-					delete(deadlines, varKey(id)) // reassigned to a hang bound or another value
+					delete(deadlines, varKey(b.name)) // reassigned to a hang bound or another value
 				}
 			}
 			return true
+		}
+		// Any comparison that combines a deadline with time.Now() polls it,
+		// for example time.Now().UnixNano() < deadline.UnixNano().
+		if cmp, ok := n.(*ast.BinaryExpr); ok && (cmp.Op == token.LSS || cmp.Op == token.LEQ || cmp.Op == token.GTR || cmp.Op == token.GEQ) && mentions(cmp, isNow) {
+			ast.Inspect(cmp, func(m ast.Node) bool {
+				if id, ok := m.(*ast.Ident); ok {
+					poll(id)
+				}
+				return true
+			})
 		}
 		call, ok := n.(*ast.CallExpr)
 		if !ok || len(call.Args) != 1 {
@@ -593,12 +583,61 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		if id, ok := call.Args[0].(*ast.Ident); ok && (compare && isNow(sel.X) || isPkg && pkg == timePkg && (sel.Sel.Name == "Until" || sel.Sel.Name == "Since")) {
 			poll(id)
 		}
-		if id, ok := sel.X.(*ast.Ident); ok && compare && isNow(call.Args[0]) {
+		if id, ok := sel.X.(*ast.Ident); ok && (compare || sel.Sel.Name == "Sub") && isNow(call.Args[0]) {
 			poll(id)
 		}
 		return true
 	})
 	return out
+}
+
+// binding is one name bound to one value (nil when the value is not 1:1).
+type binding struct {
+	name  *ast.Ident
+	value ast.Expr
+}
+
+// bindings lists what n binds: x := v, x, y = v, w, and var x = v. Both the
+// elapsed and the deadline matchers read every binding through it.
+func bindings(n ast.Node) []binding {
+	var names []*ast.Ident
+	var values []ast.Expr
+	switch v := n.(type) {
+	case *ast.AssignStmt:
+		for _, l := range v.Lhs {
+			id, _ := l.(*ast.Ident)
+			names = append(names, id)
+		}
+		values = v.Rhs
+	case *ast.ValueSpec:
+		names, values = v.Names, v.Values
+	default:
+		return nil
+	}
+	var out []binding
+	for i, id := range names {
+		if id == nil || id.Name == "_" {
+			continue
+		}
+		b := binding{name: id}
+		if len(values) == len(names) {
+			b.value = values[i]
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+// mentions reports whether any node under n satisfies match.
+func mentions(n ast.Node, match func(ast.Expr) bool) bool {
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		if e, ok := m.(ast.Expr); ok && match(e) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // deadlineCall returns value when it is time.Now().Add(d) with d below the

@@ -70,6 +70,7 @@ The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pr
   - [ ] Group B edits; group C allow or injected clock; group D event or allow.
   - [ ] Delete `wallclockPending`; the repo lint test passes with the rule enforcing.
   - [ ] Proof: per package `-count=10`, one at a time; mutation for one B site (break the kill) → hang-guard failure, not a timing failure.
+  - [ ] Convert the remaining hand-rolled `HangCeiling` poll loops (about 18: weave `generator_lifetime` and the `release` fixture cleanup, sdlc `planningreview`, `localcheck_signal_unix`, `localcheck_runid_unix`, `localcheck_lease`, `reviewer_accounting_integration`, `makebuild_publish`'s post-exit staging wait, `repolock`, `judge/cancellation_unix`, tl-lead `doc_operating`) to `testgate.AwaitCondition`, each with explicit workers or a `nil` with its reason (TL-approved scope addition, M1 round 4).
   - [ ] Close #625 with the issue (its registered flake unregisters on close).
 
 ## Revisions
@@ -91,3 +92,9 @@ The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pr
 - New pure helper `testfix.AwaitCondition(t, what, cond, workers []chan error)` (`cmd/sdlc/internal/testfix/wait.go`): polls `cond`, bounded only by `HangCeiling`; the workers argument is **required** (nil only with a comment). A worker that ends first fails the wait at once, and its result is put back on the channel, so a deferred join or a later completion wait still receives it. That is why workers are `chan error`, not `<-chan error`: no site needs a nil because a cleanup owns the channel.
 - `waitQueued` and `waitVouched` are rebuilt on it with `workers []chan error` required; all 51 callers pass the workers they hold that are still running. The hand-copied poll loops (`publishgate_cancel`, `makebuild_publish` ×2, `queue_interruption` ×2, `landingintegrate`, `merge_main`, `landingtrain`, `landingtrain_archive`, #625's `landingtrain_attribution`, `localcheck_resume_conformance`) are rebuilt on it (ARCH-DRY Minor). The train helpers return `chan error`, and `blockedMergeWorker` gains an `exited` channel.
 - Lint Minor: the deadline matcher covers every binding (`:=`, N:N `=`, `var`), polls via `Compare` and `time.Since` as well, judges each poll by the binding it reads in source order, and accepts a bare `HangCeiling` only when the file does not declare it (a local const or variable is not the ceiling). Struct-field deadlines remain a #626 candidate.
+
+### 2026-10-25 — M1 boundary review round 4
+
+- BR-8 (Important): atlas `sdlc-binary.md` documents `AwaitCondition`, its required workers, the one-value buffer and the put-back.
+- `duplicated-poll-loop` (Minor, 2nd in family): `AwaitCondition` moves to `pkg/testgate` (with a `testgate.T` interface, so the package still needs no `testing` import); `testfix.AwaitCondition` aliases it. The two weave sites in this window use it: the `release` fixture's `await` takes workers (`waitFor` gives each process a wait channel), and weavefs `awaitReleasedSetupLease` passes nil with its reason. Scope addition, TL-approved: M2 converts the remaining ~18 hand-rolled `HangCeiling` poll loops repo-wide, so the one-helper rule holds everywhere.
+- `lint-rule-loophole` (Minor, 3rd in family): one `bindings` collector (`:=`, N:N, `var`) feeds both the elapsed and the deadline matchers; any ordering comparison that combines a deadline with `time.Now()` (for example `UnixNano`) is a poll, as is `v.Sub(time.Now())`.

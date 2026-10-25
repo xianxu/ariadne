@@ -2624,7 +2624,7 @@ many times slower, so a test's verdict must not ride on elapsed time. Bound wait
 with `testgate.HangCeiling` (`pkg/testgate`, so cmd/weave shares it; cmd/sdlc's
 `testfix.HangCeiling` and `hangGuard` alias it): it catches a hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
 signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
-to fail the moment one command waits for the repo lock behind another (#325).
+to fail the moment one command waits for the repo lock behind another (#325). A test that waits for an event polls through `testgate.AwaitCondition(t, what, cond, workers)` (`testfix.AwaitCondition` aliases it; #622): it is bounded only by `HangCeiling`, and its `workers []chan error` argument is required. Pass the goroutines or processes whose progress produces the condition, or `nil` with a comment saying why none can end first. A worker that ends first fails the wait at once, and its result is put back on its channel (each needs a one-value buffer), so a deferred join or a later completion wait still receives it. `waitQueued` and `waitVouched` are built on it.
 
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of

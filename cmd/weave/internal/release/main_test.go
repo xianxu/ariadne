@@ -33,16 +33,19 @@ func TestReleaseProcess(t *testing.T) {
 	os.Exit(0)
 }
 
-func await(t *testing.T, predicate func() bool) {
+// await polls predicate through testgate.AwaitCondition; workers are the
+// processes whose progress produces it (#622).
+func await(t *testing.T, workers []chan error, predicate func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(testgate.HangCeiling)
-	for time.Now().Before(deadline) {
-		if predicate() {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("timed out")
+	testgate.AwaitCondition(t, "release fixture condition", predicate, workers)
+}
+
+// waitFor runs cmd.Wait on its own goroutine: read its result from the channel,
+// never call cmd.Wait again.
+func waitFor(cmd *exec.Cmd) chan error {
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	return exited
 }
 
 func fixture(t *testing.T) (string, string, []string) {
@@ -124,11 +127,12 @@ func stages(output string) []string {
 func TestCancellationStopsProducerBeforeStageRemoval(t *testing.T) {
 	root, output, env := fixture(t)
 	cmd := start(t, env)
-	await(t, func() bool { _, e := os.Stat(filepath.Join(root, "started")); return e == nil })
+	exited := waitFor(cmd)
+	await(t, []chan error{exited}, func() bool { _, e := os.Stat(filepath.Join(root, "started")); return e == nil })
 	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
-	if err := cmd.Wait(); err == nil {
+	if err := <-exited; err == nil {
 		t.Fatal("cancelled preparation succeeded")
 	}
 	if len(stages(output)) != 0 {
@@ -157,14 +161,15 @@ func TestCancellationStopsProducerBeforeStageRemoval(t *testing.T) {
 func TestKilledOwnerPreservesProducerLeaseAndReclaimsBeforeExistingOutputCheck(t *testing.T) {
 	root, output, env := fixture(t)
 	cmd := start(t, env)
-	await(t, func() bool { _, e := os.Stat(filepath.Join(root, "started")); return e == nil })
+	exited := waitFor(cmd)
+	await(t, []chan error{exited}, func() bool { _, e := os.Stat(filepath.Join(root, "started")); return e == nil })
 	current := stages(output)
 	if len(current) != 1 {
 		t.Fatal(current)
 	}
 	stage := current[0]
 	cmd.Process.Kill()
-	cmd.Wait()
+	<-exited
 	// Model publication having happened before owner death: cleanup must also run
 	// on an already-existing destination, without changing that destination.
 	os.Mkdir(output, 0755)
@@ -183,7 +188,9 @@ func TestKilledOwnerPreservesProducerLeaseAndReclaimsBeforeExistingOutputCheck(t
 		t.Fatal("live producer lost metadata", err)
 	}
 	os.WriteFile(filepath.Join(root, "release-producer"), nil, 0644)
-	await(t, func() bool {
+	// nil: the owner is already dead; the producer it left runs detached,
+	// and its release of the lease is the event itself.
+	await(t, nil, func() bool {
 		lease, e := staging.Exclusive(stage)
 		if e != nil {
 			return false
