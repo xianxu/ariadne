@@ -27,12 +27,13 @@ var (
 	packageNoTestReason  = regexp.MustCompile(`^package (\S+) failed without a failing test$`)
 )
 
-// incompleteEligible is which runs the rule may judge: a failed, untyped test
-// run that exited on its own. A typed runner's run (a declared contract) is
+// incompleteEligible is which runs the rule may judge: an untyped test run
+// that exited nonzero on its own (it is called before any outcome is set, so
+// that is also "did not pass"). A typed runner's run (a declared contract) is
 // v4 evidence, and a v5 attempt never carries a contract, so it keeps today's
 // classification; so does a run sdlc's own deadline stopped.
 func incompleteEligible(check, contract string, rec localRunRecord) bool {
-	return !rec.passed() && isTestCheck(check) && contract == "" && rec.Exit > 0 && !rec.TimedOut
+	return isTestCheck(check) && contract == "" && rec.Exit > 0 && !rec.TimedOut
 }
 
 // classifyIncomplete applies #630's rule to a run's log facts: at least one
@@ -73,10 +74,7 @@ func classifyIncomplete(f SuiteLogFacts) (incompleteRun, bool) {
 		pkgs[pkg] = true
 	}
 	for _, name := range append(slices.Clone(f.Failures), f.Subtests...) {
-		if id, err := flakes.ParseIdentity(name); err == nil && id.Kind() != flakes.KindGo {
-			return run, false // a typed runner's failure: not this rule's evidence
-		}
-		if pkg, _, ok := flakes.SplitTest(name); ok {
+		if pkg, _, ok := flakes.SplitTest(name); ok { // a typed name only comes from typed evidence, refused above
 			pkgs[pkg] = true
 		}
 	}

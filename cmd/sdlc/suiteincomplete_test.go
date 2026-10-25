@@ -36,14 +36,23 @@ func TestClassifyIncomplete(t *testing.T) {
 		{"every failed shard alarmed", lines(append(append([]string{packagesOK}, alarmed("shard0")...), append(append(alarmed("shard1"), namedInSdlc), neverRan)...)...), []string{sdlc}},
 		{"a shard failed without the alarm", lines(append(append([]string{packagesOK}, alarmed("shard0")...), "shard1    exit 1   300.0s  1 failed", namedInSdlc)...), nil},
 		{"no alarm at all", lines(packagesOK, "shard0    exit 1   300.0s  1 failed", namedInSdlc), nil},
-		{"a build failure", lines(append(append([]string{"packages  exit 1    10.0s  0 failed", "FAIL\tgithub.com/x/y/pkg/z [build failed]"}, alarmed("shard0")...), neverRan)...), nil},
+		// The build failure sits in an alarmed process, so only the unattributed-reason rule can refuse it.
+		{"a build failure", lines(
+			"packages  exit 1    300.0s  0 failed",
+			"--- packages hit its 5m0s test alarm in github.com/x/y/pkg/slow; running: TestHang",
+			"FAIL\tgithub.com/x/y/pkg/z [build failed]"), nil},
 		{"an alarmed package in the packages job", lines(
 			"packages  exit 1    300.0s  1 failed",
 			"--- packages hit its 5m0s test alarm in github.com/x/y/pkg/slow; running: TestHang",
 			"--- FAIL github.com/x/y/pkg/other TestReal",
 			"shard0    exit 0   1100.0s  0 failed"), []string{"github.com/x/y/pkg/other", "github.com/x/y/pkg/slow"}},
 		{"a passing run", lines(packagesOK, "shard0    exit 0   1100.0s  0 failed"), nil},
-		{"a typed runner's evidence", lines(append(append([]string{packagesOK, `{"sdlc_unit":1}`}, alarmed("shard0")...), neverRan)...), nil},
+		// Well-formed typed evidence leaves no unattributed reason, so only the Typed.Seen guard refuses it.
+		{"a typed runner's evidence", lines(append(append([]string{packagesOK,
+			`{"sdlc_unit":1,"invocation":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","unit":"script:a.sh","event":"start","complete":false,"errors":0}`,
+			`{"sdlc_unit":1,"invocation":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","unit":"script:a.sh","event":"finish","exit":0,"complete":true,"errors":0}`},
+			alarmed("shard0")...), neverRan)...), nil},
+		{"a parse warning", lines(append(append([]string{packagesOK, `{"Action":"fail","Package":`}, alarmed("shard0")...), neverRan)...), nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -122,17 +131,22 @@ func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
 	if _, err := decodeSuiteAttempt(stray); err == nil {
 		t.Fatal("a version 2 attempt carrying load_average decoded")
 	}
-	// Version 5 carries only what version 2 does: no typed runner identity.
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		t.Fatal(err)
-	}
-	fields["failures"] = []string{"lua:spec/a_spec.lua#case"}
-	typed, err := json.Marshal(fields)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := decodeSuiteAttempt(typed); err == nil {
-		t.Fatal("a version 5 attempt naming a typed runner's case decoded")
+	// Version 5 carries only what version 2 does: no typed runner identity, no known flakes.
+	for name, set := range map[string]func(){
+		"a typed runner's case": func() { fields["failures"] = []string{"lua:spec/a_spec.lua#case"} },
+		"known flakes":          func() { fields["known_flakes"] = []map[string]string{{"test": "o/r/pkg.TestFlaky", "issue": "000448"}} },
+	} {
+		if err := json.Unmarshal(raw, &fields); err != nil {
+			t.Fatal(err)
+		}
+		set()
+		bad, err := json.Marshal(fields)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := decodeSuiteAttempt(bad); err == nil {
+			t.Errorf("a version 5 attempt carrying %s decoded", name)
+		}
 	}
 }
 
@@ -234,7 +248,8 @@ func TestIncompleteEligible(t *testing.T) {
 		{"a failed untyped suite", suiteCheckName, "", failed, true},
 		{"an affected run", affectedCheckName, "", failed, true},
 		{"a typed runner's suite keeps today's classification", suiteCheckName, strings.Repeat("a", 64), failed, false},
-		{"sdlc's own deadline", suiteCheckName, "", localRunRecord{Exit: -1, TimedOut: true}, false},
+		{"sdlc's own deadline", suiteCheckName, "", localRunRecord{Exit: 1, TimedOut: true}, false},
+		{"no exit reported", suiteCheckName, "", localRunRecord{Exit: -1}, false},
 		{"a pass", suiteCheckName, "", localRunRecord{}, false},
 		{"another check", "lint", "", failed, false},
 	} {
