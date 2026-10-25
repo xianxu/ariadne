@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "90e3e2cf", done: "79bd4978"}
 ---
 
 # Suite shard alarm during shared scratch removal lacks exact target and timing evidence
