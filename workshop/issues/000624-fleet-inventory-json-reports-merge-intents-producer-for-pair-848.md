@@ -66,3 +66,7 @@ Durable plan drafted and checkpointed for ops:0 review before change-code. It in
 ### 2026-10-25 — Clarify terminal observation and freeze consumer vocabulary
 
 The existing merge-intent lifecycle removes terminal records; inventory reports a completed empty read rather than inventing a terminal state or tombstone. Pair:5 agreed. Keep schema_version1 and unchanged v1 intents, with an explicit capability distinguishing an old unsupported producer from complete empty evidence. The new row-quality vocabulary describes enumeration completeness independently of each record's live/orphaned/stale/unreadable state.
+
+### 2026-10-25 — Hub approved implementation
+
+Authenticated ops:0 receipt565af516-d8bc-4ef8-b8c8-46042ce3b16e approves the durable plan and explicitly includes the existing reader's lost-partial-result bug. Its non-ENOENT failure and partial-observation controls are required tests. Private executable/store qualification plus the hub's post-land primary rebuild is approved; no live staging. Proceed to change-code before implementation.

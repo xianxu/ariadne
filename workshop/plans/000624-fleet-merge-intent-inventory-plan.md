@@ -139,3 +139,7 @@ No automatic recovery execution, intent writer migration, terminal tombstone, ne
 ### 2026-10-25 — Consumer contract confirmed before code
 
 Pair:5 confirmed the exact capability, quality and terminal-removal semantics and requested controls for legacy missing capability, null/malformed fields and mixed valid/corrupt stores. These are included above. The issue's mention of terminal state refers to the existing terminal-removal lifecycle, not a new persisted state. Approval requested from ops:0 before change-code.
+
+### 2026-10-25 — Hub approved implementation
+
+Authenticated receipt565af516-d8bc-4ef8-b8c8-46042ce3b16e approves the plan, including the shared reader's lost-partial-result correction, consumer wire, bounds, legacy fixtures, counted growth and private conformance plus the hub's post-land primary rebuild. Proceed to change-code; keep that reader fix explicitly tested and named in the Log.
