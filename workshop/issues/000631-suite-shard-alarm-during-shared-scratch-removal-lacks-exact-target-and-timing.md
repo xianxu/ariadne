@@ -1,12 +1,20 @@
 ---
 id: 000631
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '83e7da7d39d9e99742ccc2370c1f33625685bca0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '06ae828085c627a72f8559230cccb82ccabe1784' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T08:18:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Suite shard alarm during shared scratch removal lacks exact target and timing evidence
@@ -21,6 +29,44 @@ The alarm captures the stack at the deadline; it does NOT prove RemoveAll itself
 
 Record and investigate which stale cleanup target can hold a managed run's setup, whether filesystem removal stalls or normal shared-root work consumes the package deadline, and how setup cleanup can remain safe and bounded. Preserve live-owner and retained-artifact protection. Do not delete live or unknown peer roots or raise test deadlines as the diagnosis.
 
+**Root cause (measured 2026-10-25 08:1x, load 28-46; production scratch only read).** `/Volumes/TestScratch/tmp`
+held 41 `sdlc-run-*` folders: 3 live, 38 with a dead owner. 21 of the dead ones are suite run folders of about 6,000
+entries and 77 MB each, from 10-24 05:39 on, about one more per pair suite. Each holds `pair-launcher-*/go/pkg/mod`,
+a Go module cache whose 566 directories are read-only (pair's `testcouch/*_build_test.go` and
+`testdisk/cache_conformance_test.go` set GOMODCACHE under TMPDIR). `os.RemoveAll` cannot unlink inside a read-only
+directory, so the run's own Cleanup failed and so does every later sweep. On a `cp -Rp` copy: one attempt 130-160 ms,
+0 of 6,063 entries removed, the same on every retry; across the set about 3 s per sweep, growing. The scan itself is
+cheap (ReadDir plus Info of /tmp's 5,922 entries: 20-60 ms).
+
+Production sweeps once per recorded run (`prepareScratch`), plus a second, redundant sweep in the host capability
+probe (`suiteHostCapabilities`, #572). The cost lands in tests: about 270 `cmd/sdlc` test call sites reach
+`runUnderResourceBatch` -> `prepareScratch`, and every one sweeps the machine's shared roots (`scratchdisk.Roots`:
+the RAM disk, TMPDIR, the user temp folder, /tmp), so all 8 shards rescan and refail the same trees concurrently.
+That is the stack #624 and #616 caught at the shard alarm (ARCH-FUNERAL: the run folder's end was a removal that
+could not succeed, and nothing noticed).
+
+**Design.**
+1. `removeTree` (testscratch.go): RemoveAll; on failure, make each directory in the tree owner-writable (WalkDir, so
+   a symlink is never followed or chmodded) and RemoveAll again. The sweep and a run's own Cleanup both use it, so a
+   dead folder goes once.
+2. The decision is pure: `staleTempCandidates(entries, runDirs, now, alive)` returns each candidate with its reason
+   (`go-build older than 24h`, `owner pid N exited`, `older than 24h`); `sweepStaleTemp` is the IO shell (read,
+   protection check, remove, log) (ARCH-PURE). Live-owner and `runnerArtifactProtected` rules are unchanged.
+3. Evidence: before each removal the sweep writes the root, the candidate and its reason, then the duration and
+   result, to the run's stderr (the suite log), so a stall's stack has its target named in the log. A protected
+   candidate is logged as kept.
+4. One sweep per run: the capability probe stops sweeping; `prepareScratch`'s roots are a superset of the probe's
+   (RAM disk and /tmp) and its run-folder pattern matches `sdlc-run-probe-*` (ARCH-DRY).
+5. Tests never sweep the machine's shared roots: TestMain registers the roots `scratchdisk.Roots` resolves at
+   process start (resolved through symlinks) with `excludeScratchSweep`, and the sweep skips them. A fixture root a
+   test makes (t.TempDir, WF_TEST_SCRATCH, SDLC_USER_TEMP_FIXTURE) is still swept, so the existing sweep tests stand.
+
+ARCH-CONSTRAINTS: batch setup on a loaded host; budget a sweep at under 100 ms when nothing is stale (measured
+20-60 ms scan), one removal per dead folder ever. ARCH-SECURE: the chmod is confined to a tree the sweep already
+decided to delete, under the prefix rule; symlinks are skipped. ARCH-ORDER: holds no state between events; a
+concurrent sweep of the same candidate races only RemoveAll, which tolerates a vanished path. ARCH-EVOLVE: no
+persisted format. ARCH-MOCK: no external service; filesystem fixtures.
+
 ## Done when
 
 - Capture the cleanup root, exact candidate, time spent and liveness/protection decision before removal, so a timeout names its source.
@@ -29,7 +75,14 @@ Record and investigate which stale cleanup target can hold a managed run's setup
 
 ## Plan
 
-- [ ]
+- [ ] Failing test first: a fixture run folder with a read-only module-cache tree survives `sweepStaleTemp` and
+  `scratchPreparation.Cleanup` on main.
+- [ ] `removeTree`; the sweep and Cleanup use it; symlink and protected-folder cases.
+- [ ] Pure `staleTempCandidates` with reasons; table test covering today's `TestSweepStaleTemp` cases.
+- [ ] Sweep log lines (before: root, candidate, reason; after: duration, result; kept: protected).
+- [ ] Drop the capability probe's sweep.
+- [ ] `excludeScratchSweep` plus TestMain registration; a test that a registered root is never swept.
+- [ ] Targeted tests (testscratch, suitecapability, localcheck artifacts), then the recorded suite through the queue.
 
 ## Log
 
