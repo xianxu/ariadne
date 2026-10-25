@@ -1,12 +1,20 @@
 ---
 id: 000633
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '192d5c893ccebc8284d7263c2cf7ed0177787930' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4f2c50d381f8c0ded482318ff79c77f67363d9c1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T12:24:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # tl-lead: weekly backlog triage (bugs vs feature themes, one bug slot per repo, closing-velocity insight, Needs-you output)
@@ -42,7 +50,10 @@ split between bugs and features, and no measure of whether bugs are under contro
 
 ## Plan
 
-- [ ]
+Durable plan: [000633 plan](../plans/000633-tl-lead-weekly-backlog-triage-bugs-vs-feature-themes-one-bug-slot-per-repo-plan.md).
+
+- [ ] M1 — the `kind` card field, `sdlc issue set-kind`, and `sdlc issue list --json` over every card
+- [ ] M2 — `tl-lead triage stats` and the WEEKLY BACKLOG TRIAGE duty in help
 
 ## Log
 
