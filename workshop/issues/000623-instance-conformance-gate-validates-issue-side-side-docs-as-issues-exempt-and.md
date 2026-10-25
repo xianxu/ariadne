@@ -1,12 +1,20 @@
 ---
 id: 000623
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '1d591f6810da0979668e9f82d2b23c95b318cfdf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a7944929497ceb1b0ade8b2b4ea012eac6cd8f56' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T12:00:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Instance-conformance gate validates issue .side/ side docs as issues; exempt and validate by type
@@ -35,8 +43,15 @@ archive step uses (one shared helper, not a second path rule).
 
 ## Plan
 
-- [ ]
+- [ ] Approve [the shared side-folder design](../plans/000623-side-folder-rule-plan.md), then enter change-code.
+- [ ] Implement shared ownership, typed conformance, ID-space exclusions and complete archive/recovery coverage with red-first tests.
+- [ ] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
+- [ ] Complete required verification, close review and landing.
 
 ## Log
 
 ### 2026-10-25
+
+### 2026-10-25 — claimed; design checkpoint
+
+Recovered on clean resting main-slot1 after #560's completed landing; no old runner is resumed. Claimed #623 and started its independent branch from current main. Read the issue and all three consumer families; a read-only audit found existing sidedoc helpers but no side-doc vocabulary model, plus document-dependent folder discovery across archive variants. Full design is warranted rather than a <=100-line quick patch that leaves archive/recovery siblings inconsistent. Existing Folder excludes a directory path itself; preserve that contract and add shared owner projection. Plan is ready for TL approval; no implementation or tests started. Machine budget is targeted only, one process at a time, count1; a full recorded check/merge waits for hub authorization. No new estimate before plan-quality.
