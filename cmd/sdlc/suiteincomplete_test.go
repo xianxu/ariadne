@@ -168,3 +168,40 @@ func TestSuiteIncompleteIsNotATestResult(t *testing.T) {
 		t.Fatalf("a pass after an incomplete run was refused: %+v %v %v\n%s", rec, err, gh.statuses[sha], stderr)
 	}
 }
+
+// FuzzClassifyIncomplete: over arbitrary shard output, the classifier never
+// selects a package the log does not name, and never calls a run incomplete
+// unless some process hit the alarm and every failed process did.
+func FuzzClassifyIncomplete(f *testing.F) {
+	for _, seed := range []string{
+		"shard0    exit 1   1800.4s  1 failed\n--- shard0 hit its 30m0s test alarm in a/b; running: TestX\n--- FAIL a/b TestY\n",
+		"shard0    exit 1   1800.4s  1 failed\n--- shard0 hit its 30m0s test alarm in a/b; running:",
+		"--- shard0 hit its 30m0s test alarm in a/b; running: TestX\nshard0    exit 1   1800.4s  1 failed\n",
+		"packages  exit 1    5.0s  0 failed\nshard0    exit 1   1800.4s  0 failed\n--- shard0 hit its 1s test alarm in a/b; running: none listed\n",
+		"shard0    exit 1   1800.4s  1 failed\n--- shard0 hit its 30m0s test alarm in a/b; running: TestX\nFAIL\ta/c [build failed]\n",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, log string) {
+		facts := parseSuiteLogFacts(log)
+		run, ok := classifyIncomplete(facts)
+		if !ok {
+			return
+		}
+		alarmed := false
+		for _, p := range facts.Processes {
+			if p.Exit != 0 && len(p.Alarmed) == 0 {
+				t.Fatalf("a non-alarmed failed process classified incomplete: %+v", p)
+			}
+			alarmed = alarmed || len(p.Alarmed) != 0
+		}
+		if !alarmed || len(run.Packages) == 0 {
+			t.Fatalf("incomplete without an alarm or a selection: %+v", run)
+		}
+		for _, pkg := range run.Packages {
+			if !strings.Contains(log, pkg) {
+				t.Fatalf("selected %q, which the log never names", pkg)
+			}
+		}
+	})
+}
