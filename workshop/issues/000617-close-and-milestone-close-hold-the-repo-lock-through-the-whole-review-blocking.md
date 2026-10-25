@@ -1,12 +1,12 @@
 ---
 id: 000617
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '1e02bc7596fd42d6b4ffb312b4bcc452e97e1f22' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '55a81882781bdfad42ed5e702906afad329526fe' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T20:25:11-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.17
 ---
 
 # close and milestone-close hold the repo lock through the whole review, blocking other slots' bookkeeping
