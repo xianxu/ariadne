@@ -1,12 +1,12 @@
 ---
 id: 000598
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours: 1.48
-card_mirror: 'a9ff96093e6cad6fac95df6aeccc7b57d966cbcd' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '48eb93aeb22f7ce892509f49d794285eadfed5e5' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T15:03:56-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.89
 ---
 
 # Affected planning: declared non-Go path ownership and audited reader inputs
