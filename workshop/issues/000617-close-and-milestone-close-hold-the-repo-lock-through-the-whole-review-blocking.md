@@ -42,7 +42,7 @@ commits), not across the review dispatch and wait; revalidate state after the re
 
 ## Plan
 
-- [ ] Implement the approved phased preparation/read-set/revalidation plan in workshop/plans/000617-close-and-milestone-close-hold-the-repo-lock-through-the-whole-review-blocking-plan.md.
+- [x] Implement the approved phased preparation/read-set/revalidation plan in workshop/plans/000617-close-and-milestone-close-hold-the-repo-lock-through-the-whole-review-blocking-plan.md.
 - [ ] Prove independent bookkeeping during preparation/review with private tracker worktrees, preserve stale/cancel refusal, and complete normal verification/landing.
 
 ## Log
@@ -78,3 +78,7 @@ Receipt25803def-0436-4cbb-ad57-7223be72b210 approved the durable plan. Record th
 Ops:0 receipt d1246e0f-8e5c-4188-856f-be14df1d44bf approves one immutable publication record captured under the finalization lock: repository/transport, branch, finalized commit and expected remote tip. The unlocked push uses exactly that lease; changed remote authority refuses, and local tracking metadata updates with CAS under a short lock. No retry, persistent state or schema. This is the third design delta: a fourth cuts scope to retaining publication under the lock and moving measurement only.
 
 The newer-authority regression reproduced both failures (5.115s): the deferred push rewound a newer remote tip, and reading a changed tracking ref late refused the intended finalized commit. Existing concurrency/publication controls passed237.702s; fresh adoption checks used19 Git calls for both8 and16 candidates (3.264s). The focused measurement/stale/reviewer-lock race controls passed63.847s; that regex did not include the adoption/publication families, which still need a current race run. Implementation remains in progress.
+
+### 2026-10-24 — Publication boundary verified
+
+The consolidated immutable record now captures finalized SHA and remote lease under the lock, pushes to that captured transport, and updates tracking metadata with CAS under a short lock. The real-Git newer-remote and newer-tracking controls went green. The first combined run found only a legacy warning-text assertion regression; restoring that existing warning preserved the unrelated boundary contract. The corrected combined race run passed100.780s, covering adoption read-sets, unlocked measurement, stale preparation, reviewer unlock, finalized-head/transport/newer-authority publication and existing push controls. The complete tracked Go lint catalog passed1.138s; git diff --check is clean. No fourth mechanism delta appeared. Next: PR, recorded queued pre-close suite, mandatory close review, then central merge; no full suite or live staging has run yet.

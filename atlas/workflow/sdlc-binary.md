@@ -796,7 +796,7 @@ unrelated claim does not. The candidate filter is shared with
 `loadAdoptedExclusions`; validation never replays transcript measurement.
 Authoritative issue/ledger/evidence/card transactions retain the lock. Warning-only
 peer publication and the exact finalized issue-branch push run after releasing
-it; the push's local tracking-ref update uses a short reacquisition. A failed
+it. The finalization lock captures one immutable repository/transport, branch, finalized commit and remote-tip lease; the unlocked push never refreshes that lease. Its local tracking-ref update uses a short reacquisition and CAS, preserving newer metadata and reporting when the push completed but the local update did not. A failed
 optional push preserves the close and its existing next-boundary/PR recovery.
  `reviewstate.go` shares the capture/compare policy: canonical
 repository and private worktree Git directory, branch identity, issue/plan bytes

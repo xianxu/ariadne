@@ -227,8 +227,12 @@ func TestCloseBranchPublicationPreservesNewerAuthority(t *testing.T) {
 			if got := r.git("rev-parse", "refs/remotes/origin/"+s09Branch); got != newer {
 				t.Fatalf("newer tracking metadata overwritten: %s, want %s; %s", got, newer, &diagnostics)
 			}
-			if diagnostics.Len() == 0 {
-				t.Fatal("refusal or partial publication needs visible recovery")
+			message := "was not pushed"
+			if changed == "tracking" {
+				message = "push completed; tracking metadata was not updated"
+			}
+			if !strings.Contains(diagnostics.String(), message) {
+				t.Fatalf("expected visible recovery %q: %s", message, &diagnostics)
 			}
 		})
 	}

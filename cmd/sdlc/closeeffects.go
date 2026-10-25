@@ -45,6 +45,12 @@ func pushCloseBranch(f *closeFlags, env *trackerEnv, stderr io.Writer, verb stri
 		cwarn(stderr, fmt.Sprintf("%s: issue branch tip unavailable for push: %v", verb, err))
 		return
 	}
+	expect, err := env.git("for-each-ref", "--format=%(objectname)", gitx.RemoteTrackingRef(env.target.Remote, env.branch))
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("%s: issue branch lease unavailable: %v", verb, err))
+		return
+	}
+	publication := closeBranchPublication{root: env.root, target: env.target, branch: env.branch, head: head, expect: expect}
 	afterClose(f, func() {
 		validate := func(run func() error) error {
 			check := func() error {
@@ -52,7 +58,7 @@ func pushCloseBranch(f *closeFlags, env *trackerEnv, stderr io.Writer, verb stri
 				if err != nil {
 					return err
 				}
-				if target != env.target {
+				if target != publication.target {
 					return fmt.Errorf("close publication target changed; inspect it before pushing")
 				}
 				return run()
@@ -66,6 +72,6 @@ func pushCloseBranch(f *closeFlags, env *trackerEnv, stderr io.Writer, verb stri
 			cwarn(stderr, fmt.Sprintf("%s: issue branch was not pushed: %v", verb, err))
 			return
 		}
-		boundaryPushAt(env, stderr, verb, head, validate)
+		boundaryPushAt(env, stderr, verb, &publication, validate)
 	})
 }
