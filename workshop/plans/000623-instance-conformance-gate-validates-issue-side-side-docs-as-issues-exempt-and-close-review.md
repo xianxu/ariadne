@@ -95,3 +95,87 @@ None.
 Append a `## Revisions` entry enumerating malformed declaration cases and their visible refusal behavior, including quoted/spaced keys and incomplete frontmatter. Retain the historical repair requirement and record its completion evidence before close.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"81d71839-70dc-480a-9018-3c007e0b3b51","repository":"github.com/xianxu/ariadne","issue_id":"000623","recipe":"milestone-review","round":1,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/6b7beb50ca5b00b7","reviewed_head":"d2e00528b4fcf5a5f1bc14ea77c441a70247cd11","slot":"ariadne:1","requested_at":"2026-10-25T19:52:14.527287Z"},"phase":"finished","pid":75197,"started_at":"2026-10-25T19:52:14.674722Z","finished_at":"2026-10-25T19:58:02.729615Z","session_id":"01a1749e-ee0b-75d1-950f-a391228b1d3c","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T13:14:40-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 623 — Instance-conformance gate validates issue .side/ side docs as issues; exempt and validate by type |
+| repo | ariadne |
+| issue file | workshop/issues/000623-instance-conformance-gate-validates-issue-side-side-docs-as-issues-exempt-and.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | a141d5da4078701e806ca7716ca9591aff9fd0c9..b3cdd26015edacff6f1803334633fc3d797b80d5 |
+| command | sdlc close --issue 623 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-25T13:14:40-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Shared side ownership, orphan-tree archival, and README documentation are validated. Two prior findings remain blocking: malformed typed YAML still bypasses conformance for additional declaration forms, and the required historical repair remains explicitly unlanded.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/validategate_sidedoc.go:88-95,139-140 still exempts malformed explicit-flow and tagged-flow declarations. Temporary overlay regressions confirmed that closed headers containing {? type: [invalid} or !!map {type: [invalid} pass validateChangedInstances with zero validator calls, although valid counterparts are recognized as typed. The ten committed regressions pass and all fail with the previous discriminator restored through an overlay. Complete the declaration-class rule across mapping prefixes and key syntax, with malformed counterparts tested. ARCH-SECURE/ARCH-PURPOSE; existing family typed-input-fail-closed.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:128-137 now documents typed versus untyped attachments, vocabulary validate-instance --type side-doc PATH, required type/parent fields, and paired deployment. These match construct/vocabulary/side-doc.cue:5-10, gate dispatch, and atlas/workflow/sdlc-binary.md:393-401. This is a prose correction; native CUE and gate tests validate the documented behavior subject to the remaining BR-1 defect.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      The issue's Done when still requires the historical relocation. Its pinned Log at workshop/issues/000623-instance-conformance-gate-validates-issue-side-side-docs-as-issues-exempt-and.md:113 explicitly calls the repair UNLANDED and says landing confirmation remains outstanding. Branch blob proof is useful progress but does not establish completion. Retain the landed commit and verify matching blobs, active-path removal, and archived linkage on the destination main tree before whole-issue close. ARCH-PURPOSE; existing family acceptance-deliverable-completion.
+```
+
+1. **Strengths**
+
+   - `pkg/sidedoc/tree.go:18` supplies shared ownership without requiring an owner document; existing `Folder` semantics remain intact.
+   - Orphan archive tests verify exact Git blob preservation, unrelated-tree isolation, absence of invented plans, and idempotent retry.
+   - The new CUE schema validates required fields while accepting additive metadata.
+   - README and atlas explain compatibility and paired deployment.
+
+2. **Critical findings**
+
+   - **BR-1 remains open:** the fallback parser loses explicit-flow key syntax and tagged mapping prefixes. Recognize the complete admitted declaration class independently of malformed values, preserving nested/literal attachment exemptions.
+
+3. **Important findings**
+
+   - **BR-3 remains open:** record and verify the historical repair’s landed result before closing the issue.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Focused gate, ownership, ID, native CUE, filesystem archive, recovery, landing, and abandon/reopen tests passed. Overlay mutation confirmed all ten committed malformed-header regressions fail without the correction. Two additional overlay regressions exposed the remaining BR-1 bypass. No full suite ran; tracked files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** membership consumers share `Owner`; archive paths share inventory projection.
+   - **ARCH-PURE — pass:** path classification and inventory logic remain separate from IO.
+   - **ARCH-PURPOSE — flag:** BR-1 and BR-3 leave stated acceptance requirements incomplete.
+   - **ARCH-MOCK — pass:** existing seams and portable private Git fixtures exercise production archive paths; native CUE checks validate schema behavior.
+   - **ARCH-CONSTRAINTS — pass:** indexed ownership and counted growth tests support the declared batch envelope.
+   - **ARCH-SECURE — flag:** BR-1 converts malformed typed input into an exemption.
+   - **ARCH-ORDER — pass:** existing publication/recovery authority remains; interrupted recovery and retry tests pass.
+   - **ARCH-FUNERAL — pass:** no new runtime residue family; moved files retain the archive lifecycle.
+   - **ARCH-EVOLVE — pass:** validation performs no rewrite; additive metadata and exact archived bytes are preserved.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry refining BR-1’s declaration rule to include explicit-flow keys and tagged mapping prefixes, with valid/malformed paired regressions. Keep historical repair completion pending until landed evidence exists.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"5f4a8b13-1a4b-4c85-834f-1d0e6e2e6ed5","repository":"github.com/xianxu/ariadne","issue_id":"000623","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/abaa590146e4d8ec","reviewed_head":"b3cdd26015edacff6f1803334633fc3d797b80d5","slot":"ariadne:1","requested_at":"2026-10-25T20:11:59.576941Z"},"phase":"finished","pid":16887,"started_at":"2026-10-25T20:11:59.670589Z","finished_at":"2026-10-25T20:14:39.227715Z","session_id":"01a174b1-0269-7ee2-82db-3e7e17e93b32","outcome":"returned"}] -->

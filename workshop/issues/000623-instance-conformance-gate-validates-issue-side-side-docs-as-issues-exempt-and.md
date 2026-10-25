@@ -117,6 +117,11 @@ Owner-reported parley repair is UNLANDED: #445 PR355, branch 000445-archive-the-
 
 Expanded the declaration class to indented block and flow mappings; both additional cases failed red before the root-indentation correction. Ten malformed declaration/header cases now refuse, while valid typed docs, malformed untyped evidence, nested flow type keys, literal-block text and ordinary issue controls remain correct. The serial focused command passed0.561s (TestMalformedTypedSideDocsRefuse, TestSideDocExplicitTypeSelection, TestSideTypeDeclarationLinearKeys, TestUntypedSideEvidenceRemainsValid, side gate/configured-root and ordinary gate controls). Key/byte counts at8/16 remain bounded. Added README invocation, compatibility and paired deployment guidance. No archive production code changed since its passing native-Git controls. Next: push this corrected head, queue one recorded pre-close check, and rerun close review with repair proof (or await parley landing if required). Previous queued check was cancelled, not failed or passed.
 
+
+### 2026-10-25 — round2 REWORK; simpler re-plan approved
+
+BR-1 remains open for malformed explicit-flow and tagged-flow mapping declarations; BR-2 README is addressed; BR-3 requires the parley repair's landed main-tree proof. Stopped the third discriminator delta and brought the simpler alternative to TL. Approval2750d55c-aa6f-45da-ae1d-372ca80f7e0d directs one YAML decode, rejecting malformed/unterminated leading frontmatter as ambiguous, with valid untyped/no-frontmatter attachments exempt. Inventory found no malformed untyped headers. The approved revision also filters selected history-side owners before trunk replacement blob IO, tested with foreign >1MiB evidence. Cancelled still-queued lease-4121496523 before any suite started; no recorded full result exists yet. Next: red-first these cases, remove the recovery scanner, implement the selected-owner filter, then push and run one fresh pre-close check. Await hub/owner confirmation that parley#445 landed before re-close.
+
 ## Revisions
 
 ### 2026-10-25 — approved typed-Markdown transition
@@ -126,3 +131,7 @@ Per TL approval deliveryeef33473-162a-49ca-b24a-3cd6b99ef4d2, replace the Done-w
 ### 2026-10-25 — malformed typed headers remain typed
 
 BR-1 refines the existing side-doc refusal contract, without expanding the admitted attachment class: quoted, spaced, escaped, explicit or flow-style type keys do not become untyped just because a value is malformed, and an unterminated typed header refuses visibly. Untyped malformed evidence and nested or literal type text remain unmodeled. The plan records the discriminator and its bounded key/byte scans.
+
+### 2026-10-25 — approved fail-closed YAML transition
+
+Per TL approval2750d55c-aa6f-45da-ae1d-372ca80f7e0d, a leading frontmatter block must be parseable and terminated before its absence of a top-level type can exempt it. Malformed or unterminated YAML refuses as ambiguous; valid untyped YAML and no-frontmatter attachments remain exempt. This supersedes the earlier malformed-untyped exemption and partial key recovery; the pre-gate48-worktree inventory had no affected malformed files.
