@@ -1,0 +1,4535 @@
+{
+  "generated_utc": "2026-10-25T19:11:59.393995+00:00",
+  "scope": "workshop/issues and workshop/plans; any ancestor directory ends .side; excludes history; no fetch/network/mutations/tests",
+  "limits": {
+    "max_file_bytes": 16777216,
+    "max_paths_per_tree": 20000
+  },
+  "errors": [],
+  "interpretation": {
+    "typed_markdown": 4,
+    "untyped_files": 168,
+    "untyped_markdown": 15,
+    "non_markdown_evidence": 153,
+    "typed_other_values": [],
+    "malformed_frontmatter": [],
+    "typed_parent_missing_or_blank": [],
+    "conclusion": "Typed-Markdown-only admission needs no frontmatter backfill for typed records; broad all-side-files admission would require classifying/backfilling or explicitly exempting 168 untyped files (15 Markdown,153 non-Markdown). All four typed docs declare nonempty parent. Declared parent target paths do not exist in captured occurrences; existence is separate from parent-field conformance."
+  },
+  "form": "Condensed complete path/content inventory; repeated occurrence descriptors deduplicated. No document bodies retained.",
+  "source_report_sha256": "3462182b31e5231c6c7f1826bdab708e5cdf904556e45609432eea92152cbb74",
+  "repos": {
+    "ariadne": {
+      "origin_main_sha": "9fff85717e2e8f0ebbe0d4cf910af9d78a985fd5",
+      "registered_worktrees": [
+        {
+          "worktree": "/Users/xianxu/workspace/ariadne",
+          "HEAD": "5642c6813c5b291b3682f7f25a282ed34ebaa132",
+          "branch": "refs/heads/main"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/ariadne-slot1/ariadne",
+          "HEAD": "111ddd6a252eeb21c0ce2912aeb354a6606742ce",
+          "branch": "refs/heads/000623-instance-conformance-gate-validates-issue-side-side-docs-as-issues-exempt-and"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/ariadne-slot2/ariadne",
+          "HEAD": "387acb1ff0ca039090a68f14abb13365caa06d8f",
+          "branch": "refs/heads/000622-sweep-second-scale-wall-clock-bounds-from-correctness-tests-golint-rule-for-the"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/ariadne-slot3/ariadne",
+          "HEAD": "141a74ea8b805ae0e8fdac84a1232d0cfcdd3b67",
+          "branch": "refs/heads/000624-fleet-inventory-json-reports-merge-intents-producer-for-pair-848"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/ariadne-slot4/ariadne",
+          "HEAD": "fe0e7a27d83f3dc668a1bdc8019e3fccdddd52c4",
+          "branch": "refs/heads/000577-model-bench-m1-bench-runner-leak-free-checkout-run-measure-score-ledger-and-a-tl"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/ariadne-slot5/ariadne",
+          "HEAD": "b56921bf2567d4b70dad1d617e6cc499187322f5",
+          "branch": "refs/heads/000630-shard-timeouts-with-no-failing-test-are-incomplete-not-failures-retry-once-skip"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-1870741767",
+          "HEAD": "387acb1ff0ca039090a68f14abb13365caa06d8f",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/tmp/ariadne-slot3/ariadne564-plan.PDsTx9/repo",
+          "HEAD": "3140cc29c2f465721ec9ba3229bc8f6136e0eb1b",
+          "detached": ""
+        }
+      ],
+      "summary_all_visibility": {
+        "path_content_variants": 3,
+        "distinct_paths": 3,
+        "extensions": {
+          ".md": 3
+        },
+        "frontmatter": {
+          "True": 3
+        },
+        "declared_type": {
+          "side-doc": 3
+        },
+        "type_state": {
+          "scalar": 3
+        },
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 51
+      },
+      "summary_origin_main": {
+        "path_content_variants": 3,
+        "distinct_paths": 3,
+        "extensions": {
+          ".md": 3
+        },
+        "frontmatter": {
+          "True": 3
+        },
+        "declared_type": {
+          "side-doc": 3
+        },
+        "type_state": {
+          "scalar": 3
+        },
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 3
+      },
+      "typed_other_than_side_doc": [],
+      "records": [
+        {
+          "path": "workshop/plans/000390-test-economy-pattern-plan.side/01-landing-admission.md",
+          "extension": ".md",
+          "bytes": 3945,
+          "sha256": "c0e9edc437406c00b6f5f4eb5d2faffa5dcda848ea961b35256e6184459dda70",
+          "leading_frontmatter": true,
+          "type_state": "scalar",
+          "declared_type": "side-doc",
+          "raw_type": "side-doc",
+          "side_sibling_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "parent_field_present": true,
+          "parent_field_nonempty": true,
+          "parent_raw": "../000390-test-economy-pattern-plan.md",
+          "declared_parent_resolved_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "b3306152fc0091ceb7bbc8a2ecb490780433617c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000390-test-economy-pattern-plan.side/02-flakes-and-landing.md",
+          "extension": ".md",
+          "bytes": 2854,
+          "sha256": "a867b57711aa65e736fc83a784050af8f9e1ac35d3a099406d429fb32ddf8f38",
+          "leading_frontmatter": true,
+          "type_state": "scalar",
+          "declared_type": "side-doc",
+          "raw_type": "side-doc",
+          "side_sibling_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "parent_field_present": true,
+          "parent_field_nonempty": true,
+          "parent_raw": "../000390-test-economy-pattern-plan.md",
+          "declared_parent_resolved_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "07a84ec2a582cf30a0c1eea63f97ccf92f789761"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000390-test-economy-pattern-plan.side/03-minimization-algorithm.md",
+          "extension": ".md",
+          "bytes": 2708,
+          "sha256": "757d7ec7d12cb5e2b2fa9361aad2627cf89767df7b6a160c66535b4edf14196b",
+          "leading_frontmatter": true,
+          "type_state": "scalar",
+          "declared_type": "side-doc",
+          "raw_type": "side-doc",
+          "side_sibling_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "parent_field_present": true,
+          "parent_field_nonempty": true,
+          "parent_raw": "../000390-test-economy-pattern-plan.md",
+          "declared_parent_resolved_path": "workshop/plans/000390-test-economy-pattern-plan.md",
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "5cd720edf2bc2e2063c901ed1aea85fce800db26"
+          ],
+          "any_parent_target_present": false
+        }
+      ]
+    },
+    "pair": {
+      "origin_main_sha": "11fece5cfb3b7da9ab93e6e592ec4f940919887a",
+      "registered_worktrees": [
+        {
+          "worktree": "/Users/xianxu/workspace/pair",
+          "HEAD": "f87c9d5188efd657fea819712a9576c4d044b12e",
+          "detached": ""
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot1/pair",
+          "HEAD": "79a47101ca86bfb1a377c961af20ea54b93cd2b6",
+          "branch": "refs/heads/000880-cast-tool-state-machine"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot10/pair",
+          "HEAD": "468795dd53b83df4ec5816d50f7386978158ff4d",
+          "branch": "refs/heads/000885-sweep-183-wall-clock-bound-test-sites-for-ariadne-s-test-tight-wallclock-lint"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot11/pair",
+          "HEAD": "b446d38a78c941a0a29d462e7fce76088d105d73",
+          "branch": "refs/heads/000886-archive-fixture-streaming"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot12/pair",
+          "HEAD": "c102771df6c71e079bf76892d0e1b348a1e76235",
+          "branch": "refs/heads/000855-cast-submissions-paste-a-short-pointer-the-reading-rules-move-into-a-cast"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot2/pair",
+          "HEAD": "e65d3bd06d91e9663acf08d99f97b68d841c1aef",
+          "branch": "refs/heads/000759-remote-session-mode-in-the-terminal-cast-behind-cloudflare-access-off-by-default-kill-switch-re-enabled-only-at-the-console-tagged-remote-submits"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot3/pair",
+          "HEAD": "c082852413a5f2af589b585d9f25409e724688a5",
+          "branch": "refs/heads/000737-couch-scheduler-run-each-hub-s-scheduled-tasks-from-its-operations-repo-due-notices-direct-script-run-skip-if-missed-schedule-status"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot4/pair",
+          "HEAD": "228ce8f808ed7723331a5ec2559a156f6b45eb2e",
+          "branch": "refs/heads/000887-tests-that-set-gomodcache-under-tmpdir-leave-read-only-module-caches-behind"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot5/pair",
+          "HEAD": "91279ecfe54aac4527592b8620a59aefe914e91f",
+          "branch": "refs/heads/000882-notification-links-wrap-safe-hyperlinks-never-truncated-open-copy-action"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot6/pair",
+          "HEAD": "9e461cf89f026f4a03a192e7429525f35ef6d874",
+          "branch": "refs/heads/000853-affected-policy-a-reader-certificate-change-selects-its-own-test-s-package-not"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot7/pair",
+          "HEAD": "9fcf13fd17434a9fe50de25cdf420643f6690a5f",
+          "branch": "refs/heads/000842-cast-broadcast-bar-a-send-button-when-sketches-or-annotations-are-pending"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot8/pair",
+          "HEAD": "0726d114bbc4d04f8a85eb6cf577f205cf3b5027",
+          "branch": "refs/heads/000891-codex-0-164-s-shared-background-server-prompt-stalls-every-wrapped-start-launch"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/pair-slot9/pair",
+          "HEAD": "3f1cde0deca3f52c9db194ffb1111a844d081de2",
+          "branch": "refs/heads/000890-flake-testoperatorownerliveannotationoff"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-1629847179",
+          "HEAD": "912ce21e992f37af510553af8b025cecf574491c",
+          "detached": "",
+          "locked": "sdlc resume child 9a2a1ed8503ac7249bb3c62ea27c948e"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-189868996",
+          "HEAD": "0726d114bbc4d04f8a85eb6cf577f205cf3b5027",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-3238687190",
+          "HEAD": "a520f3a5af36b66ca0a612aee8deaa95f1a0ec34",
+          "detached": "",
+          "locked": "sdlc resume child f33bd0302fe6526a1d2c4740dafa1019"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-3931856858",
+          "HEAD": "11fece5cfb3b7da9ab93e6e592ec4f940919887a",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair-morning-20261025.mQSbmq/main",
+          "HEAD": "4ae4b15e1377c9c1bb3913505da18cac9f264b9a",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair841-leave-repro-gub_n4rh/827-tree",
+          "HEAD": "25905e0ecc875ce080ab401cfb445f54fcfcc20b",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair841-leave-repro-gub_n4rh/841-repoprefs-tree",
+          "HEAD": "954e3caea7078371c91c7523e86a70bdad751658",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair841-leave-repro-gub_n4rh/main-tree",
+          "HEAD": "f109640a6ad2477df1629ea9b1238d0b90a3f634",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair841-leave-repro-gub_n4rh/pre819-tree",
+          "HEAD": "46270746147eb5d9048ab1107b1df19339f7b42e",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair841-leave-repro-gub_n4rh/tree",
+          "HEAD": "d30f7c517f25996e15b8bf190d2ad6327e7bd4a5",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair859-oldreader.QR5mna/tree",
+          "HEAD": "38fe8ea272d960705134e21ad3fbf61d26a4bb00",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/pair882-copy-diagnostic.MqJn2X/driver",
+          "HEAD": "f87c9d5188efd657fea819712a9576c4d044b12e",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/tmp/pair-slot10/claude-501/-Users-xianxu-workspace-worktree-pair-slot10-pair/7bd8382a-0ad3-40d4-b5fe-d982d98610b3/scratchpad/base",
+          "HEAD": "27793cd5319aa3496a8e362f4a80b1de54470565",
+          "detached": ""
+        }
+      ],
+      "summary_all_visibility": {
+        "path_content_variants": 168,
+        "distinct_paths": 168,
+        "extensions": {
+          ".md": 15,
+          ".txt": 6,
+          ".json": 77,
+          ".log": 59,
+          ".jsonl": 10,
+          ".patch": 1
+        },
+        "frontmatter": {
+          "False": 168
+        },
+        "declared_type": {
+          "None": 168
+        },
+        "type_state": {
+          "absent": 168
+        },
+        "parent_field_missing": 168,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "summary_origin_main": {
+        "path_content_variants": 97,
+        "distinct_paths": 97,
+        "extensions": {
+          ".json": 61,
+          ".log": 24,
+          ".jsonl": 10,
+          ".txt": 1,
+          ".patch": 1
+        },
+        "frontmatter": {
+          "False": 97
+        },
+        "declared_type": {
+          "None": 97
+        },
+        "type_state": {
+          "absent": 97
+        },
+        "parent_field_missing": 97,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "typed_other_than_side_doc": [],
+      "records": [
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261022-tsnet-decision.md",
+          "extension": ".md",
+          "bytes": 4489,
+          "sha256": "c10b2376c4af4cb55aa988e510d08e61a4758272a8098794fb6f697c0b93ce4b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "4e3d6b19e328cb68a720a7aad1fe4d6638b63317"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261024-b2-install.md",
+          "extension": ".md",
+          "bytes": 1622,
+          "sha256": "ec2d8cf97672221591add8c9b5a63b58f96cc30e2a2e845f37d7ad5d92417067",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a3e9e1bf42aeb866711ef4232a55c1eba4296515"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261024-b2-operator-commands.md",
+          "extension": ".md",
+          "bytes": 8029,
+          "sha256": "4e086896e6e4a9df8a7d656ebb7342298b72f912fc9f324aa3ce7ccc181544c2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "765da3d910629a51f93b257d5083127faddc5d6c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261024-b2-security-options.md",
+          "extension": ".md",
+          "bytes": 6279,
+          "sha256": "8dac496600e354fe31fb6f1030aca53b58145bc4069f4ee17fc0625ab157c8b3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a493d2ab728b2fb7117df228a6e17324d18b09ae"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261024-custom-job-probe-runbook.md",
+          "extension": ".md",
+          "bytes": 5495,
+          "sha256": "283f206681e743091825ec421fd27b5dc8e71cd806d324cc2e8b0b01d8571ce9",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "7570d0ec3b47d740659bd8661cf175774faa66cb"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/20261024-option-d-userspace.md",
+          "extension": ".md",
+          "bytes": 9581,
+          "sha256": "047575a1b92dd9b146581ba5c30d22b06ad1d4f899d6284920820bc88f159a7b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "79cbd69dbadce3af97a0db49572ac6d7fa25b7f9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/inherited-writer-audit.txt",
+          "extension": ".txt",
+          "bytes": 13491,
+          "sha256": "0a8c1844193c5a382bdef55f3141f3dea7f167a6e9773dab012d328b7be2dc71",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "9ae112bcb0a93541d8cfbc15c5a1c0a22e80a3ba"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000759-remote-security-plan.side/operator-acceptance.md",
+          "extension": ".md",
+          "bytes": 4674,
+          "sha256": "87b216522b9295614e5e8c454f9f62a731364503f301ed9558fd45b445f0e877",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000759-remote-security-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "dbf2c12d07a626d1a2670c2eb394142a9bf62b96"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/build-after-metadata.json",
+          "extension": ".json",
+          "bytes": 574,
+          "sha256": "009bb60abab97712f129d6a805dc2236e9973b9c37f08676fc042e99e9bc4c97",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "6a68b702b1e20f65d16dc5f6ccd4f1be23570d51"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/build-after.log",
+          "extension": ".log",
+          "bytes": 971,
+          "sha256": "25a371405e6a24d233d46d2035399e6383ee2bbc063499882a9dcb54d6758579",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "86644716d225b3b6f7cc2d3377da05fc9430fae6"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/command-after.json",
+          "extension": ".json",
+          "bytes": 736,
+          "sha256": "b91e2894ba2d9b0b1cdb644991e74c8cbde3d1fbf358aa357ea58a6400129213",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "7c63e77cce3412eac35bf79bb7e4047bb6cf4703"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/driver-after-exit.json",
+          "extension": ".json",
+          "bytes": 65,
+          "sha256": "96e032b5e1531125765cd39f0209965cda05c6ab09acf06bf1dc189ecee01d3c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "94eda8973d3840cc70c16521e6738e8567cb0fbd"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/evidence-manifest.json",
+          "extension": ".json",
+          "bytes": 2467,
+          "sha256": "0f46491f35cdfcb5c722fbb807f9debd0beee6ad93ada024e863e7621d81c2fe",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "d9c0d9a438fccd005934e7d5b97806776f7ca3e9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/native-after-1.log",
+          "extension": ".log",
+          "bytes": 1232,
+          "sha256": "58a7cb90ee608ea8410584f033f42017557f3c6610ae3f6f31f256693db1e001",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a44f54b20f6d6cbed38c45483a53acf789851adf"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/qualification-after-analysis.json",
+          "extension": ".json",
+          "bytes": 15583,
+          "sha256": "cf52d44149555c73fd0c58c2b3022cffe85fb849a136036021c38509b414f4ce",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "5039cf66bdf034cd76c235df0ef983c7d361c556"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/qualification-after-summary.json",
+          "extension": ".json",
+          "bytes": 2084,
+          "sha256": "bc5969283479cd9ed1214eefc2a5ef287b6fab771ccb40a76295ae99e46c5b3d",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "cb1b4d35c4297d2649b84ad859ba29d60c216869"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/qualification-disposal.json",
+          "extension": ".json",
+          "bytes": 407,
+          "sha256": "3fd31aa36ecc0540a170d42d57d6460a2f4b3225b9d189319cf0d1e5ee3da24c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "ed1e5ac3883ab6178a5705fafe815d237d0b3ce5"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/qualification-plan.json",
+          "extension": ".json",
+          "bytes": 833,
+          "sha256": "32de22e32e4e9a69ce8d524b13ee4988f46add09e94afba1f453bc686f3e7596",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e69737328577bbbf2b6ef72f307775a831b24698"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/result-hubstack-1-current-4.json",
+          "extension": ".json",
+          "bytes": 5563,
+          "sha256": "bc004b83f73ee9921e7bb8457bfec880771f12b821fff581fe01b96055d00d19",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "14ae476c7108e490332d0bcbc39d49b3bf461902"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/tools.json",
+          "extension": ".json",
+          "bytes": 306,
+          "sha256": "59b3ae0d46f2f56b3f7b65a6e321499b5b83c9e94787a5ff734f3fa68c642c5c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fafd2a738853e96a062a717e85f8097e95a1a249"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/trace-hubstack-1-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 205035,
+          "sha256": "43204f389ea152155930270acd3d372f66f0b3bc32e23d19ba26a37358cefe57",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1f0682cae8dc6ff7aa57b0fd3234ce1005b55afb"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/trace-hubstack-1-current-4.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 246,
+          "sha256": "26975348f31015a3ed2f1145370a57c0fc8f8ccee7b990c4e80b1bcfc145ff4e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "757879b5340ddb63cea78106e4aa5eeed6416b95"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/trace-hubstack-1-host.jsonl",
+          "extension": ".jsonl",
+          "bytes": 790,
+          "sha256": "f33414ef4b638c5515f9ca133f9f6ece975264302b636214cdc5fee7fa2215a4",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "849758a7fccbbf9eef745ae4ae36b5e34c440402"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/after/trace-hubstack-1-host.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 244,
+          "sha256": "b2dfce59031aa691c2dd30c5171d44c21755766376abdd35dfd68f102fa25ceb",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fd83671575fd0345710bcdf3ff08ec68f7251510"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/binary-sha256.json",
+          "extension": ".json",
+          "bytes": 659,
+          "sha256": "bc4c734d3c2d49afe39c4280817c4fc9037d89fa5c0ba69ca84703200953ce28",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a0d53f4a1f370d7828835e2213791609c85ddfca"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/build-initial-missing-assets.log",
+          "extension": ".log",
+          "bytes": 910,
+          "sha256": "6325fb426c640955860aa5a56ab4759be8aa6b71190e7310e53a5ae25e4a4ccd",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "f8a5c0bdd0f6440e3dd7da55e5ee5c2ad222f16a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/build.log",
+          "extension": ".log",
+          "bytes": 2295,
+          "sha256": "b554ef6e1397b328b500c5aeeed1f116decd90a539ef6d5ee7c9be0f474c9088",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "b1892131acbb60c37640817f40323bfe2e2e414c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/commands.log",
+          "extension": ".log",
+          "bytes": 2151,
+          "sha256": "7fc175b8dc64258eb5f5e87b974200f9e769e1a09df4c9ffd9b765b8537026f3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "5d59a8d58b765b5a75411bf6aa695e91a41679fe"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-analysis.json",
+          "extension": ".json",
+          "bytes": 3654,
+          "sha256": "b9ffc37150df7511eeaca3b82a4d6c7128cfe4185c5f4e57b559d484a972dc0e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "3d01bd91ba0135eaf3fb7cc28d5bc88abd851b54"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-binary-sha256.json",
+          "extension": ".json",
+          "bytes": 593,
+          "sha256": "52c68dcd3ad4abc4658fc233cff5077524226b1e9128a1473e1c9dcdab1cf522",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "9bb066c9341da1ce0619b2b7d20bfc65af566643"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-build.log",
+          "extension": ".log",
+          "bytes": 555,
+          "sha256": "098153935a50fc0b18bac8c9131bdf37041ba7cf85bc5ae4295a6f19c3331273",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "b5014ca040057a816ecd22f72107603b273acb94"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-driver-exit.json",
+          "extension": ".json",
+          "bytes": 44,
+          "sha256": "d3215ee22ff973c64ff4c47ddbe8a7bf24d4ce35d66f2c92a4cdb895551d67a2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e3316759d3e1d3faf0a6264f338ff814edea20b3"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-history.txt",
+          "extension": ".txt",
+          "bytes": 5027,
+          "sha256": "3367c9e99929c6a09501f0f82c102c11bf2f8e54fe622e2f4e6adec5e6eb05e3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "6b17c03ac262015a8fc2e403c39a13e423b83215"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-source-blobs.json",
+          "extension": ".json",
+          "bytes": 1881,
+          "sha256": "352362752696c2129e06483aebafc2dacf2e1e16f5e8d53993c397da59855728",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "5b65e769c1223e1abbeac6ec113f59c5766009ea"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/current-profile-summary.json",
+          "extension": ".json",
+          "bytes": 7509,
+          "sha256": "0b26161f09e8797b3540c90e4d31ea41f4ffea995d4e64b9a46ae0d390638891",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "8359fb2df7b4238367685670e622cdcb0b5409aa"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/driver-exit.json",
+          "extension": ".json",
+          "bytes": 43,
+          "sha256": "bc87525f35694ea87c9b2632db9c9c0791ce9d5697a8242e208f8748a1c901a0",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "9e2e27fc994c5244ed8905ebe7d75e66cf9bce2b"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-1-blocked-stack.json",
+          "extension": ".json",
+          "bytes": 5433,
+          "sha256": "04e4e872d0c304a59b764351a5651e5089b0b0d20ea91941f72c8ef7649d5503",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "8214a61c26f1dba1c3b1e8ed13a8aac29c73d498"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-1-retirement-analysis.json",
+          "extension": ".json",
+          "bytes": 12417,
+          "sha256": "3e5ed6867734e5582c137e90ade3354529effac9c76255ad19cf1e36d6652a40",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "9dd0773a84c050607b89d1498b98361fe9d14fec"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-1-shutdown-analysis.json",
+          "extension": ".json",
+          "bytes": 14753,
+          "sha256": "336fc4ecbd848d7b56e2fc9cde76b5d7c80e6f5d76067c213a8ec1c87deee343",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e6e22d8645fef5fa14f1737008ad1bc6d157d11c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-build.log",
+          "extension": ".log",
+          "bytes": 555,
+          "sha256": "32d36cee5b86fd2a555f49d473c7cbd3ddad845775b4a7bf6601ef1ad5abd635",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "f841e5debd309935d339b65f1e278c3dc2dc3f4f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-driver-exit.json",
+          "extension": ".json",
+          "bytes": 138,
+          "sha256": "b03048d1540ae3cccd35cc7713d32fee403e3ea71848b6ec2593a0abbd554403",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e92a3910a329ebf3fcefa4c324f87f8e4e69860f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-observer-source.json",
+          "extension": ".json",
+          "bytes": 53694,
+          "sha256": "49a9a9ad43690a39196e60e49b033d29057f447ce8fdcbf941fa5c0f0bbf93ab",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "36801e9bee7927e910c20ed07fd829bc20c49d04"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-patch-metadata.json",
+          "extension": ".json",
+          "bytes": 441,
+          "sha256": "6b541f8d9c3d23a1cf5183a5a15c43f0094162c994dca9b81629a209a6ed3dd3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "7ccb9d0d97265c6b3d19e1c723beceabf6df05e7"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/hubstack-plan.json",
+          "extension": ".json",
+          "bytes": 1587,
+          "sha256": "a15303f05d803bc4ad87c1ff28c13ee5cafb58515a87751bf4a51c4e485de889",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fb65928cef2789dbe35e0cef7c681d08a584fc5a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/manifest.json",
+          "extension": ".json",
+          "bytes": 226,
+          "sha256": "4ead388736e26cd47d41d9d847082fe89ff86eea9b0657c3abcf90378d094168",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "9bc484eff6a98cc9d13987159e03df8bfc4b6b1e"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/message-close-substeps-plan.json",
+          "extension": ".json",
+          "bytes": 703,
+          "sha256": "c79b2c7535313fee52c1ac4cae449339080600233d8b09bc72ca9452622aab06",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "6069e11c19131ddd34f0fefe8e87d1a2a0593546"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/messageclose-build.log",
+          "extension": ".log",
+          "bytes": 555,
+          "sha256": "65e2b52d8d1c7c760b60e5f2c31ae3264626033f0c18cd61240069e13adbe5e6",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "077eda094d307147908303af5b0474e9a2dfd71f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/messageclose-driver-exit.json",
+          "extension": ".json",
+          "bytes": 43,
+          "sha256": "d2b9b9040182bbe55671fea0e801ef45010f71f0e45f96d1d1c2056b440e7e52",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fdc10c7f53a9e3e1c4445a24b96c333e27c55de5"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/messageclose-patch-metadata.json",
+          "extension": ".json",
+          "bytes": 441,
+          "sha256": "218662a3607fbdbc405f94bc84c6ef6024917d5b0c49a578cc38de4a65d79352",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "da645cf2106fc9307efca2a4ec74c0aa864e337f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/messageclose-retirement-analysis.json",
+          "extension": ".json",
+          "bytes": 12211,
+          "sha256": "3a58769d4f400371946b4f5ee403fa8f275e65d55c3266d62a4fa3999b39de9a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "49337bfbb25c750428304acffc4ab38371090274"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/messageclose-shutdown-analysis.json",
+          "extension": ".json",
+          "bytes": 14050,
+          "sha256": "ad3cfe69af71c9149f0a0d88de885d3da54b0ee57908033ea592736d856a546e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "9940d6daae57b5018a20f65c38fc5aa3febe84e0"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-comparison.log",
+          "extension": ".log",
+          "bytes": 3465,
+          "sha256": "5717cbb1aad5288cab60f012623f2c3f81bcaf88643e8035ecc7fc28f1c92e8e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "7c12664e5db6a0d3b7bb906c83fd9665acf57802"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-current-profile.log",
+          "extension": ".log",
+          "bytes": 9072,
+          "sha256": "c624c3ed592d72c4a1faa6056d92b16ece2e61e310a8dd5e9e95a79557c36206",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1d1cc42d6272d0d8a78085e805e2a386f5b2f5a8"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-hubstack-1.log",
+          "extension": ".log",
+          "bytes": 1232,
+          "sha256": "f8292a3f6fc85331cedeb7433f340a76a6b204bf5600bb5c26946ce02e26d44c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1f786c226f7600e51e9d989a91724f5c2e518ec4"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-messageclose.log",
+          "extension": ".log",
+          "bytes": 1226,
+          "sha256": "e640bb92054a4429478578fade674958db667ed6c281a75f45c06a93ab94f198",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "180a10b53f41970c785960cbbafe559a0eca0958"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-postleave.log",
+          "extension": ".log",
+          "bytes": 1232,
+          "sha256": "c36c78f25a817c6cbcc76de49af9666bc6c081956fdd1583d21e5c9167a75630",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "dd9e5d8212926e32d2169ee34c46c33ae9c24690"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/native-retirement-substeps.log",
+          "extension": ".log",
+          "bytes": 1231,
+          "sha256": "c26807e12abc43ce962cd202a55d878f4da16b5e901435970a71d051208c6c55",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fa40228d79bdee1ea6627402240e95d8194b77b9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/postleave-build.log",
+          "extension": ".log",
+          "bytes": 555,
+          "sha256": "420a010606674c9d965e4f905bfdca66144267cb8ba7b8c225be05c3437abe2a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1bb6f149941ddb3032acef0ed5d07fd6c8928196"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/postleave-driver-exit.json",
+          "extension": ".json",
+          "bytes": 42,
+          "sha256": "cb758757a10a4e6b082295050fe3768812fda1238359edd6b97356b950573e55",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "0d79acb185b1f8d72a579dbf4be8c454718c5598"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/postleave-instrumentation-plan.json",
+          "extension": ".json",
+          "bytes": 3621,
+          "sha256": "895e8161bf948b763b9c16fb870f04b0174c1ac0256ea8cab48bcf3414b61424",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "cdb0e709752a99a489f3bdd881b514a445c5da58"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/postleave-retirement-analysis.json",
+          "extension": ".json",
+          "bytes": 11605,
+          "sha256": "a2b59f617d180f44020545c3d7ee672185a9a6b312af97ab38ddfe67b64b5ed7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "484e11140813f9d969e071e9780ea97f982a02fa"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/postleave-shutdown-analysis.json",
+          "extension": ".json",
+          "bytes": 11128,
+          "sha256": "ee39ac3e94d8c72f706ed9c6ea0f2c46f85cbd5a5cf23a7c0d728b209f1e3ee4",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "93864c0cfba0cda6a9edbd451a626e9680364725"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-current-4.json",
+          "extension": ".json",
+          "bytes": 5299,
+          "sha256": "219f6facfc89fbccb6e5dc17ffba52c46347292afd763d3b850f5ad8a84e85f8",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "0bd9aef7dfc71ab2ca9bc18cf4975ead5da8f1f3"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-current-8.json",
+          "extension": ".json",
+          "bytes": 1126,
+          "sha256": "eebfe47aa7705c0af71a4e94123deae97a911ed3226936ee1f60fc9d817755ed",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "d18bbd60bd6dac8cc7be7e5c6dac35c2dfc75a65"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-hubstack-1-current-4.json",
+          "extension": ".json",
+          "bytes": 5563,
+          "sha256": "60bd2add58c20c2b63112a59e9ceb7c132f23e0366ee896e85d0674a085f3e63",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e5c7af26e1f1cc34c80f1b7235ec114745fd7cf6"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-messageclose-current-4.json",
+          "extension": ".json",
+          "bytes": 5457,
+          "sha256": "5ca687732fc9446b1a258325c5c5e1b532a22d0cf3ce78321204cf8c82d96c72",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "dc360fb9081d681fcc6583c87f598cc8ac4125eb"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-old-4.json",
+          "extension": ".json",
+          "bytes": 1111,
+          "sha256": "602f5f3614cfbfb9c3fea1da7d1c7eeb193735ee7b266b919ffb39ec6c48d98a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a29088a1d89010104ad494f21520cf29d3387899"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-postleave-current-4.json",
+          "extension": ".json",
+          "bytes": 5488,
+          "sha256": "2b266bd3581a186a816080c752efe5cec7b39d2a48f66108472d125ce2d789bc",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "0cd5e2b94481a20590c837b96bfbffba95365eb2"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/result-substeps-current-4.json",
+          "extension": ".json",
+          "bytes": 5309,
+          "sha256": "fc0254a0f78134054e2d9f701ae4b34aa29973e107e111a6768dbc4efad8cb24",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "654f2479c368e547eaf751098b66e5cfda057c89"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-analysis.json",
+          "extension": ".json",
+          "bytes": 8860,
+          "sha256": "3a7508c6b639456b60eddc3a3edbcdf6e8cbfa682c624aa51b1e541d609fc840",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "663a1cfa6d451f6108b40e26d8ec0ad966195fd1"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-build-initial-type-error.log",
+          "extension": ".log",
+          "bytes": 374,
+          "sha256": "d691b61db28dacec4a58f8bba6548019be2d20927dede0f987b84413223abae0",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "85b82eae7f505407434957859fe5d9e3767fb502"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-build.log",
+          "extension": ".log",
+          "bytes": 556,
+          "sha256": "9618e075e7f823f490a142dcd4307f8db6ec90efd9acfe7e01b73fce5213f7c7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "cf25de9efd73d1d886446ac3f7dd71d117439d26"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-driver-exit.json",
+          "extension": ".json",
+          "bytes": 43,
+          "sha256": "00ab7482bb7b2d193a1762001860185d7641ae7cc38d882041560a58f20ec534",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "8b84353fcf65bfae89d61c8aebb8943590a4b009"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-instrumentation.git.patch",
+          "extension": ".patch",
+          "bytes": 23609,
+          "sha256": "e8d0b936982139d5c8109b079176b6c0471147e55c120af408cbf76329958f1c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "eb9d20c0e5d014717fc6043aa0e9fc2300cf5e60"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/retirement-substeps-plan.json",
+          "extension": ".json",
+          "bytes": 4311,
+          "sha256": "61d93a76ef3fd8d8b53b9e71b7d2b3a702ef0f83e381dee79094589de66ff5f9",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "c712a722a8843454a986979a09208d597b534262"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/summary.json",
+          "extension": ".json",
+          "bytes": 1764,
+          "sha256": "2007f5970172139cb0a168bfe17390d3aa20fed4249069a11dbea994cff366bf",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "4e368a69ee984f03585f18a281e2dcec998f7e92"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/tools.json",
+          "extension": ".json",
+          "bytes": 306,
+          "sha256": "59b3ae0d46f2f56b3f7b65a6e321499b5b83c9e94787a5ff734f3fa68c642c5c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "fafd2a738853e96a062a717e85f8097e95a1a249"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 10792,
+          "sha256": "d748db77ee58abb11781c78f031db171d01b8c7f57486fa05b59528bd0f076dc",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "6b1adae513d1bfc7f8c19b9b9baaca6f7ad689c2"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-hubstack-1-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 204132,
+          "sha256": "8dade5fb17342a932aba4c04957b501fe032b1416799220f8ae137ad76da02d2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1cd5ade9152882979cce63f4cf6996e8809adf66"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-hubstack-1-current-4.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 266,
+          "sha256": "655b26260183364374148534f9139d25222fb440a98a918451e827f6c6297ce8",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a8e0943237bf9052398b0e3110f7a95a4c5aea8a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-hubstack-1-host.jsonl",
+          "extension": ".jsonl",
+          "bytes": 788,
+          "sha256": "4ff504e5db7ce884e9d2087702d797591af63663c7b625a87c5feebb3bfffe54",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "727958d33fa46a334df7566ef80af60c0ededddf"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-hubstack-1-host.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 243,
+          "sha256": "d1a5d9a001707c16345851faada703825c4b1a9c74261badfad4c06a7ea5072e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "f915331cdcd4ff52db78f45f81eba19194b7e233"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-messageclose-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 204164,
+          "sha256": "3e3596fb8c9c4c04a52ea27e168dbbe88dc02dfde9fc8a11b8aeba55c9868dc7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "eb1c85a5a8f779e037b3db5e459427009f964378"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-messageclose-current-4.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 244,
+          "sha256": "8f95e51fe42ca33c23dd8fd1b0132b0ddf6061d35785f7b64adb2077c8c71d7f",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "d85efe6163c16e96d8034336029a7e305af75c81"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-messageclose-host.jsonl",
+          "extension": ".jsonl",
+          "bytes": 791,
+          "sha256": "a103a0437b2e7a04223c92f2453e9fa8ef34be84e5fab8892d90487bbba64a5c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "999a95c8ad1cfefc657ca53474d0b7cc49cd7707"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-messageclose-host.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 244,
+          "sha256": "de4092b24fb3e5a21305d48cfc41de955eab11c1db77f7e263da6a1ad1d71894",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "3f82fd7557e8cc81d17bf5de7c35a0be784b20e9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-postleave-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 202348,
+          "sha256": "1d20c869899f7e50c54bf2387e6b1ce30604e6bd99d5c12cc22fd168c6bc70c0",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "c3b749b6e58b9077a488c0e09a345429b531491b"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-postleave-current-4.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 243,
+          "sha256": "bb2a4ce4fbae46142f62db93266069300737b295eebccac0711c9ca28eb14697",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "226d28775cd76f1dec72b4187d5cdde979bb9fc8"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-postleave-host.jsonl",
+          "extension": ".jsonl",
+          "bytes": 789,
+          "sha256": "763f3d5efad6cf8bcffd9075bcccfe20b7bfe5638ef2c3a15560c35420c123a6",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "b51f25ddbe1bcd388b08a13b9ca869c43dc79440"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-postleave-host.jsonl.final-flush.json",
+          "extension": ".json",
+          "bytes": 243,
+          "sha256": "ff5caa5ace59b201e7c6dab2c258ce7c104cf1b05c2034082803954e15ba1cfb",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "5f5f2de4b4bb7719d82bb3c5ddfb3d404f8fa8a7"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000776-detach-profile.side/trace-substeps-current-4.jsonl",
+          "extension": ".jsonl",
+          "bytes": 199178,
+          "sha256": "a209e01bf0a39e1e5240860f8f7e042c99c476dba8112b53e3f3a7e261f55676",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000776-detach-profile.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 53,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "2d76a3cd33281e9e9c82f6fecbbd9af5d1db4a85"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/anchor-red.log",
+          "extension": ".log",
+          "bytes": 9347,
+          "sha256": "c3e3063b2d95a75984b9cc75cb7754265e58530ee0eba83bdd78e9bcce47bf97",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "81763d8f3a8f76b25504345fa880a3a70569f3af"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/combined-operator-check.md",
+          "extension": ".md",
+          "bytes": 3317,
+          "sha256": "4138fca5dae30467e56781e66d56374ec1f556ae8885e71f3ec00242f05a8dd9",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "43c4c75808f1a87b973a516b24c32e945da0388b"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/combined-stage-artifact-targeted.log",
+          "extension": ".log",
+          "bytes": 61,
+          "sha256": "0d6d6ddb66bf9208bb5db44f554195161591e4453dc630ab29e108da4277e2a3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "22c9e4033986c61b8c88bb5e0744ff03b175d0e0"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/combined-stage-lint-targeted.log",
+          "extension": ".log",
+          "bytes": 53,
+          "sha256": "c991cea911faca786cfd453da3b62ddde8c9b665b3ae7394deda7f6551cc7794",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "2bc466568af887fe75da02d479150dbaddffff32"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/combined-stage-provenance.md",
+          "extension": ".md",
+          "bytes": 1962,
+          "sha256": "a88775740691b81110c76ba4713aff239916302f3a7c2e68ace7ba0bc9ab194f",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "52ab8093aa823b88a6c8f2f9f4259735cb9b09a6"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/combined-stage-targeted.log",
+          "extension": ".log",
+          "bytes": 1054,
+          "sha256": "b6775ba1affb94fff8e1da4e340541e23d44c8badaa445ad82311e857520b854",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "010312565dcb8d7711fa5d317b30a37b1342aa89"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/components-before-notedraft-fixture.log",
+          "extension": ".log",
+          "bytes": 2412,
+          "sha256": "ac39be7e811dfc3a8231ecb4a59201bb1d588efb2ca0eb324d293a8252106ac0",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "eebea0bdb13f79bfad0dbed1640f32d915a0e65f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/components.log",
+          "extension": ".log",
+          "bytes": 1112,
+          "sha256": "2772a1d5a1d8bc037561789b02f49bd9dcb6c16e19c514625c290951be84f344",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "d79156c076c5d9b2eabee1e6400de33d857c9c20"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/consumers.log",
+          "extension": ".log",
+          "bytes": 114,
+          "sha256": "02c25713d6b64f16a44aafde1e9883d35f76df8673c5c474c811a93989533ad1",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "d87309c3a10267283471d73599dd727472810536"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/couch-webnotes-diagnostic-red.log",
+          "extension": ".log",
+          "bytes": 263,
+          "sha256": "fefea262d9e7104dc633f44c01474d065a22e916f25badb31d829f7e3e20eb67",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "06323b7e578fcaeb43677349e0322075d12c2ace"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/couch-webnotes-race-green.log",
+          "extension": ".log",
+          "bytes": 400,
+          "sha256": "cd25cfbd960ce05d89750ec56f763b5fd2df089e82ab2001ef3691726047a440",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "38f64df2004a5f3bc71cb6cb11f8b021ba7924db"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/couch-webnotes-red.log",
+          "extension": ".log",
+          "bytes": 536,
+          "sha256": "2158360d20d950b8c839e490a48ec3018fe23f42ba4d265843fce9979bc2cd87",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "e33b58b9e6d8a364a3d33281afc0aabab77d5482"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/couchtty-fixture-green.log",
+          "extension": ".log",
+          "bytes": 58,
+          "sha256": "f611bbabcba2ba8ac866b9f4a93b05e4854e22cd24bf204ddaf0cff8187014f3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "4936a1b607da1e4ed3c2434cf3f9e5ba55116448"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/baseline-observed.json",
+          "extension": ".json",
+          "bytes": 502,
+          "sha256": "dcb769f651db3d5a3980842b2ef9478c8edd2728f73402852e3166ad2574871b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "d4ff8d4299298cff73dd49a9fb15651651221ed5"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-native.json",
+          "extension": ".json",
+          "bytes": 616,
+          "sha256": "916c5ea615a620a924a3bf3bffc64b7ef6d814e5df1b55ec6fce1aa79214dedb",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "52e9d94c78598286283a2531b6f4139f59a14100"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-native.log",
+          "extension": ".log",
+          "bytes": 29120,
+          "sha256": "ab801034af694750baade21a54ac5dd178d766203d475d81072bf87f900934de",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a5ed821de3f16153c3a9d0ca18184a9374442bd0"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node-before-status-fixture.json",
+          "extension": ".json",
+          "bytes": 464,
+          "sha256": "64b5d87338d76632b7b21cc9118eac513d05079a5714346348582117dfba178e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "06daafe35d136595dc428e1db3b7be2405a213ee"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node-before-status-fixture.log",
+          "extension": ".log",
+          "bytes": 16296,
+          "sha256": "7a4a821ac165e63d4b866473f8068b3190c84815418c5d77972aa27996cf0315",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "bccf175bad29f18d252d38ca943c9b20204eda90"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node-second-status-expectation.json",
+          "extension": ".json",
+          "bytes": 465,
+          "sha256": "0b3cd139231a2564ba8a6ee5a20b48982aff1a84948aa9e1f886032c37d870a3",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "4a70f99bbe56bb594e483a303ebd7bd35791818f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node-second-status-expectation.log",
+          "extension": ".log",
+          "bytes": 16304,
+          "sha256": "b2a91db25c79be6a5b41e902c805feb32deb00b453110e014b06cbc7b1c0031d",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "5149dd83a73d40d70b90d38fe3699290332d1faf"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node.json",
+          "extension": ".json",
+          "bytes": 465,
+          "sha256": "90298a7e2feb76b97167aaa29f4c030e3214aa28fb88c60697e42d967132f479",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "402b190821fdfa10cec00b2c1326778a4b61ae2a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/final-node.log",
+          "extension": ".log",
+          "bytes": 15262,
+          "sha256": "99f1cfcd2c4d254fdd4c0ed51abe8bcd1485cd0ffde385b7bc700585a0c65692",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "79ad70f1dd41214e55286e5b6c0cabf186419dea"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/green-observed.json",
+          "extension": ".json",
+          "bytes": 548,
+          "sha256": "c7b1678119284694c393da5edf851f951e327782164ecc1a007a19cf59df894b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "4fe4264891ab4fe3be2139633df32134fe845ddb"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/operator-relook.md",
+          "extension": ".md",
+          "bytes": 1364,
+          "sha256": "b55f7ebad5f9db367c5210a08c77888f38cdb628739b10cec76581d495db5eca",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "dd6511fc91107ad7d5cc80014c2d757826a3209e"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/pre-freeze-native-observations.md",
+          "extension": ".md",
+          "bytes": 2672,
+          "sha256": "53986fcf1e120e3df95991c8ccacaca99194446effc803800045bb25ab311341",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "cfc3a52a204e95fd0a92b4cda1fa98b8b3b537e0"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/preview-green.log",
+          "extension": ".log",
+          "bytes": 1087,
+          "sha256": "b1a10a16caf8f9629d3dd244d6e4d90da0a4e332befacfdcba0a644ad7ffd011",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "03d6abfc7c569244d7ba42dd5143cdc7e89de704"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/preview-node-results.json",
+          "extension": ".json",
+          "bytes": 652,
+          "sha256": "17e990144ab9cefda5b8d8c0be7ec554757056a8580e54ab911c176db347ec59",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "b6864dccec0e2aacfacf2ef4216e2045ce9efa17"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/preview-red.log",
+          "extension": ".log",
+          "bytes": 7332,
+          "sha256": "1806c7c964516068f8036a5191bb6e5ad6123e4bee4d1cdcee6691967bdd41ef",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "3fb0036de3c052788f80f59b38f6904dc9d6a5a5"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/reveal-node-results.json",
+          "extension": ".json",
+          "bytes": 1147,
+          "sha256": "e3f89d501fe23f9f21c69809e79af1abaf550cd3d352f1dea5e830e9973ce084",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "c9e974bf11bdf4e266cdab756434ba9f5d301d14"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/evening-live-fix/reveal-observed.json",
+          "extension": ".json",
+          "bytes": 757,
+          "sha256": "3eac5f508ef79ab4161b6bb6a78f1f3a41db2849a9fda2a86f21a8e6bddfe2f8",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a3c6461e6d96d5fade00191e5f05d50e29ebb595"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/independent-host-cleanup.json",
+          "extension": ".json",
+          "bytes": 299,
+          "sha256": "919fecdc56fbf8b6b4cce0055111bfa5be616c6db00270ac158ef1d7bd6e53c2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "2484b013077b558f59e007c1ddadd62c2a7b4c91"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/independent-host-metadata.json",
+          "extension": ".json",
+          "bytes": 1337,
+          "sha256": "cf37358f38b1314f252f99ae711a3d6f7a703afb124859ed51eb957c747fde0c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "76bff4d7edaeac91a5e41c352b9efbacf8c6435b"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/independent-host-test.log",
+          "extension": ".log",
+          "bytes": 1549,
+          "sha256": "fd63b1446d35513c95bfc31edc608061d6e5edf5101ccbdc96d7e0fac8b13c27",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "daafc38580453bfd8e1c9f9bad4913e032aceb82"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/native-before-integration-fixes.log",
+          "extension": ".log",
+          "bytes": 31512,
+          "sha256": "e07f8124fed9f6351bc68cce433c482235375567021bb6ed4f87ab40987e6a6a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "428790b7fc84949090bd8ad1263efe89a2c9bb5c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/native-close-r1-rerun.log",
+          "extension": ".log",
+          "bytes": 1549,
+          "sha256": "cbaf43fc5b38aedb2cf2ccd2b49ba471966343020b4576c834c994b6ae9ba9a6",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "4863f091d01c457f316747f6d0e58410a9380b68"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/native.log",
+          "extension": ".log",
+          "bytes": 30917,
+          "sha256": "699f2821db64877bb2a4fe7bc17e7fa1100fc4812755a5d4dbcfb74a702ecc80",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "47e3c45909975b41de386817fc91fd6af19781bc"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/node-final.log",
+          "extension": ".log",
+          "bytes": 57544,
+          "sha256": "ab16d5aa0efe5ca36070335c55fd2a9cdf5eedba385d428cf21f0440a4857a4d",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "337188ec348fc8e0223e3f97e9ec8cd55c03be82"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/node.log",
+          "extension": ".log",
+          "bytes": 57545,
+          "sha256": "8aa0e9f64df799ff46ad12741b6869763b41fd01564a8132d27b20d51d46ac30",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "534705f38ddc5d55638d01fe0df9d300bfca9b12"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/operator-steps-draft.md",
+          "extension": ".md",
+          "bytes": 2393,
+          "sha256": "c796ab08e74927b4a0316eb329ad54ca86d5f566bf5dd6fe14d46394639a5596",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "1a48349fcf3dbf433301d6aed475de927033f3a6"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/pre-close-first-failure.txt",
+          "extension": ".txt",
+          "bytes": 630,
+          "sha256": "5720428c4ab52e76e0db13abd5ef38e83e917156481e44763877fab08692f487",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "3fb7b050466af4dab5616eff1e117e6c07a1ea82"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/preflight-red.log",
+          "extension": ".log",
+          "bytes": 892,
+          "sha256": "b62a19a97e9d99633889dfb44a0c9de69be06d091078e529397bfc6a3f310ef9",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "f1a5402a78007063fadb2cf37fdcd9a58bea88cc"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000857-page-load-feedback-plan.side/evidence/race.log",
+          "extension": ".log",
+          "bytes": 127,
+          "sha256": "d7ef8a574496ab1fa55efc4aae250659b4b8180dcc260ced50a8b32121e3cb90",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000857-page-load-feedback-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "83762b75909bb4609304d586bdd7afe5880fc0f6"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/baseline-reversion.json",
+          "extension": ".json",
+          "bytes": 845,
+          "sha256": "ab1f35c8acc53de5a5a4f618cf0ca65b1f659e01d9c63212fb3fe04f14cba8d8",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "ada02c5afeaa6df235f368da423e7c13cd0f4559"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/baseline-reversion.log",
+          "extension": ".log",
+          "bytes": 343,
+          "sha256": "4b370ec1521573f4b5be18112000157c79fca7fe305c86957b4360095d716fa2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a00784aff3bb65cfedde0f45a2c0f3591bc02bc1"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/conformance.json",
+          "extension": ".json",
+          "bytes": 533,
+          "sha256": "4a7c7fce0bdbf101827a15753d27ff3779ad38815b6837581dc66ba2a5c5105c",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "892cdc964da09b0d77791f0e12f8aea16edb1f59"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/conformance.log",
+          "extension": ".log",
+          "bytes": 129,
+          "sha256": "e8d6b9bd703aff3364be21c5827cc81984ebc9a637290eedcff517362b54533b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "cd10b3093edc3ac2010a0ab7059f2a761d4c775c"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/end-to-end.json",
+          "extension": ".json",
+          "bytes": 534,
+          "sha256": "4015b5038ed619668b2a4d83edc73c629547bf9d973a3c207fe7f5f4c3d9a4b0",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "c80af45dbc6608688a0862e8574d4c799fd19e10"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/end-to-end.log",
+          "extension": ".log",
+          "bytes": 131,
+          "sha256": "dfd26b5fb0ed56d16dcaaa919cc89b89234b790af78991eeda8f029b5f08ff32",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "8c62a77358e8755dea707bc1ca2c06d1526e6fb5"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-conformance.json",
+          "extension": ".json",
+          "bytes": 533,
+          "sha256": "68aeeec9c1062448c08db42cfb4d02c5f9a7a0615366cd23fdc9b7b39cd32cd5",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "a64b0615436c530d0bd531fa8a70628e13c88eb0"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-conformance.log",
+          "extension": ".log",
+          "bytes": 129,
+          "sha256": "2761ccb3662da23fdc1b21623434cc920387ac1c0177cbafc640e116859e7f86",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "abf711ddcff6ad9d3dddd1e791e81e29503e0ed9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-end-to-end.json",
+          "extension": ".json",
+          "bytes": 534,
+          "sha256": "783a3c4b3778b4c39539c710a21c23d7c11a1afb0fafc76a67bff983695ab83e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "521551e05f1d481207828df43e17cddee9574d11"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-end-to-end.log",
+          "extension": ".log",
+          "bytes": 131,
+          "sha256": "6e8ebe267594137614e8aa57a0547e83e1fedfd9d4f8b677845435cb3b940bbb",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "e02f9e3652dfb9d5bfedbf914c4e05ebcd3caf50"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-readiness.json",
+          "extension": ".json",
+          "bytes": 538,
+          "sha256": "76d994dd8f97de1584f4feeb46b72db77ddaf2f17b15a4046d311046d2a30b2e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "f655e86e44fe380f7ecab8720ed73edf7cf0782b"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/post-wait-owner-readiness.log",
+          "extension": ".log",
+          "bytes": 541,
+          "sha256": "274e3dcb85d8b1d598102b873080047f931047506713417922bb3438b21a980a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "b61cf1fac71ff66fe93b377590d2a82663b160b9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/readiness.json",
+          "extension": ".json",
+          "bytes": 538,
+          "sha256": "8ea438a8aec4c19d2082369ec49330800307e80dab1874fd7469062dfe723986",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "1591d49664c582be358c0cd6e932fb77a118a5e1"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000858-native-pause-plan.side/evidence/native/readiness.log",
+          "extension": ".log",
+          "bytes": 541,
+          "sha256": "f954e304a4a44378c05f1ef619e97f533b08e01141310857137a2fadf68ba66e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000858-native-pause-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 17,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "3b32a4d1701b6f80577267f648df537de37c8cdb"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/first-stage-focused-race.log",
+          "extension": ".log",
+          "bytes": 493,
+          "sha256": "433fa1259837c8352207a0cf823777e67de76a928ef530a419a0b204434cf754",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "01061ddc2c68277254c2ec0972ef68c40061c62e"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/first-stage-inventory-catalog.log",
+          "extension": ".log",
+          "bytes": 413,
+          "sha256": "baa82e8e7f428411eaefbf5d718ea48952dbf149fcdb97671c52f7ca2b47a4fa",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "769cc0177576e1e799034b7305233821e8962c08"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/integration-observations.md",
+          "extension": ".md",
+          "bytes": 3941,
+          "sha256": "30ca5d6d502296f9ddd39e70a745bede85bf0dd762b299d10ce42bffb0852dad",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "8601b3692e4890fb286b6225afdbb914b1602777"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/operator-checklist.md",
+          "extension": ".md",
+          "bytes": 2984,
+          "sha256": "947a15b25afdb194c9ee715eb3a5b821f0c4e879ed3ec3368e9d672c87eff37b",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "c5577d0453ae0d966007bf11eee8a8facd4cf52a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/pins.json",
+          "extension": ".json",
+          "bytes": 820,
+          "sha256": "d2150fbd477c95c46f0e5d7c822079b76cc66efc14ae1679095e8829a02a57a2",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a17b485bed468d82b838e4f6e7e5326cbfdb5eed"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/schedule-focused.log",
+          "extension": ".log",
+          "bytes": 296,
+          "sha256": "8c169a034c90d6d2c8472aa4e8f681fcbe905f5d64348ec87c1b0591af55a00a",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "b1c3911ba96530ea62ab181de0156888dfaa298a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/sha256.json",
+          "extension": ".json",
+          "bytes": 772,
+          "sha256": "e417777cc7053be50d2c11131be2dabb141683ac692bbadbfb2e47917b2dd330",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "829dd71bd8a49ffc9c082c3ba5a8050f76d325a1"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/webcast-focused.log",
+          "extension": ".log",
+          "bytes": 165,
+          "sha256": "30990b045b81e5e500dcbc0deb6fcfb3234b89ccc5a4c01e8040aca613d355a7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "11a775a5735717982509e3df6e8b39822baf0062"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/morning-stage-20261025/webcast-headless.log",
+          "extension": ".log",
+          "bytes": 2261,
+          "sha256": "ab0e46eb41f1454e5e39355ba689aa0c5e0490c668db864fd4a7b57cecb404a4",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 4,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "e53f37e9555080285ce21d52b24f0456ec6d9f13"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/README.md",
+          "extension": ".md",
+          "bytes": 2387,
+          "sha256": "efd3325214a2b324d9bd9497ddf4f51770d7b48826a5ff7379f0310ff577ebe4",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "5350cf633eb090281fb9c726ae1e685d82911f36"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/ghostty-effective-copy-bindings.txt",
+          "extension": ".txt",
+          "bytes": 234,
+          "sha256": "122af148c80cce02cdf39724940c5a424a49dacb4158fec3b4d2e631538435af",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "98dd7df75edd23b931b38a772e8319762c7f5d5e"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/native-copy-diagnostic.go.txt",
+          "extension": ".txt",
+          "bytes": 4352,
+          "sha256": "6266fc52de8477d29cb417bd7f25a470e4331cdee5c2e73ce32b86c80513c42e",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "7b0fec92d29f3d3e37c635957d00fce3fd043f60"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/native-copy-stale-diagnostic-wait.log",
+          "extension": ".log",
+          "bytes": 14487,
+          "sha256": "38fb8adb477b41d7bab937a037dd897cfe2bab0befa4d6752da9bea4c84a21e7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "e30a9a5bfb8b98d009b080555038dc7aeb1385a9"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/native-copy.log",
+          "extension": ".log",
+          "bytes": 1848,
+          "sha256": "086a89c0e74a6e9b2757965fa205f4d4a9b330afa37f053a779dd7ee2ef10fdc",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "039f864e79e00a28fb5791cfd7c77d954666768f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/new-gestures-diagnostic.go.txt",
+          "extension": ".txt",
+          "bytes": 6592,
+          "sha256": "cde8d275d86137f15ef0609462ce5ffcbf1a167cb1ad5b899fc917d000d7dec4",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "e5f1f6df63d60da61b455a9dc611411643eabc4f"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/new-gestures-missing-runner-env.log",
+          "extension": ".log",
+          "bytes": 487,
+          "sha256": "c017576830416ccae2785c2884a76a6145f4a4d76283af53a34c8565d8f0aea7",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "eddc6f5f85062356a9f527ed2935c9da6fb4046a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/new-gestures.json",
+          "extension": ".json",
+          "bytes": 1136,
+          "sha256": "5677cb25b8672a894547117f6136cfa949e9cb01d314fec28ff80c0a9674ad20",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "af3e187ca7268378a3dc8cf0b7f2062a0d5d1869"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/new-gestures.log",
+          "extension": ".log",
+          "bytes": 4332,
+          "sha256": "e07030c65bfd2aea55ad8eabcde20c419150741774c3ec29ff4ba66640b274cd",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "3d916c6b7010809d3d5ffa3e38d206d0ed186625"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/operator-copy-diagnostic/sha256.json",
+          "extension": ".json",
+          "bytes": 892,
+          "sha256": "9795fb54b443171dd2b39cb47c00e607c78630a7df1c0aedefdf0891e37ba568",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 2,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "714b91bd0817e07558e7c98204df16cf34a3fe6a"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/terminal-oracle.json",
+          "extension": ".json",
+          "bytes": 505,
+          "sha256": "ba3e55713b0c0f8a64482296593ebe930a80d55d316690e7017cc4fcf75315a1",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 6,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "421a2cdf8fc49f2acc24557ed2b321b570cd6004"
+          ],
+          "any_parent_target_present": false
+        },
+        {
+          "path": "workshop/plans/000882-notification-links-plan.side/evidence/terminal-oracle.log",
+          "extension": ".log",
+          "bytes": 282,
+          "sha256": "ebf26b2f180f3ff80e3fa183a1b8bdbf4cf166d7f92a1e93304782a014223ef6",
+          "leading_frontmatter": false,
+          "type_state": "absent",
+          "declared_type": null,
+          "side_sibling_path": "workshop/plans/000882-notification-links-plan.md",
+          "parent_field_present": false,
+          "parent_field_nonempty": false,
+          "parent_raw": null,
+          "visibility_count": 6,
+          "visibility_kinds": [
+            "HEAD",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": false,
+          "git_blobs": [
+            "a2d415da6ad3d6c84c1032db6126c869799196d5"
+          ],
+          "any_parent_target_present": false
+        }
+      ]
+    },
+    "parley.nvim": {
+      "origin_main_sha": "d1f173bf97c3423776edc9220bc5c01289816af6",
+      "registered_worktrees": [
+        {
+          "worktree": "/Users/xianxu/workspace/parley.nvim",
+          "HEAD": "d1f173bf97c3423776edc9220bc5c01289816af6",
+          "branch": "refs/heads/main"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/parley.nvim-slot1/parley.nvim",
+          "HEAD": "6db317ab9ec7712ebaeb14c247a494df3bfde2e8",
+          "branch": "refs/heads/main-slot1"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/parley.nvim-slot2/parley.nvim",
+          "HEAD": "64c2744fb9cc4378aad67bd039e6c5a2c30a3efa",
+          "branch": "refs/heads/main-slot2"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/parley.nvim-slot3/parley.nvim",
+          "HEAD": "cc6be6966ec2a45d3b84b47bfa2ebad6a4afb624",
+          "branch": "refs/heads/main-slot3"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/parley.nvim-slot4/parley.nvim",
+          "HEAD": "55c9cfaeb3d11ba73dae59999f3d31f65ddc93e9",
+          "branch": "refs/heads/000410-pending-lookup-admission"
+        }
+      ],
+      "summary_all_visibility": {
+        "path_content_variants": 1,
+        "distinct_paths": 1,
+        "extensions": {
+          ".md": 1
+        },
+        "frontmatter": {
+          "True": 1
+        },
+        "declared_type": {
+          "side-doc": 1
+        },
+        "type_state": {
+          "scalar": 1
+        },
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 3
+      },
+      "summary_origin_main": {
+        "path_content_variants": 1,
+        "distinct_paths": 1,
+        "extensions": {
+          ".md": 1
+        },
+        "frontmatter": {
+          "True": 1
+        },
+        "declared_type": {
+          "side-doc": 1
+        },
+        "type_state": {
+          "scalar": 1
+        },
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 1
+      },
+      "typed_other_than_side_doc": [],
+      "records": [
+        {
+          "path": "workshop/plans/000440-a-predicate-wait-doing-child-rpc-never-times-out-plan.side/upstream-neovim-draft.md",
+          "extension": ".md",
+          "bytes": 2784,
+          "sha256": "3bf0d6c96c3ac9efec0ab6418ebdeb91b1ee3974a7282ddfafb7884709df67e3",
+          "leading_frontmatter": true,
+          "type_state": "scalar",
+          "declared_type": "side-doc",
+          "raw_type": "side-doc",
+          "side_sibling_path": "workshop/plans/000440-a-predicate-wait-doing-child-rpc-never-times-out-plan.md",
+          "parent_field_present": true,
+          "parent_field_nonempty": true,
+          "parent_raw": "../../issues/000440-a-predicate-wait-doing-child-rpc-never-times-out.md",
+          "declared_parent_resolved_path": "workshop/issues/000440-a-predicate-wait-doing-child-rpc-never-times-out.md",
+          "visibility_count": 3,
+          "visibility_kinds": [
+            "HEAD",
+            "origin/main",
+            "worktree-filesystem"
+          ],
+          "on_origin_main": true,
+          "git_blobs": [
+            "019dc761539e225e0164bb94a882ef50545afbc6"
+          ],
+          "any_parent_target_present": false
+        }
+      ]
+    },
+    "metis": {
+      "origin_main_sha": "99ccccb46a2707de6fbfe1be44c32263f0e636cf",
+      "registered_worktrees": [
+        {
+          "worktree": "/Users/xianxu/workspace/metis",
+          "HEAD": "e8cafbf867e30a740218674b2808b1696404111c",
+          "branch": "refs/heads/main"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/metis-slot1/metis",
+          "HEAD": "56b768ad4fdbf5889cf7c612bcfd21de9996527a",
+          "branch": "refs/heads/000072-step-timeout-live-log"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-3375779636",
+          "HEAD": "56b768ad4fdbf5889cf7c612bcfd21de9996527a",
+          "detached": ""
+        }
+      ],
+      "summary_all_visibility": {
+        "path_content_variants": 0,
+        "distinct_paths": 0,
+        "extensions": {},
+        "frontmatter": {},
+        "declared_type": {},
+        "type_state": {},
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "summary_origin_main": {
+        "path_content_variants": 0,
+        "distinct_paths": 0,
+        "extensions": {},
+        "frontmatter": {},
+        "declared_type": {},
+        "type_state": {},
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "typed_other_than_side_doc": [],
+      "records": []
+    },
+    "echo": {
+      "origin_main_sha": "b3288680000be80355ba280ede0c2645118923f9",
+      "registered_worktrees": [
+        {
+          "worktree": "/Users/xianxu/workspace/echo",
+          "HEAD": "1c52a7a9b95f113e580ab7b381c6868d0f2f6adb",
+          "branch": "refs/heads/000042-room-model-s1"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/echo-slot1/echo",
+          "HEAD": "942d067f76e4e6f58864ca1ee56fb2d2df75cee0",
+          "branch": "refs/heads/000040-echo-accept-scenario-runner"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/echo-slot2/echo",
+          "HEAD": "b39f2a423f0678240361d8c930cd677204ac904f",
+          "branch": "refs/heads/000041-per-agent-effort-in-the-agent-package-spec-requirement-13-in-place-of"
+        },
+        {
+          "worktree": "/Users/xianxu/workspace/worktree/echo-slot3/echo",
+          "HEAD": "fc969ce5b410b7bd561db2c223e287b6ecdef7f5",
+          "branch": "refs/heads/000043-board-ui-pass"
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-3436599250",
+          "HEAD": "b39f2a423f0678240361d8c930cd677204ac904f",
+          "detached": ""
+        },
+        {
+          "worktree": "/Volumes/TestScratch/local-checks/sdlc-local-3737579877",
+          "HEAD": "3cce27d6327728335aee318caae2dea0d6d95546",
+          "detached": ""
+        }
+      ],
+      "summary_all_visibility": {
+        "path_content_variants": 0,
+        "distinct_paths": 0,
+        "extensions": {},
+        "frontmatter": {},
+        "declared_type": {},
+        "type_state": {},
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "summary_origin_main": {
+        "path_content_variants": 0,
+        "distinct_paths": 0,
+        "extensions": {},
+        "frontmatter": {},
+        "declared_type": {},
+        "type_state": {},
+        "parent_field_missing": 0,
+        "parent_field_empty": 0,
+        "declared_parent_target_missing_occurrences": 0
+      },
+      "typed_other_than_side_doc": [],
+      "records": []
+    }
+  }
+}

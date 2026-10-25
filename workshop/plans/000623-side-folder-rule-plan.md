@@ -16,6 +16,24 @@ Current pkg/sidedoc/tree.go:Folder recognizes members but excludes the side dire
 
 There is no side-doc vocabulary schema. vocabulary validate-instance currently selects definitions by uppercasing a single-word noun (cmd/vocabulary/validate.go:titleCase); support compound noun definition names so side-doc selects #SideDoc, consistent with the existing #FleetPolicy spelling.
 
+## Transitional inventory and admitted input class
+
+Inventory captured2026-10-25T19:11:59Z across five pinned origin/main trees and all48 registered worktrees (each pinned HEAD plus its working files), without fetch or peer mutation. Complete distinct path/content metadata, hashes, visibility and source pins are retained in [the condensed inventory](000623-side-inventory.json). History, unregistered checkouts and other branches not represented by a registered worktree were excluded; no scan errors occurred.
+
+| Repo | Registered worktrees | Typed Markdown records | Untyped records | Pinned origin/main side files |
+|---|---:|---:|---:|---:|
+| ariadne | 8 | 3 | 0 | 3 |
+| pair | 26 | 0 | 168 | 97 |
+| parley.nvim | 5 | 1 | 0 | 1 |
+| metis | 3 | 0 | 0 | 0 |
+| echo | 6 | 0 | 0 | 0 |
+
+Counts are distinct path/content records, not occurrences across clones. Pair's168 untyped records are15 Markdown,77 JSON,59 log,10 JSONL,6 text and1 patch. Pair#858's14 files are7 JSON and7 log files under workshop/plans/000858-native-pause-plan.side/evidence/native/ on origin/main. All4 typed Markdown docs declare side-doc and a nonempty parent; no other declared types or malformed frontmatter were found. Their parent targets are absent in captured trees, confirming why target existence cannot be newly required.
+
+**Chosen transition:** only Markdown side documents with an explicitly declared type enter typed side-doc conformance. Non-Markdown members and Markdown attachments without a type remain valid unmodeled attachments: they never enter Issue validation, require no backfill, confer no issue ID, and still archive byte-for-byte. A declared but wrong/malformed type or missing/empty parent fails side-doc conformance. Missing type is an attachment case, replacing the original issue's missing-type rejection requirement under the TL's explicit transition approval. The private gate regression uses representative legacy shapes from this inventory and asserts that no validator is invoked for them. No peer frontmatter is rewritten.
+
+Parley#440's leftover is workshop/plans/000440-a-predicate-wait-doing-child-rpc-never-times-out-plan.side/upstream-neovim-draft.md. It is typed with a nonempty parent; exact owner-coordinated relocation remains a separate live operation after confirming source/destination bytes.
+
 ## Core concepts
 
 | Pure entity | File | Status |
@@ -81,6 +99,12 @@ Targeted commands will select those named functions' tests in pkg/sidedoc, inter
 This is batch admission/publication over existing path inventories. Owner discovery and side-member indexing add O(P+M) work for P input paths and M selected members, with one owner per side root and no new provider/network queries. Use one indexed pass rather than scanning every path again per discovered owner; guard visits at N/2N. Retain existing IO/process bounds and transaction ownership, without asserting that existing writers have undocumented caps. New maps die with the operation; all moved files use the existing archive lifecycle.
 
 Not included: new general repair commands, automatic historical sweeps, changing legacy side naming policy, requiring every parent target to exist, or broadening other datatypes' validation. The parley repair is one owner-approved exact move, not a bypass for ambiguous or contradictory history. Do not touch a peer checkout or :0 for a live test without coordination.
+
+## Revisions
+
+### 2026-10-25 — approved compatibility boundary
+
+TL approved the design (deliveryeef33473-162a-49ca-b24a-3cd6b99ef4d2) subject to inventory and no new refusals for previously valid evidence. Recorded the complete five-repo inventory before change-code. Chose explicitly typed Markdown-only conformance rather than backfilling168 attachments. This changes the missing-type case into an accepted attachment while keeping declared side-doc parent/type checks strict. All ID/archive membership remains content-independent.
 
 ## Architectural decisions
 

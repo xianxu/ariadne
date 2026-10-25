@@ -43,7 +43,7 @@ archive step uses (one shared helper, not a second path rule).
 
 ## Plan
 
-- [ ] Approve [the shared side-folder design](../plans/000623-side-folder-rule-plan.md), then enter change-code.
+- [x] Approve [the shared side-folder design](../plans/000623-side-folder-rule-plan.md), then enter change-code.
 - [ ] Implement shared ownership, typed conformance, ID-space exclusions and complete archive/recovery coverage with red-first tests.
 - [ ] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
 - [ ] Complete required verification, close review and landing.
@@ -55,3 +55,13 @@ archive step uses (one shared helper, not a second path rule).
 ### 2026-10-25 — claimed; design checkpoint
 
 Recovered on clean resting main-slot1 after #560's completed landing; no old runner is resumed. Claimed #623 and started its independent branch from current main. Read the issue and all three consumer families; a read-only audit found existing sidedoc helpers but no side-doc vocabulary model, plus document-dependent folder discovery across archive variants. Full design is warranted rather than a <=100-line quick patch that leaves archive/recovery siblings inconsistent. Existing Folder excludes a directory path itself; preserve that contract and add shared owner projection. Plan is ready for TL approval; no implementation or tests started. Machine budget is targeted only, one process at a time, count1; a full recorded check/merge waits for hub authorization. No new estimate before plan-quality.
+
+### 2026-10-25 — design approved; transitional inventory complete
+
+TL approved shared Owner, side roots conferring no ID and archive ownership independent of a plan document, with an explicit legacy compatibility condition. Read-only inventory across all48 registered worktrees and pinned origin/main of ariadne/pair/parley.nvim/metis/echo found4 typed Markdown side docs, all with nonempty parent; pair has168 untyped records, including15 Markdown and pair#858's14 JSON/log evidence files. Persisted condensed complete path/content inventory at ../plans/000623-side-inventory.json; plan records source pins, scope and counts. Choose typed-Markdown-only validation, so no attachment backfill or new rejection is needed. Parent target existence remains outside conformance. No implementation or tests yet; next run full-flow change-code.
+
+## Revisions
+
+### 2026-10-25 — approved typed-Markdown transition
+
+Per TL approval deliveryeef33473-162a-49ca-b24a-3cd6b99ef4d2, replace the Done-when missing-type failure case for side-folder members: a Markdown member without a declared type is a valid unmodeled attachment and is never validated as an issue. Only explicitly typed Markdown side docs enter the new side-doc schema; missing/empty parent or a malformed declared type still fails with a side-doc diagnostic. JSON/log/text/patch and untyped Markdown evidence keeps its bytes and archives with the issue, without conferring issue identity. Inventory evidence is recorded in the durable plan before change-code.
