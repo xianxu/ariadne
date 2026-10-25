@@ -62,7 +62,7 @@ Durable design: [fleet-resume plan](../plans/000564-tl-lead-fleet-resume-bounded
 
 - [x] Review/approve the options and recovery state table through the hub; operator approval and third-wave clarification recorded below.
 - [x] Implement the explicit-asleep planner and bounded receipt-driven scheduler with adversarial tests.
-- [ ] Update restart guidance; qualify privately, run recorded pre-close, close and land.
+- [x] Update restart guidance and qualify privately; enter the normal recorded pre-close, close and landing gates.
 
 ## Log
 
@@ -153,3 +153,7 @@ The final package run exposed a real fixture/runtime interaction after89.106s: G
 Final clean private executable at Git6f1f57d4160f2a4acf7beebc98f4beb0c59d1a3a matched embedded revision and modified=false. With opt-in executable/real-Couch conformance enabled, shared strict JSON and the entire tl-lead package passed (0.093s and141.559s respectively); no old-path wrapper tests remain because their unchanged tests moved with the implementation. Focused recovery/model/coordinator/receipt family passed under race6.366s. The catalog first flagged an unused suppression comment in the short-root fixture; removing its directive while keeping the ordinary explanation resolved it. Final catalog passed1,713 tracked Go files against19 rules2.502s; strengthened duplicate-address coverage now uses a complete valid source envelope, and that/short-root controls passed0.198s. No behavior changed after the final package/race proof, only that strengthened test and explanatory comments.
 
 Private/native limits remain as recorded above. The complete repository suite still needs its normal recorded queued run; mandatory close review and landing have not run yet. All owned targeted runners are finished.
+
+### 2026-10-24 — recorded pre-close queued; boundary review entry
+
+Central sdlc local-check run --pre-close selected suite (trains off, no affected declaration). It owns run lease-2983636541 at exact Git85f6faa4818a305ac990819548fbaa090fb0f83d, detached checkout /Volumes/TestScratch/local-checks/sdlc-local-3508870854; raw inflight log is commonGit/sdlc/test-stats/inflight/af1ccfba336e806ae987cc523e3fcb8c/run.log. It is queued for both machine slots, initially position6, not a passing full suite. Keep this waiter unchanged. Enter mandatory boundary review on the completed targeted/private evidence while the recorded suite waits, with this limit explicit. The eventual merge still requires a verified passing suite; no pre-close pass, codecomplete or landing is claimed here.
