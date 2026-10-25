@@ -155,7 +155,7 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 		cmd.SetContext(ctx)
 		return runMerge(io.Discard, io.Discard, f)
 	})
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(started); err == nil {
 			break

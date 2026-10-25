@@ -142,7 +142,7 @@ func TestSetupLeaseSurvivesRunnerParentDeath(t *testing.T) {
 
 func awaitReleasedSetupLease(t *testing.T, environment string) *os.File {
 	t.Helper()
-	deadline := time.Now().Add(staging.Settle)
+	deadline := time.Now().Add(testgate.HangCeiling)
 	for {
 		lease, err := staging.AcquireSetup(environment)
 		if err == nil {

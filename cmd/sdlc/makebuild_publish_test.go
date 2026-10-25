@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,7 +97,7 @@ func TestMakeBuildPublishesByRename(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(filepath.Join(fakeDir, "started")); err == nil {
 			break
@@ -147,7 +148,7 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(filepath.Join(fakeDir, "started")); err == nil {
 			break
@@ -168,7 +169,7 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	}
 	// make exits on the signal without waiting for its recipe shell, so the
 	// staging dir goes when that shell's EXIT trap runs, just after.
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+	for end := time.Now().Add(testfix.HangCeiling); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
 		if ents, err := os.ReadDir(filepath.Join(repo, "bin")); err == nil && len(ents) == 1 {
 			break
 		}

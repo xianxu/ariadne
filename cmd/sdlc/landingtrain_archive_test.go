@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"path/filepath"
 	"strings"
@@ -160,7 +161,7 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 	one := start(s.first, &firstStderr, false)
 	waitQueued(t, s.line, 1)
 	two := start(second, &secondStderr, true)
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		_, waiting, err := s.line.Status()
 		if err != nil {

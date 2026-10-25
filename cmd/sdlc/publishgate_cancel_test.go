@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,7 +34,7 @@ func TestQuickGrewPastReviewCancelsSlowNumstat(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- quickGrewPastReview(ctx, []string{issuePathFor(69)}) }()
-	until := time.Now().Add(4 * time.Second)
+	until := time.Now().Add(testfix.HangCeiling)
 	for time.Now().Before(until) {
 		if _, err := os.Stat(marker); err == nil {
 			break

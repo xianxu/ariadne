@@ -471,9 +471,9 @@ func fixedSleeps(f *ast.File, _ *CheckContext) []ast.Node {
 // at least as long. Second-scale bounds read as hang guards but were the
 // oracle, and failed under fleet load (#620's 8s, #625's 30s). Lower bounds
 // (proof that a wait happened) are fine.
-func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
+func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
-	if timePkg == "" {
+	if timePkg == "" || wallclockPending[context.Path] {
 		return nil
 	}
 	isSince := func(e ast.Expr) bool {
@@ -600,6 +600,30 @@ func fnIdent(sel *ast.SelectorExpr) (string, bool) {
 		return "", false
 	}
 	return id.Name, true
+}
+
+// wallclockPending lists the files whose findings #622 M2 still sweeps (kill
+// and cancel bounds, documented contracts, absence windows). It exists only
+// between #622's milestones: M2 empties and deletes it, so the rule enforces.
+var wallclockPending = map[string]bool{
+	"cmd/sdlc/ghlanding_test.go":                         true,
+	"cmd/weave/internal/acquire/git_refresh_test.go":     true,
+	"cmd/tl-lead/actors_bound_test.go":                   true,
+	"cmd/tl-lead/status_move_timeout_test.go":            true,
+	"cmd/sdlc/landingattribution_impact_test.go":         true,
+	"cmd/sdlc/boundarypush_test.go":                      true,
+	"cmd/sdlc/internal/gitx/remotebudget_test.go":        true,
+	"cmd/sdlc/integrategate_test.go":                     true,
+	"cmd/sdlc/landinggit_process_test.go":                true,
+	"cmd/sdlc/internal/fleet/recordsdeadline_test.go":    true,
+	"cmd/sdlc/internal/affected/golist_lifetime_test.go": true,
+	"cmd/sdlc/queue_suite_status_test.go":                true,
+	"cmd/sdlc/localcheck_resume_retention_test.go":       true,
+	"cmd/sdlc/helpercapability_test.go":                  true,
+	"cmd/sdlc/internal/judge/cancellation_unix_test.go":  true,
+	"cmd/sdlc/internal/testfix/build_unix_test.go":       true,
+	"cmd/sdlc/localcheck_lease_test.go":                  true,
+	"cmd/sdlc/net_signal_unix_test.go":                   true,
 }
 
 // hangBound reports an expression that bounds only a hang: one naming

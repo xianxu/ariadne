@@ -805,7 +805,7 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 				_ = cmd.Wait()
 			}
 		})
-		deadline := time.Now().Add(30 * time.Second)
+		deadline := time.Now().Add(testfix.HangCeiling)
 		for time.Now().Before(deadline) {
 			raw, e := os.ReadFile(filepath.Join(f.marks, "started"))
 			if e == nil {

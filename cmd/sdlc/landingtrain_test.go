@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"os"
 	"path/filepath"
@@ -517,7 +518,7 @@ func wantNoTrainWorktree(t *testing.T, root string) {
 
 func waitVouched(t *testing.T, line *landingline.Line, n int) {
 	t.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		ready, err := line.Readiness()
 		count := 0
@@ -607,7 +608,7 @@ func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
 	two := s.waitingCar(t, "000002-second", 2, 2)
 	waitVouched(t, s.line, 2)
 	s.blocker.Release()
-	deadline := time.Now().Add(time.Minute)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if b, err := os.ReadFile(started); err == nil && len(strings.TrimSpace(string(b))) == 40 {
 			break

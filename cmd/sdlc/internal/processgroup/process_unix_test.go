@@ -64,6 +64,7 @@ func TestCancellationKillsDescendants(t *testing.T) {
 	}
 	// Five seconds is the shutdown contract itself (WaitDelay 1 s plus the
 	// group kill), not a hang guard; it is the one elapsed bound kept (#325).
+	//lint:allow test-tight-wallclock — the 5s shutdown bound is processgroup's contract (WaitDelay 1s plus the group kill), not a hang guard (#325)
 	if time.Since(start) >= 5*time.Second {
 		t.Error("shutdown exceeded five seconds")
 	}

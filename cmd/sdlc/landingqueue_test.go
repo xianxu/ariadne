@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"os"
 	"path/filepath"
@@ -50,7 +51,7 @@ func mergeAsync(f *mergeFlags) <-chan error {
 
 func waitQueued(t *testing.T, line *landingline.Line, n int) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, waiting, err := line.Status(); err == nil && len(waiting) == n {
 			return

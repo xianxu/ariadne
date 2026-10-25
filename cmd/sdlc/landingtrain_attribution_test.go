@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,18 +145,28 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 	waitVouched(t, s.line, 2)
 	s.blocker.Release()
 	var prefix string
-	deadline := time.Now().Add(30 * time.Second)
+	// The barrier file is the event (#625): a landing that ends without
+	// reaching it fails at once, and the deadline only catches a hang, so a
+	// loaded machine's slow suite cannot fail this the way a 30s one did.
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for prefix == "" {
 		data, readErr := os.ReadFile(ready)
 		if readErr == nil {
 			prefix = strings.TrimSpace(string(data))
+			break
 		} else if !errors.Is(readErr, os.ErrNotExist) {
 			t.Fatal(readErr)
+		}
+		select {
+		case err := <-one:
+			t.Fatalf("the first landing ended before the split reached the barrier: %v", err)
+		case err := <-two:
+			t.Fatalf("the suspect landing ended before the split reached the barrier: %v", err)
+		default:
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("the passing split prefix never reached the registration barrier")
 		}
-		// Poll a bounded file barrier, rather than assuming a suite duration.
 		time.Sleep(time.Millisecond)
 	}
 	failed := ""

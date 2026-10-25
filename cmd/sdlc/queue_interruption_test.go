@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"os"
 	"path/filepath"
@@ -44,7 +45,7 @@ func TestQueueManagedSuiteFastPauseInterrupts(t *testing.T) {
 		}
 	}()
 	s := &queuegate.Store{Root: os.Getenv("WF_SDLC_QUEUE_ROOT")}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	ready := false
 	for time.Now().Before(deadline) {
 		x, err := s.Snapshot(context.Background())
@@ -119,7 +120,7 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 			<-done
 		}
 	}()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(marker); err == nil {
 			break

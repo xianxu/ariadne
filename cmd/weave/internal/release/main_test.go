@@ -58,7 +58,7 @@ func fixture(t *testing.T) (string, string, []string) {
 			return
 		}
 		for _, stage := range stages(output) {
-			deadline := time.Now().Add(time.Second)
+			deadline := time.Now().Add(testgate.HangCeiling)
 			for {
 				lease, err := staging.Exclusive(stage)
 				if err == nil {
