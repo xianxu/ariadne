@@ -1,13 +1,13 @@
 ---
 id: 000564
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-22
 updated: 2026-10-24
 estimate_hours:
 collaboration-mode: collaboration
-card_mirror: 'd59fb8ad95be0ee2162932218ad6961dc2095420' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c854f42b1072a282c7b91d8206f09d037550651c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T01:28:24-07:00
 claimant:
     operator: Xian Xu
@@ -17,6 +17,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: N/A
 ---
 
 # tl-lead fleet resume: bounded concurrency, and rebuild ariadne:0 first after a restart
