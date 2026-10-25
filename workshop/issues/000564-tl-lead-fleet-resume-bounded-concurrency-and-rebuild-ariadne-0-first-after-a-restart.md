@@ -112,6 +112,10 @@ Observed host load161.75/102.59/59.81 at19:09 and reported to ops:0 in submitted
 
 Authenticated ops:0 receipt75671bc9-3ae7-4470-958b-48508c167188 lifts the freeze after the operator repaired fseventsd and resumed the queue. Recovery confirms terminal44711 and lease-3100257590 survived: the original d6 recorded suite is first in line, waiting for both slots behind pair-slot9. No duplicate run, cancellation or unqueued full check was started. The prior screen is unavailable; recovery used the committed Log, sdlc state, current tracker/review evidence and the live retained terminal. PR436 CI is green, the worktree is clean, and the next action remains: observe this suite's terminal result before entering normal sdlc merge --yes. The operator repair hold is over; the retained queue wait is ordinary admission.
 
+### 2026-10-24 — Retained recorded suite passed
+
+The original terminal44711/lease-3100257590 admitted after2693s and completed exit0: all eight shards over2492 cmd/sdlc tests and79 other packages passed, zero failures and no targeted retry, execution1177.4s (19m38s). SDLC recorded sdlc-local/suite on tested head d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb; saved log commonGit/sdlc/local-checks/d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb/suite.log, printed sha256 prefixcf37cc0cab6e. SysV observation saw0 before/0 after. Later branch commits contain only close records and Log checkpoints. Latest PR CI passed. The full review and fix review are SHIP; next enter normal central sdlc merge --yes, retain its integration/CI runner, then verify Git merge/archive/resting state and report the primary rebuild handoff. No live fleet recovery was exercised; the documented pair#870 native qualification limit and prospective pair#874 scheduler seam remain.
+
 ## Revisions
 
 - 2026-10-24: Corrected the planning interface from the older top-level-marker/no-wake description to pair:6's verified nested asleep marker and hub-only wake semantics. Added explicit options, partial-failure/restart states, counted tests and private-conformance limits in the durable plan. This records a proposed design, not permission to execute fleet recovery.
