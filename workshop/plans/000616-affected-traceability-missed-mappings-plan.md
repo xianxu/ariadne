@@ -214,20 +214,30 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 
 ### M2: missed-mapping ledger
 
-- [ ] `missed.go` `Missed`. Strategy: one table over the "nothing recorded" contract (full, grouped, bare or unparseable name, known flake), plus the property that a returned miss's package is never in `sel.GoPkgs`.
-- [ ] `missed.go` `MissedLedger` codec and ops. Strategy:
+- [x] `missed.go` `Missed`. Strategy: one table over the "nothing recorded" contract (full, grouped, bare or unparseable name, known flake), plus the property that a returned miss's package is never in `sel.GoPkgs`.
+- [x] `missed.go` `MissedLedger` codec and ops. Strategy:
   - a round-trip property: an older-shaped writer rewrites a newer record and keeps its unknown members at both levels;
   - a fuzz target over the decoder, guarding that it refuses or re-encodes losslessly;
   - a sequence test of Record, Dismiss and Prune checking the invariants (unique IDs, ≤ 200 entries, Hits equal to the record count per ID).
-- [ ] `affected_missed.go` store. Strategy: a concurrent-writers test on a temp common dir (same ID gives Hits = 2; an interleaved dismiss and a record of another ID both survive), and a refused file is never overwritten.
-- [ ] Extract `affectedSelectionAt` from `splitImpact`; `landingattribution_impact_test.go` passes unchanged.
-- [ ] `suitebaseline.go` hook with `localRunDeps.RecordMissed`. Strategy: drive `diagnoseSuiteFailure` with fake runs over the record/skip contract (records only on introduced + green main), with the guard that the returned gate error wraps the original in every case. Plus one real-git test of the production recorder: a branch that changes a non-Go input a Go test reads, with no mapping, records the test's package.
-- [ ] `assessSplit` hook: `splitImpact` returns its paths. Strategy: extend `landingtrain_attribution_test.go` so that only untouched, unregistered failures record, with the guard that the verdict is identical whether or not the store fails.
-- [ ] `sdlc affected missed list|dismiss` (`affected_missed_cmd.go`), registered as a new `affected` command group in `main.go`'s workflow list (none exists today; `missed` is its only child), with its Long help from the embedded helptext, help text and a RECOVERY block. Strategy: a command test over a temp store for list, covered-prune, prune-unavailable, dismiss and an unknown ID.
-- [ ] atlas: the curation loop (miss → declare in affected.json, traceability or a sidecar's `reads` → `list` prunes it), in `ci-merge-check.md`, with the `atlas/index.md` link if a new file is added. A `workshop/lessons.md` entry, if review finds a class.
+- [x] `affected_missed.go` store. Strategy: a concurrent-writers test on a temp common dir (same ID gives Hits = 2; an interleaved dismiss and a record of another ID both survive), and a refused file is never overwritten.
+- [x] Extract `affectedSelectionAt` from `splitImpact`; `landingattribution_impact_test.go` passes unchanged.
+- [x] `suitebaseline.go` hook with `localRunDeps.RecordMissed`. Strategy: drive `diagnoseSuiteFailure` with fake runs over the record/skip contract (records only on introduced + green main), with the guard that the returned gate error wraps the original in every case. Plus one real-git test of the production recorder: a branch that changes a non-Go input a Go test reads, with no mapping, records the test's package.
+- [x] `assessSplit` hook: `splitImpact` returns its paths. Strategy: extend `landingtrain_attribution_test.go` so that only untouched, unregistered failures record, with the guard that the verdict is identical whether or not the store fails.
+- [x] `sdlc affected missed list|dismiss` (`affected_missed_cmd.go`), registered as a new `affected` command group in `main.go`'s workflow list (none exists today; `missed` is its only child), with its Long help from the embedded helptext, help text and a RECOVERY block. Strategy: a command test over a temp store for list, covered-prune, prune-unavailable, dismiss and an unknown ID.
+- [x] atlas: the curation loop (miss → declare in affected.json, traceability or a sidecar's `reads` → `list` prunes it), in `ci-merge-check.md`, with the `atlas/index.md` link if a new file is added. A `workshop/lessons.md` entry, if review finds a class.
 - [ ] `sdlc close --issue 616`
 
 ## Revisions
+
+### 2026-10-25: M2 as built
+
+- `splitImpact` keeps its signature, a thin wrapper over `splitImpactPaths`, which also returns the delta's changed paths that the train hook records. `changedPathsBetween` and `retiringCleanupGit` are extracted beside `affectedSelectionAt`, so the merge recorder and `list` share them with `splitImpact` (ARCH-DRY).
+- `affectedSelectionAt` reports a missing affected.json as `errAffectedUndeclared`. The merge recorder treats that as nothing to say, so a repository without affected.json gets no label.
+- The store's lock wait reuses `acquireResumeFlock`, the existing ctx-aware flock loop.
+- A read-only `list` (nothing covered) aborts its update, so it never rewrites the ledger.
+- The train hook's sink is a `conductor.missed` seam (nil means the clone's ledger), for the store-failure test.
+- Recovery contracts: `affected missed list` (convergent) and `affected missed dismiss` (duplicate-safe refusal).
+- The ledger decode requires `paths`; the fuzz target found an entry without it, whose re-encoding would be refused. The crasher is kept as a seed.
 
 ### 2026-10-24: M1 as built
 

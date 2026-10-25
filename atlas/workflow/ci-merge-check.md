@@ -417,6 +417,36 @@ sidecars and traceability files through `loadAffectedMapping` (`localcheck_affec
 - **Cost:** exact rule paths are indexed. Globbed ones are scanned behind their literal prefix:
   `BenchmarkPlanDeclared` runs 2,000 paths against 1,200 rules in about 30 ms.
 
+**Missed mappings (#616).** A declaration nobody wrote shows up as a missed mapping: a failure the full suite caught
+that the branch's affected selection would not have run. Two producers record one:
+- **The merge gate.** `diagnoseSuiteFailure` (`suitebaseline.go`) handles a merged-head suite that fails where main's
+  baseline passes. It plans the head's delta as an affected run would (main's config and declarations over the head's
+  graph, through `affectedSelectionAt`) and records each introduced failure whose package that selection skips. The
+  result is one more label on the comparison (`missed mappings: recorded N`, or `not recorded (why)`).
+- **A train's split.** `assessSplit` records an unregistered failure whose impact is `ImpactUntouched`, a package
+  neither endpoint's narrowed selection reached.
+
+`affected.Missed` (`internal/affected/missed.go`) is the one definition. Only a narrowed, group-free selection is
+evidence. A full selection, a red main, a bare test name and a registered flake record nothing. Recording only
+reports, so the gate's error and the split verdict are unchanged.
+
+The ledger is one file per clone: `<git-common-dir>/sdlc/affected-missed.json`, the pure `affected.MissedLedger`
+behind `missedLedgerStore` (`affected_missed.go`).
+- **Locking and writes:** every write is a read-modify-write under one flock, by temporary file and rename. A
+  writer's crash leaves the old file, and `record` sweeps temp files older than an hour.
+- **Entries:** each entry is keyed by package plus the full changed-path set, stores the first 20 paths and counts
+  hits. The ledger is capped at 200 entries, and the oldest sighting goes first.
+- **Format:** strict on known members. Unknown members survive at both levels, through `jsonstrict.DecodeObject` and
+  `EncodeWithExtra`. A version other than 1, or a malformed file, is refused and never rewritten.
+
+The curation loop is `sdlc affected missed list`:
+1. It plans each entry again against origin/main's declarations over main's graph, loaded once.
+2. It drops the entries whose paths now select their package.
+3. It prints the rest.
+
+Declare the ownership on main (an `owners` rule, a sidecar's `reads`, a traceability entry) and the next `list` drops
+the entry. `sdlc affected missed dismiss --id ID --reason TEXT` removes an entry that was not a missing declaration.
+
 For ignored/generated graph inputs, optional `graph_prepare` in affected.json
 declares `{ "command": ["make", "generate"], "timeout_minutes": 2 }` (#517).
 `runLocalCheckCmd` pins origin/main before reading declarations; candidate edits

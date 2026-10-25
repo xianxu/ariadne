@@ -945,6 +945,9 @@ covers those in one of three ways:
 Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
 Older sdlc versions reject these members. Pre-close and train cars then require the suite, and an explicit
 `--name affected` run refuses with the parse error, so upgrade the provider before adopting them.
+When the merge's full suite (or a train's split) catches a failure the affected selection would not have run, it is
+recorded as a missed mapping (#616). `sdlc affected missed list` shows the open ones and drops those main's
+declarations now cover; `sdlc affected missed dismiss --id ID --reason TEXT` removes one.
 The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 

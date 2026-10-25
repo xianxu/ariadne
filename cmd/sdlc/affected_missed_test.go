@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -103,5 +107,67 @@ func TestMissedStoreLockHonoursContext(t *testing.T) {
 	cancel()
 	if err := s.update(ctx, time.Now(), func(*affected.MissedLedger) error { return nil }); err == nil {
 		t.Fatal("a cancelled update ran")
+	}
+}
+
+// The CLI over a real clone's ledger: list prunes what main's mapping covers (and lists without pruning when the
+// mapping is unavailable), a read-only list never rewrites the file, and dismiss removes one entry while a repeat
+// refuses.
+func TestAffectedMissedListAndDismiss(t *testing.T) {
+	root := t.TempDir()
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	store, err := missedStoreFor(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for _, m := range []affected.Miss{{Test: "p.TestA", Pkg: "p"}, {Test: "q.TestB", Pkg: "q"}} {
+		if _, err := store.record(ctx, []affected.Miss{m}, missEvidence(1, "x/"+m.Pkg)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unavailable := func(context.Context) (func(affected.MissedEntry) bool, func(), error) {
+		return nil, nil, errors.New("no graph")
+	}
+	before, _ := os.ReadFile(store.path())
+	var out bytes.Buffer
+	if err := runMissedList(ctx, &out, root, false, unavailable); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "nothing pruned: main's mapping is unavailable (no graph)") || strings.Count(out.String(), "paths: x/") != 2 {
+		t.Fatalf("list without coverage:\n%s", out.String())
+	}
+	if after, _ := os.ReadFile(store.path()); string(after) != string(before) {
+		t.Fatal("a read-only list rewrote the ledger")
+	}
+	coversQ := func(context.Context) (func(affected.MissedEntry) bool, func(), error) {
+		return func(e affected.MissedEntry) bool { return e.Package == "q" }, func() {}, nil
+	}
+	out.Reset()
+	if err := runMissedList(ctx, &out, root, true, coversQ); err != nil {
+		t.Fatal(err)
+	}
+	var entries []affected.MissedEntry
+	if err := json.Unmarshal(out.Bytes(), &entries); err != nil || len(entries) != 1 || entries[0].Package != "p" {
+		t.Fatalf("pruned list: %v\n%s", err, out.String())
+	}
+	if l, _ := store.read(); len(l.Entries) != 1 {
+		t.Fatalf("the covered entry is still in the ledger: %+v", l.Entries)
+	}
+	out.Reset()
+	if err := runMissedDismiss(ctx, &out, root, entries[0].ID, "an environment failure"); err != nil || !strings.Contains(out.String(), "dismissed "+entries[0].ID) {
+		t.Fatalf("dismiss: %v %s", err, out.String())
+	}
+	if err := runMissedDismiss(ctx, &out, root, entries[0].ID, "again"); err == nil || !strings.Contains(err.Error(), "no missed mapping") {
+		t.Fatalf("a repeat dismiss: %v", err)
+	}
+	if err := runMissedDismiss(ctx, &out, root, entries[0].ID, " "); err == nil {
+		t.Fatal("dismiss without a reason")
+	}
+	out.Reset()
+	if err := runMissedList(ctx, &out, root, false, coversQ); err != nil || !strings.Contains(out.String(), "no open missed mappings") {
+		t.Fatalf("empty list: %v %s", err, out.String())
 	}
 }

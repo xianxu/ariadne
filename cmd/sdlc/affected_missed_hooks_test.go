@@ -114,3 +114,42 @@ func TestMissedMergeRecorderRealGit(t *testing.T) {
 		t.Fatalf("ledger: %+v", l.Entries)
 	}
 }
+
+// list's production coverage plans an entry's paths against origin/main's declarations over main's graph: once main
+// declares the ownership, the entry is covered.
+func TestMainMissedCoverageRealGit(t *testing.T) {
+	d, _, _, _, _ := affectedFixture(t)
+	must := func(args ...string) string {
+		t.Helper()
+		o, err := d.Git(args...)
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, o)
+		}
+		return strings.TrimSpace(o)
+	}
+	must("switch", "-q", "main")
+	if err := os.MkdirAll(filepath.Join(d.Root, ".sdlc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := `{"version":1,"command":["make","test-affected"],"full":["go.mod"],"owners":[{"paths":["data/in.txt"],"go":["./other"]}]}`
+	if err := os.WriteFile(filepath.Join(d.Root, ".sdlc", "affected.json"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	must("add", "-A")
+	must("commit", "-q", "-m", "declare other's input")
+	must("update-ref", "refs/remotes/origin/main", "HEAD")
+	covered, done, err := mainMissedCoverage(d.Root)(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+	entry := func(pkg string, paths ...string) affected.MissedEntry {
+		return affected.MissedEntry{Package: pkg, Paths: paths}
+	}
+	if !covered(entry("example.com/m/other", "data/in.txt")) {
+		t.Fatal("a declared owner does not cover its entry")
+	}
+	if covered(entry("example.com/m/leaf", "data/in.txt")) || covered(entry("example.com/m/other", "data/elsewhere.txt")) {
+		t.Fatal("coverage for a package or path main does not declare")
+	}
+}
