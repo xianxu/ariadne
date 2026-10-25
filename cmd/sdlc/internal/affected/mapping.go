@@ -12,7 +12,7 @@ import (
 )
 
 // Mapping is the compiled declared ownership (#598): every declaration source — affected.json `owners`, sidecar
-// conventions and sidecar `reads` — as one rule list, which Plan consults in its claim step. It is built from bytes
+// conventions, sidecar `reads` and traceability entries (#616) — as one rule list, which Plan consults in its claim step. It is built from bytes
 // read at main's pinned rev; a branch never declares its own selection.
 type Mapping struct {
 	rules   []ownerRule
@@ -43,9 +43,16 @@ type SidecarFile struct {
 	Content []byte
 }
 
-// Compile builds the Mapping from the parsed config and the sidecars read under its conventions. A sidecar that does
-// not parse, or whose reads are not clean globs, refuses: its test's inputs are unknown, so nothing may be narrowed.
-func Compile(cfg Config, sidecars []SidecarFile) (Mapping, error) {
+// Sources are the declaration files read under a config's conventions, at the config's own rev.
+type Sources struct {
+	Sidecars     []SidecarFile
+	Traceability []TraceabilityFile
+}
+
+// Compile builds the Mapping from the parsed config and the files read under it. A sidecar or traceability file that
+// does not parse refuses, and so does a declared traceability file that was not read: its inputs are unknown, so
+// nothing may be narrowed.
+func Compile(cfg Config, src Sources) (Mapping, error) {
 	var m Mapping
 	for i, o := range cfg.Owners {
 		m.rules = append(m.rules, ownerRule{source: fmt.Sprintf("affected.json owners[%d]", i), paths: o.Paths, goRoot: o.Go, as: o.As, strip: o.Strip})
@@ -53,7 +60,7 @@ func Compile(cfg Config, sidecars []SidecarFile) (Mapping, error) {
 	for i, sc := range cfg.Sidecars {
 		m.rules = append(m.rules, ownerRule{source: fmt.Sprintf("affected.json sidecars[%d]", i), strip: &Strip{Prefix: sc.Prefix, Suffix: sc.Suffix}})
 	}
-	for _, f := range sidecars {
+	for _, f := range src.Sidecars {
 		target, ok := sidecarTarget(cfg.Sidecars, f.Path)
 		if !ok {
 			return Mapping{}, fmt.Errorf("sidecar %s is under no declared convention", f.Path)
@@ -64,6 +71,23 @@ func Compile(cfg Config, sidecars []SidecarFile) (Mapping, error) {
 		}
 		if len(reads) > 0 {
 			m.rules = append(m.rules, ownerRule{source: "sidecar " + f.Path, paths: reads, as: []string{target}})
+		}
+	}
+	read := map[string][]byte{}
+	for _, f := range src.Traceability {
+		read[f.Path] = f.Content
+	}
+	for _, path := range cfg.Traceability {
+		content, ok := read[path]
+		if !ok {
+			return Mapping{}, fmt.Errorf("traceability %s is missing", path)
+		}
+		entries, err := ParseTraceability(content)
+		if err != nil {
+			return Mapping{}, fmt.Errorf("traceability %s: %w", path, err)
+		}
+		for _, e := range entries {
+			m.rules = append(m.rules, ownerRule{source: path + " " + e.Key, paths: e.Code, as: e.Tests})
 		}
 	}
 	m.exact = map[string][]int{}

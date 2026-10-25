@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/agentid"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
@@ -76,11 +77,13 @@ type conductor struct {
 	carHeads   []string // admitted originals, aligned with kept prefixes
 	carIssues  []int    // same successfully composed prefix order; no rejected car inherits priority
 	suiteReady map[int]bool
-	evidence   map[int]localRunRecord // exact prefix attempts, including diagnostic main at zero
-	baseline   *bool                  // main's baseline verdict, run once on the first failure
-	settled    map[int64]bool
-	selfEnd    landingline.OutcomeKind
-	selfWhy    string
+	// missed records split attribution's missed mappings (#616); nil is the clone's ledger.
+	missed   func(ctx context.Context, misses []affected.Miss, ev affected.MissEvidence) (string, error)
+	evidence map[int]localRunRecord // exact prefix attempts, including diagnostic main at zero
+	baseline *bool                  // main's baseline verdict, run once on the first failure
+	settled  map[int64]bool
+	selfEnd  landingline.OutcomeKind
+	selfWhy  string
 	// Measurement (#561): the tracker and the proofs the cars boarded on.
 	meter  landingline.MeasurementTracker
 	proofs map[int64]landingline.BoardingProof

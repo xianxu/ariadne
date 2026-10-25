@@ -936,6 +936,8 @@ covers those in one of three ways:
     `strip` prefix/suffix;
   - a `sidecars` convention (`{"prefix": "tests/affected-readers/", "suffix": ".json"}`) makes a sidecar's change
     count as a change to the file it is about, and its optional `reads` globs count as that file's inputs;
+  - a `traceability` list names parley-style traceability files (`atlas/traceability.yaml`, #616): a change to an
+    entry's `code` paths counts as a change to its `tests` paths;
 - keep the path in `full`. An entry `{"glob": "cmd/x/**", "except": ["cmd/x/*_test.go"]}` lets the excepted paths
   fall through to ordinary selection;
 - or run the test from the affected command (see pair#725).
@@ -943,6 +945,9 @@ covers those in one of three ways:
 Declarations are read from main, never the head. One that is stale, unclaimed or unreadable selects the full suite.
 Older sdlc versions reject these members. Pre-close and train cars then require the suite, and an explicit
 `--name affected` run refuses with the parse error, so upgrade the provider before adopting them.
+When the merge's full suite (or a train's split) catches a failure the affected selection would not have run, it is
+recorded as a missed mapping (#616). `sdlc affected missed list` shows the open ones and drops those main's
+declarations now cover; `sdlc affected missed dismiss --id ID --reason TEXT` removes one.
 The schema, the classification rules and these blind spots are in [the affected
 suite](atlas/workflow/ci-merge-check.md#the-affected-suite-473).
 

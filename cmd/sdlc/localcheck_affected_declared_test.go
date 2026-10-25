@@ -138,3 +138,66 @@ func TestAffectedDeclaredMappingCancelled(t *testing.T) {
 		}
 	}
 }
+
+// #616: traceability files are read from main, never the head. An entry's code path selects its tests' packages; the
+// head's own entries do not count, and a declared file main lacks or cannot parse narrows nothing.
+const fixtureTrace = "version: 1\natlas:\n  ui/toolbar:\n    code: [ui/toolbar.txt]\n    tests: [mid/mid_test.go]\n"
+
+func TestAffectedDeclaredTraceabilityFromMain(t *testing.T) {
+	cases := []struct {
+		name    string
+		changed map[string]string
+		want    string // the consumer's env; "" means the suite ran instead
+	}{
+		{"an entry's code path selects its test's package", map[string]string{"ui/toolbar.txt": "x\n"}, "example.com/m/mid\n\n"},
+		{"an entry only the head declares does not count", map[string]string{
+			"atlas/traceability.yaml": fixtureTrace + "  ui/other:\n    code: [ui/other.txt]\n    tests: [tonly/tonly_test.go]\n",
+			"ui/other.txt":            "x\n"}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			d, change, out, marker, cfg := declaredFixture(t, map[string]string{"atlas/traceability.yaml": fixtureTrace})
+			cfg.Traceability = []string{"atlas/traceability.yaml"}
+			rec := runDeclaredFixture(t, d, cfg, change(c.changed))
+			if c.want == "" {
+				if rec.Name != suiteCheckName || !exists(marker) || exists(out) {
+					t.Fatalf("want the suite: %+v\n%s", rec, d.Stderr)
+				}
+				return
+			}
+			got, err := os.ReadFile(out)
+			if err != nil || string(got) != c.want || exists(marker) {
+				t.Fatalf("env %q (%v), want %q; suite ran %v\n%s", got, err, c.want, exists(marker), d.Stderr)
+			}
+		})
+	}
+}
+
+func TestAffectedDeclaredTraceabilityUnavailable(t *testing.T) {
+	cases := map[string]struct {
+		onMain map[string]string
+		cause  string
+	}{
+		"missing on main":   {map[string]string{"atlas/other.yaml": "x\n"}, "declared ownership unavailable: traceability atlas/traceability.yaml is missing"},
+		"malformed on main": {map[string]string{"atlas/traceability.yaml": "version: 2\natlas: {}\n"}, "declared ownership unavailable: traceability atlas/traceability.yaml: version must be 1"},
+	}
+	for name, c := range cases {
+		for _, mode := range []affectedExecutionMode{affectedOrdinary, affectedBoarding} {
+			t.Run(fmt.Sprintf("%s/mode %d", name, mode), func(t *testing.T) {
+				d, change, out, marker, cfg := declaredFixture(t, c.onMain)
+				cfg.Traceability = []string{"atlas/traceability.yaml"}
+				sha := change(map[string]string{"leaf/leaf.go": "package leaf\n\nfunc F() int { return 5 }\n"})
+				rec, err := runAffectedCheck(context.Background(), d, productionAffectedDeps(d, "main", cfg), cfg, affectedFixtureSuite, sha, mode)
+				if mode == affectedBoarding {
+					if err == nil || !strings.Contains(err.Error(), "boarding refused") || !strings.Contains(err.Error(), c.cause) || exists(marker) || exists(out) {
+						t.Fatalf("boarding: err = %v, suite ran %v", err, exists(marker))
+					}
+					return
+				}
+				if err != nil || rec.Name != suiteCheckName || !exists(marker) || exists(out) || !strings.Contains(fmt.Sprint(d.Stderr), c.cause) {
+					t.Fatalf("ordinary: %+v, %v\n%s", rec, err, d.Stderr)
+				}
+			})
+		}
+	}
+}

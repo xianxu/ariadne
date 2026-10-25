@@ -1,0 +1,342 @@
+# Boundary Review — ariadne#631 (whole-issue close)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 717667950a336c145042db18b8a563ef886b90ef..4dfc28fbab76faabf373045bc27da5be16a2b988 |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:04:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Reviewing #631's diff; now running the targeted tests and a revert check.
+
+Now the revert check: make `removeTree` behave like a bare `os.RemoveAll` and confirm the new tests go red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** I found nothing that should block the close, only five minor notes. The diff does what the #631 Spec and Plan say. `removeTree` gives write permission to read-only directories inside a tree and then deletes it, so a dead run folder holding a Go module cache now goes in one pass. Both the sweep and a run's own `Cleanup` use it. The keep-or-take decision moved into a pure `staleTempReason`, and it gives the same answers as the old inline logic, including the rule that a live owner keeps its folder unless it is older than a day (the pid may have been reused). Each removal is logged before it starts and when it ends, with the full path, the reason and the time taken. The capability probe no longer sweeps. TestMain stops tests from sweeping the machine's shared temp roots. I ran the targeted tests at head and they passed. I then made `removeTree` a plain `os.RemoveAll`, and both new regression tests failed. The checkout was restored afterwards, and `git status` showed it clean.
+
+1. **Strengths**
+   - `cmd/sdlc/testscratch.go:163-186` — `makeTreeWritable` adds owner permissions as it walks down the tree, before reading each directory. `WalkDir` does not follow symlinks, and `TestSweepStaleTempRemovesReadOnlyTrees` checks that a read-only directory reached through a symlink keeps mode 0555.
+   - `staleTempReason` (`testscratch.go:141`) is pure and has a table test (`TestStaleTempReason`) covering the cases from the old `TestSweepStaleTemp`, plus the reused-pid and non-run-folder cases.
+   - The sweep checks exclusions against the resolved path (`sweepRootKey`), so `/tmp` and `/private/tmp` count as one root. The test checks both the skip and that TestMain registered every shared root.
+   - Dropping the probe's sweep is safe:
+     - `prepareScratch`'s roots (RAM disk, TMPDIR, user temp, `/tmp`) include the probe's (RAM disk and `/tmp`).
+     - Probe folders are named `sdlc-run-probe-<pid>-<rand>`, which matches `runDirRE`.
+     - The probe already deletes its own folder with a `defer`.
+   - The localcheck artifacts test now also checks that a protected run folder is logged as kept.
+
+2. **Critical**: none.
+
+3. **Important**: none.
+
+4. **Minor**
+   - **Repeated "kept" lines:** a protected folder gets a `[scratch sweep] kept …` line on every run for as long as it stays protected. Consider logging only removals and failures, or only the first time a folder is kept.
+   - **The "could not remove" path has no test:** for example, a tree owned by another user where `chmod` fails with a permission error.
+   - **Small symlink race (ARCH-SECURE):** a folder could be swapped for a symlink between `WalkDir`'s check and `os.Chmod`, which follows symlinks. This only matters in a world-writable root where another user planted an `sdlc-run-*` folder. The damage is limited to adding owner permissions to our own files, so the risk is low.
+   - **Spec wording drift:** Design #2 still names `staleTempCandidates(entries, …)`, but the code ships `staleTempReason` for one entry at a time. The Plan checklist already describes it correctly.
+   - **Atlas formatting:** in `atlas/workflow/sdlc-binary.md:2549`, the added sentence leaves an overlong line.
+
+5. **Test coverage**
+   - Each regression test fails when the fix is reverted (confirmed here for `removeTree`).
+   - The exclusion test fails if the skip guard is removed.
+   - The decision table pins the pure logic without any file access.
+   - The implementor logged a green pre-close suite (24m13s). I didn't re-run it.
+
+6. **Architecture**
+   - ARCH-DRY: pass. There is one sweep per run, and `removeTree` is shared by the sweep and `Cleanup`.
+   - ARCH-PURE: pass. The decision is a pure function and `sweepStaleTemp` is a thin layer that does the file work.
+   - ARCH-PURPOSE: pass.
+     - Every removal now names its target and timing.
+     - The root cause (read-only trees) is fixed.
+     - Tests no longer sweep the shared roots.
+     - The program that produces those trees is a different repo (pair), and the fix there was handed off (pair887).
+   - ARCH-MOCK: pass. No external service is involved; the tests use real filesystem fixtures.
+   - ARCH-CONSTRAINTS: pass. A dead folder is removed once instead of failing on every sweep, and the scan cost was measured at 20-60 ms.
+   - ARCH-SECURE: pass, with the race noted above. `chmod` only touches a tree the sweep has already decided to delete.
+   - ARCH-ORDER: pass. The sweep keeps no state between events. The exclusion map is written once in TestMain and only read after that.
+   - ARCH-FUNERAL: pass. This change fixes exactly this kind of failure: the run folder's own cleanup could never succeed.
+   - ARCH-EVOLVE: N/A. No persisted format changes.
+   - **Watch:** the exclusion uses the roots computed when the test process starts. If the RAM disk is unmounted or unreadable at that moment and becomes mounted later in the process, a test could sweep it. That is an edge case, not a defect.
+
+7. **Plan revisions**
+   - Add a `## Revisions` entry noting that Design #2 shipped as the per-entry `staleTempReason`, with the loop left in the IO layer, instead of `staleTempCandidates`.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: log-signal-per-event-not-per-run
+    title: |
+      Protected run folders log a "kept" line on every sweep for as long as they stay protected
+    detail: |
+      cmd/sdlc/testscratch.go:126 writes a kept line on every prepareScratch call while a runner artifact owner holds the folder; consider logging only removals and failures, or only the first time a folder is kept.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: error-path-untested
+    title: |
+      The sweep's "could not remove" log path has no test
+    detail: |
+      No fixture covers a removeTree failure (for example a tree owned by another user where chmod fails with a permission error), so that log line and the continue that follows it are unpinned.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: symlink-toctou-chmod
+    title: |
+      makeTreeWritable can follow a symlink swapped in between WalkDir's check and os.Chmod
+    detail: |
+      This only matters in a world-writable root where another user planted an sdlc-run-* folder; the damage is limited to adding owner permissions to the caller's own files, so the risk is low. Using fchmodat with AT_SYMLINK_NOFOLLOW, or an open plus fchmod, would close it.
+  - id: new
+    severity: Minor
+    kind: defect
+    family: plan-spec-drift
+    title: |
+      Spec Design #2 names staleTempCandidates, but the code ships a per-entry staleTempReason
+    detail: |
+      The Plan checklist already reflects the change; add a Revisions entry so the Spec stops naming the batch function.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"27259333-3e48-4f1d-9b1a-2a2116bbda4a","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/c98eb8f24de31318","reviewed_head":"4dfc28fbab76faabf373045bc27da5be16a2b988","slot":"ariadne:5","requested_at":"2026-10-25T16:02:45.687909Z"},"phase":"finished","pid":2984,"started_at":"2026-10-25T16:02:45.788802Z","finished_at":"2026-10-25T16:04:29.344739Z","session_id":"dc1ed31a-cb69-478c-9c04-3bdcb43fe2ae","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T09:11:48-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 931efc51cdebab13c6ff8ff4c4f37c6ea59bf90e..6fc21e0fc04e6f8650062b16a00c5649d297154d |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:11:48-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Now test the no-read-bit directory case empirically, plus run the targeted tests and the regression revert for BR-2.
+
+Confirmed: a directory with no read bit now can't be removed. Now checking that the base version handled that case and that BR-2's test actually fails without the `continue`.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**Summary.** Of the four prior Minors, three are fixed and one was reasonably declined. BR-2 now has a regression test, and it does fail when the fix is undone. BR-4 is recorded as a Revisions entry, and that entry only records the fix; it does not change scope. BR-1 was declined with a sound reason. The BR-3 fix, though, breaks something that worked before. `makeTreeWritable` now opens each directory with `O_RDONLY` before changing its permissions, and that open needs the read bit on the directory itself. So `removeTree` can no longer take a tree containing a directory that lacks owner read, such as mode 0o311 or 0o000. The base version, which used path-based `os.Chmod`, removed those fine. I ran both versions on a probe test in this checkout to confirm it. Module-cache trees (0o555) still work, so the root cause the issue is about stays fixed. The new failure is a narrower case that no test covers. It is cheap to fix but should be fixed before shipping.
+
+### 1. Strengths
+- `cmd/sdlc/testscratch_darwin_test.go:16`: `chflags uchg` makes a removal fail for real, with no mocks. It pins both the "could not remove" log line and the `continue` that follows. When I changed `continue` to `return`, the test failed as expected.
+- `cmd/sdlc/testscratch.go:193-201`: switching to the early-return form makes the permission check easy to read, and `errors.Join(f.Chmod…, f.Close())` keeps both errors instead of dropping one.
+- The BR-1 reply (issue Log, 2026-10-25) holds up against the issue text. Spec Design #3 (line 58-59) says "A protected candidate is logged as kept", and the Plan row at line 84 lists "kept: protected". The sweep runs once per run, and the shared roots excluded via `testmain_test.go:193` are never swept from tests. Removing the line would break the Spec.
+
+### 2. Critical findings
+None.
+
+### 3. Important findings
+- **`cmd/sdlc/testscratch.go:197`: the `O_RDONLY` open fails with EACCES on a directory with no owner read bit, so `removeTree` now leaves trees it used to remove.** I checked this with a probe in the disposable checkout. With a `sub` directory at mode 0o311 or 0o000, the head returns `open …/sub: permission denied` and the tree survives; the base returns nil and the tree is gone. WalkDir calls the callback on a directory before reading it, so the old path-based chmod fixed the bits first. The new handle-based chmod cannot open the directory to begin with.
+  - **Fix sketch:** on darwin, use `unix.Fchmodat(AT_FDCWD, p, perm|0o700, AT_SYMLINK_NOFOLLOW)`. Alternatively, open with `O_SEARCH`/`O_PATH` where the platform supports `fchmod` on such a handle. Or, if the open fails with EACCES, fall back to Lstat, confirm it is still a directory and not a symlink, then `os.Chmod`.
+  - **Test:** add a regression case to `TestSweepStaleTempRemovesReadOnlyTrees` with a 0o311 or 0o000 directory.
+  - **ARCH:** this is a correctness issue, not an architecture one.
+
+### 4. Minor findings
+- With `O_NOFOLLOW`, only the last part of the path is protected. A parent directory swapped for a symlink mid-walk would still be followed. Closing that fully would need an `openat` walk. Given BR-3's threat model, that residue is acceptable, and I've noted it under BR-3's disposition rather than raising it again.
+
+### 5. Test coverage notes
+- These targeted tests pass at the head: TestSweepStaleTemp*, TestPrepareScratch*, TestStaleTempReason, TestExcludedScratchRootIsNeverSwept and TestSweepStaleTempLogsAFailedRemovalAndContinues.
+- The new failure-path test is darwin-only because of `chflags`. That's acceptable since the package is already Unix-only. `GOOS=linux go vet` is clean.
+- No test covers directories without a read bit. That gap is how the Important finding got through.
+
+### 6. Architectural notes
+- **ARCH-DRY: pass.** Nothing is duplicated.
+- **ARCH-PURE: pass.** The change stays inside the IO shell (`makeTreeWritable`). The pure `staleTempReason` is untouched.
+- **ARCH-PURPOSE: pass**, with the caveat that the BR-3 fix made the tree-repair function work in fewer cases than before; it is now partial. The class BR-3 names (a symlink followed during chmod) is handled at the one chmod site, and there are no other chmod sites in the diff.
+- **ARCH-EVOLVE: pass.** No persisted format changed.
+
+### 7. Plan revision recommendations
+None beyond the Revisions entry the fix added. It matches the code: `staleTempReason` is at `testscratch.go:140`.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: withdrawn
+    note: |
+      The Spec requires the kept line (Design 3, lines 58-59; Plan line 84), and production sweeps once per run, so it is one line per run, not per prepareScratch call.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      TestSweepStaleTempLogsAFailedRemovalAndContinues pins the log line and the continue; changing continue to return in this checkout makes it FAIL.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The chmod now goes through an O_NOFOLLOW|O_DIRECTORY handle (testscratch.go:197), so a swapped final path component fails. A swapped parent is still followed, which is acceptable at this threat level. The read-bit regression this fix introduced is raised separately.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The Revisions entry names staleTempReason(name, mtime, runDirs, now, alive), which matches testscratch.go:140; it records the fix and does not change scope.
+findings:
+  - id: new
+    severity: Important
+    kind: defect
+    family: tree-repair-coverage-regression
+    title: |
+      makeTreeWritable's O_RDONLY open fails on directories without owner read, so removeTree now leaves trees the base removed
+    detail: |
+      testscratch.go:197 opens each directory O_RDONLY before fchmod, and the open needs the read bit. Probe in this checkout: with a subdirectory at mode 0o311 or 0o000, the head returns "open .../sub: permission denied" and the tree survives; the base, using path-based os.Chmod, removes it. Fix: Fchmodat with AT_SYMLINK_NOFOLLOW on darwin, or fall back to an Lstat-checked os.Chmod on EACCES. Add a 0o311 or 0o000 case to TestSweepStaleTempRemovesReadOnlyTrees.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"176a21e4-2f82-4d37-a319-fd3f23e398c7","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/a59b87d2df75d3f7","reviewed_head":"6fc21e0fc04e6f8650062b16a00c5649d297154d","slot":"ariadne:5","requested_at":"2026-10-25T16:09:25.553747Z"},"phase":"finished","pid":15129,"started_at":"2026-10-25T16:09:25.727472Z","finished_at":"2026-10-25T16:11:45.628097Z","session_id":"b8c8c6ac-13a7-4dc8-9dfa-8722326ebc6d","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T09:18:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 931efc51cdebab13c6ff8ff4c4f37c6ea59bf90e..6d087a5bf4446137d052a8b381a91d243c203c1a |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:18:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Now revert the fix to the O_RDONLY-open variant (the version BR-5 named) and confirm the test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-5 is fixed, and the new interdiff adds no Critical or Important defects. `makeTreeWritable` now changes permissions with `unix.Fchmodat(AT_FDCWD, p, perm|0o700, AT_SYMLINK_NOFOLLOW)` instead of opening each directory first. That removes the need for the read bit and keeps the no-follow protection from BR-3. The fixture `readOnlyModCache` now adds a `0o311` directory and a `0o000` directory, each with an inner subdirectory. I put the earlier `O_RDONLY|O_NOFOLLOW` version (6fc21e0fc) back into this checkout and reran the tests. Both `TestSweepStaleTempRemovesReadOnlyTrees` and `TestPrepareScratchCleanupRemovesReadOnlyTrees` failed with `open …/launcher-1/none: permission denied`. With the head restored, both pass. The new `## Revisions` entry only records the BR-4 rename (`staleTempCandidates` → `staleTempReason`), so it does not change scope. The only new code is the BR-5 fix and a darwin-only test for the failed-removal log, which is BR-2's regression test. No other behavior was added.
+
+1. **Strengths**
+   - `cmd/sdlc/testscratch.go:199`: one `fchmodat` call with `AT_SYMLINK_NOFOLLOW` covers both BR-3 (symlink swap) and BR-5 (missing read bit). The earlier code needed an open plus `fchmod`; this needs neither an open nor a file handle.
+   - `cmd/sdlc/testscratch_test.go:368-377`: the fix went into the shared fixture, not a one-off test. Both the sweep path and the prepare-cleanup path now cover directories without owner read, so the whole class is tested, not just the site BR-5 named.
+   - `cmd/sdlc/testscratch_darwin_test.go`: it uses `chflags uchg` to force a removal failure that no `chmod` can lift. That is a real, non-mocked way to reach the "could not remove … and continue" path, and the test restores the flag in `t.Cleanup`.
+   - Running `GOOS=linux go vet ./cmd/sdlc/` passes. A Windows build was already failing at the base (`pkg/layergraph` uses `syscall.O_NOFOLLOW`), so this window does not break Windows.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `cmd/sdlc/testscratch.go:200-203`: on Linux kernels without `fchmodat2` (older than 6.6), the `EOPNOTSUPP` fallback goes back to a path-based `os.Chmod`. That reopens the BR-3 symlink-swap window on those hosts. The code comment says so openly. This tool is mainly darwin-targeted, and current `ubuntu-latest` runner kernels have `fchmodat2`. Details are in the findings block.
+
+5. **Test coverage notes**
+   - I confirmed that BR-5's regression test goes red without the fix, as described above.
+   - The `EOPNOTSUPP` fallback branch is not tested. It can only be reached on old Linux kernels.
+   - The new darwin test needs the `chflags` binary. That is fine because the filename limits it to darwin builds.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The fixture extension reuses `readOnlyModCache`, and the test cleanup reuses `makeTreeWritable`.
+   - **ARCH-PURE: pass.** `makeTreeWritable` is filesystem IO that was already isolated, and the interdiff adds no business logic to it.
+   - **ARCH-PURPOSE: pass.** The fix covers the class of directories without owner read (`0o311` and `0o000`), at both call paths, not just the single site.
+   - **ARCH-EVOLVE: n/a.** No persisted format changes.
+
+7. **Plan revision recommendations:** none. The 2026-10-25 Revisions entry already records the BR-4 rename correctly.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      testscratch.go:199 uses Fchmodat AT_SYMLINK_NOFOLLOW with no open; readOnlyModCache now adds 0o311 and 0o000 dirs; restoring 6fc21e0fc's O_RDONLY open turns TestSweepStaleTempRemovesReadOnlyTrees and TestPrepareScratchCleanupRemovesReadOnlyTrees red (open launcher-1/none: permission denied), and head passes.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: symlink-toctou-chmod
+    title: |
+      On Linux without fchmodat2, makeTreeWritable falls back to path-based os.Chmod, which can follow a swapped-in symlink
+    detail: |
+      This is the 2nd finding in family symlink-toctou-chmod. The rule covering both: every permission change during tree repair must use a primitive that cannot follow a symlink at the final path component. Darwin and Linux kernels from 6.6 meet this through Fchmodat with AT_SYMLINK_NOFOLLOW. The EOPNOTSUPP fallback at testscratch.go:200-203 does not: it relies on an earlier lstat (BR-3's race). Fix for kernels without fchmodat2: open the parent directory O_DIRECTORY|O_NOFOLLOW, Fstatat the base name with AT_SYMLINK_NOFOLLOW to confirm it is a directory, then Fchmodat relative to that parent fd (still a small race), or skip the entry and return the error. Low practical risk because the tool is darwin-first and CI kernels have fchmodat2.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dff19e32-ee61-497d-9dfd-eaf08c828f97","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/32a7db33a0776b90","reviewed_head":"6d087a5bf4446137d052a8b381a91d243c203c1a","slot":"ariadne:5","requested_at":"2026-10-25T16:16:59.962128Z"},"phase":"finished","pid":29634,"started_at":"2026-10-25T16:17:00.074699Z","finished_at":"2026-10-25T16:18:24.629772Z","session_id":"9cd782d6-52c4-415b-bf48-a7b0c4d68a75","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T09:23:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | b62611acd1e0694d2b1a73c85d27f42445d0dd19..a87f161315c2f4425aeb4f01793f2c3f890523b5 |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:23:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the BR-6 fix and the targeted tests pass. One last check: whether a similar chmod site elsewhere was touched in this window.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-6, is fixed, and nothing in this window introduces a Critical or Important defect. The code change is small. `makeTreeWritable` used to fall back to a path-based `os.Chmod` when the kernel returned EOPNOTSUPP. That fallback is gone, so every permission change now goes through `unix.Fchmodat(AT_FDCWD, p, …, AT_SYMLINK_NOFOLLOW)` (`cmd/sdlc/testscratch.go:202`). I checked golang.org/x/sys v0.47.0: its Linux `Fchmodat` tries `fchmodat2` and returns EOPNOTSUPP when the kernel lacks it. The error now reaches the caller, and the removal is logged as failed instead of risking a followed symlink. This is the "skip the entry and return the error" option BR-6 offered, and it covers the whole rule, not just one line. The test fixture now cleans up with its own walk instead of the helper under test, which closes a real hazard: a red check or a revert check could leave its tree behind in shared scratch. The interdiff does not change `## Spec`, `## Revisions` or `## Done when`, so there is no scope change.
+
+1. **Strengths**
+   - `cmd/sdlc/testscratch.go:198-202`: one permission-change primitive with no fallback. The comment states the trade-off (kernels without `fchmodat2` fail the removal and it is logged), and that trade-off is safe.
+   - `cmd/sdlc/testscratch_test.go:384-398`: `removeFixtureTree` does not depend on the code under test. It also fails the test if the tree is still there. `WalkDir` calls the callback on a directory before reading it, so the 0o000 and 0o311 directories get their chmod first and the walk can read them.
+   - The `workshop/lessons.md` entries state the rules ("a fixture never cleans up through the helper under test"; "a fix for a race finding names the rule, not the call site"), not just the incidents.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes**
+   - These tests pass on darwin at the head: `go test ./cmd/sdlc -run 'TestSweepStaleTemp|TestPrepareScratch|TestExcludedScratchRoot|TestStaleTempReason'`. `GOOS=linux go vet ./cmd/sdlc` is clean.
+   - BR-6's fix only deletes code. The removed branch could only run on a Linux kernel without `fchmodat2`, which no fixture here can reach. A revert-to-red test cannot be built on this host, and the fix needs none: the change is a deletion, and I checked it against the x/sys source.
+   - Known consequence: on Linux before 6.6, or where seccomp blocks `fchmodat2`, read-only trees are not removed and `TestSweepStaleTempRemovesReadOnlyTrees` would fail there. That is the stated, accepted trade-off. Note it if Linux CI ever runs older kernels.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** within the window. The fixture helper deliberately does not reuse `makeTreeWritable`, which is right for test independence.
+   - **ARCH-PURE: pass.** The thin IO shell is unchanged.
+   - **ARCH-PURPOSE: pass** for the window, with one note for later work. `cmd/sdlc/internal/reviewbox/checkout.go:379-389` has a second `removeTree` that repairs trees with a path-based `os.Chmod`. It falls in the same `symlink-toctou-chmod` class and duplicates `testscratch.go`'s repair (ARCH-DRY). It is outside this window and untouched by it, so I am not raising it as a finding. A follow-up could have both use one shared no-follow tree-repair helper.
+   - **ARCH-EVOLVE: n/a.** No persisted format changes.
+
+7. **Plan revision recommendations:** none. The issue log's 2026-10-25 delta-review entry already says the fallback was removed. The earlier "os.Chmod only on Linux EOPNOTSUPP" log lines are historical entries, and the later entry supersedes them.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Fallback removed at cmd/sdlc/testscratch.go:202; every repair chmod is Fchmodat AT_SYMLINK_NOFOLLOW, and EOPNOTSUPP on old kernels propagates as a logged removal failure (x/sys v0.47.0 Fchmodat confirmed).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9be0cd7d-439b-403a-811d-de058165b3ff","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/5684e998550c707c","reviewed_head":"a87f161315c2f4425aeb4f01793f2c3f890523b5","slot":"ariadne:5","requested_at":"2026-10-25T16:22:38.591454Z"},"phase":"finished","pid":1280,"started_at":"2026-10-25T16:22:38.691696Z","finished_at":"2026-10-25T16:23:29.735663Z","session_id":"65514fef-8fd3-4749-9215-7af11930ea46","outcome":"returned"}] -->

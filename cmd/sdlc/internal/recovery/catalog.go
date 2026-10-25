@@ -323,6 +323,33 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"affected missed list"},
+		Class:         ConvergentRetry,
+		Effects:       "under the missed-mapping ledger's flock (<git-common-dir>/sdlc/affected-missed.json, #616): removes the entries origin/main's affected mapping now covers, written by temporary file and rename; prints the rest. Writes nothing when nothing is covered.",
+		Evidence:      "the ledger file; `sdlc affected missed list --json`.",
+		Preconditions: "a readable ledger (a refused one is named, never rewritten); pruning also needs origin/main's affected.json, declarations and package graph, else it lists without pruning.",
+		Repeat:        "the covered entries are already gone, so no write.",
+		LostResponse:  "rerun: the ledger decides.",
+		Ends:          "every open entry is listed and none is covered.",
+		Proofs: []Proof{
+			{"list prunes what main covers, lists without pruning when the mapping is unavailable, and a read-only list never rewrites", []string{"TestAffectedMissedListAndDismiss"}},
+			{"concurrent writers never lose each other's effects", []string{"TestMissedStoreConcurrentWriters"}},
+		},
+	},
+	{
+		Verbs:         []string{"affected missed dismiss"},
+		Class:         DuplicateSafeRefusal,
+		Effects:       "under the ledger's flock, removes one entry by id (#616), written by temporary file and rename.",
+		Evidence:      "`sdlc affected missed list`.",
+		Preconditions: "--id names an open entry and --reason is not empty; a readable ledger.",
+		Repeat:        "refused: no missed mapping with that id; nothing changes.",
+		LostResponse:  "rerun: a refusal for an unknown id means the first one landed.",
+		Ends:          "the entry is gone.",
+		Proofs: []Proof{
+			{"dismiss removes one entry and a repeat refuses", []string{"TestAffectedMissedListAndDismiss"}},
+		},
+	},
+	{
 		Verbs:         []string{"flake unregister", "flake narrow"},
 		Class:         ConvergentRetry,
 		Effects:       "one compare-and-swap on issue N's flake_tests (#466): unregister drops one name; narrow replaces a name with one of its own subtests (less coverage, so no new evidence). Owner-only: the card's owner, or anyone while the issue is unclaimed, as for publishing its details.",

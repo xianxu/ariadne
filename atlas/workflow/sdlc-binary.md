@@ -2541,7 +2541,12 @@ rule, and a disk that refuses the write falls back), and falls back to the norma
 the normal folder; non-Darwin override fixtures retain their existing behavior.
 The check performs no capability writes; cleanup still scans rejected mounted
 roots for earlier disposable folders. It also sweeps stale run and go-build folders,
-and warns about `t.TempDir` folders a scratched run still left on the SSD temp
+once per run (the host capability probe no longer sweeps too) and never from a test
+process: TestMain registers the machine's shared temp roots with `excludeScratchSweep`
+(#631). The sweep logs each removal's root, folder, reason and duration to the run's
+stderr, and `removeTree` makes read-only directories (a Go module cache a test left
+under its TMPDIR) writable before removing, so a dead run folder goes once instead of
+failing every later sweep. It also warns about `t.TempDir` folders a scratched run still left on the SSD temp
 folders. `pkg/golint`'s `tmp-literal` flags hardcoded temp roots that bypass it.
 
 Fallback also owns and removes a per-run directory and explicitly overrides

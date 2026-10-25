@@ -53,19 +53,44 @@ func (v *TrunkView) FilesSelected(prefix string, selectFile func(TreeFile) bool)
 // listing, one batch request, the same entry, blob and aggregate limits. dir must be non-empty (git would otherwise
 // run against the process cwd) and rev an exact revision, never an option.
 func TreeFilesSelected(ctx context.Context, dir, rev, prefix string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
+	if prefix != "" && !canonicalTreePath(prefix) {
+		return nil, errors.New("snapshot prefix must be a canonical repository-relative directory")
+	}
+	var specs []string
+	if prefix != "" {
+		specs = []string{prefix + "/"}
+	}
+	return treeFiles(ctx, dir, rev, specs, selectFile)
+}
+
+// TreeFilesAt reads exactly the named files at rev (#616), under the same single listing, batch and limits as
+// TreeFilesSelected; a path rev does not have is simply absent from the result.
+func TreeFilesAt(ctx context.Context, dir, rev string, paths []string) ([]TreeFile, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	want := map[string]bool{}
+	for _, p := range paths {
+		if !canonicalTreePath(p) {
+			return nil, fmt.Errorf("snapshot path %q must be a canonical repository-relative path", p)
+		}
+		want[p] = true
+	}
+	return treeFiles(ctx, dir, rev, paths, func(f TreeFile) bool { return want[f.Path] })
+}
+
+func canonicalTreePath(p string) bool {
+	return !path.IsAbs(p) && path.Clean(p) == p && p != "." && p != ".." && !strings.HasPrefix(p, "../") && !strings.ContainsAny(p, "\\\x00")
+}
+
+func treeFiles(ctx context.Context, dir, rev string, specs []string, selectFile func(TreeFile) bool) ([]TreeFile, error) {
 	if strings.TrimSpace(dir) == "" {
 		return nil, errors.New("snapshot: dir must not be empty (git would run against the process cwd)")
 	}
 	if rev == "" || strings.HasPrefix(rev, "-") {
 		return nil, fmt.Errorf("snapshot: bad revision %q", rev)
 	}
-	if prefix != "" && (path.IsAbs(prefix) || path.Clean(prefix) != prefix || prefix == "." || strings.HasPrefix(prefix, "../") || strings.ContainsAny(prefix, "\\\x00")) {
-		return nil, errors.New("snapshot prefix must be a canonical repository-relative directory")
-	}
-	args := []string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", rev, "--"}
-	if prefix != "" {
-		args = append(args, prefix+"/")
-	}
+	args := append([]string{"--literal-pathspecs", "ls-tree", "-r", "-z", "--full-tree", rev, "--"}, specs...)
 	out, diag, err := runGitBoundedInputContext(ctx, dir, nil, nil, snapshotOutputLimit, args...)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot tree: %w\n%s", err, diag)

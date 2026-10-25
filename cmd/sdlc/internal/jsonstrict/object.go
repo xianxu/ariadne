@@ -1,4 +1,4 @@
-package landingline
+package jsonstrict
 
 import (
 	"bytes"
@@ -9,16 +9,14 @@ import (
 	"slices"
 )
 
-// The line's sidecars (ready/, outcomes/) are written by one process and
-// read by another, so each decode is a boundary (ARCH-SECURE) and each
-// rewrite must carry a later sdlc's members forward (ARCH-EVOLVE). This is
-// the one codec both use: strict where the schema is known, tolerant and
-// preserving where it isn't.
+// A persisted record written by one sdlc and read by another is a boundary (ARCH-SECURE), and each rewrite must carry a
+// later sdlc's members forward (ARCH-EVOLVE). DecodeObject and EncodeWithExtra are the one codec for such records:
+// strict where the schema is known, tolerant and preserving where it isn't (the landing line's sidecars, #616's
+// missed-mapping ledger).
 
-// decodeStrict parses one JSON object: no duplicate member, every known
-// member (by exact name, never encoding/json's case-insensitive match) of its
-// exact type and non-null, no trailing data. Unknown members are returned raw.
-func decodeStrict(data []byte, fields map[string]any) (map[string]json.RawMessage, error) {
+// DecodeObject parses one JSON object: no duplicate member, every known member (by exact name, never encoding/json's
+// case-insensitive match) of its exact type and non-null, no trailing data. Unknown members are returned raw.
+func DecodeObject(data []byte, fields map[string]any) (map[string]json.RawMessage, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return nil, errors.New("not one JSON object")
@@ -63,9 +61,9 @@ func decodeStrict(data []byte, fields map[string]any) (map[string]json.RawMessag
 	return extra, nil
 }
 
-// encodeWithExtra appends extra's members, sorted, to base (an encoded
-// object), skipping any that names a known member: extra never overrides.
-func encodeWithExtra(base []byte, extra map[string]json.RawMessage, known func(string) bool) []byte {
+// EncodeWithExtra appends extra's members, sorted, to base (an encoded object), skipping any that names a known
+// member: extra never overrides.
+func EncodeWithExtra(base []byte, extra map[string]json.RawMessage, known func(string) bool) []byte {
 	keys := make([]string, 0, len(extra))
 	for k := range extra {
 		if !known(k) {

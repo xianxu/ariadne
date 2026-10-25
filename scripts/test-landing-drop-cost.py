@@ -25,9 +25,11 @@ import tempfile
 import time
 
 
+# The line's strict, preserving codec lives in jsonstrict (#616); its statements count as the line's own.
 REQUIRED_PRODUCTION = {
-    "traincontrol.go", "traincontrol_io.go", "trainstate.go", "line.go", "codec.go"
+    "traincontrol.go", "traincontrol_io.go", "trainstate.go", "line.go", "object.go"
 }
+COUNTED_PREFIXES = ("/internal/landingline/", "/internal/jsonstrict/object.go")
 
 
 def work(profile: Path) -> int:
@@ -40,7 +42,7 @@ def work(profile: Path) -> int:
         location, statements, count = line.rsplit(" ", 2)
         filename = location.rsplit(":", 1)[0]
         name = Path(filename).name
-        if "/internal/landingline/" in filename:
+        if any(p in filename for p in COUNTED_PREFIXES):
             total += int(statements) * int(count)
             seen.add(name)
     if not REQUIRED_PRODUCTION.issubset(seen) or total <= 0:
@@ -108,7 +110,8 @@ def run_command(command, root: Path, deadline: float, *, supervised: bool):
 def run(output: Path, root: Path, deadline: float, *, supervised: bool) -> int:
     binary = output / "landing-drop-cost.test"
     build = run_command(
-        ["go", "test", "-c", "-p=1", "-covermode=count", "-o", str(binary),
+        ["go", "test", "-c", "-p=1", "-covermode=count",
+         "-coverpkg=./cmd/sdlc/internal/landingline,./cmd/sdlc/internal/jsonstrict", "-o", str(binary),
          "./cmd/sdlc/internal/landingline"],
         root, deadline, supervised=supervised,
     )
