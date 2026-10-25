@@ -107,3 +107,73 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dcb222ab-5f5b-44a3-8ebf-b4e2043aa0f9","repository":"github.com/xianxu/ariadne","issue_id":"000616","recipe":"milestone-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/9bb86c558d094a3c","reviewed_head":"1202e2c2f70aa952a140c9bc03574e5791b8ce69","slot":"ariadne:5","requested_at":"2026-10-25T09:58:30.612755Z"},"phase":"finished","pid":90912,"started_at":"2026-10-25T09:58:30.705471Z","finished_at":"2026-10-25T10:06:18.238233Z","session_id":"811a77e0-b3f1-42aa-8bb0-ad6102adfc9e","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T04:09:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 616 — Affected planning: traceability input and missed-mapping ledger |
+| repo | ariadne |
+| issue file | workshop/issues/000616-affected-traceability-missed-mappings.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e5756748b4e982b3933b90e1c5a0b917bb5ef536..bfc0039e11803740b669bc253d0a1b086828905b |
+| command | sdlc close --issue 616 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T04:09:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three open Minors (BR-4, BR-5, BR-6) are fixed in this window, and the window adds no new Critical or Important defect. BR-4 is fixed for the whole class: `Record` now dedupes by entry ID within one observation. Any number of misses that resolve to the same (package, path set) entry count as one hit, so this covers several failing tests in one package as well as a train's subtest leaves. I confirmed the regression test catches the bug: I removed the `seen[id]` guard and `TestMissedLedgerOneSightingPerObservation` failed; with the guard restored it passes. BR-5 sends every note to stderr under `--json`, both the coverage error and the "covered now, removed" lines, and the test now checks stderr in JSON mode. BR-6 is documented in the atlas and marked in the `list` output. The issue-file diff only changes status, timestamps and log lines; `## Spec`, `## Revisions` and `## Done when` are unchanged, so scope did not change. `go test ./internal/affected/ . -run Missed` passes at head.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/affected/missed.go:112-118`: the dedupe sits at the entry-ID level inside the pure `Record`, so it fixes the whole family and needs no IO in its test.
+   - `cmd/sdlc/affected_missed_cmd.go:156-166`: one `note` writer chosen per output mode replaces the old text-only branch. There is now one place that emits notes, so a later note cannot be added to only one mode.
+   - `atlas/workflow/ci-merge-check.md:431-433` states the truncation limit in the same section that defines `affected.Missed`.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `missed.go:102`: the edited doc comment runs past the file's usual wrap width. Style only; not raised.
+
+5. **Test coverage notes**
+   - BR-4: the new test fails without the fix and covers one package with two tests plus a second package.
+   - BR-5: the JSON-mode stderr check covers the pruned-note path. The coverage-error note in JSON mode goes through the same `note` writer but has no dedicated assertion. That is acceptable because the routing is shared.
+   - BR-6: the change is to wording and output text only. The atlas passage matches the code: `kept` is capped at `missedPathCap` and the ID is keyed by the full `paths`.
+
+6. **Architectural notes (interdiff only)**
+   - **ARCH-DRY: pass.** The duplicated per-mode note printing was merged into a single path.
+   - **ARCH-PURE: pass.** The dedupe logic is in the pure ledger, and the command layer only picks a writer.
+   - **ARCH-PURPOSE: pass.** BR-4 was fixed for every way misses can share an ID, not only the case the finding named. BR-5 covers both note kinds.
+   - **ARCH-EVOLVE: pass.** The persisted format did not change, and `Extra` (unknown members) is still carried over on update.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Record dedupes by entry ID per observation (missed.go:112-118); TestMissedLedgerOneSightingPerObservation fails with the guard removed (verified by revert) and passes at head.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      runMissedList routes both the coverage-error and pruned notes to stderr under --json (affected_missed_cmd.go:156-166); the test asserts the stderr note in JSON mode, which the prior code would fail.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Atlas ci-merge-check.md:431-433 documents that pruning plans only the stored 20 paths; list output now marks truncated entries. Matches missed.go kept/missedPathCap and MissID keyed by full paths.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"079c6056-a1ef-41d4-95fb-f2fe8a19be5f","repository":"github.com/xianxu/ariadne","issue_id":"000616","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/0680b5b85f07c9ff","reviewed_head":"bfc0039e11803740b669bc253d0a1b086828905b","slot":"ariadne:5","requested_at":"2026-10-25T11:08:52.688912Z"},"phase":"finished","pid":91636,"started_at":"2026-10-25T11:08:52.784617Z","finished_at":"2026-10-25T11:09:56.968513Z","session_id":"93c160db-d340-45fe-8cb2-6f98abe7315c","outcome":"returned"}] -->
