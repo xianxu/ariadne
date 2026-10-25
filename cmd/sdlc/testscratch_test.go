@@ -365,6 +365,16 @@ func readOnlyModCache(t *testing.T, dir string) {
 			t.Fatal(err)
 		}
 	}
+	// Directories without owner read too: a fix that must open them fails here.
+	for name, perm := range map[string]os.FileMode{"search-only": 0o311, "none": 0o000} {
+		p := filepath.Join(dir, "launcher-1", name)
+		if err := os.MkdirAll(filepath.Join(p, "inner"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(p, perm); err != nil {
+			t.Fatal(err)
+		}
+	}
 	// Leave the fixture removable whatever the code under test does.
 	t.Cleanup(func() { _ = makeTreeWritable(dir) })
 }

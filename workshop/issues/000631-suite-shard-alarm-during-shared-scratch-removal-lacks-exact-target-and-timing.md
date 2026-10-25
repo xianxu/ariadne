@@ -154,3 +154,4 @@ created by testing.(*T).Run in goroutine 1
   Revisions entry. Not changed: the "kept" line for a protected folder. The premise was one line per prepareScratch
   call, but production now sweeps once per run and tests never sweep shared roots, so it is one line per run, and
   Done when requires the protection decision in the log.
+- 2026-10-25: delta review FIX-THEN-SHIP, BR-5 (Important, valid): the O_NOFOLLOW open needs the read bit, so a 0o311 or 0o000 directory survived where the base removed it. Fixed with unix.Fchmodat(AT_SYMLINK_NOFOLLOW), falling back to os.Chmod only on Linux without fchmodat2 (EOPNOTSUPP); readOnlyModCache now adds 0o311 and 0o000 directories, which fail against the open-handle version and pass now. GOOS=linux build ok.

@@ -16,8 +16,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/scratchdisk"
 )
@@ -172,9 +173,9 @@ func removeTree(path string) error {
 }
 
 // makeTreeWritable gives the owner write and search on every directory under
-// root. WalkDir never follows a symlink, and the change goes through a handle
-// opened with O_NOFOLLOW, so a symlink swapped in after the walk looked fails
-// instead of changing something outside the tree.
+// root. WalkDir never follows a symlink, and the change uses
+// AT_SYMLINK_NOFOLLOW, so a symlink swapped in after the walk looked is not
+// followed out of the tree.
 func makeTreeWritable(root string) error {
 	return filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -194,11 +195,14 @@ func makeTreeWritable(root string) error {
 		if perm&0o700 == 0o700 {
 			return nil
 		}
-		f, err := os.OpenFile(p, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
-		if err != nil {
-			return err
+		// Not through an opened handle: opening needs the read bit a 0o311 or
+		// 0o000 directory lacks.
+		err = unix.Fchmodat(unix.AT_FDCWD, p, uint32(perm|0o700), unix.AT_SYMLINK_NOFOLLOW)
+		if errors.Is(err, unix.EOPNOTSUPP) {
+			// Linux without fchmodat2: WalkDir's lstat just found a directory here.
+			err = os.Chmod(p, perm|0o700)
 		}
-		return errors.Join(f.Chmod(perm|0o700), f.Close())
+		return err
 	})
 }
 
