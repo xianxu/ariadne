@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -18,6 +19,9 @@ import (
 // rerun sees it running, as the real Couch would show it.
 type fakeCouch struct {
 	attemptsMu       sync.Mutex
+	recoveryData     RecoverySnapshot
+	recoveryErr      error
+	recoveryReads    int
 	live             map[string]bool
 	actorsErr        error
 	candidates       map[string]ResumeCandidates
@@ -33,6 +37,8 @@ type fakeCouch struct {
 }
 
 func (f *fakeCouch) Actors() (map[string]Actor, error) {
+	f.attemptsMu.Lock()
+	defer f.attemptsMu.Unlock()
 	f.actorsReads++
 	if f.actorsErr != nil {
 		return nil, f.actorsErr
@@ -45,6 +51,8 @@ func (f *fakeCouch) Actors() (map[string]Actor, error) {
 }
 
 func (f *fakeCouch) Candidates(addr string) (ResumeCandidates, error) {
+	f.attemptsMu.Lock()
+	defer f.attemptsMu.Unlock()
 	f.candReads++
 	return f.candidates[addr], f.candErr[addr]
 }
@@ -52,8 +60,11 @@ func (f *fakeCouch) Candidates(addr string) (ResumeCandidates, error) {
 func (f *fakeCouch) Resume(addr string) error {
 	f.attemptsMu.Lock()
 	f.attempted = append(f.attempted, addr)
+	delay := f.delays[addr]
 	f.attemptsMu.Unlock()
-	time.Sleep(f.delays[addr])
+	time.Sleep(delay)
+	f.attemptsMu.Lock()
+	defer f.attemptsMu.Unlock()
 	if err := f.resumeErr[addr]; err != nil {
 		if f.failureAddsActor {
 			f.live[addr] = true
@@ -66,7 +77,19 @@ func (f *fakeCouch) Resume(addr string) error {
 	}
 	f.live[addr] = true
 	f.resumed = append(f.resumed, addr)
+	for i := range f.recoveryData.Slots {
+		if f.recoveryData.Slots[i].Address == addr {
+			f.recoveryData.Slots[i].Asleep = false
+		}
+	}
 	return nil
+}
+
+func (f *fakeCouch) Recovery(context.Context, string) (RecoverySnapshot, error) {
+	f.attemptsMu.Lock()
+	defer f.attemptsMu.Unlock()
+	f.recoveryReads++
+	return RecoverySnapshot{Slots: append([]RecoverySlot(nil), f.recoveryData.Slots...)}, f.recoveryErr
 }
 
 func (f *fakeCouch) attempts() []string {
@@ -111,26 +134,33 @@ func fleetFixture(t *testing.T) (deps, *fakeCouch, string) {
 		candErr:   map[string]error{"pair:5": errors.New("couch busy")},
 		resumeErr: map[string]error{"pair:6": errors.New("refused: wrapper is stale"), "pair:8": fmt.Errorf("%w: no answer", errUncertain)},
 	}
-	return deps{sdlc: s, actors: c, resume: c}, c, filepath.Join(ws, "ops")
+	for _, sl := range slots {
+		evidence := RecoverySlot{FleetSlot: sl, Asleep: len(sl.Claims) > 0 || !sl.ClaimsKnown, Pending: len(sl.Claims) > 0}
+		if !sl.ClaimsKnown {
+			evidence.Unknown = "claims unreadable: " + sl.ClaimsWhy
+		}
+		c.recoveryData.Slots = append(c.recoveryData.Slots, evidence)
+	}
+	return deps{sdlc: s, actors: c, resume: c, recovery: c}, c, filepath.Join(ws, "ops")
 }
 
 func TestFleetResumeDryRun(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	var out bytes.Buffer
-	if err := fleetResume(&out, d, cwd, false); err != nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, false); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()
 	for _, want := range []string{
 		invisibleLayers,
 		"resume    pair:2", "resume    pair:6", "resume    pair:8",
-		"ambiguous pair:3  pair#703; no proven conversation",
+		"unknown   pair:3  pair#703; candidates incomplete",
 		"(1 unclaimed slot(s); --all to list)",
 		"ambiguous tools:1  claimed by ops and ops-echo", // a tie is never this hub's to resume
 		"unknown   pair:5  pair#705; candidates unreadable: couch busy",
 		"unknown   ariadne:1  claims unreadable: claims unknown", // a failed claims read is never idle
-		"running   pair:1", "idle      pair:4",
-		"(3 slot(s) belong to other hubs)", // ops-echo:0, pair:7 (exact claim), echo:1
+		"running   pair:1", "skipped   pair:4  no explicit asleep mark",
+		"(2 slot(s) belong to other hubs)", // pair:7 (exact claim), echo:1; all slot-zero hubs are excluded
 		"dry run",
 	} {
 		if !strings.Contains(got, want) {
@@ -153,14 +183,14 @@ func TestFleetResumeDryRun(t *testing.T) {
 func TestFleetResumeApplyThenRerun(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	var out bytes.Buffer
-	if err := fleetResume(&out, d, cwd, true); err == nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
 		t.Fatal("expected the batch to stop at pair:6")
 	}
 	got := out.String()
 	for _, want := range []string{
 		"resuming pair:2, pair:6, pair:8",
 		"resumed   pair:2",
-		"refused   pair:6: refused: wrapper is stale",
+		"failed    pair:6: refused: wrapper is stale",
 		"not attempted: pair:8",
 	} {
 		if !strings.Contains(got, want) {
@@ -172,7 +202,7 @@ func TestFleetResumeApplyThenRerun(t *testing.T) {
 	}
 	// A rerun re-reads liveness: pair:2 is running now and never resumed twice.
 	out.Reset()
-	if err := fleetResume(&out, d, cwd, true); err == nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
 		t.Fatal("expected the batch to stop at pair:6")
 	}
 	if !strings.Contains(out.String(), "running   pair:2") || strings.Join(c.resumed, ",") != "pair:2" {
@@ -186,8 +216,8 @@ func TestFleetResumeActorsUnreadable(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	c.actorsErr = errors.New("socket denied")
 	var out bytes.Buffer
-	if err := fleetResume(&out, d, cwd, true); err != nil {
-		t.Fatal(err)
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
+		t.Fatal("unknown actors must produce an incomplete handoff")
 	}
 	if strings.Contains(out.String(), "resume    ") || len(c.resumed) != 0 || !strings.Contains(out.String(), "unknown   pair:2") || strings.Count(out.String(), "socket denied") != 1 {
 		t.Fatalf("resumed on an unknown read:\n%s", out.String())
@@ -199,7 +229,7 @@ func TestFleetResumeNeedsAHub(t *testing.T) {
 	d, _, _ := fleetFixture(t)
 	plain := filepath.Join(t.TempDir(), "pair")
 	gitInit(t, plain)
-	if err := fleetResume(&bytes.Buffer{}, d, plain, false); err == nil || !strings.Contains(err.Error(), "no .hub") {
+	if err := fleetResume(t.Context(), &bytes.Buffer{}, d, plain, false); err == nil || !strings.Contains(err.Error(), "no .hub") {
 		t.Fatalf("err %v", err)
 	}
 }

@@ -54,6 +54,44 @@ func TestClassifyResumeResult(t *testing.T) {
 	}
 }
 
+func TestClassifyResumeFailureIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		code, diagnostic string
+		stable           bool
+	}{
+		{"not-offered", "", true}, {"", "wrapper-ended", true}, {"", "", false},
+	} {
+		raw := fmt.Sprintf(`{"ID":"receipt","Op":"resume","Target":"pair:3","Status":"refused","Code":%q,"Diagnostic":%q}`, tc.code, tc.diagnostic)
+		err := classifyResumeResult("pair:3", resumeResult{stdout: raw, started: true, normal: true, exitCode: 1})
+		var coded codedResumeFailure
+		if !errors.As(err, &coded) {
+			t.Fatalf("lost structured failure: %v", err)
+		}
+		key, stable := coded.failureKey()
+		if stable != tc.stable || key.Status != "refused" || key.Code != tc.code || key.Diagnostic != tc.diagnostic {
+			t.Fatalf("key=%+v stable=%v", key, stable)
+		}
+	}
+}
+
+func TestResumeReceiptNeedsCompleteLocalResult(t *testing.T) {
+	raw := `{"ID":"r","Op":"resume","Target":"pair:3","Status":"succeeded"}`
+	for _, tc := range []struct {
+		name string
+		r    resumeResult
+	}{
+		{"pipe error", resumeResult{stdout: raw, started: true, normal: true, exitCode: 0, processError: "pipe draining incomplete"}},
+		{"capture overflow", resumeResult{stdout: raw, started: true, normal: true, exitCode: 0, outputExceeded: true}},
+		{"duplicate status", resumeResult{stdout: strings.Replace(raw, `"Status":"succeeded"`, `"Status":"failed","STATUS":"succeeded"`, 1), started: true, normal: true, exitCode: 0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := classifyResumeResult("pair:3", tc.r); !errors.Is(err, errUncertain) {
+				t.Fatalf("incomplete local proof accepted: %v", err)
+			}
+		})
+	}
+}
+
 func TestFleetResumeStopsAtFirstFailure(t *testing.T) {
 	for _, uncertain := range []bool{false, true} {
 		t.Run(fmt.Sprint(uncertain), func(t *testing.T) {
@@ -62,7 +100,7 @@ func TestFleetResumeStopsAtFirstFailure(t *testing.T) {
 				c.resumeErr["pair:6"] = fmt.Errorf("%w: request req-6", errUncertain)
 			}
 			var out strings.Builder
-			err := fleetResume(&out, d, cwd, true)
+			err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1})
 			if err == nil {
 				t.Fatalf("failure must stop with nonzero: %s", out.String())
 			}
@@ -82,10 +120,19 @@ func TestFleetResumeStopsAtFirstFailure(t *testing.T) {
 func TestFleetResumeSerialCompletion(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d, c, cwd := fleetFixture(t)
+		var eligible []RecoverySlot
+		for _, row := range c.recoveryData.Slots {
+			if row.Address == "pair:2" || row.Address == "pair:6" || row.Address == "pair:8" {
+				eligible = append(eligible, row)
+			}
+		}
+		c.recoveryData.Slots = eligible
 		c.resumeErr = map[string]error{}
 		c.delays = map[string]time.Duration{"pair:2": 10 * time.Second, "pair:6": 20 * time.Second, "pair:8": 30 * time.Second}
 		done := make(chan error, 1)
-		go func() { done <- fleetResume(&strings.Builder{}, d, cwd, true) }()
+		go func() {
+			done <- fleetResume(t.Context(), &strings.Builder{}, d, cwd, true, resumeOptions{Concurrency: 1})
+		}()
 		synctest.Wait()
 		if strings.Join(c.attempts(), ",") != "pair:2" {
 			t.Fatalf("didn't wait for first completion: %v", c.attempts())
@@ -147,8 +194,8 @@ func TestFleetResumeAllIsVisibilityOnly(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	c.resumeErr = map[string]error{}
 	var out strings.Builder
-	if err := fleetResume(&out, d, cwd, true, true); err != nil {
-		t.Fatal(err)
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{All: true, Concurrency: 1}); err == nil {
+		t.Fatal("unknown/tied workers must leave the handoff incomplete")
 	}
 	for _, addr := range []string{"brain:1", "echo:1", "pair:7", "ops-echo:0"} {
 		if !strings.Contains(out.String(), addr) {
@@ -222,7 +269,7 @@ func TestFleetResumeUncertainObservationIsDiagnostic(t *testing.T) {
 				c.failureActorsErr = errors.New("recheck denied")
 			}
 			var out strings.Builder
-			if err := fleetResume(&out, d, cwd, true); !errors.Is(err, errUncertain) {
+			if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); !errors.Is(err, errUncertain) {
 				t.Fatalf("promoted uncertain result: %v", err)
 			}
 			want := "observed pair:6 running; operation outcome remains uncertain"
