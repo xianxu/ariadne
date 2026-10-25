@@ -53,7 +53,7 @@ split between bugs and features, and no measure of whether bugs are under contro
 
 Durable plan: [000633 plan](../plans/000633-tl-lead-weekly-backlog-triage-bugs-vs-feature-themes-one-bug-slot-per-repo-plan.md).
 
-- [ ] M1 — the `kind` card field, `sdlc issue set-kind`, and `sdlc issue list --json` over every card
+- [x] M1 — the `kind` card field, `sdlc issue set-kind`, and `sdlc issue list --json` over every card
 - [ ] M2 — `tl-lead triage stats` and the WEEKLY BACKLOG TRIAGE duty in help
 
 ## Estimate
@@ -90,6 +90,7 @@ Items:
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: closed M1 — M1 at 3528c2ed5 (round 1 REWORK fixed): issue list --json is its own CardRow format, v1 keys pinned by TestIssueListJSONFieldSetIsPinned; TestIssueListJSONIncludesTerminalCards incl. --kind, --status done and --status open keeping unreadable rows; TestCardRowOfUnparsedDetails; TestIssueListJSONWithoutTracker; TestIssueSetKind (done card keeps updated); TestParseCardRefusesUnknownKind; filter cases; regressions green (issue list/severity/malformed-card, cmd/sdlc help/recovery/catalog, pkg/vocab, internal/issue, internal/recovery, cmd/vocabulary, CUE vet). Live: new sdlc issue list --json reads all 630 ariadne cards, 0 unreadable. README, atlas and plan Revisions updated.; review verdict: SHIP
 - 2026-10-25: plan approved by the TL. kind is a card field with no heuristics; the TL back-fills the last 4 weeks of closed cards once after M1 lands; the unknown-key test runs first.
 - 2026-10-25: ARCH-EVOLVE gate (M1 step 1) holds, so the work continues. `TestOlderCardReaderPreservesUnknownFieldsThroughSetters` (`cmd/sdlc/internal/issue/cardunknown_test.go`, #460) already proves that a top-level unknown key survives every card setter, and it passes. Pair pins ariadne 5a17f789 (10-24), which contains both #460 commits (429930268, f6124b5ef), so pair's sdlc keeps `kind` through any rewrite. No new test is needed.
 - 2026-10-25: M1 built.
