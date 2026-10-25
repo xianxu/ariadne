@@ -75,6 +75,41 @@ rounds:
       isolation: fenced
       reviewed: 77425d4f8952fa41f8b20d4ae304eecf63608a7e
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 107a43f2-c56b-48f0-a07a-c286777ee92b
+            repository: github.com/xianxu/ariadne
+            issue_id: "000564"
+            recipe: fix-review
+            round: 3
+            attempt: 1
+            agent: codex
+            root: /Volumes/TestScratch/review-checkouts/da52f2cc9ab072ad
+            reviewed_head: d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb
+            slot: ariadne:3
+            requested_at: "2026-10-25T02:14:12.241027Z"
+          phase: finished
+          pid: 55957
+          started_at: "2026-10-25T02:14:12.384068Z"
+          finished_at: "2026-10-25T02:15:12.635271Z"
+          session_id: 01a170d6-4432-7892-8547-1fc3e53cf60a
+          outcome: returned
+      "n": 3
+      timestamp: "2026-10-24T19:15:15-07:00"
+      dispatched: "2026-10-24T19:14:12-07:00"
+      agent: codex
+      reviewer: codex (openai; author openai)
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: 'The prior correction remains intact: agent evidence is validated before marker absence. Decoder and CLI handoff regressions pass at pinned HEAD; this interdiff does not alter that behavior.'
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      reviewed: d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb
+      blocked: false
 ---
 
 # Gate ledger — ariadne#564 (boundary-review)
@@ -94,6 +129,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-1 — addressed — fleet_recovery.go:101 validates agent evidence before marker absence and retains diagnostics. Decoder and CLI regressions pass at HEAD; removing the guard in a disposable checkout makes both fail and reproduces the false successful handoff. The private executable unavailable-evidence case also passes. Disposable artifacts were removed.
+
+## Round 3 — 2026-10-24T19:15:15-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The prior correction remains intact: agent evidence is validated before marker absence. Decoder and CLI handoff regressions pass at pinned HEAD; this interdiff does not alter that behavior.
 
 ## Open findings
 

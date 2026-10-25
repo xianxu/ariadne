@@ -174,3 +174,70 @@ dispose:
    None. The existing BR-1 revision accurately describes the correction and its regression coverage.
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"7e28675a-9c6c-49a0-9da5-e8fc86a14168","repository":"github.com/xianxu/ariadne","issue_id":"000564","recipe":"milestone-review","round":2,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/c5241420f2a0ddc3","reviewed_head":"77425d4f8952fa41f8b20d4ae304eecf63608a7e","slot":"ariadne:3","requested_at":"2026-10-25T01:51:19.843063Z"},"phase":"finished","pid":69727,"started_at":"2026-10-25T01:51:19.954877Z","finished_at":"2026-10-25T01:53:54.021845Z","session_id":"01a170c1-5442-7122-94dc-98a60b800fa5","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T19:15:14-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 564 — tl-lead fleet resume: bounded concurrency, and rebuild ariadne:0 first after a restart |
+| repo | ariadne |
+| issue file | workshop/issues/000564-tl-lead-fleet-resume-bounded-concurrency-and-rebuild-ariadne-0-first-after-a-restart.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e7a14009840ebed6f6319bd53dafadde368c9390..d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb |
+| command | sdlc close --issue 564 |
+| reviewer | codex (openai; author openai) |
+| isolation | fenced |
+| timestamp | 2026-10-24T19:15:14-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The interdiff correctly repairs command-discovery expectations after the shared `cmd/internal` extraction. No new runtime behavior, scope expansion, or blocking defect was found. The checkout remains unchanged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The prior correction remains intact: agent evidence is validated before marker absence. Decoder and CLI handoff regressions pass at pinned HEAD; this interdiff does not alter that behavior.
+```
+
+1. **Strengths**
+
+   - All three corrected selectors exclude namespaces while retaining command entrypoints.
+   - Owner-build expectations preserve the existing `weave` exclusion.
+   - Sandbox expectations retain explicit error handling (`cmd/weave/internal/settingsx/base_settings_test.go:74`).
+   - The plan revision records the CI correction without changing the recovery contract.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed the portable Makefile fixture, targeted sandbox-policy test, both BR-1 regressions, and slot-dependency shell syntax check. Running the base versions of the portable fixture and sandbox test against HEAD reproduced their failures. Both Python selectors also passed independent command, namespace, library, and gateway controls.
+
+   The full slot-dependency acceptance matrix and repository suite were not rerun.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** independent fixtures consistently apply the existing command-entrypoint convention.
+   - **ARCH-PURE — pass:** changes remain within integration-test discovery.
+   - **ARCH-PURPOSE — pass:** the correction covers all three affected expectations found in the sweep.
+   - **ARCH-EVOLVE — pass:** no persisted-format semantics change.
+
+   No new architectural or user-facing surface requires atlas or README updates.
+
+7. **Plan revision recommendations:** None.
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"107a43f2-c56b-48f0-a07a-c286777ee92b","repository":"github.com/xianxu/ariadne","issue_id":"000564","recipe":"fix-review","round":3,"attempt":1,"agent":"codex","root":"/Volumes/TestScratch/review-checkouts/da52f2cc9ab072ad","reviewed_head":"d6fdeba76cdfb6a3e24d3ed142e8067a723f1ffb","slot":"ariadne:3","requested_at":"2026-10-25T02:14:12.241027Z"},"phase":"finished","pid":55957,"started_at":"2026-10-25T02:14:12.384068Z","finished_at":"2026-10-25T02:15:12.635271Z","session_id":"01a170d6-4432-7892-8547-1fc3e53cf60a","outcome":"returned"}] -->
