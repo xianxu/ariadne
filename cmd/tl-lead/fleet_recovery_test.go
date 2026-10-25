@@ -158,3 +158,18 @@ func TestFleetResumeRequiresCompleteProvenCandidate(t *testing.T) {
 		t.Fatalf("%v\n%s", c.attempts(), out.String())
 	}
 }
+
+func TestCandidateReplyRequiresCompletenessEvidence(t *testing.T) {
+	for _, raw := range []string{
+		`{"proven":{"native_id":"conversation"}}`,
+		`{"proven":{"native_id":"conversation"},"incomplete":null}`,
+	} {
+		c, err := decodeCandidates([]byte(raw))
+		if err != nil || !c.Incomplete {
+			t.Fatalf("missing completeness treated as complete: %+v %v", c, err)
+		}
+	}
+	if _, err := decodeCandidates([]byte(`{"proven":{"native_id":"x","NATIVE_ID":"y"},"incomplete":false}`)); err == nil {
+		t.Fatal("duplicate proof key accepted")
+	}
+}

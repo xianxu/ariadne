@@ -183,14 +183,14 @@ func TestFleetResumeDryRun(t *testing.T) {
 func TestFleetResumeApplyThenRerun(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	var out bytes.Buffer
-	if err := fleetResume(t.Context(), &out, d, cwd, true); err == nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
 		t.Fatal("expected the batch to stop at pair:6")
 	}
 	got := out.String()
 	for _, want := range []string{
 		"resuming pair:2, pair:6, pair:8",
 		"resumed   pair:2",
-		"refused   pair:6: refused: wrapper is stale",
+		"failed    pair:6: refused: wrapper is stale",
 		"not attempted: pair:8",
 	} {
 		if !strings.Contains(got, want) {
@@ -202,7 +202,7 @@ func TestFleetResumeApplyThenRerun(t *testing.T) {
 	}
 	// A rerun re-reads liveness: pair:2 is running now and never resumed twice.
 	out.Reset()
-	if err := fleetResume(t.Context(), &out, d, cwd, true); err == nil {
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
 		t.Fatal("expected the batch to stop at pair:6")
 	}
 	if !strings.Contains(out.String(), "running   pair:2") || strings.Join(c.resumed, ",") != "pair:2" {
@@ -216,8 +216,8 @@ func TestFleetResumeActorsUnreadable(t *testing.T) {
 	d, c, cwd := fleetFixture(t)
 	c.actorsErr = errors.New("socket denied")
 	var out bytes.Buffer
-	if err := fleetResume(t.Context(), &out, d, cwd, true); err != nil {
-		t.Fatal(err)
+	if err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}); err == nil {
+		t.Fatal("unknown actors must produce an incomplete handoff")
 	}
 	if strings.Contains(out.String(), "resume    ") || len(c.resumed) != 0 || !strings.Contains(out.String(), "unknown   pair:2") || strings.Count(out.String(), "socket denied") != 1 {
 		t.Fatalf("resumed on an unknown read:\n%s", out.String())

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/internal/jsonstrict"
 )
 
 // CouchResume is the seam over Couch's per-slot resume verbs (couch
@@ -57,32 +57,35 @@ func (c execResume) Candidates(addr string) (ResumeCandidates, error) {
 	limit := orDuration(c.candidates, candidatesTimeout)
 	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, c.bin, "--resume-candidates", addr, "--json").Output()
+	out, err := docRepositoryOutput(ctx, "", c.bin, "--resume-candidates", addr, "--json")
 	if err != nil {
-		var ee *exec.ExitError
 		if ctx.Err() != nil {
-			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: no answer within %s", addr, limit)
+			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: no answer within %s: %w", addr, limit, err)
 		}
-		if errors.As(err, &ee) {
-			return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: %s", addr, strings.TrimSpace(string(ee.Stderr)))
-		}
-		return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: %v", addr, err)
+		return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates %s: %w", addr, err)
 	}
 	return decodeCandidates(out)
 }
 
 func decodeCandidates(raw []byte) (ResumeCandidates, error) {
+	if err := jsonstrict.RejectDuplicateKeys(raw); err != nil {
+		return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates: unreadable reply: %w", err)
+	}
 	var in struct {
 		Proven *struct {
 			NativeID string `json:"native_id"`
 		}
-		Incomplete bool
+		Incomplete *bool
 		Reasons    []string
 	}
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return ResumeCandidates{}, fmt.Errorf("couch --resume-candidates: unreadable reply: %v", err)
 	}
-	return ResumeCandidates{Proven: in.Proven != nil && in.Proven.NativeID != "", Incomplete: in.Incomplete, Reasons: in.Reasons}, nil
+	incomplete := in.Incomplete == nil || *in.Incomplete
+	if in.Incomplete == nil {
+		in.Reasons = append(in.Reasons, "missing completeness evidence")
+	}
+	return ResumeCandidates{Proven: in.Proven != nil && strings.TrimSpace(in.Proven.NativeID) != "", Incomplete: incomplete, Reasons: in.Reasons}, nil
 }
 
 // slotClass is what fleet resume makes of one slot.
@@ -142,7 +145,7 @@ func planResume(in resumeInputs) (rows []resumeRow, others, unclaimed int) {
 			case own.Unclaimed:
 				unclaimed++
 				if in.All {
-					rows = append(rows, resumeRow{addr, classAmbiguous, why, false})
+					rows = append(rows, resumeRow{addr, classExcluded, why, false})
 				}
 			case containsStr(own.Owners, in.Scope.self):
 				rows = append(rows, resumeRow{addr, classAmbiguous, why, false})
@@ -213,11 +216,22 @@ func containsStr(xs []string, x string) bool {
 // invisibleLayers is said on every run: what Couch knows that tl-lead can't.
 const invisibleLayers = "note: Couch runtime moves (couch --move-slot since Couch started) are not visible here; a moved slot is classed by .hub"
 
-// fleetResume reads, plans, prints, and with apply resumes the resume class
-// one slot at a time. Every unsuccessful outcome stops the batch; uncertainty
-// permits only read-only inspection, never an automatic mutation retry.
-func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply bool, allFlags ...bool) error {
-	all := len(allFlags) > 0 && allFlags[0]
+// fleetResume captures one report and plans worker waves. The bounded batch
+// owns admission and stop decisions; uncertainty never permits an automatic retry.
+type resumeOptions struct {
+	All         bool
+	Concurrency int
+}
+
+func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply bool, options ...resumeOptions) error {
+	opt := resumeOptions{Concurrency: 3}
+	if len(options) > 0 {
+		opt = options[0]
+	}
+	if opt.Concurrency <= 0 {
+		return fmt.Errorf("concurrency must be a positive integer")
+	}
+	all := opt.All
 	scope, err := readHubScope(cwd)
 	if err != nil {
 		return err
@@ -237,9 +251,18 @@ func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply b
 	rows, others, unclaimed := planResume(in)
 	for i, r := range rows {
 		if r.Class == classCandidates {
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("resume planning canceled before dispatch: %w", err)
+			}
 			c, err := d.resume.Candidates(r.Addr)
+			if canceled := ctx.Err(); canceled != nil {
+				return fmt.Errorf("resume planning canceled before dispatch: %w", canceled)
+			}
 			rows[i] = finishResume(r, c, err)
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("resume planning canceled before dispatch: %w", err)
 	}
 	fmt.Fprintln(out, invisibleLayers)
 	if in.ActorsErr != nil {
@@ -259,43 +282,10 @@ func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply b
 		fmt.Fprintf(out, "(%d unclaimed slot(s); --all to list)\n", unclaimed)
 	}
 	if !apply {
-		fmt.Fprintln(out, "dry run: --apply resumes the resume class, one slot at a time")
+		fmt.Fprintf(out, "dry run: --apply resumes explicitly asleep workers, pending wave before remaining wave; concurrency %d per invocation\n", opt.Concurrency)
 		return nil
 	}
-	var todo []string
-	for _, r := range rows {
-		if r.Class == classResume {
-			todo = append(todo, r.Addr)
-		}
-	}
-	fmt.Fprintf(out, "resuming %s\n", orNone(strings.Join(todo, ", ")))
-	for i, addr := range todo {
-		fmt.Fprintf(out, "resuming  %s; waiting for Couch's terminal receipt\n", addr)
-		err := d.resume.Resume(addr)
-		if err == nil {
-			fmt.Fprintf(out, "resumed   %s\n", addr)
-			continue
-		}
-		fmt.Fprintf(out, "stopped at %s; not attempted: %s\n", addr, orNone(strings.Join(todo[i+1:], ", ")))
-		if errors.Is(err, errUncertain) {
-			fmt.Fprintf(out, "uncertain %s: %v\n", addr, err)
-			fmt.Fprintf(out, "inspect the request with couch --operation-status ID (from the diagnostics) and couch --peek %s before a manual resume or switcher action\n", addr)
-			actors, aerr := readActors(d.actors)
-			switch {
-			case aerr != nil:
-				fmt.Fprintf(out, "observation unavailable: %v\n", aerr)
-			case actors[addr].Agent != "":
-				fmt.Fprintf(out, "observed %s running; operation outcome remains uncertain\n", addr)
-			default:
-				fmt.Fprintf(out, "observed no actor at %s; operation outcome remains uncertain\n", addr)
-			}
-		} else {
-			fmt.Fprintf(out, "refused   %s: %v\n", addr, err)
-		}
-		return fmt.Errorf("fleet resume stopped at %s: %w", addr, err)
-	}
-
-	return nil
+	return runResumeBatch(ctx, out, d, scope.self, rows, opt.Concurrency)
 }
 
 func newFleetCmd(d deps) *cobra.Command {
@@ -304,8 +294,9 @@ func newFleetCmd(d deps) *cobra.Command {
 		Short: "The slots this hub owns",
 	}
 	var apply, all bool
+	var concurrency int
 	resume := &cobra.Command{
-		Use:   "resume [--apply] [--all]",
+		Use:   "resume [--apply] [--all] [--concurrency N]",
 		Short: "Resume this hub's down slots that have work in flight (only when the operator asks; never at startup)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -313,11 +304,12 @@ func newFleetCmd(d deps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return fleetResume(cmd.Context(), cmd.OutOrStdout(), d, cwd, apply, all)
+			return fleetResume(cmd.Context(), cmd.OutOrStdout(), d, cwd, apply, resumeOptions{All: all, Concurrency: concurrency})
 		},
 	}
-	resume.Flags().BoolVar(&apply, "apply", false, "resume the resume class, one slot at a time (default: a dry run)")
+	resume.Flags().BoolVar(&apply, "apply", false, "resume explicitly asleep workers in two waves (default: a dry run)")
 	resume.Flags().BoolVar(&all, "all", false, "show every slot; never expand automatic resume authority")
+	resume.Flags().IntVar(&concurrency, "concurrency", 3, "maximum simultaneous worker resumes per invocation; must be positive")
 	fleet.AddCommand(resume)
 	return fleet
 }
