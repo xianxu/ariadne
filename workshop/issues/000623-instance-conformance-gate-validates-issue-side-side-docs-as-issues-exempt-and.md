@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
-estimate_hours:
-card_mirror: 'a7944929497ceb1b0ade8b2b4ea012eac6cd8f56' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.84
+card_mirror: 'db602c0f49eb155e3b9b109ef4ff31952bc8d4d6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T12:00:36-07:00
 claimant:
     operator: Xian Xu
@@ -48,6 +48,26 @@ archive step uses (one shared helper, not a second path rule).
 - [ ] Verify serial targeted tests and owner-coordinated parley.nvim leftover repair; obtain hub authorization for recorded-check/landing phase.
 - [ ] Complete required verification, close review and landing.
 
+## Estimate
+
+Produced via brain/data/life/42shots/velocity/estimate-logic-v3.1.md against baseline-v3.1.md. Method A only; estimate-source flags the calibration stale, so provisional. Familiar Go/CUE/Git territory gives familiarity1.0. The thorough approved plan applies0.2 design discount and15% design buffer. Owner/ID work maps to a smaller module; schema/gate wiring maps to one new concern with the existing CUE engine halving its raw1h design before the0.2 discount. Archive/recovery is a cross-cutting refactor. The narrow owner-run repair is the small cross-repo primitive, with no new API discovery. Implementation uses the upper v2 ranges, scaled once by0.40. Targeted/private conformance is included in each implementation primitive; one review primitive covers the single close boundary. Full recorded-check/landing remain budget-gated by the hub and may add elapsed ship-time beyond this provisional estimate.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.1 impl=0.08
+item: smaller-go-module design=0.06 impl=0.2
+item: greenfield-go-module design=0.1 impl=0.32
+item: cross-cutting-refactor design=0.2 impl=0.2
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0 impl=0.2
+design-buffer: 0.15
+total: 1.84
+```
+
+Design0.56×1.15=0.644 plus implementation1.20 gives1.844h, rounded1.84h.
+
 ## Log
 
 ### 2026-10-25
@@ -59,6 +79,10 @@ Recovered on clean resting main-slot1 after #560's completed landing; no old run
 ### 2026-10-25 — design approved; transitional inventory complete
 
 TL approved shared Owner, side roots conferring no ID and archive ownership independent of a plan document, with an explicit legacy compatibility condition. Read-only inventory across all48 registered worktrees and pinned origin/main of ariadne/pair/parley.nvim/metis/echo found4 typed Markdown side docs, all with nonempty parent; pair has168 untyped records, including15 Markdown and pair#858's14 JSON/log evidence files. Persisted condensed complete path/content inventory at ../plans/000623-side-inventory.json; plan records source pins, scope and counts. Choose typed-Markdown-only validation, so no attachment backfill or new rejection is needed. Parent target existence remains outside conformance. No implementation or tests yet; next run full-flow change-code.
+
+### 2026-10-25 — plan-quality accepted; estimate derivation
+
+First plan-quality round found no blocking issues. PQ-1 (Minor) identified the state table's outdated missing-type failure row; corrected it to the approved untyped-attachment compatibility rule. Added paired vocabulary/sdlc rollout guidance so compound-noun support is available before the new gate is deployed. Estimate is now derived from the accepted scope; full change-code must admit it before code or tests.
 
 ## Revisions
 

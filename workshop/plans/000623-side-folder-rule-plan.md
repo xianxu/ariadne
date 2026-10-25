@@ -64,7 +64,8 @@ Actions: fix malformed frontmatter, rename a noncanonical side root, retry archi
 | Condition | Visible behavior | Recovery | Possible loss |
 |---|---|---|---|
 | Valid side doc, issue or plan owner | Gate validates side-doc type; ID scan ignores it | Continue | None |
-| Missing/wrong type or parent | Side-doc-specific conformance error | Fix frontmatter | None |
+| Untyped Markdown or non-Markdown side member | Valid unmodeled attachment; no issue/side-doc validation | Continue | None |
+| Declared invalid type or missing/empty parent on a typed document | Side-doc-specific conformance error | Fix frontmatter | None |
 | Malformed ordinary issue | Existing issue error | Fix issue | None |
 | Missing plan document, side tree present | Tree archives with its issue | Continue | None; no invented plan |
 | Archive conflict, symlink or unrelated side tree | Existing refusal before unsafe publication | Resolve conflict or restore source | None; preserve bytes |
@@ -109,3 +110,7 @@ TL approved the design (deliveryeef33473-162a-49ca-b24a-3cd6b99ef4d2) subject to
 ## Architectural decisions
 
 ARCH-DRY/PURE: one existing side-path owner, one CUE frontmatter authority and one pure archive inventory. ARCH-PURPOSE: all three reported consumers and their archive counterparts derive from it. ARCH-MOCK: existing real private Git/CUE fixtures rather than a replacement archive algorithm. ARCH-CONSTRAINTS: indexed batch cost, serial targeted budget. ARCH-SECURE/ORDER: membership does not waive generation, conflict or mode checks. ARCH-FUNERAL: existing archive lifecycle, no new residue family. ARCH-EVOLVE: frontmatter accepts unknown fields; moves preserve nested metadata and all source bytes.
+
+### 2026-10-25 — plan-quality advisory and tool rollout
+
+PQ-1 found the original state table's missing-type row contradicted the approved transition. Corrected the whole visible-state table to distinguish accepted untyped attachments from malformed typed documents. Deployment must rebuild vocabulary as well as sdlc: the new side-doc noun and compound-definition lookup are a paired capability, resolved through the normal supplying substrate. Do not deploy the new gate against an old vocabulary binary or stage :0 without hub approval. Native conformance builds both tools from the same clean source.
