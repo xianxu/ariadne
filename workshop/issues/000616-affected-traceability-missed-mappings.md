@@ -1,12 +1,20 @@
 ---
 id: 000616
-status: open
+status: working
 deps: [ariadne#598]
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
 estimate_hours:
-card_mirror: '29a7b9c21ffd22475e532c66454bbbd3ca67edfb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2f0ec6de42737791d2c6399c4d6fa3a34be93749' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-24T23:10:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:5
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Affected planning: traceability input and missed-mapping ledger
@@ -18,7 +26,7 @@ ariadne#598 M1 gave affected.Plan a curated, declared ownership mapping: `owners
 1. Parley-style traceability files (`atlas/traceability.yaml`: `atlas: {key: {code: [...], tests: [...]}}`) as an input format: "change the toolbar, run these".
 2. Missed mappings: whenever the integrated full suite at merge catches a failure the affected selection would not have run, record it and list it for curation.
 
-Waiting on the operator's go (ops:0 asked for it). Do not start before the TL confirms.
+The operator said go (relayed by ops:0 on 2026-10-24), with the plan already approved as #598's.
 
 ## Spec
 
@@ -46,10 +54,20 @@ The design is approved as part of #598's durable plan: `workshop/history/plans/0
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000616-affected-traceability-missed-mappings-plan.md`.
+
+- [ ] M1 — traceability input: `traceability` member, `ParseTraceability` (strict yaml.Node walk, parley golden), `Compile(cfg, Sources)`, loader reads from main; the shared strict JSON object codec moves to `internal/jsonstrict`.
+- [ ] M2 — missed-mapping ledger: `Missed`, `MissedLedger` (pure, preserving), the locked store in the common git dir, the merge-diagnosis and train-split hooks via the extracted `affectedSelectionAt`, `sdlc affected missed list|dismiss`.
 
 ## Log
 
 ### 2026-10-24
 
 Split from ariadne#598 by ops:0's direction: M1 landed alone so pair#853 could proceed. These were #598's M2 and M3. The approved design is in #598's durable plan, and M1's review notes for them are in that plan's Revisions (for example, `Compile` taking a sources struct).
+
+Claimed and started after #598 landed (PR 435, 2001041f0). The durable plan restates #598's M2/M3 against the code as it now stands, with these refinements:
+- `Missed` also skips selections that have groups, matching `splitImpact`'s uncertainty rule.
+- The train hook reuses `ImpactUntouched` rather than re-planning.
+- `affectedSelectionAt` is extracted from `splitImpact`, so the merge hook and `list` share it (ARCH-DRY).
+- landingline's strict, preserving JSON codec moves to `internal/jsonstrict` so the ledger can reuse it.
+- `record` sweeps stale temp files.
