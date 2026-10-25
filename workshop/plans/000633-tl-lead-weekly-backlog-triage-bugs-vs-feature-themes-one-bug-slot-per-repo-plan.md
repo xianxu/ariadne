@@ -57,7 +57,7 @@ collaboration-mode: discussion
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `sdlc issue list --json` | `cmd/sdlc/issue_list.go` | modified | the issue-tracker cards (`origin/issue-tracker`) |
+| `sdlc issue list --json` | `cmd/sdlc/issue_list.go` (new; `issue.go`'s `runIssueList` dispatches to it) | new | the issue-tracker cards (`origin/issue-tracker`) |
 | `sdlc issue set-kind` | `cmd/sdlc/cardsetters.go` | new | card CAS, like `set-severity` |
 | `SDLC.RepoCards(root)` | `cmd/tl-lead/sdlc.go` | new | `sdlc issue list --json` per repository |
 | `tl-lead triage stats` | `cmd/tl-lead/triage_stats.go` | new | stdout |
@@ -148,3 +148,11 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
 - `kind` is a card field (`bug` or `feature`), and the stats use no heuristics.
 - Back-fill, which replaces the non-goal above: after M1 lands, the TL marks the closed cards from the last 4 weeks once (the bug quota's window), so the first triage has a real quota and trend. Older cards stay unclassified. This work is the TL's, not this issue's.
 - The ARCH-EVOLVE unknown-key test stays M1's first step. If a setter drops unknown keys, the work stops and goes back to the TL.
+
+### 2026-10-25 — plan-quality round 1 (3 Minors, folded in)
+
+- **`updated` must stay the close date.** `updated` is written only by the close and status paths (`close.go:811`, `trackercompletion.go:151`, `completeop.go:118`, `externalmerge.go:417`), never by the generic setter. The TL's back-fill depends on that, so the `set-kind` tests assert that `updated` is unchanged on a done card.
+- **`issue list --json` walks the full record set.** `runIssueList` reads through `listIssueStates`, the same path as `state`, which drops terminal card-only records (`state.go:371-374`). So `--json` walks the tracker's record set directly, and a test with a done card-only issue proves it is listed. `issue_list.go` is a new file.
+- **Legacy repositories have no close history.** Their closed issues live in `workshop/history/`, so `--json` there lists the open details files only, and `triage stats` reports such a repository as "no tracker: open counts only".
+- **`weekStats` test strategy.** Generated card sets that span DST changes and ISO week-year boundaries. Property: for each week, bugs opened minus bugs closed equals the change in open bugs, given no reopens.
+- **Open at a week's end** means `created <= end`, and either the card is non-terminal or `updated > end`. A reopened card makes the figure approximate, and help says so.
