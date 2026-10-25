@@ -127,6 +127,11 @@ func fleetMachine() (fleet.MachineIdentity, error) {
 }
 
 func runFleetInventory(ctx context.Context, stdout io.Writer, flags fleetCommandFlags, deps fleetCommandDeps) error {
+	// All production inventory Git phases share the CLI's cancellation owner,
+	// including discovery before merge-intent enrichment starts.
+	if r, ok := deps.git.(gitRunner); ok {
+		deps.git = boundedLandingGit(ctx, r)
+	}
 	vantage, err := deps.normalizeVantage(deps.git, flags.Path)
 	if err != nil {
 		return fmt.Errorf("fleet inventory: %w", err)

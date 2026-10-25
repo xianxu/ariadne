@@ -722,7 +722,10 @@ complete empty on the next read; no tombstone was added. Existing preserving v1
 storage and its 30-day lifecycle remain unchanged. Non-ENOENT open failures,
 nonregular entries and partial branch-probe failures remain inspection evidence.
 Inventory JSON is encoded before publishing and capped at the consumer's 1 MiB
-limit; overflow emits no JSON. This producer precedes pair#848's read-only
+limit; overflow emits no JSON. Native SIGINT/SIGTERM cancel all inventory Git
+phases through the existing CLI signal owner and bounded Git group cleanup,
+joining children and inherited pipes before a nonzero return with no JSON.
+This producer precedes pair#848's read-only
 recovery report; consumers check the capability and actual merge re-entry still
 revalidates normal SDLC authority. Qualification uses private real stores and
 the executable, followed by the hub's ordinary primary rebuild; no live queue

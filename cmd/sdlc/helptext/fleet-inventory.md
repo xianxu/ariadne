@@ -84,3 +84,7 @@ JSON output is capped at 1 MiB including its newline, matching Couch's inventory
 transport. Encoding or size failure publishes no JSON; stdout write errors
 remain errors, and incomplete transport is never a successful report. The
 command still makes one inventory query for the fleet, not one per slot.
+
+SIGINT/SIGTERM cancel inventory through its CLI context. Git discovery, collection
+and intent probes use the existing bounded runner; active Git groups and inherited
+pipes are joined before a nonzero return, and no JSON is published on cancellation.
