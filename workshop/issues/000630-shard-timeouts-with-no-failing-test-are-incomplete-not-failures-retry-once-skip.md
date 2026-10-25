@@ -85,3 +85,6 @@ failure).
 ## Log
 
 ### 2026-10-25
+- 2026-10-25: plan-quality: round 1 FAILURE (PQ-1 M2 resume reuse claimed unchanged; PQ-2 version gates and typed contract), answered by naming the M2 mechanics in the plan Revisions; rounds 2-3 INFO. PQ-5 (Minor, carried to close): in ariadne, which declares no .sdlc/affected.json, the retry reruns the whole suite; asked the TL whether to revise the Done when or make the suite honor a package list.
+- 2026-10-25: estimate 1.99 (v3.1, Method A). estimate-quality INFO: impl looks thin on the two version-gated rows and expects 2.5-3h; kept, the measured actual will say.
+- 2026-10-25: commit bf93b4f38 is titled plan: but carries the M1 code (a pathspec-less commit took the staged M1 files); cbf1db7e7 adds the fuzz test. A history rewrite to split them was refused by the auto-mode classifier (force-push), so the history stands as is; M1 is bf93b4f38 plus cbf1db7e7.
