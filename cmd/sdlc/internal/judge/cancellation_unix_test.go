@@ -95,6 +95,7 @@ func TestReviewProcessCancellationKillsGroupAndReaps(t *testing.T) {
 	}
 	// Under the production grace proves the injected 50 ms one governed; a
 	// tighter bound measures the machine's load, not the runner (#325).
+	//lint:allow test-tight-wallclock — the bound is the 5s production grace, the contract this proves the injected 50ms grace replaced; no event marks which grace governed
 	if elapsed := time.Since(start); elapsed >= oldGrace {
 		t.Errorf("shutdown took %v, not bounded by the injected grace", elapsed)
 	}

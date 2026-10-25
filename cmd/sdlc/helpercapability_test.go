@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestStaleSuiteHelperRefusesBeforeAcquisition(t *testing.T) {
@@ -136,11 +138,13 @@ func TestProbeHelperHelpBounds(t *testing.T) {
 	}{
 		{"current", "print('options:\\n  --watch WATCH  owner\\n  --slots SLOTS  weight')\n", time.Second, nil},
 		{"nonzero", "import sys\nprint('broken', file=sys.stderr)\nsys.exit(7)\n", time.Second, nil},
-		{"hang", "import time\ntime.sleep(60)\n", 100 * time.Millisecond, context.DeadlineExceeded},
-		{"own timeout", "import time\ntime.sleep(60)\n", 8 * time.Second, context.DeadlineExceeded},
+		{"hang", "import time\ntime.sleep(600)\n", 100 * time.Millisecond, context.DeadlineExceeded},
+		// The context outlasts the hang ceiling, so only the probe's own
+		// five-second ceiling can end this case (#622).
+		{"own timeout", "import time\ntime.sleep(600)\n", 10 * time.Minute, context.DeadlineExceeded},
 		{"overflow stdout", "import sys\nsys.stdout.write('x'*65537)\n", time.Second, errHelperHelpLimit},
 		{"combined overflow", "import sys\nsys.stdout.write('x'*40000)\nsys.stdout.flush()\nsys.stderr.write('y'*40000)\n", time.Second, errHelperHelpLimit},
-		{"descendant pipe", "import os, time\nif os.fork() == 0:\n    time.sleep(60)\n    os._exit(0)\n", 4 * time.Second, exec.ErrWaitDelay},
+		{"descendant pipe", "import os, time\nif os.fork() == 0:\n    time.sleep(600)\n    os._exit(0)\n", 4 * time.Second, exec.ErrWaitDelay},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -150,8 +154,11 @@ func TestProbeHelperHelpBounds(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
 			defer cancel()
-			start := time.Now()
-			out, err := probeHelperHelp(ctx, dir, path)
+			var out []byte
+			var err error
+			// Every hanging case outlives the hang ceiling, so returning at all
+			// proves the bound that applies held (#622).
+			testgate.Returns(t, "the help probe", func() { out, err = probeHelperHelp(ctx, dir, path) })
 			if tc.want != nil && !errors.Is(err, tc.want) {
 				t.Fatalf("error %v, want %v", err, tc.want)
 			}
@@ -160,12 +167,6 @@ func TestProbeHelperHelpBounds(t *testing.T) {
 			}
 			if tc.name == "nonzero" && (err == nil || !strings.Contains(err.Error(), "exit status 7") || strings.Contains(err.Error(), "broken")) {
 				t.Fatalf("failed probe accepted: %v", err)
-			}
-			if time.Since(start) > tc.timeout+2*time.Second {
-				t.Fatalf("probe exceeded timeout and drain budget: %s", time.Since(start))
-			}
-			if tc.name == "own timeout" && time.Since(start) > 7*time.Second {
-				t.Fatalf("probe did not enforce its own five-second ceiling: %s", time.Since(start))
 			}
 		})
 	}

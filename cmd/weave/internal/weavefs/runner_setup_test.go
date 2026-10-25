@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 
@@ -142,15 +141,16 @@ func TestSetupLeaseSurvivesRunnerParentDeath(t *testing.T) {
 
 func awaitReleasedSetupLease(t *testing.T, environment string) *os.File {
 	t.Helper()
-	deadline := time.Now().Add(staging.Settle)
-	for {
-		lease, err := staging.AcquireSetup(environment)
-		if err == nil {
-			return lease
-		}
-		if !errors.Is(err, staging.ErrSetupInUse) || !time.Now().Before(deadline) {
+	var lease *os.File
+	// nil: the child already reported "released" and keeps running until fed
+	// "finish"; the kernel dropping its lock is the only event left (#622).
+	testgate.AwaitCondition(t, "child released the setup lease", func() bool {
+		var err error
+		lease, err = staging.AcquireSetup(environment)
+		if err != nil && !errors.Is(err, staging.ErrSetupInUse) {
 			t.Fatal("child release retained lease", err)
 		}
-		time.Sleep(time.Millisecond)
-	}
+		return err == nil
+	}, nil)
+	return lease
 }
