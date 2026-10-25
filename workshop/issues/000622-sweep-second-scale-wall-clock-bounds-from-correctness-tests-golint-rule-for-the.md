@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
-estimate_hours: 3.39
-card_mirror: '2fe0210cabdb24a5fe5bc41a364186f46abce6bb' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.84
+card_mirror: 'd8efc2fbd21a5516e947e2bc234275d4c92b9bdf' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T04:05:12-07:00
 claimant:
     operator: Xian Xu
@@ -72,3 +72,6 @@ total: 3.84
 
 - TL dispatch: sweep plus rule, fold in #625. The widened rule flags 35 sites (6 named). TL scope call: all four groups here, full flow, M1 = rule + group A + #625, M2 = B/C/D + enforce; proofs per package `-count=10`, one at a time.
 - Rule shape: deadlines flagged only when polled (`time.Now().After/Before(v)`, `time.Until(v)`), which cut 73 raw hits (fixture timestamps) to 35.
+- M1 built: widened rule with object-keyed variables (it also caught 3 deadlines the name-keyed version hid: queue_interruption:47, landingtrain:520, makebuild_publish:99), transitional `wallclockPending` for the M2 files, 16 group A deadlines to `HangCeiling`, #625 fails fast when a landing ends before its barrier, processgroup's 5s shutdown contract under a reasoned allow.
+- Proof found my own bug: #625's barrier file exists before the script writes the SHA; my early `break` took an empty read as the event (5/20 runs). Fixed to re-read on empty.
+- M1 proofs (niced, one run at a time): cmd/sdlc 12 group A tests -count=10 green at load ~11 apart from the split pair; split pair -count=10 green after the fix at load 35–59; tl-lead TestOperatingCancellationStopsGitHookDescendants, weavefs TestSetupLeaseSurvivesRunnerParentDeath, weave/release package -count=10 green. Mutation: #625 deadline at HangCeiling/1200 (100ms) → red with "never reached the registration barrier"; restored → green. pkg/golint green including the repo catalog test.

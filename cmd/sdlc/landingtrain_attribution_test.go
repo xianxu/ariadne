@@ -152,8 +152,12 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 	for prefix == "" {
 		data, readErr := os.ReadFile(ready)
 		if readErr == nil {
+			// The script creates the file before it writes the SHA: an empty
+			// read is not the event yet, so the loop reads again.
 			prefix = strings.TrimSpace(string(data))
-			break
+			if prefix != "" {
+				break
+			}
 		} else if !errors.Is(readErr, os.ErrNotExist) {
 			t.Fatal(readErr)
 		}
