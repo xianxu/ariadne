@@ -371,8 +371,13 @@ See [TL tooling](atlas/workflow/tl-skills.md) for the worker verification rules.
 For a hub with `.hub`, `tl-lead status slots FILE` shows its owned numbered
 slots; `--all` shows the machine view. `tl-lead fleet resume` is an
 operator-started dry run; `--all` exposes excluded slots without expanding
-automatic resume authority. `--apply` waits for each terminal receipt and
-stops at the first failure or uncertainty, naming untouched slots. See
+automatic resume authority. After explicit operator recovery and the steward's
+verified ariadne:0 rebuild, `--apply` resumes explicitly asleep workers with
+bounded concurrency (default 3): pending-work wave first, then remaining asleep
+workers. It joins started calls on cancellation or a stop, retains partial outcomes,
+and hands both worker waves to the machine steward. Only that steward releases
+machine-wide scheduled tasks after all hub handoffs or explicit operator go;
+resume itself never toggles automation or scheduling. See
 [TL tooling](atlas/workflow/tl-skills.md) for scope, holds and recovery.
 
 Before filing a new project's implementation issues, follow SHAPING in

@@ -11,7 +11,9 @@ import (
 
 // Producer-shaped schema-1 report. The mark is nested in the thread row,
 // not at the slot level; an unclaimed worker is still eligible.
-const asleepRecoveryFixture = `{"schema_version":1,"rows":[{
+const recoveryEnvelopePrefix = `{"schema_version":1,"fleets":[{"root":"/work","state":"present"}],"couch":{"state":"ok"},"rows":`
+
+const asleepRecoveryFixture = recoveryEnvelopePrefix + `[{
 "address":"pair:2","path":"/work/pair-slot2/pair",
 "git":{"source":"sdlc","branch":"main-slot2","state":"resting","dirty":"no","unlanded":"no","operation":"no"},
 "claims":{"quality":"present"},
@@ -46,6 +48,25 @@ func TestDecodeRecoveryEvidence(t *testing.T) {
 				t.Fatalf("projection %+v; want asleep=%v pending=%v unknown=%v", r, tc.asleep, tc.pending, tc.unknown)
 			}
 		})
+	}
+}
+
+func TestRecoverySourceCoverageCannotProveAbsence(t *testing.T) {
+	empty := recoveryEnvelopePrefix + `[]}`
+	for _, raw := range []string{
+		`{"schema_version":1,"rows":[]}`,
+		strings.Replace(empty, `"state":"present"`, `"state":"unavailable","error":"inventory failed"`, 1),
+		strings.Replace(empty, `"state":"present"`, `"state":"unsupported"`, 1),
+		strings.Replace(empty, `"state":"present"`, `"state":"present","error":"duplicate slot omitted"`, 1),
+		strings.Replace(empty, `"state":"ok"`, `"state":"unavailable"`, 1),
+		strings.Replace(empty, `"root":"/work"`, `"root":""`, 1),
+	} {
+		if _, err := decodeRecovery([]byte(raw)); err == nil {
+			t.Fatalf("incomplete report proved empty workers: %s", raw)
+		}
+	}
+	if snapshot, err := decodeRecovery([]byte(empty)); err != nil || len(snapshot.Slots) != 0 {
+		t.Fatalf("complete empty source: %+v %v", snapshot, err)
 	}
 }
 
@@ -171,5 +192,35 @@ func TestCandidateReplyRequiresCompletenessEvidence(t *testing.T) {
 	}
 	if _, err := decodeCandidates([]byte(`{"proven":{"native_id":"x","NATIVE_ID":"y"},"incomplete":false}`)); err == nil {
 		t.Fatal("duplicate proof key accepted")
+	}
+}
+
+func TestFleetResumeDryRunNamesBothWaves(t *testing.T) {
+	d, c, cwd := fleetFixture(t)
+	c.recoveryData.Slots = []RecoverySlot{
+		{FleetSlot: FleetSlot{Address: "pair:4", Repo: "pair", Slot: 4}, Asleep: true},
+		{FleetSlot: FleetSlot{Address: "pair:2", Repo: "pair", Slot: 2}, Asleep: true, Pending: true},
+	}
+	c.candidates["pair:4"] = ResumeCandidates{Proven: true}
+	var out bytes.Buffer
+	if err := fleetResume(t.Context(), &out, d, cwd, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"wave 1 (pending work): pair:2", "wave 2 (remaining asleep): pair:4", "concurrency 3 per invocation"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q:\n%s", want, out.String())
+		}
+	}
+	if len(c.attempts()) != 0 {
+		t.Fatal("dry run launched a worker")
+	}
+}
+
+func TestFleetResumeRejectsLimitBeforeExternalReads(t *testing.T) {
+	for _, n := range []int{0, -1} {
+		err := fleetResume(t.Context(), &bytes.Buffer{}, deps{}, "no-checkout", true, resumeOptions{Concurrency: n})
+		if err == nil || !strings.Contains(err.Error(), "positive integer") {
+			t.Fatalf("invalid limit did IO: %v", err)
+		}
 	}
 }

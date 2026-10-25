@@ -25,6 +25,7 @@ func runResumeBatch(ctx context.Context, out io.Writer, d deps, hub string, rows
 	observeCancel := func() {
 		if cancelCh != nil && ctx.Err() != nil {
 			advanceResumeBatch(b, resumeBatchEvent{kind: batchCancel, err: ctx.Err()})
+			fmt.Fprintln(out, "caller canceled; joining admitted calls before returning")
 			cancelCh = nil
 		}
 	}
@@ -85,11 +86,11 @@ func runResumeBatch(ctx context.Context, out io.Writer, d deps, hub string, rows
 	}
 	if err != nil {
 		fmt.Fprintf(out, "worker waves incomplete for %s; not attempted: %s\n", hub, orNone(strings.Join(b.untouched(), ", ")))
-		fmt.Fprintf(out, "inspect unresolved evidence: %s; scheduled tasks remain held; report this incomplete handoff to the machine steward\n", orNone(strings.Join(blocked, ", ")))
+		fmt.Fprintf(out, "inspect unresolved evidence: %s; keep scheduled tasks held and report this incomplete handoff to the machine steward\n", orNone(strings.Join(blocked, ", ")))
 		return err
 	}
 	fmt.Fprintf(out, "worker waves 1 and 2 complete for %s (explicit eligible set); report this handoff to the machine steward\n", hub)
-	fmt.Fprintln(out, "scheduled tasks remain held: only the machine steward releases wave 3 after every hub's handoff or explicit operator go (pair#874); per-hub automation is a separate veto")
+	fmt.Fprintln(out, "keep scheduled tasks held: only the machine steward releases wave 3 after every hub's handoff or explicit operator go (pair#874); per-hub automation is a separate veto; this command did not inspect or change their state")
 	return nil
 }
 

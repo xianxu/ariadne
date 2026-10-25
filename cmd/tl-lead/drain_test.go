@@ -31,7 +31,7 @@ func TestLeadDrainFleetSafetyAndRecoveryAuthority(t *testing.T) {
 			"durable checkpoints", "managed work outcomes", "restart safety",
 			"Queued work blocked by a pause remains outstanding",
 			"quiet screens", "drain flags", "do not prove restart safety",
-			"After restart", "start recovery", "one at a time", "owned slots",
+			"After restart", "start recovery", "make tools", "go version -m bin/sdlc", "fleet notice", "bounded worker waves", "owned slots",
 			"couch --undrain [--message TEXT]", "sdlc queue resume --owner TOKEN",
 			"only your hold", "does not restart interrupted work", "tl-worker --help", "couch --skill",
 		} {
@@ -41,7 +41,7 @@ func TestLeadDrainFleetSafetyAndRecoveryAuthority(t *testing.T) {
 		}
 		for _, order := range [][]string{
 			{"sdlc queue pause --reason TEXT --owner TOKEN", "couch --drain [--fast]", "durable checkpoints", "restart safety"},
-			{"After restart", "start recovery", "one at a time"},
+			{"After restart", "start recovery", "make tools", "go version -m bin/sdlc", "fleet notice", "bounded worker waves"},
 			{"couch --undrain [--message TEXT]", "sdlc queue resume --owner TOKEN"},
 		} {
 			previous := -1
@@ -67,19 +67,22 @@ func TestLeadAutomationIsCapabilityQualifiedAndNotRecoveryAuthority(t *testing.T
 		help := leadDrainSection(t, args...)
 		for _, want := range []string{
 			"when Couch provides couch --automation", "couch --automation status",
-			"first genuine operator", "console", "session file", "side doc", "keep it off",
+			"quiet hold", "ordinary operator messages", "console", "session file", "side doc", "keep it off",
 			"couch --automation on", "own hub", "never change another hub",
 			"worker reports", "restart", "not permission", "no automatic recovery parsing or replay",
-			"operator", "start recovery",
+			"operator", "start recovery", "wave 3", "every hub", "machine steward", "pair#874", "separate veto",
 		} {
 			if !strings.Contains(help, want) {
 				t.Errorf("tl-lead %v: missing automation safeguard %q", args, want)
 			}
 		}
+		if strings.Contains(help, "first genuine operator message") {
+			t.Error("first-message automation toggle survived")
+		}
 		qualifier, status, enable := strings.Index(help, "when Couch provides couch --automation"), strings.Index(help, "couch --automation status"), strings.Index(help, "couch --automation on")
-		input := strings.Index(help, "first genuine operator")
+		input := strings.Index(help, "authorized wave 3")
 		if qualifier < 0 || status <= qualifier || input <= status || enable <= input {
-			t.Errorf("tl-lead %v: capability check and status must precede operator input and own-hub automation enable", args)
+			t.Errorf("tl-lead %v: capability check and status must precede authorized wave 3 and own-hub automation enable", args)
 		}
 	}
 }

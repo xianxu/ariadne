@@ -282,6 +282,16 @@ func fleetResume(ctx context.Context, out io.Writer, d deps, cwd string, apply b
 		fmt.Fprintf(out, "(%d unclaimed slot(s); --all to list)\n", unclaimed)
 	}
 	if !apply {
+		batch, err := newResumeBatch(rows, opt.Concurrency)
+		if err != nil {
+			return err
+		}
+		var waves [2][]string
+		for _, launch := range batch.plan() {
+			waves[launch.Wave-1] = append(waves[launch.Wave-1], launch.Addr)
+		}
+		fmt.Fprintf(out, "wave 1 (pending work): %s\n", orNone(strings.Join(waves[0], ", ")))
+		fmt.Fprintf(out, "wave 2 (remaining asleep): %s\n", orNone(strings.Join(waves[1], ", ")))
 		fmt.Fprintf(out, "dry run: --apply resumes explicitly asleep workers, pending wave before remaining wave; concurrency %d per invocation\n", opt.Concurrency)
 		return nil
 	}
@@ -297,7 +307,7 @@ func newFleetCmd(d deps) *cobra.Command {
 	var concurrency int
 	resume := &cobra.Command{
 		Use:   "resume [--apply] [--all] [--concurrency N]",
-		Short: "Resume this hub's down slots that have work in flight (only when the operator asks; never at startup)",
+		Short: "Resume this hub's explicitly asleep workers (only when the operator asks; never at startup)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cwd, err := os.Getwd()

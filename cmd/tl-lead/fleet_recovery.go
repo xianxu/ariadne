@@ -63,12 +63,24 @@ func decodeRecovery(raw []byte) (RecoverySnapshot, error) {
 	var wire struct {
 		SchemaVersion *int `json:"schema_version"`
 		Rows          *[]recoveryWireRow
+		Fleets        *[]struct{ Root, State, Error string }
+		Couch         *struct{ State, Error string }
 	}
 	if err := json.Unmarshal(raw, &wire); err != nil {
 		return snapshot, fmt.Errorf("Couch recovery report: %w", err)
 	}
 	if wire.SchemaVersion == nil || *wire.SchemaVersion != 1 || wire.Rows == nil {
 		return snapshot, fmt.Errorf("Couch recovery report needs schema_version 1 and a rows array; inspect couch --recover-plan-from-sdlc")
+	}
+	if wire.Couch == nil || wire.Couch.State != "ok" || wire.Couch.Error != "" || wire.Fleets == nil || len(*wire.Fleets) == 0 {
+		return snapshot, fmt.Errorf("Couch recovery source coverage unavailable; inspect couch --recover-plan-from-sdlc before retrying")
+	}
+	roots := map[string]bool{}
+	for _, fleet := range *wire.Fleets {
+		if fleet.Root == "" || fleet.State != "present" || fleet.Error != "" || roots[fleet.Root] {
+			return snapshot, fmt.Errorf("Couch recovery fleet %q unavailable or ambiguous (%s): %s; inspect couch --recover-plan-from-sdlc", fleet.Root, fleet.State, fleet.Error)
+		}
+		roots[fleet.Root] = true
 	}
 	seen := make(map[string]bool, len(*wire.Rows))
 	for _, row := range *wire.Rows {

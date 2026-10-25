@@ -139,7 +139,7 @@ wording (ariadne#406).
   - `team new PATH --claim C` creates or adopts an ops repo with `.hub` and a `team.md` that points at it. It can be rerun, refuses a file that differs, and never commits or pushes (`team_cmd.go`).
   - `team list [REPO]` reads the sibling repos that have `.hub`.
   - `team issues` lists open issues nobody owns in the repos `.hub` claims, through `sdlc state --json` (`SDLC.RepoIssues`, `team_issues.go`).
-  - `fleet resume [--apply] [--all]` (`fleet.go`) joins `couch --actors`, sdlc claims and `couch --resume-candidates` (the `CouchResume` seam). The pure `planResume` classes each slot this hub owns alone as running, idle, resume, ambiguous or unknown. `--apply` is operator-started, never automatic at startup. It resumes the eligible class serially, awaiting each terminal JSON receipt through Couch's existing poller before proceeding. `resume_result.go` classifies matching terminal receipts with consistent normal exits; missing/mismatched receipts, signal death and timeouts remain uncertain. Its six-minute outer bound covers Couch's five-minute budget plus admission/teardown. The first unsuccessful result stops with nonzero status, retained diagnostics, earlier successes and the exact untouched list. The stopped/untouched result and inspection guidance precede uncertainty's optional actor observation (10 s plus at most 1 s pipe cleanup); it never proves success or triggers a retry. Inspect the receipt/slot before further manual action. Unclaimed/foreign rows are counted by default; `--all` exposes them without widening mutation authority. A rerun skips live slots.
+  - `fleet resume [--apply] [--all] [--concurrency N]` (`fleet.go`) captures one typed Couch recovery report (`fleet_recovery.go`) and one actor snapshot. Only an explicit valid nested asleep mark, unambiguous parked thread and complete proven candidate authorize a worker resume; missing marks mean not asleep or an older producer and never prove awake/idle. All hub slots and live workers are excluded. The pure `planResume` retains .hub ownership/tie rules; `--all` widens visibility only. `ResumeBatch` in `fleet_batch.go` owns admit/result/cancel transitions and the pending/remaining phase barrier. Its thin effect shell (`fleet_batch_run.go`) drains ready results before new admission, holds at most N terminal-outcome calls (default3, N1 serial), and joins every started goroutine after stopping dispatch. A second matching (Status,Code,Diagnostic) failure stops; distinct stable coded failures may continue; uncertainty, unstarted/unclassified failures and caller cancellation stop immediately. Each call remains bounded at six minutes. The stopped/untouched guidance precedes optional bounded actor diagnostics, which never upgrade uncertainty to success. Unknown/tied required evidence blocks a completion handoff. Candidate/report IO reuses the bounded owned-group runner; shared `cmd/internal/jsonstrict` rejects duplicate keys while tolerating additive unknown fields, with SDLC's old private import forwarding to the same authority. No report or batch state is persisted and no mutation is automatically retried.
 The steward is the first hub on Couch's command line.
 - **Keep the conversation, soak holds (ariadne#482).** `tl-lead --help` DISPATCH gives a just-landed slot the next same-area car without `couch --prepare`, which would start a fresh conversation. LANDING lets the TL hold a slot to soak a risky change. The hold lives in the rendered `## Slots` section: `status slots FILE --hold repo:N='until X'` / `--release repo:N`. `parseHolds` and `applyHolds` (`cmd/tl-lead/slots.go`) read it back from the section being replaced, at write time, so every render carries it, and a held slot is never on the free line. A scoped render that would hide an existing hold refuses unless explicitly released; `--all` retains the full view.
 - **Freshness (ariadne#414).** `writeSection`, the one write path, strips a leading `_updated YYYY-MM-DD HH:MM_` stamp before computing and puts a fresh one on what it writes (`cmd/tl-lead/stamp.go`); Operator instructions is never stamped. `tl-lead status check FILE` reads the stamps against `sectionBudgets` (`cmd/tl-lead/freshness.go`): Threads and Slots 2 h plus the landing rule (stale once a hub-claimed SDLC repository's newest first-parent merge on local `origin/main`, brains excluded, is newer; direct filing, publish, archive and tick commits do not count, and stale output identifies the repository, merge hash and time), Quota 12 h, Needs you only when unstamped. `submit`, `owed` and every write end with the same lines. The stamp is the only state: it lives in the section it describes. `## Slots` also reads `couch --actors --json` (the `CouchActors` seam, `cmd/tl-lead/actors.go`) for each slot's agent and idleness; a failed read renders `?` with one diagnostic. `scope.go` shares `.hub` ownership across Slots, resume planning and freshness; exact-slot claims include their repository for freshness, nested claimed paths are followed, and no-hub freshness retains sibling discovery. Invalid scope refuses/marks freshness unknown rather than widening the view.
@@ -213,10 +213,23 @@ never grant recovery authority.
 DRAIN THE FLEET in `cmd/tl-lead/help.md` owns the steward's separate owner-scoped
 queue controls and restart-safety judgment. Paused queued work stays outstanding;
 a flag or quiet screen is not proof of a durable checkpoint or completed work.
-Recovery waits for the operator's explicit instruction and uses the existing
-owned-slot resume procedure. Where Couch provides hub automation controls, its
-first genuine operator message can enable that hub unless told to keep it off;
-automation does not grant recovery authority.
+After a full shutdown, recovered hubs hold quiet: workers asleep, automation off,
+with scheduling held. An ordinary operator message never resumes anything.
+Following an explicit recovery request, the machine steward first runs make tools
+in ariadne:0 and verifies bin/sdlc's build revision, modified=false and Go toolchain
+before the fleet notice authorizes worker waves. A failed rebuild stops recovery.
+Each hub completes pending-work wave1 before remaining-asleep wave2, then sends
+its scoped completion handoff; failure or unknown required evidence stays incomplete.
+Only the machine steward (ops:0) owns machine-wide wave3 after every hub's handoff
+or explicit operator go. Pair#874's approved external seam starts each new Couch
+with scheduled tasks held and releases the generation-bound hold through
+couch --schedule resume with reason all-handoffs or operator-go; scheduler status
+reconciles lost replies. Per-hub automation remains a separate veto: each hub may
+enable only its own automation at the authorized third wave unless told to keep it
+off, never on first input or a restart alone. Pair#874 waits on pair#737; unavailable
+capability stays held and is reported, and is not a prerequisite for ariadne#564 close.
+The worker-resume command executes only waves1/2 and never calls scheduler or
+automation controls; it adds no machine-wide barrier store.
 
 `cmd/tl-worker/drain_test.go` and `cmd/tl-lead/drain_test.go` guard both
 rendered help entry points. Source-backed canonical notice vectors and the

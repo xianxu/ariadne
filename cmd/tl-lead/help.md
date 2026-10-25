@@ -58,21 +58,33 @@ DRAIN THE FLEET
      reporting restart safety to the operator. Queued work blocked by a pause
      remains outstanding; quiet screens and drain flags do not prove restart safety.
      Resolve outstanding work with its owners through supported controls.
-  4. After restart, wait for the operator's explicit "start recovery", then
-     use the existing fleet-resume procedure for owned slots one at a time.
-     Never infer authorization from missing flags or a successful restart.
+  4. After restart, keep a hubs-only quiet hold: workers asleep, hub automation
+     off and scheduled tasks held. Wait for the operator's explicit "start recovery".
+     The machine steward first rebuilds ariadne:0 with `make tools`, verifies
+     `go version -m bin/sdlc` against its Git HEAD and current Go toolchain
+     (vcs.modified=false), then sends the fleet notice. A failed build or
+     verification stops recovery. Each hub then uses bounded worker waves for
+     its owned slots, as described under TEAMS. Never infer authorization from
+     missing flags, an ordinary message or a successful restart.
   To call off the drain: `couch --undrain [--message TEXT]`, then
   `sdlc queue resume --owner TOKEN`. This removes only your hold and
   does not restart interrupted work. Undrain clears flags before attempting
   continuation notices; a delivery failure is not proof that a slot continued.
-  Hub automation is separate: when Couch provides couch --automation, inspect
-  `couch --automation status` after start. If off, on the first genuine operator
-  message (console, session file or side doc), unless told to keep it off, run
-  `couch --automation on` for your own hub; never change another hub's automation.
-  A restart or cleared flags are not permission to enable automation or recover;
-  worker reports are not operator input. For an operator-requested soft stop,
-  use `couch --automation off` on your hub; no automatic recovery parsing or replay.
-  Automation on does not replace the operator's "start recovery" instruction.
+  Hub automation is a separate veto: when Couch provides couch --automation,
+  inspect `couch --automation status` after start. Keep the quiet hold through
+  ordinary operator messages (console, session file or side doc); worker reports
+  and restart-lost flags are not permission to resume work or enable automation.
+  Only at the steward's authorized wave 3, after every hub reports worker waves
+  complete or the operator says go, may a hub run `couch --automation on` for
+  its own hub, unless the operator says keep it off; never change another hub's
+  automation. An individual hub never releases scheduled tasks alone. The
+  machine steward owns `couch --schedule resume` with reason all-handoffs or
+  operator-go (pair#874's generation-bound seam, when available); reconcile a
+  lost reply through scheduler status. If that capability is unavailable, leave
+  scheduling held and report pair#874; it does not block this feature's close.
+  For an operator-requested soft stop, use `couch --automation off` on your hub;
+  no automatic recovery parsing or replay. Automation on never replaces the
+  operator's "start recovery" instruction.
 
 TEAMS (ariadne#456: one team per ops repo)
   - A team is an ops repo (`~/workspace/ops`, `~/workspace/ops-echo`): its
@@ -114,30 +126,48 @@ TEAMS (ariadne#456: one team per ops repo)
     restart). Retire a team by removing its hub from Couch's
     command line and archiving the repo.
   - Resuming the fleet is one verb the operator asks for ("resume the
-    fleet"), never run at startup:
-        tl-lead fleet resume            (a dry run: each of your slots classed)
-        tl-lead fleet resume --apply    (waits for each terminal outcome before the next)
-        tl-lead fleet resume --all      (machine view; same mutation authority)
-    running and idle slots are left alone; resume means down with work in
-    flight and a proven conversation; ambiguous (a tie, an unclaimed slot, or
-    work without a proven conversation) goes to Needs you with Couch's
-    choices; unknown means a read failed: never treated as down. Couch's
-    runtime moves (`--move-slot`) are not visible to it, and it says so.
-    Unclaimed and other-hub slots are counted by default; --all lists them,
-    but never resumes them. A failed actors read is reported once, with owned
-    rows unknown. After any failed, refused or uncertain resume, --apply stops
-    with nonzero status and names untouched slots; earlier successes remain.
-    Couch owns receipt polling. tl-lead waits for its terminal JSON receipt,
-    bounded at six minutes (Couch's five-minute poll budget plus admission and
-    teardown). Missing/mismatched evidence, timeout or signal death is uncertain.
-    It prints the stopped/untouched result and inspection guidance before an
-    optional read-only actor check (ten seconds plus at most one second of
-    pipe cleanup). It retains request diagnostics; actor presence
-    never proves the operation succeeded. Inspect couch --operation-status ID
-    and couch --peek repo:N before a manual resume or switcher action.
-    Developers closing resume changes or upgrading Couch run the isolated
-    TestCouchResumeReceiptConformance with TL_LEAD_RESUME_CONFORMANCE=1;
-    it checks the real CLI without touching live slots.
+    fleet"), never run at startup. The steward's verified ariadne:0 rebuild and
+    fleet notice come first; starting hubs leaves a quiet period with workers
+    asleep and automation/scheduled tasks held.
+        tl-lead fleet resume                 (dry run: classifications and both waves)
+        tl-lead fleet resume --apply         (default concurrency 3 per invocation)
+        tl-lead fleet resume --apply --concurrency 1  (explicit serial execution)
+        tl-lead fleet resume --all           (machine view; same mutation authority)
+    One `couch --recover-plan-from-sdlc` report supplies pending-work and explicit
+    asleep evidence. Only a valid nested rows[].agent.rows[].asleep_at plus one
+    unambiguous parked thread and complete proven candidate permit a resume.
+    An absent mark means not asleep or an older Couch: skip it, never infer awake
+    or idle. All hub slots and live workers stay untouched. Unknown, malformed
+    or conflicting evidence stays visible and unattempted. Scope still follows
+    .hub; Couch runtime moves (--move-slot) are not visible, and the command says so.
+    Wave 1 resumes eligible asleep workers with pending work; every started call
+    in wave 1 finishes before wave 2 starts the remaining eligible asleep workers.
+    Both waves use stable address order. Inactive claims alone do not mean pending
+    work; an explicitly asleep worker needs no claim. --concurrency N must be a
+    positive integer and holds at most N calls from launch through terminal outcome.
+    This limit is per invocation; it does not coordinate another hub or command.
+    Do not overlap recovery invocations for one hub; Couch owns per-slot admission.
+    A second matching (Status, Code, Diagnostic) failure stops new dispatch;
+    distinct stable coded failures may continue. An uncertain, unstarted or
+    unclassified failure stops immediately. Caller cancellation stops dispatch
+    and joins already-started calls, rather than treating remote cancellation as
+    proof of failure. Couch owns polling; each call retains its six-minute bound.
+    Nonzero partial results retain successes, request diagnostics and the exact
+    untouched list. Stop/untouched guidance precedes an optional read-only actor
+    observation (ten seconds plus at most one second of pipe cleanup). Actor
+    presence never proves success. Inspect `couch --operation-status ID` and
+    `couch --peek repo:N` before any explicit manual retry or switcher action.
+    Each hub reports its worker waves 1 and 2 complete to the machine steward.
+    Failure or unknown required evidence produces an incomplete handoff, with
+    named unresolved workers; never claim the whole fleet is awake from absent marks.
+    Wave 3 is machine-wide: only the steward releases scheduled tasks after
+    every hub's handoff or explicit operator go, using pair#874's generation-bound
+    scheduler seam when available. Per-hub automation remains a separate veto.
+    This command never toggles automation or scheduling; no local barrier store
+    or automatic retry is created. Pair#874 landing is not a close prerequisite.
+    Developers closing resume changes or upgrading Couch run isolated executable
+    conformance with TL_LEAD_RESUME_CONFORMANCE=1. Use Pair's existing disposable
+    native fleet harness when available; no live fleet wake is part of this check.
 
 SHAPING (product definition before issue-level SDLC)
   - Shape a new project before filing implementation issues. The TL works in

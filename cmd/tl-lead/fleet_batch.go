@@ -162,6 +162,8 @@ func (b *ResumeBatch) untouched() []string {
 	return addresses
 }
 
+func (b *ResumeBatch) plan() []resumeLaunch { return append([]resumeLaunch(nil), b.todo...) }
+
 func (b *ResumeBatch) resultError() error {
 	var failures []error
 	for _, result := range b.results {
