@@ -1166,6 +1166,12 @@ The dispute is committed in the gate ledger; the next review round answers it
 against the evidence, and a Critical keeps blocking until it does. See
 `sdlc finding dispute --help` and `atlas/workflow/gate-state.md`.
 
+Recorded host checks also retain advisory SysV shared-memory observations in their
+hashed logs and a `SysV warning` status marker. Creator PIDs stay unattributed;
+these warnings preserve the test outcome and never remove segments. The optional
+`WF_SYSV_QUALIFY=1` owned-segment test requires operator-cleared capacity; see
+[host observation scope and qualification](atlas/workflow/sdlc-binary.md#recorded-host-sysv-observations-589).
+
 ## Project records
 
 Projects live in `workshop/projects/` and coordinate issue-backed work across

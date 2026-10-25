@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/affected"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/sysvshm"
 )
 
 // This fixture publishes real immutable bytes to a private evidence store;
@@ -551,5 +553,58 @@ func TestResumeSavedGrowthCounts(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestResumeChildOnlySysVWarningSurvivesVerifiedReplay(t *testing.T) {
+	d, sha, store, _ := resumeSavedFixture(t, true)
+	snapshot, err := readSuiteEvidence(store, testStatsRecordLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child := snapshot.attemptIDs["cc"]
+	raw, err := readResumeStoredLog(store, child)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = append(raw, []byte(fmt.Sprintf("\nsdlc-sysv-v1 check=%q head=%q state=warning\n", "suite", sha))...)
+	child.LogSHA256 = resumeRecordDigest(raw)
+	resumeSavedWrite(t, store, child, raw)
+	rec, _, err := loadSavedAttemptCurrent(t.Context(), d, store, sha, "suite", "aa", "host")
+	if err != nil || !strings.HasPrefix(rec.statusDescription(), "SysV warning") {
+		t.Fatalf("child warning lost: %s %v", rec.statusDescription(), err)
+	}
+	if _, ok, err := republishSavedPass(t.Context(), d, suiteCheck("false"), sha); err != nil || !ok {
+		t.Fatalf("republish: %v %v", ok, err)
+	}
+	if err := os.WriteFile(suiteAttemptLogFile(store, child), append(raw, 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := loadSavedAttemptCurrent(t.Context(), d, store, sha, "suite", "aa", "host"); err == nil {
+		t.Fatal("mutated child diagnostic accepted")
+	}
+}
+
+func TestResumeFreshChildSysVWarningPublishesAndReposts(t *testing.T) {
+	d, sha, _ := resumeAffectedFixture(t)
+	scriptRerun(t, resumeTestOnePass)
+	observer := &fakeSysVObserver{segments: []sysvshm.Segment{{ID: 77, UID: os.Geteuid(), Creator: 42}}}
+	d.sysvObserver = observer
+	marker := filepath.Join(t.TempDir(), "groups")
+	calls := 0
+	selection := plannedSelection(affected.Selection{GoPkgs: []string{"example.org/p"}, Groups: []string{"group"}}, &calls)
+	check := affectedResumeCheck(marker, "exit 0")
+	for _, phase := range []string{"fresh", "saved"} {
+		rec, err := resumeSaved(t.Context(), d, check, selection, sha, "aa")
+		if err != nil || !rec.passed() || !strings.HasPrefix(rec.statusDescription(), "SysV warning") {
+			t.Fatalf("%s lost child warning: %+v %v", phase, rec, err)
+		}
+		description := d.GH.(*ciFakeGH).descs[sha][localStatusContext(affectedCheckName)]
+		if !strings.HasPrefix(description, "SysV warning") {
+			t.Fatalf("%s published %q", phase, description)
+		}
+	}
+	if calls != 1 || observer.captures != 2 {
+		t.Fatalf("saved publication ran again: plans=%d observations=%d", calls, observer.captures)
 	}
 }

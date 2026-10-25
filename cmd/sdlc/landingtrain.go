@@ -937,7 +937,7 @@ func maybeConductTrain(ctx context.Context, r gitRunner, lgh landingGH, ci ghCal
 	reclaimTrains(ctx, gh, git, t.Remote, t.Repo, f.withLock, stderr)
 	c := &conductor{ctx: ctx, r: r, gh: gh, ci: ci, t: t, f: f, line: turn.line, log: turn.log, stderr: stderr, sched: s, id: tk.Seq, self: tk.Seq, handle: turn.handle, departed: now,
 		proofs: boardedProofs(tk.Seq, self, ready)}
-	c.local = localRunDeps{GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
+	c.local = localRunDeps{sysvObserver: nativeSysVObserver(), GH: ci, Repo: t.Repo, Root: t.Root, Git: git, CleanupGit: localCheckCleanupGit(ctx, r, t.Root), Stderr: stderr, FlakeRegistry: gateFlakeRegistry(t.Root)}
 	printTrainMembership(stderr, c.id, "candidates", cars)
 	if err := conductTrain(c, cars, b.LeftReady); err != nil {
 		return pr, false, err
