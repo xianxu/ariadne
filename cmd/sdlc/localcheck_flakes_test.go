@@ -274,8 +274,9 @@ func TestKnownFlakeGate(t *testing.T) {
 		prev := knownFlakeRerunTimeout
 		t.Cleanup(func() { knownFlakeRerunTimeout = prev })
 		knownFlakeRerunTimeout = time.Hour
-		// The failing suite command shares the check's budget: a 5s minute
-		// leaves it margin under load; the rerun's sleep far outlasts it.
+		// Each run, the failing suite command and the rerun, is bounded by the
+		// check's declared timeout: a 5s minute leaves the suite command margin
+		// under load; the rerun's sleep far outlasts it.
 		d.minute = 5 * time.Second
 		scriptRerun(t, "sleep 120; "+gatePassJSON)
 		c := suiteFailing(gateKnown)
