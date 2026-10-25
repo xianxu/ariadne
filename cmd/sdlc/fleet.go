@@ -25,6 +25,8 @@ type fleetCommandDeps struct {
 	resolvePolicy            func(fleet.PolicyCapabilityValue, fleet.CanonicalPaths) fleet.PolicyResult
 	renderInventory          func(io.Writer, fleet.Inventory) error
 	renderPolicy             func(io.Writer, fleet.PolicyResult) error
+	observeMergeIntents      fleetIntentObserver
+	pauseNote                func() string
 }
 
 func defaultFleetCommandDeps() fleetCommandDeps {
@@ -37,6 +39,8 @@ func defaultFleetCommandDeps() fleetCommandDeps {
 		resolvePolicy:            fleet.ResolvePolicy,
 		renderInventory:          fleet.RenderInventory,
 		renderPolicy:             fleet.RenderPolicy,
+		observeMergeIntents:      observeFleetMergeIntents,
+		pauseNote:                queuePauseNote,
 	}
 }
 
@@ -65,6 +69,12 @@ func (d fleetCommandDeps) withDefaults() fleetCommandDeps {
 	}
 	if d.renderPolicy == nil {
 		d.renderPolicy = defaults.renderPolicy
+	}
+	if d.observeMergeIntents == nil {
+		d.observeMergeIntents = defaults.observeMergeIntents
+	}
+	if d.pauseNote == nil {
+		d.pauseNote = defaults.pauseNote
 	}
 	return d
 }
@@ -129,8 +139,12 @@ func runFleetInventory(ctx context.Context, stdout io.Writer, flags fleetCommand
 	if err != nil {
 		return fmt.Errorf("fleet inventory: %w", err)
 	}
+	inventory, err = collectFleetMergeIntents(ctx, inventory, deps.observeMergeIntents, deps.pauseNote)
+	if err != nil {
+		return fmt.Errorf("fleet merge intents: %w", err)
+	}
 	if flags.JSON {
-		return json.NewEncoder(stdout).Encode(inventory)
+		return writeFleetInventoryJSON(ctx, stdout, inventory)
 	}
 	return deps.renderInventory(stdout, inventory)
 }
