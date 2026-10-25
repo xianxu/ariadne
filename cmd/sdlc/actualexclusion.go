@@ -386,16 +386,12 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 		if gatestate.IsSummaryMethod(saved.Method) {
 			// A summarised close keeps its credited intervals, so exclusion
 			// needs no replay (#603). Its hours still pin the adopted value.
-			credits, widened, err := summaryCredits(id, *saved, adoptedHours)
+			credits, lost, err := summaryProtection(id, *saved, adoptedHours, windows, since, until)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", context, err)
 			}
-			protected = append(protected, overlappingCredits(credits, windows, since, until)...)
-			// Gaps the summary coalesced are protected but were never credited:
-			// the candidate records what it loses to them.
-			for _, gap := range overlappingCredits(widened, windows, since, until) {
-				current.Unattributed = append(current.Unattributed, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: gap.Start.Format(time.RFC3339Nano), End: gap.End.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"})
-			}
+			protected = append(protected, credits...)
+			current.Unattributed = append(current.Unattributed, lost...)
 			continue
 		}
 		prior, err := resolveOwnedReplay(ctx, root, id, *saved, ledger)
@@ -440,6 +436,21 @@ func overlappingCredits(credited []adoptedCredit, windows []actualSlotWindow, si
 		}
 	}
 	return out
+}
+
+// summaryProtection is what a summarised earlier close protects in this
+// candidate's slot windows (#603): its credited intervals, plus the coalesced
+// gaps it over-protects, which the candidate records as unattributed.
+func summaryProtection(id string, saved gatestate.MeasurementInputs, adoptedHours float64, windows []actualSlotWindow, since, until time.Time) ([]activetime.CreditedInterval, []gatestate.MeasurementUnattributed, error) {
+	credits, widened, err := summaryCredits(id, saved, adoptedHours)
+	if err != nil {
+		return nil, nil, err
+	}
+	var lost []gatestate.MeasurementUnattributed
+	for _, gap := range overlappingCredits(widened, windows, since, until) {
+		lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: gap.Start.Format(time.RFC3339Nano), End: gap.End.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"})
+	}
+	return overlappingCredits(credits, windows, since, until), lost, nil
 }
 
 // summaryCredits reads a summarised close's credited intervals (#603). Its

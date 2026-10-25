@@ -229,28 +229,28 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 
 ### M1: close never refuses on measurement
 
-- [ ] **Task 1: `actualConfidence` and `classifyActual`**, test-first in `actualconfidence_test.go`. Strategy: a table test over the
+- [x] **Task 1: `actualConfidence` and `classifyActual`**, test-first in `actualconfidence_test.go`. Strategy: a table test over the
   closed (status × unattributed kind × bounded) domain.
-- [ ] **Task 2: `MeasurementUnattributed`.** Add it in gatestate with strict known fields. Tests cover the JSON and YAML round trip
+- [x] **Task 2: `MeasurementUnattributed`.** Add it in gatestate with strict known fields. Tests cover the JSON and YAML round trip
   and an older-shaped reader rewriting a record without dropping the member.
-- [ ] **Task 3: `ValidateShape` and `ValidateBounds`.** The proof validator calls only `ValidateShape`. Test: more than 128 fresh
+- [x] **Task 3: `ValidateShape` and `ValidateBounds`.** The proof validator calls only `ValidateShape`. Test: more than 128 fresh
   sources with at most 128 contributing gives `exact` with the full snapshot (the pair#838 shape).
-- [ ] **Task 4: `BranchSelection.Unknown`.** `SelectBranchActivity` returns the unknown intervals and the resolver records them.
+- [x] **Task 4: `BranchSelection.Unknown`.** `SelectBranchActivity` returns the unknown intervals and the resolver records them.
   Update `branch_*_test.go`. Test: concurrent claims around a detached interval keep the windows before and after it, and the
   interval is recorded.
-- [ ] **Task 5: per-source attribution failure.** The source is dropped and recorded as `source-attribution`; a lineage cycle
+- [x] **Task 5: per-source attribution failure.** The source is dropped and recorded as `source-attribution`; a lineage cycle
   stays an error. Tests cover a missing owner and an ambiguous owner.
-- [ ] **Task 6: `MeasurementSummary`.** Add the `summary-v1` method, the credited intervals and coalescing. Strategy:
+- [x] **Task 6: `MeasurementSummary`.** Add the `summary-v1` method, the credited intervals and coalescing. Strategy:
   the coalescer property test below; each bound (sources, bytes) crossed by one gives a summary.
-- [ ] **Task 7: exclusion against a summary.** `loadAdoptedExclusions` uses `Credited`. Tests: an overlapping later issue is
+- [x] **Task 7: exclusion against a summary.** `loadAdoptedExclusions` uses `Credited`. Tests: an overlapping later issue is
   measured, Σcredited must match the adopted hours, and widened minutes make the later issue `partial`.
-- [ ] **Task 8: queue degradation**, one test per site in the table. Reuse `testdata/actualqueue`. The hard errors stay
+- [x] **Task 8: queue degradation**, one test per site in the table. Reuse `testdata/actualqueue`. The hard errors stay
   `unmeasured`.
-- [ ] **Task 9: close adopts every outcome.** close.go:459 no longer exits on measurement. `resolveOmittedActual` takes an
+- [x] **Task 9: close adopts every outcome.** close.go:459 no longer exits on measurement. `resolveOmittedActual` takes an
   `actualConfidence`, the info line renders it, and the trailer, frontmatter field and cue field are added. Tests: close end to
   end for each level, in tracker and legacy repos, plus `TestAdoptLineNoGatesigCollision` over the new renderings. `--no-actual`
   is unchanged.
-- [ ] **Task 10: replay fixtures** for pair#856, #812, #863, #830, #838 and #851 (table above), each through the close seam.
+- [x] **Task 10: replay fixtures** for pair#856, #812, #863, #830, #838 and #851 (table above), each through the close seam.
 - **Test strategy for the risky functions (plan-quality advisory):** the credit coalescer gets a property test over random
   credit sets: the output has at most `MaxSummaryCredits` intervals, its cover is a superset of the input cover, and the widened
   minutes equal cover(output) − cover(input). `classifyActual` stays a table test, because its domain is a closed enumeration.
@@ -258,12 +258,12 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 
 ### M2: calibration reads confidence; docs
 
-- [ ] **Task 11: ledger columns** `confidence` and `attributed_share`. Old rows read as exact. Test the round trip, including an old
+- [x] **Task 11: ledger columns** `confidence` and `attributed_share`. Old rows read as exact. Test the round trip, including an old
   header.
-- [ ] **Task 12: weighted calibration** in `CalibrateForecast`, `ConvergeFactors` and `DriftVerdict` (D3). Strategy: the property test below.
+- [x] **Task 12: weighted calibration** in `CalibrateForecast`, `ConvergeFactors` and `DriftVerdict` (D3). Strategy: the property test below.
 - **Test strategy:** weighted calibration gets a property test: adding a row with weight 0 leaves every output unchanged, and an
   all-exact ledger gives exactly today's numbers.
-- [ ] **Task 13: help and atlas.**
+- [x] **Task 13: help and atlas.**
   - Help: update `helptext/close.md`, `actual.md` and `milestone-close.md` for the confidence levels, and to limit `--no-actual`
     to windows where measurement does not apply.
   - Atlas: update `sdlc-binary.md` (branch selection, the v4 bound and the summary), `issue-lifecycle.md`, `ledger-landscape.md`
@@ -290,3 +290,6 @@ real resolver, the engine and `classifyActual`, using the close seam with a fake
 - 2026-10-24, implementation: the summary also keeps the coalesced gaps (`widened`, at most `MaxSummaryCredits`), so a later
   issue records the over-protected minutes; the summary byte bound is 448 KiB. Unattributed minutes subtract only this
   issue's counted cover.
+- 2026-10-24, sequencing: Tasks 11-13 (ledger columns, weighted calibration, help and atlas) landed in the same commits
+  as M1, so the M1 milestone review covers them; M2's close reviews what follows. The summary branch of exclusion is a pure
+  `summaryProtection`, unit-tested, rather than an end-to-end overlapping-card fixture.

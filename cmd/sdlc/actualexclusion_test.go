@@ -798,3 +798,25 @@ func TestLegacyMigrationThenOwnedActualMeasuresAndKeepsParkedEngagement(t *testi
 		}
 	}
 }
+
+// #603: a summarised earlier close protects its credits in this candidate's
+// slot without a replay, records the gaps it coalesced as this candidate's
+// lost minutes, ignores another slot, and must agree with its adopted hours.
+func TestSummaryProtection(t *testing.T) {
+	at := func(m int) string { return time.Date(2026, 10, 24, 10, m, 0, 0, time.UTC).Format(time.RFC3339) }
+	saved := gatestate.MeasurementInputs{Version: gatestate.MeasurementSummaryInputsVersion, Method: gatestate.MeasurementMethodSummaryV1, Since: at(0), Until: at(59),
+		Summary: &gatestate.MeasurementSummary{Hours: 0.5, Credited: []gatestate.MeasurementCredit{{Issue: "649", Slot: "ariadne:6", Start: at(0), End: at(20)}, {Issue: "649", Slot: "ariadne:7", Start: at(0), End: at(20)}},
+			Widened: []gatestate.MeasurementCredit{{Issue: "649", Slot: "ariadne:6", Start: at(20), End: at(25)}}}}
+	windows := []actualSlotWindow{{slot: parseAdoptedSlot("ariadne:6"), start: time.Date(2026, 10, 24, 10, 10, 0, 0, time.UTC), end: time.Date(2026, 10, 24, 10, 40, 0, 0, time.UTC)}}
+	since, until := time.Date(2026, 10, 24, 10, 5, 0, 0, time.UTC), time.Date(2026, 10, 24, 10, 50, 0, 0, time.UTC)
+	protected, lost, err := summaryProtection("649", saved, 0.5, windows, since, until)
+	if err != nil || len(protected) != 1 || protected[0].Slot != "ariadne:6" || !protected[0].Start.Equal(since) || len(lost) != 1 || lost[0].Kind != gatestate.UnattributedSummaryWidened || !lost[0].Bounded {
+		t.Fatalf("protected %+v lost %+v err %v", protected, lost, err)
+	}
+	if _, _, err := summaryProtection("649", saved, 0.6, windows, since, until); err == nil {
+		t.Fatal("a summary disagreeing with the adopted actual protected time")
+	}
+	if _, _, err := summaryProtection("650", saved, 0.5, windows, since, until); err == nil {
+		t.Fatal("another issue's credits were trusted")
+	}
+}
