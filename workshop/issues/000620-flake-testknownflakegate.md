@@ -49,6 +49,7 @@ Root cause: wall clock as the oracle. The runner already records the deadline ev
 ### 2026-10-24
 
 ### 2026-10-25
+- 2026-10-25: closed — BR-16 now asserts the saved rerun attempt TimedOut instead of an 8s wall bound. Mutation (rerunEnvelope without the check-timeout bound) fails the test. Targeted -count=10 green twice, once under nice -n 19 and -cpu 1 at load 7-20. Full pre-close suite green on 71f220cc (sdlc-local/suite, 19m47s, 0 failed). Test-only fix, no new surface.; review verdict: SHIP
 
 - TL dispatched (main red on BR-16, blocking #603's landing). Fix: assert the runner's `TimedOut` record instead of elapsed time.
 - The `test-tight-wallclock` golint rule flags only sub-second bounds; this 8 s bound was a hang-sized bound used as the oracle, which lint cannot tell from a real hang bound. No new rule. Sibling second-scale bounds exist (`ghlanding_test.go:153`, `helpercapability_test.go:167`, `landingattribution_impact_test.go:126`, `tl-lead`, `weave`); reported to the hub, not swept here.
