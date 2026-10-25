@@ -66,7 +66,8 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
     - `atlas` a mapping of string keys;
     - each value a mapping with only `code` and `tests`;
     - each a sequence of `!!str` scalars that are clean relative paths. `code` may also be a valid glob.
-  - These refuse: alias and anchor nodes, merge keys (`<<`), duplicate keys (yaml.v3 already refuses those), a second document, and an empty string.
+  - These refuse: alias and anchor nodes, merge keys (`<<`), duplicate keys, a second document, and an empty string.
+  - **The walk owns every refusal (PQ-1).** Decoding into a `yaml.Node` skips all of yaml.v3's decode-time checks, including `uniqueKeys` (decode.go:492 returns early for a Node target). So one helper, `mappingPairs(node, where)`, refuses a duplicate key while it yields a mapping's pairs. The root, `atlas` and each entry all use it, so no level relies on the library.
   - An entry missing `code`, or with empty `tests`, yields nothing; parley's tooling owns its meaning (#598).
   - **DRY rationale:** it reuses `validGlob` and `cleanRelPath` from config.go.
   - **Future extensions:** a `version: 2` is a new branch here; v1 stays strict.
@@ -199,48 +200,34 @@ This plan carries out the approved design in `workshop/history/plans/000598-affe
 ### M1: traceability input
 
 - [ ] Move landingline's `decodeStrict` and `encodeWithExtra` to `internal/jsonstrict` (`object.go`) as `DecodeObject` and `EncodeWithExtra`, with tests. landingline calls them; `go test ./cmd/sdlc/internal/landingline/ ./cmd/sdlc/internal/jsonstrict/` passes. (This lands in M1 because it is a no-behavior refactor; M2 is its new user.)
-- [ ] `config.go`: the `traceability` member, with strict table tests for a valid path, a glob, a duplicate, a non-array, an unknown key and traversal. The fuzz seed corpus gains the member.
-- [ ] `traceability.go` `ParseTraceability`:
-  - a golden test on `testdata/parley-traceability.yaml` (parley.nvim ee938b5a, copied in), checking the entry count (65), `chat/spell_typeahead`'s code and tests, and the `tests: []` entry yielding nothing;
-  - a refusal table: version 2, a missing version, an unknown root key, an unknown entry key, an int path, a null, an alias, a merge key, two documents, an empty path, `..`;
-  - a fuzz target asserting that it never panics, and that every entry it yields has clean paths.
+- [ ] `config.go`: the `traceability` member. Strategy: the existing strict-parse fuzz target gains the member in its seeds, with the guard that a parsed config validates again.
+- [ ] `traceability.go` `ParseTraceability`. Strategy:
+  - a golden test on `testdata/parley-traceability.yaml` (parley.nvim ee938b5a, copied in);
+  - a fuzz target seeded with hand-edit forms (duplicate keys at each level, aliases, merges, non-string scalars, extra documents, traversals), with the guard that it either refuses or yields only clean paths, and never panics.
 - [ ] `mapping.go`: `Sources` and `Compile(cfg, Sources)`, plus the traceability rules. Update the callers: `loadAffectedMapping` and the M1 tests.
-- [ ] `TestPlanTraceability`:
-  - a `code` path selects a Go test target's package and its dependents;
-  - a `code` path selects a Lua spec's group;
-  - a target that claims nothing goes full, naming `<file> <key>`;
-  - a target in `full` goes full;
-  - traceability and an owner rule claim together.
-  - The benchmark gains the traceability case.
-- [ ] `loadAffectedMapping` reads traceability. Real-git tests (in `localcheck_affected_declared_test.go`):
-  - the file is read from main, not the head;
-  - a declared file missing on main gives a full selection with its reason;
-  - a malformed file falls back to the suite in ordinary mode, and boarding refuses.
+- [ ] Traceability through `Plan`. Strategy: the existing `Owned`-includes-graph-owners property extends to traceability rules, plus one `TestPlanTraceability` table over the claim contract (Go target, group target, unclaimed and `full` targets go full, naming `<file> <key>`). The benchmark gains the traceability case.
+- [ ] `loadAffectedMapping` reads traceability. Strategy: extend the real-git declared fixture so the file is read from main, not the head, and a missing or malformed file on main makes the selection full, naming it, in both modes.
 - [ ] atlas `ci-merge-check.md` "The affected suite": the traceability input, and the fact that parley's `make test-spec` reads the same file unchanged. README member list.
 - [ ] `sdlc milestone-close --issue 616 --milestone M1`
 
 ### M2: missed-mapping ledger
 
-- [ ] `missed.go` `Missed`: a table over a non-full selection, a full one, one with a group, a bare name, a subtest, a known flake, and a selected package.
-- [ ] `missed.go` `MissedLedger` codec and ops:
-  - round-trip with unknown members, both top-level and per-entry;
-  - strict refusals: a duplicate key, a wrong type, a null, version 2;
-  - Record's dedupe (hits, newest evidence, earliest FirstSeen), the 20-path storage cap with the key taken from the full set, and the 200-entry cap dropping the oldest;
-  - Dismiss of an unknown ID; Prune.
-- [ ] `affected_missed.go` store: lock, read, write and rename in a temp git common dir; two goroutine writers on one ID give Hits = 2; an interleaved dismiss and a record both survive; the stale-temp sweep; a refused file is never overwritten.
+- [ ] `missed.go` `Missed`. Strategy: one table over the "nothing recorded" contract (full, grouped, bare or unparseable name, known flake), plus the property that a returned miss's package is never in `sel.GoPkgs`.
+- [ ] `missed.go` `MissedLedger` codec and ops. Strategy:
+  - a round-trip property: an older-shaped writer rewrites a newer record and keeps its unknown members at both levels;
+  - a fuzz target over the decoder, guarding that it refuses or re-encodes losslessly;
+  - a sequence test of Record, Dismiss and Prune checking the invariants (unique IDs, ≤ 200 entries, Hits equal to the record count per ID).
+- [ ] `affected_missed.go` store. Strategy: a concurrent-writers test on a temp common dir (same ID gives Hits = 2; an interleaved dismiss and a record of another ID both survive), and a refused file is never overwritten.
 - [ ] Extract `affectedSelectionAt` from `splitImpact`; `landingattribution_impact_test.go` passes unchanged.
-- [ ] `suitebaseline.go` hook with `localRunDeps.RecordMissed`. Tests drive `diagnoseSuiteFailure` with fake runs:
-  - introduced + main passed records a miss, and the label names the count;
-  - a red main records nothing;
-  - a full selection records nothing;
-  - a recorder error becomes a label, and the gate's error is unchanged.
-  - Also one real-git test of the production recorder on a temp repo: a branch that changes a non-Go file a Go test reads, with no mapping, records the test's package.
-- [ ] `assessSplit` hook: `splitImpact` returns its paths. Extend `landingtrain_attribution_test.go`:
-  - an untouched, unregistered failure records a miss;
-  - a registered or affected one records nothing;
-  - a store error leaves the verdict unchanged.
-- [ ] `sdlc affected missed list|dismiss` (`affected_missed_cmd.go`), registered as a new `affected` command group in `main.go`'s workflow list (none exists today; `missed` is its only child), with its Long help from the embedded helptext. Help text and RECOVERY block. Tests: list prints entries; it prunes an entry that main's mapping now covers; it lists without pruning when the graph is unavailable; dismiss removes; an unknown ID refuses.
+- [ ] `suitebaseline.go` hook with `localRunDeps.RecordMissed`. Strategy: drive `diagnoseSuiteFailure` with fake runs over the record/skip contract (records only on introduced + green main), with the guard that the returned gate error wraps the original in every case. Plus one real-git test of the production recorder: a branch that changes a non-Go input a Go test reads, with no mapping, records the test's package.
+- [ ] `assessSplit` hook: `splitImpact` returns its paths. Strategy: extend `landingtrain_attribution_test.go` so that only untouched, unregistered failures record, with the guard that the verdict is identical whether or not the store fails.
+- [ ] `sdlc affected missed list|dismiss` (`affected_missed_cmd.go`), registered as a new `affected` command group in `main.go`'s workflow list (none exists today; `missed` is its only child), with its Long help from the embedded helptext, help text and a RECOVERY block. Strategy: a command test over a temp store for list, covered-prune, prune-unavailable, dismiss and an unknown ID.
 - [ ] atlas: the curation loop (miss → declare in affected.json, traceability or a sidecar's `reads` → `list` prunes it), in `ci-merge-check.md`, with the `atlas/index.md` link if a new file is added. A `workshop/lessons.md` entry, if review finds a class.
 - [ ] `sdlc close --issue 616`
 
 ## Revisions
+
+### 2026-10-24: plan-quality round 1
+
+- PQ-1: decoding into a `yaml.Node` skips yaml.v3's duplicate-key check. The class is any decode-time check the walk assumed from the library. The walk now owns every refusal through one `mappingPairs` helper, and duplicate-key seeds are in the fuzz corpus. No other library behavior is assumed: aliases, merges, tags and documents were already checked by the walk.
+- Minor: the Plan's test rows are compressed to one strategy line per risky function.
