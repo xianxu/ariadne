@@ -54,7 +54,7 @@ split between bugs and features, and no measure of whether bugs are under contro
 Durable plan: [000633 plan](../plans/000633-tl-lead-weekly-backlog-triage-bugs-vs-feature-themes-one-bug-slot-per-repo-plan.md).
 
 - [x] M1 — the `kind` card field, `sdlc issue set-kind`, and `sdlc issue list --json` over every card
-- [ ] M2 — `tl-lead triage stats` and the WEEKLY BACKLOG TRIAGE duty in help
+- [x] M2 — `tl-lead triage stats` and the WEEKLY BACKLOG TRIAGE duty in help
 
 ## Estimate
 
