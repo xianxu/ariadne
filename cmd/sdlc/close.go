@@ -60,16 +60,16 @@ type closeFlags struct {
 	Actual    string
 	// Split is the measured build/converge division of an ADOPTED Actual (#234);
 	// nil when --actual was typed, which the ledger records as split_source manual.
-	Split     *actualSplit
-	Inputs    *gatestate.MeasurementInputs
+	Split  *actualSplit
+	Inputs *gatestate.MeasurementInputs
 	// Confidence is the measured actual's confidence (#603); nil when --actual
 	// was typed or measurement was skipped.
 	Confidence *actualConfidence
 	Verified   string
-	Force     bool
-	DryRun    bool
-	BrainDir  string
-	IssuesDir string
+	Force      bool
+	DryRun     bool
+	BrainDir   string
+	IssuesDir  string
 	// PlansDir holds durable plans and the gate sidecars beside them. Added in #187 as a
 	// FIELD rather than a third inline envOr: the boundary review already resolved it twice
 	// inline, and the cost report needs it a third time to find the plan-gate ledger

@@ -61,7 +61,9 @@ func TestClassifyActual(t *testing.T) {
 // Unattributed minutes count a seen minute once, inside the sample and the
 // counted phases, and never one this issue's segments already counted.
 func TestUnattributedAndOverstatedMinutes(t *testing.T) {
-	at := func(m int) time.Time { return time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC).Add(time.Duration(m) * time.Minute) }
+	at := func(m int) time.Time {
+		return time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC).Add(time.Duration(m) * time.Minute)
+	}
 	rec := func(kind string, a, b int) gatestate.MeasurementUnattributed {
 		return gatestate.MeasurementUnattributed{Kind: kind, Bounded: true, Start: at(a).Format(time.RFC3339), End: at(b).Format(time.RFC3339), Reason: "r"}
 	}
