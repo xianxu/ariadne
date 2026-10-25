@@ -277,3 +277,66 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"dff19e32-ee61-497d-9dfd-eaf08c828f97","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/32a7db33a0776b90","reviewed_head":"6d087a5bf4446137d052a8b381a91d243c203c1a","slot":"ariadne:5","requested_at":"2026-10-25T16:16:59.962128Z"},"phase":"finished","pid":29634,"started_at":"2026-10-25T16:17:00.074699Z","finished_at":"2026-10-25T16:18:24.629772Z","session_id":"9cd782d6-52c4-415b-bf48-a7b0c4d68a75","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T09:23:31-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 631 — Suite shard alarm during shared scratch removal lacks exact target and timing evidence |
+| repo | ariadne |
+| issue file | workshop/issues/000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | b62611acd1e0694d2b1a73c85d27f42445d0dd19..a87f161315c2f4425aeb4f01793f2c3f890523b5 |
+| command | sdlc close --issue 631 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T09:23:31-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the BR-6 fix and the targeted tests pass. One last check: whether a similar chmod site elsewhere was touched in this window.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-6, is fixed, and nothing in this window introduces a Critical or Important defect. The code change is small. `makeTreeWritable` used to fall back to a path-based `os.Chmod` when the kernel returned EOPNOTSUPP. That fallback is gone, so every permission change now goes through `unix.Fchmodat(AT_FDCWD, p, …, AT_SYMLINK_NOFOLLOW)` (`cmd/sdlc/testscratch.go:202`). I checked golang.org/x/sys v0.47.0: its Linux `Fchmodat` tries `fchmodat2` and returns EOPNOTSUPP when the kernel lacks it. The error now reaches the caller, and the removal is logged as failed instead of risking a followed symlink. This is the "skip the entry and return the error" option BR-6 offered, and it covers the whole rule, not just one line. The test fixture now cleans up with its own walk instead of the helper under test, which closes a real hazard: a red check or a revert check could leave its tree behind in shared scratch. The interdiff does not change `## Spec`, `## Revisions` or `## Done when`, so there is no scope change.
+
+1. **Strengths**
+   - `cmd/sdlc/testscratch.go:198-202`: one permission-change primitive with no fallback. The comment states the trade-off (kernels without `fchmodat2` fail the removal and it is logged), and that trade-off is safe.
+   - `cmd/sdlc/testscratch_test.go:384-398`: `removeFixtureTree` does not depend on the code under test. It also fails the test if the tree is still there. `WalkDir` calls the callback on a directory before reading it, so the 0o000 and 0o311 directories get their chmod first and the walk can read them.
+   - The `workshop/lessons.md` entries state the rules ("a fixture never cleans up through the helper under test"; "a fix for a race finding names the rule, not the call site"), not just the incidents.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes**
+   - These tests pass on darwin at the head: `go test ./cmd/sdlc -run 'TestSweepStaleTemp|TestPrepareScratch|TestExcludedScratchRoot|TestStaleTempReason'`. `GOOS=linux go vet ./cmd/sdlc` is clean.
+   - BR-6's fix only deletes code. The removed branch could only run on a Linux kernel without `fchmodat2`, which no fixture here can reach. A revert-to-red test cannot be built on this host, and the fix needs none: the change is a deletion, and I checked it against the x/sys source.
+   - Known consequence: on Linux before 6.6, or where seccomp blocks `fchmodat2`, read-only trees are not removed and `TestSweepStaleTempRemovesReadOnlyTrees` would fail there. That is the stated, accepted trade-off. Note it if Linux CI ever runs older kernels.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass** within the window. The fixture helper deliberately does not reuse `makeTreeWritable`, which is right for test independence.
+   - **ARCH-PURE: pass.** The thin IO shell is unchanged.
+   - **ARCH-PURPOSE: pass** for the window, with one note for later work. `cmd/sdlc/internal/reviewbox/checkout.go:379-389` has a second `removeTree` that repairs trees with a path-based `os.Chmod`. It falls in the same `symlink-toctou-chmod` class and duplicates `testscratch.go`'s repair (ARCH-DRY). It is outside this window and untouched by it, so I am not raising it as a finding. A follow-up could have both use one shared no-follow tree-repair helper.
+   - **ARCH-EVOLVE: n/a.** No persisted format changes.
+
+7. **Plan revision recommendations:** none. The issue log's 2026-10-25 delta-review entry already says the fallback was removed. The earlier "os.Chmod only on Linux EOPNOTSUPP" log lines are historical entries, and the later entry supersedes them.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Fallback removed at cmd/sdlc/testscratch.go:202; every repair chmod is Fchmodat AT_SYMLINK_NOFOLLOW, and EOPNOTSUPP on old kernels propagates as a logged removal failure (x/sys v0.47.0 Fchmodat confirmed).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9be0cd7d-439b-403a-811d-de058165b3ff","repository":"github.com/xianxu/ariadne","issue_id":"000631","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/5684e998550c707c","reviewed_head":"a87f161315c2f4425aeb4f01793f2c3f890523b5","slot":"ariadne:5","requested_at":"2026-10-25T16:22:38.591454Z"},"phase":"finished","pid":1280,"started_at":"2026-10-25T16:22:38.691696Z","finished_at":"2026-10-25T16:23:29.735663Z","session_id":"65514fef-8fd3-4749-9215-7af11930ea46","outcome":"returned"}] -->

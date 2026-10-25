@@ -1625,6 +1625,536 @@ rounds:
       isolation: fenced
       reviewed: 6d087a5bf4446137d052a8b381a91d243c203c1a
       blocked: false
+    - reviewer_runs:
+        - version: 1
+          intent:
+            disposable_root: true
+            id: 9be0cd7d-439b-403a-811d-de058165b3ff
+            repository: github.com/xianxu/ariadne
+            issue_id: "000631"
+            recipe: fix-review
+            round: 4
+            attempt: 1
+            agent: claude
+            root: /Volumes/TestScratch/review-checkouts/5684e998550c707c
+            reviewed_head: a87f161315c2f4425aeb4f01793f2c3f890523b5
+            slot: ariadne:5
+            requested_at: "2026-10-25T16:22:38.591454Z"
+          phase: finished
+          pid: 1280
+          started_at: "2026-10-25T16:22:38.691696Z"
+          finished_at: "2026-10-25T16:23:29.735663Z"
+          session_id: 65514fef-8fd3-4749-9215-7af11930ea46
+          outcome: returned
+      actual_inputs:
+        version: 4
+        method: active-time-v3-branch-queue-v1
+        repository: github.com/xianxu/ariadne
+        code_head: a87f161315c2f4425aeb4f01793f2c3f890523b5
+        tracker_head: 9b2e0cee9148f090b2024986b32741a558798515
+        branch_point: 717667950a336c145042db18b8a563ef886b90ef
+        since: "2026-10-25T08:18:17-07:00"
+        until: "2026-10-25T09:19:44-07:00"
+        brain_root: /Users/xianxu/workspace/brain
+        gap_minutes: 15
+        commit_weight: 1
+        include_assistant: true
+        engagements:
+            - start: "2026-10-25T08:18:17-07:00"
+              end: "2026-10-25T09:19:44-07:00"
+              began: "2026-10-25T08:18:17-07:00"
+              roots:
+                - /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+        sources:
+            - harness: claude
+              id: 03bd9c39-c2ac-4044-9095-3ae230ea12e1
+              slot: ariadne:5
+              cwd: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              digest: f80ec97136586edb20833e230ea5571432544abbfc5524b49adfb1c20d29a9ed
+              started: "2026-10-23T08:59:44.621Z"
+              spawned: false
+              bytes: 28780032
+              windows:
+                - start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+              dispatch_windows:
+                - start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T09:19:44-07:00"
+        queue_waits:
+            - attempt_id: 57dd4da26a16d14ec04199e01a6ebe1a
+              slot: ariadne:5
+              record_digest: ac8a5f18c8463388bda298aba8df1ee574bb0c0203cbd26309c2fc26860bea7a
+              start: "2026-10-25T15:25:46.122984Z"
+              end: "2026-10-25T15:34:38.937523Z"
+              queue_seconds: 532.814539
+              raw_seconds: 532.814539
+              exact: true
+        excluded_brain_sessions: 1
+        excluded_brain_minutes: 0.07388333333333333
+        cuts:
+            - dispatched: "2026-10-25T09:02:45-07:00"
+              finalized: "2026-10-25T09:04:31-07:00"
+              finalizing: true
+            - dispatched: "2026-10-25T09:09:25-07:00"
+              finalized: "2026-10-25T09:11:49-07:00"
+              finalizing: false
+            - dispatched: "2026-10-25T09:16:59-07:00"
+              finalized: "2026-10-25T09:18:26-07:00"
+              finalizing: true
+        branches:
+            - root: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+              path: /Users/xianxu/workspace/ariadne/.git/worktrees/ariadne4/logs/HEAD
+              head: a87f161315c2f4425aeb4f01793f2c3f890523b5
+              branch: 000631-suite-shard-alarm-during-shared-scratch-removal-lacks-exact-target-and-timing
+              digest: f4c219db40cc676c0678e8ccf9a24da1067c8972545b13fc5e8103387c0b4165
+              bytes: 140658
+              intervals:
+                - source_index: 0
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source_index: 0
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/1c59d24c-f275-445a-b51c-0b480cb653df
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/1c59d24c-f275-445a-b51c-0b480cb653df
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/2b1c35f1-9bee-4064-83d0-2a67ebaaf586
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/2b1c35f1-9bee-4064-83d0-2a67ebaaf586
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/4daf2a22-2b24-4051-8da0-12909991a0b4
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/4daf2a22-2b24-4051-8da0-12909991a0b4
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/74d84b0b-44e4-4f3b-9272-c01f5bff5a15
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/74d84b0b-44e4-4f3b-9272-c01f5bff5a15
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/859a94b5-f64e-467e-8ff7-3093fbe90e34
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/859a94b5-f64e-467e-8ff7-3093fbe90e34
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/892024fe-47ce-4a43-b1a5-4663182c168f
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/892024fe-47ce-4a43-b1a5-4663182c168f
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/9fc438f6-1e46-462b-8a7e-093f8f570d6a
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/9fc438f6-1e46-462b-8a7e-093f8f570d6a
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/b67424a5-4450-47c8-97b8-2728a3e3e2e8
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/b67424a5-4450-47c8-97b8-2728a3e3e2e8
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: claude/e4e8cf8d-96e4-41c5-8294-ef8fa7a128ca
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: claude/e4e8cf8d-96e4-41c5-8294-ef8fa7a128ca
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a136db-6cd1-7a31-87f3-271411613545
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a136db-6cd1-7a31-87f3-271411613545
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a136e3-0510-7ad2-b6e3-fc22d2393185
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a136e3-0510-7ad2-b6e3-fc22d2393185
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a136e5-856a-70f1-af77-586688329bf5
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a136e5-856a-70f1-af77-586688329bf5
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a136e7-5937-7813-92b3-81b395dd6373
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a136e7-5937-7813-92b3-81b395dd6373
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a136e8-0981-76e3-a40c-a39877b8de78
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a136e8-0981-76e3-a40c-a39877b8de78
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13e41-814f-7363-9ace-652b9e0c79db
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13e41-814f-7363-9ace-652b9e0c79db
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13e42-77b7-7362-8d9e-081b86faacd8
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13e42-77b7-7362-8d9e-081b86faacd8
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13e45-0e99-7c22-8c44-efccc86d13fd
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13e45-0e99-7c22-8c44-efccc86d13fd
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13e46-56b2-7e11-8b51-a1afe9e0b5ae
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13e46-56b2-7e11-8b51-a1afe9e0b5ae
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13e46-cfd5-7dc3-b742-855d83a3b01c
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13e46-cfd5-7dc3-b742-855d83a3b01c
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13ef7-195b-7873-93c2-eab974272198
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13ef7-195b-7873-93c2-eab974272198
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13ef8-6498-7093-9ea5-e3860d6eb2dc
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13ef8-6498-7093-9ea5-e3860d6eb2dc
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13ef8-d531-7bb3-8af6-4b9b02a2a7b1
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13ef8-d531-7bb3-8af6-4b9b02a2a7b1
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13efa-087b-7371-ba41-bd3cf7ae4281
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13efa-087b-7371-ba41-bd3cf7ae4281
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a13efa-81b5-7583-a528-ca503a8de772
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a13efa-81b5-7583-a528-ca503a8de772
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a146c6-7afd-7f20-953b-a22feb894466
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a146c6-7afd-7f20-953b-a22feb894466
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a146c7-9d2c-7ad2-8f7a-84a895b8235d
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a146c7-9d2c-7ad2-8f7a-84a895b8235d
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a146c8-cac0-7591-8d7e-d5e067bc1582
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a146c8-cac0-7591-8d7e-d5e067bc1582
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a146c9-2fd7-76f1-80fa-e78d01c5de6a
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a146c9-2fd7-76f1-80fa-e78d01c5de6a
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a149da-2cf6-78a0-bb82-2002cb7aa24f
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a149da-2cf6-78a0-bb82-2002cb7aa24f
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a149dd-61f3-7f70-949d-c3f57e4db6d8
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a149dd-61f3-7f70-949d-c3f57e4db6d8
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a149de-3582-74b2-8e00-383b44721aef
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a149de-3582-74b2-8e00-383b44721aef
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a149de-941b-7e10-816b-37abe3202d36
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a149de-941b-7e10-816b-37abe3202d36
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a15a09-0f59-7b93-ad53-4f28144d42d9
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a15a09-0f59-7b93-ad53-4f28144d42d9
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a1605e-8315-77a1-bf79-667826f2aa0e
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a1605e-8315-77a1-bf79-667826f2aa0e
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16060-ab56-7fd0-aa39-0a388d2dcde3
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16060-ab56-7fd0-aa39-0a388d2dcde3
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16062-3f0a-7fb3-ba73-0663ba2ed7ae
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16062-3f0a-7fb3-ba73-0663ba2ed7ae
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16062-a981-70c3-9e8e-eb45dbf8ac5d
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16062-a981-70c3-9e8e-eb45dbf8ac5d
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a161f6-e0be-7a71-95c6-b39b5659fc6d
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a161f6-e0be-7a71-95c6-b39b5659fc6d
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a161f8-89af-7061-9d69-1b6b31e0af42
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a161f8-89af-7061-9d69-1b6b31e0af42
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a161f9-65c5-74a2-b7de-507a69d2553c
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a161f9-65c5-74a2-b7de-507a69d2553c
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a161f9-c28e-76d2-8a85-5ed3bff58c1f
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a161f9-c28e-76d2-8a85-5ed3bff58c1f
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16201-e130-75f1-91de-47f8e68f03d4
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16201-e130-75f1-91de-47f8e68f03d4
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16202-3630-72a2-b708-c8663e97194c
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16202-3630-72a2-b708-c8663e97194c
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a16569-2ac8-7262-8166-f38064a3678e
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a16569-2ac8-7262-8166-f38064a3678e
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a1656b-d8d4-7f62-b4e0-d964ce2b3bff
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a1656b-d8d4-7f62-b4e0-d964ce2b3bff
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a1656d-6400-7a00-8f94-942f722b558c
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a1656d-6400-7a00-8f94-942f722b558c
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+                - source: codex/01a1656e-33d9-7091-8b81-5f329965ee2e
+                  start: "2026-10-25T08:18:17-07:00"
+                  end: "2026-10-25T15:18:25Z"
+                  branch: main-slot5
+                  kind: resting-excluded
+                - source: codex/01a1656e-33d9-7091-8b81-5f329965ee2e
+                  start: "2026-10-25T15:18:25Z"
+                  end: "2026-10-25T09:19:44-07:00"
+                  kind: branch
+      "n": 4
+      timestamp: "2026-10-25T09:23:31-07:00"
+      dispatched: "2026-10-25T09:22:38-07:00"
+      agent: claude
+      reviewer: claude (anthropic; author anthropic)
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: Fallback removed at cmd/sdlc/testscratch.go:202; every repair chmod is Fchmodat AT_SYMLINK_NOFOLLOW, and EOPNOTSUPP on old kernels propagates as a logged removal failure (x/sys v0.47.0 Fchmodat confirmed).
+          round: 4
+      recipe: fix-review
+      isolation: fenced
+      reviewed: a87f161315c2f4425aeb4f01793f2c3f890523b5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#631 (boundary-review)
@@ -1670,6 +2200,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `symlink-toctou-chmod` (kind: defect) On Linux without fchmodat2, makeTreeWritable falls back to path-based os.Chmod, which can follow a swapped-in symlink
   This is the 2nd finding in family symlink-toctou-chmod. The rule covering both: every permission change during tree repair must use a primitive that cannot follow a symlink at the final path component. Darwin and Linux kernels from 6.6 meet this through Fchmodat with AT_SYMLINK_NOFOLLOW. The EOPNOTSUPP fallback at testscratch.go:200-203 does not: it relies on an earlier lstat (BR-3's race). Fix for kernels without fchmodat2: open the parent directory O_DIRECTORY|O_NOFOLLOW, Fstatat the base name with AT_SYMLINK_NOFOLLOW to confirm it is a directory, then Fchmodat relative to that parent fd (still a small race), or skip the entry and return the error. Low practical risk because the tool is darwin-first and CI kernels have fchmodat2.
 
+## Round 4 — 2026-10-25T09:23:31-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — Fallback removed at cmd/sdlc/testscratch.go:202; every repair chmod is Fchmodat AT_SYMLINK_NOFOLLOW, and EOPNOTSUPP on old kernels propagates as a logged removal failure (x/sys v0.47.0 Fchmodat confirmed).
+
 ## Open findings
 
-- **BR-6** [Minor] `symlink-toctou-chmod` (kind: defect) On Linux without fchmodat2, makeTreeWritable falls back to path-based os.Chmod, which can follow a swapped-in symlink
+(none — every finding has been disposed)
