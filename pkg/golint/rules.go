@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // Catalog is the curated list, in the order findings are reported. Add a rule
@@ -85,8 +87,8 @@ var Catalog = []Rule{
 	},
 	{
 		Name:     "test-tight-wallclock",
-		Incident: "2026-10-15 flakes",
-		Message:  "a sub-second upper bound on elapsed wall-clock time fails under load; assert the event or outcome, or bound only a hang (1s or more)",
+		Incident: "2026-10-15 flakes, ariadne#620, ariadne#625",
+		Message:  "an upper bound on elapsed wall-clock time, or a polling deadline, below the hang ceiling fails under load; assert the event or outcome (a recorded timeout, a killed child), and bound only a hang with testgate.HangCeiling",
 		TestOnly: true,
 		Match:    tightWallclock,
 	},
@@ -463,9 +465,12 @@ func fixedSleeps(f *ast.File, _ *CheckContext) []ast.Node {
 	return out
 }
 
-// tightWallclock flags an upper bound under 1s on elapsed time: time.Since(x)
-// itself, or a variable assigned from it, compared against a constant. Lower
-// bounds (proof that a wait happened) and loose hang bounds are fine.
+// tightWallclock flags an upper bound on elapsed time, time.Since(x) itself or
+// a variable assigned from it, and a time.Now().Add(d) deadline, unless the
+// bound is the hang ceiling: an expression naming HangCeiling, or a constant
+// at least as long. Second-scale bounds read as hang guards but were the
+// oracle, and failed under fleet load (#620's 8s, #625's 30s). Lower bounds
+// (proof that a wait happened) are fine.
 func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 	timePkg := localName(f, "time")
 	if timePkg == "" {
@@ -513,12 +518,91 @@ func tightWallclock(f *ast.File, _ *CheckContext) []ast.Node {
 		default:
 			return true
 		}
-		if d, ok := constDuration(timePkg, bound); ok && d < time.Second {
+		if !hangBound(timePkg, bound) {
 			out = append(out, b)
 		}
 		return true
 	})
+	// A deadline is time.Now().Add(d) assigned to a variable that a poll
+	// loop then tests with time.Now().After(v) or time.Until(v); a timestamp
+	// fixture built the same way is never polled, so it is not flagged.
+	isNow := func(e ast.Expr) bool {
+		call, ok := e.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		fn, ok := call.Fun.(*ast.SelectorExpr)
+		pkg, isPkg := fnIdent(fn)
+		return ok && isPkg && pkg == timePkg && fn.Sel.Name == "Now"
+	}
+	deadlines := map[string]*ast.CallExpr{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		as, ok := n.(*ast.AssignStmt)
+		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
+			return true
+		}
+		id, ok := as.Lhs[0].(*ast.Ident)
+		call, isCall := as.Rhs[0].(*ast.CallExpr)
+		if !ok || !isCall || len(call.Args) != 1 {
+			return true
+		}
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Add" && isNow(sel.X) && !hangBound(timePkg, call.Args[0]) {
+			deadlines[id.Name] = call
+		}
+		return true
+	})
+	polled := map[*ast.CallExpr]bool{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok || len(call.Args) != 1 {
+			return true
+		}
+		id, ok := call.Args[0].(*ast.Ident)
+		if !ok || deadlines[id.Name] == nil {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, isPkg := fnIdent(sel)
+		if (sel.Sel.Name == "After" || sel.Sel.Name == "Before") && isNow(sel.X) || isPkg && pkg == timePkg && sel.Sel.Name == "Until" {
+			if d := deadlines[id.Name]; !polled[d] {
+				polled[d] = true
+				out = append(out, d)
+			}
+		}
+		return true
+	})
 	return out
+}
+
+// fnIdent names the package of a qualified call such as time.Now.
+func fnIdent(sel *ast.SelectorExpr) (string, bool) {
+	if sel == nil {
+		return "", false
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return "", false
+	}
+	return id.Name, true
+}
+
+// hangBound reports an expression that bounds only a hang: one naming
+// HangCeiling, or a constant duration no shorter than it.
+func hangBound(timePkg string, e ast.Expr) bool {
+	if d, ok := constDuration(timePkg, e); ok {
+		return d >= testgate.HangCeiling
+	}
+	named := false
+	ast.Inspect(e, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok && id.Name == "HangCeiling" {
+			named = true
+		}
+		return !named
+	})
+	return named
 }
 
 // workshopRE is a relative path that climbs from a package straight into
