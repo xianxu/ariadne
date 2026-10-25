@@ -5,8 +5,8 @@ deps: [ariadne#598]
 github_issue:
 created: 2026-10-24
 updated: 2026-10-24
-estimate_hours:
-card_mirror: '2f0ec6de42737791d2c6399c4d6fa3a34be93749' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.96
+card_mirror: 'b521fca71b727306440b1ee2c86f681211b44144' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-24T23:10:54-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:5
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Affected planning: traceability input and missed-mapping ledger
@@ -51,6 +52,35 @@ The design is approved as part of #598's durable plan: `workshop/history/plans/0
 - When the merged-head suite fails at merge and main's baseline passes, each introduced Go-test failure whose package the branch's affected selection would not have run is recorded as a missed mapping. So is a train failure attributed to a car whose affected record missed the package.
 - Nothing is recorded for a red main baseline, a full selection or a bare test name, and recording never changes the gate's outcome.
 - `sdlc affected missed list` shows open entries and drops those that main's mapping now covers; `dismiss` removes one. The ledger is deduped, capped and locked, and keeps unknown members on rewrite.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module      design=0.1  impl=0.2
+item: smaller-go-module      design=0.05 impl=0.1
+item: smaller-go-module      design=0.1  impl=0.24
+item: smaller-go-module      design=0.1  impl=0.28
+item: smaller-go-module      design=0.05 impl=0.16
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.0  impl=0.32
+design-buffer: 0.15
+total: 1.96
+```
+
+The rows are:
+- the traceability parser, config member and `Sources`;
+- the codec move to jsonstrict;
+- `Missed` and the pure ledger;
+- the store, the two hooks and the `affectedSelectionAt` extraction;
+- the `affected missed` CLI;
+- the atlas;
+- two boundary reviews.
+
+Familiarity is 1.0 because #598 M1 built the mapping these extend.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
