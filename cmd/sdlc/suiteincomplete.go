@@ -27,6 +27,14 @@ var (
 	packageNoTestReason  = regexp.MustCompile(`^package (\S+) failed without a failing test$`)
 )
 
+// incompleteEligible is which runs the rule may judge: a failed, untyped test
+// run that exited on its own. A typed runner's run (a declared contract) is
+// v4 evidence, and a v5 attempt never carries a contract, so it keeps today's
+// classification; so does a run sdlc's own deadline stopped.
+func incompleteEligible(check, contract string, rec localRunRecord) bool {
+	return !rec.passed() && isTestCheck(check) && contract == "" && rec.Exit > 0 && !rec.TimedOut
+}
+
 // classifyIncomplete applies #630's rule to a run's log facts: at least one
 // process hit the alarm, every process that failed did, and every failure the
 // log cannot name is one the alarm explains (tests that never ran, an alarmed
@@ -81,7 +89,22 @@ func classifyIncomplete(f SuiteLogFacts) (incompleteRun, bool) {
 
 // String is the one-line report: where the alarm fired and what the retry runs.
 func (r incompleteRun) String() string {
-	return "the Go test alarm stopped " + strings.Join(r.Alarmed, ", ") + "; retry runs " + strings.Join(r.Packages, " ")
+	running := ""
+	if len(r.Running) != 0 {
+		running = " (running " + strings.Join(r.Running, ", ") + ")"
+	}
+	return "the Go test alarm stopped " + strings.Join(r.Alarmed, ", ") + running + "; unfinished or failed: " + strings.Join(r.Packages, " ")
+}
+
+// goIdentities reports whether every name is a Go test: a v5 attempt carries
+// only what a v2 one does, never a typed runner's identity.
+func goIdentities(names []string) bool {
+	for _, name := range names {
+		if id, err := flakes.ParseIdentity(name); err == nil && id.Kind() != flakes.KindGo {
+			return false
+		}
+	}
+	return true
 }
 
 // validLoadAverage is a recorded load: three finite, non-negative averages.
@@ -104,7 +127,7 @@ type suiteIncompleteError struct {
 	Check, Head, LogPath string
 	Run                  incompleteRun
 	Load                 []float64
-	Retried              bool
+	Baseline             bool // main's own diagnostic baseline was the incomplete run
 }
 
 func (e *suiteIncompleteError) Error() string {
@@ -112,12 +135,11 @@ func (e *suiteIncompleteError) Error() string {
 	if len(e.Load) == 3 {
 		load = fmt.Sprintf("host load %.1f %.1f %.1f", e.Load[0], e.Load[1], e.Load[2])
 	}
-	again := ""
-	if e.Retried {
-		again = " again on its retry"
+	consequence := "not a test result, so no main baseline was run; rerun " + localCheckRunCommand(e.Check, e.Head) + " when the host is less loaded"
+	if e.Baseline {
+		consequence = "main's baseline is unknown, so no failure is attributed to main or to the change"
 	}
-	return fmt.Sprintf("local check %s on %s incomplete (timeout)%s: %s; %s; not a test result, so no main baseline was run; rerun %s when the host is less loaded; log %s",
-		e.Check, abbrevSHA(e.Head), again, e.Run, load, localCheckRunCommand(e.Check, e.Head), e.LogPath)
+	return fmt.Sprintf("local check %s on %s incomplete (timeout): %s; %s; %s; log %s", e.Check, abbrevSHA(e.Head), e.Run, load, consequence, e.LogPath)
 }
 
 // hostLoad is the 1, 5 and 15 minute load for a report, or nil when it cannot

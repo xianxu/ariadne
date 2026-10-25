@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flakes"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/landingline"
@@ -42,6 +43,7 @@ func TestClassifyIncomplete(t *testing.T) {
 			"--- FAIL github.com/x/y/pkg/other TestReal",
 			"shard0    exit 0   1100.0s  0 failed"), []string{"github.com/x/y/pkg/other", "github.com/x/y/pkg/slow"}},
 		{"a passing run", lines(packagesOK, "shard0    exit 0   1100.0s  0 failed"), nil},
+		{"a typed runner's evidence", lines(append(append([]string{packagesOK, `{"sdlc_unit":1}`}, alarmed("shard0")...), neverRan)...), nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -120,6 +122,18 @@ func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
 	if _, err := decodeSuiteAttempt(stray); err == nil {
 		t.Fatal("a version 2 attempt carrying load_average decoded")
 	}
+	// Version 5 carries only what version 2 does: no typed runner identity.
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatal(err)
+	}
+	fields["failures"] = []string{"lua:spec/a_spec.lua#case"}
+	typed, err := json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeSuiteAttempt(typed); err == nil {
+		t.Fatal("a version 5 attempt naming a typed runner's case decoded")
+	}
 }
 
 // An incomplete run is never an unexplained failure, but a failure that
@@ -153,6 +167,9 @@ func TestSuiteIncompleteIsNotATestResult(t *testing.T) {
 	var incomplete *suiteIncompleteError
 	if !errors.As(err, &incomplete) {
 		t.Fatalf("%v\n%s", err, stderr)
+	}
+	if _, reused, err := republishSavedPass(context.Background(), d, suiteTimedOut(), sha); reused || gh.statuses[sha]["sdlc-local/suite"] != "" {
+		t.Fatalf("a saved incomplete attempt was republished: %v %v", err, gh.statuses[sha])
 	}
 	gateErr := fmt.Errorf("CI gate: %w", err) // how waitCIGate returns a local run's error; the very same error back means no baseline ran
 	if got := diagnoseSuiteFailure(context.Background(), gateErr, sha, d); got != gateErr {
@@ -204,4 +221,64 @@ func FuzzClassifyIncomplete(f *testing.F) {
 			}
 		}
 	})
+}
+
+// Each guard on which runs the rule judges is pinned on its own (#630, BR-5).
+func TestIncompleteEligible(t *testing.T) {
+	failed := localRunRecord{Exit: 1}
+	for _, c := range []struct {
+		name, check, contract string
+		rec                   localRunRecord
+		want                  bool
+	}{
+		{"a failed untyped suite", suiteCheckName, "", failed, true},
+		{"an affected run", affectedCheckName, "", failed, true},
+		{"a typed runner's suite keeps today's classification", suiteCheckName, strings.Repeat("a", 64), failed, false},
+		{"sdlc's own deadline", suiteCheckName, "", localRunRecord{Exit: -1, TimedOut: true}, false},
+		{"a pass", suiteCheckName, "", localRunRecord{}, false},
+		{"another check", "lint", "", failed, false},
+	} {
+		if got := incompleteEligible(c.check, c.contract, c.rec); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// Statistics read flake evidence only (isFlakeEvidence), so an incomplete run
+// is neither a run nor a flake, like a reclassified one: a later pass on the
+// head confirms no flake (#630).
+func TestAggregateSuiteAttemptsIncompleteIsNoFlake(t *testing.T) {
+	wall := 1800.0
+	at := time.Date(2026, 10, 25, 10, 0, 0, 0, time.UTC)
+	incomplete := SuiteAttempt{Version: 5, ID: "a1", Repo: "o/r", SHA: "s1", Check: suiteCheckName, Exit: 1, Outcome: string(flakes.IncompleteTimeout),
+		Failures: []string{"o/r/pkg.TestBarrier"}, StartedAt: at, FinishedAt: at.Add(time.Minute), WallSeconds: &wall}
+	pass := SuiteAttempt{Version: 2, ID: "a2", Repo: "o/r", SHA: "s1", Check: suiteCheckName, Outcome: string(flakes.Passed),
+		StartedAt: at.Add(2 * time.Minute), FinishedAt: at.Add(3 * time.Minute), WallSeconds: &wall}
+	stats := aggregateSuiteAttempts([]SuiteAttempt{incomplete, pass}, at.Add(-time.Hour), "")
+	if len(stats) != 1 || stats[0].Runs != 1 || stats[0].FlakeDenominator != 1 || stats[0].ConfirmedFlakeAttempts != 0 || len(stats[0].Flakes) != 0 {
+		t.Fatalf("%+v", stats)
+	}
+}
+
+// A real failure beside an alarmed shard is a test result: the merge gate
+// diagnoses it against main as before (#630).
+func TestSuiteMixedAlarmAndRealFailureDiagnoses(t *testing.T) {
+	d, sha, _, stderr := localRunRepo(t, "acquired")
+	out := strings.Join([]string{
+		"shard0    exit 1   1800.4s  1 failed",
+		"--- shard0 hit its 30m0s test alarm in o/r/pkg; running: TestSlow",
+		"shard1    exit 1   300.0s  1 failed",
+		"--- FAIL o/r/other TestReal",
+		"--- FAIL o/r/other",
+	}, "\n")
+	check := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "printf '%s\\n' '" + out + "'; exit 1"}, TimeoutMinutes: 30}
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	var incomplete *suiteIncompleteError
+	if errors.As(err, &incomplete) || rec.passed() || rec.Outcome == flakes.IncompleteTimeout {
+		t.Fatalf("a real failure was called incomplete: %+v %v\n%s", rec, err, stderr)
+	}
+	got := diagnoseSuiteFailure(context.Background(), &localCheckFailure{Check: check, Run: rec, Head: sha}, sha, d)
+	if got == nil || !strings.Contains(got.Error(), "suite comparison") {
+		t.Fatalf("the mixed run was not diagnosed against main: %v", got)
+	}
 }

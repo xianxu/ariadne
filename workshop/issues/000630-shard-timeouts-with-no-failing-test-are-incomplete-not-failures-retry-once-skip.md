@@ -77,7 +77,7 @@ Durable plan: [000630-shard-timeouts-incomplete-plan.md](../plans/000630-shard-t
 failure).
 
 - [ ] M1 — classify, record, report, skip diagnosis: the shard runner's alarm marker, parsed process facts,
-  `classifyIncomplete` and `flakes.IncompleteTimeout`, the v5 attempt plus the separate load record, the typed
+  `classifyIncomplete` and `flakes.IncompleteTimeout`, the v5 attempt with an additive `load_average`, the typed
   `suiteIncompleteError` (no main baseline, no train split), the guard and flake-view treatment.
 - [ ] M2 — the one retry: an incomplete parent is resumable with its own package selection; `runLocalCheck` retries
   once through `resumeSaved`; a pass posts green, incomplete again stops, a real failure diagnoses as today.

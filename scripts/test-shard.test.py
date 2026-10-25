@@ -6,6 +6,8 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -74,6 +76,32 @@ class ReportTest(unittest.TestCase):
         ]
         _, out = self.report_of(events)
         self.assertNotIn("test alarm", out)
+
+    @unittest.skipUnless(shutil.which("go"), "needs the go toolchain")
+    def test_real_go_alarm_through_both_runner_paths(self):
+        # The live check behind the hand-written fixtures above (#630): the real
+        # toolchain's alarm, through go test -json (the packages job) and
+        # through test2json over a compiled binary (a shard), yields the marker.
+        with tempfile.TemporaryDirectory(prefix="shard-alarm-") as root:
+            mod = Path(root) / "mod"
+            mod.mkdir()
+            (mod / "go.mod").write_text("module example.com/alarm\n\ngo 1.21\n")
+            (mod / "a_test.go").write_text('package alarm\n\nimport (\n\t"testing"\n\t"time"\n)\n\nfunc TestHang(t *testing.T) { time.Sleep(10 * time.Second) }\n')
+            out = Path(root) / "out"
+            out.mkdir()
+            with open(out / "packages.json", "w") as f:
+                subprocess.run(["go", "test", "-json", "-count=1", "-timeout=1s", "."], cwd=mod, stdout=f, stderr=subprocess.STDOUT)
+            binary = Path(root) / "alarm.test"
+            subprocess.run(["go", "test", "-c", "-o", str(binary), "."], cwd=mod, check=True)
+            with open(out / "shard0.json", "w") as f:
+                subprocess.run(["go", "tool", "test2json", "-t", "-p", "example.com/alarm", str(binary), "-test.v=test2json", "-test.timeout=1s"],
+                               cwd=mod, stdout=f, stderr=subprocess.STDOUT)
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed):
+                failed, _, _ = shard.report(out, [("packages", 1, 1.0), ("shard0", 1, 1.0)])
+        self.assertTrue(failed)
+        for label in ("packages", "shard0"):
+            self.assertIn(f"--- {label} hit its 1s test alarm in example.com/alarm; running: TestHang", printed.getvalue())
 
 
 class DefaultShardTest(unittest.TestCase):

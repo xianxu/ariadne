@@ -189,7 +189,8 @@ func decodeSuiteAttempt(data []byte) (SuiteAttempt, error) {
 	}
 	if (a.Version == suiteAttemptIncompleteVersion) != (a.Outcome == string(flakes.IncompleteTimeout)) ||
 		a.Version == suiteAttemptIncompleteVersion && (!isTestCheck(a.Check) || a.Exit <= 0 || a.TimedOut || a.RerunOf != "") ||
-		keys["load_average"] && (a.Version != suiteAttemptIncompleteVersion || !validLoadAverage(a.LoadAverage)) {
+		keys["load_average"] && (a.Version != suiteAttemptIncompleteVersion || !validLoadAverage(a.LoadAverage)) ||
+		a.Version == suiteAttemptIncompleteVersion && (len(a.KnownFlakes) != 0 || !goIdentities(a.Failures)) {
 		return a, errors.New("invalid incomplete (timeout) envelope")
 	}
 	if a.Outcome != "" && !(a.Version == 3 && a.Outcome == "could-not-run") && a.Version != suiteAttemptIncompleteVersion && !suiteOutcomes[flakes.Kind(a.Outcome)] {

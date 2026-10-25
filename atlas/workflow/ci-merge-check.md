@@ -272,7 +272,9 @@ first-class evidence, recorded on the commit it ran on:
   reader keeps it as an unsupported proof of that head alone. No status is posted, the known-flake step is skipped,
   and `runLocalCheck` returns `suiteIncompleteError`, which the merge gate passes through with no main baseline and
   which a train treats as could-not-run (no split, no `mainIsRed`). `isFlakeEvidence` excludes it, so a later pass
-  on the head posts. `sdlc flake` lists its unregistered named failures as "incomplete-run failures".
+  on the head posts, and republish and saved-pass reuse refuse it (`savedAttemptRecord`). A typed runner's run
+  (`incompleteEligible`) keeps today's classification, and `scripts/test-shard.test.py` checks the marker against
+  the real Go alarm. `sdlc flake` lists its unregistered named failures as "incomplete-run failures".
 - **Trust limit:** anyone with the repository's token can post an
   `sdlc-local/*` status. That is accepted: the local machine is trusted, and
   what CI guards is the declaration and the gate code.

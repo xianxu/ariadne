@@ -29,6 +29,8 @@ func savedAttemptRecord(a SuiteAttempt, logSHA string, tail []string, repo, sha,
 	switch {
 	case a.ReclassificationSHA256 != "":
 		return localRunRecord{}, fmt.Errorf("attempt %s could-not-run; repair the environment and record a genuine rerun", a.ID)
+	case flakes.Kind(a.Outcome) == flakes.IncompleteTimeout:
+		return localRunRecord{}, fmt.Errorf("attempt %s is incomplete (timeout), not a test result; run the suite again", a.ID)
 	case a.Repo != repo:
 		return localRunRecord{}, fmt.Errorf("attempt %s is for %s, not %s", a.ID, a.Repo, repo)
 	case a.SHA != sha:

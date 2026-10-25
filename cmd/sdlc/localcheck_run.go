@@ -404,7 +404,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 		}
 		// #630: a run the Go test alarm cut short is incomplete, not failed:
 		// no known-flake step, no baseline, no split.
-		if !rec.passed() && isTestCheck(c.Name) && d.flakeContract == "" && rec.Exit > 0 && !rec.TimedOut {
+		if incompleteEligible(c.Name, d.flakeContract, rec) {
 			if run, ok := classifyIncomplete(facts); ok {
 				incomplete = &run
 			}
@@ -452,7 +452,7 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
 	if incomplete != nil {
 		// Not a test result: nothing is posted, so no status claims the head failed.
-		return rec, &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: *incomplete, Load: load}
+		return rec, &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: *incomplete, Load: load, Baseline: d.SkipRecord}
 	}
 	if gateErr != nil {
 		// An interrupted or unrecordable known-flake rerun records nothing new:

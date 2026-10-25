@@ -44,14 +44,17 @@ attempt is the parent and a package-subset rerun is the child, so posting green 
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `suiteAlarm` facts (`SuiteLogFacts.Alarmed`, `SuiteLogFacts.Processes`) | `cmd/sdlc/teststats_parse.go` | modified |
+| `SuiteProcess` (`SuiteLogFacts.Processes`: `Label`, `Exit`, `Alarmed`, `Running`) and the `shardAlarm` marker regex | `cmd/sdlc/teststats_parse.go` | modified |
+| `incompleteEligible` / `goIdentities` / `validLoadAverage` | `cmd/sdlc/suiteincomplete.go` | new |
+| `SuiteAttempt.LoadAverage` (v5 only) | `cmd/sdlc/teststats.go`, `teststats_store.go` | modified |
 | `incompleteRun` / `classifyIncomplete` | `cmd/sdlc/suiteincomplete.go` | new |
 | `flakes.IncompleteTimeout` kind | `cmd/sdlc/internal/flakes/classify.go` | new |
 | incomplete-parent branch of `resolveResumeProof` | `cmd/sdlc/localcheck_resume_evidence.go` | modified |
 
-- **`SuiteLogFacts.Alarmed` / `.Processes`:** parsed from the runner's new marker line
-  (`--- shard3 hit its 30m0s test alarm; running: TestA, TestB`) and the existing `shardN exit C S.s K failed`
-  summaries. Each process records its label, exit code, and whether it hit the alarm. The parse stays a pure
+- **`SuiteLogFacts.Processes` (`SuiteProcess`):** parsed from the runner's marker line (`shardAlarm`:
+  `--- shard3 hit its 30m0s test alarm in <pkg>; running: TestA, TestB`) and the existing `shardN exit C S.s K
+  failed` summaries. Each process records its label, exit code, the packages whose alarm stopped it (`Alarmed`) and
+  the tests named as running (`Running`). The parse stays a pure
   function of the log text (ARCH-PURE), and old logs without the marker never classify as incomplete.
   - **DRY rationale:** extends the one log parser every consumer already reads (`parseSuiteLogFacts`), rather than a
     second scan in the gate.
@@ -72,8 +75,7 @@ attempt is the parent and a package-subset rerun is the child, so posting green 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | shard alarm marker | `scripts/test-shard.py` | modified | go test2json output |
-| `hostLoadAverage` | `cmd/sdlc/hostload_{darwin,linux}.go` | new | `vm.loadavg` sysctl / `/proc/loadavg` |
-| incomplete evidence record | `cmd/sdlc/suiteincomplete.go` (store side) | new | `<store>/incomplete/<id>.json` |
+| `hostLoadAverage` | `cmd/sdlc/hostload_{darwin,linux,other}.go` | new | `vm.loadavg` sysctl / `/proc/loadavg` / an error elsewhere |
 | `suiteIncompleteError` | `cmd/sdlc/suiteincomplete.go` | new | merge gate, train conductor |
 | automatic retry | `cmd/sdlc/localcheck_run.go` | modified | `resumeSaved` |
 
@@ -116,8 +118,8 @@ attempt is the parent and a package-subset rerun is the child, so posting green 
   - **Cancellation during the retry:** handled by `resumeSaved`'s existing reconciliation receipts.
   The event most likely to be mishandled is a retry whose own log is incomplete. It is classified by the same rule
   and stops there.
-- **ARCH-FUNERAL:** each incomplete evidence record is created with its attempt and pruned with it, by the store's
-  existing attempt pruning, which is extended to the `incomplete/` directory by attempt id. Each record is under 1 KB.
+- **ARCH-FUNERAL:** creates nothing durable beyond the attempt itself: `load_average` rides on the v5 attempt, which
+  the store's existing 30-day attempt pruning removes (see Revisions; the separate record was dropped).
 - **ARCH-CONSTRAINTS:** the batch path. One full suite is about 20 to 30 min. The retry costs only the unfinished
   and failed packages (in the #616 case, `cmd/sdlc` alone and not the 79 other packages: about 15 to 20 min, against
   a full suite plus a main baseline today). It is bounded to one retry.
@@ -276,3 +278,20 @@ package only, then the typed incomplete report with the load.
     that it never selects a package the log does not name, and never classifies a non-alarmed failure as
     incomplete. `resolveResumeProof`'s incomplete branch gets a pure table test (pass, fail, incomplete again,
     forged digest, wrong link version).
+- 2026-10-25, M1 boundary review round 1 (BR-2): the Core concepts tables now name what M1 built: `SuiteProcess`
+  and `shardAlarm` (the plan's `SuiteLogFacts.Alarmed` and `suiteAlarm` were drafts), `incompleteEligible`,
+  `goIdentities`, `validLoadAverage`, `SuiteAttempt.LoadAverage`, and `hostload_other.go`. The separate evidence-record
+  row is removed, not marked deleted, because it never shipped. The review also found these, all M1 work, fixed in
+  the same round:
+  - a FreeBSD build (`hostload_other.go`);
+  - republish and saved-pass reuse refusing an incomplete attempt (`savedAttemptRecord`);
+  - the typed-contract guard pinned on its own (`incompleteEligible`, plus the classifier's typed-facts case);
+  - a live conformance test of the real Go alarm through both runner paths;
+  - and four Minors.
+  The outcome-consumer sweep enumerated:
+  - `savedAttemptRecord` (republish and reuse): fixed;
+  - `isFlakeEvidence` (guard, flake view, statistics, flake evidence): M1;
+  - `flakeAttempts` callers: all filter by `isFlakeEvidence` first;
+  - `encodeReclassifiedAttempt`: now refuses v5 explicitly;
+  - `suitereclassification` (v1/2 only): already ignores v5;
+  - the resume gates: M2.
