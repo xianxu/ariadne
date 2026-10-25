@@ -1,12 +1,20 @@
 ---
 id: 000622
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '5647c87391c0bab0c4d5f4687134ef4d52456aff' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ef95d347a68f5e50ff1951bfd2d0c72785e82e66' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T04:05:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Sweep second-scale wall-clock bounds from correctness tests; golint rule for the shape
@@ -33,8 +41,16 @@ true performance tests), so new ones are caught at lint time.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000622-sweep-second-scale-wall-clock-bounds-from-correctness-tests-golint-rule-for-the-plan.md`.
+
+- [ ] M1 — the widened `test-tight-wallclock` rule (a transitional per-file pending list), group A polled deadlines, and #625
+- [ ] M2 — groups B, C, D; delete the pending list so the rule enforces; close #625 with this issue
 
 ## Log
 
 ### 2026-10-25
+
+### 2026-10-25
+
+- TL dispatch: sweep plus rule, fold in #625. The widened rule flags 35 sites (6 named). TL scope call: all four groups here, full flow, M1 = rule + group A + #625, M2 = B/C/D + enforce; proofs per package `-count=10`, one at a time.
+- Rule shape: deadlines flagged only when polled (`time.Now().After/Before(v)`, `time.Until(v)`), which cut 73 raw hits (fixture timestamps) to 35.
