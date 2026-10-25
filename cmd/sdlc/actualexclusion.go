@@ -243,6 +243,10 @@ func legacyWindowDisjoint(end, since time.Time) bool {
 // potential overlap whose pinned replay cannot be established is unknown, not
 // zero. The measured issue's own completion never excludes itself.
 func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, current *ownedActualInputs) ([]activetime.CreditedInterval, error) {
+	return loadAdoptedExclusionsWithReadSet(ctx, root, issueNum, plans, current, nil)
+}
+
+func loadAdoptedExclusionsWithReadSet(ctx context.Context, root, issueNum, plans string, current *ownedActualInputs, readSet *adoptionReadSet) ([]activetime.CreditedInterval, error) {
 	since, err := time.Parse(time.RFC3339Nano, current.Snapshot.Since)
 	if err != nil {
 		return nil, err
@@ -262,25 +266,12 @@ func loadAdoptedExclusions(ctx context.Context, root, issueNum, plans string, cu
 	if rs.Stale {
 		return nil, fmt.Errorf("adopted-actual tracker evidence is stale: %v", rs.FetchErr)
 	}
-	var candidates []tracker.IssueRecord
-	for _, rec := range rs.All() {
-		id := strings.TrimLeft(rec.ID, "0")
-		if id == strings.TrimLeft(issueNum, "0") {
-			continue
-		}
-		if !cardDateMayOverlap(rec.Text("created"), rec.Text("updated"), since, until) {
-			continue
-		}
-		if rec.CardErr != nil {
-			return nil, fmt.Errorf("potentially overlapping issue #%s card unreadable: %w", id, rec.CardErr)
-		}
-		if rec.Card == nil {
-			continue
-		}
-		if _, err := strconv.ParseFloat(rec.Text("actual_hours"), 64); err != nil {
-			continue // N/A and unadopted issues reserve no time
-		}
-		candidates = append(candidates, rec)
+	candidates, err := adoptedExclusionCandidates(rs.All(), issueNum, since, until)
+	if err != nil {
+		return nil, err
+	}
+	if readSet != nil {
+		*readSet = *captureAdoptionReadSet(issueNum, filepath.Join(root, envOr("WF_ISSUES_DIR", "workshop/issues")), since, until, candidates)
 	}
 	if len(candidates) == 0 {
 		return nil, nil // no adopted actual can overlap; source slots are irrelevant

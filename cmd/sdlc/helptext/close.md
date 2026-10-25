@@ -204,6 +204,14 @@ MODES
   or ledger round. Stale inputs, cancellation, failed dispatch and failed lock
   reacquisition cannot be waived by --force.
 
+  Expensive preparation, including transcript/history measurement and project
+  discovery, runs without the repository lock (#617). Initial inputs are
+  captured first; fresh artifact/card/adoption authority is checked before
+  review admission and before writes. A new or changed numeric adoption
+  requires a rerun; unrelated claims do not. Evidence and card transactions
+  remain serialized. Optional peer publication and the exact finalized
+  issue-branch push run after unlocking; a push warning preserves the close.
+
   External reviews run without holding the repository lock. The review's
   timeout scales with its window (30m up to 500 added lines, +15m per further
   1,000, at most 2h; #300); WF_REVIEW_TIMEOUT overrides it with a Go duration

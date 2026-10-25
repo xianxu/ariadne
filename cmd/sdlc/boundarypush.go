@@ -23,6 +23,18 @@ var boundaryPushTimeout = 2 * time.Minute
 // `sdlc pr` pushes again. A resting branch, main or a detached HEAD has
 // nothing to push.
 func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
+	boundaryPushAt(env, stderr, verb, nil, nil)
+}
+
+// closeBranchPublication is captured under the finalization lock and never
+// refreshed by its unlocked publication tail.
+type closeBranchPublication struct {
+	root                 string
+	target               gitx.PublicationTarget
+	branch, head, expect string
+}
+
+func boundaryPushAt(env *trackerEnv, stderr io.Writer, verb string, publication *closeBranchPublication, lock func(func() error) error) {
 	branch := env.branch
 	if branch == "" || env.onRest() || branch == "main" {
 		return
@@ -33,8 +45,20 @@ func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
 	defer cancel()
 	bounded := *env
 	bounded.ctx = ctx
-	if err := pushIssueBranch(&bounded, branch); err != nil {
-		cwarn(stderr, fmt.Sprintf("%s: %s was not pushed: %v — the %s itself is done; the next boundary or `sdlc pr` pushes it", verb, branch, err, verb))
+	var err error
+	if publication == nil {
+		err = leasedBranchPush(bounded.git, bounded.target.Remote, branch)
+	} else if publication.root != bounded.root {
+		err = fmt.Errorf("publication repository changed")
+	} else {
+		err = pushClosePublication(bounded.git, *publication, lock)
+	}
+	if err != nil {
+		if publication == nil {
+			cwarn(stderr, fmt.Sprintf("%s: %s was not pushed: %v — the %s itself is done; the next boundary or `sdlc pr` pushes it", verb, branch, err, verb))
+		} else {
+			cwarn(stderr, fmt.Sprintf("%s: %s publication: %v — the %s itself is done; inspect before the next boundary or `sdlc pr`", verb, branch, err, verb))
+		}
 		return
 	}
 	cok(stderr, fmt.Sprintf("%s pushed to %s", branch, env.target.Remote))
@@ -63,6 +87,7 @@ func leasedBranchPush(git gitFn, remote, branch string) error {
 		return err
 	}
 	ref := "refs/heads/" + branch
+
 	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+expect, remote, ref+":"+ref); err != nil {
 		if strings.Contains(err.Error(), "stale info") {
 			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before the next push)", err, branch)
@@ -71,6 +96,43 @@ func leasedBranchPush(git gitFn, remote, branch string) error {
 	}
 	_, err = git("update-ref", tracking, ref)
 	return err
+}
+
+// pushClosePublication uses only the authority captured at finalization.
+func pushClosePublication(git gitFn, p closeBranchPublication, lock func(func() error) error) error {
+	ref := "refs/heads/" + p.branch
+	if _, err := git("push", "-q", "--force-with-lease="+ref+":"+p.expect, p.target.PushURL, p.head+":"+ref); err != nil {
+		return fmt.Errorf("was not pushed: %w (the captured remote lease no longer permits publication; fetch and inspect before pushing)", err)
+	}
+	update := func() error {
+		tracking := gitx.RemoteTrackingRef(p.target.Remote, p.branch)
+		seen, err := git("for-each-ref", "--format=%(objectname)", tracking)
+		if err != nil {
+			return err
+		}
+		if seen == p.head {
+			return nil
+		}
+		if seen != p.expect {
+			return fmt.Errorf("tracking metadata changed; newer value preserved")
+		}
+		expect := p.expect
+		if expect == "" {
+			expect = strings.Repeat("0", len(p.head))
+		}
+		_, err = git("update-ref", tracking, p.head, expect)
+		return err
+	}
+	var err error
+	if lock != nil {
+		err = lock(update)
+	} else {
+		err = update()
+	}
+	if err != nil {
+		return fmt.Errorf("push completed; tracking metadata was not updated: %w", err)
+	}
+	return nil
 }
 
 // deleteRemoteBranch removes branch from the publication remote only while it

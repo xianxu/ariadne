@@ -140,3 +140,31 @@ func TestConfidenceLinesNoGatesigCollision(t *testing.T) {
 		}
 	}
 }
+
+// #603 × #617: an unmeasured close adopts nothing, so the adoption guard holds
+// no authority for it. A measurement that failed while loading exclusions
+// carries an unavailable read-set; both verbs still close, as unmeasured.
+func TestUnmeasuredCloseHoldsNoAdoptionAuthority(t *testing.T) {
+	for _, verb := range []string{"close", "milestone-close"} {
+		t.Run(verb, func(t *testing.T) {
+			plan := "- [x] implement\n"
+			if verb == "milestone-close" {
+				plan = "- [ ] M1 — implement\n"
+			}
+			closeReadyWithPlan(t, 617, plan)
+			stubCloseMeasurement(t, actualResult{Status: actualError, Detail: "adopted exclusions unavailable", Adoptions: &adoptionReadSet{}})
+			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n"+emptyBoundaryFindings)
+			args := []string{verb, "--issue", "617", "--verified", "e2e", "--no-atlas", "--no-project", "--brain-dir", "../nonexistent-brain"}
+			if verb == "milestone-close" {
+				args = append(args, "--milestone", "M1")
+			}
+			_, stderr, err := executeSDLCTestCommand(args...)
+			if err != nil {
+				t.Fatalf("an unmeasured %s refused: %v\n%s", verb, err, stderr)
+			}
+			if !strings.Contains(stderr, "unmeasured") {
+				t.Fatalf("the close did not record unmeasured:\n%s", stderr)
+			}
+		})
+	}
+}

@@ -79,6 +79,8 @@ type actualResult struct {
 	Split *actualSplit
 	// Inputs is the exact admitted evidence retained by close/correction.
 	Inputs *gatestate.MeasurementInputs
+	// Adoptions is transient authority consumed while preparing exclusions.
+	Adoptions *adoptionReadSet
 	// Segments are transient replay evidence, never persisted in the close card.
 	Segments      []activetime.Segment
 	CountedPhases []activetime.Phase // exact phases that contributed to adopted Hours
@@ -109,14 +111,20 @@ func computeActualForPurpose(ctx context.Context, repoTop, brainAbs, issueNum, m
 		return actualErrorResult(issueNum, err)
 	}
 	if owned != nil {
+		var adoptions *adoptionReadSet
 		if !owned.Replay {
-			protected, err := loadAdoptedExclusions(ctx, repoTop, issueNum, plans, owned)
+			adoptions = &adoptionReadSet{}
+			protected, err := loadAdoptedExclusionsWithReadSet(ctx, repoTop, issueNum, plans, owned, adoptions)
 			if err != nil {
-				return actualErrorResult(issueNum, err)
+				result := actualErrorResult(issueNum, err)
+				result.Adoptions = adoptions
+				return result
 			}
 			owned.Protected = protected
 		}
-		return computeOwnedActualFor(ctx, repoTop, issueNum, milestone, owned)
+		result := computeOwnedActualFor(ctx, repoTop, issueNum, milestone, owned)
+		result.Adoptions = adoptions
+		return result
 	}
 	result := computeLegacyActualFor(ctx, repoTop, brainAbs, issueNum, milestone, plans)
 	result.Warnings = append(result.Warnings, "legacy no-tracker attribution heuristic: repository cwd plus brain; ownership provenance unavailable")
