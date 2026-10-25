@@ -86,6 +86,12 @@ persisted format. ARCH-MOCK: no external service; filesystem fixtures.
 - [x] `excludeScratchSweep` plus TestMain registration; a test that a registered root is never swept.
 - [x] Targeted tests (testscratch, suitecapability, localcheck artifacts), then the recorded suite through the queue.
 
+## Revisions
+
+- 2026-10-25 (close review Minor): Design #2 shipped as a per-entry pure `staleTempReason(name, mtime, runDirs, now,
+  alive)` instead of the batch `staleTempCandidates`; the sweep's loop stays in the IO shell. Same decision, smaller
+  surface.
+
 ## Log
 
 
@@ -142,3 +148,9 @@ created by testing.(*T).Run in goroutine 1
 ```
 - 2026-10-25: built. New tests fail on main (a dead run folder holding a read-only module cache survives both the sweep and the run's own Cleanup) and pass with removeTree. Targeted: TestSweepStaleTemp*, TestPrepareScratch*, TestSuiteCapability*, TestRunnerArtifacts*, TestRunUnderSlotUsesScratch, TestSweepStaleLocalWorktrees*, TestExcludedScratchRootIsNeverSwept, TestStaleTempReason, TestLocalCheck*/TestPreClose*/TestKnownFlakeGate, pkg/golint (incl. TestTrackedGoFilesPassTheCatalog), internal/scratchdisk: all ok.
 - 2026-10-25: pre-close suite green on 86c2c6fb in 24m13s wall (8 shards 1012-1451 s, 0 failed), against two merge suites that hit the 1800 s shard alarm on every shard earlier; the runner was still :0's binary, so the gain is the test-side exclusion alone. Producer of the read-only trees sent to pair:4 for pair887: pair cmd/internal/launcher TestMain sets HOME to a pair-launcher-* root and go defaults GOMODCACHE under it.
+- 2026-10-25: close review SHIP (71766795..4dfc28fb), four Minors answered in the same round: makeTreeWritable now
+  changes permissions through a handle opened with O_NOFOLLOW (no symlink swap between walk and chmod); the failure
+  path is pinned by TestSweepStaleTempLogsAFailedRemovalAndContinues (darwin, chflags uchg); the Spec drift is a
+  Revisions entry. Not changed: the "kept" line for a protected folder. The premise was one line per prepareScratch
+  call, but production now sweeps once per run and tests never sweep shared roots, so it is one line per run, and
+  Done when requires the protection decision in the log.
