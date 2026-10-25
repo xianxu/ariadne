@@ -91,6 +91,8 @@ Durable plan: `workshop/plans/000616-affected-traceability-missed-mappings-plan.
 
 ## Log
 
+
+- 2026-10-25: closed — M2 (missed-mapping ledger): pre-close suite green on pushed code head 2f2c69c5 (sdlc-local/suite, 8 shards, 2507 cmd/sdlc tests, 0 failed); 1202e2c2f only ticks the plan row. Targeted: affected (TestMissed, TestMissedLedgerSequence, TestMissedLedgerPathCap, TestMissedLedgerCodec, FuzzDecodeMissedLedger seeds, traceability golden/refusals/fuzz), jsonstrict, gitx TestTreeFilesAt, TestAffectedMissedListAndDismiss, TestDiagnoseSuiteFailureRecordsMissedMappings, TestMissedMergeRecorderRealGit, TestMainMissedCoverageRealGit, TestLandingTrainSplit* x3 and TestRecordSplitMisses, TestAffectedDeclaredTraceability*. The earlier pre-close on 62b3d29c failed on BR-16 (fixed on main by #620, now integrated) and a load-timed train barrier (passes 3/3 alone).; review verdict: SHIP
 ### 2026-10-24
 - 2026-10-24: closed M1 — targeted: go test ./cmd/sdlc/internal/affected ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/jsonstrict ./cmd/sdlc/internal/landingline pass; go test ./cmd/sdlc -run Affected|SplitImpact|Attribution pass (180s), incl. real-git traceability-from-main, missing and malformed on main in ordinary and boarding modes; parley golden (ee938b5a) parses; FuzzParseTraceability 20s and FuzzDecodeObject 15s clean; BenchmarkPlanDeclared with 65-entry traceability 32 ms/op; drop-cost guard passes with the moved codec; review verdict: SHIP
 
