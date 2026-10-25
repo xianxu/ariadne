@@ -1,12 +1,12 @@
 ---
 id: 000631
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '06ae828085c627a72f8559230cccb82ccabe1784' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '68a21b0689a453e7ec7c31e0f3407c3608e7cb2d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T08:18:17-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.48
 ---
 
 # Suite shard alarm during shared scratch removal lacks exact target and timing evidence
