@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
 )
@@ -133,16 +133,15 @@ func TestSuiteQueueStatusTextAndFrozenJSON(t *testing.T) {
 }
 
 func TestSuiteQueueObservationCancellation(t *testing.T) {
-	root := suiteQueueHelperFixture(t, "import time\ntime.sleep(60)\n")
+	// The helper outlives the hang ceiling, so only declining to start it
+	// (or killing it) lets the observation return (#622).
+	root := suiteQueueHelperFixture(t, "import time\ntime.sleep(600)\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	start := time.Now()
-	got := observeSuiteQueue(ctx, root)
+	var got suiteQueueObservation
+	testgate.Returns(t, "the cancelled observation", func() { got = observeSuiteQueue(ctx, root) })
 	if got.Available || !strings.Contains(got.Reason, "canceled") {
 		t.Fatalf("cancellation: %+v", got)
-	}
-	if time.Since(start) > time.Second {
-		t.Fatal("cancelled observation started slow work")
 	}
 }
 

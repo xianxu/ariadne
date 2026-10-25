@@ -58,3 +58,32 @@ func TestAwaitConditionReturnsWhenTheConditionHolds(t *testing.T) {
 		t.Fatalf("polls = %d", polls)
 	}
 }
+
+func TestAwaitConditionRefusesUnbufferedOrClosedWorkers(t *testing.T) {
+	closed := make(chan error, 1)
+	close(closed)
+	for name, w := range map[string]chan error{"unbuffered": make(chan error), "closed": closed} {
+		tb := &fatalTB{TB: t}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			AwaitCondition(tb, "x", func() bool { return false }, []chan error{w})
+		}()
+		select {
+		case <-done:
+		case <-time.After(HangCeiling):
+			t.Fatalf("%s: AwaitCondition hung", name)
+		}
+		if !strings.Contains(tb.msg, name) {
+			t.Fatalf("%s: message %q", name, tb.msg)
+		}
+	}
+}
+
+func TestReturnsWaitsForTheCall(t *testing.T) {
+	ran := false
+	Returns(t, "the call", func() { ran = true })
+	if !ran {
+		t.Fatal("Returns came back before the call finished")
+	}
+}

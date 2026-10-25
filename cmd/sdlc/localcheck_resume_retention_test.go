@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -167,13 +168,11 @@ func TestResumeRetentionLockedParentAndUnreadableSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := time.Now()
-	_, err = pruneResumeBundles(root, now)
+	// The parent lock stays held until after the prune, so a pruner that
+	// waited behind its owner would never return (#622).
+	testgate.Returns(t, "the prune beside a locked parent", func() { _, err = pruneResumeBundles(root, now) })
 	if err != nil {
 		t.Fatal(err)
-	}
-	if time.Since(start) > time.Second {
-		t.Fatal("pruner waited behind parent owner")
 	}
 	if err := lock.Close(); err != nil {
 		t.Fatal(err)

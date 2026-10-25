@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,7 +73,7 @@ func configure(t *testing.T, dir string) {
 func hangRemote(t *testing.T, root string) {
 	t.Helper()
 	hang := filepath.Join(t.TempDir(), "hang.sh")
-	if err := os.WriteFile(hang, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
+	if err := os.WriteFile(hang, []byte("#!/bin/sh\nexec sleep 600\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("GIT_SSH_COMMAND", hang) // the environment wins over core.sshCommand
@@ -108,18 +109,19 @@ func TestHangingRemoteDegradesOnlyItsRepository(t *testing.T) {
 	freshRecords(t)
 	// The remote budget, with headroom (#360): the healthy repository's real
 	// ls-remote and fetch against a local bare repository must fit even under
-	// load, while the stuck remote (a 30s hang) still runs it out.
+	// load, while the stuck remote (a hang past the hang ceiling) still runs it
+	// out, so only the deadline lets the inventory return (#622).
 	shortDeadline(t, 2*time.Second)
 
-	start := time.Now()
-	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}, Machine: func() (MachineIdentity, error) {
-		return MachineIdentity{Fingerprint: meFP, Name: "here"}, nil
-	}})
+	var inv Inventory
+	var err error
+	testgate.Returns(t, "the inventory beside a hanging remote", func() {
+		inv, err = CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}, Machine: func() (MachineIdentity, error) {
+			return MachineIdentity{Fingerprint: meFP, Name: "here"}, nil
+		}})
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if elapsed := time.Since(start); elapsed > 10*time.Second {
-		t.Fatalf("inventory took %v with a %v read deadline", elapsed, recordsReadDeadline)
 	}
 	states := map[string]TreeRow{}
 	for _, r := range inv.Rows {

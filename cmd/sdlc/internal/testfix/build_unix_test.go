@@ -3,6 +3,7 @@
 package testfix
 
 import (
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -17,14 +18,10 @@ func TestRunBoundedKillsTheGroupAtItsLimit(t *testing.T) {
 	// The child outlives every ceiling, so only the bound can end the wait.
 	cmd := exec.Command("sh", "-c", `sleep 600 & echo $! > "$0"; wait`, pidfile)
 	const limit = 300 * time.Millisecond
-	start := time.Now()
-	_, err := runBounded(cmd, limit)
+	var err error
+	testgate.Returns(t, "the bounded build", func() { _, err = runBounded(cmd, limit) })
 	if err == nil || !strings.Contains(err.Error(), "exceeded") {
 		t.Fatalf("hung command: %v", err)
-	}
-	// limit, then at most the one-second pipe drain, plus scheduling slack.
-	if took := time.Since(start); took > limit+time.Second+5*time.Second {
-		t.Fatalf("the bound did not hold: %s", took)
 	}
 	child := AwaitPIDFile(pidfile, HangCeiling, nil)
 	if child == 0 {

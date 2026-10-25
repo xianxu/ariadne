@@ -476,22 +476,3 @@ func bounded() {
 		}
 	}
 }
-
-// #622 M1: a file on wallclockPending is skipped until M2 sweeps it; every
-// other path is checked. M2 deletes the list and this test with it.
-func TestTightWallclockSkipsOnlyPendingFiles(t *testing.T) {
-	src := []byte(header + "func f() {\n\tstart := time.Now()\n\tif time.Since(start) > 5*time.Second {\n\t}\n}\n")
-	for path, want := range map[string]bool{"cmd/sdlc/ghlanding_test.go": false, "cmd/sdlc/other_test.go": true} {
-		got, err := Check(path, src, Catalog)
-		if err != nil {
-			t.Fatal(err)
-		}
-		flagged := false
-		for _, f := range got {
-			flagged = flagged || f.Rule == "test-tight-wallclock"
-		}
-		if flagged != want {
-			t.Fatalf("%s flagged=%v, want %v", path, flagged, want)
-		}
-	}
-}

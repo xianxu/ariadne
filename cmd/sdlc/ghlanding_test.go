@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -144,14 +145,15 @@ func TestLandingGHFailuresAndCancellation(t *testing.T) {
 		}
 	})
 	t.Run("cancel", func(t *testing.T) {
-		fakeLandingGH(t, "exec sleep 30\n")
+		// Unkilled, the fake gh outlives the hang ceiling, so only the kill
+		// lets the call return (#622).
+		fakeLandingGH(t, "exec sleep 600\n")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 		defer cancel()
-		start := time.Now()
-		_, err := (realGH{}).LandingPRs(ctx, "example/repo", "issue")
-		// Unkilled, the fake gh sleeps 30 s; half that bounds a healthy kill under load (#325).
-		if !errors.Is(err, context.DeadlineExceeded) || time.Since(start) > 15*time.Second {
-			t.Fatalf("cancellation: %v elapsed %s", err, time.Since(start))
+		var err error
+		testgate.Returns(t, "the cancelled gh query", func() { _, err = (realGH{}).LandingPRs(ctx, "example/repo", "issue") })
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("cancellation: %v", err)
 		}
 	})
 	t.Run("invalid-request", func(t *testing.T) {

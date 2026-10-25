@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,7 @@ func TestFleetResumeBoundedRecheck(t *testing.T) {
 	c.resumeErr["pair:6"] = fmt.Errorf("%w: request req-6", errUncertain)
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "couch")
-	script := "#!/bin/sh\nexec sleep 30\n"
+	script := "#!/bin/sh\nexec sleep 600\n" // outlives the hang ceiling unkilled (#622)
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -23,9 +24,9 @@ func TestFleetResumeBoundedRecheck(t *testing.T) {
 	recheck := &actorsAfterInitial{live: execActors{bin: bin, timeout: 500 * time.Millisecond}}
 	d.actors = recheck
 	var out strings.Builder
-	began := time.Now()
-	err := fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1})
-	if !errors.Is(err, errUncertain) || time.Since(began) > 5*time.Second {
+	var err error
+	testgate.Returns(t, "the bounded recheck", func() { err = fleetResume(t.Context(), &out, d, cwd, true, resumeOptions{Concurrency: 1}) })
+	if !errors.Is(err, errUncertain) {
 		t.Fatalf("unbounded/wrong result: %v\n%s", err, out.String())
 	}
 	stopped := strings.Index(out.String(), "not attempted: pair:8")

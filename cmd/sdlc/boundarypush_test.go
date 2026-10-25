@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"path/filepath"
 	"strings"
@@ -155,7 +156,7 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 func TestBoundaryPushIsBounded(t *testing.T) {
 	r, _, _ := startedHere(t)
 	hooks := t.TempDir()
-	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nsleep 600\n"), 0o755); err != nil { // outlives the hang ceiling unkilled (#622)
 		t.Fatal(err)
 	}
 	r.git("config", "core.hooksPath", hooks)
@@ -163,11 +164,10 @@ func TestBoundaryPushIsBounded(t *testing.T) {
 	//lint:allow test-shrunk-deadline — asserts only that the hung push is bounded; no fixture readiness is awaited
 	boundaryPushTimeout = 300 * time.Millisecond
 	t.Cleanup(func() { boundaryPushTimeout = prev })
-	start := time.Now()
 	var errs bytes.Buffer
-	boundaryPush(boundaryEnv(t), &errs, "test")
-	if elapsed := time.Since(start); elapsed > 10*time.Second || !strings.Contains(errs.String(), "was not pushed") {
-		t.Fatalf("after %s: %q", elapsed, errs.String())
+	testgate.Returns(t, "the bounded boundary push", func() { boundaryPush(boundaryEnv(t), &errs, "test") })
+	if !strings.Contains(errs.String(), "was not pushed") {
+		t.Fatalf("%q", errs.String())
 	}
 }
 

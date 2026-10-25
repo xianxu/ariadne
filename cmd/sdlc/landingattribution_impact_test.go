@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,29 +122,30 @@ func TestSplitImpactCancelledContext(t *testing.T) {
 	hi := change(map[string]string{"other/other.go": "package other\n// changed\n"})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	start := time.Now()
-	got, err := splitImpact(ctx, root, lo, hi, []string{"example.com/split/other"})
-	if !errors.Is(err, context.Canceled) || got["example.com/split/other"] != landingline.ImpactUnknown || time.Since(start) > 5*time.Second {
-		t.Fatalf("cancel = %v, %v after %s", got, err, time.Since(start))
+	var got map[string]landingline.Impact
+	var err error
+	testgate.Returns(t, "the cancelled split impact", func() { got, err = splitImpact(ctx, root, lo, hi, []string{"example.com/split/other"}) })
+	if !errors.Is(err, context.Canceled) || got["example.com/split/other"] != landingline.ImpactUnknown {
+		t.Fatalf("cancel = %v, %v", got, err)
 	}
 }
 
 func TestSplitImpactDeadlineReclaimsPreparation(t *testing.T) {
 	root, _, change := splitImpactFixture(t)
-	lo := change(map[string]string{affectedConfigPath: `{"version":1,"command":["true"],"graph_prepare":{"command":["sh","-c","echo $$ > \"$SPLIT_PREP_PID\"; exec sleep 30"]}}`})
+	lo := change(map[string]string{affectedConfigPath: `{"version":1,"command":["true"],"graph_prepare":{"command":["sh","-c","echo $$ > \"$SPLIT_PREP_PID\"; exec sleep 600"]}}`})
 	hi := change(map[string]string{"other/other.go": "package other\n// changed\n"})
 	pidFile := filepath.Join(t.TempDir(), "preparation-pid")
 	t.Setenv("SPLIT_PREP_PID", pidFile)
 	before := git(t, root, "worktree", "list", "--porcelain")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	start := time.Now()
-	got, err := splitImpact(ctx, root, lo, hi, []string{"example.com/split/other"})
+	// The preparation outlives the hang ceiling unkilled, so only the
+	// deadline and its cleanup let splitImpact return (#622).
+	var got map[string]landingline.Impact
+	var err error
+	testgate.Returns(t, "the deadline-bounded split impact", func() { got, err = splitImpact(ctx, root, lo, hi, []string{"example.com/split/other"}) })
 	if !errors.Is(err, context.DeadlineExceeded) || got["example.com/split/other"] != landingline.ImpactUnknown {
 		t.Fatalf("deadline = %v, %v", got, err)
-	}
-	if elapsed := time.Since(start); elapsed > 11*time.Second {
-		t.Errorf("deadline and cleanup took %s", elapsed)
 	}
 	data, err := os.ReadFile(pidFile)
 	if err != nil {

@@ -223,6 +223,7 @@ func TestLocalCheckCancelOnlyOwnRun(t *testing.T) {
 	// child cleanups after the cancellation assertions have joined them.
 	t.Cleanup(func() {
 		elapsed := time.Since(started)
+		//lint:allow test-tight-wallclock — cleanupBudget is HangCeiling, or half the test's own deadline when that is shorter: a hang budget, not an oracle
 		if elapsed > cleanupBudget {
 			t.Errorf("native cancellation fixture including cleanup took %s, exceeds %s budget", elapsed, cleanupBudget)
 		} else {

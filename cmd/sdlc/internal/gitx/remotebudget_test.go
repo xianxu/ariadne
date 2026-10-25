@@ -3,6 +3,7 @@ package gitx
 import (
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/pkg/testgate"
 	"strings"
 	"testing"
 	"time"
@@ -83,21 +84,17 @@ func hangRemote(t *testing.T, delay time.Duration) {
 // A remote that never answers is bounded by the budget and named as such.
 func TestRemoteBudgetBoundsAHangingRemote(t *testing.T) {
 	repo, _ := trunkFixture(t, "seed\n")
-	// Ten seconds, not forever: without the budget the read returns after the
-	// hang and fails the elapsed check below, instead of the test binary timing out.
-	hangRemote(t, 10*time.Second)
+	// Past the hang ceiling: without the budget the read outlasts the guard
+	// below and fails it, instead of the test binary timing out (#622).
+	hangRemote(t, 10*time.Minute)
 	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
 	tf.BoundRemote(200 * time.Millisecond)
-	start := time.Now()
-	_, err = tf.Read("note.md")
+	testgate.Returns(t, "the budgeted read", func() { _, err = tf.Read("note.md") })
 	if err == nil || !strings.Contains(err.Error(), "deadline") {
 		t.Fatalf("hanging remote: %v, want an error naming the deadline", err)
-	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Fatalf("hanging remote held the read for %v with a 200ms budget", elapsed)
 	}
 }
 
