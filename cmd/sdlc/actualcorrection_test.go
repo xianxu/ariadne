@@ -75,7 +75,7 @@ func TestActualCorrectionAppendIdempotentAndConflict(t *testing.T) {
 func TestActualCorrectionAppendUpgradesLegacyHeaderWithoutChangingSamples(t *testing.T) {
 	ctx := context.Background()
 	file := filepath.Join(t.TempDir(), "calibration.tsv")
-	oldHeader := strings.TrimSuffix(estimate.Header(), "\tcorrection")
+	oldHeader, _, _ := strings.Cut(estimate.Header(), "\tcorrection") // the header before the correction column
 	target := estimate.LedgerRow{Issue: "pair#454", Actual: 0.05, Date: "2026-10-11", WindowTrusted: true}
 	other := estimate.LedgerRow{Issue: "pair#515", Actual: 0.15, Date: "2026-10-12"}
 	samples := estimate.FormatRow(target) + "\r\n" + estimate.FormatRow(other)

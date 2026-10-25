@@ -95,10 +95,14 @@ func TestParkedClaimWhollyExcludedNamesNoActualAction(t *testing.T) {
 	} {
 		var out bytes.Buffer
 		render(&out)
-		for _, needle := range []string{"#649", "pair:6", "2026-10-18T01:00:00Z", "sdlc close --issue 636 --no-actual"} {
+		// #603: the close records it as unmeasured; no flag is needed.
+		for _, needle := range []string{"#649", "pair:6", "2026-10-18T01:00:00Z", "unmeasured"} {
 			if !strings.Contains(out.String(), needle) {
 				t.Fatalf("missing %q in %s", needle, out.String())
 			}
+		}
+		if strings.Contains(out.String(), "--no-actual") {
+			t.Fatalf("an excluded window still asks for --no-actual: %s", out.String())
 		}
 	}
 }
