@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-24
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '842695f44a0e47d11f2c763ad132236c9b633435' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5f131c020a121452221fe851ee74978a91e3f25a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T00:29:23-07:00
 claimant:
     operator: Xian Xu
@@ -17,7 +17,7 @@ claimant:
     repository: github.com/xianxu/ariadne
 flake_tests: [github.com/xianxu/ariadne/cmd/sdlc.TestKnownFlakeGate]
 flow: {kind: quick, provenance: inferred, spec: "ccc7e7b8", done: "a0bbe98b"}
-actual_hours: 0.17
+actual_hours: 0.18
 ---
 
 # flake: TestKnownFlakeGate
