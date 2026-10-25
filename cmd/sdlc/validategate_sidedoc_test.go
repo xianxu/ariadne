@@ -38,10 +38,8 @@ func TestUntypedSideEvidenceRemainsValid(t *testing.T) {
 		{"metadata.md", "---\nsource: fixture\nparent: absent-is-allowed-here\n---\n# evidence\n"},
 		{"record.json", "{\"evidence\":true}\n"},
 		{"record.log", "terminal capture\n"},
-		{"malformed-untyped.md", "---\nsource: [legacy evidence\n---\n"},
-		{"nested-flow-type.md", "---\n{metadata: {type: [invalid}}\n---\n"},
-		{"literal-type.md", "---\nsource: |\n  type: [evidence\nother: [invalid\n---\n"},
-		{"unterminated-untyped.md", "---\nsource: legacy evidence\n"},
+		{"nested-flow-type.md", "---\n{metadata: {type: evidence}}\n---\n"},
+		{"literal-type.md", "---\nsource: |\n  type: [evidence\n---\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			name := "workshop/issues/000858-owner.side/evidence/" + tc.name
@@ -98,7 +96,6 @@ func TestSideDocExplicitTypeSelection(t *testing.T) {
 	}{
 		{"---\ntype: side-doc\nparent: owner.md\n---\n", true},
 		{"---\n\"type\": 123\n---\n", true},
-		{"---\nparent: owner.md\ntype: [invalid\n---\n", true},
 		{"---\nmetadata: {type: evidence}\n---\n", false},
 		{"# notes\ntype: side-doc\n", false},
 	} {
@@ -116,6 +113,11 @@ func TestMalformedTypedSideDocsRefuse(t *testing.T) {
 		{"escaped key", "---\n\"ty\\u0070e\": [invalid\n---\n"},
 		{"explicit key", "---\n? type\n: [invalid\n---\n"},
 		{"flow", "---\n{source: kept, type: [invalid}\n---\n"},
+		{"explicit flow key", "---\n{? type: [invalid}\n---\n"},
+		{"tagged flow", "---\n!!map {type: [invalid}\n---\n"},
+		{"malformed untyped", "---\nsource: [legacy evidence\n---\n"},
+		{"unterminated untyped", "---\nsource: legacy evidence\n"},
+		{"hidden after document end", "---\nsource: kept\n...\ntype: side-doc\n---\n"},
 		{"indented block", "---\n  type: [invalid\n---\n"},
 		{"indented flow", "---\n  {source: kept, type: [invalid}\n---\n"},
 		{"unterminated", "---\ntype: side-doc\nparent: owner.md\n"},
@@ -133,26 +135,45 @@ func TestMalformedTypedSideDocsRefuse(t *testing.T) {
 	}
 }
 
-func TestSideTypeDeclarationLinearKeys(t *testing.T) {
+func TestSideDocGateLinearReads(t *testing.T) {
 	for _, n := range []int{8, 16} {
-		for _, flow := range []bool{false, true} {
-			keys := make([]string, n)
-			for i := range keys {
-				keys[i] = fmt.Sprintf("source%d: kept", i)
+		changes := make([]gitx.FileChange, n)
+		files := map[string]string{}
+		for i := range changes {
+			name := fmt.Sprintf("workshop/issues/000623-owner.side/%d.md", i)
+			changes[i] = gitx.FileChange{Status: "A", Path: name}
+			files[name] = "---\nsource: legacy evidence\n---\n"
+			if i%2 == 0 {
+				files[name] = "---\ntype: side-doc\nparent: owner.md\n---\n"
 			}
-			header := strings.Join(keys, "\n")
-			if flow {
-				header = "{" + strings.Join(keys, ", ") + "}"
-			}
-			visits, keyBytes := 0, 0
-			found := declaresSideType(header, func(key string) bool {
-				visits++
-				keyBytes += len(key)
-				return sideTypeKey(key)
-			})
-			if found || visits > 2*n || keyBytes > len(header) {
-				t.Fatalf("N%d flow%v: found%v key visits%d bytes%d/header%d", n, flow, found, visits, keyBytes, len(header))
-			}
+		}
+		restore := stubGate(t, changes, true, nil, files)
+		reads, validations := 0, 0
+		readIssueFileFn = func(p string) ([]byte, error) { reads++; return []byte(files[p]), nil }
+		validateFrontmatterFn = func(_, _ string) (string, bool, error) { validations++; return "", true, nil }
+		err := validateChangedInstances("", "BASE", "HEAD", nounGates("workshop/issues"), io.Discard, io.Discard)
+		restore()
+		if err != nil || reads != n || validations != n/2 {
+			t.Fatalf("N%d: reads%d validations%d error%v", n, reads, validations, err)
+		}
+	}
+}
+
+func TestSideDocTypedYAMLSyntax(t *testing.T) {
+	for _, header := range []string{
+		"{? type: side-doc, parent: owner.md}",
+		"!!map {type: side-doc, parent: owner.md}",
+		"type: side-doc\nparent: owner.md",
+	} {
+		typed, err := classifySideDoc([]byte("---\n" + header + "\n---\n"))
+		if err != nil || !typed {
+			t.Errorf("valid typed header %q: typed%v error%v", header, typed, err)
+		}
+	}
+	for _, header := range []string{"source: evidence", "[evidence, capture]", "legacy evidence", "metadata: {type: evidence}"} {
+		typed, err := classifySideDoc([]byte("---\n" + header + "\n---\n"))
+		if err != nil || typed {
+			t.Errorf("valid untyped header %q: typed%v error%v", header, typed, err)
 		}
 	}
 }

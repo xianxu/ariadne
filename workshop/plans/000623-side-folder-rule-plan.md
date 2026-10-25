@@ -42,7 +42,7 @@ Parley#440's leftover is workshop/plans/000440-a-predicate-wait-doing-child-rpc-
 | #SideDoc | construct/vocabulary/side-doc.cue | new; typed frontmatter schema, no lifecycle |
 | sideArchiveDocsForIssue | cmd/sdlc/archiveside.go | new; deduplicated issue/plan side-owner inventory |
 | gateForPath | cmd/sdlc/validategate.go | modified; configured-root side membership |
-| classifySideDoc; sideTypeKey; declaresSideType | cmd/sdlc/validategate_sidedoc.go | new; typed/error distinction and bounded malformed-declaration recognition |
+| classifySideDoc | cmd/sdlc/validategate_sidedoc.go | new; single YAML authority; malformed/unterminated refusal, valid untyped exemption |
 | indexSideMembers | cmd/sdlc/landingarchive.go | new; one owner lookup per inventory path, counted at8/16 families |
 | PathsByID | cmd/sdlc/internal/issue/scaffold.go | modified; side roots/members confer no issue identity |
 
@@ -88,7 +88,7 @@ No new lock, cache, runtime journal or persisted field is introduced. Existing a
 |---|---|
 | sidedoc.Owner | Root/member/nested and misleading path classes; pure owner/membership assertions, preserving existing Folder behavior |
 | titleCase; validateInstanceFile | Single/compound noun and malformed typed YAML; native CUE validation proves discriminator/required string checks and additive-field tolerance |
-| gateForPath; classifySideDoc; sideTypeKey; declaresSideType; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
+| gateForPath; classifySideDoc; validateChangedInstances | Side docs versus ordinary issue/plan paths under configured roots; gate dispatch plus real validator fixtures prove side errors without weakening issue errors |
 | PathsByID; LocalPathsByID; refIDSpace | Nonrecursive directory entries and recursive side members; pure/local/native Git spaces show one issue identity and retain real duplicate detection |
 | sideArchiveDocsForIssue; indexSideMembers; planLandingSideMoves | Missing owner documents and many disjoint trees; independent expected owner/move inventory and counted N/2N path visits prevent repeated full-inventory scans |
 | issueArchiveDocs; recoverSideArchiveMoves | Interrupted orphan-tree moves and unrelated status entries; filesystem recovery verifies exact bytes and refuses duplicates/conflicts |

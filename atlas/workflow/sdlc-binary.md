@@ -395,7 +395,9 @@ member belongs to its synthetic `.md` owner without requiring that document
 on disk. ID scans ignore these roots and members. Issue/plan side Markdown
 with an explicit frontmatter type uses `#SideDoc` conformance (literal
 `side-doc`, nonempty `parent`); untyped Markdown and non-Markdown evidence
-remain unmodeled attachments. Normal issue validation is unchanged. Archive,
+remain unmodeled attachments after valid frontmatter parsing (or without a
+frontmatter block). Malformed or unterminated leading YAML refuses as ambiguous.
+Normal issue validation is unchanged. Archive,
 recovery and abandon/reopen derive plan-side trees from their inventories,
 so orphan trees move byte-for-byte without creating a plan document.
 Deploy the vocabulary and sdlc binaries together for the compound noun.

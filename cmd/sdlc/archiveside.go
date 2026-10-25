@@ -380,7 +380,11 @@ func trunkSideArchive(view *gitx.TrunkView, docs []sideArchiveDoc, w *gitx.Trunk
 // longer has are removed.
 func trunkSideReplace(view *gitx.TrunkView, archivedDetail string, a mainArchive, w *gitx.TrunkWrite) error {
 	issueSrc := path.Join(a.Dirs.Issues, path.Base(archivedDetail))
-	oldPlans, err := view.Files(vocab.ArchiveSubdir(a.Dirs.History, vocab.ArchivePlans))
+	archivedPlans := vocab.ArchiveSubdir(a.Dirs.History, vocab.ArchivePlans)
+	oldPlans, err := view.FilesSelected(archivedPlans, func(f gitx.TreeFile) bool {
+		owner, ok := sidedoc.Owner(f.Path)
+		return ok && path.Dir(owner) == archivedPlans && planArtifactBelongsToIssue(path.Base(issueSrc), path.Base(owner))
+	})
 	if err != nil {
 		return err
 	}

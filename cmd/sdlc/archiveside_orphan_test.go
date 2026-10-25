@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/sidedoc"
 )
@@ -141,6 +142,14 @@ func TestPreparedArchiveMovesRecoversOrphanPlanSideFolder(t *testing.T) {
 }
 
 func TestAbandonOrphanPlanSideFolder(t *testing.T) {
+	testAbandonOrphanPlanSideFolder(t, false)
+}
+
+func TestAbandonOrphanReplacementSkipsForeignArchiveBlobs(t *testing.T) {
+	testAbandonOrphanPlanSideFolder(t, true)
+}
+
+func testAbandonOrphanPlanSideFolder(t *testing.T, foreign bool) {
 	r, _, _ := startedHere(t)
 	side := "workshop/plans/000009-s09-orphan.side/01.md"
 	archived := strings.Replace(side, "workshop/plans/", "workshop/history/plans/", 1)
@@ -158,6 +167,15 @@ func TestAbandonOrphanPlanSideFolder(t *testing.T) {
 	if gitSucceeds(r.root, "cat-file", "-e", "origin/main:"+side) {
 		t.Fatal("active orphan remains after abandon")
 	}
+	foreignPath, foreignBlob := "workshop/history/plans/000010-other.side/large.log", ""
+	if foreign {
+		r.git("merge", "--ff-only", "origin/main")
+		writeRepoFile(t, r.root, foreignPath, strings.Repeat("x", gitx.SnapshotBlobLimit+1))
+		r.git("add", "--", foreignPath)
+		r.git("commit", "-qm", "foreign archived evidence exceeds the blob reader bound")
+		r.git("push", "-q", "origin", "HEAD:main")
+		foreignBlob = r.git("rev-parse", "HEAD:"+foreignPath)
+	}
 	if out, err := reopen9(); err != nil {
 		t.Fatalf("reopen: %v %s", err, out)
 	}
@@ -173,6 +191,9 @@ func TestAbandonOrphanPlanSideFolder(t *testing.T) {
 	r.git("fetch", "-q", "origin")
 	if got := r.git("show", "origin/main:"+archived); !strings.Contains(got, "second") {
 		t.Fatalf("successor orphan was not replaced: %q", got)
+	}
+	if foreign && r.git("rev-parse", "origin/main:"+foreignPath) != foreignBlob {
+		t.Fatal("another issue's archived evidence changed")
 	}
 }
 

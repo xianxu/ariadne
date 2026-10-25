@@ -122,6 +122,11 @@ Expanded the declaration class to indented block and flow mappings; both additio
 
 BR-1 remains open for malformed explicit-flow and tagged-flow mapping declarations; BR-2 README is addressed; BR-3 requires the parley repair's landed main-tree proof. Stopped the third discriminator delta and brought the simpler alternative to TL. Approval2750d55c-aa6f-45da-ae1d-372ca80f7e0d directs one YAML decode, rejecting malformed/unterminated leading frontmatter as ambiguous, with valid untyped/no-frontmatter attachments exempt. Inventory found no malformed untyped headers. The approved revision also filters selected history-side owners before trunk replacement blob IO, tested with foreign >1MiB evidence. Cancelled still-queued lease-4121496523 before any suite started; no recorded full result exists yet. Next: red-first these cases, remove the recovery scanner, implement the selected-owner filter, then push and run one fresh pre-close check. Await hub/owner confirmation that parley#445 landed before re-close.
 
+
+### 2026-10-25 — simplified admission and selected blob IO verified
+
+New red regressions reproduced explicit/tagged-flow bypass, malformed/unterminated untyped ambiguity, and hidden content after a YAML document end. The foreign >1MiB archive test initially exposed a fixture fast-forward omission (corrected), then reproduced the production failure: successor abandon refused with invalid snapshot blob size (limit1MiB) while reading another issue's historical evidence. Removed the partial recovery scanner entirely; one YAML decoder now owns syntax, duplicate keys and stream completion, and only valid decoded top-level type declarations opt into CUE. Selected history-side metadata before any blob reads. The focused gate/ordinary-issue and three abandon/replacement controls passed39.524s, including unchanged foreign blob identity, all15 malformed-header cases, valid typed/untyped syntax, and8/16-document read counts. No recorded suite currently runs or queues. Next: push this tested code, queue one fresh recorded check, rebuild paired binaries cleanly, and await parley#445 landing proof before another close review.
+
 ## Revisions
 
 ### 2026-10-25 — approved typed-Markdown transition

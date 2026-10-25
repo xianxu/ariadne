@@ -130,7 +130,8 @@ ID, and archive with their issue even if the plan document is absent. Untyped
 Markdown and non-Markdown attachments stay unmodeled. Markdown that declares
 `type` in frontmatter must conform to `side-doc`: literal `type: side-doc` and
 a nonempty `parent` reference; parent-target existence is not required.
-Malformed typed frontmatter refuses, including incomplete delimiters. Validate
+Malformed or unterminated leading frontmatter refuses as ambiguous; fix the
+header or remove its delimiters to retain ordinary attachment text. Validate
 one explicitly with `vocabulary validate-instance --type side-doc PATH`.
 Deploy/rebuild vocabulary and sdlc together: compound noun selection and the
 side-doc schema must be present before the conformance gate uses them. See

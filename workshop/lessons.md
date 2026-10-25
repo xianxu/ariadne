@@ -1724,9 +1724,10 @@ keep exact-root retry proof and completed-marker idempotence explicit.
   fixtures and counted owner-index visits defend this semantic class; a lexical
   ban on paths would also reject valid attachments.
 
-- #623 BR-1: an opt-in conformance discriminator must distinguish absent
-  declarations from malformed declarations. Parse failure is not an exemption.
-  Keep recognizable quoted/spaced/escaped/explicit/flow type keys and incomplete
-  typed headers refusing, while malformed untyped attachments and nested or
-  literal type text remain exempt. Red-first gate cases and counted key/byte
-  visits defend this classification boundary; schema validation stays with CUE.
+- #623 BR-1: syntax failure cannot prove the absence of an opt-in declaration.
+  Use the YAML decoder once instead of a partial recovery grammar; malformed
+  or unterminated leading frontmatter refuses as ambiguous. Valid untyped data
+  and documents without frontmatter stay exempt. Inventory existing attachments
+  before changing that boundary, and test tagged/explicit-flow variants as well
+  as ordinary keys. New archive inventories select owners from tree metadata
+  before blob IO; unrelated >1MiB evidence must not break another issue's archive.
