@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queuegate"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +73,11 @@ func TestRunnerArtifactsRetainScratchAndLogUntilReconciled(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	sweepStaleTemp(privateTemp, true, time.Now(), func(int) bool { return false })
+	var swept strings.Builder
+	sweepStaleTemp(privateTemp, true, time.Now(), func(int) bool { return false }, &swept)
+	if !strings.Contains(swept.String(), "[scratch sweep] kept "+scratch) {
+		t.Fatalf("a protected run folder was not logged as kept:\n%s", swept.String())
+	}
 	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +90,7 @@ func TestRunnerArtifactsRetainScratchAndLogUntilReconciled(t *testing.T) {
 	if _, err := d.Git("worktree", "unlock", wt); err != nil {
 		t.Fatal(err)
 	}
-	sweepStaleTemp(privateTemp, true, time.Now(), func(int) bool { return false })
+	sweepStaleTemp(privateTemp, true, time.Now(), func(int) bool { return false }, io.Discard)
 	if err := pruneSuiteAttempts(root, time.Now()); err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +268,7 @@ func TestRunnerCollectorsRespectPrivateAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	sweepStaleTemp(root, true, time.Now(), func(int) bool { return false })
+	sweepStaleTemp(root, true, time.Now(), func(int) bool { return false }, io.Discard)
 	if err := pruneSuiteAttempts(store, time.Now()); err != nil {
 		t.Fatal(err)
 	}
