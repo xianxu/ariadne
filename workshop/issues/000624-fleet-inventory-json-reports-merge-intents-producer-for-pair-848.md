@@ -74,6 +74,10 @@ At09:00 current load was27.16/27.38/35.33; this is later host context, not a mea
 
 Authenticated ops:0 receipt2c7e41d6-1e44-4f29-b920-218aea8deda5 directs a hold: #631's owner measured cleanup repeatedly retrying roughly21 undeletable read-only module caches (77MB each), from roughly270 calls per shard. This is the hub's diagnosis, not independently reproduced here. Park #624/PR440 until #631 lands AND ops:0 rebuilds ariadne:0, then run one fresh pre-close on this retained candidate and proceed through central merge. No retry meanwhile. Do not resume either incomplete attempt.
 
+### 2026-10-25 — #631 hold lifted, one fresh check retained
+
+Authenticated ops:0 receipt3a1901fc-d26b-4929-a9d0-896260a62443 confirms #631 landed and primary tools rebuilt, directing one fresh pre-close then merge. Git verifies origin/main includes #631 merge40aec7205764cf132b28bca8c3318823dc50bd8c and archive e19cdb92b2c58b6d454360925f6feaee47e5c7e6; bare sdlc --version names the primary binary at that revision with modified=false. Started exactly one fresh pre-close on retained source candidate fac0902f6628d87bbb5eb18c518be1b0a724d450: attempt903573603afa11b2b8b175770a556d3f, lease-283102559, detached /Volumes/TestScratch/local-checks/sdlc-local-1000312450, currently queued fifth. Retain that runner; no duplicate/retry, no owned merge yet. On pass enter central sdlc merge --yes, then Git-verify and hand the landed producer wire/fixture paths to ops:0 and pair:5. This checkpoint is documentation only.
+
 ## Revisions
 
 ### 2026-10-25 — Clarify terminal observation and freeze consumer vocabulary
