@@ -133,7 +133,7 @@ func TestAffectedMissedListAndDismiss(t *testing.T) {
 	}
 	before, _ := os.ReadFile(store.path())
 	var out bytes.Buffer
-	if err := runMissedList(ctx, &out, root, false, unavailable); err != nil {
+	if err := runMissedList(ctx, &out, &out, root, false, unavailable); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "nothing pruned: main's mapping is unavailable (no graph)") || strings.Count(out.String(), "paths: x/") != 2 {
@@ -146,12 +146,16 @@ func TestAffectedMissedListAndDismiss(t *testing.T) {
 		return func(e affected.MissedEntry) bool { return e.Package == "q" }, func() {}, nil
 	}
 	out.Reset()
-	if err := runMissedList(ctx, &out, root, true, coversQ); err != nil {
+	var errOut bytes.Buffer
+	if err := runMissedList(ctx, &out, &errOut, root, true, coversQ); err != nil {
 		t.Fatal(err)
 	}
 	var entries []affected.MissedEntry
 	if err := json.Unmarshal(out.Bytes(), &entries); err != nil || len(entries) != 1 || entries[0].Package != "p" {
 		t.Fatalf("pruned list: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(errOut.String(), "covered now, removed: ") {
+		t.Fatalf("--json dropped its note: %q", errOut.String())
 	}
 	if l, _ := store.read(); len(l.Entries) != 1 {
 		t.Fatalf("the covered entry is still in the ledger: %+v", l.Entries)
@@ -167,7 +171,7 @@ func TestAffectedMissedListAndDismiss(t *testing.T) {
 		t.Fatal("dismiss without a reason")
 	}
 	out.Reset()
-	if err := runMissedList(ctx, &out, root, false, coversQ); err != nil || !strings.Contains(out.String(), "no open missed mappings") {
+	if err := runMissedList(ctx, &out, &out, root, false, coversQ); err != nil || !strings.Contains(out.String(), "no open missed mappings") {
 		t.Fatalf("empty list: %v %s", err, out.String())
 	}
 }

@@ -114,3 +114,4 @@ Claimed and started after #598 landed (PR 435, 2001041f0). The durable plan rest
   - real-git loader tests, both modes.
 - Benchmark with a 65-entry traceability file: 32 ms/op, unchanged from M1 of #598.
 - Estimate gate: INFO. The reviewer thought the store/hooks and CLI rows look light; the estimate is kept at 1.96 and the actual will say.
+- 2026-10-25: close review SHIP (window 8f3eec5e..1202e2c2) with three Minors, fixed in the same round: Record counts one hit per observation per entry (TestMissedLedgerOneSightingPerObservation); list --json writes its notes to stderr; list marks a truncated entry and the atlas says pruning plans only the stored 20 paths.

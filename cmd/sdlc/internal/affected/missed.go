@@ -99,7 +99,7 @@ func MissID(pkg string, paths []string) string {
 }
 
 // Record adds misses under ev: a known ID gains a hit and the newest evidence, keeping its first sighting and its
-// unknown members; a new one is appended. At the cap the oldest entries (by last sighting) go; dropped says how many.
+// unknown members; a new one is appended. Misses sharing an ID in one observation are one sighting (the first test names it). At the cap the oldest entries (by last sighting) go; dropped says how many.
 func (l *MissedLedger) Record(misses []Miss, ev MissEvidence) (recorded, dropped int) {
 	if l.Version == 0 {
 		l.Version = MissedLedgerVersion
@@ -109,8 +109,13 @@ func (l *MissedLedger) Record(misses []Miss, ev MissEvidence) (recorded, dropped
 	if len(kept) > missedPathCap {
 		kept = kept[:missedPathCap]
 	}
+	seen := map[string]bool{} // one observation is one hit, however many of its tests fail in the package
 	for _, m := range misses {
 		id := MissID(m.Pkg, paths)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		e := MissedEntry{ID: id, Package: m.Pkg, Test: m.Test, Paths: append([]string{}, kept...), PathsTotal: len(paths),
 			Head: ev.Head, Main: ev.Main, Source: ev.Source, FirstSeen: ev.At, LastSeen: ev.At, Hits: 1}
 		if i := slices.IndexFunc(l.Entries, func(x MissedEntry) bool { return x.ID == id }); i >= 0 {

@@ -61,7 +61,7 @@ why nothing was pruned.`,
 			if err != nil {
 				return err
 			}
-			return runMissedList(cmd.Context(), cmd.OutOrStdout(), root, asJSON, mainMissedCoverage(root))
+			return runMissedList(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), root, asJSON, mainMissedCoverage(root))
 		},
 	}
 	list.Flags().BoolVar(&asJSON, "json", false, "print the open entries as JSON")
@@ -129,7 +129,7 @@ func mainMissedCoverage(root string) missedCoverage {
 	}
 }
 
-func runMissedList(ctx context.Context, w io.Writer, root string, asJSON bool, coverage missedCoverage) error {
+func runMissedList(ctx context.Context, w, errW io.Writer, root string, asJSON bool, coverage missedCoverage) error {
 	store, err := missedStoreFor(root)
 	if err != nil {
 		return err
@@ -153,6 +153,17 @@ func runMissedList(ctx context.Context, w io.Writer, root string, asJSON bool, c
 	if err != nil && !errors.Is(err, errNoLedgerChange) {
 		return err
 	}
+	// JSON keeps stdout to the entries; its notes go to stderr, so a script still learns why nothing was pruned.
+	note := w
+	if asJSON {
+		note = errW
+	}
+	if covErr != nil {
+		fmt.Fprintf(note, "nothing pruned: main's mapping is unavailable (%v)\n", covErr)
+	}
+	for _, e := range pruned {
+		fmt.Fprintf(note, "covered now, removed: %s %s (%s)\n", e.ID, e.Package, e.Test)
+	}
 	if asJSON {
 		entries := open.Entries
 		if entries == nil {
@@ -162,12 +173,6 @@ func runMissedList(ctx context.Context, w io.Writer, root string, asJSON bool, c
 		enc.SetIndent("", "  ")
 		return enc.Encode(entries)
 	}
-	if covErr != nil {
-		fmt.Fprintf(w, "nothing pruned: main's mapping is unavailable (%v)\n", covErr)
-	}
-	for _, e := range pruned {
-		fmt.Fprintf(w, "covered now, removed: %s %s (%s)\n", e.ID, e.Package, e.Test)
-	}
 	if len(open.Entries) == 0 {
 		fmt.Fprintln(w, "no open missed mappings")
 		return nil
@@ -176,7 +181,7 @@ func runMissedList(ctx context.Context, w io.Writer, root string, asJSON bool, c
 		fmt.Fprintf(w, "%s  %s  %s\n", e.ID, e.Package, e.Test)
 		paths := strings.Join(e.Paths, ", ")
 		if more := e.PathsTotal - len(e.Paths); more > 0 {
-			paths += fmt.Sprintf(" (+%d more)", more)
+			paths += fmt.Sprintf(" (+%d more; pruning plans only the stored paths)", more)
 		}
 		fmt.Fprintf(w, "    paths: %s\n", paths)
 		fmt.Fprintf(w, "    %d hit(s), last %s by %s on %s (main %s)\n", e.Hits, e.LastSeen.Format(time.RFC3339), e.Source, abbrevSHA(e.Head), abbrevSHA(e.Main))

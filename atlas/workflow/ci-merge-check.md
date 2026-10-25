@@ -428,7 +428,9 @@ that the branch's affected selection would not have run. Two producers record on
 
 `affected.Missed` (`internal/affected/missed.go`) is the one definition. Only a narrowed, group-free selection is
 evidence. A full selection, a red main, a bare test name and a registered flake record nothing. Recording only
-reports, so the gate's error and the split verdict are unchanged.
+reports, so the gate's error and the split verdict are unchanged. An entry stores its first 20 changed paths (keyed by
+the full set), and `list` prunes by planning only those, so an entry whose culprit path was cut off stays until it is
+dismissed; `list` marks such an entry with its `+N more`.
 
 The ledger is one file per clone: `<git-common-dir>/sdlc/affected-missed.json`, the pure `affected.MissedLedger`
 behind `missedLedgerStore` (`affected_missed.go`).

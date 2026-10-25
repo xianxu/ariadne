@@ -194,3 +194,16 @@ func FuzzDecodeMissedLedger(f *testing.F) {
 		}
 	})
 }
+
+// One observation is one sighting: two failing tests in one package (or a train's subtest leaves) are one hit.
+func TestMissedLedgerOneSightingPerObservation(t *testing.T) {
+	var l MissedLedger
+	two := []Miss{{"p.TestA", "p"}, {"p.TestA/leaf", "p"}, {"q.TestB", "q"}}
+	if recorded, _ := l.Record(two, ev(1, "x")); recorded != 2 {
+		t.Fatalf("recorded %d, want 2", recorded)
+	}
+	l.Record(two, ev(2, "x"))
+	if len(l.Entries) != 2 || l.Entries[0].Hits != 2 || l.Entries[0].Test != "p.TestA" || l.Entries[1].Hits != 2 {
+		t.Fatalf("%+v", l.Entries)
+	}
+}
