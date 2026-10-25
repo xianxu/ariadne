@@ -17,14 +17,22 @@ const (
 	UnattributedSummaryWidened    = "summary-widened"    // an earlier issue's summarised credits over-protect
 	SnapshotLimitUnattributed     = 32
 	UnattributedReasonLimit       = 400
+	UnattributedSourceLimit       = 256
 )
 
-// BoundLine is the one rule for bounding diagnostic text that sdlc persists:
-// collapsed to a single line and cut on a UTF-8 boundary to at most limit
-// bytes, an ellipsis marking the cut. Every MeasurementUnattributed writer
-// passes its reason through BoundReason, so the validator never refuses what
-// a writer produced.
+// persistedLine is the one predicate for diagnostic text sdlc persists in a
+// measurement: valid UTF-8, a single line with no NUL, at most limit bytes.
+// Validate admits a string field exactly when it holds; BoundLine produces
+// only strings for which it holds.
+func persistedLine(s string, limit int) bool {
+	return len(s) <= limit && utf8.ValidString(s) && !strings.ContainsAny(s, "\r\n\x00")
+}
+
+// BoundLine makes s a persistedLine: invalid UTF-8 and NUL dropped, whitespace
+// collapsed to single spaces, and a cut on a rune boundary, marked by an
+// ellipsis, when it is still over limit bytes.
 func BoundLine(s string, limit int) string {
+	s = strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\x00", " ")
 	s = strings.Join(strings.Fields(s), " ")
 	if len(s) <= limit {
 		return s
@@ -36,8 +44,16 @@ func BoundLine(s string, limit int) string {
 	return s[:cut] + "..."
 }
 
-// BoundReason bounds an unattributed record's reason to what Validate admits.
-func BoundReason(s string) string { return BoundLine(s, UnattributedReasonLimit) }
+// Normalised is the record as every writer persists it (#603): each string
+// field bounded by the same rule Validate checks, so a writer never produces
+// a record its own snapshot refuses.
+func (u MeasurementUnattributed) Normalised() MeasurementUnattributed {
+	u.Source = BoundLine(u.Source, UnattributedSourceLimit)
+	if u.Reason = BoundLine(u.Reason, UnattributedReasonLimit); u.Reason == "" {
+		u.Reason = "no reason recorded"
+	}
+	return u
+}
 
 // MeasurementUnattributed records minutes the measurement saw but did not
 // count (#603). It is audit evidence only: the sources' counted windows never
@@ -62,7 +78,7 @@ func (u MeasurementUnattributed) Validate() error {
 	default:
 		return fmt.Errorf("measurement unattributed kind %q is invalid", u.Kind)
 	}
-	if strings.TrimSpace(u.Reason) == "" || len(u.Reason) > UnattributedReasonLimit || strings.ContainsAny(u.Reason, "\r\n\x00") || strings.ContainsAny(u.Source, "\r\n\x00") {
+	if strings.TrimSpace(u.Reason) == "" || !persistedLine(u.Reason, UnattributedReasonLimit) || !persistedLine(u.Source, UnattributedSourceLimit) {
 		return fmt.Errorf("measurement unattributed reason or source is invalid")
 	}
 	if !u.Bounded {

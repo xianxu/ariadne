@@ -2,6 +2,7 @@ package gatestate
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -163,6 +164,12 @@ func TestMeasurementOversizeCountedRefusal(t *testing.T) {
 	err := m.Validate()
 	if err == nil || strings.Contains(err.Error(), "does not serialize") || !strings.Contains(err.Error(), "over the version 4 bound of 131072") || !strings.Contains(err.Error(), "128 sources, 1 branch records, 256 branch intervals") {
 		t.Fatalf("oversize refusal: %v", err)
+	}
+	// #603: the typed bound carries the size the encoder measured, a lower
+	// bound when it stopped at its structural cap, never a made-up 0.
+	var over *OversizeError
+	if !errors.As(err, &over) || over.Bytes <= SnapshotLimitBytesV4 {
+		t.Fatalf("oversize carries %+v, want the measured size over the bound", over)
 	}
 }
 

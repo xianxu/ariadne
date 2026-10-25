@@ -292,17 +292,29 @@ func TestCoalesceCreditsBoundsWidenedForTheValidator(t *testing.T) {
 	}
 }
 
-// #603: one bound for persisted reasons, cut on a rune boundary.
-func TestBoundReason(t *testing.T) {
-	long := strings.Repeat("é", UnattributedReasonLimit) // two bytes a rune
-	got := BoundReason("line one\n" + long)
-	if len(got) > UnattributedReasonLimit || !utf8.ValidString(got) || strings.ContainsAny(got, "\r\n") || !strings.HasSuffix(got, "...") {
-		t.Fatalf("bounded %d bytes, valid %v: %q", len(got), utf8.ValidString(got), got[:20])
+// #603 rule: the writer's normaliser and Validate share one predicate, so
+// Validate accepts every normalised record, whatever adversarial strings
+// (NUL, CR/LF, invalid UTF-8, over-long, empty) its writer was handed.
+func TestUnattributedNormalisedAlwaysValidates(t *testing.T) {
+	r := rand.New(rand.NewSource(603))
+	pieces := []string{"", " ", "\x00", "\r\n", "\n", "\xff\xfe", "é", "ascii", strings.Repeat("é", 300), strings.Repeat("x", 500), "\t", "#", ": "}
+	field := func() string {
+		var b strings.Builder
+		for i := r.Intn(6); i > 0; i-- {
+			b.WriteString(pieces[r.Intn(len(pieces))])
+		}
+		return b.String()
 	}
-	if u := (MeasurementUnattributed{Kind: UnattributedQueueUnknown, Reason: got}); u.Validate() != nil {
-		t.Fatalf("a bounded reason fails validation: %v", u.Validate())
+	for trial := 0; trial < 2000; trial++ {
+		u := MeasurementUnattributed{Kind: UnattributedQueueUnknown, Source: field(), Reason: field()}.Normalised()
+		if err := u.Validate(); err != nil {
+			t.Fatalf("trial %d: normalised record %q / %q fails validation: %v", trial, u.Source, u.Reason, err)
+		}
 	}
-	if BoundReason("short") != "short" {
-		t.Fatal("a short reason changed")
+	if got := BoundLine("short line", UnattributedReasonLimit); got != "short line" {
+		t.Fatalf("a valid short line changed: %q", got)
+	}
+	if got := BoundLine(strings.Repeat("é", UnattributedReasonLimit), UnattributedReasonLimit); len(got) > UnattributedReasonLimit || !utf8.ValidString(got) || !strings.HasSuffix(got, "...") {
+		t.Fatalf("a cut is not rune-safe: %d bytes", len(got))
 	}
 }

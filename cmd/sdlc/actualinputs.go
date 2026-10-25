@@ -555,7 +555,7 @@ func attachOwnedQueueEvidence(ctx context.Context, repoTop string, repo *tracker
 // subtracted: bounded by its queue interval inside the sample when it has
 // one, else unbounded.
 func queueUnattributed(a *SuiteAttempt, reason string, since, until time.Time) gatestate.MeasurementUnattributed {
-	u := gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedQueueUnknown, Reason: gatestate.BoundReason(reason)}
+	u := gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedQueueUnknown, Reason: reason}.Normalised()
 	if a == nil || a.QueuedAt == nil || a.AcquiredAt == nil {
 		return u
 	}
@@ -569,7 +569,7 @@ func queueUnattributed(a *SuiteAttempt, reason string, since, until time.Time) g
 	if end.After(start) {
 		u.Source, u.Start, u.End, u.Bounded = "suite/"+a.ID, start.UTC().Format(time.RFC3339Nano), end.UTC().Format(time.RFC3339Nano), true
 	}
-	return u
+	return u.Normalised()
 }
 
 // queueAttemptNamed finds the attempt a selection note names by its ID.

@@ -219,7 +219,7 @@ func selectOwnedBranchWindows(ctx context.Context, repo *tracker.Repository, inv
 	var unattributed []gatestate.MeasurementUnattributed
 	skip := func(s transcripts.SessionEvidence, kind, reason string, windows []activetime.ActivityWindow) {
 		for _, w := range windows {
-			unattributed = append(unattributed, gatestate.MeasurementUnattributed{Kind: kind, Source: s.Harness + "/" + s.ID, Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano), Bounded: true, Reason: gatestate.BoundReason(reason)})
+			unattributed = append(unattributed, gatestate.MeasurementUnattributed{Kind: kind, Source: s.Harness + "/" + s.ID, Start: w.Start.Format(time.RFC3339Nano), End: w.End.Format(time.RFC3339Nano), Bounded: true, Reason: reason}.Normalised())
 		}
 		warnings = append(warnings, fmt.Sprintf("branch attribution %s/%s: %s; %d windows not counted", s.Harness, s.ID, reason, len(windows)))
 	}

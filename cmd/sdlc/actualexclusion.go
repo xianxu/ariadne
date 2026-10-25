@@ -461,7 +461,7 @@ func summaryProtection(id string, saved gatestate.MeasurementInputs, adoptedHour
 			end = until
 		}
 		if end.After(start) {
-			lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: start.Format(time.RFC3339Nano), End: end.Format(time.RFC3339Nano), Bounded: true, Reason: gatestate.BoundReason("issue #" + id + "'s summarised credits were coalesced over this gap")})
+			lost = append(lost, gatestate.MeasurementUnattributed{Kind: gatestate.UnattributedSummaryWidened, Start: start.Format(time.RFC3339Nano), End: end.Format(time.RFC3339Nano), Bounded: true, Reason: "issue #" + id + "'s summarised credits were coalesced over this gap"}.Normalised())
 		}
 	}
 	return overlappingCredits(credits, windows, since, until), lost, nil
