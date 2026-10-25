@@ -100,6 +100,11 @@ Shared inventory now covers filesystem archive/recovery, immutable landing, trun
 
 Built both vocabulary and sdlc from pushed fb17b728a13c6ac2be80e5543d1abc4760a65fa5; go version -m reports that exact revision and vcs.modified=false for each. The vocabulary CLI accepted a typed side doc with a nonexistent parent target and nested additive metadata (exit0), refused a missing parent (exit1, parent required), and refused type: issue (exit1, want side-doc). The disposable build was /Volumes/TestScratch/ariadne623-conformance-llrjmf_j; that path is ephemeral, while source, outcomes and native CUE regressions are durable here. No :0 stage, peer mutation, full check or PR was started. Asked parley.nvim:1 for its owner-run #440 repair blob proof (Couch receiptc439765a-6fb3-4b29-b81e-8c613b6dbe28 submitted); repair remains that slot's work. Next: hub authorizes recorded-check/close phase under machine budget, then the required pre-close check and boundary review. Any CI wait must hold for hub recovery from the account-wide GitHub Actions billing outage.
 
+
+### 2026-10-25 — recorded-check phase authorized
+
+Authenticated TL delivery8b952b3a-fcdc-43fd-bb29-76315cc07dbf authorizes the recorded pre-close check through the machine queue and close review now. The original targeted-only restriction is lifted for these gates. Hold at CI until the hub reports GitHub Actions recovery; no reruns or bypass. Next: queue sdlc local-check run --pre-close on this pushed checkpoint, retain its lease, and finish owner repair evidence and the close review without duplicating the check.
+
 ## Revisions
 
 ### 2026-10-25 — approved typed-Markdown transition
