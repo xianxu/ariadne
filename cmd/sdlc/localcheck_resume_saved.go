@@ -114,6 +114,7 @@ func resumeLogTail(log string) []string {
 	}
 	return tail
 }
+
 // The returned attempt is the one whose log backs the record: the parent, or an
 // incomplete parent's failed retry (#630).
 func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (localRunRecord, SuiteAttempt, error) {
