@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"io"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -121,7 +119,7 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 		s.blocker.Release()
 		workers.Wait()
 	})
-	start := func(root string, stderr io.Writer, waiter bool) <-chan error {
+	start := func(root string, stderr io.Writer, waiter bool) chan error {
 		done := make(chan error, 1)
 		workers.Add(1)
 		go func() {
@@ -159,29 +157,10 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 	ghClient = &trainArchiveListingLag{trainFakeGH: s.gh, branch: secondBranch, outcomeSeen: secondStderr.seen}
 	firstStderr := watchWriter{want: "landed", seen: make(chan struct{})}
 	one := start(s.first, &firstStderr, false)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := start(second, &secondStderr, true)
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		_, waiting, err := s.line.Status()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(waiting) == 2 {
-			break
-		}
-		select {
-		case err := <-one:
-			t.Fatalf("conductor merge ended before the second queued: %v\n%s", err, firstStderr.String())
-		case err := <-two:
-			t.Fatalf("second merge ended before queue: %v\n%s", err, secondStderr.String())
-		case <-time.After(time.Millisecond):
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("second merge did not queue")
-		}
-	}
-	waitVouched(t, s.line, 2, two)
+	waitQueued(t, s.line, 2, []chan error{one, two})
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatalf("conductor merge: %v", err)

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -115,7 +114,7 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		s.blocker.Release()
 		workers.Wait()
 	})
-	start := func(root string) <-chan error {
+	start := func(root string) chan error {
 		done := make(chan error, 1)
 		workers.Add(1)
 		go func() {
@@ -140,39 +139,22 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		return done
 	}
 	one := start(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := start(suspect)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
+	// The barrier file is the event (#625): a landing that ends first fails
+	// at once, and only a hang waits out the ceiling. The script creates the
+	// file before it writes the SHA, so an empty read is not the event yet.
 	var prefix string
-	// The barrier file is the event (#625): a landing that ends without
-	// reaching it fails at once, and the deadline only catches a hang, so a
-	// loaded machine's slow suite cannot fail this the way a 30s one did.
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for prefix == "" {
+	testfix.AwaitCondition(t, "the passing split prefix reached the registration barrier", func() bool {
 		data, readErr := os.ReadFile(ready)
-		if readErr == nil {
-			// The script creates the file before it writes the SHA: an empty
-			// read is not the event yet, so the loop reads again.
-			prefix = strings.TrimSpace(string(data))
-			if prefix != "" {
-				break
-			}
-		} else if !errors.Is(readErr, os.ErrNotExist) {
+		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 			t.Fatal(readErr)
 		}
-		select {
-		case err := <-one:
-			t.Fatalf("the first landing ended before the split reached the barrier: %v", err)
-		case err := <-two:
-			t.Fatalf("the suspect landing ended before the split reached the barrier: %v", err)
-		default:
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the passing split prefix never reached the registration barrier")
-		}
-		time.Sleep(time.Millisecond)
-	}
+		prefix = strings.TrimSpace(string(data))
+		return prefix != ""
+	}, []chan error{one, two})
 	failed := ""
 	s.gh.ciFakeGH.mu.Lock()
 	for sha, statuses := range s.gh.ciFakeGH.statuses {

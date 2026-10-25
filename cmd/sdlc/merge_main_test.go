@@ -16,8 +16,9 @@ import (
 )
 
 type blockedMergeWorker struct {
-	done chan struct{}
-	err  error
+	done   chan struct{}
+	exited chan error // the run's result, for testfix.AwaitCondition
+	err    error
 }
 
 // Cleanup runs before fixture teardown: release the suite, cancel any wait,
@@ -25,8 +26,8 @@ type blockedMergeWorker struct {
 func startBlockedMergeWorker(t *testing.T, release string, run func(context.Context) error) *blockedMergeWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &blockedMergeWorker{done: make(chan struct{})}
-	go func() { w.err = run(ctx); close(w.done) }()
+	w := &blockedMergeWorker{done: make(chan struct{}), exited: make(chan error, 1)}
+	go func() { w.err = run(ctx); w.exited <- w.err; close(w.done) }()
 	t.Cleanup(func() {
 		_ = os.WriteFile(release, nil, 0o600)
 		cancel()
@@ -75,21 +76,10 @@ func TestRunMerge_LegacyReleasesRepoLockDuringLocalCheck(t *testing.T) {
 		cmd.SetContext(ctx)
 		return runMerge(io.Discard, io.Discard, f)
 	})
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if _, err := os.Stat(started); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("local check did not start")
-		}
-		select {
-		case <-worker.done:
-			t.Fatalf("the merge ended before its check started: %v", worker.err)
-		default:
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the local check started", func() bool {
+		_, err := os.Stat(started)
+		return err == nil
+	}, []chan error{worker.exited})
 	if locks.Load() == 0 {
 		t.Fatal("merge never acquired the repo lock")
 	}

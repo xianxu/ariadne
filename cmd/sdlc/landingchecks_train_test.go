@@ -54,13 +54,13 @@ func TestLandingCheckProductionTrainAndSingle(t *testing.T) {
 				s.pushCar(t, "000102-second", "second", 102, 2)
 			}
 			result := s.merge(s.first)
-			waitQueued(t, s.line, 1, result)
+			waitQueued(t, s.line, 1, []chan error{result})
 			if !tc.off {
-				waitVouched(t, s.line, 1)
+				waitVouched(t, s.line, 1, []chan error{result})
 			}
 			if multi {
 				s.queuedCar(t, "000102-second", 102, 2)
-				waitVouched(t, s.line, 2)
+				waitVouched(t, s.line, 2, []chan error{result})
 			}
 			s.blocker.Release()
 			mergeErr := finished(t, result)

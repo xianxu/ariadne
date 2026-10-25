@@ -43,41 +43,30 @@ func heldLine(t *testing.T, root string) (*landingline.Line, *landingline.Handle
 
 // mergeAsync runs one merge in the background. The fake GitHub is shared with
 // the test goroutine, which only touches it while the merge waits in the line.
-func mergeAsync(f *mergeFlags) <-chan error {
+func mergeAsync(f *mergeFlags) chan error {
 	done := make(chan error, 1)
 	go func() { done <- runMerge(io.Discard, io.Discard, f) }()
 	return done
 }
 
-// waitQueued polls until n merges wait in line. workers are the merges this
-// wait is for: one that ends before it queues fails the wait at once (#622),
-// rather than at the hang ceiling. Pass only workers that must still be
-// running; one read later by a deferred cleanup is left out.
-func waitQueued(t *testing.T, line *landingline.Line, n int, workers ...<-chan error) {
+// waitQueued polls until n merges wait in line. workers are the merges the
+// test holds that must still be running: one that ends first fails the wait
+// at once (#622). The argument is required; nil needs a comment saying why.
+func waitQueued(t *testing.T, line *landingline.Line, n int, workers []chan error) {
 	t.Helper()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if _, waiting, err := line.Status(); err == nil && len(waiting) == n {
-			return
-		}
-		failIfWorkerEnded(t, fmt.Sprintf("%d waiting merges", n), workers)
-		if time.Now().After(deadline) {
-			t.Fatalf("no %d waiting merges", n)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, fmt.Sprintf("%d waiting merges", n), func() bool {
+		_, waiting, err := line.Status()
+		return err == nil && len(waiting) == n
+	}, workers)
 }
 
-// failIfWorkerEnded fails t when any worker has already returned.
-func failIfWorkerEnded(t *testing.T, waitingFor string, workers []<-chan error) {
-	t.Helper()
-	for i, w := range workers {
-		select {
-		case err := <-w:
-			t.Fatalf("worker %d ended before %s: %v", i, waitingFor, err)
-		default:
-		}
+// workerList is the workers held in a map, for waitQueued and waitVouched.
+func workerList[K comparable](m map[K]chan error) []chan error {
+	var out []chan error
+	for _, w := range m {
+		out = append(out, w)
 	}
+	return out
 }
 
 func finished(t *testing.T, done <-chan error) error {
@@ -108,7 +97,7 @@ func TestLandingLineWaitsThenIntegratesOnce(t *testing.T) {
 	gh.afterStatus = func(sha string) { tested = append(tested, sha) }
 	before := git(t, server, "ls-remote", "origin", "refs/heads/"+landingTestBranch)
 	done := mergeAsync(landingFlags())
-	waitQueued(t, line, 1, done)
+	waitQueued(t, line, 1, []chan error{done})
 	time.Sleep(50 * time.Millisecond) // several polls while the head holds the line
 	if gh.merges != 0 || len(tested) != 0 || git(t, server, "ls-remote", "origin", "refs/heads/"+landingTestBranch) != before {
 		t.Fatalf("worked while waiting: merges=%d suites=%v", gh.merges, tested)
@@ -145,7 +134,7 @@ func TestLandingLineDuplicateResumesAsMerged(t *testing.T) {
 	root, _, gh := integrationFixture(t)
 	line, head := heldLine(t, root)
 	done := mergeAsync(landingFlags())
-	waitQueued(t, line, 1, done)
+	waitQueued(t, line, 1, []chan error{done})
 	if err := gh.LandingMerge(context.Background(), gh.pr.Repo, gh.pr.Number, gh.pr.HeadOID); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +158,7 @@ func TestLandingLineReusedBranchStillQueues(t *testing.T) {
 	gh.older = []landingPR{{Number: 380, State: "MERGED", Repo: gh.pr.Repo, HeadRef: landingTestBranch, HeadOID: gh.pr.BaseOID, BaseRef: "main", BaseOID: gh.pr.BaseOID, MergeOID: gh.pr.BaseOID}}
 	line, head := heldLine(t, root)
 	done := mergeAsync(landingFlags())
-	waitQueued(t, line, 1, done)
+	waitQueued(t, line, 1, []chan error{done})
 	time.Sleep(50 * time.Millisecond)
 	if gh.merges != 0 {
 		t.Fatal("landed outside the line")
@@ -231,7 +220,7 @@ func TestLandingLinePushedWhileWaiting(t *testing.T) {
 	var tested []string
 	gh.afterStatus = func(sha string) { tested = append(tested, sha) }
 	done := mergeAsync(landingFlags())
-	waitQueued(t, line, 1, done)
+	waitQueued(t, line, 1, []chan error{done})
 	procedureWrite(t, root, "fix.txt", "pushed while waiting\n")
 	git(t, root, "add", "fix.txt")
 	git(t, root, "commit", "-qm", "a fix pushed while waiting")
@@ -278,7 +267,7 @@ func TestLandingLineEmptyListingQueues(t *testing.T) {
 	gh.lagFirst, gh.firstListing = true, nil
 	line, head := heldLine(t, root)
 	done := mergeAsync(landingFlags())
-	waitQueued(t, line, 1, done)
+	waitQueued(t, line, 1, []chan error{done})
 	head.Release()
 	if err := finished(t, done); err != nil {
 		t.Fatal(err)

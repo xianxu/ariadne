@@ -360,11 +360,11 @@ func (s *trainSetup) pushCar(t *testing.T, branch, file string, issue, number in
 }
 
 // merge starts a real sdlc merge in root.
-func (s *trainSetup) merge(root string) <-chan error {
+func (s *trainSetup) merge(root string) chan error {
 	return s.mergeContext(context.Background(), root)
 }
 
-func (s *trainSetup) mergeContext(parent context.Context, root string) <-chan error {
+func (s *trainSetup) mergeContext(parent context.Context, root string) chan error {
 	done := make(chan error, 1)
 	go func() {
 		f := landingFlags()
@@ -403,7 +403,7 @@ func (s *trainSetup) queuedCar(t *testing.T, branch string, issue, number int) *
 }
 
 // waitingCar is a queuedCar that also waits, as a car's sdlc merge does.
-func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) <-chan error {
+func (s *trainSetup) waitingCar(t *testing.T, branch string, issue, number int) chan error {
 	t.Helper()
 	h := s.queuedCar(t, branch, issue, number)
 	done := make(chan error, 1)
@@ -450,11 +450,11 @@ func landTrainOfThree(t *testing.T, s *trainSetup) {
 	gh, line := s.gh, s.line
 
 	one := s.merge(s.first)
-	waitQueued(t, line, 1, one)
+	waitQueued(t, line, 1, []chan error{one})
 	two := s.merge(second)
-	waitQueued(t, line, 2, two)
+	waitQueued(t, line, 2, []chan error{one, two})
 	three := s.waitingCar(t, "000003-third", 3, 3)
-	waitVouched(t, line, 3, three)
+	waitVouched(t, line, 3, []chan error{one, two, three})
 	s.blocker.Release()
 
 	for name, done := range map[string]<-chan error{"first": one, "second": two} {
@@ -516,11 +516,10 @@ func wantNoTrainWorktree(t *testing.T, root string) {
 	}
 }
 
-// waitVouched polls until n cars vouch; workers are as in waitQueued.
-func waitVouched(t *testing.T, line *landingline.Line, n int, workers ...<-chan error) {
+// waitVouched polls until n cars vouch ready; workers are as in waitQueued.
+func waitVouched(t *testing.T, line *landingline.Line, n int, workers []chan error) {
 	t.Helper()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
+	testfix.AwaitCondition(t, fmt.Sprintf("%d cars vouched ready", n), func() bool {
 		ready, err := line.Readiness()
 		count := 0
 		for _, r := range ready {
@@ -528,15 +527,8 @@ func waitVouched(t *testing.T, line *landingline.Line, n int, workers ...<-chan 
 				count++
 			}
 		}
-		if err == nil && count >= n {
-			return
-		}
-		failIfWorkerEnded(t, fmt.Sprintf("%d vouched cars", n), workers)
-		if time.Now().After(deadline) {
-			t.Fatalf("only %d of %d cars vouched ready: %+v %v", count, n, ready, err)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+		return err == nil && count >= n
+	}, workers)
 }
 
 // With trains on and no other car ready, the head lands alone exactly as
@@ -544,8 +536,8 @@ func waitVouched(t *testing.T, line *landingline.Line, n int, workers ...<-chan 
 func TestLandingTrainOfOneIsTodaysLanding(t *testing.T) {
 	s := newTrainSetup(t, "train")
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
-	waitVouched(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{one})
+	waitVouched(t, s.line, 1, []chan error{one})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -576,9 +568,9 @@ func TestLandingTrainReclaimsAnOrphanAndSurvivesALostMergeReply(t *testing.T) {
 	s.gh.lostReply = true
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -606,27 +598,14 @@ func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
 	started, release := blockLandingSuite(t, s.server)
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if b, err := os.ReadFile(started); err == nil && len(strings.TrimSpace(string(b))) == 40 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the train suite never started")
-		}
-		select {
-		case err := <-one:
-			t.Fatalf("the first landing ended before the train suite started: %v", err)
-		case err := <-two:
-			t.Fatalf("the second car ended before the train suite started: %v", err)
-		default:
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the train suite started", func() bool {
+		b, err := os.ReadFile(started)
+		return err == nil && len(strings.TrimSpace(string(b))) == 40
+	}, []chan error{one, two})
 	prose := integrationAdvance(t, s.server, "workshop/parley/during-train.md", "published while the train's suite ran\n")
 	if err := os.WriteFile(release, nil, 0o600); err != nil {
 		t.Fatal(err)
@@ -658,8 +637,8 @@ var trainStderr io.Writer = io.Discard
 func TestLandingCarMergedWithoutAWordFinishes(t *testing.T) {
 	s := newTrainSetup(t, "null")
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
-	waitVouched(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{one})
+	waitVouched(t, s.line, 1, []chan error{one})
 	// The conductor's merge, with no settle after it: the blocker still holds
 	// the line, so the car is never admitted.
 	if err := s.gh.LandingMerge(context.Background(), "test/repo", 1, s.heads[landingTestBranch]); err != nil {
@@ -680,9 +659,9 @@ func TestLandingTrainLaggingListingIsItsOwnMerge(t *testing.T) {
 	s.gh.lagMerged = 3
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -730,10 +709,10 @@ func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 		s.addCar(t, car.branch, car.number)
 	}
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
 	three := s.waitingCar(t, "000003-third", 3, 3)
-	waitVouched(t, s.line, 3, two, three)
+	waitVouched(t, s.line, 3, []chan error{one, two, three})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatalf("the clean prefix's car: %v", err)
@@ -792,9 +771,9 @@ func TestLandingTrainHoldsAConflictingCar(t *testing.T) {
 	git(t, dir, "push", "-q", "upstream", "000002-second")
 	s.addCar(t, "000002-second", 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -814,9 +793,9 @@ func TestLandingTrainRedCIRefusesTheTrain(t *testing.T) {
 	s.gh.trainChecks = []prCheck{{Name: "merge-check", Workflow: "merge-check", Bucket: "fail"}}
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2, two)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	err := finished(t, one)
 	if err == nil || !strings.Contains(err.Error(), "CI is red") {
@@ -947,10 +926,10 @@ func symlinkedWorkflowTrain(t *testing.T, withSubstrate bool) (*trainSetup, stri
 func runTwoCars(t *testing.T, s *trainSetup, second string) (first, other error) {
 	t.Helper()
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1, one)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.merge(second)
-	waitQueued(t, s.line, 2, two)
-	waitVouched(t, s.line, 2)
+	waitQueued(t, s.line, 2, []chan error{one, two})
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	return finished(t, one), finished(t, two)
 }

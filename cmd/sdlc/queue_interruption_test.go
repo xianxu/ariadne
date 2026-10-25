@@ -45,26 +45,13 @@ func TestQueueManagedSuiteFastPauseInterrupts(t *testing.T) {
 		}
 	}()
 	s := &queuegate.Store{Root: os.Getenv("WF_SDLC_QUEUE_ROOT")}
-	deadline := time.Now().Add(testfix.HangCeiling)
-	ready := false
-	for time.Now().Before(deadline) {
+	// done keeps its result if the suite ends first, so the deferred join
+	// still receives it.
+	testfix.AwaitCondition(t, "the suite published a running lease", func() bool {
 		x, err := s.Snapshot(context.Background())
 		_, started := os.Stat(marker)
-		if err == nil && len(x.Active) == 1 && started == nil {
-			ready = true
-			break
-		}
-		select {
-		case err := <-done:
-			joined = true
-			t.Fatalf("suite exited before active barrier: %v", err)
-		default:
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if !ready {
-		t.Fatal("suite never published a running lease")
-	}
+		return err == nil && len(x.Active) == 1 && started == nil
+	}, []chan error{done})
 	if err := s.Pause(context.Background(), "fast", "fixture drain", true); err != nil {
 		t.Fatal(err)
 	}
@@ -105,14 +92,16 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 	d.normalTempDir = func() (string, error) { return normal, nil }
 	marker := filepath.Join(t.TempDir(), "started")
 	check := localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "echo diagnostic; echo begun > \"$1\"; sleep 30", "fixture", marker}, TimeoutMinutes: 60}
-	type result struct {
-		rec localRunRecord
-		err error
-	}
-	done := make(chan result, 1)
+	// rec is written before done is sent, so a receive from done orders it.
+	var rec localRunRecord
+	done := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() { rec, err := runLocalCheck(ctx, d, check, sha); done <- result{rec, err} }()
+	go func() {
+		var err error
+		rec, err = runLocalCheck(ctx, d, check, sha)
+		done <- err
+	}()
 	joined := false
 	defer func() {
 		cancel()
@@ -120,38 +109,26 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 			<-done
 		}
 	}()
-	deadline := time.Now().Add(testfix.HangCeiling)
-	for {
-		if _, err := os.Stat(marker); err == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("suite did not reach execution barrier")
-		}
-		select {
-		case r := <-done:
-			joined = true
-			t.Fatalf("the check ended before the execution barrier: %+v %v", r.rec, r.err)
-		default:
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	testfix.AwaitCondition(t, "the suite reached its execution barrier", func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, []chan error{done})
 	s := &queuegate.Store{Root: os.Getenv("WF_SDLC_QUEUE_ROOT")}
 	if err := s.Pause(ctx, "fast", "fixture interruption", true); err != nil {
 		t.Fatal(err)
 	}
-	var got result
+	var gotErr error
 	select {
-	case got = <-done:
+	case gotErr = <-done:
 		joined = true
 	case <-time.After(3 * time.Second):
 		t.Fatal("suite did not interrupt")
 	}
 	var interrupted *queueInterruptedError
-	if !errors.As(got.err, &interrupted) || !strings.HasSuffix(got.rec.LogPath, ".interrupted.log") {
-		t.Fatalf("diagnostic not separated: %+v %v", got.rec, got.err)
+	if !errors.As(gotErr, &interrupted) || !strings.HasSuffix(rec.LogPath, ".interrupted.log") {
+		t.Fatalf("diagnostic not separated: %+v %v", rec, gotErr)
 	}
-	log, err := os.ReadFile(got.rec.LogPath)
+	log, err := os.ReadFile(rec.LogPath)
 	if err != nil || !strings.Contains(string(log), "diagnostic") {
 		t.Fatalf("raw diagnostic lost: %q %v", log, err)
 	}
@@ -163,11 +140,11 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 	if err != nil || len(rows) != 0 || len(warnings) != 0 {
 		t.Fatalf("interruption became suite evidence: %v %v %v", rows, warnings, err)
 	}
-	if diagnoseSuiteFailure(context.Background(), got.err, sha, d) != got.err {
+	if diagnoseSuiteFailure(context.Background(), gotErr, sha, d) != gotErr {
 		t.Fatal("interruption entered baseline diagnosis")
 	}
 	c := &conductor{ctx: context.Background(), heads: []string{sha}}
-	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return got.rec, got.err }
+	c.run = func(context.Context, localCheck, string) (localRunRecord, error) { return rec, gotErr }
 	if event, err := c.runSuite(1, landingline.ExecInitial); event != nil || err == nil || c.baseline != nil {
 		t.Fatalf("interruption blamed train: %v %v", event, err)
 	}

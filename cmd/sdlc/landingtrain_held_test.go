@@ -154,9 +154,9 @@ func TestLandingTrainHeldConductorReleasesSurvivors(t *testing.T) {
 			}
 		}
 	}()
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{done})
 	s.queuedCar(t, "000004-fourth", 4, 4)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, []chan error{done})
 	head.Release()
 	logDir, err := localCheckLogDir(localRunDeps{Root: second, Git: func(args ...string) (string, error) { return trainGitOut(second, args...) }})
 	if err != nil {

@@ -807,25 +807,16 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 				<-waited
 			}
 		})
-		deadline := time.Now().Add(testfix.HangCeiling)
-		for time.Now().Before(deadline) {
+		testfix.AwaitCondition(t, "the resume's rerun started", func() bool {
 			raw, e := os.ReadFile(filepath.Join(f.marks, "started"))
-			if e == nil {
-				parts := strings.Fields(string(raw))
-				if len(parts) == 2 {
-					pid, _ = strconv.Atoi(parts[0])
-					pgid, _ = strconv.Atoi(parts[1])
-					break
-				}
+			parts := strings.Fields(string(raw))
+			if e != nil || len(parts) != 2 {
+				return false
 			}
-			select {
-			case e := <-waited:
-				finished = true
-				t.Fatalf("the resume exited before its rerun started: %v", e)
-			default:
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
+			pid, _ = strconv.Atoi(parts[0])
+			pgid, _ = strconv.Atoi(parts[1])
+			return true
+		}, []chan error{waited})
 		if pid <= 1 || pgid <= 1 || pgid == syscall.Getpgrp() || pgid == cmd.Process.Pid {
 			t.Fatal("fixture rerun did not report safe process IDs")
 		}

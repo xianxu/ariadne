@@ -548,15 +548,30 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		}
 	}
 	ast.Inspect(f, func(n ast.Node) bool {
-		if as, ok := n.(*ast.AssignStmt); ok && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
-			if id, ok := as.Lhs[0].(*ast.Ident); ok {
-				call, isCall := as.Rhs[0].(*ast.CallExpr)
-				sel, isSel := (*ast.SelectorExpr)(nil), false
-				if isCall {
-					sel, isSel = call.Fun.(*ast.SelectorExpr)
+		// Every binding: x := …, x, y = …, …, and var x = ….
+		var names []*ast.Ident
+		var values []ast.Expr
+		switch v := n.(type) {
+		case *ast.AssignStmt:
+			for _, l := range v.Lhs {
+				id, _ := l.(*ast.Ident)
+				names = append(names, id)
+			}
+			values = v.Rhs
+		case *ast.ValueSpec:
+			names, values = v.Names, v.Values
+		}
+		if len(names) > 0 {
+			for i, id := range names {
+				if id == nil {
+					continue
 				}
-				if isSel && len(call.Args) == 1 && sel.Sel.Name == "Add" && isNow(sel.X) && !hangBound(timePkg, call.Args[0]) {
-					deadlines[varKey(id)] = call
+				var value ast.Expr
+				if len(values) == len(names) {
+					value = values[i]
+				}
+				if d := deadlineCall(timePkg, value, isNow); d != nil {
+					deadlines[varKey(id)] = d
 				} else {
 					delete(deadlines, varKey(id)) // reassigned to a hang bound or another value
 				}
@@ -571,11 +586,11 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		if !ok {
 			return true
 		}
-		// time.Now().After(v), time.Now().Before(v), time.Until(v), and the
-		// inverted v.After(time.Now()), v.Before(time.Now()).
+		// time.Now().After/Before/Compare(v), time.Until(v), time.Since(v),
+		// and the inverted v.After/Before/Compare(time.Now()).
 		pkg, isPkg := fnIdent(sel)
-		compare := sel.Sel.Name == "After" || sel.Sel.Name == "Before"
-		if id, ok := call.Args[0].(*ast.Ident); ok && (compare && isNow(sel.X) || isPkg && pkg == timePkg && sel.Sel.Name == "Until") {
+		compare := sel.Sel.Name == "After" || sel.Sel.Name == "Before" || sel.Sel.Name == "Compare"
+		if id, ok := call.Args[0].(*ast.Ident); ok && (compare && isNow(sel.X) || isPkg && pkg == timePkg && (sel.Sel.Name == "Until" || sel.Sel.Name == "Since")) {
 			poll(id)
 		}
 		if id, ok := sel.X.(*ast.Ident); ok && compare && isNow(call.Args[0]) {
@@ -584,6 +599,20 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		return true
 	})
 	return out
+}
+
+// deadlineCall returns value when it is time.Now().Add(d) with d below the
+// hang ceiling.
+func deadlineCall(timePkg string, value ast.Expr, isNow func(ast.Expr) bool) *ast.CallExpr {
+	call, ok := value.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return nil
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Add" || !isNow(sel.X) || hangBound(timePkg, call.Args[0]) {
+		return nil
+	}
+	return call
 }
 
 // varKey identifies a variable by its declaring object when the parser
@@ -642,9 +671,9 @@ func hangBound(timePkg string, e ast.Expr) bool {
 	case *ast.ParenExpr:
 		return hangBound(timePkg, v.X)
 	case *ast.Ident:
-		// The package constant (declared here, or in another file of the
-		// package), never a local variable of that name.
-		return v.Name == "HangCeiling" && (v.Obj == nil || v.Obj.Kind == ast.Con)
+		// The package's own constant, declared in another file; a name this
+		// file declares (a local const or variable) is not the ceiling.
+		return v.Name == "HangCeiling" && v.Obj == nil
 	case *ast.SelectorExpr:
 		// pkg.HangCeiling, where pkg is an import, not a local value.
 		pkg, ok := v.X.(*ast.Ident)
