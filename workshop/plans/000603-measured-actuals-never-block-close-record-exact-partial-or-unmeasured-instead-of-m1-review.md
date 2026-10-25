@@ -120,3 +120,108 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"d9a119a5-2f9f-4aca-9291-9c95409dab52","repository":"github.com/xianxu/ariadne","issue_id":"000603","recipe":"milestone-review","round":1,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/9dc63c63d475bfa4","reviewed_head":"ecaf2d6712d7cfc32e4fa119263dd4c66450b043","slot":"ariadne:2","requested_at":"2026-10-25T02:14:01.817818Z"},"phase":"finished","pid":50044,"started_at":"2026-10-25T02:14:01.953301Z","finished_at":"2026-10-25T03:03:22.42211Z","session_id":"4a3e7520-5ee7-44bf-8ac6-a69cc5790722","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-24T20:34:31-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 603 — Measured actuals never block close: record exact, partial or unmeasured instead of refusing |
+| repo | ariadne |
+| issue file | workshop/issues/000603-measured-actuals-never-block-close-record-exact-partial-or-unmeasured-instead-of.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 41238256b57c82978e4ba83a4b17a8f7969ce0e8..c6af4ce685477a0262d6d3d87f24267db155dcf6 |
+| command | sdlc milestone-close --issue 603 --milestone M1 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-24T20:34:31-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Focus on the last commit first (round-2 fixes), then the plan.
+
+Still checking the round-2 fixes. The full test suite is slow, so I'm looking at the output so far.
+
+The reverted run was cut off by the timeout again, so I'm checking whether any test actually failed before that.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: medium
+```
+
+Round 2 fixed the two Important defects. I checked both against code and tests at `c6af4ce68` rather than relying on the commit message. For BR-2, I reverted the second coalescing pass in `CoalesceCredits`: the property test and the new 3×`MaxSummaryCredits` test both went red ("2048 credits, 4096 widened gaps over 2048"), and with the pass restored the output passes `Validate()`. For BR-3, all three `MeasurementUnattributed` writers now use one UTF-8-safe `gatestate.BoundReason`, and the rendering bound shares `BoundLine`. Two gaps remain. The helper still lets through one character the validator refuses (NUL), and nothing caps the record's `Source` field. That is the third instance of the "writer bound matches validator" rule, so I've raised it as the rule, not as another instance. It is Minor because the close drops to unmeasured rather than blocking. BR-4's fix is right, but no test covers the path it fixes. Nothing blocks the boundary.
+
+**1. Strengths**
+- `measurement_summary.go:102-108`: bounding `widened` by coalescing it a second time keeps it within `MaxSummaryCredits`. The pass can only claim a later issue lost more than it did, never hide a loss, and the comment and tests say exactly that.
+- `measurement_unattributed.go:27-40`: one rule for persisted diagnostic text, which cuts on a character boundary. The three earlier truncation rules (240 bytes, 397 bytes, none) are gone. `confidenceReason` now reuses it (`actualconfidence.go:146`).
+- `measurement.go:240-259`: `OversizeError.Bytes` takes its size from the same `json.Marshal` call that decides the bound, so the summary's `Bytes` can't disagree with the refusal.
+- `TestCoalesceCreditsProperty` checks the first pass's widened gaps against the cover it added, separately from the bounded output. That pins the exact accounting, not just the bound.
+
+**2. Critical findings**
+None.
+
+**3. Important findings**
+None new.
+
+**4. Minor findings**
+- **ARCH-SECURE / ARCH-PURPOSE, `measurement_unattributed.go:27` vs `:65`.** `BoundLine` collapses whitespace but leaves `\x00`, which `Validate` refuses. `MeasurementUnattributed.Source` (`s.Harness + "/" + s.ID`, `actualbranch.go:222`) is built from the transcript's session ID with no normalisation, and `Validate` refuses `\r\n\x00` in it. Either one makes the snapshot fail validation, and the close drops to unmeasured.
+- **ARCH-DRY, `actualconfidence.go:132`.** `oneLine` repeats the first step of `BoundLine`. Its only remaining caller is the trailer at `closetracker.go:475`.
+- **BR-4 test gap.** `measurement_branch_v4_test.go:263` already reaches the encoder's structural-cap path. Asserting `over.Bytes > 0` there would cover the case BR-4 was about.
+
+**5. Test coverage notes**
+- **Passing at head:** `go build ./...`, `gatestate`, `estimate` and `activetime`. A targeted `cmd/sdlc` run (`TestSourceCap|TestQueue|Unattributed|Summary|Confidence|BoundReason|Exclusion`) passed in 77s.
+- **Full suite not confirmed:** the whole `cmd/sdlc` package ran past Go's default 10-minute timeout on this host, twice. That looks like suite length, not a failure, but I couldn't confirm a full green run.
+- **BR-2 revert:** both tests went red, as above.
+- **BR-3 revert, inconclusive:** I reverted the call sites in `actualbranch.go` and `actualinputs.go`, but that run was cut off by the same timeout. Grepping the tests shows nothing drives a long reason through `skip()` or `queueUnattributed`. Only the helper (`TestBoundReason`) and the rendering path (`actualconfidence_test.go:107`) are tested with an over-long reason.
+
+**6. Architectural notes**
+- ARCH-DRY: pass. One bounding helper; the minor `oneLine` leftover is noted above.
+- ARCH-PURE: pass. The coalescer and `BoundLine` are pure and tested without IO.
+- ARCH-PURPOSE: flagged. The validator rule is fixed one instance at a time; see the new finding.
+- ARCH-MOCK: pass. No new external surface.
+- ARCH-CONSTRAINTS: pass. Each coalescing step rescans every span, so it is O(N²), but N is a few thousand per close (a batch job).
+- ARCH-SECURE: flagged. `Source` comes unbounded from transcript content, which this program didn't write.
+- ARCH-ORDER: pass. Close is a single pass, and the evidence commit is still its only durable write.
+- ARCH-FUNERAL: pass. `widened` now has a bound on the writer that matches the validator's.
+- ARCH-EVOLVE: pass. `OversizeError.Bytes` lives only in memory, and no persisted format changed in this round.
+
+**7. Plan revision recommendations**
+- The round-2 Revisions entry handles BR-5. The Task 10 checkbox and the "Replay fixtures" paragraph still say "each through the close seam". Point both at that Revisions entry so the plan doesn't say two different things.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan Tasks 1, 6 and 12 now carry strategy lines (table test; coalescer property; weight-0 property) instead of prose case lists; TestCoalesceCreditsProperty and weight_test.go exist.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      CoalesceCredits re-coalesces widened (measurement_summary.go:102-108); reverting it turns TestCoalesceCreditsProperty and TestCoalesceCreditsBoundsWidenedForTheValidator red (4096 widened over 2048); bounded output passes Validate.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      All three writers use gatestate.BoundReason, which cuts on a rune boundary (TestBoundReason). The remaining NUL and Source gaps belong to the class and are raised as the rule in the new finding, not as this instance.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      Code is fixed (Bytes from OversizeError), but no test pins Bytes on the structural-cap path, the case the finding named; add over.Bytes > 0 to measurement_branch_v4_test.go:263.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The round-2 Revisions entry records that the pair 856, 812, 863 and 830 fixtures are selection-level tests; the Task 10 and Replay-fixtures wording should cite it.
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: writer-bound-matches-validator
+    title: |
+      The writer's normaliser still differs from MeasurementUnattributed.Validate (NUL in Reason; Source not normalised at all)
+    detail: |
+      3rd finding in this family. Rule: every constraint Validate enforces on a persisted MeasurementUnattributed string must come from one gatestate predicate that the writer's normaliser also applies, and a property test must assert Validate(normalise(x)) == nil for adversarial x (NUL, CR/LF, over-long, invalid UTF-8) on every field. Today BoundLine keeps NUL, which Validate refuses (measurement_unattributed.go:65), and Source (harness/ID from untrusted transcript session IDs, actualbranch.go:222) is never normalised. Prevalence: 3 instances (widened count, reason length, now NUL and Source).
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e1ed44fc-68ce-4fe9-8007-bf14f6ffa324","repository":"github.com/xianxu/ariadne","issue_id":"000603","recipe":"milestone-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/af19e0b238090f92","reviewed_head":"c6af4ce685477a0262d6d3d87f24267db155dcf6","slot":"ariadne:2","requested_at":"2026-10-25T03:10:24.782998Z"},"phase":"finished","pid":16008,"started_at":"2026-10-25T03:10:25.010163Z","finished_at":"2026-10-25T03:34:31.157369Z","session_id":"4e1a3d35-88b4-44d0-9a68-b7757a5b34bb","outcome":"returned"}] -->

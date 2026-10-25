@@ -54,7 +54,7 @@ Change:
 
 Durable plan: [000603-measured-actuals-never-block-close-plan.md](../plans/000603-measured-actuals-never-block-close-record-exact-partial-or-unmeasured-instead-of-plan.md).
 
-- [ ] M1 — close never refuses on measurement: confidence classifier, unknown-branch and per-source notes, oversize summary, queue degradation, close adopts every outcome, replay fixtures (#856/#812/#863/#830/#851/#838)
+- [x] M1 — close never refuses on measurement: confidence classifier, unknown-branch and per-source notes, oversize summary, queue degradation, close adopts every outcome, replay fixtures (#856/#812/#863/#830/#851/#838)
 - [ ] M2 — calibration weights by confidence (ledger columns, weighted forecast/converge/drift); close/actual help and atlas
 
 ## Estimate
@@ -90,6 +90,7 @@ reviews. Impl values are 40% of the v2 table (v3.1); design is low because the d
 ## Log
 
 ### 2026-10-24
+- 2026-10-24: closed M1 — M1 review round 2 fixed (BR-2 widened gaps bounded on the writer, TestCoalesceCreditsBoundsWidenedForTheValidator validates 3x the bound; BR-3 one rune-safe BoundReason for every unattributed writer, TestBoundReason; summary bytes from the measured OversizeError). Round 1: valid actual_confidence token (mutation fails YAML parse), Close-Actual-Confidence trailer e2e, corrections refuse non-exact, ambiguous owner unattributed. Source-cap fixtures pair#838 (mutation reproduces its refusal), #851, #866 exact plus summary; targeted batch green at ecaf2d671; touched-test runs green at c6af4ce68.; review verdict: FIX-THEN-SHIP
 - Planned after #593 landed (TL: take #603, plan to TL). Code survey: (b)/(e) oversize and source cap already hold exact hours at refusal; (d) unknown branch, (f) per-source attribution and (g) queue evidence fail inside the input resolver and discard partial windows. Open decisions D1-D5 in the durable plan go to the TL.
 - TL approved the plan (D1 reversed: resting/stage keep a close exact), then three design deltas: the uncounted minutes as a top-level `unattributed` member, the summary keeping its credits, `Validate` split into shape and bounds (plan-quality round 1); and every unknown queue attempt taking the D4 path (Task 8: the engine binds queue waits to sources by slot, so an unknown attempt's wait cannot be subtracted, and replaying such a subtraction would make the records unignorable). The TL set a limit: a fourth delta means cutting scope.
 - pair#838 and #851 both refused at the branch proof (`measurement branch proof: measurement sources exceed snapshot limit 128`, pair 09f4314e9 and the #851 Log), on untrimmed sources; #593 did not reach that check. They have no raw captures here, so their fixtures are shaped generators (ARCH-PURPOSE: the shape, not the bytes).
