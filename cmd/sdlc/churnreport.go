@@ -103,11 +103,15 @@ type closeCostMetrics struct {
 func closeMetrics(stderr io.Writer, f *closeFlags, res closeResult) closeCostMetrics {
 	var m closeCostMetrics
 
-	base := boundaryWindowBase(commandContext(f.Context), res.issueStr, f.Milestone, res.issuePath, resolvePlansDir(f.PlansDir))
-	if r, err := churnForWindow(base); err != nil {
-		cwarn(stderr, fmt.Sprintf("churn not measured (%v)", err))
+	if f.effects != nil {
+		m.Churn = f.effects.churn
 	} else {
-		m.Churn = r
+		base := boundaryWindowBase(commandContext(f.Context), res.issueStr, f.Milestone, res.issuePath, resolvePlansDir(f.PlansDir))
+		if r, err := churnForWindow(base); err != nil {
+			cwarn(stderr, fmt.Sprintf("churn not measured (%v)", err))
+		} else {
+			m.Churn = r
+		}
 	}
 
 	// An ABSENT sidecar is the normal case for any issue that never ran the stateful gate
