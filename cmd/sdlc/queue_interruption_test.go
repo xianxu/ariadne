@@ -128,6 +128,12 @@ func TestQueueInterruptedCheckKeepsDiagnosticsAndAllowsSameHeadRetry(t *testing.
 		if time.Now().After(deadline) {
 			t.Fatal("suite did not reach execution barrier")
 		}
+		select {
+		case r := <-done:
+			joined = true
+			t.Fatalf("the check ended before the execution barrier: %+v %v", r.rec, r.err)
+		default:
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	s := &queuegate.Store{Root: os.Getenv("WF_SDLC_QUEUE_ROOT")}

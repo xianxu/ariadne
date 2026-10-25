@@ -616,6 +616,13 @@ func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("the train suite never started")
 		}
+		select {
+		case err := <-one:
+			t.Fatalf("the first landing ended before the train suite started: %v", err)
+		case err := <-two:
+			t.Fatalf("the second car ended before the train suite started: %v", err)
+		default:
+		}
 		time.Sleep(5 * time.Millisecond)
 	}
 	prose := integrationAdvance(t, s.server, "workshop/parley/during-train.md", "published while the train's suite ran\n")

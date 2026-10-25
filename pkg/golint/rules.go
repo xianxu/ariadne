@@ -556,25 +556,30 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		return true
 	})
 	polled := map[*ast.CallExpr]bool{}
+	poll := func(id *ast.Ident) {
+		if d := deadlines[varKey(id)]; d != nil && !polled[d] {
+			polled[d] = true
+			out = append(out, d)
+		}
+	}
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok || len(call.Args) != 1 {
-			return true
-		}
-		id, ok := call.Args[0].(*ast.Ident)
-		if !ok || deadlines[varKey(id)] == nil {
 			return true
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok {
 			return true
 		}
+		// time.Now().After(v), time.Now().Before(v), time.Until(v), and the
+		// inverted v.After(time.Now()), v.Before(time.Now()).
 		pkg, isPkg := fnIdent(sel)
-		if (sel.Sel.Name == "After" || sel.Sel.Name == "Before") && isNow(sel.X) || isPkg && pkg == timePkg && sel.Sel.Name == "Until" {
-			if d := deadlines[varKey(id)]; !polled[d] {
-				polled[d] = true
-				out = append(out, d)
-			}
+		compare := sel.Sel.Name == "After" || sel.Sel.Name == "Before"
+		if id, ok := call.Args[0].(*ast.Ident); ok && (compare && isNow(sel.X) || isPkg && pkg == timePkg && sel.Sel.Name == "Until") {
+			poll(id)
+		}
+		if id, ok := sel.X.(*ast.Ident); ok && compare && isNow(call.Args[0]) {
+			poll(id)
 		}
 		return true
 	})
@@ -626,20 +631,39 @@ var wallclockPending = map[string]bool{
 	"cmd/sdlc/net_signal_unix_test.go":                   true,
 }
 
-// hangBound reports an expression that bounds only a hang: one naming
-// HangCeiling, or a constant duration no shorter than it.
+// hangBound reports an expression that bounds only a hang: HangCeiling
+// itself (optionally plus a constant or times an integer), or a constant
+// duration no shorter than it.
 func hangBound(timePkg string, e ast.Expr) bool {
 	if d, ok := constDuration(timePkg, e); ok {
 		return d >= testgate.HangCeiling
 	}
-	named := false
-	ast.Inspect(e, func(n ast.Node) bool {
-		if id, ok := n.(*ast.Ident); ok && id.Name == "HangCeiling" {
-			named = true
+	switch v := e.(type) {
+	case *ast.ParenExpr:
+		return hangBound(timePkg, v.X)
+	case *ast.Ident:
+		return v.Name == "HangCeiling"
+	case *ast.SelectorExpr:
+		return v.Sel.Name == "HangCeiling"
+	case *ast.BinaryExpr:
+		// The ceiling plus a non-negative constant, or times a positive
+		// integer; HangCeiling/1200 or HangCeiling-x shrink it.
+		switch v.Op {
+		case token.ADD:
+			for _, pair := range [][2]ast.Expr{{v.X, v.Y}, {v.Y, v.X}} {
+				if d, ok := constDuration(timePkg, pair[1]); ok && d >= 0 && hangBound(timePkg, pair[0]) {
+					return true
+				}
+			}
+		case token.MUL:
+			for _, pair := range [][2]ast.Expr{{v.X, v.Y}, {v.Y, v.X}} {
+				if n, ok := intLit(pair[1]); ok && n >= 1 && hangBound(timePkg, pair[0]) {
+					return true
+				}
+			}
 		}
-		return !named
-	})
-	return named
+	}
+	return false
 }
 
 // workshopRE is a relative path that climbs from a package straight into

@@ -39,6 +39,11 @@ func TestQuickGrewPastReviewCancelsSlowNumstat(t *testing.T) {
 		if _, err := os.Stat(marker); err == nil {
 			break
 		}
+		select {
+		case err := <-done:
+			t.Fatalf("the gate returned before numstat was reached: %v", err)
+		default:
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	if _, err := os.Stat(marker); err != nil {

@@ -795,6 +795,8 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 			t.Fatal(e)
 		}
 		finished := false
+		waited := make(chan error, 1)
+		go func() { waited <- cmd.Wait() }()
 		pgid, pid := 0, 0
 		t.Cleanup(func() {
 			if pgid > 1 {
@@ -802,7 +804,7 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 			}
 			if !finished {
 				_ = cmd.Process.Kill()
-				_ = cmd.Wait()
+				<-waited
 			}
 		})
 		deadline := time.Now().Add(testfix.HangCeiling)
@@ -816,6 +818,12 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 					break
 				}
 			}
+			select {
+			case e := <-waited:
+				finished = true
+				t.Fatalf("the resume exited before its rerun started: %v", e)
+			default:
+			}
 			time.Sleep(10 * time.Millisecond)
 		}
 		if pid <= 1 || pgid <= 1 || pgid == syscall.Getpgrp() || pgid == cmd.Process.Pid {
@@ -824,7 +832,7 @@ func TestLocalCheckResumeConformance(t *testing.T) {
 		if e := cmd.Process.Kill(); e != nil {
 			t.Fatal(e)
 		}
-		if e := cmd.Wait(); e == nil {
+		if e := <-waited; e == nil {
 			t.Fatal("killed CLI returned success")
 		}
 		finished = true

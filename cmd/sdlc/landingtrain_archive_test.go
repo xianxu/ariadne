@@ -171,6 +171,8 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 			break
 		}
 		select {
+		case err := <-one:
+			t.Fatalf("conductor merge ended before the second queued: %v\n%s", err, firstStderr.String())
 		case err := <-two:
 			t.Fatalf("second merge ended before queue: %v\n%s", err, secondStderr.String())
 		case <-time.After(time.Millisecond):

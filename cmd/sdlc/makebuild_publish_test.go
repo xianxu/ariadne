@@ -105,6 +105,11 @@ func TestMakeBuildPublishesByRename(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatalf("the fake compiler never started:\n%s", out)
 		}
+		select {
+		case err := <-done:
+			t.Fatalf("make exited before the fake compiler started: %v\n%s", err, out)
+		default:
+		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	if got := readBin(t, repo); got != "old-complete" {
@@ -148,6 +153,8 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
 	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(filepath.Join(fakeDir, "started")); err == nil {
@@ -156,12 +163,17 @@ func TestMakeBuildInterruptKeepsOldBinary(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("the fake compiler never started")
 		}
+		select {
+		case err := <-done:
+			t.Fatalf("make exited before the fake compiler started: %v", err)
+		default:
+		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
-	if err := cmd.Wait(); err == nil {
+	if err := <-done; err == nil {
 		t.Fatal("make build succeeded after SIGTERM")
 	}
 	if got := readBin(t, repo); got != "old-complete" {

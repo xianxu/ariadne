@@ -163,6 +163,11 @@ func TestLandingReleasesRepoLockDuringSuite(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("suite did not start")
 		}
+		select {
+		case <-worker.done:
+			t.Fatalf("the merge ended before its check started: %v", worker.err)
+		default:
+		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	if locks.Load() == 0 {

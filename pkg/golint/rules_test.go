@@ -193,6 +193,12 @@ func TestRules(t *testing.T) {
 		{"test-tight-wallclock", "deadline := time.Now().Add(30 * time.Second)\ndeadline = time.Now().Add(testgate.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
 		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling { panic(0) }", true, false},
 		{"test-tight-wallclock", "if time.Since(start) > 2*time.Minute { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling/1200 { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling-time.Minute { panic(0) }", true, true},
+		{"test-tight-wallclock", "if time.Since(start) > testgate.HangCeiling+time.Second { panic(0) }", true, false},
+		{"test-tight-wallclock", "if time.Since(start) > 2*testgate.HangCeiling { panic(0) }", true, false},
+		{"test-tight-wallclock", "deadline := time.Now().Add(5 * time.Second)\nfor time.Until(deadline) > 0 {\n}", true, true},
+		{"test-tight-wallclock", "deadline := time.Now().Add(5 * time.Second)\nfor !deadline.Before(time.Now()) {\n}", true, true},
 		{"test-tight-wallclock", "deadline := time.Now().Add(testfix.HangCeiling)\nfor time.Now().Before(deadline) {\n}", true, false},
 		{"test-tight-wallclock", "if elapsed := time.Since(start); elapsed < budget { panic(0) }", true, false},
 		{"test-tight-wallclock", "if time.Since(start) < 500*time.Millisecond { panic(0) }", true, false},
@@ -455,6 +461,25 @@ func bounded() {
 	for _, f := range got {
 		if f.Rule == "test-tight-wallclock" {
 			t.Fatalf("a name reused across functions was confused: %+v", f)
+		}
+	}
+}
+
+// #622 M1: a file on wallclockPending is skipped until M2 sweeps it; every
+// other path is checked. M2 deletes the list and this test with it.
+func TestTightWallclockSkipsOnlyPendingFiles(t *testing.T) {
+	src := []byte(header + "func f() {\n\tstart := time.Now()\n\tif time.Since(start) > 5*time.Second {\n\t}\n}\n")
+	for path, want := range map[string]bool{"cmd/sdlc/ghlanding_test.go": false, "cmd/sdlc/other_test.go": true} {
+		got, err := Check(path, src, Catalog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		flagged := false
+		for _, f := range got {
+			flagged = flagged || f.Rule == "test-tight-wallclock"
+		}
+		if flagged != want {
+			t.Fatalf("%s flagged=%v, want %v", path, flagged, want)
 		}
 	}
 }
