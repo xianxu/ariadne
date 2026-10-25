@@ -104,6 +104,32 @@ class ReportTest(unittest.TestCase):
             self.assertIn(f"--- {label} hit its 1s test alarm in example.com/alarm; running: TestHang", printed.getvalue())
 
 
+class PackageSelectionTest(unittest.TestCase):
+    OTHERS = ["example/a", "example/b", "example/c"]
+
+    def test_unset_or_empty_runs_everything(self):
+        for listed in (None, "", "  "):
+            self.assertEqual(shard.select_packages(listed, self.OTHERS), (True, self.OTHERS))
+
+    def test_a_listed_subset_runs_only_those_packages(self):
+        run_main, others = shard.select_packages("example/b", self.OTHERS)
+        self.assertEqual((run_main, others), (False, ["example/b"]))
+        jobs = shard.build_jobs(others, [], Path("sdlc.test"), Path("cmd/sdlc"), Path("."), "30m")
+        self.assertEqual([label for label, _, _ in jobs], ["packages"])
+        self.assertEqual(jobs[0][1][-1:], ["example/b"])
+        self.assertNotIn("example/a", jobs[0][1])
+
+    def test_listing_cmd_sdlc_runs_its_shards_alone(self):
+        run_main, others = shard.select_packages(shard.MAIN_PKG, self.OTHERS)
+        self.assertEqual((run_main, others), (True, []))
+        jobs = shard.build_jobs(others, [["TestA"], ["TestB"]], Path("sdlc.test"), Path("cmd/sdlc"), Path("."), "30m")
+        self.assertEqual([label for label, _, _ in jobs], ["shard0", "shard1"])
+
+    def test_an_unknown_package_refuses(self):
+        with self.assertRaises(ValueError):
+            shard.select_packages("example/a example/zz", self.OTHERS)
+
+
 class DefaultShardTest(unittest.TestCase):
     def parse_main_args(self, argv, cpu_count=32):
         class Parsed(Exception):

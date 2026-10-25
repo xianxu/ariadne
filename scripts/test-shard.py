@@ -19,6 +19,11 @@
 # Output is `go test -json` shaped (via test2json); --json writes it to OUT so
 # scripts/test-timing.py can report on it. Exits non-zero when any test or
 # process fails, printing each failure's output.
+#
+# SDLC_AFFECTED_GO_PKGS (the affected-run env contract, #473), when set and
+# non-empty, limits the run to those packages: cmd/sdlc's shards only when it
+# is listed, the rest of the module filtered to the list. An incomplete
+# suite's one retry (#630) uses it to rerun only what did not finish.
 
 import argparse
 import concurrent.futures as cf
@@ -57,6 +62,34 @@ def lpt(names, times, n):
     return [b[1] for b in bins if b[1]]
 
 
+def select_packages(listed, others):
+    """The run's scope from SDLC_AFFECTED_GO_PKGS: (run cmd/sdlc's shards, the
+    other packages to run). Unset or empty runs everything; a listed package
+    this module does not have is an error, never silently skipped."""
+    wanted = set((listed or "").split())
+    if not wanted:
+        return True, list(others)
+    unknown = sorted(wanted - set(others) - {MAIN_PKG})
+    if unknown:
+        raise ValueError(f"SDLC_AFFECTED_GO_PKGS names packages outside this module: {', '.join(unknown)}")
+    return MAIN_PKG in wanted, [p for p in others if p in wanted]
+
+
+def build_jobs(others, shards, binary, main_dir, root, timeout):
+    """The processes to run: the other packages in one go test, and one
+    test2json process per cmd/sdlc shard."""
+    jobs = []
+    if others:
+        jobs.append(("packages", ["go", "test", "-json", "-count=1", f"-timeout={timeout}", *others], root))
+    for i, part in enumerate(shards):
+        jobs.append((f"shard{i}", [
+            "go", "tool", "test2json", "-t", "-p", MAIN_PKG, str(binary),
+            "-test.v=test2json", f"-test.timeout={timeout}",
+            "-test.run=^(" + "|".join(part) + ")$",
+        ], main_dir))
+    return jobs
+
+
 def run_proc(label, cmd, cwd, out_path):
     start = time.time()
     with open(out_path, "w") as out:
@@ -77,27 +110,26 @@ def main() -> int:
     main_dir = root / "cmd" / "sdlc"
     t0 = time.time()
 
+    try:
+        run_main, others = select_packages(os.environ.get("SDLC_AFFECTED_GO_PKGS"), [p for p in git_list(root) if p != MAIN_PKG])
+    except ValueError as e:
+        print(f"test-shard: {e}", file=sys.stderr)
+        return 2
     with tempfile.TemporaryDirectory(prefix="sdlc-shard-") as tmp:
         tmp = Path(tmp)
         binary = tmp / "sdlc.test"
-        subprocess.run(["go", "test", "-c", "-o", str(binary), "."], cwd=main_dir, check=True)
-        listed = subprocess.check_output([str(binary), "-test.list", ".*"], cwd=main_dir, text=True)
-        names = [l for l in listed.split() if TEST_NAME.match(l)]
+        names = []
+        if run_main:
+            subprocess.run(["go", "test", "-c", "-o", str(binary), "."], cwd=main_dir, check=True)
+            listed = subprocess.check_output([str(binary), "-test.list", ".*"], cwd=main_dir, text=True)
+            names = [l for l in listed.split() if TEST_NAME.match(l)]
 
         try:
             times = json.loads(timings_path.read_text())
         except (OSError, ValueError):
             times = {}
-        shards = lpt(names, times, max(1, args.shards))
-
-        others = [p for p in git_list(root) if p != MAIN_PKG]
-        jobs = [("packages", ["go", "test", "-json", "-count=1", f"-timeout={args.timeout}", *others], root)]
-        for i, part in enumerate(shards):
-            jobs.append((f"shard{i}", [
-                "go", "tool", "test2json", "-t", "-p", MAIN_PKG, str(binary),
-                "-test.v=test2json", f"-test.timeout={args.timeout}",
-                "-test.run=^(" + "|".join(part) + ")$",
-            ], main_dir))
+        shards = lpt(names, times, max(1, args.shards)) if names else []
+        jobs = build_jobs(others, shards, binary, main_dir, root, args.timeout)
 
         with cf.ThreadPoolExecutor(len(jobs)) as ex:
             results = list(ex.map(lambda j: run_proc(j[0], j[1], j[2], tmp / f"{j[0]}.json"), jobs))
@@ -114,8 +146,10 @@ def main() -> int:
             Path(args.json).write_text("".join(merged))
         # Merge even from a failing run (a known failure must not freeze the
         # balance); keep only tests that still exist, so the file stays bounded.
-        kept = {n: new_times.get(n, times.get(n)) for n in names if n in new_times or n in times}
-        write_atomic(timings_path, json.dumps(kept, sort_keys=True))
+        # A run without cmd/sdlc lists no tests, and must not erase the timings.
+        if run_main:
+            kept = {n: new_times.get(n, times.get(n)) for n in names if n in new_times or n in times}
+            write_atomic(timings_path, json.dumps(kept, sort_keys=True))
 
     print(f"\nwall {time.time() - t0:.1f}s  ({len(shards)} shards over {len(names)} cmd/sdlc tests, "
           f"{len(others)} other packages)")

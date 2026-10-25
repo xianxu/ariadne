@@ -107,8 +107,11 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 	if state != ResumeEligible {
 		return rec, resumeSavedError(in, proof.Reason)
 	}
+	incomplete := proof.Selection != nil // #630: an incomplete parent's retry of its own selection
 	var selection *ResumeSelection
-	if c.Name == affectedCheckName {
+	if incomplete {
+		selection = proof.Selection
+	} else if c.Name == affectedCheckName {
 		if sel == nil {
 			return rec, errors.New("affected resume has no selection planner")
 		}
@@ -142,11 +145,15 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 			return rec, errors.New("typed runner contract changed before resume")
 		}
 	}
-	commands, err := flakeRerunCommands(flakes.RerunTests(proof.Outcome.Known))
-	if err != nil {
-		return rec, err
+	var commands [][]string
+	if incomplete {
+		commands = incompleteRetryCommands(c.Command, d.affectedCommandOnMain(), selection.GoPkgs)
+	} else {
+		if commands, err = flakeRerunCommands(flakes.RerunTests(proof.Outcome.Known)); err != nil {
+			return rec, err
+		}
+		commands = affectedRerunBatch(commands, c.Rerun)
 	}
-	commands = affectedRerunBatch(commands, c.Rerun)
 	helper, err := d.prepareSuiteHelper(ctx)
 	if err != nil {
 		return rec, err
@@ -188,7 +195,7 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 	if err != nil {
 		return rec, err
 	}
-	link := ResumeLink{Version: resumeLinkVersion(c.Name), Kind: "resume-link", ID: id, Repo: d.Repo, SHA: sha, Check: c.Name, Selection: selection, RerunOf: parent, ParentRecordSHA256: in.ParentRecordSHA256, ParentLogSHA256: in.ParentLogSHA256, ChildID: w.ID, Owner: ResumeOwner{PID: os.Getpid(), PIDStarted: pidStarted, BootID: boot, Host: hostName()}, CreatedAt: time.Now().UTC()}
+	link := ResumeLink{Version: resumeLinkVersion(c.Name, selection != nil), Kind: "resume-link", ID: id, Repo: d.Repo, SHA: sha, Check: c.Name, Selection: selection, RerunOf: parent, ParentRecordSHA256: in.ParentRecordSHA256, ParentLogSHA256: in.ParentLogSHA256, ChildID: w.ID, Owner: ResumeOwner{PID: os.Getpid(), PIDStarted: pidStarted, BootID: boot, Host: hostName()}, CreatedAt: time.Now().UTC()}
 	raw, err := json.Marshal(link)
 	if err != nil {
 		return rec, err
@@ -220,6 +227,11 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 		subject = suitePrioritySubject{CommonDir: d.Root}
 	}
 	weight, timeout := rerunEnvelope(c, d.minute)
+	if incomplete {
+		// The retry reruns whole packages, so it gets the check's own envelope,
+		// not a targeted rerun's single slot and 15 minutes (#630).
+		weight, timeout = max(1, c.Weight), time.Duration(c.TimeoutMinutes)*d.minute
+	}
 	run, err := runUnderSlotBatch(ctx, d, wt, helper, logDir, c.Name, sha, weight, subject, commands, w.LogPath, timeout)
 	if err != nil {
 		_ = resumeAdvance(&state, ResumeUncertain, "")
@@ -240,7 +252,17 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 	for _, test := range flakes.RerunMissingProof(string(log), flakes.Tests(proof.Outcome.Known)) {
 		facts.Unattributed = append(facts.Unattributed, test+" did not pass in the rerun log")
 	}
-	o := flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: in.ParentFacts.Failures, Subtests: in.ParentFacts.Subtests}, Registry: in.Registry, RegistryErr: in.RegistryErr, Policy: flakes.PolicyRerun, Rerun: &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Subtests: facts.Subtests, Unattributed: facts.Unattributed}})
+	var o flakes.Outcome
+	if incomplete {
+		// The child record carries a v2 outcome; the composite's verdict is
+		// incompleteRetryOutcome over this log, recomputed by resolveResumeProof.
+		o = flakes.Outcome{Kind: flakes.Unknown}
+		if retryPassed(run.Exit, run.TimedOut, facts) {
+			o = flakes.Outcome{Kind: flakes.Passed}
+		}
+	} else {
+		o = flakes.Classify(flakes.Input{Attempt: flakes.Result{Failures: in.ParentFacts.Failures, Subtests: in.ParentFacts.Subtests}, Registry: in.Registry, RegistryErr: in.RegistryErr, Policy: flakes.PolicyRerun, Rerun: &flakes.Result{Passed: run.Exit == 0 && !run.TimedOut, Failures: facts.Failures, Subtests: facts.Subtests, Unattributed: facts.Unattributed}})
+	}
 	wall, wait := run.Duration.Seconds(), run.QueueWait.Seconds()
 	child := SuiteAttempt{Version: suiteAttemptVersion, ID: w.ID, Repo: d.Repo, SHA: sha, Check: suiteRerunCheck, Slot: in.Parent.Slot, Agent: in.Parent.Agent, Model: in.Parent.Model, Effort: in.Parent.Effort, StartedAt: run.Start, FinishedAt: run.Finished, QueuedAt: ptrTime(run.QueueStart), AcquiredAt: ptrTime(run.Acquired), QueueSeconds: &wait, WallSeconds: &wall, Exit: run.Exit, TimedOut: run.TimedOut, LogSHA256: logSHA, Failures: facts.Failures, Units: facts.Units, Outcome: string(o.Kind), KnownFlakes: o.Known, RerunOf: parent}
 	d.bindSuiteAttempt(&child)
@@ -259,6 +281,18 @@ func resumeSaved(ctx context.Context, d localRunDeps, c localCheck, sel resumeSe
 	}
 	if err = resumeAdvance(&state, ResumeChildPublished, ""); err != nil {
 		return rec, err
+	}
+	if incomplete {
+		// #630: only a retry that passed goes through the composite proof and
+		// posts. Cut short again it is still no result; a real failure posts as
+		// a failed run of the head, so the merge gate diagnoses it against main.
+		retry, _ := classifyIncomplete(in.ParentFacts)
+		if verdict := incompleteRetryOutcome(retry, run.Exit, run.TimedOut, facts); verdict.Kind == flakes.IncompleteTimeout {
+			again, _ := classifyIncomplete(facts)
+			rec = localRunRecord{Name: c.Name, SHA: sha, Exit: run.Exit, Duration: run.Duration, LogSHA256: logSHA, LogPath: suiteAttemptLogFile(store, child),
+				Host: hostName(), Outcome: flakes.IncompleteTimeout, ResumeParent: parent, ResumeChild: w.ID}
+			return rec, &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: again, Load: d.hostLoad(), Retried: true}
+		}
 	}
 	// Re-read current policy, registry and raw proof after execution; never post
 	// from the pre-launch registry or the child's claimed outcome alone.
@@ -333,7 +367,7 @@ func reconcileSavedResume(ctx context.Context, d localRunDeps, parent, digest, n
 	if err != nil {
 		return err
 	}
-	receipt := ResumeReconciliation{Version: resumeLinkVersion(l.Check), Kind: "resume-reconciliation", ID: id, Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: parent, LinkID: l.ID, LinkSHA256: digest, ChildID: l.ChildID, Actor: actor, Note: note, Outcome: "interrupted", FinishedAt: time.Now().UTC()}
+	receipt := ResumeReconciliation{Version: l.Version, Kind: "resume-reconciliation", ID: id, Repo: l.Repo, SHA: l.SHA, Check: l.Check, RerunOf: parent, LinkID: l.ID, LinkSHA256: digest, ChildID: l.ChildID, Actor: actor, Note: note, Outcome: "interrupted", FinishedAt: time.Now().UTC()}
 	raw, err := json.Marshal(receipt)
 	if err != nil {
 		return err

@@ -29,7 +29,7 @@ func TestResumeEnvelopeVersionsByCheck(t *testing.T) {
 		version int
 		check   string
 		ok      bool
-	}{{3, suiteCheckName, true}, {5, affectedCheckName, true}, {3, affectedCheckName, false}, {5, suiteCheckName, false}, {4, affectedCheckName, false}, {5, "lint", false}} {
+	}{{3, suiteCheckName, true}, {5, affectedCheckName, true}, {3, affectedCheckName, false}, {5, suiteCheckName, true /* a selection-fencing suite bundle, #630 */}, {4, affectedCheckName, false}, {4, suiteCheckName, false}, {5, "lint", false}} {
 		err := resumeEnvelope(tc.version, "bb", "x/y", strings.Repeat("a", 40), tc.check, "aa")
 		if (err == nil) != tc.ok {
 			t.Errorf("v%d %s: %v", tc.version, tc.check, err)

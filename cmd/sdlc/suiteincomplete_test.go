@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -78,8 +79,19 @@ func suiteTimedOut() localCheck {
 	return localCheck{Name: suiteCheckName, Command: []string{"sh", "-c", "printf '%s\\n' '" + out + "'; exit 1"}, TimeoutMinutes: 30}
 }
 
-func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
+// incompleteRepo is localRunRepo for a run that may retry (#630): the resume
+// path reads main's policy through this seam, as the resume tests do.
+func incompleteRepo(t *testing.T) (localRunDeps, string, *ciFakeGH, *bytes.Buffer) {
+	t.Helper()
 	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	d.CurrentSuitePolicy = func(context.Context) (flakes.Policy, error) { return flakes.PolicyRerun, nil }
+	return d, sha, gh, stderr
+}
+
+// A run the alarm cuts short twice: recorded with the load, retried once on
+// its unfinished and failed packages, then reported, never posted (#630).
+func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
+	d, sha, gh, stderr := incompleteRepo(t)
 	d.FlakeRegistry = gateRegistry(t, gateKnown) // registered, yet an incomplete run never reruns it
 	asked := scriptRerun(t, gatePassJSON)
 	d.loadAverage = func() ([3]float64, error) { return [3]float64{31.5, 46.4, 52}, nil }
@@ -88,7 +100,7 @@ func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
 	if !errors.As(err, &incomplete) || rec.Outcome != flakes.IncompleteTimeout {
 		t.Fatalf("%+v %v\n%s", rec, err, stderr)
 	}
-	for _, want := range []string{"incomplete (timeout)", "shard0 in o/r/pkg", "host load 31.5 46.4 52.0", "no main baseline was run"} {
+	for _, want := range []string{"incomplete (timeout) again on its one retry", "shard0 in o/r/pkg", "host load 31.5 46.4 52.0", "no main baseline was run"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %q: %v", want, err)
 		}
@@ -100,22 +112,30 @@ func TestRunLocalCheckRecordsIncompleteTimeout(t *testing.T) {
 		t.Errorf("an incomplete run posted %q", got)
 	}
 	rows := gateAttempts(t, d)
-	if len(rows) != 1 || rows[0].Version != suiteAttemptIncompleteVersion || rows[0].Outcome != string(flakes.IncompleteTimeout) {
-		t.Fatalf("attempts %+v", rows)
+	var parent, child SuiteAttempt
+	for _, a := range rows {
+		if a.RerunOf == "" {
+			parent = a
+		} else {
+			child = a
+		}
 	}
-	if !reflect.DeepEqual(rows[0].LoadAverage, []float64{31.5, 46.4, 52}) {
-		t.Fatalf("load %v", rows[0].LoadAverage)
+	if len(rows) != 2 || parent.Version != suiteAttemptIncompleteVersion || parent.Outcome != string(flakes.IncompleteTimeout) || child.RerunOf != parent.ID || child.Check != suiteRerunCheck {
+		t.Fatalf("want the incomplete attempt and its one retry: %+v", rows)
+	}
+	if !reflect.DeepEqual(parent.LoadAverage, []float64{31.5, 46.4, 52}) {
+		t.Fatalf("load %v", parent.LoadAverage)
 	}
 	store := filepath.Join(d.Root, ".git", "sdlc", "test-stats")
 	// A reader of version 4 at most (every binary before #630) refuses the
 	// record's version, then keeps it as an unsupported proof of this head
 	// alone; load_average is an unknown key it tolerates, so the rest of the
 	// store stays readable.
-	raw, err := os.ReadFile(filepath.Join(store, "attempts", rows[0].ID+".json"))
+	raw, err := os.ReadFile(filepath.Join(store, "attempts", parent.ID+".json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proof, err := decodeUnsupportedProofAt(raw, rows[0].ID+".json", 4); err != nil || proof.SHA != sha {
+	if proof, err := decodeUnsupportedProofAt(raw, parent.ID+".json", 4); err != nil || proof.SHA != sha {
 		t.Fatalf("an older reader would not scope this record to its head: %+v %v", proof, err)
 	}
 	// load_average belongs to an incomplete attempt alone.
@@ -175,7 +195,7 @@ func TestFlakeListIncompleteRunFailures(t *testing.T) {
 // evidence: no main baseline, no split, no blame; and a later pass on the
 // same head is not refused because of it (#630).
 func TestSuiteIncompleteIsNotATestResult(t *testing.T) {
-	d, sha, gh, stderr := localRunRepo(t, "acquired")
+	d, sha, gh, stderr := incompleteRepo(t)
 	d.loadAverage = func() ([3]float64, error) { return [3]float64{40, 45, 50}, nil }
 	_, err := runLocalCheck(context.Background(), d, suiteTimedOut(), sha)
 	var incomplete *suiteIncompleteError
@@ -278,7 +298,7 @@ func TestAggregateSuiteAttemptsIncompleteIsNoFlake(t *testing.T) {
 // A real failure beside an alarmed shard is a test result: the merge gate
 // diagnoses it against main as before (#630).
 func TestSuiteMixedAlarmAndRealFailureDiagnoses(t *testing.T) {
-	d, sha, _, stderr := localRunRepo(t, "acquired")
+	d, sha, _, stderr := incompleteRepo(t)
 	out := strings.Join([]string{
 		"shard0    exit 1   1800.4s  1 failed",
 		"--- shard0 hit its 30m0s test alarm in o/r/pkg; running: TestSlow",
@@ -296,4 +316,248 @@ func TestSuiteMixedAlarmAndRealFailureDiagnoses(t *testing.T) {
 	if got == nil || !strings.Contains(got.Error(), "suite comparison") {
 		t.Fatalf("the mixed run was not diagnosed against main: %v", got)
 	}
+}
+
+// suiteRetried times out like suiteTimedOut until the retry's package list
+// arrives (#630); the retry records the list it got in marker, then runs retry.
+func suiteRetried(marker, retry string) localCheck {
+	c := suiteTimedOut()
+	first := c.Command[2]
+	c.Command[2] = `if [ -n "$SDLC_AFFECTED_GO_PKGS" ]; then printf '%s' "$SDLC_AFFECTED_GO_PKGS" > ` + marker + `; ` + retry + `; else ` + first + `; fi`
+	return c
+}
+
+// The operator's Done when: the retry runs only the packages that did not
+// finish or had a named failure, and a retry that passes posts green.
+func TestIncompleteRetryRunsOnlyItsPackagesAndLands(t *testing.T) {
+	d, sha, gh, stderr := incompleteRepo(t)
+	prev := knownFlakeRerunTimeout // a targeted rerun's cap, set below the check's timeout so the two differ
+	knownFlakeRerunTimeout = 5 * d.minute
+	t.Cleanup(func() { knownFlakeRerunTimeout = prev })
+	var deadlines []time.Duration
+	d.executionTimeout = func(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+		deadlines = append(deadlines, timeout)
+		return context.WithTimeout(ctx, timeout)
+	}
+	marker := filepath.Join(t.TempDir(), "pkgs")
+	rec, err := runLocalCheck(context.Background(), d, suiteRetried(marker, "echo ok"), sha)
+	// The retry reruns whole packages under the check's own 30 minutes, not a
+	// targeted rerun's 15.
+	if len(deadlines) != 2 || deadlines[1] != 30*d.minute {
+		t.Fatalf("execution deadlines %v, want the run's and the retry's, both the check's 30 minutes (minute=%v), not the targeted cap", deadlines, d.minute)
+	}
+	if err != nil || !rec.passed() || rec.Outcome != flakes.IncompleteRetried || gh.statuses[sha]["sdlc-local/suite"] != "success" {
+		t.Fatalf("%+v %v %v\n%s", rec, err, gh.statuses[sha], stderr)
+	}
+	if got, _ := os.ReadFile(marker); string(got) != "o/r/pkg" {
+		t.Fatalf("the retry ran %q, want only o/r/pkg", got)
+	}
+	if !strings.Contains(rec.statusDescription(), "pass · incomplete run retried") {
+		t.Errorf("status %q", rec.statusDescription())
+	}
+	// The posted composite is re-verified like any other: a later reuse lands it.
+	if reused, ok, err := republishSavedPass(context.Background(), d, suiteRetried(marker, "echo ok"), sha); err != nil || !ok || reused.Outcome != flakes.IncompleteRetried {
+		t.Fatalf("the retried pass did not verify for reuse: %+v %v %v", reused, ok, err)
+	}
+}
+
+// A retry that fails for real posts a failure the merge gate diagnoses
+// against main, from the retry's own log.
+func TestIncompleteRetryRealFailureDiagnoses(t *testing.T) {
+	d, sha, gh, stderr := incompleteRepo(t)
+	marker := filepath.Join(t.TempDir(), "pkgs")
+	check := suiteRetried(marker, "printf '%s\\n' '--- FAIL o/r/pkg TestReal' '--- FAIL o/r/pkg'; exit 1")
+	rec, err := runLocalCheck(context.Background(), d, check, sha)
+	if err != nil || rec.passed() || rec.Outcome != flakes.Unknown || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+		t.Fatalf("%+v %v %v\n%s", rec, err, gh.statuses[sha], stderr)
+	}
+	log, err := os.ReadFile(rec.LogPath)
+	if err != nil || !strings.Contains(string(log), "TestReal") {
+		t.Fatalf("the failure does not point at the retry's log: %s %v", rec.LogPath, err)
+	}
+	// The gate goes on to main's baseline: here the same fixture times out on
+	// main too, so the comparison reports main's baseline as unknown.
+	got := diagnoseSuiteFailure(context.Background(), &localCheckFailure{Check: check, Run: rec, Head: sha}, sha, d)
+	if got == nil || !strings.Contains(got.Error(), "baseline on main could not run") || !strings.Contains(got.Error(), "main's baseline is unknown") {
+		t.Fatalf("a real failure on the retry was not diagnosed against main: %v", got)
+	}
+}
+
+// A main baseline that is itself incomplete never retries and says so.
+func TestIncompleteBaselineNeverRetries(t *testing.T) {
+	d, sha, _, stderr := incompleteRepo(t)
+	d.SkipRecord = true
+	marker := filepath.Join(t.TempDir(), "pkgs")
+	_, err := runLocalCheck(context.Background(), d, suiteRetried(marker, "echo ok"), sha)
+	var incomplete *suiteIncompleteError
+	if !errors.As(err, &incomplete) || !incomplete.Baseline || incomplete.Retried || !strings.Contains(err.Error(), "main's baseline is unknown") {
+		t.Fatalf("%v\n%s", err, stderr)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatal("a main baseline retried")
+	}
+}
+
+func TestIncompleteRetryCommands(t *testing.T) {
+	suite, aff := []string{"make", "test"}, []string{"make", "affected"}
+	if got := incompleteRetryCommands(suite, nil, []string{"a", "b"}); !reflect.DeepEqual(got, [][]string{affectedEnvCommand(suite, []string{"a", "b"}, nil)}) {
+		t.Errorf("no affected declaration: %v", got)
+	}
+	if got := incompleteRetryCommands(suite, aff, []string{"a"}); !reflect.DeepEqual(got, [][]string{affectedEnvCommand(aff, []string{"a"}, nil)}) {
+		t.Errorf("an affected declaration: %v", got)
+	}
+}
+
+// The proof that lets an incomplete parent's retry land (#630) binds the
+// selection the parent's own log implies, the link's version, and a receipt
+// to its link; each tampering is refused.
+func TestResolveIncompleteResumeProof(t *testing.T) {
+	d, sha, _, stderr := incompleteRepo(t)
+	marker := filepath.Join(t.TempDir(), "pkgs")
+	if _, err := runLocalCheck(context.Background(), d, suiteRetried(marker, "echo ok"), sha); err != nil {
+		t.Fatalf("%v\n%s", err, stderr)
+	}
+	store := filepath.Join(d.Root, ".git", "sdlc", "test-stats")
+	snapshot, err := readSuiteEvidence(store, testStatsRecordLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parent SuiteAttempt
+	for _, a := range snapshot.Attempts {
+		if a.RerunOf == "" {
+			parent = a
+		}
+	}
+	base, _, err := readResumeProofInput(store, snapshot, parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.Policy = flakes.PolicyRerun
+	if p := resolveResumeProof(base); p.State != ResumePassed || p.Outcome.Kind != flakes.IncompleteRetried || !reflect.DeepEqual(p.Selection.GoPkgs, []string{"o/r/pkg"}) {
+		t.Fatalf("the real proof: %+v", p)
+	}
+	withLink := func(f func(*ResumeLink)) ResumeProofInput {
+		in := base
+		l := *base.Link
+		sel := *l.Selection
+		l.Selection = &sel
+		f(&l)
+		in.Link = &l
+		return in
+	}
+	for name, in := range map[string]ResumeProofInput{
+		"a wider selection":   withLink(func(l *ResumeLink) { l.Selection.GoPkgs = []string{"o/r/other", "o/r/pkg"} }),
+		"a group":             withLink(func(l *ResumeLink) { l.Selection.Groups = []string{"lua"} }),
+		"a known-flake link":  withLink(func(l *ResumeLink) { l.Version, l.Selection = 3, nil }),
+		// The parent's own log must still say incomplete: the selection is
+		// derived from it, never from the link.
+		"a parent log no longer incomplete": func() ResumeProofInput {
+			in := base
+			in.ParentFacts.Processes = slices.Clone(base.ParentFacts.Processes)
+			for i := range in.ParentFacts.Processes {
+				in.ParentFacts.Processes[i].Alarmed = nil
+			}
+			return in
+		}(),
+		// Before any link exists, the guard alone stops an empty retry.
+		"a parent log no longer incomplete, unlinked": func() ResumeProofInput {
+			in := base
+			in.Link, in.LinkSHA256, in.Child, in.ChildLog, in.ChildLogSHA256 = nil, "", nil, "", ""
+			in.ParentFacts.Processes = slices.Clone(base.ParentFacts.Processes)
+			for i := range in.ParentFacts.Processes {
+				in.ParentFacts.Processes[i].Alarmed = nil
+			}
+			return in
+		}(),
+		"a receipt version 3": func() ResumeProofInput {
+			in := base
+			in.Child = nil
+			in.Receipt = &ResumeReconciliation{Version: 3, Kind: "resume-reconciliation", ID: "ee", Repo: base.Link.Repo, SHA: base.Link.SHA, Check: base.Link.Check, RerunOf: base.Link.RerunOf,
+				LinkID: base.Link.ID, LinkSHA256: base.LinkSHA256, ChildID: base.Link.ChildID, Actor: "uid=1", Note: "stopped", Outcome: "interrupted", FinishedAt: base.Link.CreatedAt.Add(1)}
+			return in
+		}(),
+	} {
+		if p := resolveResumeProof(in); p.State != ResumeRefused {
+			t.Errorf("%s: %+v", name, p)
+		}
+	}
+}
+
+func TestIncompleteRetryOutcome(t *testing.T) {
+	retry := incompleteRun{Packages: []string{"o/r/pkg"}}
+	alarmLog := "shard0    exit 1   1800.4s  0 failed\n--- shard0 hit its 30m0s test alarm in o/r/pkg; running: TestSlow\n"
+	for _, c := range []struct {
+		name     string
+		exit     int
+		timedOut bool
+		log      string
+		want     flakes.Kind
+	}{
+		{"a clean pass lands", 0, false, "ok\n", flakes.IncompleteRetried},
+		{"exit 0 with a named failure does not", 0, false, "--- FAIL o/r/pkg TestX\n--- FAIL o/r/pkg\n", flakes.Unknown},
+		{"cut short again", 1, false, alarmLog, flakes.IncompleteTimeout},
+		{"sdlc's deadline is not the alarm", 1, true, alarmLog, flakes.Unattributable},
+		{"a named failure", 1, false, "--- FAIL o/r/pkg TestX\n--- FAIL o/r/pkg\n", flakes.Unknown},
+		{"an unnamed failure", 1, false, "FAIL\to/r/pkg [build failed]\n", flakes.Unattributable},
+	} {
+		if got := incompleteRetryOutcome(retry, c.exit, c.timedOut, parseSuiteLogFacts(c.log)); got.Kind != c.want {
+			t.Errorf("%s: %s (%s), want %s", c.name, got.Kind, got.Reason, c.want)
+		}
+	}
+}
+
+// A known-flake suite bundle stays version 3: a version 5 selection link may
+// fence only an incomplete parent's retry (#630).
+func TestKnownFlakeSuiteLinkStaysVersion3(t *testing.T) {
+	in := resumeCorePassed(t)
+	if in.Parent.Check != suiteCheckName || resolveResumeProof(in).State != ResumePassed {
+		t.Fatalf("fixture: %+v", resolveResumeProof(in))
+	}
+	l := *in.Link
+	l.Version, l.Selection = 5, &ResumeSelection{GoPkgs: []string{"example.org/p"}, Groups: []string{}}
+	in.Link = &l
+	if p := resolveResumeProof(in); p.State != ResumeRefused {
+		t.Fatalf("a known-flake suite parent accepted a version 5 selection link: %+v", p)
+	}
+}
+
+// #630 inside a landing train (the evidence #635 waits on): the production
+// conductor path, runSuite over newLocalCheckRunner exactly as the train wires
+// it. An incomplete suite retries only its unfinished and failed packages and
+// never diagnoses main; a real failure on the retry still does.
+func TestLandingTrainIncompleteSuite(t *testing.T) {
+	train := func(t *testing.T, retry string) (*conductor, *ciFakeGH, string, string) {
+		t.Helper()
+		d, sha, gh, _ := incompleteRepo(t)
+		marker := filepath.Join(t.TempDir(), "pkgs")
+		c := &conductor{ctx: context.Background(), heads: []string{sha}, base: sha, suite: suiteRetried(marker, retry), local: d}
+		c.run = newLocalCheckRunner(c.local)
+		return c, gh, sha, marker
+	}
+	t.Run("the retry passes: a pass, of only its packages, with no main baseline", func(t *testing.T) {
+		c, gh, sha, marker := train(t, "echo ok")
+		ev, err := c.runSuite(1, landingline.ExecInitial)
+		done, ok := ev.(landingline.SuiteDone)
+		if err != nil || !ok || done.Outcome != landingline.SuitePass || c.baseline != nil || gh.statuses[sha]["sdlc-local/suite"] != "success" {
+			t.Fatalf("%+v %v baseline=%v", ev, err, c.baseline)
+		}
+		if got, _ := os.ReadFile(marker); string(got) != "o/r/pkg" {
+			t.Fatalf("the retry ran %q, want only o/r/pkg", got)
+		}
+	})
+	t.Run("incomplete again: could not run, no split, no main baseline", func(t *testing.T) {
+		c, gh, sha, _ := train(t, suiteTimedOut().Command[2]) // the retry is cut short the same way
+		ev, err := c.runSuite(1, landingline.ExecInitial)
+		if err == nil || ev != nil || !strings.Contains(err.Error(), "could not run") || !strings.Contains(err.Error(), "incomplete (timeout) again") || c.baseline != nil || gh.statuses[sha]["sdlc-local/suite"] != "" {
+			t.Fatalf("%+v %v baseline=%v", ev, err, c.baseline)
+		}
+	})
+	t.Run("control: a real failure on the retry diagnoses against main", func(t *testing.T) {
+		c, gh, sha, _ := train(t, "printf '%s\\n' '--- FAIL o/r/pkg TestReal' '--- FAIL o/r/pkg'; exit 1")
+		_, err := c.runSuite(1, landingline.ExecInitial)
+		// main's baseline runs: here the same fixture times out on main, so it reports main unknown.
+		if err == nil || !strings.Contains(err.Error(), "train baseline on main could not run") || !strings.Contains(err.Error(), "main's baseline is unknown") || gh.statuses[sha]["sdlc-local/suite"] != "failure" {
+			t.Fatalf("the real failure did not reach main's baseline: %v %v", err, gh.statuses[sha])
+		}
+	})
 }

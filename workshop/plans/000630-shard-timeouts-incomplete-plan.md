@@ -295,3 +295,22 @@ package only, then the typed incomplete report with the load.
   - `encodeReclassifiedAttempt`: now refuses v5 explicitly;
   - `suitereclassification` (v1/2 only): already ignores v5;
   - the resume gates: M2.
+- 2026-10-25, M2 as built.
+  - **Option (b), the TL's choice:** `scripts/test-shard.py` honors `SDLC_AFFECTED_GO_PKGS`. The retry runs main's
+    affected command when it declares one, and otherwise the suite's own command under that list, so in ariadne it
+    really runs only the selection. `select_packages` refuses a package outside the module and keeps the test
+    timings when `cmd/sdlc` is not run.
+  - **A finished retry is a result, never refused authority.** `resolvedSavedRecord` turns an incomplete parent's
+    failed composite into an ordinary failed record of the head, from the child's exit and log. The guard then judges
+    it as it judges any failure, and the merge gate and train diagnose it from the retry's log. A composite that is
+    incomplete again carries `incomplete-timeout`, which every reader ignores. A failed known-flake composite keeps
+    today's refusal, so a head that stayed incomplete is never blocked from a later run.
+  - **One definition of a clean retry:** `retryPassed` requires exit 0, no timeout, and a log that names no failure
+    and leaves nothing unnamed. A `--- FAIL pkg Test` line names a failure without marking the log failed. The
+    mutation pass caught that a retry printing a named failure would have landed.
+  - **No retry flag:** the child runs through `runUnderSlotBatch`, never `runLocalCheck`, so a retry cannot retry
+    again. That is structural, so the plan's `incompleteRetried` field was not needed.
+  - **The child record's own outcome is `passed` or `unknown-failure` (v2):** the child gate refuses never-explained
+    kinds, and the composite's verdict is recomputed by `incompleteRetryOutcome` from the child log.
+  - **Train evidence for #635:** `TestLandingTrainIncompleteSuite` drives `conductor.runSuite` over the production
+    `newLocalCheckRunner`.

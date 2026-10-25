@@ -47,12 +47,19 @@ type ResumeSelection struct {
 // resumeLinkVersion is the link and receipt version for a check (#586): an
 // affected bundle is version 5 so an older sdlc, which reads a version above
 // its own as unsupported proof, fences that one head instead of reading the
-// record as invalid and refusing the whole store's snapshot.
-func resumeLinkVersion(check string) int {
-	if check == affectedCheckName {
+// record as invalid and refusing the whole store's snapshot. A suite bundle
+// that fences a package selection (an incomplete run's retry, #630) is
+// version 5 for the same reason; a suite known-flake bundle stays 3.
+func resumeLinkVersion(check string, selected bool) int {
+	if check == affectedCheckName || selected {
 		return 5
 	}
 	return 3
+}
+
+// resumeVersionAllowed is which bundle versions a check may carry.
+func resumeVersionAllowed(check string, version int) bool {
+	return version == resumeLinkVersion(check, false) || check == suiteCheckName && version == resumeLinkVersion(check, true)
 }
 
 func validResumeSelection(sel ResumeSelection) bool {
@@ -107,7 +114,7 @@ func resumeText(s string, max int) bool {
 	return strings.TrimSpace(s) != "" && len(s) <= max && !strings.ContainsFunc(s, unicode.IsControl)
 }
 func resumeEnvelope(version int, id, repo, sha, check, parent string) error {
-	if !isTestCheck(check) || version != resumeLinkVersion(check) || !resumeValidID(id) || !resumeValidID(parent) || id == parent || !suiteRepo.MatchString(repo) || !suiteHex.MatchString(sha) || (len(sha) != 40 && len(sha) != 64) {
+	if !isTestCheck(check) || !resumeVersionAllowed(check, version) || !resumeValidID(id) || !resumeValidID(parent) || id == parent || !suiteRepo.MatchString(repo) || !suiteHex.MatchString(sha) || (len(sha) != 40 && len(sha) != 64) {
 		return errors.New("invalid resume evidence identity")
 	}
 	return nil
@@ -264,6 +271,9 @@ type ResumeProof struct {
 	State                     ResumeState
 	ParentID, ChildID, Reason string
 	Outcome                   flakes.Outcome
+	// Selection is what an incomplete parent's retry runs (#630): derived
+	// from the parent's own log, never from the link that fences it.
+	Selection *ResumeSelection
 }
 
 // resolveResumeProof has no IO. Digests supplied by the shell are hashes of
@@ -280,7 +290,8 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if !in.Complete {
 		return refuse("incomplete evidence snapshot")
 	}
-	if (p.Version != 1 && p.Version != 2 && p.Version != 4) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || !isTestCheck(p.Check) || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)]) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
+	incomplete := p.Version == suiteAttemptIncompleteVersion && flakes.Kind(p.Outcome) == flakes.IncompleteTimeout
+	if (p.Version != 1 && p.Version != 2 && p.Version != 4 && !incomplete) || !resumeValidID(p.ID) || !suiteRepo.MatchString(p.Repo) || !suiteHex.MatchString(p.SHA) || (len(p.SHA) != 40 && len(p.SHA) != 64) || !isTestCheck(p.Check) || p.RerunOf != "" || p.Legacy || p.MainBaseline || p.Exit <= 0 || p.Exit > 125 || p.TimedOut || !resumeMeasuredDuration(p.WallSeconds) || (p.Outcome != "" && !suiteOutcomes[flakes.Kind(p.Outcome)] && !incomplete) || !resumeUTC(p.StartedAt) || !resumeUTC(p.FinishedAt) || p.FinishedAt.Before(p.StartedAt) || !flakes.Explainable(flakes.Kind(p.Outcome)) || flakes.Kind(p.Outcome).Lands() {
 		return refuse("parent is not an ordinary completed resumable suite or affected failure")
 	}
 	if p.Version == 4 && (!resumeValidDigest(in.RunnerContractSHA256) || p.RunnerContractSHA256 != in.RunnerContractSHA256) {
@@ -289,8 +300,16 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if !resumeValidDigest(in.ParentRecordSHA256) || !resumeValidDigest(in.ParentLogSHA256) || p.LogSHA256 != in.ParentLogSHA256 {
 		return refuse("parent log or record digest is invalid")
 	}
-	if !in.ParentFacts.Failed || len(in.ParentFacts.Warnings) > 0 || len(in.ParentFacts.Unattributed) > 0 || !resumeSameFailures(p.Failures, in.ParentFacts.Failures) {
+	if !in.ParentFacts.Failed || len(in.ParentFacts.Warnings) > 0 || !incomplete && len(in.ParentFacts.Unattributed) > 0 || !resumeSameFailures(p.Failures, in.ParentFacts.Failures) {
 		return refuse("parent failure facts are incomplete or disagree with its record")
+	}
+	var retry incompleteRun
+	if incomplete {
+		var ok bool
+		if retry, ok = classifyIncomplete(in.ParentFacts); !ok {
+			return refuse("incomplete parent's log no longer classifies incomplete")
+		}
+		out.Selection = &ResumeSelection{GoPkgs: retry.Packages, Groups: []string{}}
 	}
 	policy, err := flakes.ParsePolicy(string(in.Policy))
 	if err != nil {
@@ -300,12 +319,16 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 		policy = flakes.PolicyRerun
 	}
 	classifier := flakes.Input{Attempt: flakes.Result{Failures: in.ParentFacts.Failures, Subtests: in.ParentFacts.Subtests}, Registry: in.Registry, RegistryErr: in.RegistryErr, Policy: policy}
-	out.Outcome = flakes.Classify(classifier)
+	if incomplete {
+		out.Outcome = flakes.Outcome{Kind: flakes.IncompleteTimeout, Reason: retry.String()}
+	} else {
+		out.Outcome = flakes.Classify(classifier)
+	}
 	if in.Link == nil {
 		if in.Child != nil || in.Receipt != nil {
 			return refuse("child or receipt has no execution fence")
 		}
-		if out.Outcome.Kind != flakes.NeedRerun {
+		if !incomplete && out.Outcome.Kind != flakes.NeedRerun {
 			out.State = ResumeFailed
 			out.Reason = out.Outcome.Reason
 			return out
@@ -322,6 +345,12 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	if l.RerunOf != p.ID || l.Repo != p.Repo || l.SHA != p.SHA || l.Check != p.Check || l.ParentRecordSHA256 != in.ParentRecordSHA256 || l.ParentLogSHA256 != in.ParentLogSHA256 || l.CreatedAt.Before(p.FinishedAt) || !resumeValidDigest(in.LinkSHA256) {
 		return refuse("resume link does not bind the exact parent evidence")
 	}
+	// #630: an incomplete parent's link fences exactly the selection its own
+	// log implies; any other suite link is a known-flake bundle, version 3.
+	if incomplete && (l.Selection == nil || !slices.Equal(l.Selection.GoPkgs, out.Selection.GoPkgs) || len(l.Selection.Groups) != 0) ||
+		!incomplete && p.Check == suiteCheckName && l.Version != resumeLinkVersion(suiteCheckName, false) {
+		return refuse("resume link does not fence the parent's retry selection")
+	}
 	if in.Receipt != nil {
 		r := in.Receipt
 		if in.Child != nil {
@@ -330,7 +359,7 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 		if err := validateResumeReconciliation(*r); err != nil {
 			return refuse(err.Error())
 		}
-		if r.Repo != p.Repo || r.SHA != p.SHA || r.Check != p.Check || r.RerunOf != p.ID || r.LinkID != l.ID || r.LinkSHA256 != in.LinkSHA256 || r.ChildID != l.ChildID || r.FinishedAt.Before(l.CreatedAt) {
+		if r.Version != l.Version || r.Repo != p.Repo || r.SHA != p.SHA || r.Check != p.Check || r.RerunOf != p.ID || r.LinkID != l.ID || r.LinkSHA256 != in.LinkSHA256 || r.ChildID != l.ChildID || r.FinishedAt.Before(l.CreatedAt) {
 			return refuse("reconciliation does not bind the exact link")
 		}
 		out.State = ResumeInterrupted
@@ -357,6 +386,15 @@ func resolveResumeProof(in ResumeProofInput) ResumeProof {
 	facts := parseSuiteLogFacts(in.ChildLog)
 	if !resumeSameFailures(c.Failures, facts.Failures) || len(facts.Warnings) > 0 {
 		return refuse("child failure facts are incomplete or disagree with its record")
+	}
+	if incomplete {
+		out.Outcome = incompleteRetryOutcome(retry, c.Exit, c.TimedOut, facts)
+		out.State = ResumeFailed
+		if out.Outcome.Kind.Lands() {
+			out.State = ResumePassed
+		}
+		out.Reason = out.Outcome.Reason
+		return out
 	}
 	result := flakes.Result{Passed: c.Exit == 0 && !c.TimedOut && !facts.Failed, Failures: facts.Failures, Subtests: facts.Subtests, Unattributed: slices.Clone(facts.Unattributed)}
 	if c.TimedOut || c.Exit < 0 || c.Exit > 125 {

@@ -274,7 +274,17 @@ first-class evidence, recorded on the commit it ran on:
   which a train treats as could-not-run (no split, no `mainIsRed`). `isFlakeEvidence` excludes it, so a later pass
   on the head posts, and republish and saved-pass reuse refuse it (`savedAttemptRecord`). A typed runner's run
   (`incompleteEligible`) keeps today's classification, and `scripts/test-shard.test.py` checks the marker against
-  the real Go alarm. `sdlc flake` lists its unregistered named failures as "incomplete-run failures".
+  the real Go alarm.
+  **The one retry.** A recorded run (never a main baseline) retries once through the resume composite (#561), with
+  the incomplete attempt as the parent. The proof derives the selection, the packages the alarm stopped plus every
+  package with a named failure, from the parent's own log and binds it in a version 5 suite link (a known-flake suite
+  link stays 3). The child runs main's affected command, or the suite's own command, under `SDLC_AFFECTED_GO_PKGS`
+  (ariadne's `scripts/test-shard.py` honors it), with the check's full weight and timeout, in a fresh queue turn.
+  - A clean retry lands as `incomplete-retry-passed` ("pass · incomplete run retried").
+  - A retry cut short again returns `suiteIncompleteError` and posts nothing; the composite stays incomplete, so a
+    later run of the head is never blocked.
+  - A real failure posts as an ordinary failed run from the retry's log, and the merge gate or train diagnoses it
+    against main. `sdlc flake` lists its unregistered named failures as "incomplete-run failures".
 - **Trust limit:** anyone with the repository's token can post an
   `sdlc-local/*` status. That is accepted: the local machine is trusted, and
   what CI guards is the declaration and the gate code.

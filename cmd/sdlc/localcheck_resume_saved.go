@@ -116,11 +116,28 @@ func resumeLogTail(log string) []string {
 }
 func resolvedSavedRecord(in ResumeProofInput, tail []string, host string) (localRunRecord, error) {
 	proof := resolveResumeProof(in)
-	if proof.State != ResumePassed {
+	// #630: an incomplete parent's finished retry is a result either way. A
+	// failed retry is an ordinary failed run of the head (the guard then judges
+	// it as today); a retry the alarm cut short again stays incomplete, which
+	// every reader ignores, so a later run of the head is never blocked.
+	incomplete := proof.Selection != nil && in.Child != nil
+	if proof.State != ResumePassed && !(incomplete && proof.State == ResumeFailed) {
 		return localRunRecord{}, resumeSavedError(in, proof.Reason)
 	}
 	a := in.Parent
-	rec, err := savedAttemptRecord(a, in.ParentLogSHA256, tail, a.Repo, a.SHA, a.Check, host)
+	if incomplete {
+		a.Outcome = "" // the composite's outcome replaces the parent's below
+		if proof.State == ResumeFailed {
+			c := in.Child
+			a.Exit, a.TimedOut, a.WallSeconds, a.LogSHA256 = c.Exit, c.TimedOut, c.WallSeconds, c.LogSHA256
+			tail = resumeLogTail(in.ChildLog)
+		}
+	}
+	logSHA := in.ParentLogSHA256
+	if incomplete && proof.State == ResumeFailed {
+		logSHA = in.ChildLogSHA256
+	}
+	rec, err := savedAttemptRecord(a, logSHA, tail, a.Repo, a.SHA, a.Check, host)
 	if err != nil {
 		return rec, err
 	}
@@ -226,6 +243,9 @@ func resolvedResumeRecords(ctx context.Context, d localRunDeps, store string, s 
 			return nil, resolveErr
 		}
 		rec.LogPath = suiteAttemptLogFile(store, in.Parent)
+		if in.Child != nil && rec.LogSHA256 == in.ChildLogSHA256 {
+			rec.LogPath = suiteAttemptLogFile(store, *in.Child) // an incomplete parent's failed retry (#630)
+		}
 		records[id] = rec
 	}
 	if hasTyped {

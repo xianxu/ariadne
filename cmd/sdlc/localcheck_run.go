@@ -451,8 +451,16 @@ func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string
 	}
 	pruneLocalCheckLogs(logDir, localCheckLogKeep)
 	if incomplete != nil {
-		// Not a test result: nothing is posted, so no status claims the head failed.
-		return rec, &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: *incomplete, Load: load, Baseline: d.SkipRecord}
+		// Not a test result: nothing is posted, so no status claims the head
+		// failed. A recorded run retries once, on its unfinished and failed
+		// packages, through the resume composite (#630); it takes a fresh queue
+		// turn, and the retry itself never retries. A main baseline never retries.
+		incompleteErr := &suiteIncompleteError{Check: c.Name, Head: sha, LogPath: rec.LogPath, Run: *incomplete, Load: load, Baseline: d.SkipRecord}
+		if d.SkipRecord || !saved {
+			return rec, incompleteErr
+		}
+		fmt.Fprintf(d.Stderr, "==> local check %s on %s: %v\n    retrying once: %s\n", c.Name, abbrevSHA(sha), incompleteErr, strings.Join(incomplete.Packages, " "))
+		return resumeSaved(ctx, d, c, nil, sha, writer.ID)
 	}
 	if gateErr != nil {
 		// An interrupted or unrecordable known-flake rerun records nothing new:

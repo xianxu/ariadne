@@ -126,6 +126,7 @@ type suiteIncompleteError struct {
 	Run                  incompleteRun
 	Load                 []float64
 	Baseline             bool // main's own diagnostic baseline was the incomplete run
+	Retried              bool // this is the one retry, cut short again: there is no other
 }
 
 func (e *suiteIncompleteError) Error() string {
@@ -137,7 +138,11 @@ func (e *suiteIncompleteError) Error() string {
 	if e.Baseline {
 		consequence = "main's baseline is unknown, so no failure is attributed to main or to the change"
 	}
-	return fmt.Sprintf("local check %s on %s incomplete (timeout): %s; %s; %s; log %s", e.Check, abbrevSHA(e.Head), e.Run, load, consequence, e.LogPath)
+	again := ""
+	if e.Retried {
+		again = " again on its one retry"
+	}
+	return fmt.Sprintf("local check %s on %s incomplete (timeout)%s: %s; %s; %s; log %s", e.Check, abbrevSHA(e.Head), again, e.Run, load, consequence, e.LogPath)
 }
 
 // hostLoad is the 1, 5 and 15 minute load for a report, or nil when it cannot
@@ -152,4 +157,58 @@ func (d localRunDeps) hostLoad() []float64 {
 		return nil
 	}
 	return load[:]
+}
+
+// incompleteRetryOutcome judges an incomplete run's one retry (#630): it lands
+// only when it exited cleanly with nothing failed and nothing unnamed; a retry
+// the alarm cut short again is incomplete again; anything else is a failure
+// of the retried packages, named when the log names it.
+func incompleteRetryOutcome(retry incompleteRun, exit int, timedOut bool, child SuiteLogFacts) flakes.Outcome {
+	pkgs := strings.Join(retry.Packages, " ")
+	switch {
+	case retryPassed(exit, timedOut, child):
+		return flakes.Outcome{Kind: flakes.IncompleteRetried, Reason: "the retry of " + pkgs + " passed"}
+	case exit > 0 && !timedOut:
+		if again, ok := classifyIncomplete(child); ok {
+			return flakes.Outcome{Kind: flakes.IncompleteTimeout, Reason: "the retry was incomplete too: " + again.String()}
+		}
+	}
+	if len(child.Failures) == 0 || len(child.Unattributed) != 0 {
+		return flakes.Outcome{Kind: flakes.Unattributable, Unknown: child.Failures, Reason: "the retry of " + pkgs + " failed without naming every failure"}
+	}
+	return flakes.Outcome{Kind: flakes.Unknown, Unknown: child.Failures, Reason: "the retry of " + pkgs + " failed: " + strings.Join(child.Failures, ", ")}
+}
+
+// retryPassed is the one definition of a clean retry: exit 0 within its time,
+// and its log names no failure, failed nothing, and left nothing unnamed. A
+// "--- FAIL pkg Test" line names a failure without marking the log failed.
+func retryPassed(exit int, timedOut bool, child SuiteLogFacts) bool {
+	return exit == 0 && !timedOut && !child.Failed && len(child.Failures) == 0 && len(child.Subtests) == 0 && len(child.Unattributed) == 0
+}
+
+// incompleteRetryCommands is the retry's one command (#630): the affected
+// command when main declares one, else the declared suite command, under the
+// affected env contract naming the packages to run. A suite command that
+// ignores the list reruns whole: slower, never wrong.
+func incompleteRetryCommands(suite, affectedCommand []string, pkgs []string) [][]string {
+	command := suite
+	if len(affectedCommand) != 0 {
+		command = affectedCommand
+	}
+	return [][]string{affectedEnvCommand(command, pkgs, nil)}
+}
+
+// affectedCommandOnMain is the affected command origin/main declares, or nil
+// when it declares none or cannot be read: the retry then runs the suite's
+// own command under the same package list (#630).
+func (d localRunDeps) affectedCommandOnMain() []string {
+	main, err := d.Git("rev-parse", "--verify", "origin/main^{commit}")
+	if err != nil {
+		return nil
+	}
+	cfg, ok, err := readAffectedConfig(d.Git, strings.TrimSpace(main))
+	if err != nil || !ok {
+		return nil
+	}
+	return cfg.Command
 }

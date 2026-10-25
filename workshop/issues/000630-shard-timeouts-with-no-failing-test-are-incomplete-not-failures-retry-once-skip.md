@@ -90,3 +90,17 @@ failure).
 - 2026-10-25: estimate 1.99 (v3.1, Method A). estimate-quality INFO: impl looks thin on the two version-gated rows and expects 2.5-3h; kept, the measured actual will say.
 - 2026-10-25: commit bf93b4f38 is titled plan: but carries the M1 code (a pathspec-less commit took the staged M1 files); cbf1db7e7 adds the fuzz test. A history rewrite to split them was refused by the auto-mode classifier (force-push), so the history stands as is; M1 is bf93b4f38 plus cbf1db7e7.
 - 2026-10-25: M1 closed (d094578e9, FIX-THEN-SHIP, window e19cdb92..d81ab024). Its Minor (third in the plan-claimed-test-missing family) is fixed as the rule: every guard in classifyIncomplete, incompleteEligible, the v5 decode envelope, savedAttemptRecord and isFlakeEvidence was deleted alone and the tests rerun. All 14 go red: the typed case now uses well-formed unit events, the build failure sits in an alarmed process, there is a parse-warning case, the deadline and no-exit cases are split, and v5 refusing known_flakes is tested. Two guards no single deletion could expose were removed as redundant: the typed-identity check on failures (typed names only come from typed evidence) and !rec.passed() (implied by Exit > 0 before any outcome is set).
+- 2026-10-25: M2 built. The TL chose option (b) for PQ-5, so test-shard.py honors SDLC_AFFECTED_GO_PKGS (tested by
+  PackageSelectionTest; a real run of one package ran it alone in 2.7 s). The retry goes through the resume composite
+  with a v5 suite link, the check's full envelope, and posts through the one existing path.
+  - Tests: TestIncompleteRetryRunsOnlyItsPackagesAndLands (the operator's test: the retry got exactly o/r/pkg, under
+    the check's 30 minutes rather than the targeted cap, and a later reuse verifies the pass),
+    TestIncompleteRetryRealFailureDiagnoses, TestIncompleteBaselineNeverRetries, TestResolveIncompleteResumeProof
+    (wider selection, group, v3 link, a parent no longer incomplete with and without a link, receipt version: all
+    refused), TestKnownFlakeSuiteLinkStaysVersion3, TestIncompleteRetryOutcome, TestIncompleteRetryCommands,
+    TestLandingTrainIncompleteSuite (for #635).
+  - Mutation pass: all 15 M2 guards turn a test red when deleted alone. TestResumeEnvelopeVersionsByCheck's
+    "v5 suite refused" row now says allowed, the contract #630 changes.
+  - Regression slices pass: Resume/KnownFlake/LocalCheck/Suite/Saved/Republish/TypedSuite/Flake;
+    LandingTrain (572 s); Merge; Diagnose/PreClose/CIGate/Stats/Weekly/Recovery/Help/Queue/Decode;
+    pkg/golint; internal/flakes; scripts/test-shard.test.py.
