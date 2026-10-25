@@ -127,6 +127,13 @@ BR-1 remains open for malformed explicit-flow and tagged-flow mapping declaratio
 
 New red regressions reproduced explicit/tagged-flow bypass, malformed/unterminated untyped ambiguity, and hidden content after a YAML document end. The foreign >1MiB archive test initially exposed a fixture fast-forward omission (corrected), then reproduced the production failure: successor abandon refused with invalid snapshot blob size (limit1MiB) while reading another issue's historical evidence. Removed the partial recovery scanner entirely; one YAML decoder now owns syntax, duplicate keys and stream completion, and only valid decoded top-level type declarations opt into CUE. Selected history-side metadata before any blob reads. The focused gate/ordinary-issue and three abandon/replacement controls passed39.524s, including unchanged foreign blob identity, all15 malformed-header cases, valid typed/untyped syntax, and8/16-document read counts. No recorded suite currently runs or queues. Next: push this tested code, queue one fresh recorded check, rebuild paired binaries cleanly, and await parley#445 landing proof before another close review.
 
+
+### 2026-10-25 — retained final-code check and repair blocker
+
+Pushed tested code634cecd1816203313d7d74e999d84cf158cab142. Both private vocabulary and sdlc binaries rebuilt from that exact revision with vcs.modified=false; CLI valid/missing-parent/wrong-type controls returned0/1/1. Recorded pre-close suite is alive and queued as lease-1277475827 on634cecd1, retained terminal52908; attempt624fe6f2f5eb511ac279959049bd560e, log in the common Git dir's sdlc/test-stats/inflight/624fe6f2f5eb511ac279959049bd560e/run.log. Preserve this run; no duplicate/restart. Earlier leases433986222 and4121496523 were cancelled before execution, not failed suite evidence.
+
+Parley owner delivery196fc20b-e5cc-4944-9e0a-8c3b343636e3 reports #445 still UNLANDED: merge suite and main baseline red on unrelated load tests, owner has reported to TL and waits there. Do not weaken BR-3 or treat branch blob proof as a landed repair. Next: monitor the retained check; on TL/owner landing confirmation verify destination main-tree blob, absent active path and archived linkage, record proof, then run third close review on the corrected code. Public CI hold is lifted. No PR or merge for #623 has started; no other background work is active.
+
 ## Revisions
 
 ### 2026-10-25 — approved typed-Markdown transition
