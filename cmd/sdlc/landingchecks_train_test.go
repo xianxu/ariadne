@@ -54,7 +54,7 @@ func TestLandingCheckProductionTrainAndSingle(t *testing.T) {
 				s.pushCar(t, "000102-second", "second", 102, 2)
 			}
 			result := s.merge(s.first)
-			waitQueued(t, s.line, 1)
+			waitQueued(t, s.line, 1, result)
 			if !tc.off {
 				waitVouched(t, s.line, 1)
 			}

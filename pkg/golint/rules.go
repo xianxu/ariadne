@@ -537,24 +537,9 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		pkg, isPkg := fnIdent(fn)
 		return ok && isPkg && pkg == timePkg && fn.Sel.Name == "Now"
 	}
+	// One walk in source order: a poll is judged by the assignment it reads
+	// at that point, so a later reassignment never hides an earlier poll.
 	deadlines := map[any]*ast.CallExpr{}
-	ast.Inspect(f, func(n ast.Node) bool {
-		as, ok := n.(*ast.AssignStmt)
-		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 1 {
-			return true
-		}
-		id, ok := as.Lhs[0].(*ast.Ident)
-		call, isCall := as.Rhs[0].(*ast.CallExpr)
-		if !ok || !isCall || len(call.Args) != 1 {
-			return true
-		}
-		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Add" && isNow(sel.X) && !hangBound(timePkg, call.Args[0]) {
-			deadlines[varKey(id)] = call
-		} else {
-			delete(deadlines, varKey(id)) // reassigned to a hang bound or another value
-		}
-		return true
-	})
 	polled := map[*ast.CallExpr]bool{}
 	poll := func(id *ast.Ident) {
 		if d := deadlines[varKey(id)]; d != nil && !polled[d] {
@@ -563,6 +548,21 @@ func tightWallclock(f *ast.File, context *CheckContext) []ast.Node {
 		}
 	}
 	ast.Inspect(f, func(n ast.Node) bool {
+		if as, ok := n.(*ast.AssignStmt); ok && len(as.Lhs) == 1 && len(as.Rhs) == 1 {
+			if id, ok := as.Lhs[0].(*ast.Ident); ok {
+				call, isCall := as.Rhs[0].(*ast.CallExpr)
+				sel, isSel := (*ast.SelectorExpr)(nil), false
+				if isCall {
+					sel, isSel = call.Fun.(*ast.SelectorExpr)
+				}
+				if isSel && len(call.Args) == 1 && sel.Sel.Name == "Add" && isNow(sel.X) && !hangBound(timePkg, call.Args[0]) {
+					deadlines[varKey(id)] = call
+				} else {
+					delete(deadlines, varKey(id)) // reassigned to a hang bound or another value
+				}
+			}
+			return true
+		}
 		call, ok := n.(*ast.CallExpr)
 		if !ok || len(call.Args) != 1 {
 			return true
@@ -642,9 +642,13 @@ func hangBound(timePkg string, e ast.Expr) bool {
 	case *ast.ParenExpr:
 		return hangBound(timePkg, v.X)
 	case *ast.Ident:
-		return v.Name == "HangCeiling"
+		// The package constant (declared here, or in another file of the
+		// package), never a local variable of that name.
+		return v.Name == "HangCeiling" && (v.Obj == nil || v.Obj.Kind == ast.Con)
 	case *ast.SelectorExpr:
-		return v.Sel.Name == "HangCeiling"
+		// pkg.HangCeiling, where pkg is an import, not a local value.
+		pkg, ok := v.X.(*ast.Ident)
+		return ok && v.Sel.Name == "HangCeiling" && pkg.Obj == nil
 	case *ast.BinaryExpr:
 		// The ceiling plus a non-negative constant, or times a positive
 		// integer; HangCeiling/1200 or HangCeiling-x shrink it.

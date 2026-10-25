@@ -265,9 +265,9 @@ func runTrainIssueMovement(t *testing.T, kind, mode string, validate bool) {
 	mergeRunner = pushes
 	t.Cleanup(func() { mergeRunner = originalRunner })
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	err := finished(t, one)
 	// Always consume the waiter before inspecting mutable fake state. A refused

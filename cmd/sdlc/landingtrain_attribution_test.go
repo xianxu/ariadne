@@ -140,9 +140,9 @@ printf '%s\n' '{"Action":"pass","Package":"example.com/train/broadcast","Elapsed
 		return done
 	}
 	one := start(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := start(suspect)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	var prefix string
 	// The barrier file is the event (#625): a landing that ends without

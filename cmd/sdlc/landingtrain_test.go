@@ -450,11 +450,11 @@ func landTrainOfThree(t *testing.T, s *trainSetup) {
 	gh, line := s.gh, s.line
 
 	one := s.merge(s.first)
-	waitQueued(t, line, 1)
+	waitQueued(t, line, 1, one)
 	two := s.merge(second)
-	waitQueued(t, line, 2)
+	waitQueued(t, line, 2, two)
 	three := s.waitingCar(t, "000003-third", 3, 3)
-	waitVouched(t, line, 3)
+	waitVouched(t, line, 3, three)
 	s.blocker.Release()
 
 	for name, done := range map[string]<-chan error{"first": one, "second": two} {
@@ -516,7 +516,8 @@ func wantNoTrainWorktree(t *testing.T, root string) {
 	}
 }
 
-func waitVouched(t *testing.T, line *landingline.Line, n int) {
+// waitVouched polls until n cars vouch; workers are as in waitQueued.
+func waitVouched(t *testing.T, line *landingline.Line, n int, workers ...<-chan error) {
 	t.Helper()
 	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
@@ -530,6 +531,7 @@ func waitVouched(t *testing.T, line *landingline.Line, n int) {
 		if err == nil && count >= n {
 			return
 		}
+		failIfWorkerEnded(t, fmt.Sprintf("%d vouched cars", n), workers)
 		if time.Now().After(deadline) {
 			t.Fatalf("only %d of %d cars vouched ready: %+v %v", count, n, ready, err)
 		}
@@ -542,7 +544,7 @@ func waitVouched(t *testing.T, line *landingline.Line, n int) {
 func TestLandingTrainOfOneIsTodaysLanding(t *testing.T) {
 	s := newTrainSetup(t, "train")
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	waitVouched(t, s.line, 1)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
@@ -574,9 +576,9 @@ func TestLandingTrainReclaimsAnOrphanAndSurvivesALostMergeReply(t *testing.T) {
 	s.gh.lostReply = true
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -604,9 +606,9 @@ func TestLandingTrainReintegratesADocsOnlyMain(t *testing.T) {
 	started, release := blockLandingSuite(t, s.server)
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
@@ -656,7 +658,7 @@ var trainStderr io.Writer = io.Discard
 func TestLandingCarMergedWithoutAWordFinishes(t *testing.T) {
 	s := newTrainSetup(t, "null")
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	waitVouched(t, s.line, 1)
 	// The conductor's merge, with no settle after it: the blocker still holds
 	// the line, so the car is never admitted.
@@ -678,9 +680,9 @@ func TestLandingTrainLaggingListingIsItsOwnMerge(t *testing.T) {
 	s.gh.lagMerged = 3
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -728,10 +730,10 @@ func TestLandingTrainSplitHoldsTheCulpritAndLandsThePrefix(t *testing.T) {
 		s.addCar(t, car.branch, car.number)
 	}
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
 	three := s.waitingCar(t, "000003-third", 3, 3)
-	waitVouched(t, s.line, 3)
+	waitVouched(t, s.line, 3, two, three)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatalf("the clean prefix's car: %v", err)
@@ -790,9 +792,9 @@ func TestLandingTrainHoldsAConflictingCar(t *testing.T) {
 	git(t, dir, "push", "-q", "upstream", "000002-second")
 	s.addCar(t, "000002-second", 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)
@@ -812,9 +814,9 @@ func TestLandingTrainRedCIRefusesTheTrain(t *testing.T) {
 	s.gh.trainChecks = []prCheck{{Name: "merge-check", Workflow: "merge-check", Bucket: "fail"}}
 	s.pushCar(t, "000002-second", "second", 2, 2)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	err := finished(t, one)
 	if err == nil || !strings.Contains(err.Error(), "CI is red") {
@@ -945,9 +947,9 @@ func symlinkedWorkflowTrain(t *testing.T, withSubstrate bool) (*trainSetup, stri
 func runTwoCars(t *testing.T, s *trainSetup, second string) (first, other error) {
 	t.Helper()
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := s.merge(second)
-	waitQueued(t, s.line, 2)
+	waitQueued(t, s.line, 2, two)
 	waitVouched(t, s.line, 2)
 	s.blocker.Release()
 	return finished(t, one), finished(t, two)

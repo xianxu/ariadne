@@ -159,7 +159,7 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 	ghClient = &trainArchiveListingLag{trainFakeGH: s.gh, branch: secondBranch, outcomeSeen: secondStderr.seen}
 	firstStderr := watchWriter{want: "landed", seen: make(chan struct{})}
 	one := start(s.first, &firstStderr, false)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, one)
 	two := start(second, &secondStderr, true)
 	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
@@ -181,7 +181,7 @@ func testLandingTrainSiblingArchive(t *testing.T, secondID int, freshResume bool
 			t.Fatal("second merge did not queue")
 		}
 	}
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, two)
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatalf("conductor merge: %v", err)
