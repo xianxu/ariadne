@@ -114,14 +114,14 @@ A new section, `WEEKLY BACKLOG TRIAGE`, sits beside GROOMING THE BACKLOG INTO TR
 ## Plan
 
 - [ ] M1: the `kind` card field and the card reader (sdlc)
-  - [ ] Test first: an unknown frontmatter key survives a `set-severity` rewrite (the ARCH-EVOLVE gate above).
-  - [ ] Add `kind` to `issue.cue` (enum and card field, setter `sdlc issue set-kind`). Regenerate whatever `pkg/vocab` derives, and add the `vocab` tests.
-  - [ ] `sdlc issue set-kind`: follow the `set-severity` path in `cardsetters.go`, with tests for set, clear, an unknown value refused, and a rerun that makes no write.
-  - [ ] `sdlc issue list --json` and `--kind`:
+  - [x] Test first: an unknown frontmatter key survives a `set-severity` rewrite (the ARCH-EVOLVE gate above).
+  - [x] Add `kind` to `issue.cue` (enum and card field, setter `sdlc issue set-kind`). Regenerate whatever `pkg/vocab` derives, and add the `vocab` tests.
+  - [x] `sdlc issue set-kind`: follow the `set-severity` path in `cardsetters.go`, with tests for set, clear, an unknown value refused, and a rerun that makes no write.
+  - [x] `sdlc issue list --json` and `--kind`:
     - Tests over a tracker fixture with open, working and done cards (terminal ones included) and an unreadable card.
     - A legacy-repository case.
     - The text output stays unchanged.
-  - [ ] Atlas: `sdlc-binary.md`, the issue-card fields and the `issue list --json` contract.
+  - [x] Atlas: `sdlc-binary.md`, the issue-card fields and the `issue list --json` contract.
 - [ ] M2: `tl-lead triage stats` and the duty
   - [ ] Pure core tests first:
     - `weekStats` over a fake card list spanning week boundaries, including a bug opened and closed in the same week, a terminal card closed before the window, and unclassified cards.

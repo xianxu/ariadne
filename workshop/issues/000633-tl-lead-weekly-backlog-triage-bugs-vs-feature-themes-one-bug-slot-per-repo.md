@@ -92,3 +92,10 @@ Items:
 ### 2026-10-25
 - 2026-10-25: plan approved by the TL. kind is a card field with no heuristics; the TL back-fills the last 4 weeks of closed cards once after M1 lands; the unknown-key test runs first.
 - 2026-10-25: ARCH-EVOLVE gate (M1 step 1) holds, so the work continues. `TestOlderCardReaderPreservesUnknownFieldsThroughSetters` (`cmd/sdlc/internal/issue/cardunknown_test.go`, #460) already proves that a top-level unknown key survives every card setter, and it passes. Pair pins ariadne 5a17f789 (10-24), which contains both #460 commits (429930268, f6124b5ef), so pair's sdlc keeps `kind` through any rewrite. No new test is needed.
+- 2026-10-25: M1 built.
+  - `kind` (bug or feature) is in `issue.cue` and the `pkg/vocab` embed.
+  - `set-kind` and `set-severity` share one `newCardEnumSetterCmd` (ARCH-DRY), with a generic `issue.CheckEnum`.
+  - `issue list --json` walks `issueStates(…, history)`, so terminal card-only cards are included; `--kind` filters; `IssueState` gains `created` and `kind`, additive in `state --json` (tl-lead decodes it tolerantly).
+  - Help, the recovery catalog and the atlas (`sdlc-binary.md`, `vocabulary.md`) are updated.
+  - Tests: `TestIssueSetKind` (set, a rerun is a no-op, refusals, clear, a done card keeps `updated`), `TestParseCardRefusesUnknownKind`, `TestIssueListJSONIncludesTerminalCards` (open, working, done card-only with owner and kind, unreadable, `--kind`, text unchanged), `TestIssueListJSONWithoutTracker`, and `--kind` filter cases.
+  - Green: those tests, the issue-list, malformed-card and severity tests, pkg/vocab, internal/issue, internal/recovery, cmd/vocabulary, the CUE vet script, and the cmd/sdlc help, recovery and catalog tests.

@@ -246,7 +246,8 @@ it in. This is the vocabulary's answer to a per-repo taxonomy without forking
 embedded export, so a repo cannot extend the model in place).
 
 - **Model** (`construct/vocabulary/issue.cue`):
-  - `enums` holds the shared closed enums (`severity: critical | high | medium | low`).
+  - `enums` holds the shared closed enums (`severity: critical | high | medium | low`,
+    and `kind: bug | feature`, the weekly triage's mark, #633).
   - `repoEnums` holds the repo-defined ones. It gives `declarationPath`
     (`.sdlc/vocabulary.json`) and, per field, the syntax: `area` is a `/`-path of
     `segment`s, up to `maxDepth`, multi-valued up to `maxItems`.
@@ -265,12 +266,13 @@ embedded export, so a repo cannot extend the model in place).
   - Card parsing checks **shape only** (`ParseCard`). A value later removed from a
     declaration never makes a card unreadable.
   - Membership is checked by the writers (`issue new --area/--severity`,
-    `issue set-area`, `issue set-severity`, `issue publish`), by `issue validate`
+    `issue set-area`, `issue set-severity`, `issue set-kind`, `issue publish`), by `issue validate`
     (files, and with `--all` every card), and by the #124 instance gate at
     merge/push (against the declaration at the gate's base).
 - **Query:** `issue list --area couch/broadcast` matches by whole segments
   (`couch/broadcast/web`, not `couch/broadcaster`). `--severity high,critical` is
-  also available, and `sdlc state --json` carries `area`/`severity`.
+  also available, as is `--kind bug`. `sdlc state --json` carries `area`, `severity`
+  and `kind`, and `issue list --json` lists every card, terminal ones included (#633).
 - **Adding another repo enum** takes three things: a `repoEnums.fields` row, a card
   (or details) field naming it, and a key in each repo's declaration. No new Go is
   needed; the syntax is read from the model.

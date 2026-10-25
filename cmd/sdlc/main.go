@@ -47,6 +47,7 @@ func renderLong(name string) string {
 		"{{LIFECYCLE}}", m.RenderLifecycleHelp(),
 		"{{STATUS_NAMES}}", m.StatusNames(" | "),
 		"{{SEVERITY_NAMES}}", strings.Join(m.Enums["severity"], " | "), // #348
+		"{{KIND_NAMES}}", strings.Join(m.Enums["kind"], " | "), // #633
 		"{{REPO_ENUMS_PATH}}", m.RepoEnums.DeclarationPath, // #348
 		"{{STATUS_GLOSS}}", m.StatusGloss(),
 		"{{PROJECT_LIFECYCLE}}", p.RenderLifecycleHelp(),

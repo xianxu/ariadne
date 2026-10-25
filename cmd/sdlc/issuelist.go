@@ -13,16 +13,17 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-// issueListFilter is the AND of its parts; within --area and --severity the
+// issueListFilter is the AND of its parts; within --area, --severity and --kind the
 // values are alternatives (OR).
 type issueListFilter struct {
 	status     string
 	areas      []string // segment prefixes
 	severities []string
+	kinds      []string // #633
 }
 
 // newIssueListFilter validates the flags into a filter.
-func newIssueListFilter(status string, areas, severities []string) (issueListFilter, error) {
+func newIssueListFilter(status string, areas, severities, kinds []string) (issueListFilter, error) {
 	if status != "" && !isValidStatus(status) {
 		return issueListFilter{}, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(vocab.Issue().AllStatuses(), ", "))
 	}
@@ -39,7 +40,15 @@ func newIssueListFilter(status string, areas, severities []string) (issueListFil
 			return issueListFilter{}, fmt.Errorf("--severity: %w", err)
 		}
 	}
-	return issueListFilter{status: status, areas: areas, severities: severities}, nil
+	for _, k := range kinds {
+		if k == "" {
+			return issueListFilter{}, errors.New("--kind: empty value")
+		}
+		if err := issue.CheckEnum("kind", k); err != nil {
+			return issueListFilter{}, fmt.Errorf("--kind: %w", err)
+		}
+	}
+	return issueListFilter{status: status, areas: areas, severities: severities, kinds: kinds}, nil
 }
 
 func (f issueListFilter) matches(is IssueState) bool {
@@ -47,6 +56,9 @@ func (f issueListFilter) matches(is IssueState) bool {
 		return false
 	}
 	if len(f.severities) > 0 && !slices.Contains(f.severities, is.Severity) {
+		return false
+	}
+	if len(f.kinds) > 0 && !slices.Contains(f.kinds, is.Kind) {
 		return false
 	}
 	if len(f.areas) > 0 {
