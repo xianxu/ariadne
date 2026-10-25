@@ -351,8 +351,11 @@ fields.
 
 `sdlc local-check run --name affected` diffs the head against its merge-base with main. `affected.Plan` classifies
 each changed path:
-- a `full` glob forces the full suite;
-- otherwise the path selects every package that owns it, *and* every group whose `paths` match it, as one union.
+- a `full` glob forces the full suite. A `full` entry may also be `{"glob": G, "except": [globs]}`: a path the
+  except globs match falls through to the rules below (#598). Pair uses this to keep `cmd/couch/**` full but let
+  `cmd/couch/*_test.go` select its package;
+- otherwise the path selects every package that owns it, *and* every group whose `paths` match it, *and* whatever
+  declared ownership (below) gives it, as one union.
   A file's owners are the package whose directory holds it, each package whose `testdata/` holds it, and each package
   that embeds it (`go list`'s embed files). A plain subdirectory file is owned by no package;
 - a path neither claims is ignored if it is a doc (the publish gate's rule), and otherwise forces the full suite. A
@@ -361,6 +364,48 @@ each changed path:
 The packages then expand to every package that depends on them. Those dependencies come from
 `internal/affected.LoadGoGraph`, which runs `go list -test` in a worktree of the head, so test imports count. Groups
 whose `go` roots depend on a selected package are added.
+
+**Declared ownership (#598).** The import graph cannot see a non-Go input that a test reads. A repository declares
+that ownership in a curated, low-tech mapping, and `Plan` consults it inside the same claim step. One pure value,
+`affected.Mapping` (`internal/affected/mapping.go`), compiles every source:
+- `owners` rules in affected.json. A path the rule's `paths` globs match also counts as a change to the declared `go`
+  roots, to the declared `as` target paths, or to the one target a `strip` derives (`prefix` + target + `suffix`).
+- `sidecars` conventions, `{"prefix", "suffix"}`. A file at prefix + X + suffix is about X: a change to the sidecar
+  counts as a change to X. That covers added, edited, deleted and renamed sidecars without reading them. Pair's reader
+  certificates follow this convention: `tests/affected-readers/<test path>.json`. A sidecar's optional `reads` globs
+  count as X's inputs. Every other member of a sidecar is opaque to ariadne, and ariadne never writes one.
+  `ParseSidecar` is strict about `reads` alone.
+
+The rules are:
+- **One level.** Targets are classified as changed paths are (graph owners and group paths). A target never
+  follows another declaration.
+- **Conservative.** These all make the selection full, naming the declaration:
+  - a target that matches `full`;
+  - a declared root that is not a package;
+  - a target that claims nothing (for example, a sidecar for a deleted package);
+  - a sidecar path no target derives from.
+- **Absent `reads` declares nothing.** An undeclared input keeps whatever its own rules give it. Requiring `reads`
+  for a kind of test is the consuming repository's audit (pair#853), not ariadne's.
+
+All declarations come from main's pinned rev, never the head's. `readAffectedConfig` stays the cheap reader of
+affected.json, which pre-close and the car stand-in use for the declared bit. The selection consumers load the
+sidecars through `loadAffectedMapping` (`localcheck_affected.go`):
+- **Which consumers:** the affected run and resume, through the `affectedDeps.mapping` seam, and `splitImpact`,
+  which loads them per endpoint.
+- **How it reads:** one `ls-tree` and one batched `cat-file` per convention, through
+  `gitx.TreeFilesSelected`, which is `TrunkView.FilesSelected`'s body under an explicit context and dir.
+- **When a sidecar fails:** a sidecar that does not compile makes the selection full ("declared ownership
+  unavailable: …"), so the run falls back to the suite and boarding refuses.
+- **What a branch can do:** a branch can add a certificate, and its path-only alias narrows that path to the test's
+  package. It can't change what main's `reads` declare.
+- **Attribution:** `splitImpact`'s uncertain fallback uses `affected.Owned`, the same claim step, so attribution
+  sees what selection sees.
+- **Older binaries:** an sdlc older than #598 refuses the new members because its parse is strict
+  (`readAffectedConfig` errors). What that does depends on the caller. `--pre-close` and a train car's stand-in
+  require the suite instead. An explicit `local-check run --name affected` and its resume refuse with the parse error.
+  None of them can narrow anything.
+- **Cost:** exact rule paths are indexed. Globbed ones are scanned behind their literal prefix:
+  `BenchmarkPlanDeclared` runs 2,000 paths against 1,200 rules in about 30 ms.
 
 For ignored/generated graph inputs, optional `graph_prepare` in affected.json
 declares `{ "command": ["make", "generate"], "timeout_minutes": 2 }` (#517).
@@ -409,9 +454,10 @@ must cover two blind spots itself:
   `full`.
 - **Group roots don't add Go tests:** a group's `go` roots decide whether the *group* runs. They don't add Go packages
   to `SDLC_AFFECTED_GO_PKGS`. A non-Go input that a Go test reads (outside that package's `testdata/` and embeds)
-  belongs in `full`, or in a group whose target runs that test.
+  belongs in declared ownership (#598): an `owners` rule or a sidecar's `reads`. Otherwise it belongs in `full`, or in
+  a group whose target runs that test.
 
-This needed no change to the contract; it is the configuring repo's responsibility.
+Covering these is the configuring repo's responsibility; declared ownership is the tool it uses.
 
 Where it counts (#473 M2):
 - **Train cars:** a car's CI gate accepts `affected` in place of `suite` (`StandIn`), on the head or on a docs-only

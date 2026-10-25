@@ -210,3 +210,51 @@ func TestFilesSelectedPreservesBlobLimit(t *testing.T) {
 		t.Fatalf("oversized selection: %v", err)
 	}
 }
+
+// #598: TreeFilesSelected reads any commit under the caller's context, and refuses a cwd-defaulting dir, an option
+// revision and a non-canonical prefix before running git.
+func TestTreeFilesSelected(t *testing.T) {
+	repo, _ := trunkFixture(t, "seed\n")
+	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tf.UpdateMany("sidecars", func(*TrunkView) (TrunkWrite, error) {
+		return TrunkWrite{Write: map[string][]byte{"r/a.json": []byte("a"), "r/b.txt": []byte("b")}}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := tf.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := TreeFilesSelected(context.Background(), repo, view.ref, "r", func(f TreeFile) bool { return strings.HasSuffix(f.Path, ".json") })
+	if err != nil || len(files) != 1 || files[0].Path != "r/a.json" || string(files[0].Content) != "a" {
+		t.Fatalf("files = %#v, %v", files, err)
+	}
+	if none, err := TreeFilesSelected(context.Background(), repo, view.ref, "absent", nil); err != nil || len(none) != 0 {
+		t.Fatalf("absent prefix = %#v, %v", none, err)
+	}
+	for name, call := range map[string]func() error{
+		"empty dir": func() error { _, err := TreeFilesSelected(context.Background(), " ", view.ref, "r", nil); return err },
+		"option rev": func() error {
+			_, err := TreeFilesSelected(context.Background(), repo, "--output=x", "r", nil)
+			return err
+		},
+		"empty rev": func() error { _, err := TreeFilesSelected(context.Background(), repo, "", "r", nil); return err },
+		"traversal": func() error {
+			_, err := TreeFilesSelected(context.Background(), repo, view.ref, "../r", nil)
+			return err
+		},
+		"cancelled": func() error {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			_, err := TreeFilesSelected(ctx, repo, view.ref, "r", nil)
+			return err
+		},
+	} {
+		if call() == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
