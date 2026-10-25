@@ -1,12 +1,12 @@
 ---
 id: 000623
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours: 1.84
-card_mirror: 'db602c0f49eb155e3b9b109ef4ff31952bc8d4d6' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '34d1cdfb07a8bbd97b71a44d414bb55be4ae37a1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T12:00:36-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.83
 ---
 
 # Instance-conformance gate validates issue .side/ side docs as issues; exempt and validate by type
