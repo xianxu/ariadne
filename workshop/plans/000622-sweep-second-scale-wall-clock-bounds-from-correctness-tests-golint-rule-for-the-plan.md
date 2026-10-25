@@ -78,3 +78,9 @@ The rule is pure AST code, so its inputs are source shapes. Seeded cases: the pr
 
 - PQ-1 (Important): `time.After` fail-timeouts and `context.WithTimeout` are outside the rule. TL chose to keep #622 at 35 sites: both are stated as non-goals, and the `time.After` shape is filed as ariadne#626.
 - Minors: added Non-goals; added the rule's adversarial-input strategy. Variables are now keyed by declaring object (`varKey`), and a reassignment case plus a cross-function test were added, mutation-checked.
+
+### 2026-10-25 — M1 boundary review round 1
+
+- BR-1 (Important): group A loops now fail fast when their worker ends before the event: the six named sites plus three with the same gap (`makebuild_publish_test.go:150` and `localcheck_resume_conformance_test.go:808` gained a wait channel; `landingtrain_archive_test.go` now watches the conductor as well).
+- BR-2 (Important), downstream impact: pair runs this catalog (`internal/repolint`, `pairCatalogFor`), and the widened rule flags 183 pair test sites. The TL filed pair#885 to sweep them and then enable `test-tight-wallclock` in `pairCatalogFor`; until it lands, whoever bumps pair's ariadne pin excludes the rule there (one line). ariadne's own enforcement is unchanged.
+- Minors: `hangBound` accepts only `HangCeiling` itself (plus a non-negative constant, or times a positive integer); the inverted `v.Before(time.Now())` / `v.After(time.Now())` polls are matched; rule tests cover `time.Until` and the pending-list skip.
