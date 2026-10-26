@@ -124,6 +124,8 @@ step before `bootstrap.sh` requires the pinned weave to answer so bootstrap's br
 never runs. ariadne's own source CI refuses a self-hosted runner (its candidate build needs
 `brew bundle`). `scripts/test/portable-ci.test.sh` runs the real blocks under both runner
 models.
+`merge-check` runs on `pull_request`, so a self-hosted runner executes PR code on that
+machine: use one only in a private repository that takes no fork PRs.
 
 ## Strictness is opt-in
 

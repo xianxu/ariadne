@@ -587,6 +587,14 @@ the label once per repository (`gh label create local-gates-verified`). `sdlc
 merge` refuses to land a PR whose checks are red or still pending. See
 `atlas/workflow/ci-merge-check.md`.
 
+Both seeded workflows run on `ubuntu-latest` unless the repository variable
+`CI_RUNS_ON` names another runner as a JSON runs-on value, for example
+`gh variable set CI_RUNS_ON --body '["self-hosted","local-ci"]'`. A self-hosted
+runner installs nothing, so Go, git and Python 3 must already be on the host,
+along with the pinned weave. `merge-check` then runs PR code on that machine, so
+use a self-hosted runner only in a private repository that takes no fork PRs. See
+[which runner](atlas/workflow/ci-merge-check.md#which-runner-641).
+
 ## Preparing a weave release
 
 Maintainers with Go, Python 3.9+, and Homebrew can build and test a candidate:

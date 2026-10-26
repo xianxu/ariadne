@@ -48,6 +48,10 @@ Both seeded workflows can run on a self-hosted runner, chosen per repository, wi
 - [x] Workflow edits S1–S5
 - [x] Harnesses green; atlas/workflow/ci-merge-check.md notes CI_RUNS_ON
 
+## Revisions
+
+- 2026-10-25 (close review round 1, BR-2): S6's runs-on assertion for local-gates-guard.yml lives in scripts/test/portable-ci.test.sh, which checks both seeds against one RUNS_ON constant; local-gates-guard.test.sh is unchanged (a second copy would restate the expression).
+
 ## Log
 
 
@@ -56,3 +60,4 @@ Both seeded workflows can run on a self-hosted runner, chosen per repository, wi
 - Filed by ariadne:2, split from #637 for echo#51; design approved by the TL as written in ## Spec (including refusing ariadne source CI off GitHub-hosted runners, and the harness evaluating step conditions over a hosted and a self-hosted runner model). Echo's full spec: echo branch 000051-ci-on-the-operator-s-self-hosted-runner-local-ci-quick-merge-checks-no-host, workshop/plans/000051-self-hosted-ci-plan.md.
 - Paused by the fleet wind-down (operator, 10-25) before start-plan; no code written. Next step: `sdlc claim --issue 641`, `sdlc start-plan --issue 641`, then the Plan's first box: in scripts/test/portable-ci.test.sh replace the exact-string condition matches (`steps.gateway.outputs.pin2 != ''`, `source_ci == 'true'`) with an evaluator over a runner model (`runner.environment` github-hosted vs self-hosted), run the real blocks under both, and add the S6 structural asserts red before editing the two workflows. Landing needs the operator's local-gates-verified label (TL brings it); send echo:2 the merge commit.
 - Resumed under the move plan's phase A1 (TL, operator-approved). Harness first: portable-ci.test.sh now parses every step (uses ones too) and evaluates conditions over a runner model (== / != conjunctions over runner.environment and gateway outputs; anything else fails the harness), runs the actual blocks GitHub-hosted and self-hosted, and asserts S6 (a)-(d) structurally for both seeds. Red on runs-on before the workflow edits; green after. Self-hosted cases: same event rows as hosted, only actions/checkout taken, GITHUB_ENV carries GOTOOLCHAIN=local and UV_PYTHON_DOWNLOADS=never; missing go refuses naming it; a weave without dependencies refuses before bootstrap; source CI refuses naming GitHub-hosted. Mutations: dropping the source-CI refusal and dropping setup-homebrew's guard each turn it red. local-gates-guard.test.sh green.
+- Close review round 1 FIX-THEN-SHIP: BR-1 README now documents CI_RUNS_ON (gh variable set, host tools, private repositories only); the reviewer's fork-PR note added to README and atlas; BR-2 Revisions entry; BR-3 the NO_DEPENDENCIES case matches the S4 message.

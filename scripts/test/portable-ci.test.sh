@@ -187,7 +187,7 @@ else:
     assert last['github_env'].splitlines()==['GOTOOLCHAIN=local','UV_PYTHON_DOWNLOADS=never'],last
     rows,out=run(1,machine='self-hosted',tools=nogo);assert not rows and 'lacks go' in out,(rows,out)
     rows,out=run(1,machine='self-hosted',extra={'NO_DEPENDENCIES':'1'})
-    assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave'] and 'weave' in out,(rows,out)
+    assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave'] and 'no weave with dependencies' in out,(rows,out)
     rows,out=run(1,source_ci=True,machine='self-hosted');assert not rows and 'GitHub-hosted' in out,(rows,out)
     # A second declared compiler remains independent; source CI uses candidate for bootstrap.
     rows,_=run(source_ci=True,supported=pin+'\n'+other+'\n')
