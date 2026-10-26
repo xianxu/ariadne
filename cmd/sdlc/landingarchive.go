@@ -454,6 +454,19 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 		plan.moves = append(plan.moves, landingArchiveMove{src, dst})
 		return nil
 	}
+	// Index plan families once, including side trees with no document.
+	planPaths := map[string][]string{}
+	for _, name := range paths {
+		owner := name
+		if o, ok := sidedoc.Owner(name); ok {
+			owner = o
+		}
+		if path.Dir(owner) == dirs.plans || path.Dir(owner) == vocab.ArchiveSubdir(dirs.history, vocab.ArchivePlans) {
+			id := issueIDPrefix(path.Base(owner))
+			planPaths[id] = append(planPaths[id], name)
+		}
+	}
+	var sideDocs []sideArchiveDoc
 	for _, owned := range selected {
 		b, present := current[owned.path]
 		if !present {
@@ -526,7 +539,7 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 			}
 		}
 		sort.Strings(names)
-		sideDocs := []sideArchiveDoc{{owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))}}
+		sideDocs = append(sideDocs, sideArchiveDocsForIssue(owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path)), planPaths[issueIDPrefix(path.Base(owned.path))], dirs.plans, dirs.history)...)
 		for _, name := range names {
 			b := current[name]
 			if b.mode != "100644" {
@@ -536,14 +549,10 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 			if err := add(name, dst, b.content); err != nil {
 				return plan, err
 			}
-			if strings.HasSuffix(name, ".md") {
-				sideDocs = append(sideDocs, sideArchiveDoc{name, dst})
-			}
 		}
-		// #424: each document's side folder moves with it, bytes unchanged.
-		if err := planLandingSideMoves(current, sideDocs, add); err != nil {
-			return plan, err
-		}
+	}
+	if err := planLandingSideMoves(current, sideDocs, add); err != nil {
+		return plan, err
 	}
 	return plan, nil
 }
@@ -551,25 +560,36 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 // planLandingSideMoves adds each document's side-folder members to a landing
 // archive plan: a destination folder holding anything, or a member that is
 // not a regular file, refuses.
-func planLandingSideMoves(current landingArchiveSnapshot, docs []sideArchiveDoc, add func(src, dst string, body []byte) error) error {
-	for _, d := range docs {
-		src, dst := sidedoc.SideDir(d.Src)+"/", sidedoc.SideDir(d.Dst)+"/"
-		var members []string
-		for name := range current {
-			if strings.HasPrefix(name, dst) {
-				return fmt.Errorf("archive destination occupied: %s; reconcile or remove that archived side doc before retrying", name)
-			}
-			if strings.HasPrefix(name, src) {
-				members = append(members, name)
-			}
+// indexSideMembers classifies each path once; the injected pure owner
+// projection also permits counted growth checks without timing assertions.
+func indexSideMembers(paths []string, owner func(string) (string, bool)) map[string][]string {
+	members := map[string][]string{}
+	for _, name := range paths {
+		if doc, ok := owner(name); ok {
+			members[doc] = append(members[doc], name)
 		}
+	}
+	return members
+}
+
+func planLandingSideMoves(current landingArchiveSnapshot, docs []sideArchiveDoc, add func(src, dst string, body []byte) error) error {
+	paths := make([]string, 0, len(current))
+	for name := range current {
+		paths = append(paths, name)
+	}
+	index := indexSideMembers(paths, sidedoc.Owner)
+	for _, d := range docs {
+		if occupied := index[d.Dst]; len(occupied) > 0 {
+			return fmt.Errorf("archive destination occupied: %s; reconcile or remove that archived side doc before retrying", occupied[0])
+		}
+		members := index[d.Src]
 		sort.Strings(members)
 		for _, name := range members {
 			b := current[name]
-			if b.mode != "100644" {
-				return fmt.Errorf("unsafe side doc mode at %s: restore a regular file", name)
+			moved, ok := sidedoc.MoveMember(name, d.Src, d.Dst)
+			if !ok || b.mode != "100644" {
+				return fmt.Errorf("unsafe side doc mode or folder at %s: restore a regular file inside its side folder", name)
 			}
-			moved, _ := sidedoc.MoveMember(name, d.Src, d.Dst)
 			if err := add(name, moved, b.content); err != nil {
 				return err
 			}
@@ -577,6 +597,7 @@ func planLandingSideMoves(current landingArchiveSnapshot, docs []sideArchiveDoc,
 	}
 	return nil
 }
+
 func archiveProvenance(repo string, pr landingPR) string {
 	return fmt.Sprintf("Landing-PR: %s#%d\nLanding-Head: %s", repo, pr.Number, pr.HeadOID)
 }

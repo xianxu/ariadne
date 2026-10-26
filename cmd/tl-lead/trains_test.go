@@ -22,6 +22,17 @@ type fakeSDLC struct {
 	mu        sync.Mutex             // guards calls
 	issues    map[string][]RepoIssue // by repo path: sdlc state's issues there
 	issueErr  map[string]error
+	cards     map[string]RepoCards // by repo path: sdlc issue list --json there
+	cardsErr  map[string]error
+}
+
+// RepoCards answers from the repository's recorded cards, as `sdlc issue list
+// --json` reads them from that checkout.
+func (f *fakeSDLC) RepoCards(repoRoot string) (RepoCards, error) {
+	if err := f.cardsErr[repoRoot]; err != nil {
+		return RepoCards{}, err
+	}
+	return f.cards[repoRoot], nil
 }
 
 // RepoIssues answers from the repository's recorded issues, as `sdlc state`

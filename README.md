@@ -125,6 +125,18 @@ answer marked fresh, stale or unknown (#279). What each verb does when it is
 repeated, interrupted or answered by a lost response, and which tests prove it,
 is in every workflow verb's `--help` and in `sdlc help recovery` (#280).
 
+Issue and plan `.side/` trees carry evidence without creating another issue
+ID, and archive with their issue even if the plan document is absent. Untyped
+Markdown and non-Markdown attachments stay unmodeled. Markdown that declares
+`type` in frontmatter must conform to `side-doc`: literal `type: side-doc` and
+a nonempty `parent` reference; parent-target existence is not required.
+Malformed or unterminated leading frontmatter refuses as ambiguous; fix the
+header or remove its delimiters to retain ordinary attachment text. Validate
+one explicitly with `vocabulary validate-instance --type side-doc PATH`.
+Deploy/rebuild vocabulary and sdlc together: compound noun selection and the
+side-doc schema must be present before the conformance gate uses them. See
+[archive and side-folder policy](atlas/workflow/sdlc-binary.md).
+
 The issue branch is pushed at every boundary (start-plan, milestone-close,
 close, unclaim), leased on the copy last fetched, so started work survives a
 lost machine; `sdlc merge` deletes it from the remote once landed (#286).
@@ -234,7 +246,8 @@ semantics, bounds, legacy reviewer gaps and calibration storage.
 ## Classifying issues
 
 An issue can carry a **severity** (`critical | high | medium | low`, shared by
-every repository) and **areas**: `/`-paths such as `couch/broadcast/web` naming
+every repository), a **kind** (`bug | feature`, the weekly triage's mark) and
+**areas**: `/`-paths such as `couch/broadcast/web` naming
 where it belongs. Each repository declares its own allowed areas in
 `.sdlc/vocabulary.json` on main:
 
@@ -247,10 +260,13 @@ file sits under the local-gates guard, so changing the taxonomy needs the
 operator's `local-gates-verified` label; an absent file declares no areas. Set
 them with `sdlc issue new --area couch/broadcast --severity high`, or later
 with `sdlc issue set-area --issue N <area>...` and
-`sdlc issue set-severity --issue N <level>` (each takes `--clear`). Both are
+`sdlc issue set-severity --issue N <level>`; set a kind with
+`sdlc issue set-kind --issue N bug|feature` (each takes `--clear`). All are
 card fields. Query with `sdlc issue list --area couch/broadcast`, which matches
 whole segments (`couch/broadcast/web`, not `couch/broadcaster`), and
-`--severity high,critical`. An undeclared area is refused by these writers, by
+`--severity high,critical`, or `--kind bug`. `sdlc issue list --json` prints
+every card, closed ones included, in a versioned format for tools such as
+`tl-lead triage stats`. An undeclared area is refused by these writers, by
 `issue publish`, by `sdlc issue validate` and by the merge/push instance gate.
 See [repo-defined enums](atlas/workflow/vocabulary.md#repo-defined-enums-348).
 

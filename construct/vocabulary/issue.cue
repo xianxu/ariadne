@@ -29,9 +29,12 @@ categories: {
 // `enum` names its key here. ──
 enums: {
 	severity: ["critical", "high", "medium", "low"]
+	// #633: what an issue is, set at the weekly triage; unset is unclassified.
+	kind: ["bug", "feature"]
 }
 
 #Severity: or(enums.severity)
+#Kind:     or(enums.kind)
 
 // ── repoEnums: repo-defined enums (#348). The shared model declares a field's
 // TYPE and syntax; each repository declares the field's allowed VALUES in its
@@ -117,6 +120,8 @@ card: {
 		// only; membership is checked where values are written and in the gates.
 		{name: "area", kind: "repo-enum", enum: "area", setter: "sdlc issue set-area"},
 		{name: "severity", kind: "enum", enum: "severity", setter: "sdlc issue set-severity"},
+		// #633: bug or feature, the weekly triage's mark; the trend reads it.
+		{name: "kind", kind: "enum", enum: "kind", setter: "sdlc issue set-kind"},
 		// #394: the tests a flake issue registers as known flakes, exact
 		// Go test/subtest, script:path, or lua:spec#case identities (#556).
 		// The landing gate reruns only these
@@ -186,6 +191,7 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// #348: shape only here; area membership is the repository's declaration,
 	// checked by sdlc's writers and gates.
 	severity?: #Severity | null
+	kind?:     #Kind | null
 	area?:     [...#AreaPath] | null
 	// compiled guard: a closed-work issue must carry measured actuals (a positive
 	// number) or the explicit not-applicable sentinel, not null/absent. Actuals are

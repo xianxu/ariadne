@@ -11,6 +11,24 @@ func SideDir(doc string) string {
 	return strings.TrimSuffix(doc, ".md") + ".side"
 }
 
+// Owner returns the synthetic document path owning a canonical side root or
+// any member beneath it. The first side root owns nested side trees. It uses
+// only the slash path, so the document need not exist. Noncanonical .md.side
+// names have no owner; callers retain their existing naming refusals.
+func Owner(p string) (string, bool) {
+	segs := strings.Split(path.Clean(p), "/")
+	for i, s := range segs {
+		if !strings.HasSuffix(s, ".side") || s == ".side" {
+			continue
+		}
+		if strings.HasSuffix(s, ".md.side") {
+			return "", false
+		}
+		return strings.TrimSuffix(strings.Join(segs[:i+1], "/"), ".side") + ".md", true
+	}
+	return "", false
+}
+
 // MoveMember maps a file inside fromDoc's side folder to its place when the
 // document moves to toDoc (collaboration-modes.md §5: the whole tree moves
 // with its document). ok is false for a path outside the folder.

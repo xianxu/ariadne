@@ -321,20 +321,25 @@ func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f
 			return err
 		}
 		spec.Assets = &bundle
-		// #424: the kept tip's side folders, the issue's and its plans'.
-		docs := []string{detailRel}
-		for name := range spec.Plans {
-			if strings.HasSuffix(name, ".md") {
-				docs = append(docs, path.Join(plansDir(), name))
-			}
+		// #424/#623: select the kept tree's side members by ownership,
+		// including plan-side folders whose owner document never existed.
+		view := env.main.ViewOf(rec.Head)
+		spec.Sides, err = view.Files(sidedoc.SideDir(detailRel))
+		if err != nil {
+			return err
 		}
-		spec.Sides = []gitx.TreeFile{}
-		for _, doc := range docs {
-			files, err := env.main.ViewOf(rec.Head).Files(sidedoc.SideDir(doc))
-			if err != nil {
-				return err
-			}
-			spec.Sides = append(spec.Sides, files...)
+		files, err := view.FilesSelected(plansDir(), func(f gitx.TreeFile) bool {
+			owner, ok := sidedoc.Owner(f.Path)
+			return ok && path.Dir(owner) == plansDir() && planArtifactBelongsToIssue(path.Base(detailRel), path.Base(owner))
+		})
+		if err != nil {
+			return err
+		}
+		spec.Sides = append(spec.Sides, files...)
+		// A non-nil empty slice means the kept branch intentionally has no
+		// members, rather than asking the archive to copy main's side files.
+		if spec.Sides == nil {
+			spec.Sides = []gitx.TreeFile{}
 		}
 		spec.Note = ""
 	}
@@ -668,24 +673,30 @@ func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
 		if err != nil {
 			return err
 		}
-		sideDocs := [][2]string{{archivedRel, liveRel}}
 		for _, p := range plans {
 			if planArtifactBelongsToIssue(base, path.Base(p)) {
 				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
-				if strings.HasSuffix(p, ".md") {
-					sideDocs = append(sideDocs, [2]string{p, path.Join(plansDir(), path.Base(p))})
-				}
 			}
 		}
-		// #424: each document's side folder comes back with it, file by file
-		// (a reopen is a move too: collaboration-modes.md §5).
-		for _, d := range sideDocs {
-			files, err := env.git("ls-tree", "-r", "--name-only", "HEAD", sidedoc.SideDir(d[0])+"/")
-			if err != nil {
-				return err
+		// Inventory the archived side trees once. The shared owner projection
+		// includes orphan plan-side roots without inventing plan documents.
+		listed, err := env.git("ls-tree", "-r", "--name-only", "HEAD", "--", sidedoc.SideDir(archivedRel)+"/", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
+		if err != nil {
+			return err
+		}
+		files := splitNonEmptyLines(listed)
+		docs := sideArchiveDocsForIssue(liveRel, archivedRel, files, plansDir(), historyDir())
+		liveOwners := make(map[string]string, len(docs))
+		for _, d := range docs {
+			liveOwners[d.Dst] = d.Src
+		}
+		for _, f := range files {
+			owner, ok := sidedoc.Owner(f)
+			if !ok {
+				continue
 			}
-			for _, f := range splitNonEmptyLines(files) {
-				if live, ok := sidedoc.MoveMember(f, d[0], d[1]); ok {
+			if liveOwner, selected := liveOwners[owner]; selected {
+				if live, ok := sidedoc.MoveMember(f, owner, liveOwner); ok {
 					moves = append(moves, [2]string{f, live})
 				}
 			}
