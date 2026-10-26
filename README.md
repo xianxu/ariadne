@@ -246,7 +246,8 @@ semantics, bounds, legacy reviewer gaps and calibration storage.
 ## Classifying issues
 
 An issue can carry a **severity** (`critical | high | medium | low`, shared by
-every repository) and **areas**: `/`-paths such as `couch/broadcast/web` naming
+every repository), a **kind** (`bug | feature`, the weekly triage's mark) and
+**areas**: `/`-paths such as `couch/broadcast/web` naming
 where it belongs. Each repository declares its own allowed areas in
 `.sdlc/vocabulary.json` on main:
 
@@ -259,10 +260,13 @@ file sits under the local-gates guard, so changing the taxonomy needs the
 operator's `local-gates-verified` label; an absent file declares no areas. Set
 them with `sdlc issue new --area couch/broadcast --severity high`, or later
 with `sdlc issue set-area --issue N <area>...` and
-`sdlc issue set-severity --issue N <level>` (each takes `--clear`). Both are
+`sdlc issue set-severity --issue N <level>`; set a kind with
+`sdlc issue set-kind --issue N bug|feature` (each takes `--clear`). All are
 card fields. Query with `sdlc issue list --area couch/broadcast`, which matches
 whole segments (`couch/broadcast/web`, not `couch/broadcaster`), and
-`--severity high,critical`. An undeclared area is refused by these writers, by
+`--severity high,critical`, or `--kind bug`. `sdlc issue list --json` prints
+every card, closed ones included, in a versioned format for tools such as
+`tl-lead triage stats`. An undeclared area is refused by these writers, by
 `issue publish`, by `sdlc issue validate` and by the merge/push instance gate.
 See [repo-defined enums](atlas/workflow/vocabulary.md#repo-defined-enums-348).
 
@@ -1151,6 +1155,13 @@ The policy query prints a typed diagnostic to stdout and exits nonzero when the
 repo declaration is missing or invalid, or the requested path is outside the
 policy's declared roots. It never infers policy from a repository name. Both
 commands are read-only; omit `--json` for their human rendering.
+
+Inventory JSON advertises `capabilities.merge_intents=1` when it can report
+retained merges. Missing capability means unsupported, while a `complete`
+row with `merge_intents: []` proves an empty observation. `partial` retains
+validated observations and `unreadable` reports unavailable evidence; inspect
+their errors and repository diagnostics before acting. Output over 1 MiB is
+refused before stdout is written. See the [fleet inventory contract](atlas/workflow/sdlc-binary.md#fleet-inventory-and-policy-sdlc-fleet-200).
 
 ## Manual boundary review
 

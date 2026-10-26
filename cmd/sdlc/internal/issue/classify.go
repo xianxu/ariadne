@@ -24,13 +24,16 @@ func RepoEnumValid(name, v string) bool {
 	return ok && repoenum.ValidValue(spec, v)
 }
 
-// CheckSeverity refuses a severity outside the shared enum; "" passes.
-func CheckSeverity(v string) error {
-	if v == "" || EnumValid("severity", v) {
+// CheckEnum refuses a value outside the model's shared enum name; "" passes.
+func CheckEnum(name, v string) error {
+	if v == "" || EnumValid(name, v) {
 		return nil
 	}
-	return fmt.Errorf("severity %q is not one of %s", v, strings.Join(vocab.Issue().Enums["severity"], ", "))
+	return fmt.Errorf("%s %q is not one of %s", name, v, strings.Join(vocab.Issue().Enums[name], ", "))
 }
+
+// CheckSeverity refuses a severity outside the shared enum; "" passes.
+func CheckSeverity(v string) error { return CheckEnum("severity", v) }
 
 // CheckAreaSyntax refuses an area that is not a /-path of the model's segments.
 func CheckAreaSyntax(v string) error {

@@ -601,6 +601,50 @@ GROOMING THE BACKLOG INTO TRAINS
     More trains than slots: the extras wait, or run in new slots if the
     operator opens them. Small independent issues fill an idle slot.
 
+WEEKLY BACKLOG TRIAGE
+  Once a week, prompted by the scheduled task (couch scheduling, pair#737),
+  triage every open issue in each repo your team claims, so bugs are organized
+  before slots pick them and the operator can see whether bugs are under
+  control (ariadne#633). Nothing proceeds until the operator approves.
+  1. Read the numbers:
+        tl-lead triage stats [--repo R] [--weeks N]
+     Per repo and week it shows bugs opened and closed, the open bugs at the
+     week's end, and features opened and closed. It also shows the
+     unclassified count and the week's bug quota.
+     - "Opened" is a card's created date, and "closed" is a terminal card's
+       updated date, which is its close date.
+     - A reopened card counts as open from its creation, so across a reopen
+       the open line is approximate.
+     - A repo without an issue tracker shows open counts only.
+  2. Mark each open issue:
+     - kind: bug or feature, with `sdlc issue set-kind --issue N bug|feature`.
+       Unset is unclassified, and stats never guesses it.
+     - readiness: ready (relevant, deps met, small enough to land in the
+       week), waiting (say on what), stale (propose closing it, with the
+       reason) or duplicate (say of which).
+     Readiness is the week's judgement and lives in the report, not on the
+     card. A stale or duplicate issue closes only after the operator approves,
+     through `sdlc abandon`.
+  3. Capacity: one bug slot per repo by default.
+     - Its quota is the bug quota from stats: the median number of issues one
+       slot closed per week, over the last four whole weeks, rounded down and
+       never below one.
+     - Pick that many ready bugs, by severity and then age. The rest wait.
+  4. Features: group the ready and waiting features into themes, and propose
+     each theme to the operator as a candidate project (the project datatype).
+     Do not dispatch features one by one.
+  5. Report in Needs you, before anything proceeds:
+        - <repo>: open bugs N (up or down M over K weeks), opened A and
+          closed B last week, quota Q
+          bugs this week: #a, #b, #c
+          close? #d (stale: why), #e (duplicate of #f)
+        - feature themes, proposed as projects: <theme>: #g, #h ...
+        - when open bugs are rising: the trade-off of moving a slot from
+          features to fixes, with your recommendation. The operator decides
+          by business need.
+  6. The 21:00 ready-queue check (ops#11) counts against the approved ready
+     list.
+
 DISPATCH
   - Dispatch design-heavy items to a Claude slot
     (an invariant, a new mechanism, user-visible state); send

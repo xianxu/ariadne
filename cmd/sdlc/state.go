@@ -55,15 +55,18 @@ type IssueState struct {
 	PlanTotal  int    `json:"plan_total"`
 	PlanTicked int    `json:"plan_ticked"`
 	Updated    string `json:"updated,omitempty"`
+	// Created is the card's creation date (#633: the weekly trend's "opened").
+	Created string `json:"created,omitempty"`
 	// CardOnly: the card exists but this checkout has no details (#252) — the
 	// issue is still being created, or its details live on another branch.
 	CardOnly bool `json:"card_only,omitempty"`
 	// Unreadable says why an "unreadable" status could not be read, when the
 	// reader knows (#288: an unparseable tracker card).
 	Unreadable string `json:"unreadable,omitempty"`
-	// Area and Severity classify the issue (#348); absent when unset.
+	// Area, Severity and Kind classify the issue (#348, #633); absent when unset.
 	Area     []string `json:"area,omitempty"`
 	Severity string   `json:"severity,omitempty"`
+	Kind     string   `json:"kind,omitempty"`
 	// Owner is the card's claimant, the lock (#283); absent when unowned.
 	Owner *IssueOwner `json:"owner,omitempty"`
 	// ClaimedAt is when the current owner took the card, from tracker history
@@ -85,10 +88,13 @@ type IssueRelease struct {
 	Head   string     `json:"head,omitempty"`
 }
 
-// withClassification adds the record's area and severity (#348).
+// withClassification adds the record's area, severity and kind (#348, #633),
+// and its creation date.
 func withClassification(st IssueState, rec tracker.IssueRecord) IssueState {
 	st.Area, _ = rec.List("area")
 	st.Severity = rec.Text("severity")
+	st.Kind = rec.Text("kind")
+	st.Created, _ = rec.Field("created")
 	return st
 }
 
@@ -261,7 +267,7 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + claimErr.Error()})
 	}
 	own := canonicalRoot(identity.WorktreeRoot)
-	s.MergeIntents, err = observeMergeIntents(execGitRunner{}, identity.WorktreeRoot, func(r mergeIntentReport) bool { return r.Root == own })
+	s.MergeIntents, err = observeMergeIntents(ctx, execGitRunner{}, identity.WorktreeRoot, func(r mergeIntentReport) bool { return r.Root == own })
 	if err != nil {
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "merge intents unavailable: " + err.Error()})
 	}
@@ -355,6 +361,13 @@ var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
 // The repository is the one containing issuesDir (a dependency's, for
 // start-plan's contention check).
 func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool, error) {
+	return issueStates(ctx, issuesDir, false)
+}
+
+// issueStates is listIssueStates; with history it also keeps the terminal
+// card-only issues, which the active views leave out (#633: `issue list
+// --json` counts closes from them).
+func issueStates(ctx context.Context, issuesDir string, history bool) ([]IssueState, bool, error) {
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
 	if err != nil {
 		return nil, false, err
@@ -370,7 +383,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		}
 		if rec.DetailPath == "" {
 			// Card only: archived (terminal) cards are history, not active work.
-			if vocab.Issue().IsTerminal(rec.Status()) {
+			if !history && vocab.Issue().IsTerminal(rec.Status()) {
 				continue
 			}
 			updated, _ := rec.Field("updated")

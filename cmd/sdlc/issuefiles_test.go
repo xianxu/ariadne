@@ -230,7 +230,7 @@ func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 		"issueFilename":          "issueFilenameParts",
 		"issueIDPrefix":          "issueFilenameParts",
 		"buildPushCommitMessage": "issueFilenamePattern",
-		"listIssueStates":        "loadIssueRecords", // #252: the grammar lives in tracker.LoadRecords
+		"issueStates":            "loadIssueRecords", // #252: the grammar lives in tracker.LoadRecords; listIssueStates wraps it (#633)
 		"listUntrackedIssues":    "issueFilename",
 	}
 	foundReference := make(map[string]bool, len(wantReference))

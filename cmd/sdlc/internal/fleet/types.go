@@ -205,29 +205,32 @@ func validateFactPrefix(f MeasuredFacts) error {
 // or declared for it. Policy is a declaration capability, never a resolved
 // admission key; resolving a key requires a separate prospective path.
 type TreeRow struct {
-	RepoIdentity string             `json:"repo_identity"`
-	RepoRoot     string             `json:"repo_root"`
-	TreePath     string             `json:"tree_path"`
-	Branch       string             `json:"branch,omitempty"`
-	Detached     bool               `json:"detached"`
+	RepoIdentity string `json:"repo_identity"`
+	RepoRoot     string `json:"repo_root"`
+	TreePath     string `json:"tree_path"`
+	Branch       string `json:"branch,omitempty"`
+	Detached     bool   `json:"detached"`
 	// Staged marks a detached checkout at the commit `sdlc stage` recorded
 	// (#344): another slot's smoke test, not a checkout to recover.
-	Staged       bool               `json:"staged,omitempty"`
-	Bare         bool               `json:"bare"`
-	Locked       *string            `json:"locked,omitempty"`
-	Prunable     *string            `json:"prunable,omitempty"`
-	Facts        MeasuredFacts      `json:"facts"`
-	Issues       []IssueAssociation `json:"issues"`
+	Staged   bool               `json:"staged,omitempty"`
+	Bare     bool               `json:"bare"`
+	Locked   *string            `json:"locked,omitempty"`
+	Prunable *string            `json:"prunable,omitempty"`
+	Facts    MeasuredFacts      `json:"facts"`
+	Issues   []IssueAssociation `json:"issues"`
 	// IssuesError is why the branch's issue lookup failed ("" when it
 	// answered, with or without a match). Readiness reads it (#289); the JSON
 	// reports the failure under diagnostics.
 	IssuesError string `json:"-"`
 	// Claims are this machine's tracker claims on this tree (#288);
 	// ClaimsState says how far they can be trusted (see claims.go).
-	Claims      []ClaimAssociation `json:"claims"`
-	ClaimsState string             `json:"claims_state"`
-	ClaimsError string             `json:"claims_error,omitempty"`
-	Policy      PolicyCapability   `json:"policy"`
+	Claims            []ClaimAssociation  `json:"claims"`
+	ClaimsState       string              `json:"claims_state"`
+	ClaimsError       string              `json:"claims_error,omitempty"`
+	Policy            PolicyCapability    `json:"policy"`
+	MergeIntents      []MergeIntentReport `json:"merge_intents,omitempty"`
+	MergeIntentsState string              `json:"merge_intents_state,omitempty"`
+	MergeIntentsError string              `json:"merge_intents_error,omitempty"`
 }
 
 // withDefaults fills the collections and an uncollected claims read: a row
@@ -251,28 +254,38 @@ func (r TreeRow) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("marshal tree row: %w", err)
 	}
 	type wire TreeRow
-	return json.Marshal(wire(r))
+	var intents *[]MergeIntentReport
+	if r.MergeIntentsState != "" {
+		intents = &r.MergeIntents
+	}
+	return json.Marshal(struct {
+		wire
+		MergeIntents *[]MergeIntentReport `json:"merge_intents,omitempty"`
+	}{wire(r), intents})
 }
 
 func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 	var wire struct {
-		RepoIdentity string             `json:"repo_identity"`
-		RepoRoot     string             `json:"repo_root"`
-		TreePath     string             `json:"tree_path"`
-		Branch       string             `json:"branch,omitempty"`
-		Detached     *bool              `json:"detached"`
-		Staged       bool               `json:"staged,omitempty"`
-		Bare         *bool              `json:"bare"`
-		Locked       *string            `json:"locked,omitempty"`
-		Prunable     *string            `json:"prunable,omitempty"`
-		Facts        MeasuredFacts      `json:"facts"`
-		Issues       []IssueAssociation `json:"issues"`
-		Claims       []ClaimAssociation `json:"claims"`
-		ClaimsState  string             `json:"claims_state"`
-		ClaimsError  string             `json:"claims_error,omitempty"`
-		Policy       PolicyCapability   `json:"policy"`
+		RepoIdentity      string             `json:"repo_identity"`
+		RepoRoot          string             `json:"repo_root"`
+		TreePath          string             `json:"tree_path"`
+		Branch            string             `json:"branch,omitempty"`
+		Detached          *bool              `json:"detached"`
+		Staged            bool               `json:"staged,omitempty"`
+		Bare              *bool              `json:"bare"`
+		Locked            *string            `json:"locked,omitempty"`
+		Prunable          *string            `json:"prunable,omitempty"`
+		Facts             MeasuredFacts      `json:"facts"`
+		Issues            []IssueAssociation `json:"issues"`
+		Claims            []ClaimAssociation `json:"claims"`
+		ClaimsState       string             `json:"claims_state"`
+		ClaimsError       string             `json:"claims_error,omitempty"`
+		Policy            PolicyCapability   `json:"policy"`
+		MergeIntents      json.RawMessage    `json:"merge_intents"`
+		MergeIntentsState string             `json:"merge_intents_state"`
+		MergeIntentsError string             `json:"merge_intents_error"`
 	}
-	if err := strictUnmarshal(raw, &wire); err != nil {
+	if err := additiveUnmarshal(raw, &wire); err != nil {
 		return fmt.Errorf("unmarshal tree row: %w", err)
 	}
 	if wire.Detached == nil {
@@ -282,21 +295,31 @@ func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 		return errors.New("unmarshal tree row: missing bare discriminator")
 	}
 	value := TreeRow{
-		RepoIdentity: wire.RepoIdentity,
-		RepoRoot:     wire.RepoRoot,
-		TreePath:     wire.TreePath,
-		Branch:       wire.Branch,
-		Detached:     *wire.Detached,
-		Staged:       wire.Staged,
-		Bare:         *wire.Bare,
-		Locked:       wire.Locked,
-		Prunable:     wire.Prunable,
-		Facts:        wire.Facts,
-		Issues:       wire.Issues,
-		Claims:       wire.Claims,
-		ClaimsState:  wire.ClaimsState,
-		ClaimsError:  wire.ClaimsError,
-		Policy:       wire.Policy,
+		RepoIdentity:      wire.RepoIdentity,
+		RepoRoot:          wire.RepoRoot,
+		TreePath:          wire.TreePath,
+		Branch:            wire.Branch,
+		Detached:          *wire.Detached,
+		Staged:            wire.Staged,
+		Bare:              *wire.Bare,
+		Locked:            wire.Locked,
+		Prunable:          wire.Prunable,
+		Facts:             wire.Facts,
+		Issues:            wire.Issues,
+		Claims:            wire.Claims,
+		ClaimsState:       wire.ClaimsState,
+		ClaimsError:       wire.ClaimsError,
+		Policy:            wire.Policy,
+		MergeIntentsState: wire.MergeIntentsState,
+		MergeIntentsError: wire.MergeIntentsError,
+	}
+	if wire.MergeIntents != nil {
+		if string(wire.MergeIntents) == "null" {
+			return errors.New("merge_intents must be non-null")
+		}
+		if err := json.Unmarshal(wire.MergeIntents, &value.MergeIntents); err != nil {
+			return err
+		}
 	}
 	if err := value.validate(); err != nil {
 		return fmt.Errorf("unmarshal tree row: %w", err)
@@ -334,6 +357,9 @@ func (r TreeRow) validate() error {
 		}
 	}
 	if err := validateClaims(r.ClaimsState, r.ClaimsError, r.Claims); err != nil {
+		return err
+	}
+	if err := r.validateMergeIntents(false); err != nil {
 		return err
 	}
 	return validatePolicyCapability(r.Policy)
@@ -398,7 +424,8 @@ type Inventory struct {
 	Machine        Machine         `json:"machine"`
 	DanglingClaims []DanglingClaim `json:"dangling_claims"`
 	// Slots are each workspace's readiness (#289).
-	Slots []Slot `json:"slots"`
+	Slots        []Slot                `json:"slots"`
+	Capabilities InventoryCapabilities `json:"capabilities,omitzero"`
 }
 
 // InventorySchemaVersion is the version this binary emits and accepts.
@@ -470,6 +497,9 @@ func (i Inventory) MarshalJSON() ([]byte, error) {
 		if err := rows[n].validate(); err != nil {
 			return nil, fmt.Errorf("marshal inventory: %w", err)
 		}
+		if err := rows[n].validateMergeIntents(i.Capabilities.MergeIntents == 1); err != nil {
+			return nil, err
+		}
 	}
 	i.Rows = rows
 	if err := i.validateClaims(); err != nil {
@@ -484,14 +514,15 @@ func (i Inventory) MarshalJSON() ([]byte, error) {
 
 func (i *Inventory) UnmarshalJSON(raw []byte) error {
 	var wire struct {
-		SchemaVersion  *int             `json:"schema_version"`
-		Rows           []TreeRow        `json:"rows"`
-		Diagnostics    []RepoDiagnostic `json:"diagnostics"`
-		Machine        *Machine         `json:"machine"`
-		DanglingClaims []DanglingClaim  `json:"dangling_claims"`
-		Slots          []Slot           `json:"slots"`
+		SchemaVersion  *int                  `json:"schema_version"`
+		Rows           []TreeRow             `json:"rows"`
+		Diagnostics    []RepoDiagnostic      `json:"diagnostics"`
+		Machine        *Machine              `json:"machine"`
+		DanglingClaims []DanglingClaim       `json:"dangling_claims"`
+		Slots          []Slot                `json:"slots"`
+		Capabilities   InventoryCapabilities `json:"capabilities"`
 	}
-	if err := strictUnmarshal(raw, &wire); err != nil {
+	if err := additiveUnmarshal(raw, &wire); err != nil {
 		return fmt.Errorf("unmarshal inventory: %w", err)
 	}
 	if wire.Rows == nil || wire.Diagnostics == nil || wire.DanglingClaims == nil {
@@ -508,7 +539,12 @@ func (i *Inventory) UnmarshalJSON(raw []byte) error {
 			return fmt.Errorf("unmarshal inventory: %w", err)
 		}
 	}
-	value := Inventory{SchemaVersion: *wire.SchemaVersion, Rows: wire.Rows, Diagnostics: wire.Diagnostics, Machine: *wire.Machine, DanglingClaims: wire.DanglingClaims, Slots: wire.Slots}
+	value := Inventory{SchemaVersion: *wire.SchemaVersion, Rows: wire.Rows, Diagnostics: wire.Diagnostics, Machine: *wire.Machine, DanglingClaims: wire.DanglingClaims, Slots: wire.Slots, Capabilities: wire.Capabilities}
+	for _, row := range value.Rows {
+		if err := row.validateMergeIntents(value.Capabilities.MergeIntents == 1); err != nil {
+			return err
+		}
+	}
 	if err := value.validateClaims(); err != nil {
 		return fmt.Errorf("unmarshal inventory: %w", err)
 	}

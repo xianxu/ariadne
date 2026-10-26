@@ -7,7 +7,7 @@ func TestCardOwnershipDiscovery(t *testing.T) {
 	if d.Home != "workshop/issues" || d.Cards != "workshop/issue-cards" || d.Tracker != "issue-tracker" {
 		t.Fatalf("discovery: %+v", d)
 	}
-	want := map[string]bool{"id": true, "status": true, "started": true, "created": true, "updated": true, "estimate_hours": true, "actual_hours": true, "github_issue": true, "claimant": true, "title": true, "area": true, "severity": true, "flake_tests": true}
+	want := map[string]bool{"id": true, "status": true, "started": true, "created": true, "updated": true, "estimate_hours": true, "actual_hours": true, "github_issue": true, "claimant": true, "title": true, "area": true, "severity": true, "kind": true, "flake_tests": true}
 	for _, field := range Issue().CardFields() {
 		if !want[field.Name] || field.Kind == "" || field.Setter == "" {
 			t.Fatalf("unexpected/duplicate/incomplete field: %+v", field)
@@ -24,6 +24,9 @@ func TestCardEnums(t *testing.T) {
 	m := Issue()
 	if got := m.Enums["severity"]; len(got) != 4 || got[0] != "critical" || got[3] != "low" {
 		t.Fatalf("severity enum: %v", got)
+	}
+	if got := m.Enums["kind"]; len(got) != 2 || got[0] != "bug" || got[1] != "feature" {
+		t.Fatalf("kind enum (#633): %v", got)
 	}
 	if m.RepoEnums.DeclarationPath != ".sdlc/vocabulary.json" {
 		t.Fatalf("declaration path: %q", m.RepoEnums.DeclarationPath)

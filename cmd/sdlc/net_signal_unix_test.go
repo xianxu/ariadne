@@ -69,6 +69,7 @@ func TestNetCheckCLISignalsJoinNativeUtilities(t *testing.T) {
 			})
 			testDeadline, hasDeadline := t.Deadline()
 			budget := landingCompletionBudget(testDeadline, hasDeadline, time.Now())
+			//lint:allow test-tight-wallclock — budget is landingCompletionBudget, derived from the test's own deadline (#498), a hang budget rather than an oracle
 			deadline := time.Now().Add(budget)
 			for len(pids) < 4 { // both resolver paths have a real utility and child ready.
 				entries, _ := os.ReadDir(ready)

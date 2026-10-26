@@ -164,7 +164,7 @@ func TestLandingLineTwoLandingsIntegrateInTheirOwnTurns(t *testing.T) {
 	one := start(first)
 	testedFirst := landingSuiteReady(t, started, one)
 	two := start(second)
-	waitQueued(t, line, 1)
+	waitQueued(t, line, 1, []chan error{one.exited, two.exited})
 
 	// The first suite is still executing. The second branch and server head
 	// are untouched, and the durable log contains no second admission.

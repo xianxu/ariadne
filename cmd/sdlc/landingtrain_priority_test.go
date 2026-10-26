@@ -54,10 +54,10 @@ func TestLandingTrainPriorityBindsOnlyKeptCars(t *testing.T) {
 	s.addCar(t, "000002-second", 2)
 	s.pushCar(t, "000003-third", "third", 3, 3)
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
 	three := s.waitingCar(t, "000003-third", 3, 3)
-	waitVouched(t, s.line, 3)
+	waitVouched(t, s.line, 3, []chan error{one, two, three})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatal(err)

@@ -15,21 +15,18 @@ card_mirror: 'f3f2122088d855e4f9be3661a2bc657a23e7b7d2' # card fields mirrored f
 
 ## Spec
 
-**A known-flake package rerun waits for a full-suite slot (TL, 10-24).** ariadne#598's merge (pid 74001) finished its
-integrated suite at about 22:20 with one failure, the registered known flake `TestKnownFlakeGate` (BR-16, 8.46 s
-against its 8 s bound, ariadne#620's registry). The merge then queued the exact-package rerun in the machine-wide
-full-suite queue (lease-993501919) at position 3, behind two pair full suites, and held ariadne's landing line (and
-the fleet-blocking ariadne#603 grant) for 30+ minutes more, for a rerun of one package that takes seconds.
-
-An exact-package rerun is a targeted run, which the machine budget always allows (its own small slot cap, never a
-full-suite slot; constitution §5). It should take a targeted slot (or the light lane), not a full-suite ticket.
+**Revised 10-25 (operator decision): registered flakes don't block landings, and aren't rerun.** Original problem:
+a known-flake failure in ariadne#598's merge queued a one-package rerun behind full suites for 30+ minutes. The
+operator's model replaces the rerun: a registered flaky test still runs, but its failure is recorded and never
+blocks a landing (no automatic rerun). Every registered flake already has an open issue and daily TL triage; a flake
+that fails on most runs (e.g. 3 of its last 5 recorded runs) is escalated to the hub as likely broken, not flaky.
 
 ## Done when
-
-- A known-flake exact-package rerun inside `sdlc merge` (and close's pre-close, if it shares the path) runs under the
-  targeted-run budget, not the full-suite queue, with a test that a rerun while both full-suite slots are held starts
-  without waiting for them.
-- The merge output says which budget the rerun used.
+- A suite whose only failures are registered flakes passes the gate without a rerun; the failures are recorded in the
+  attempt and counted in the flake view; tests for flake-only, flake-plus-real (blocks on the real one), and an
+  unregistered failure (blocks as today).
+- A registered flake failing on most recent runs raises one escalation to the hub.
+- The known-flake rerun path is removed (or left unused) with its tests updated.
 
 ## Plan
 

@@ -37,9 +37,9 @@ func TestLandingTrainMeasuresAnAffectedEscape(t *testing.T) {
 	s.addCar(t, "000002-second", 2)
 
 	one := s.merge(s.first)
-	waitQueued(t, s.line, 1)
+	waitQueued(t, s.line, 1, []chan error{one})
 	two := s.waitingCar(t, "000002-second", 2, 2)
-	waitVouched(t, s.line, 2)
+	waitVouched(t, s.line, 2, []chan error{one, two})
 	s.blocker.Release()
 	if err := finished(t, one); err != nil {
 		t.Fatalf("the clean prefix's car: %v", err)

@@ -48,5 +48,43 @@ action that reuses a slot must re-check it at action time. `schema_version` is
 1; consumers reject other versions.
 
 This command reports measured Git facts, declared policy capability and
-recorded tracker claims only. It does not infer coldness, drift, actor
+recorded tracker claims. It does not infer coldness, drift, actor
 liveness, worktree staleness, or admission keys.
+
+MERGE INTENTS (#624): inventory schema 1 adds capabilities.merge_intents=1.
+Each row has merge_intents (a non-null array), merge_intents_state and, when
+incomplete, merge_intents_error. Quality is complete (enumeration answered),
+partial (known observations retained, some evidence unavailable), or unreadable
+(no store observation). Complete plus [] proves none observed at this read;
+an older producer without the capability cannot establish that.
+
+One read per canonical Git common directory covers all its linked worktrees.
+Declared dependency clones are included. Each validated intent is assigned only
+to its exact canonical root in that store; workspace text never overrides root.
+The row's existing slot/member association names its Couch slot. identity is
+the canonical physical record path (also path), so shared-store duplicates can
+be deduplicated without confusing independent clones or equal branch names.
+
+Record state is live (owner lock held), orphaned (unlocked, branch exists),
+stale (unlocked, branch gone), or unreadable (inspection required). Only a
+validated orphan carries reentry: the exact sdlc merge --branch BRANCH --yes
+command, to run in root through normal admission. note retains queue pause or
+pause-read uncertainty. This command never resumes queues or executes recovery.
+Terminal outcomes remove records; the next complete empty read has no terminal
+tombstone. Concurrent changes after this snapshot are revalidated by merge.
+
+Corrupt records without a trustworthy root and roots without a unique member
+appear once in repository diagnostics (stage merge_intents), with record path
+and reason; affected store rows are partial. No record is swept or rewritten.
+The existing preserving v1 intent codec is unchanged, including optional
+workspace and unknown metadata. Inventory fields are additive; consumers must
+check the capability before relying on an empty array.
+
+JSON output is capped at 1 MiB including its newline, matching Couch's inventory
+transport. Encoding or size failure publishes no JSON; stdout write errors
+remain errors, and incomplete transport is never a successful report. The
+command still makes one inventory query for the fleet, not one per slot.
+
+SIGINT/SIGTERM cancel inventory through its CLI context. Git discovery, collection
+and intent probes use the existing bounded runner; active Git groups and inherited
+pipes are joined before a nonzero return, and no JSON is published on cancellation.
