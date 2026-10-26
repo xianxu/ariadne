@@ -48,6 +48,18 @@ func TestClassifyIncomplete(t *testing.T) {
 			"--- FAIL github.com/x/y/pkg/other TestReal",
 			"shard0    exit 0   1100.0s  0 failed"), []string{"github.com/x/y/pkg/other", "github.com/x/y/pkg/slow"}},
 		{"a passing run", lines(packagesOK, "shard0    exit 0   1100.0s  0 failed"), nil},
+		// Each reason the alarm explains is accepted only for an alarmed process or package (#630 close review).
+		{"an alarmed package failed without a test", lines(
+			"packages  exit 1    300.0s  0 failed",
+			"--- packages hit its 5m0s test alarm in github.com/x/y/pkg/slow; running: TestHang",
+			"--- FAIL github.com/x/y/pkg/slow"), []string{"github.com/x/y/pkg/slow"}},
+		{"an unalarmed package failed without a test", lines(
+			"packages  exit 1    300.0s  0 failed",
+			"--- packages hit its 5m0s test alarm in github.com/x/y/pkg/slow; running: TestHang",
+			"--- FAIL github.com/x/y/pkg/other"), nil},
+		{"an alarmed shard exited without a test", lines(append(append([]string{packagesOK}, alarmed("shard0")...), "--- shard0 exited 1 with no failing test", neverRan)...), []string{sdlc}},
+		{"an unalarmed shard exited without a test", lines(append(append([]string{packagesOK}, alarmed("shard0")...), "--- shard1 exited 1 with no failing test", neverRan)...), nil},
+		{"the alarm's panic line survives", lines(append(append([]string{packagesOK}, alarmed("shard0")...), "panic: test timed out after 30m0s", neverRan)...), []string{sdlc}},
 		// Well-formed typed evidence leaves no unattributed reason, so only the Typed.Seen guard refuses it.
 		{"a typed runner's evidence", lines(append(append([]string{packagesOK,
 			`{"sdlc_unit":1,"invocation":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","unit":"script:a.sh","event":"start","complete":false,"errors":0}`,
@@ -62,6 +74,10 @@ func TestClassifyIncomplete(t *testing.T) {
 				t.Fatalf("incomplete=%v packages=%v, want %v\nfacts: %+v", ok, run.Packages, c.want, parseSuiteLogFacts(c.log))
 			}
 		})
+	}
+	run, _ := classifyIncomplete(parseSuiteLogFacts(cases[0].log))
+	if want := "the Go test alarm stopped shard0 in " + sdlc + ", shard1 in " + sdlc + " (running TestSlow, TestSlow); unfinished or failed: " + sdlc; run.String() != want {
+		t.Fatalf("report %q, want %q", run.String(), want)
 	}
 }
 
@@ -222,7 +238,8 @@ func TestSuiteIncompleteIsNotATestResult(t *testing.T) {
 
 // FuzzClassifyIncomplete: over arbitrary shard output, the classifier never
 // selects a package the log does not name, and never calls a run incomplete
-// unless some process hit the alarm and every failed process did.
+// unless some process hit the alarm, every failed process did, and every
+// process or package that failed without a test is an alarmed one.
 func FuzzClassifyIncomplete(f *testing.F) {
 	for _, seed := range []string{
 		"shard0    exit 1   1800.4s  1 failed\n--- shard0 hit its 30m0s test alarm in a/b; running: TestX\n--- FAIL a/b TestY\n",
@@ -248,6 +265,20 @@ func FuzzClassifyIncomplete(f *testing.F) {
 		}
 		if !alarmed || len(run.Packages) == 0 {
 			t.Fatalf("incomplete without an alarm or a selection: %+v", run)
+		}
+		alarmedPkg, alarmedLabel := map[string]bool{}, map[string]bool{}
+		for _, p := range facts.Processes {
+			for _, pkg := range p.Alarmed {
+				alarmedPkg[pkg], alarmedLabel[p.Label] = true, true
+			}
+		}
+		for _, why := range facts.Unattributed {
+			if n := packageNoTestReason.FindStringSubmatch(why); n != nil && !alarmedPkg[n[1]] {
+				t.Fatalf("an unalarmed package's failure classified incomplete: %q", why)
+			}
+			if m := alarmExplainedReason.FindStringSubmatch(why); m != nil && !alarmedLabel[m[1]] {
+				t.Fatalf("an unalarmed process's failure classified incomplete: %q", why)
+			}
 		}
 		for _, pkg := range run.Packages {
 			if !strings.Contains(log, pkg) {

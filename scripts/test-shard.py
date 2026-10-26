@@ -131,7 +131,7 @@ def main() -> int:
         shards = lpt(names, times, max(1, args.shards)) if names else []
         jobs = build_jobs(others, shards, binary, main_dir, root, args.timeout)
 
-        with cf.ThreadPoolExecutor(len(jobs)) as ex:
+        with cf.ThreadPoolExecutor(max(1, len(jobs))) as ex:
             results = list(ex.map(lambda j: run_proc(j[0], j[1], j[2], tmp / f"{j[0]}.json"), jobs))
 
         failed, new_times, merged = report(tmp, results)

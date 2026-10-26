@@ -129,6 +129,17 @@ class PackageSelectionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             shard.select_packages("example/a example/zz", self.OTHERS)
 
+    def test_a_selection_with_no_jobs_exits_cleanly(self):
+        # cmd/sdlc listed alone but compiling no tests leaves no job; the pool still needs a worker.
+        with tempfile.TemporaryDirectory() as root, \
+             mock.patch.object(shard, "git", return_value=root), \
+             mock.patch.object(shard, "git_list", return_value=[shard.MAIN_PKG]), \
+             mock.patch.object(shard.subprocess, "run"), \
+             mock.patch.object(shard.subprocess, "check_output", return_value=""), \
+             mock.patch.object(shard.sys, "argv", ["test-shard.py"]), \
+             mock.patch.dict(shard.os.environ, {"SDLC_AFFECTED_GO_PKGS": shard.MAIN_PKG}):
+            self.assertEqual(shard.main(), 0)
+
 
 class DefaultShardTest(unittest.TestCase):
     def parse_main_args(self, argv, cpu_count=32):

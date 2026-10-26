@@ -106,3 +106,9 @@ failure).
     LandingTrain (572 s); Merge; Diagnose/PreClose/CIGate/Stats/Weekly/Recovery/Help/Queue/Decode;
     pkg/golint; internal/flakes; scripts/test-shard.test.py.
 - 2026-10-25: M2 closed (4781322d3, SHIP, window d81ab024..28d76cca, after integrating origin/main at 28d76ccae). Its Minor is fixed: resolvedSavedRecord returns the attempt whose log backs the record (the parent, or an incomplete parent's failed retry), so both callers set LogPath from it instead of inferring it from digest equality.
+- 2026-10-25: pre-close suite on a3797e69 failed on three version-bound tests: the old-reader tests and the read-version bound still assumed read version 4. Fixed in 21c34040: they name the pre-#586 read version explicitly. The suite on 21c34040 is green (999 s).
+- 2026-10-25: close review FIX-THEN-SHIP (window 5e64f147..21c34040). The close was not finalized, because #633's adoption changed while the lock was released.
+  - Important (plan-claimed-test-missing, 4th in family): no test caught a deletion of the alarmedPkg guard, the alarmedLabel guard, or the "a test timed out" arm. Added accepted and refused cases for each, and extended the fuzz property to package-level and process-level reasons. The full mutation table is in the plan's Revisions: all 12 guards are pinned.
+  - Minors:
+    - an assertion on incompleteRun.String's running text;
+    - test-shard.py sizes its pool at least 1, so a selection with no jobs exits cleanly (pinned by test_a_selection_with_no_jobs_exits_cleanly, red without the fix).

@@ -314,3 +314,21 @@ package only, then the typed incomplete report with the load.
     kinds, and the composite's verdict is recomputed by `incompleteRetryOutcome` from the child log.
   - **Train evidence for #635:** `TestLandingTrainIncompleteSuite` drives `conductor.runSuite` over the production
     `newLocalCheckRunner`.
+- 2026-10-25 (close review, FIX-THEN-SHIP): classifier mutation table. Each single deletion in `classifyIncomplete`
+  turns its own `TestClassifyIncomplete` case red:
+  - the alarmedLabel guard: "an unalarmed shard exited without a test";
+  - the alarmedPkg guard: "an unalarmed package failed without a test";
+  - the "a test timed out" arm: "the alarm's panic line survives";
+  - the never-ran arm: "every failed shard alarmed";
+  - the label arm: "an alarmed shard exited without a test";
+  - the package arm: "an alarmed package failed without a test";
+  - the exit guard: "a shard failed without the alarm", plus fuzz seed 3;
+  - the no-alarm guard: "a passing run";
+  - the Warnings guard: "a parse warning";
+  - the Typed.Seen guard: "a typed runner's evidence";
+  - the default refusal: "a build failure";
+  - named-failure packages: "an alarmed package in the packages job".
+
+  The fuzz property now covers package-level and process-level reasons as well as process exits: every "package X
+  failed without a failing test" and "<label> exited without a failing test" in an incomplete run names an alarmed
+  package or process.
