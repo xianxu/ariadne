@@ -58,7 +58,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
-	cmd.AddCommand(newIssueSetAreaCmd(), newIssueSetSeverityCmd(), newIssueCorrectActualCmd())
+	cmd.AddCommand(newIssueSetAreaCmd(), newIssueSetSeverityCmd(), newIssueSetKindCmd(), newIssueCorrectActualCmd())
 	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd(), newIssueRenameCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
@@ -647,6 +647,8 @@ type issueListFlags struct {
 	Status     string
 	Areas      []string // #348
 	Severities []string // #348
+	Kinds      []string // #633
+	JSON       bool     // #633
 	IssuesDir  string
 }
 
@@ -658,8 +660,20 @@ func newIssueListCmd() *cobra.Command {
 		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID; when a
 listed issue carries a severity or areas, SEVERITY and AREA columns are added.
 Filter with --status, --area (a /-path prefix by whole segments: couch/broadcast
-matches couch/broadcast/web, not couch/broadcaster) and --severity. Broader
-than 'sdlc state', which surfaces only the working set + drift.`,
+matches couch/broadcast/web, not couch/broadcaster), --severity and --kind.
+Broader than 'sdlc state', which surfaces only the working set + drift.
+
+--json (#633) prints every matching issue as one object,
+{"schema_version": 1, "tracker": bool, "stale": bool, "cards": [{id, title, status, created,
+updated, kind, severity, area, claimant_workspace, unreadable}]}. In a
+repository with an issue tracker it includes the terminal (done, wontfix,
+punt) cards, whose "updated" is their close date (setters leave it alone) and
+whose "claimant_workspace" is the slot that closed them. A card or details file
+that cannot be read is a row with status "unreadable" and its reason; no filter
+removes it. A repository without a tracker ("tracker": false) lists its details
+files only, so its closed issues, archived under workshop/history, are not
+counted. "stale" is true when the tracker could not be fetched and the cards
+are this checkout's last copy. Within schema_version 1 keys are only added.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -669,6 +683,8 @@ than 'sdlc state', which surfaces only the working set + drift.`,
 	cmd.Flags().StringVar(&f.Status, "status", "", "filter to this status (open|working|blocked|done|wontfix|punt)")
 	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "filter to issues with an area under this /-path (repeatable; matches by whole segments)")
 	cmd.Flags().StringSliceVar(&f.Severities, "severity", nil, "filter to these severities (comma-separated: "+strings.Join(vocab.Issue().Enums["severity"], ",")+")")
+	cmd.Flags().StringSliceVar(&f.Kinds, "kind", nil, "filter to these kinds (comma-separated: "+strings.Join(vocab.Issue().Enums["kind"], ",")+")")
+	cmd.Flags().BoolVar(&f.JSON, "json", false, "print every matching issue, terminal cards included, as JSON (schema_version 1)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
 }
@@ -676,9 +692,12 @@ than 'sdlc state', which surfaces only the working set + drift.`,
 // runIssueList reuses state.go's listIssues (which reads + sorts by ID)
 // rather than re-deriving the scan/sort.
 func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFlags) error {
-	filter, err := newIssueListFilter(f.Status, f.Areas, f.Severities)
+	filter, err := newIssueListFilter(f.Status, f.Areas, f.Severities, f.Kinds)
 	if err != nil {
 		die(stderr, err.Error())
+	}
+	if f.JSON {
+		return runIssueListJSON(ctx, stdout, stderr, f.IssuesDir, filter)
 	}
 	issues, stale, err := listIssueStates(ctx, f.IssuesDir)
 	if err != nil {

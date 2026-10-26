@@ -43,12 +43,17 @@ SUBCOMMANDS
                  {{REPO_ENUMS_PATH}} (#348)
   set-severity   Set the card's severity (`<level>` | `--clear`):
                  {{SEVERITY_NAMES}}
+  set-kind       Set the card's kind (`<kind>` | `--clear`): {{KIND_NAMES}},
+                 the weekly triage's mark (#633); like every setter it leaves
+                 `updated` alone, so a closed card keeps its close date
   sync           (legacy repositories) commit an issue body; retired in tracker
                  repositories: commit details with git, publish with `publish`
   list           List issues (ID, status, title), sorted by ID; --status,
-                 --area (a /-path prefix by whole segments) and --severity
-                 filter; severity and area columns appear when a listed issue
-                 has them
+                 --area (a /-path prefix by whole segments), --severity and
+                 --kind filter; severity and area columns appear when a listed
+                 issue has them. --json prints every matching card, terminal
+                 ones included, as schema_version 1 rows for readers such as
+                 tl-lead's triage stats (#633; see `issue list --help`)
   show           Print an issue's frontmatter + section headers (no bodies)
 
 NEW REPOSITORY SETUP (#543)
@@ -109,6 +114,8 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
                    (#348)
     severity       (optional, card) {{SEVERITY_NAMES}}; set with
                    `issue new --severity` or `issue set-severity`
+    kind           (optional, card) {{KIND_NAMES}}; set with `issue set-kind`
+                   at the weekly triage (#633); unset is unclassified
     estimate_hours derived after the plan clears plan-quality; required by change-code — not at
                    claim (#113) — on the full flow only. Optional at create.
     flow           the issue's SDLC flow, one line (#231):

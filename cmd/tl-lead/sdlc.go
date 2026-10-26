@@ -15,7 +15,8 @@ import (
 // `sdlc fleet inventory --json` (every slot and its branch),
 // `sdlc workspace <repo> --json` (a repository's primary checkout), and
 // `sdlc issue show N --json` (a car's status, claimant and holding checkouts),
-// and `sdlc state --json` (a repository's issues and their owners). The
+// `sdlc state --json` (a repository's issues and their owners), and
+// `sdlc issue list --json` (every card, for the weekly triage's trend). The
 // inventory's rows also carry each checkout's claims on this machine.
 type SDLC interface {
 	FleetInventory(vantage string) (Fleet, error)
@@ -24,6 +25,9 @@ type SDLC interface {
 	// RepoIssues reads `sdlc state --json` in a repository's checkout: its
 	// issues with status and owner (ariadne#456, team issues).
 	RepoIssues(repoRoot string) ([]RepoIssue, error)
+	// RepoCards reads `sdlc issue list --json` there: every card, terminal
+	// ones included (ariadne#633, triage stats).
+	RepoCards(repoRoot string) (RepoCards, error)
 }
 
 // Fleet is the part of the inventory tl-lead reads.

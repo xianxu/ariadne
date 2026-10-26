@@ -12,7 +12,7 @@ func TestIssueListFilter(t *testing.T) {
 	web := IssueState{ID: "1", Status: "open", Area: []string{"couch/broadcast/web"}, Severity: "high"}
 	caster := IssueState{ID: "2", Status: "working", Area: []string{"couch/broadcaster"}, Severity: "low"}
 	multi := IssueState{ID: "3", Status: "open", Area: []string{"sdlc/merge", "couch/session"}}
-	none := IssueState{ID: "4", Status: "open"}
+	none := IssueState{ID: "4", Status: "open", Kind: "bug"}
 	all := []IssueState{web, caster, multi, none}
 	ids := func(f issueListFilter) string {
 		var out []string
@@ -38,12 +38,21 @@ func TestIssueListFilter(t *testing.T) {
 		{"AND across flags", "open", []string{"couch"}, []string{"high"}, "1"},
 		{"status", "working", nil, nil, "2"},
 	} {
-		f, err := newIssueListFilter(tc.status, tc.areas, tc.severities)
+		f, err := newIssueListFilter(tc.status, tc.areas, tc.severities, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
 		if got := ids(f); got != tc.want {
 			t.Errorf("%s: %s, want %s", tc.name, got, tc.want)
+		}
+	}
+	// #633: --kind filters by the triage mark, and refuses a value outside it.
+	if f, err := newIssueListFilter("", nil, nil, []string{"bug"}); err != nil || ids(f) != "4" {
+		t.Errorf("--kind bug: %v %s", err, ids(f))
+	}
+	for _, kinds := range [][]string{{"chore"}, {""}} {
+		if _, err := newIssueListFilter("", nil, nil, kinds); err == nil || !strings.Contains(err.Error(), "--kind") {
+			t.Errorf("--kind %q: %v", kinds, err)
 		}
 	}
 	for _, bad := range []struct {
@@ -55,7 +64,7 @@ func TestIssueListFilter(t *testing.T) {
 		{"", []string{"Bad/Path"}, nil, "--area"},
 		{"", nil, []string{"urgent"}, "critical, high, medium, low"},
 	} {
-		if _, err := newIssueListFilter(bad.status, bad.areas, bad.severities); err == nil || !strings.Contains(err.Error(), bad.want) {
+		if _, err := newIssueListFilter(bad.status, bad.areas, bad.severities, nil); err == nil || !strings.Contains(err.Error(), bad.want) {
 			t.Errorf("%+v: %v", bad, err)
 		}
 	}

@@ -183,24 +183,33 @@ func newIssueSetAreaCmd() *cobra.Command {
 }
 
 // newIssueSetSeverityCmd sets the card's severity (#348), a shared enum.
-func newIssueSetSeverityCmd() *cobra.Command {
+func newIssueSetSeverityCmd() *cobra.Command { return newCardEnumSetterCmd("severity", "level") }
+
+// newIssueSetKindCmd sets the card's kind (#633): bug or feature, the weekly
+// triage's mark. Like every card setter it leaves updated alone, so a closed
+// card's updated stays its close date.
+func newIssueSetKindCmd() *cobra.Command { return newCardEnumSetterCmd("kind", "kind") }
+
+// newCardEnumSetterCmd sets or clears one card field whose values are a
+// shared enum of the model.
+func newCardEnumSetterCmd(field, arg string) *cobra.Command {
 	var clear bool
-	return newCardSetterCmd("set-severity <level>", "Set an issue's severity ("+strings.Join(vocab.Issue().Enums["severity"], " | ")+")", cobra.MaximumNArgs(1),
+	return newCardSetterCmd("set-"+field+" <"+arg+">", "Set an issue's "+field+" ("+strings.Join(vocab.Issue().Enums[field], " | ")+")", cobra.MaximumNArgs(1),
 		func(cmd *cobra.Command) func([]string) (string, cardUpdate, error) {
-			cmd.Flags().BoolVar(&clear, "clear", false, "remove the issue's severity")
+			cmd.Flags().BoolVar(&clear, "clear", false, "remove the issue's "+field)
 			return func(a []string) (string, cardUpdate, error) {
 				if clear == (len(a) == 1) {
-					return "", nil, errors.New("give a severity, or --clear")
+					return "", nil, fmt.Errorf("give a %s, or --clear", field)
 				}
-				level := ""
+				value := ""
 				if !clear {
-					level = a[0]
-					if err := issue.CheckSeverity(level); err != nil {
+					value = a[0]
+					if err := issue.CheckEnum(field, value); err != nil {
 						return "", nil, err
 					}
 				}
-				return "severity → " + valueOr(level, "(none)"), func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
-					return issue.SetCardField(card.Raw, "severity", level)
+				return field + " → " + valueOr(value, "(none)"), func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
+					return issue.SetCardField(card.Raw, field, value)
 				}, nil
 			}
 		})

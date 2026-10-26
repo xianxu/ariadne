@@ -77,6 +77,32 @@ func unclaimedIssues(issues []RepoIssue, limit int) (open, unknown []RepoIssue) 
 	return open, unknown
 }
 
+// thisHub is the hub this checkout belongs to, read from its .hub, and the
+// working directory it was found from (the vantage sdlc resolves repos from).
+func thisHub() (string, hub, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", hub{}, err
+	}
+	self, workspace, err := hereHub(cwd)
+	if err != nil {
+		return "", hub{}, err
+	}
+	hubs, err := readHubs(workspace)
+	if err != nil {
+		return "", hub{}, err
+	}
+	for _, h := range hubs {
+		if h.Name == self {
+			if h.Err != nil {
+				return "", hub{}, fmt.Errorf("%s/.hub: %w", self, h.Err)
+			}
+			return cwd, h, nil
+		}
+	}
+	return "", hub{}, fmt.Errorf("%s: no .hub found in %s", self, workspace)
+}
+
 // claimedRepos are the whole repos a hub claims, in .hub order.
 func claimedRepos(h hub) []string {
 	var out []string
@@ -121,28 +147,12 @@ func newTeamIssuesCmd(d deps) *cobra.Command {
 		Short: "New issues nobody has claimed, in each repo this team's .hub claims, newest first",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cwd, err := os.Getwd()
+			cwd, h, err := thisHub()
 			if err != nil {
 				return err
 			}
-			self, workspace, err := hereHub(cwd)
-			if err != nil {
-				return err
-			}
-			hubs, err := readHubs(workspace)
-			if err != nil {
-				return err
-			}
-			for _, h := range hubs {
-				if h.Name == self {
-					if h.Err != nil {
-						return fmt.Errorf("%s/.hub: %w", self, h.Err)
-					}
-					teamIssues(cmd.OutOrStdout(), d.sdlc, cwd, h, limit)
-					return nil
-				}
-			}
-			return fmt.Errorf("%s: no .hub found in %s", self, workspace)
+			teamIssues(cmd.OutOrStdout(), d.sdlc, cwd, h, limit)
+			return nil
 		},
 	}
 	c.Flags().IntVar(&limit, "limit", limit, "newest unclaimed issues shown per repo (0: all)")
