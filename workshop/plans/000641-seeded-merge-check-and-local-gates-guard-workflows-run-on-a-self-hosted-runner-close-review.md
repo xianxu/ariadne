@@ -173,3 +173,61 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"e503ea9c-aa4e-43e4-bf8a-86f868e2b744","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"small-diff-review","round":2,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/772e84f519c51598","reviewed_head":"1994b7b73ae79590f15202f3d8dd8f52c6b945d3","slot":"ariadne:2","requested_at":"2026-10-26T05:58:50.878494Z"},"phase":"finished","pid":2805,"started_at":"2026-10-26T05:58:50.982434Z","finished_at":"2026-10-26T06:00:16.626316Z","session_id":"bb993921-c09d-4d30-9f1a-13419c1b0746","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T23:14:47-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 641 — Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51 |
+| repo | ariadne |
+| issue file | workshop/issues/000641-seeded-merge-check-and-local-gates-guard-workflows-run-on-a-self-hosted-runner.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 03240ca21cfbe668d9327166e002bc62e08904fd..b67a69bf9e31ddbaecffdfb30c2aa36a349c778f |
+| command | sdlc close --issue 641 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T23:14:47-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've checked the fix diff and the sibling claims across the workflows, README and atlas. Writing the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window changes only one workflow comment, the README and the atlas, plus the issue log, frontmatter and the review/gate plan files. Both parts of BR-4 are fixed. The README no longer says the host needs the pinned weave. It now says the host needs a Go new enough for the pin's go.mod and that the job builds weave itself. That matches `merge-check.yml`, where `build.sh` builds with `GOTOOLCHAIN=local` and the build step appends `bin-pin1` to `GITHUB_PATH`. The "never falls back" claim is gone from both the `merge-check.yml` comment and atlas `ci-merge-check.md`. Both now say invalid JSON fails and a falsy value (`0`, `false`, `""`, `null`) reads as unset. That is how `vars.CI_RUNS_ON && fromJSON(vars.CI_RUNS_ON) || 'ubuntu-latest'` behaves: the variable is a non-empty string, so it passes the first test, then `fromJSON` returns a falsy value and the `||` falls through to `ubuntu-latest`.
+
+I swept `.github`, README, atlas and scripts for other claims in this family (`CI_RUNS_ON`, "falls back", "malformed", "pinned weave"). The comment at `local-gates-guard.yml:42-44` makes no fallback claim. The atlas sentence "requires the pinned weave to answer" describes a step that runs after the job has built weave, so it is accurate. The class is covered, not just the site BR-4 named. The window does not touch `## Spec`, `## Revisions` or `## Done when`, so there is no scope change.
+
+Done-when: current — the window changes no behavior; it fixes docs and a comment, so the existing Done-when still covers what was built.
+
+1. **Strengths**
+   - The README host-requirements sentence (`README.md:593-594`) now matches the build step and names the real constraint: a Go new enough for the pin's go.mod.
+   - The falsy-value wording now appears identically in the workflow comment and the atlas, so they can't drift apart.
+   - The fix covers the whole family (the weave claim and the fallback claim), not only the cited line.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** `README.md:594` is longer than the surrounding lines because it wasn't rewrapped. Cosmetic only.
+5. **Test coverage:** these are prose and comment changes, checked against the steps they describe. The existing `portable-ci.test.sh` behavior tests still cover what the docs describe. No new test is needed.
+6. **Architecture** (on this window only):
+   - ARCH-DRY: pass. The two docs now state the same fact the same way.
+   - ARCH-PURE: n/a, no code changed.
+   - ARCH-PURPOSE: pass. Every site in the family was fixed, not just the named one.
+   - ARCH-EVOLVE: n/a, no persisted format changed.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      README.md:593-594 now says the job builds the pinned weave and the host needs Go new enough for the pin's go.mod, which matches merge-check.yml build.sh (GOTOOLCHAIN=local) and the GITHUB_PATH append. merge-check.yml:18-19 and atlas ci-merge-check.md:119-120 now say invalid JSON fails and falsy values read as unset, which matches the && || expression. A sweep of .github, README, atlas and scripts found no remaining sibling claims; the local-gates-guard.yml comment makes no fallback claim.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a6fa6b0e-f466-4fb6-aacd-a3de5af33758","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b2297b5bb521d0cf","reviewed_head":"b67a69bf9e31ddbaecffdfb30c2aa36a349c778f","slot":"ariadne:2","requested_at":"2026-10-26T06:14:15.730055Z"},"phase":"finished","pid":46378,"started_at":"2026-10-26T06:14:15.828408Z","finished_at":"2026-10-26T06:14:46.763231Z","session_id":"fec59edb-6eaa-4bb1-991e-961491cef9f0","outcome":"returned"}] -->
