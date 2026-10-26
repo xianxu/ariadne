@@ -362,7 +362,7 @@ func (c *conductor) gatePrefixAt(base, head string) string {
 	}
 	// Each prefix is gated in the train tree that holds it, never the
 	// conductor's checkout, which lacks later cars' files (#490).
-	if err := runLandingInstanceGate(c.wt, base, head, nounGates(c.f.IssuesDir), io.Discard, c.stderr, c.r); err != nil {
+	if err := runLandingInstanceGate(c.wt, base, head, nounGates(c.f.IssuesDir, c.f.PlansDir), io.Discard, c.stderr, c.r); err != nil {
 		return "the instance gate refuses the train with it: " + firstLine(err.Error())
 	}
 	if err := runLandingDuplicateGate(base, head, c.f.IssuesDir, c.f.HistoryDir, c.r); err != nil {

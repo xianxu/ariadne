@@ -209,11 +209,14 @@ func appendUnique(xs []string, x string) []string {
 	return append(xs, x)
 }
 
-// titleCase upper-cases the first byte of a single-word noun (issue → Issue,
-// pensive → Pensive) to form its #Definition name.
+// titleCase upper-cases each hyphen-separated noun component to form its
+// #Definition name (issue → Issue, side-doc → SideDoc).
 func titleCase(s string) string {
-	if s == "" {
-		return s
+	parts := strings.Split(s, "-")
+	for i, part := range parts {
+		if part != "" {
+			parts[i] = strings.ToUpper(part[:1]) + part[1:]
+		}
 	}
-	return strings.ToUpper(s[:1]) + s[1:]
+	return strings.Join(parts, "")
 }

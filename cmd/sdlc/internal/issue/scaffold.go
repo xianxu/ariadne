@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xianxu/ariadne/pkg/sidedoc"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -94,8 +95,15 @@ func LocalPathsByID(dirs []string) (byID map[int][]string, found int, err error)
 		}
 		found++
 		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			p := filepath.Join(dir, e.Name())
+			if _, ok := sidedoc.Owner(filepath.ToSlash(p)); ok {
+				continue
+			}
 			if n := IDFromFilename(e.Name()); n > 0 {
-				addPath(byID, n, filepath.Join(dir, e.Name()))
+				addPath(byID, n, p)
 			}
 		}
 	}
@@ -119,6 +127,9 @@ func PathsByID(listing string) map[int][]string {
 	for _, line := range strings.Split(listing, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
+			continue
+		}
+		if _, ok := sidedoc.Owner(line); ok {
 			continue
 		}
 		name := line

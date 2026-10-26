@@ -29,22 +29,48 @@ import (
 // records paths (root-relative, or absolute on the merge path's rename leg).
 type sideArchiveDoc struct{ Src, Dst string }
 
-// issueArchiveDocs lists the documents an issue's archive moves that can
-// carry a side folder: the issue file and each of its plan documents.
-func issueArchiveDocs(issueSrc, issueDst, plansFull, recPlansDir, recHistoryDir string) []sideArchiveDoc {
+// sideArchiveDocsForIssue projects the side owners belonging to an issue from
+// an existing path inventory. A side root confers an owner even when its .md
+// document is absent; this projection never creates that document. Archived
+// plan paths normalize to the active owner so interrupted moves share one key.
+func sideArchiveDocsForIssue(issueSrc, issueDst string, paths []string, plansDir, historyDir string) []sideArchiveDoc {
 	docs := []sideArchiveDoc{{issueSrc, issueDst}}
+	seen := map[string]bool{filepath.Clean(issueSrc): true}
+	plansDir = filepath.Clean(plansDir)
+	archivedPlans := filepath.Clean(vocab.ArchiveSubdir(historyDir, vocab.ArchivePlans))
 	base := filepath.Base(issueSrc)
-	matches, _ := filepath.Glob(filepath.Join(plansFull, issueIDPrefix(base)+"-*.md"))
-	sort.Strings(matches)
-	for _, p := range matches {
-		if planArtifactBelongsToIssue(base, filepath.Base(p)) {
-			docs = append(docs, sideArchiveDoc{
-				Src: filepath.Join(recPlansDir, filepath.Base(p)),
-				Dst: archiveDestination(recHistoryDir, vocab.ArchivePlans, filepath.Base(p)),
-			})
+	for _, candidate := range paths {
+		owner, side := sidedoc.Owner(filepath.ToSlash(candidate))
+		if !side {
+			owner = candidate
 		}
+		owner = filepath.Clean(filepath.FromSlash(owner))
+		if filepath.Dir(owner) != plansDir && filepath.Dir(owner) != archivedPlans {
+			continue
+		}
+		if !strings.HasSuffix(owner, ".md") || !planArtifactBelongsToIssue(base, filepath.Base(owner)) {
+			continue
+		}
+		src := filepath.Join(plansDir, filepath.Base(owner))
+		if seen[src] {
+			continue
+		}
+		seen[src] = true
+		docs = append(docs, sideArchiveDoc{src, archiveDestination(historyDir, vocab.ArchivePlans, filepath.Base(owner))})
 	}
+	sort.Slice(docs[1:], func(i, j int) bool { return docs[i+1].Src < docs[j+1].Src })
 	return docs
+}
+
+// issueArchiveDocs inventories top-level plan documents and side roots. The
+// recorded roots may differ from their filesystem locations on merge's leg.
+func issueArchiveDocs(issueSrc, issueDst, plansFull, recPlansDir, recHistoryDir string) []sideArchiveDoc {
+	matches, _ := filepath.Glob(filepath.Join(plansFull, issueIDPrefix(filepath.Base(issueSrc))+"-*"))
+	paths := make([]string, 0, len(matches))
+	for _, p := range matches {
+		paths = append(paths, filepath.Join(recPlansDir, filepath.Base(p)))
+	}
+	return sideArchiveDocsForIssue(issueSrc, issueDst, paths, recPlansDir, recHistoryDir)
 }
 
 // prepareSideArchive lists the member moves for each document's side folder,
@@ -109,20 +135,60 @@ func finishSideArchive(root string, docs []sideArchiveDoc, moves []preparedArchi
 // and archived folders, and the same member in both refuses (a conflict, or a
 // duplicate to remove). Status entries inside no moved document's folders are
 // returned as other, so the resume refuses them.
-func recoverSideArchiveMoves(moves []preparedArchiveMove, entries []gitx.StatusEntry, untracked func(string) bool) ([]preparedArchiveMove, []string, error) {
+func recoverSideArchiveMoves(moves []preparedArchiveMove, entries []gitx.StatusEntry, issuesDir, plansDir, historyDir string, untracked func(string) bool) ([]preparedArchiveMove, []string, error) {
 	deleted := map[string]bool{}
 	for _, e := range entries {
 		if strings.Contains(e.XY, "D") {
 			deleted[e.Path] = true
 		}
 	}
-	expected := map[string]bool{}
-	var out []preparedArchiveMove
+	// Inventory both roots once, then group candidates by issue ID. Even an
+	// unchanged active member must finish when its issue already moved.
+	byID := map[string][]string{}
+	addPath := func(p string) {
+		owner, ok := sidedoc.Owner(filepath.ToSlash(p))
+		if !ok {
+			owner = p
+		}
+		id := issueIDPrefix(filepath.Base(owner))
+		byID[id] = append(byID[id], p)
+	}
+	for _, dir := range []string{plansDir, vocab.ArchiveSubdir(historyDir, vocab.ArchivePlans)} {
+		names, err := os.ReadDir(dir)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, err
+		}
+		for _, name := range names {
+			addPath(filepath.Join(dir, name.Name()))
+		}
+	}
+	for _, e := range entries {
+		addPath(e.Path)
+		if e.Orig != "" {
+			addPath(e.Orig)
+		}
+	}
+	docs := map[string]sideArchiveDoc{}
 	for _, m := range moves {
 		if !strings.HasSuffix(m.IssuePath, ".md") {
 			continue
 		}
-		src, dst := sidedoc.SideDir(m.IssuePath), sidedoc.SideDir(m.HistoryPath)
+		docs[m.IssuePath] = sideArchiveDoc{m.IssuePath, m.HistoryPath}
+		if isIssuePath(m.IssuePath, issuesDir) {
+			for _, d := range sideArchiveDocsForIssue(m.IssuePath, m.HistoryPath, byID[issueIDPrefix(filepath.Base(m.IssuePath))], plansDir, historyDir) {
+				docs[d.Src] = d
+			}
+		}
+	}
+	ordered := make([]sideArchiveDoc, 0, len(docs))
+	for _, d := range docs {
+		ordered = append(ordered, d)
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Src < ordered[j].Src })
+	expected := map[string]bool{}
+	var out []preparedArchiveMove
+	for _, d := range ordered {
+		src, dst := sidedoc.SideDir(d.Src), sidedoc.SideDir(d.Dst)
 		active, err := sideFilesIfAny(src)
 		if err != nil {
 			return nil, nil, err
@@ -269,6 +335,12 @@ func removeEmptyDirs(dir string) {
 // and main's live copies are removed. A destination folder holding anything,
 // or a symlink, refuses.
 func trunkSideArchive(view *gitx.TrunkView, docs []sideArchiveDoc, w *gitx.TrunkWrite, kept []gitx.TreeFile) error {
+	keptByOwner := map[string][]gitx.TreeFile{}
+	for _, f := range kept {
+		if owner, ok := sidedoc.Owner(f.Path); ok {
+			keptByOwner[owner] = append(keptByOwner[owner], f)
+		}
+	}
 	for _, d := range docs {
 		src, dst := sidedoc.SideDir(d.Src), sidedoc.SideDir(d.Dst)
 		live, err := view.Files(src)
@@ -277,12 +349,7 @@ func trunkSideArchive(view *gitx.TrunkView, docs []sideArchiveDoc, w *gitx.Trunk
 		}
 		files := live
 		if kept != nil {
-			files = nil
-			for _, f := range kept {
-				if strings.HasPrefix(f.Path, src+"/") {
-					files = append(files, f)
-				}
-			}
+			files = keptByOwner[d.Src]
 		}
 		if len(files)+len(live) == 0 {
 			continue
@@ -312,15 +379,45 @@ func trunkSideArchive(view *gitx.TrunkView, docs []sideArchiveDoc, w *gitx.Trunk
 // episode rewrites: kept members are written, archived members the branch no
 // longer has are removed.
 func trunkSideReplace(view *gitx.TrunkView, archivedDetail string, a mainArchive, w *gitx.TrunkWrite) error {
-	docs := []sideArchiveDoc{{path.Join(a.Dirs.Issues, path.Base(archivedDetail)), archivedDetail}}
+	issueSrc := path.Join(a.Dirs.Issues, path.Base(archivedDetail))
+	archivedPlans := vocab.ArchiveSubdir(a.Dirs.History, vocab.ArchivePlans)
+	oldPlans, err := view.FilesSelected(archivedPlans, func(f gitx.TreeFile) bool {
+		owner, ok := sidedoc.Owner(f.Path)
+		return ok && path.Dir(owner) == archivedPlans && planArtifactBelongsToIssue(path.Base(issueSrc), path.Base(owner))
+	})
+	if err != nil {
+		return err
+	}
+	oldIssue, err := view.Files(sidedoc.SideDir(archivedDetail))
+	if err != nil {
+		return err
+	}
+	paths := make([]string, 0, len(oldPlans)+len(a.Sides)+len(a.Plans))
+	for _, f := range oldPlans {
+		paths = append(paths, f.Path)
+	}
 	for name := range a.Plans {
-		if strings.HasSuffix(name, ".md") {
-			docs = append(docs, sideArchiveDoc{path.Join(a.Dirs.Plans, name), filepath.ToSlash(archiveDestination(a.Dirs.History, vocab.ArchivePlans, name))})
+		paths = append(paths, path.Join(a.Dirs.Plans, name))
+	}
+	keptByOwner := map[string][]gitx.TreeFile{}
+	for _, f := range a.Sides {
+		paths = append(paths, f.Path)
+		if owner, ok := sidedoc.Owner(f.Path); ok {
+			keptByOwner[owner] = append(keptByOwner[owner], f)
 		}
 	}
+	oldByOwner := map[string][]gitx.TreeFile{}
+	for _, files := range [][]gitx.TreeFile{oldPlans, oldIssue} {
+		for _, f := range files {
+			if owner, ok := sidedoc.Owner(f.Path); ok {
+				oldByOwner[owner] = append(oldByOwner[owner], f)
+			}
+		}
+	}
+	docs := sideArchiveDocsForIssue(issueSrc, archivedDetail, paths, a.Dirs.Plans, a.Dirs.History)
 	for _, d := range docs {
 		keep := map[string]bool{}
-		for _, f := range a.Sides {
+		for _, f := range keptByOwner[d.Src] {
 			if t, ok := sidedoc.MoveMember(f.Path, d.Src, d.Dst); ok {
 				if f.Mode == "120000" {
 					return fmt.Errorf("%s is a symlink; side folders hold regular files only", f.Path)
@@ -329,11 +426,7 @@ func trunkSideReplace(view *gitx.TrunkView, archivedDetail string, a mainArchive
 				keep[t] = true
 			}
 		}
-		old, err := view.Files(sidedoc.SideDir(d.Dst))
-		if err != nil {
-			return err
-		}
-		for _, f := range old {
+		for _, f := range oldByOwner[d.Dst] {
 			if !keep[f.Path] {
 				w.Delete = append(w.Delete, f.Path)
 			}

@@ -125,6 +125,18 @@ answer marked fresh, stale or unknown (#279). What each verb does when it is
 repeated, interrupted or answered by a lost response, and which tests prove it,
 is in every workflow verb's `--help` and in `sdlc help recovery` (#280).
 
+Issue and plan `.side/` trees carry evidence without creating another issue
+ID, and archive with their issue even if the plan document is absent. Untyped
+Markdown and non-Markdown attachments stay unmodeled. Markdown that declares
+`type` in frontmatter must conform to `side-doc`: literal `type: side-doc` and
+a nonempty `parent` reference; parent-target existence is not required.
+Malformed or unterminated leading frontmatter refuses as ambiguous; fix the
+header or remove its delimiters to retain ordinary attachment text. Validate
+one explicitly with `vocabulary validate-instance --type side-doc PATH`.
+Deploy/rebuild vocabulary and sdlc together: compound noun selection and the
+side-doc schema must be present before the conformance gate uses them. See
+[archive and side-folder policy](atlas/workflow/sdlc-binary.md).
+
 The issue branch is pushed at every boundary (start-plan, milestone-close,
 close, unclaim), leased on the copy last fetched, so started work survives a
 lost machine; `sdlc merge` deletes it from the remote once landed (#286).
