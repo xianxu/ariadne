@@ -15,7 +15,8 @@ jobs:
   merge-check:
     # A repository picks its runner with the CI_RUNS_ON variable, a JSON
     # runs-on value such as ["self-hosted","local-ci"] (#641); unset is
-    # GitHub-hosted. A malformed value fails the run, never falls back.
+    # GitHub-hosted. Invalid JSON fails the run; a falsy value (0, false, "",
+    # null) reads as unset.
     runs-on: ${{ vars.CI_RUNS_ON && fromJSON(vars.CI_RUNS_ON) || 'ubuntu-latest' }}
     timeout-minutes: 45
     steps:

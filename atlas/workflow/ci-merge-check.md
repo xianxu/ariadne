@@ -115,9 +115,9 @@ check-set and can't drift.
 ## Which runner (#641)
 
 Both seeded workflows (`merge-check`, `local-gates-guard`) take `runs-on` from the
-repository variable `CI_RUNS_ON`, a JSON runs-on value (echo: `["self-hosted","local-ci"]`,
-set with `gh variable set`); unset is `ubuntu-latest`, and a malformed value fails the run
-rather than falling back. On a runner that is not GitHub-hosted nothing installs on the host:
+repository variable `CI_RUNS_ON`, a JSON runs-on value set with `gh variable set` (echo uses
+`["self-hosted","local-ci"]`); unset is `ubuntu-latest`. Invalid JSON fails the run; a falsy
+value (`0`, `false`, `""`, `null`) reads as unset. On a runner that is not GitHub-hosted nothing installs on the host:
 the setup-homebrew and setup-go steps are guarded off, a first step checks go, git and
 python3 are installed and sets `GOTOOLCHAIN=local` and `UV_PYTHON_DOWNLOADS=never`, and a
 step before `bootstrap.sh` requires the pinned weave to answer so bootstrap's brew branch

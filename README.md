@@ -590,8 +590,8 @@ merge` refuses to land a PR whose checks are red or still pending. See
 Both seeded workflows run on `ubuntu-latest` unless the repository variable
 `CI_RUNS_ON` names another runner as a JSON runs-on value, for example
 `gh variable set CI_RUNS_ON --body '["self-hosted","local-ci"]'`. A self-hosted
-runner installs nothing, so Go, git and Python 3 must already be on the host,
-along with the pinned weave. `merge-check` then runs PR code on that machine, so
+runner installs nothing, so Go (new enough for the pinned compiler's go.mod), git
+and Python 3 must already be on the host; the job builds the pinned weave itself. `merge-check` then runs PR code on that machine, so
 use a self-hosted runner only in a private repository that takes no fork PRs. See
 [which runner](atlas/workflow/ci-merge-check.md#which-runner-641).
 
