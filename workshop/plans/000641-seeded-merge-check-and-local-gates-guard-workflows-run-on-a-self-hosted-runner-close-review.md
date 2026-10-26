@@ -299,3 +299,64 @@ findings:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9afa2bef-4531-4cd4-a843-63d43e3a93a2","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/44d5fb1140a731ab","reviewed_head":"756fbd92d1782e9f5ef0e993ae46843ae85ead65","slot":"ariadne:2","requested_at":"2026-10-26T06:21:18.963087Z"},"phase":"finished","pid":75166,"started_at":"2026-10-26T06:21:19.054009Z","finished_at":"2026-10-26T06:22:22.327857Z","session_id":"53ef5a6f-9e1e-4577-ae6a-0136f3f1bc0f","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T23:26:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 641 — Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51 |
+| repo | ariadne |
+| issue file | workshop/issues/000641-seeded-merge-check-and-local-gates-guard-workflows-run-on-a-self-hosted-runner.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2c262cf88862e1cf3a1670c7e92128f2f90d067b..fd6e197055255b92c22b1468e30ae3d38afb9b27 |
+| command | sdlc close --issue 641 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T23:26:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window makes one code change: a one-line fix to a test fixture at `scripts/test/portable-ci.test.sh:153`. The other changes are gate and review ledger records in `workshop/plans/` and a close-log entry in the issue file. The fix replaces `(nogo/tool).exists()` with `os.path.lexists(nogo/tool)`. That fully addresses BR-5. `os` is already imported in the embedded Python, and the full harness passes on the pinned head (`PASS CI actual blocks: …`, rc=0). Nothing blocks SHIP.
+
+Done-when: current — the window changes no Spec, Revisions or Done-when text. The issue-file diff only adds a close-log entry and a Log line about this fix, so the Done-when written for the self-hosted CI_RUNS_ON workflows still covers the build.
+
+1. **Strengths**
+   - `scripts/test/portable-ci.test.sh:153`: the fix covers the whole class. `lexists` treats any entry that is already present as present, whether it is a dangling link, a valid link or a file. That covers merged-/usr hosts and partial overlaps between `/usr/bin` and `/bin`, not just the one case the finding named.
+   - I reproduced the scenario in a scratch directory: `bin` was a symlink to `usr`, and `usr` held a dangling link. The old `exists()` check raised `FileExistsError`; `lexists` completed. So the fix is reachable and it is what fixes the bug.
+   - The change is minimal and matches the style of the surrounding fixture code.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none.
+
+5. **Test coverage notes**
+   - This is a fix to test-harness code, so the harness running cleanly on a normal host is the evidence. I didn't ask for a dedicated test that fails without the fix, because that would need a merged-/usr host with a dangling system link. The scratch reproduction above shows the old code fails and the new code doesn't.
+
+6. **Architectural notes (interdiff only)**
+   - ARCH-DRY: pass. No duplicated logic was added.
+   - ARCH-PURE: pass. The change only touches a test fixture; no business logic moved.
+   - ARCH-PURPOSE: pass. The fix covers the whole class of "entry already present", not only the instance BR-5 named.
+   - ARCH-EVOLVE: pass. No persisted format changed (the ledger files are append-only records).
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      portable-ci.test.sh:153 now uses os.path.lexists; a scratch merged-usr repro raises FileExistsError with exists() and passes with lexists; the full harness passes on fd6e1970.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"b317fa68-6fc0-43ec-bc0c-cbf65d2eff0e","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"fix-review","round":5,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/ea314fd290f76ff6","reviewed_head":"fd6e197055255b92c22b1468e30ae3d38afb9b27","slot":"ariadne:2","requested_at":"2026-10-26T06:26:19.197925Z"},"phase":"finished","pid":2439,"started_at":"2026-10-26T06:26:19.307431Z","finished_at":"2026-10-26T06:26:57.903795Z","session_id":"113a7028-93e6-44df-bbc2-1552c85b84f6","outcome":"returned"}] -->
