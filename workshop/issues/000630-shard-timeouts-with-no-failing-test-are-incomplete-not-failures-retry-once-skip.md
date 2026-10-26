@@ -1,12 +1,12 @@
 ---
 id: 000630
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours: 1.99
-card_mirror: 'ad6efb64fb42ebaabd046947f82415d45f4e9531' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ca85846d43e6740eb941d14381ee2df5901751cd' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T09:51:07-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.57
 ---
 
 # Shard timeouts with no failing test are 'incomplete', not failures: retry once, skip the main-baseline diagnosis
