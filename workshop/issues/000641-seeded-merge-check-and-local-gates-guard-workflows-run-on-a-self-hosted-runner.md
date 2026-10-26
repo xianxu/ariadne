@@ -6,7 +6,15 @@ github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: '2322aa42bdbb9097e17aa239eed111d9ba58716f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c1322710375963f49fd67738f5af10e63bc45467' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-25T17:26:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51
@@ -41,3 +49,8 @@ Both seeded workflows can run on a self-hosted runner, chosen per repository, wi
 
 ## Log
 
+
+### 2026-10-25
+
+- Filed by ariadne:2, split from #637 for echo#51; design approved by the TL as written in ## Spec (including refusing ariadne source CI off GitHub-hosted runners, and the harness evaluating step conditions over a hosted and a self-hosted runner model). Echo's full spec: echo branch 000051-ci-on-the-operator-s-self-hosted-runner-local-ci-quick-merge-checks-no-host, workshop/plans/000051-self-hosted-ci-plan.md.
+- Paused by the fleet wind-down (operator, 10-25) before start-plan; no code written. Next step: `sdlc claim --issue 641`, `sdlc start-plan --issue 641`, then the Plan's first box: in scripts/test/portable-ci.test.sh replace the exact-string condition matches (`steps.gateway.outputs.pin2 != ''`, `source_ci == 'true'`) with an evaluator over a runner model (`runner.environment` github-hosted vs self-hosted), run the real blocks under both, and add the S6 structural asserts red before editing the two workflows. Landing needs the operator's local-gates-verified label (TL brings it); send echo:2 the merge commit.
