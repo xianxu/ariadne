@@ -5,22 +5,50 @@ SOURCE="$(cd "$(dirname "$0")/../.." && pwd)"
 python3 - "$SOURCE" <<'PY'
 import os,pathlib,re,shutil,subprocess,sys,tempfile
 source=pathlib.Path(sys.argv[1]); workflow=(source/'.github/workflows/merge-check.yml').read_text()
+# Every step, `uses:` ones included (block None), so the runner model below
+# decides which run on a GitHub-hosted and which on a self-hosted runner (#641).
 steps=[]
 for raw in re.split(r'^      - ',workflow,flags=re.M)[1:]:
-    match=re.search(r'^        run: \|\n((?:          .*\n|\n)+)',raw,re.M)
-    if not match: continue
-    block=''.join(line[10:] if line.startswith('          ') else line for line in match[1].splitlines(True))
     condition=re.search(r'^        if: (.+)$',raw,re.M)
+    condition=condition[1] if condition else ''
+    uses=re.search(r'^(?:        )?uses: (\S+)$',raw,re.M)
+    match=re.search(r'^        run: \|\n((?:          .*\n|\n)+)',raw,re.M)
+    if not match:
+        steps.append((raw.splitlines()[0],None,condition,{},uses[1] if uses else ''))
+        continue
+    block=''.join(line[10:] if line.startswith('          ') else line for line in match[1].splitlines(True))
     environment=dict(re.findall(r'^          ([A-Z_]+): (.+)$',raw[:match.start()],re.M))
-    steps.append((raw.splitlines()[0],block,condition[1] if condition else '',environment))
-assert len(steps)>=8,steps
+    steps.append((raw.splitlines()[0],block,condition,environment,''))
+assert len([step for step in steps if step[1] is not None])>=8,steps
+HOSTED="runner.environment == 'github-hosted'"; NOT_HOSTED="runner.environment != 'github-hosted'"
+def holds(condition,runner,outputs):
+    """The step conditions the seeds use: conjunctions of == / != over the runner and gateway outputs."""
+    for term in filter(None,condition.split(' && ')):
+        m=re.fullmatch(r"(runner\.environment|steps\.gateway\.outputs\.(\w+)) (==|!=) '([^']*)'",term)
+        assert m,('a step condition the runner model cannot evaluate',condition)
+        value=runner if m[2] is None else outputs.get(m[2],'')
+        if (value==m[4])!=(m[3]=='=='):return False
+    return True
+# The runner is a per-repository choice; unset is GitHub-hosted as before (#641).
+RUNS_ON="runs-on: ${{ vars.CI_RUNS_ON && fromJSON(vars.CI_RUNS_ON) || 'ubuntu-latest' }}"
+for name in ('merge-check.yml','local-gates-guard.yml'):
+    text=(source/'.github/workflows'/name).read_text()
+    assert re.findall(r'^    runs-on: .*$',text,re.M)==['    '+RUNS_ON],(name,'runs-on')
+    assert not re.search(r'^\s+ref:',text,re.M),(name,'checks out something other than the event commit')
+for name,block,condition,environment,uses in steps:
+    if uses.startswith(('Homebrew/actions/setup-homebrew@','actions/setup-go@')):
+        assert HOSTED in condition.split(' && '),('a host-installing step can run on a self-hosted runner',name)
+self_hosted=[step for step in steps if NOT_HOSTED in step[2].split(' && ')]
+assert len(self_hosted)==2 and all(step[1] for step in self_hosted),self_hosted
+for name,block,*_ in self_hosted:
+    assert not re.search(r'\./|scripts/|bash |source ',block),('a self-hosted check runs a path from the tree',name)
 pin='63d6bfd86509d97649e10d7a5dd1e9a06db17d21'; other='a'*40; old='4de31b2de32c8143d61abe17bbe7f7654503cd42'
 assert 'scripts/ci/*' not in workflow  # no path filter can skip conformance
 assert 'go-version-file: ${{ runner.temp }}/weave-ci/pin1/go.mod' in workflow
 assert 'go-version-file: ${{ runner.temp }}/weave-ci/pin2/go.mod' in workflow
 assert workflow.index('Select candidate toolchain') > workflow.index('Build second pinned compiler')
 assert 'contents: read' in workflow
-assert '${{' not in ''.join(step[1] for step in steps), 'event values reach scripts only through env'
+assert '${{' not in ''.join(step[1] or '' for step in steps), 'event values reach scripts only through env'
 assert 'brew tap' not in workflow and 'BOOTSTRAP_CLONE_ONLY' not in workflow
 # Exercise the exact template pipelines under pipefail, without paying for a
 # compiler build per iteration. The large valid input forces an early reader
@@ -58,7 +86,7 @@ with tempfile.TemporaryDirectory(prefix='portable ci ') as tmp:
     (leaf/'scripts/merge-checks.d').mkdir(parents=True);(leaf/'.sdlc').mkdir()
     (leaf/'bootstrap.sh').write_bytes((source/'bootstrap.sh').read_bytes());(leaf/'bootstrap.sh').chmod(0o755)
     (leaf/'Brewfile').write_text('brew "go"\nbrew "cue"\n')
-    executable(root/'gateway','if [ "$*" = "dependencies --help" ]; then exit 0; fi\necho "compile:$(cat "$0.identity")" >> "$FIXTURE/leaf/events"\n[ "${FAIL_COMPILE:-0}" = 0 ] || exit 7\ncp "$SOURCE/scripts/run-merge-checks.sh" scripts/run-merge-checks.sh\n')
+    executable(root/'gateway','if [ "$*" = "dependencies --help" ]; then [ "${NO_DEPENDENCIES:-0}" = 0 ]; exit 0; fi\necho "compile:$(cat "$0.identity")" >> "$FIXTURE/leaf/events"\n[ "${FAIL_COMPILE:-0}" = 0 ] || exit 7\ncp "$SOURCE/scripts/run-merge-checks.sh" scripts/run-merge-checks.sh\n')
     executable(commands/'weave','echo WRONG-PATH-COMPILER >> "$FIXTURE/leaf/events"; exit 99\n')
     executable(commands/'git',r'''
 if [ "${1:-}" = -C ]; then
@@ -115,19 +143,31 @@ else:
         sys.exit(1)
     if os.getenv('FAIL_CHECK'):sys.exit(14)
 ''')
-    env=dict(os.environ,PATH=f'{commands}:/usr/bin:/bin',SOURCE=str(source),FIXTURE=str(root),RUNNER_TEMP=str(runner),GITHUB_WORKSPACE=str(leaf),GITHUB_PATH=str(root/'path'),GITHUB_OUTPUT=str(root/'output'),REAL_GIT=realgit)
-    def run(code=0,source_ci=False,selected=pin+'\n',supported=None,event=None,extra=None,module='github.com/xianxu/ariadne'):
+    env=dict(os.environ,PATH=f'{commands}:/usr/bin:/bin',SOURCE=str(source),FIXTURE=str(root),RUNNER_TEMP=str(runner),GITHUB_WORKSPACE=str(leaf),GITHUB_PATH=str(root/'path'),GITHUB_OUTPUT=str(root/'output'),GITHUB_ENV=str(root/'github env'),REAL_GIT=realgit)
+    # A self-hosted runner missing a tool: the fixture commands and the system
+    # directories, both without go (a GitHub-hosted image has one in /usr/bin).
+    nogo=root/'commands without go'; nogo.mkdir()
+    for tool in ('git','brew','weave'):(nogo/tool).symlink_to(commands/tool)
+    for directory in ('/usr/bin','/bin'):
+        for tool in os.listdir(directory):
+            if tool!='go' and not os.path.lexists(nogo/tool):(nogo/tool).symlink_to(pathlib.Path(directory)/tool)
+    nogo_path=str(nogo)
+    last={}
+    def run(code=0,source_ci=False,selected=pin+'\n',supported=None,event=None,extra=None,module='github.com/xianxu/ariadne',machine='github-hosted',path=None):
         if runner.exists():shutil.rmtree(runner)
-        runner.mkdir();(root/'path').write_text('');(root/'output').write_text('');(leaf/'events').write_text('')
+        runner.mkdir();(root/'path').write_text('');(root/'output').write_text('');(root/'github env').write_text('');(leaf/'events').write_text('')
         if selected is None:(leaf/'.sdlc/weave-compiler-ref').unlink(missing_ok=True)
         else:(leaf/'.sdlc/weave-compiler-ref').write_bytes(selected.encode())
         (leaf/'.sdlc/weave-compiler-refs').write_text(supported or pin+'\n')
         if source_ci:(leaf/'go.mod').write_text('module '+module+'\ngo 1.26.3\n')
         else:(leaf/'go.mod').unlink(missing_ok=True)
-        current=dict(env,CI_REPOSITORY='xianxu/ariadne' if source_ci else 'xianxu/consumer',**(event or {'EVENT':'pull_request','PR_BASE':sha,'PR_HEAD':sha}),**(extra or {}));outputs={}
-        for name,block,condition,environment in steps:
-            if condition=="steps.gateway.outputs.pin2 != ''" and not outputs.get('pin2'):continue
-            if condition=="steps.gateway.outputs.source_ci == 'true'" and outputs.get('source_ci')!='true':continue
+        base_path=path or env['PATH']
+        current=dict(env,PATH=base_path,RUNNER_ENVIRONMENT=machine,CI_REPOSITORY='xianxu/ariadne' if source_ci else 'xianxu/consumer',**(event or {'EVENT':'pull_request','PR_BASE':sha,'PR_HEAD':sha}),**(extra or {}));outputs={}
+        taken=[]
+        for name,block,condition,environment,uses in steps:
+            if not holds(condition,machine,outputs):continue
+            if block is None:
+                taken.append(uses);continue
             step_env=dict(current)
             for key,value in environment.items():
                 match=re.fullmatch(r'\$\{\{ steps.gateway.outputs.(\w+) \}\}',value)
@@ -137,11 +177,24 @@ else:
             result=subprocess.run(['bash','-c',block],cwd=leaf,env=step_env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
             if result.returncode:break
             outputs=dict(line.split('=',1) for line in (root/'output').read_text().splitlines())
-            paths=(root/'path').read_text().splitlines();current['PATH']=':'.join(reversed(paths))+':'+env['PATH']
+            paths=(root/'path').read_text().splitlines();current['PATH']=':'.join(reversed(paths))+':'+base_path
+            current.update(line.split('=',1) for line in (root/'github env').read_text().splitlines())
         assert result.returncode==code,(name,result.returncode,result.stdout)
         rows=(leaf/'events').read_text().splitlines();assert 'WRONG-PATH-COMPILER' not in rows,rows
+        last.update(uses=taken,github_env=(root/'github env').read_text())
         return rows,result.stdout
     rows,_=run();assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave',f'compile:{pin}','setup','checked'],rows
+    assert 'Homebrew/actions/setup-homebrew@main' in last['uses'] and 'actions/setup-go@v5' in last['uses'] and not last['github_env'],last
+    # A self-hosted runner (#641) runs the same blocks with the host's tools:
+    # nothing installs there, toolchains never download, and weave is checked
+    # before bootstrap.sh so its brew-install branch cannot run.
+    rows,_=run(machine='self-hosted');assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave',f'compile:{pin}','setup','checked'],rows
+    assert last['uses']==['actions/checkout@v4'],last
+    assert last['github_env'].splitlines()==['GOTOOLCHAIN=local','UV_PYTHON_DOWNLOADS=never'],last
+    rows,out=run(1,machine='self-hosted',path=nogo_path);assert not rows and 'lacks go' in out,(rows,out)
+    rows,out=run(1,machine='self-hosted',extra={'NO_DEPENDENCIES':'1'})
+    assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave'] and 'no weave with dependencies' in out,(rows,out)
+    rows,out=run(1,source_ci=True,machine='self-hosted');assert not rows and 'GitHub-hosted' in out,(rows,out)
     # A second declared compiler remains independent; source CI uses candidate for bootstrap.
     rows,_=run(source_ci=True,supported=pin+'\n'+other+'\n')
     assert rows.count(f'check:{pin}')==1 and rows.count(f'check:{other}')==1 and rows.count(f'check:{old}')==1,rows

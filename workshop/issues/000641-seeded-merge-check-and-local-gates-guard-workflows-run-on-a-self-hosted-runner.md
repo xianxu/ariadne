@@ -1,12 +1,12 @@
 ---
 id: 000641
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: 'c1322710375963f49fd67738f5af10e63bc45467' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4e52c237b390c75bb180231619561158ab6844a9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T17:26:24-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,8 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "ea365fd5", done: "7fb9bde4"}
+actual_hours: 0.80
 ---
 
 # Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51
@@ -43,14 +45,27 @@ Both seeded workflows can run on a self-hosted runner, chosen per repository, wi
 
 ## Plan
 
-- [ ] Harness first: runner model in portable-ci.test.sh (conditions evaluated, hosted and self-hosted runs), red on the new asserts
-- [ ] Workflow edits S1–S5
-- [ ] Harnesses green; atlas/workflow/ci-merge-check.md notes CI_RUNS_ON
+- [x] Harness first: runner model in portable-ci.test.sh (conditions evaluated, hosted and self-hosted runs), red on the new asserts
+- [x] Workflow edits S1–S5
+- [x] Harnesses green; atlas/workflow/ci-merge-check.md notes CI_RUNS_ON
+
+## Revisions
+
+- 2026-10-25 (close review round 1, BR-2): S6's runs-on assertion for local-gates-guard.yml lives in scripts/test/portable-ci.test.sh, which checks both seeds against one RUNS_ON constant; local-gates-guard.test.sh is unchanged (a second copy would restate the expression).
 
 ## Log
 
 
 ### 2026-10-25
+- 2026-10-25: closed — Round 4 Minor fixed in fd6e1970: the missing-go PATH dedupe uses os.path.lexists so a dangling system symlink cannot raise. portable-ci.test.sh green locally; hosted CI reruns on the push. (fixed-then-ship) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-25: closed — Hosted merge-check on PR #448 failed in the missing-go case: the Ubuntu image has a go in its system dirs, so command -v found it. Fixed in f085a20c: the case runs on the fixture commands plus /usr/bin and /bin symlinks without go. portable-ci.test.sh green locally; hosted CI reruns on the push. 756fbd92 removes a stray file an unexpanded glob created in f085a20c. (fixed-then-ship) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-25: closed — Round-2 Minor fixed after close in b67a69bf9: README host requirements (no pinned weave on the host; Go new enough for the pin), merge-check.yml comment and atlas say invalid JSON fails while a falsy CI_RUNS_ON reads as unset, atlas wording. Comment and docs only; portable-ci.test.sh rerun green. (fixed-then-ship) (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-25: closed — portable-ci.test.sh runs the actual merge-check blocks under a GitHub-hosted and a self-hosted runner model with conditions evaluated: self-hosted gives the same event rows, takes only actions/checkout, writes GOTOOLCHAIN=local and UV_PYTHON_DOWNLOADS=never; missing go refuses naming it; a weave without dependencies refuses with the S4 message before bootstrap; ariadne source CI refuses off GitHub-hosted. Structural asserts on both seeds (runs-on expression, guards on setup-homebrew/setup-go, self-hosted steps run no tree path, no checkout ref). Red before the workflow edits; mutations turn it red. local-gates-guard.test.sh green. Pre-close suite green on f8e342c2; 1994b7b7 adds README/atlas docs and tightens one assert (harness rerun green). Round 1 BR-1..3 fixed. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 
 - Filed by ariadne:2, split from #637 for echo#51; design approved by the TL as written in ## Spec (including refusing ariadne source CI off GitHub-hosted runners, and the harness evaluating step conditions over a hosted and a self-hosted runner model). Echo's full spec: echo branch 000051-ci-on-the-operator-s-self-hosted-runner-local-ci-quick-merge-checks-no-host, workshop/plans/000051-self-hosted-ci-plan.md.
 - Paused by the fleet wind-down (operator, 10-25) before start-plan; no code written. Next step: `sdlc claim --issue 641`, `sdlc start-plan --issue 641`, then the Plan's first box: in scripts/test/portable-ci.test.sh replace the exact-string condition matches (`steps.gateway.outputs.pin2 != ''`, `source_ci == 'true'`) with an evaluator over a runner model (`runner.environment` github-hosted vs self-hosted), run the real blocks under both, and add the S6 structural asserts red before editing the two workflows. Landing needs the operator's local-gates-verified label (TL brings it); send echo:2 the merge commit.
+- Resumed under the move plan's phase A1 (TL, operator-approved). Harness first: portable-ci.test.sh now parses every step (uses ones too) and evaluates conditions over a runner model (== / != conjunctions over runner.environment and gateway outputs; anything else fails the harness), runs the actual blocks GitHub-hosted and self-hosted, and asserts S6 (a)-(d) structurally for both seeds. Red on runs-on before the workflow edits; green after. Self-hosted cases: same event rows as hosted, only actions/checkout taken, GITHUB_ENV carries GOTOOLCHAIN=local and UV_PYTHON_DOWNLOADS=never; missing go refuses naming it; a weave without dependencies refuses before bootstrap; source CI refuses naming GitHub-hosted. Mutations: dropping the source-CI refusal and dropping setup-homebrew's guard each turn it red. local-gates-guard.test.sh green.
+- Close review round 1 FIX-THEN-SHIP: BR-1 README now documents CI_RUNS_ON (gh variable set, host tools, private repositories only); the reviewer's fork-PR note added to README and atlas; BR-2 Revisions entry; BR-3 the NO_DEPENDENCIES case matches the S4 message.
+- Close review round 2 SHIP with one Minor (operator-doc claims): README no longer says the host needs the pinned weave (the job builds it; the host needs a Go new enough for the pin), and the workflow comment and atlas say invalid JSON fails while a falsy CI_RUNS_ON reads as unset; atlas wording nit fixed. Fixed after the close, docs and a comment only.
+- Merge refused: hosted merge-check failed in portable-ci.test.sh's missing-go case. The GitHub-hosted Ubuntu image has a go in its system directories, so command -v go found it and real go ran on the fixture (macOS has none, so it passed locally). The missing-go PATH is now the fixture commands plus symlinks of /usr/bin and /bin without go, and nothing else.
+- Round 4 SHIP with one Minor: the missing-go PATH dedupe used Path.exists(), which follows symlinks, so a dangling system link would make symlink_to raise on a merged-/usr host; now os.path.lexists.

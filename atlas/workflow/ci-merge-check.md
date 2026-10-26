@@ -112,6 +112,21 @@ PR's changes.
 **`pre-push` hook** — so local fast-feedback and the server gate run the identical
 check-set and can't drift.
 
+## Which runner (#641)
+
+Both seeded workflows (`merge-check`, `local-gates-guard`) take `runs-on` from the
+repository variable `CI_RUNS_ON`, a JSON runs-on value set with `gh variable set` (echo uses
+`["self-hosted","local-ci"]`); unset is `ubuntu-latest`. Invalid JSON fails the run; a falsy
+value (`0`, `false`, `""`, `null`) reads as unset. On a runner that is not GitHub-hosted nothing installs on the host:
+the setup-homebrew and setup-go steps are guarded off, a first step checks go, git and
+python3 are installed and sets `GOTOOLCHAIN=local` and `UV_PYTHON_DOWNLOADS=never`, and a
+step before `bootstrap.sh` requires the pinned weave to answer so bootstrap's brew branch
+never runs. ariadne's own source CI refuses a self-hosted runner (its candidate build needs
+`brew bundle`). `scripts/test/portable-ci.test.sh` runs the real blocks under both runner
+models.
+`merge-check` runs on `pull_request`, so a self-hosted runner executes PR code on that
+machine: use one only in a private repository that takes no fork PRs.
+
 ## Strictness is opt-in
 
 Without branch protection the check is **advisory** (runs + reports; doesn't block the
