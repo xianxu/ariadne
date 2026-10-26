@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-25
 updated: 2026-10-25
 estimate_hours:
-card_mirror: 'ea1aeaad0a6cfdbcb35fd1a9d8f3597631e99aed' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4e52c237b390c75bb180231619561158ab6844a9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-25T17:26:24-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "ea365fd5", done: "7fb9bde4"}
-actual_hours: 0.57
+actual_hours: 0.80
 ---
 
 # Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51
