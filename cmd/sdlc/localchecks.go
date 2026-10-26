@@ -342,7 +342,7 @@ func (r localRunRecord) knownFlakeOutcome() flakes.Outcome {
 
 func (r localRunRecord) passed() bool {
 	if r.Outcome != "" && r.Outcome != flakes.Passed {
-		return r.Outcome == flakes.KnownFlakePassed || r.Outcome == flakes.KnownFlakeAccept
+		return r.Outcome.Lands()
 	}
 	return r.Exit == 0 && !r.TimedOut
 }
@@ -370,6 +370,8 @@ func (r localRunRecord) statusDescription() string {
 		s = "pass · known flake " + issues + " rerun · " + s
 	case flakes.KnownFlakeAccept:
 		s = "pass · known flake " + issues + " accepted · " + s
+	case flakes.IncompleteRetried:
+		s = "pass · incomplete run retried · " + s
 	case "", flakes.Passed:
 	default:
 		s = string(r.Outcome) + " · " + s

@@ -39,6 +39,19 @@ type SuiteLogFacts struct {
 	Subtests []string `json:"-"`
 	// Typed is a transient projection; raw logs remain the evidence authority.
 	Typed flakes.UnitFacts `json:"-"`
+	// Processes are the sharded runner's processes in log order, with their
+	// exit and whether the Go test alarm stopped them (#630). Never
+	// persisted: a reader re-parses the retained log.
+	Processes []SuiteProcess `json:"-"`
+}
+
+// SuiteProcess is one process of a sharded suite: the packages job or a
+// cmd/sdlc shard.
+type SuiteProcess struct {
+	Label   string
+	Exit    int
+	Alarmed []string // the packages whose Go test alarm stopped it (test-shard's marker)
+	Running []string // the tests those alarms named as running
 }
 
 const suiteLogLineLimit = 1 << 20
@@ -48,6 +61,7 @@ var (
 	goPackageOK   = regexp.MustCompile(`^ok\s+(\S+)\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
 	goPackageFAIL = regexp.MustCompile(`^FAIL\s+(\S+)\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
 	shardWall     = regexp.MustCompile(`^wall\s+([0-9]+(?:\.[0-9]+)?)s(?:\s|$)`)
+	shardAlarm    = regexp.MustCompile(`^---\s+(packages|shard[0-9]+)\s+hit its (\S+) test alarm in (\S+); running: (.*)$`)
 )
 
 // wire: go test -json events may add fields in a newer Go toolchain.
@@ -129,7 +143,21 @@ func parseSuiteLogFacts(log string) SuiteLogFacts {
 			}
 			continue
 		}
+		if m := shardAlarm.FindStringSubmatch(line); m != nil {
+			if i := slices.IndexFunc(facts.Processes, func(p SuiteProcess) bool { return p.Label == m[1] }); i >= 0 {
+				p := &facts.Processes[i]
+				p.Alarmed = append(p.Alarmed, m[3])
+				if m[4] != "none listed" {
+					p.Running = append(p.Running, strings.Split(m[4], ", ")...)
+				}
+			} else {
+				appendSuiteParseWarning(&facts, fmt.Sprintf("line %d: alarm marker for %s precedes its summary", index+1, m[1]))
+			}
+			continue
+		}
 		if m := shardSummary.FindStringSubmatch(line); m != nil {
+			exit, _ := strconv.Atoi(m[2])
+			facts.Processes = append(facts.Processes, SuiteProcess{Label: m[1], Exit: exit})
 			if seconds, ok := suiteSeconds(m[3]); ok {
 				kind := "shard"
 				if m[1] == "packages" {

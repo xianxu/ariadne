@@ -30,6 +30,7 @@ func TestSavedAttemptRecord(t *testing.T) {
 		{"main baseline", with(func(a *SuiteAttempt) { a.MainBaseline = true }), "feed", "baseline"},
 		{"incomplete: no duration", with(func(a *SuiteAttempt) { a.WallSeconds = nil }), "feed", "incomplete"},
 		{"incomplete: no log hash", with(func(a *SuiteAttempt) { a.LogSHA256 = "" }), "", "incomplete"},
+		{"incomplete (timeout) is not a test result (#630)", with(func(a *SuiteAttempt) { a.Version, a.Exit, a.Outcome = 5, 1, "incomplete-timeout" }), "feed", "incomplete (timeout), not a test result"},
 	} {
 		rec, err := savedAttemptRecord(tc.a, tc.logSHA, []string{"tail"}, "o/r", "abc123", "suite", "host1")
 		if tc.want == "" {

@@ -181,3 +181,42 @@ func TestUnattributedFailures(t *testing.T) {
 		}
 	}
 }
+
+// The sharded runner's per-process summaries and alarm markers (#630).
+func TestParseSuiteLogFactsAlarms(t *testing.T) {
+	log := strings.Join([]string{
+		"packages  exit 0    269.9s  0 failed",
+		"shard0    exit 1   1800.4s  1 failed",
+		"--- shard0 hit its 30m0s test alarm in github.com/x/y/cmd/sdlc; running: TestSlow, TestSlow/sub",
+		"--- FAIL github.com/x/y/cmd/sdlc TestBarrier",
+		"shard1    exit 1   1800.4s  0 failed",
+		"--- shard1 hit its 30m0s test alarm in github.com/x/y/cmd/sdlc; running: none listed",
+		"shard2    exit 0   1100.0s  0 failed",
+		"--- 760 listed cmd/sdlc test(s) never ran: TestA, TestB",
+		"wall 1803.5s  (3 shards over 2529 cmd/sdlc tests, 79 other packages)",
+	}, "\n")
+	got := parseSuiteLogFacts(log).Processes
+	want := []SuiteProcess{
+		{Label: "packages"},
+		{Label: "shard0", Exit: 1, Alarmed: []string{"github.com/x/y/cmd/sdlc"}, Running: []string{"TestSlow", "TestSlow/sub"}},
+		{Label: "shard1", Exit: 1, Alarmed: []string{"github.com/x/y/cmd/sdlc"}},
+		{Label: "shard2"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("processes:\n got %+v\nwant %+v", got, want)
+	}
+	var kept []string
+	for _, l := range strings.Split(log, "\n") {
+		if !strings.Contains(l, "test alarm") {
+			kept = append(kept, l)
+		}
+	}
+	for _, p := range parseSuiteLogFacts(strings.Join(kept, "\n")).Processes {
+		if len(p.Alarmed) != 0 {
+			t.Fatalf("a log without markers reports an alarm: %+v", p)
+		}
+	}
+	if w := parseSuiteLogFacts("--- shard9 hit its 30m0s test alarm in p; running: TestX\n").Warnings; len(w) == 0 {
+		t.Fatal("a marker without its summary is not warned about")
+	}
+}

@@ -29,7 +29,7 @@ func TestResumeEnvelopeVersionsByCheck(t *testing.T) {
 		version int
 		check   string
 		ok      bool
-	}{{3, suiteCheckName, true}, {5, affectedCheckName, true}, {3, affectedCheckName, false}, {5, suiteCheckName, false}, {4, affectedCheckName, false}, {5, "lint", false}} {
+	}{{3, suiteCheckName, true}, {5, affectedCheckName, true}, {3, affectedCheckName, false}, {5, suiteCheckName, true /* a selection-fencing suite bundle, #630 */}, {4, affectedCheckName, false}, {4, suiteCheckName, false}, {5, "lint", false}} {
 		err := resumeEnvelope(tc.version, "bb", "x/y", strings.Repeat("a", 40), tc.check, "aa")
 		if (err == nil) != tc.ok {
 			t.Errorf("v%d %s: %v", tc.version, tc.check, err)
@@ -106,6 +106,10 @@ func TestResolveResumeProofAffected(t *testing.T) {
 	}
 }
 
+// preResumeReadVersion is the read version of a binary from before #586;
+// #630 raised the current one to 5, so these tests name the old reader's.
+const preResumeReadVersion = 4
+
 // #586 D4: why version 5. Before #586 a reader falls back from an
 // unreadable resume record to the unsupported-proof envelope, which admits
 // only versions above suiteAttemptReadVersion: a version 5 affected link is
@@ -114,13 +118,13 @@ func TestResolveResumeProofAffected(t *testing.T) {
 func TestOldReaderFencesAffectedLinkPerHead(t *testing.T) {
 	in := resumeAffectedPassed(t)
 	raw, _ := json.Marshal(in.Link)
-	p, err := decodeUnsupportedProof(raw, "bb.json")
+	p, err := decodeUnsupportedProofAt(raw, "bb.json", preResumeReadVersion)
 	if err != nil || p.Check != affectedCheckName || p.RerunOf != "aa" || p.SHA != in.Parent.SHA || p.Version != 5 {
 		t.Fatalf("v5 link as unsupported proof: %+v %v", p, err)
 	}
 	in.Link.Version = 3
 	raw, _ = json.Marshal(in.Link)
-	if _, err := decodeUnsupportedProof(raw, "bb.json"); err == nil {
+	if _, err := decodeUnsupportedProofAt(raw, "bb.json", preResumeReadVersion); err == nil {
 		t.Fatal("a v3 affected link would have been fenced, not invalid")
 	}
 }
@@ -346,7 +350,7 @@ func TestOldReaderFencesAffectedReceiptPerHead(t *testing.T) {
 	l := in.Link
 	r := ResumeReconciliation{Version: 5, Kind: "resume-reconciliation", ID: "ee", Repo: l.Repo, SHA: l.SHA, Check: affectedCheckName, RerunOf: l.RerunOf, LinkID: l.ID, LinkSHA256: in.LinkSHA256, ChildID: l.ChildID, Actor: "uid=1", Note: "stopped", Outcome: "interrupted", FinishedAt: l.CreatedAt.Add(1)}
 	raw, _ := json.Marshal(r)
-	p, err := decodeUnsupportedProof(raw, "ee.json")
+	p, err := decodeUnsupportedProofAt(raw, "ee.json", preResumeReadVersion)
 	if err != nil || p.Check != affectedCheckName || p.SHA != l.SHA || p.Version != 5 {
 		t.Fatalf("v5 receipt as unsupported proof: %+v %v", p, err)
 	}

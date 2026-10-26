@@ -52,10 +52,19 @@ const (
 	RuleOff           Kind = "failed" // policy off: the failure blocks as it always did
 	TooManyKnownFlaky Kind = "too-many-known-flakes"
 	RerunInconclusive Kind = "known-flake-rerun-inconclusive" // timed out, or a named test did not run
+	// IncompleteTimeout: processes hit the Go test alarm and nothing else
+	// failed (#630). Not landing evidence, and not evidence against the code.
+	IncompleteTimeout Kind = "incomplete-timeout"
+	// IncompleteRetried: an incomplete run's one retry, of the packages that
+	// did not finish or had a named failure, passed (#630): landing evidence,
+	// recorded only as a resume composite.
+	IncompleteRetried Kind = "incomplete-retry-passed"
 )
 
 // Lands reports whether an outcome is passing landing evidence.
-func (k Kind) Lands() bool { return k == Passed || k == KnownFlakePassed || k == KnownFlakeAccept }
+func (k Kind) Lands() bool {
+	return k == Passed || k == KnownFlakePassed || k == KnownFlakeAccept || k == IncompleteRetried
+}
 
 // Result is one run's outcome as the classifier reads it.
 type Result struct {

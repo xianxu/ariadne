@@ -1723,6 +1723,7 @@ keep exact-root retry proof and completed-marker idempotence explicit.
 
 - #631: a fix for a race finding names the rule, not the call site. "No permission change during tree repair may follow a symlink at the final component" covered the path-based fallback the first fix left in place; a second round found it because the first answered only the line it was shown.
 
+- #630: a claim that a guard is "pinned" means a test goes red when that guard alone is removed. A fixture a guard further up already refuses proves nothing about the guard below it: three review rounds found guards whose only test case was refused by an earlier branch. Check each claim by deleting the guard and running the tests (a mutation table); a guard no single deletion can expose is redundant, and is removed rather than tested.
 - #623: distinguish side-folder ownership from issue identity and from the
   broader residue inventory used to refuse unsafe archives. Discover canonical
   owners from the path tree, even without the plan document, across preparation,

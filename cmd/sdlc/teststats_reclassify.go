@@ -39,7 +39,7 @@ func suiteBytesSHA256(b []byte) string {
 
 func encodeReclassifiedAttempt(original []byte, auditSHA string) ([]byte, error) {
 	a, err := decodeSuiteAttempt(original)
-	if err != nil || a.Version == 3 {
+	if err != nil || a.Version == 3 || a.Version == suiteAttemptIncompleteVersion {
 		return nil, errors.New("requires original v1/v2 attempt bytes")
 	}
 	var fields map[string]json.RawMessage

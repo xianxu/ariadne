@@ -157,7 +157,7 @@ func TestTypedAttemptVersionIsolationAndBounds(t *testing.T) {
 			t.Fatalf("legacy arbitrary name: %v", err)
 		}
 	}
-	if suiteAttemptVersion != 2 || suiteAttemptReadVersion != 4 {
+	if suiteAttemptVersion != 2 || suiteAttemptReadVersion != 5 {
 		t.Fatalf("writer/read versions = %d/%d", suiteAttemptVersion, suiteAttemptReadVersion)
 	}
 }
