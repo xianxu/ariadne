@@ -231,3 +231,71 @@ dispose:
 ```
 
 <!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"a6fa6b0e-f466-4fb6-aacd-a3de5af33758","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"fix-review","round":3,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/b2297b5bb521d0cf","reviewed_head":"b67a69bf9e31ddbaecffdfb30c2aa36a349c778f","slot":"ariadne:2","requested_at":"2026-10-26T06:14:15.730055Z"},"phase":"finished","pid":46378,"started_at":"2026-10-26T06:14:15.828408Z","finished_at":"2026-10-26T06:14:46.763231Z","session_id":"fec59edb-6eaa-4bb1-991e-961491cef9f0","outcome":"returned"}] -->
+
+---
+
+## Re-review — 2026-10-25T23:22:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 641 — Seeded merge-check and local-gates-guard workflows run on a self-hosted runner (CI_RUNS_ON), split from #637 for echo#51 |
+| repo | ariadne |
+| issue file | workshop/issues/000641-seeded-merge-check-and-local-gates-guard-workflows-run-on-a-self-hosted-runner.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9be56ece84983c4be5c627be73b4f81960c79ca3..756fbd92d1782e9f5ef0e993ae46843ae85ead65 |
+| command | sdlc close --issue 641 |
+| reviewer | claude (anthropic; author anthropic) |
+| isolation | fenced |
+| timestamp | 2026-10-25T23:22:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Wrapping up: the fix test passes locally; I'm confirming the stray glob-named file is gone and then writing the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The fix stays inside the test harness. `scripts/test/portable-ci.test.sh` builds the missing-go PATH from three parts: the fixture commands without go, symlinks of every entry in `/usr/bin` and `/bin` except `go`, and nothing else. The run harness now takes a `path=` argument, so it no longer string-replaces inside `PATH`. Each step rebuilds `PATH` from `GITHUB_PATH` followed by `base_path`, so the self-hosted case can't pick up a system go. That was the cause of the hosted merge refusal recorded in the Log. The test passes at the pinned head on this host (`PASS CI actual blocks…`, rc=0). The stray issue file whose name was an unexpanded glob, created by commit f085a20cf, is removed in commit 756fbd92 and doesn't exist at head. The window doesn't change `## Spec`, `## Revisions` or `## Done when`; the issue diff is front-matter, one Log entry and the closed line.
+
+Done-when: current. The interdiff only hardens one harness case so it actually models a host without go. It adds no behavior and no contract surface.
+
+1. **Strengths**
+   - Replacing `env['PATH'].replace(str(commands),str(tools))` with an explicit `base_path` (`portable-ci.test.sh:164`, `:180`) removes a fragile substring substitution. The PATH used for the case is now explicit rather than derived.
+   - The case now models what it claims, a host without go, instead of depending on the image not having one. That makes it portable across the macOS and Ubuntu hosts it runs on.
+   - The Log records the root cause and why it passed locally (macOS has no system go).
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `portable-ci.test.sh:151-153`: the dedupe uses `Path.exists()`, which follows symlinks. On a usrmerge Linux host `/bin` is the same directory as `/usr/bin`. There, a dangling symlink in `/usr/bin` would first be linked as a dangling link and then re-attempted on the `/bin` pass. That second `symlink_to` raises `FileExistsError`. Use `os.path.lexists` or `is_symlink() or exists()` instead. This host has no dangling links and no name overlaps, so I could not show it failing.
+   - The window has no record of a hosted run going green after the fix. I couldn't revert the fix and see the test go red, because this macOS host has no system go. The hosted CI rerun is the real evidence.
+
+5. **Test coverage notes:** the change is to the test itself. All existing cases still pass at the pinned head, including the hosted and self-hosted rows, `NO_DEPENDENCIES` and the source-CI refusal.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The ad-hoc `tools=` substitution became one `path=` parameter, with no duplication.
+   - ARCH-PURE: pass. The change is harness fixture setup, with no product logic.
+   - ARCH-PURPOSE: pass. It fixes the class (any system go leaking into the missing-go case), not only the Ubuntu instance, because every system directory is filtered.
+   - ARCH-EVOLVE: pass. No persisted format changes.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    kind: defect
+    family: test-fixture-host-portability
+    title: |
+      The missing-go PATH dedupe uses Path.exists(), which follows symlinks, so a dangling /usr/bin link crashes on usrmerge hosts
+    detail: |
+      portable-ci.test.sh:151-153 links /usr/bin, then /bin. Where /bin is the same directory as /usr/bin, a dangling entry is linked once, exists() then returns False, and the second symlink_to raises FileExistsError. Use os.path.lexists (or is_symlink() or exists()) for the dedupe check.
+```
+
+<!-- sdlc-review-usage [{"version":1,"intent":{"disposable_root":true,"id":"9afa2bef-4531-4cd4-a843-63d43e3a93a2","repository":"github.com/xianxu/ariadne","issue_id":"000641","recipe":"fix-review","round":4,"attempt":1,"agent":"claude","root":"/Volumes/TestScratch/review-checkouts/44d5fb1140a731ab","reviewed_head":"756fbd92d1782e9f5ef0e993ae46843ae85ead65","slot":"ariadne:2","requested_at":"2026-10-26T06:21:18.963087Z"},"phase":"finished","pid":75166,"started_at":"2026-10-26T06:21:19.054009Z","finished_at":"2026-10-26T06:22:22.327857Z","session_id":"53ef5a6f-9e1e-4577-ae6a-0136f3f1bc0f","outcome":"returned"}] -->
