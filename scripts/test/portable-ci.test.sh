@@ -150,7 +150,7 @@ else:
     for tool in ('git','brew','weave'):(nogo/tool).symlink_to(commands/tool)
     for directory in ('/usr/bin','/bin'):
         for tool in os.listdir(directory):
-            if tool!='go' and not (nogo/tool).exists():(nogo/tool).symlink_to(pathlib.Path(directory)/tool)
+            if tool!='go' and not os.path.lexists(nogo/tool):(nogo/tool).symlink_to(pathlib.Path(directory)/tool)
     nogo_path=str(nogo)
     last={}
     def run(code=0,source_ci=False,selected=pin+'\n',supported=None,event=None,extra=None,module='github.com/xianxu/ariadne',machine='github-hosted',path=None):
