@@ -144,11 +144,16 @@ else:
     if os.getenv('FAIL_CHECK'):sys.exit(14)
 ''')
     env=dict(os.environ,PATH=f'{commands}:/usr/bin:/bin',SOURCE=str(source),FIXTURE=str(root),RUNNER_TEMP=str(runner),GITHUB_WORKSPACE=str(leaf),GITHUB_PATH=str(root/'path'),GITHUB_OUTPUT=str(root/'output'),GITHUB_ENV=str(root/'github env'),REAL_GIT=realgit)
-    # The same commands without go: a self-hosted runner missing a tool.
+    # A self-hosted runner missing a tool: the fixture commands and the system
+    # directories, both without go (a GitHub-hosted image has one in /usr/bin).
     nogo=root/'commands without go'; nogo.mkdir()
     for tool in ('git','brew','weave'):(nogo/tool).symlink_to(commands/tool)
+    for directory in ('/usr/bin','/bin'):
+        for tool in os.listdir(directory):
+            if tool!='go' and not (nogo/tool).exists():(nogo/tool).symlink_to(pathlib.Path(directory)/tool)
+    nogo_path=str(nogo)
     last={}
-    def run(code=0,source_ci=False,selected=pin+'\n',supported=None,event=None,extra=None,module='github.com/xianxu/ariadne',machine='github-hosted',tools=commands):
+    def run(code=0,source_ci=False,selected=pin+'\n',supported=None,event=None,extra=None,module='github.com/xianxu/ariadne',machine='github-hosted',path=None):
         if runner.exists():shutil.rmtree(runner)
         runner.mkdir();(root/'path').write_text('');(root/'output').write_text('');(root/'github env').write_text('');(leaf/'events').write_text('')
         if selected is None:(leaf/'.sdlc/weave-compiler-ref').unlink(missing_ok=True)
@@ -156,7 +161,8 @@ else:
         (leaf/'.sdlc/weave-compiler-refs').write_text(supported or pin+'\n')
         if source_ci:(leaf/'go.mod').write_text('module '+module+'\ngo 1.26.3\n')
         else:(leaf/'go.mod').unlink(missing_ok=True)
-        current=dict(env,PATH=env['PATH'].replace(str(commands),str(tools)),RUNNER_ENVIRONMENT=machine,CI_REPOSITORY='xianxu/ariadne' if source_ci else 'xianxu/consumer',**(event or {'EVENT':'pull_request','PR_BASE':sha,'PR_HEAD':sha}),**(extra or {}));outputs={}
+        base_path=path or env['PATH']
+        current=dict(env,PATH=base_path,RUNNER_ENVIRONMENT=machine,CI_REPOSITORY='xianxu/ariadne' if source_ci else 'xianxu/consumer',**(event or {'EVENT':'pull_request','PR_BASE':sha,'PR_HEAD':sha}),**(extra or {}));outputs={}
         taken=[]
         for name,block,condition,environment,uses in steps:
             if not holds(condition,machine,outputs):continue
@@ -171,7 +177,7 @@ else:
             result=subprocess.run(['bash','-c',block],cwd=leaf,env=step_env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
             if result.returncode:break
             outputs=dict(line.split('=',1) for line in (root/'output').read_text().splitlines())
-            paths=(root/'path').read_text().splitlines();current['PATH']=':'.join(reversed(paths))+':'+env['PATH'].replace(str(commands),str(tools))
+            paths=(root/'path').read_text().splitlines();current['PATH']=':'.join(reversed(paths))+':'+base_path
             current.update(line.split('=',1) for line in (root/'github env').read_text().splitlines())
         assert result.returncode==code,(name,result.returncode,result.stdout)
         rows=(leaf/'events').read_text().splitlines();assert 'WRONG-PATH-COMPILER' not in rows,rows
@@ -185,7 +191,7 @@ else:
     rows,_=run(machine='self-hosted');assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave',f'compile:{pin}','setup','checked'],rows
     assert last['uses']==['actions/checkout@v4'],last
     assert last['github_env'].splitlines()==['GOTOOLCHAIN=local','UV_PYTHON_DOWNLOADS=never'],last
-    rows,out=run(1,machine='self-hosted',tools=nogo);assert not rows and 'lacks go' in out,(rows,out)
+    rows,out=run(1,machine='self-hosted',path=nogo_path);assert not rows and 'lacks go' in out,(rows,out)
     rows,out=run(1,machine='self-hosted',extra={'NO_DEPENDENCIES':'1'})
     assert rows==[f'fetch:{pin}',f'build:{pin}:./cmd/weave'] and 'no weave with dependencies' in out,(rows,out)
     rows,out=run(1,source_ci=True,machine='self-hosted');assert not rows and 'GitHub-hosted' in out,(rows,out)
