@@ -1,3 +1,5 @@
+> **Frozen snapshot of 2026-10-25; development continues privately.**
+
 # Ariadne
 
 **The collaborative AI harness — a knowledge OS for the AI era.**
